@@ -1,0 +1,128 @@
+<!--
+Copyright 2012 The Toolkitchen Authors. All rights reserved.
+Use of this source code is governed by a BSD-style
+license that can be found in the LICENSE file.
+-->
+<element name="g-component">
+  <script>
+    this.lifecycle({
+      shadowRootCreated: function() {
+      }
+    });
+  </script>
+  <script>
+    (function(){
+      var bindAttrs = function(inAttrs) {
+        inAttrs.forEach(function(a) {
+          a = a.trim();
+          Object.defineProperty(this, a, {
+            get: function() {
+              return this.getAttribute(a);
+            },
+            set: function(v) {
+              return this.setAttribute(a, v);
+            }
+          })
+        }, this);
+      };
+
+      var deref = function(inNode) {
+        return inNode.baby || inNode;
+      };
+
+      var establishNodeReferences = function(inRoot) {
+        this.$ = this.$ || {};
+        var nodes = inRoot.querySelectorAll("[id]");
+        Array.prototype.forEach.call(nodes, function(n) {
+          this.$[n.id] = deref(n);
+        }, this);
+      };
+
+      var handleMutations = function(inMxns) {
+        inMxns.forEach(function(inMxn) {
+          var name = inMxn.attributeName, method = name + "AttributeChanged";
+          if (this[method]) {
+            this[method](inMxn.target.getAttribute(name), inMxn.oldValue);
+          }
+        }, this);
+      };
+
+      var AttrObserver = function(inNode) {
+        var observer = new WebKitMutationObserver(handleMutations.bind(inNode));
+        observer.observe(inNode, {
+          attributes: true,
+          attributeOldValue: true
+        });
+        return observer;
+      };
+
+      var $ = document.querySelector.bind(document);
+
+      var nodeIterator = function(inNodes, inFn) {
+        if (inNodes) {
+          for (var i=0, n; (n=inNodes[i]); i++) {
+            var v = inFn(n);
+            if (v !== undefined) {
+              return v;
+            }
+          }
+        }
+      };
+
+      var inPublicTree = function(inNodes, inNode) {
+        return nodeIterator(inNodes, function(n) {
+          if (inNode == n || inPublicTree(n.lightDom, inNode)) {
+            return true;
+          }
+        });
+      };
+
+      var findOwner = function(inNode) {
+        // find the root of the LOCAL tree that contains 'this'
+        //
+        // find a parent who is a component
+        // ask if we are in his LOCAL tree
+        // repeat
+        //
+        var t = inNode.parentNode;
+        while (t) {
+          if (t.__upgraded__) {
+            if (inPublicTree(t.childNodes, inNode)) {
+              return t;
+            };
+          }
+          t = t.parentNode;
+        }
+      };
+
+      // experimental event handler for mapping events to component instances
+      // publish handler globally, make name as small as possible since
+      // this is ideally an invisible helper API
+      x = function(inHandler) {
+        var owner = findOwner(event.currentTarget);
+        //console.log(inHandler, owner, event);
+        if (owner && owner[inHandler]) {
+          owner[inHandler](event);
+        }
+      };
+
+      HTMLElementElement.prototype.component = function(inUber) {
+        var attributes = this.element.getAttribute("attributes").split(",");
+        //var events = this.getAttribute("events");
+        this.lifecycle({
+          shadowRootCreated: function(inRoot) {
+            bindAttrs.call(this, attributes);
+            establishNodeReferences.call(this, inRoot);
+            if (inUber.shadowRootCreated) {
+              inUber.shadowRootCreated(inRoot);
+            }
+            this.attrObserver = new AttrObserver(this);
+          },
+          created: inUber.created
+        });
+        this.generatedConstructor.prototype = inUber.prototype;
+      };
+    })();
+  </script>
+</element>
+
