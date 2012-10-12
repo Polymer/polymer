@@ -1,0 +1,94 @@
+<!--
+/*
+ * Copyright 2012 The Toolkitchen Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+-->
+<element name="g-overlay" attributes="showClass, hideClass, showing, timeout">
+<link rel="components" href="g-component.html">
+<template>
+	<style scoped>
+		@host {
+			position: absolute;
+			z-index: 10;
+		}
+	</style>
+	<content></content>
+</template>
+<script>
+  this.component({
+    created: function(inSuper) {
+      this.jobId = "animate-" + Math.random();
+      this._squelchShowingChange = true;
+      this.showingAttributeChanged();
+    },
+    prototype: {
+      timeout: 1000,
+      // TODO(sorvell): why is this not an attr-prop?
+      allowAnimation: true,
+      toggleShowing: function() {
+        this.showing = this.showing == "true" ? "false" : "true";
+      },
+      showingAttributeChanged: function() {
+        if (this.canAnimate()) {
+          this.animateShowing();
+        } else {
+          this[this.showing == "true" ? "removeAttribute" : "setAttribute"]("hidden", "true");
+        }
+        if (this._squelchShowingChange) {
+          this._squelchShowingChange = false;
+        } else {
+          webkitRequestAnimationFrame(this.fireShowingChange.bind(this));
+        }
+      },
+      setShowingDirect: function(inValue) {
+        this._squelchShowingChange = true;
+        this.showing = inValue;
+      },
+      fireShowingChange: function() {
+        var detail = {showing: this.showing == "true", rect: this.getBoundingClientRect()};
+        var event = new CustomEvent("showingChange", {bubbles: true, detail: detail})
+        this.dispatchEvent(event); 
+      },
+      canAnimate: function() {
+        return this.allowAnimation && Boolean(this.hideClass || this.showClass);
+      },
+      animateShowing: function() {
+        this.removeAttribute("hidden");
+        webkitRequestAnimationFrame(this._animateShowing.bind(this));
+      },
+      _animateShowing: function() {
+        if (this.showClass) {
+          this.classList.enable(this.showClass, this.showing == "true");
+        }
+        if (this.hideClass) {
+          this.classList.enable(this.hideClass, this.showing == "false");
+        }
+        this.unlisten();
+        this.listen();
+      },
+      listen: function() {
+        this.animationListener = this.finishAnimate.bind(this);
+        this.addEventListener("webkitAnimationEnd", this.animationListener, false);
+        this.addEventListener("webkitTransitionEnd", this.animationListener, false);
+        // always finish animation within timeout
+        this.utils.job(this.jobId, this.animationListener, this.timeout);
+      },
+      finishAnimate: function() {
+        //console.log("end animate");
+        if (this.showing == "false") {
+          this.setAttribute("hidden", "true");
+          this.classList.remove(this.hideClass);
+        }
+        this.unlisten();
+      },
+      unlisten: function() {
+        this.removeEventListener("webkitAnimationEnd", this.animationListener, false);
+        this.removeEventListener("webkitTransitionEnd", this.animationListener, false);
+        this.utils.job.stop(this.jobId);
+      }
+    }
+  });
+</script>
+</element>

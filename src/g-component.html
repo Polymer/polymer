@@ -11,13 +11,35 @@ license that can be found in the LICENSE file.
     });
   </script>
   <script>
+    // polyfill for DOMTokenList features: list of classes in add/remove; 
+    // enable method.
+    (function() {
+      'use strict';
+      var add = DOMTokenList.prototype.add;
+      var remove = DOMTokenList.prototype.remove;
+      DOMTokenList.prototype.add = function() {
+        for (var i = 0; i < arguments.length; i++) {
+         add.call(this, arguments[i]);
+        }
+      };
+      DOMTokenList.prototype.remove = function() {
+        for (var i = 0; i < arguments.length; i++) {
+         remove.call(this, arguments[i]);
+        }
+      };
+      DOMTokenList.prototype.enable = function(name, value) {
+        value ? this.add(name) : this.remove(name);
+      };
+    })();
+    
     (function(){
       var bindAttrs = function(inAttrs) {
         inAttrs.forEach(function(a) {
           a = a.trim();
           Object.defineProperty(this, a, {
             get: function() {
-              return this.getAttribute(a);
+              return this.hasAttribute(a) ? this.getAttribute(a) :
+                this.__proto__[a];
             },
             set: function(v) {
               return this.setAttribute(a, v);
@@ -26,6 +48,18 @@ license that can be found in the LICENSE file.
         }, this);
       };
 
+      var bindEvents = function(inEvents) {
+        inEvents.forEach(function(e) {
+          // event name: handler name pairs
+          var pair = e.split(":");
+          var event = pair[0].trim();
+          var handler = pair[1].trim();
+          if (this[handler]) {
+            this.addEventListener(event, this[handler].bind(this));
+          }
+        }, this);
+      };
+      
       var deref = function(inNode) {
         return inNode.baby || inNode;
       };
@@ -56,8 +90,64 @@ license that can be found in the LICENSE file.
         return observer;
       };
 
-      var $ = document.querySelector.bind(document);
+      var shadowRootCreated = function(inRoot, inUber, inAttributes) {
+        if (inAttributes.attributes) {
+          var attributes = inAttributes.attributes.value.split(",");
+          bindAttrs.call(this, attributes);
+        }
+        if (inAttributes.handlers) {
+          var events = inAttributes.handlers.value.split(",");
+          bindEvents.call(this, events);
+        }
+        establishNodeReferences.call(this, inRoot);
+        if (inUber.shadowRootCreated) {
+          inUber.shadowRootCreated(inRoot);
+        }
+        this.attrObserver = new AttrObserver(this);
+      };
 
+      // utility methods
+      
+      var job = function(inJobName, inJob, inWait) {
+        job.stop(inJobName);
+        job._jobs[inJobName] = setTimeout(function() {
+          job.stop(inJobName);
+          inJob();
+        }, inWait);
+      };
+      job.stop = function(inJobName) {
+        if (job._jobs[inJobName]) {
+          clearTimeout(job._jobs[inJobName]);
+          delete job._jobs[inJobName];
+        }
+      };
+      job._jobs = {};
+      
+      var utils = {
+        job: job
+      };
+      
+      // decorate HTMLElementElement with toolkit API
+      
+      HTMLElementElement.prototype.component = function(inUber) {
+        var attributes = this.element.attributes;
+        this.lifecycle({
+          shadowRootCreated: function(inRoot) {
+           shadowRootCreated.call(this, inRoot, inUber, attributes);
+          },
+          created: inUber.created
+        });
+        var p = this.generatedConstructor.prototype = inUber.prototype;
+        // attach utility library
+        // TODO(sjmiles): this is probably not the best way to do this
+        p.utils = utils;
+      };
+      
+      // code below provides a shim for declarative event handlers
+      // (aka 'x', as in onclick="x('click')")
+      // it's only really for evaluating syntax, and not 
+      // a real solution
+      
       var nodeIterator = function(inNodes, inFn) {
         if (inNodes) {
           for (var i=0, n; (n=inNodes[i]); i++) {
@@ -106,22 +196,6 @@ license that can be found in the LICENSE file.
         }
       };
 
-      HTMLElementElement.prototype.component = function(inUber) {
-        var attributes = (this.element.getAttribute('attributes') || '').split(',');
-        //var events = this.getAttribute("events");
-        this.lifecycle({
-          shadowRootCreated: function(inRoot) {
-            bindAttrs.call(this, attributes);
-            establishNodeReferences.call(this, inRoot);
-            if (inUber.shadowRootCreated) {
-              inUber.shadowRootCreated(inRoot);
-            }
-            this.attrObserver = new AttrObserver(this);
-          },
-          created: inUber.created
-        });
-        this.generatedConstructor.prototype = inUber.prototype;
-      };
     })();
   </script>
 </element>
