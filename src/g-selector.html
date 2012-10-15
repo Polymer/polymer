@@ -9,61 +9,64 @@
   <link rel="components" href="g-component.html">
   <link rel="components" href="g-selection.html">
   <template>
-    <content id="items" select="*"></content>
+    <content id="items"></content>
   </template>
   <script>
     this.component({
       created: function() {
+        // use selection module
         var s = this.selection = document.createElement("g-selection");
-        s.addEventListener("select", this.select.bind(this));
-        s.addEventListener("deselect", this.deselect.bind(this));
+        s.addEventListener("select", this._select.bind(this));
+        s.addEventListener("deselect", this._deselect.bind(this));
         s.multi = this.hasAttribute('multi');
+        // honor user input
         this.selectedAttributeChanged();
       },
       prototype: {
         getItems: function() {
           return this.$.items.distributedNodes;
         },
-        indexOfSelected: function(inSelected) {
+        _valueToIndex: function(inValue) {
+          // find an item with value == inValue and return it's index
           var items = this.getItems();
           for (var i=0, c; c=items[i]; i++) {
-            if (c.value && c.value == inSelected) {
+            if (c.value && c.value == inValue) {
               return i;
             }
           }
-          return inSelected;
-        },
-        getSelectedItem: function() {
-          return (this.getItems())[this.indexOfSelected(this.selected)];
+          // if no item found, inSelected must be an index itself
+          return inValue;
         },
         selectedAttributeChanged: function() {
-          var s = this.getSelectedItem();
-          if (s != null) {
-            this.selection.select(s);
+          // remember that this.selected is an attribute-property,
+          // it's for i/o, not for internal state tracking
+          var index = this._valueToIndex(this.selected);
+          var item = (this.getItems())[index];
+          if (item != null) {
+            this.selection.select(item);
           }
         },
-        select: function(e) {
-          e.detail.item.classList.add('selected');
+        // events fired from <g-selection> object
+        _select: function(inEvent) {
+          inEvent.detail.item.classList.add('selected');
         },
-        deselect: function(e) {
-          e.detail.item.classList.remove('selected');
+        _deselect: function(inEvent) {
+          inEvent.detail.item.classList.remove('selected');
         },
+        // event fired from host
         clickHandler: function(evt) {
+          var items = this.getItems();
+          // find ancestor of target (including himself) that
+          // is in our item list, if any
           var n = evt.target;
           while (n && n != this) {
-            var i = this.indexOfItem(n);
+            var i = items.indexOf(n);
             if (i != undefined) {
+              // has side effects
               this.selected = n.value || i;
               break;
             }
             n = n.parentNode;
-          }
-        },
-        indexOfItem: function(inItem) {
-          for (var i=0, items=this.getItems(), c; c=items[i]; i++) {
-            if (c == inItem) {
-              return i;
-            }
           }
         }
       }
