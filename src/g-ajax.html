@@ -1,0 +1,80 @@
+<!--
+/*
+ * Copyright 2012 The Toolkitchen Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+-->
+<element name="g-ajax" attributes="url, handleAs, params">
+  <link rel="components" href="g-component.html">
+  <link rel="components" href="g-xhr.html">
+  <template>
+    <g-xhr id="xhr"></g-xhr>
+    <content></content>
+  </template>
+  <script>
+    this.component({
+      created: function(inSuper) {
+        if (this.getAttribute('autogo')) {
+          this.go();
+        }
+      },
+      prototype: {
+        /**
+         * Performs an Ajax request to the url specified.
+         */
+        go: function() {
+          var params = JSON.parse(this.params);
+          return this.$.xhr.request({url: this.url, callback: this.receive.bind(this), params: params});
+        },
+        receive: function(inResponse, inXhr) {
+          if (this.isSuccess(inXhr)) {
+            this.response(inXhr);
+          } else {
+            this.error(inXhr);
+          }
+          this.complete(inXhr);
+        },
+        isSuccess: function(inXhr) {
+          var status = inXhr.status || 0;
+          return !status || (status >= 200 && status < 300);
+        },
+        dispatchAjaxEvent: function(inType, inResponse, inXhr) {
+          this.dispatchEvent(new CustomEvent(inType,
+            {detail: {response: inResponse, xhr: inXhr}}));
+        },
+        response: function(inXhr) {
+          var response = this.evalResponse(inXhr);
+          this.dispatchAjaxEvent('response', response, inXhr);
+          // Here we want to expose the response as a model so that it can be
+          // consumed by other components.
+          this.model = this.model || {};
+          this.model.response = response;
+        },
+        error: function(inXhr) {
+          this.dispatchAjaxEvent('error', inXhr.status + ': ' + inXhr.responseText, inXhr);
+        },
+        complete: function(inXhr) {
+          this.dispatchAjaxEvent('complete', inXhr.status, inXhr);
+        },
+        evalResponse: function(inXhr) {
+          return this[(this.handleAs || 'text') + 'Handler'](inXhr);
+        },
+        xmlHandler: function(inXhr) {
+          return inXhr.responseXML;
+        },
+        textHandler: function(inXhr) {
+          return inXhr.responseText;
+        },
+        jsonHandler: function(inXhr) {
+          var r = this.textHandler(inXhr);
+          try {
+            return JSON.parse(r);
+          } catch (x) {
+            return r;
+          }
+        }
+      }
+    });
+  </script>
+</element>
