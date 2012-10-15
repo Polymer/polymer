@@ -7,76 +7,25 @@
 -->
 <element name="g-ajax" attributes="url, handleAs, params">
   <link rel="components" href="g-component.html">
+  <link rel="components" href="g-xhr.html">
   <template>
+    <g-xhr id="xhr"></g-xhr>
     <content></content>
   </template>
   <script>
-    var xhr = {
-      request: function(inOptions) {
-        var transport = this.getTransport();
-        var url = inOptions.url;
-        var method = inOptions.method || 'GET';
-        var async = !inOptions.sync;
-        var params = this.toQueryString(inOptions.params);
-        if (params && method == 'GET') {
-          url += (url.indexOf('?') > 0 ? '&' : '?') + params;
-        }
-        transport.open(method, url, async);
-        this.makeReadyStateHandler(transport, inOptions.callback);
-        this.setRequestHeaders(inOptions.headers);
-        transport.send(method == 'POST' ? (inOptions.body || params) : null);
-        if (!async) {
-          transport.onreadystatechange(transport);
-        }
-        return transport;
-      },
-      getTransport: function() {
-        try {
-          return new XMLHttpRequest();
-        } catch (e) {}
-        try {
-          return new ActiveXObject('Msxml2.XMLHTTP');
-        } catch (e) {}
-        try {
-          return new ActiveXObject('Microsoft.XMLHTTP');
-        } catch (e) {}
-        return false;
-      },
-      makeReadyStateHandler: function(inXhr, inCallback) {
-        inXhr.onreadystatechange = function() {
-          if (inXhr.readyState == 4) {
-            inCallback && inCallback.apply(null, [inXhr.responseText, inXhr]);
-          }
-        };
-      },
-      setRequestHeaders: function(inXhr, inHeaders) {
-        if (inHeaders) {
-          for (var name in inHeaders) {
-            xhr.setRequestHeader(name, inHeaders[name]);
-          }
-        }
-      },
-      toQueryString: function(inParams) {
-        var r = [];
-        for (var n in inParams) {
-          var v = inParams[n];
-          n = encodeURIComponent(n);
-          r.push(v === undefined || v === null ? n : (n + '=' + encodeURIComponent(v)));
-        }
-        return r.join('&');
-      }
-    };
     this.component({
       created: function(inSuper) {
-        this.context = this.context || window;
         if (this.getAttribute('autogo')) {
           this.go();
         }
       },
       prototype: {
+        /**
+         * Performs an Ajax request to the url specified.
+         */
         go: function() {
           var params = JSON.parse(this.params);
-          return xhr.request({url: this.url, callback: this.receive.bind(this), params: params});
+          return this.$.xhr.request({url: this.url, callback: this.receive.bind(this), params: params});
         },
         receive: function(inResponse, inXhr) {
           if (this.isSuccess(inXhr)) {
@@ -90,21 +39,23 @@
           var status = inXhr.status || 0;
           return !status || (status >= 200 && status < 300);
         },
-        fire: function(inMethod, inArgs) {
-          var fn = this.context[this.getAttribute(inMethod)];
-          fn && fn.apply(this.context, inArgs);
+        dispatchAjaxEvent: function(inType, inResponse, inXhr) {
+          this.dispatchEvent(new CustomEvent(inType,
+            {detail: {response: inResponse, xhr: inXhr}}));
         },
         response: function(inXhr) {
           var response = this.evalResponse(inXhr);
-          this.fire('onresponse', [response, inXhr]);
+          this.dispatchAjaxEvent('response', response, inXhr);
+          // Here we want to expose the response as a model so that it can be
+          // consumed by other components.
           this.model = this.model || {};
           this.model.response = response;
         },
         error: function(inXhr) {
-          this.fire('onerror', [inXhr.status + ': ' + inXhr.responseText, inXhr]);
+          this.dispatchAjaxEvent('error', inXhr.status + ': ' + inXhr.responseText, inXhr);
         },
         complete: function(inXhr) {
-          this.fire('oncomplete', [inXhr]);
+          this.dispatchAjaxEvent('complete', inXhr.status, inXhr);
         },
         evalResponse: function(inXhr) {
           return this[(this.handleAs || 'text') + 'Handler'](inXhr);
