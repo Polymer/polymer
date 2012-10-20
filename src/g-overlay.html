@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file.
  */
 -->
-<element name="g-overlay" attributes="showClass, hideClass, showing, timeout">
+<element name="g-overlay" attributes="showing, timeout">
 <link rel="components" href="g-component.html">
 <template>
 	<style scoped>
@@ -18,74 +18,56 @@
 </template>
 <script>
   this.component({
-    created: function(inSuper) {
-      this.jobId = "animate-" + Math.random();
-      this._squelchShowingChange = true;
-      this.showingAttributeChanged();
+    shadowRootCreated: function() {
+      this.hidden = true;
     },
     prototype: {
       timeout: 1000,
-      // TODO(sorvell): why is this not an attr-prop?
-      allowAnimation: true,
-      toggleShowing: function() {
-        this.showing = this.showing == "true" ? "false" : "true";
+      showingChanged: function() {
+        this.animateShowing();
+        webkitRequestAnimationFrame(this.fireShowingChange.bind(this));
       },
-      showingAttributeChanged: function() {
-        if (this.canAnimate()) {
-          this.animateShowing();
-        } else {
-          this[this.showing == "true" ? "removeAttribute" : "setAttribute"]("hidden", "true");
-        }
-        if (this._squelchShowingChange) {
-          this._squelchShowingChange = false;
-        } else {
-          webkitRequestAnimationFrame(this.fireShowingChange.bind(this));
-        }
-      },
-      setShowingDirect: function(inValue) {
-        this._squelchShowingChange = true;
-        this.showing = inValue;
+      dispatch: function(inName, inDetail) {
+        this.dispatchEvent(new CustomEvent(inName, {
+          bubbles: true,
+          detail: inDetail
+        }));
       },
       fireShowingChange: function() {
-        var detail = {showing: this.showing == "true", rect: this.getBoundingClientRect()};
-        var event = new CustomEvent("showingChange", {bubbles: true, detail: detail})
-        this.dispatchEvent(event); 
-      },
-      canAnimate: function() {
-        return this.allowAnimation && Boolean(this.hideClass || this.showClass);
+        this.dispatch("showingChange", {
+          showing: this.showing,
+          rect: this.getBoundingClientRect()
+        });
       },
       animateShowing: function() {
-        this.removeAttribute("hidden");
-        webkitRequestAnimationFrame(this._animateShowing.bind(this));
-      },
-      _animateShowing: function() {
-        if (this.showClass) {
-          this.classList.enable(this.showClass, this.showing == "true");
-        }
-        if (this.hideClass) {
-          this.classList.enable(this.hideClass, this.showing == "false");
-        }
-        this.unlisten();
-        this.listen();
+        this.hidden = false;
+        webkitRequestAnimationFrame(function() {
+          var setBooleanAttribute = function(inNode, inName, inValue) {
+            inNode[inValue ? "setAttribute" : "removeAttribute"](inName, "");
+          };
+          setBooleanAttribute(this, "opening", this.showing);
+          setBooleanAttribute(this, "closing", !this.showing);
+          this.unlisten();
+          this.listen();
+        }.bind(this));
       },
       listen: function() {
         this.animationListener = this.finishAnimate.bind(this);
-        this.addEventListener("webkitAnimationEnd", this.animationListener, false);
-        this.addEventListener("webkitTransitionEnd", this.animationListener, false);
+        this.addEventListener("webkitAnimationEnd", this.animationListener);
+        this.addEventListener("webkitTransitionEnd", this.animationListener);
         // always finish animation within timeout
-        this.utils.job(this.jobId, this.animationListener, this.timeout);
+        this.jobId = this.utils.job(this.jobId, this.animationListener, this.timeout);
       },
       finishAnimate: function() {
-        //console.log("end animate");
-        if (this.showing == "false") {
-          this.setAttribute("hidden", "true");
+        if (!this.showing) {
+          this.hidden = true;
           this.classList.remove(this.hideClass);
         }
         this.unlisten();
       },
       unlisten: function() {
-        this.removeEventListener("webkitAnimationEnd", this.animationListener, false);
-        this.removeEventListener("webkitTransitionEnd", this.animationListener, false);
+        this.removeEventListener("webkitAnimationEnd", this.animationListener);
+        this.removeEventListener("webkitTransitionEnd", this.animationListener);
         this.utils.job.stop(this.jobId);
       }
     }
