@@ -13,7 +13,8 @@ license that can be found in the LICENSE file.
   <script>
     // conventional names have implicit bindings
     var conventions = {
-      PROPERTY_CHANGED_SUFFIX: "Changed"
+      PROPERTY_CHANGED_SUFFIX: "Changed",
+      CUSTOM_EVENT_PREFIX: "at"
     };
     
     // polyfill for DOMTokenList features: list of classes in add/remove; 
@@ -338,6 +339,59 @@ license that can be found in the LICENSE file.
         //console.log(inHandler, owner, event);
         if (owner && owner[inHandler]) {
           owner[inHandler](event);
+        }
+      };
+      
+      // newer experimental event handler
+
+      var findController = function(inNode) {
+        // find the nearest *containing* controller
+        var n = inNode.parentNode;
+        while (n) {
+          if (n.controller) {
+            return n.controller;
+          }
+          n = n.parentNode || n.host;
+        }
+      };
+      
+      _ = function(inHandlerName) {
+        var controller = findController(event.currentTarget);
+        //console.log(inHandler, owner, event);
+        if (controller && controller[inHandlerName]) {
+          controller[inHandlerName](event);
+        }
+      };
+      
+      // automagic event mapping
+
+      var bindCustomEvent = function(inNode, inEventName, inHandler) {
+        console.log(inEventName, inHandler);
+        inNode.addEventListener(inEventName, function() {
+          _(inHandler);
+        });
+      };
+
+      var bindCustomEvents = function(inNode) {
+        var a$ = inNode.attributes;
+        if (a$) {
+          for (var i=0, a; a=a$[i]; i++) {
+            if (a.name.slice(0, 2) == conventions.CUSTOM_EVENT_PREFIX) {
+              bindCustomEvent(inNode, a.name.slice(2), a.value);
+            }
+          }
+        }
+      };
+      
+      // TODO(sjmiles): improper tree walking (?)
+      var bindAllCustomEvents = function(inNode) {
+        bindCustomEvents(inNode);
+        if (inNode.childNodes) {
+          for (var i=0, c; c=deref(inNode.childNodes[i]); i++) {
+            if (c.tagName !== 'SHADOW') {
+              bindAllCustomEvents(c);
+            }
+          }
         }
       };
 
