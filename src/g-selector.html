@@ -5,26 +5,26 @@
  * license that can be found in the LICENSE file.
  */
 -->
-<element name="g-selector" attributes="selected" handlers="click: clickHandler">
+<element name="g-selector" attributes="selected, multi" handlers="click: clickHandler">
   <link rel="components" href="g-component.html">
   <link rel="components" href="g-selection.html">
   <template>
+    <g-selection id="selection" atselect="selectionSelect" atdeselect="selectionDeselect"></g-selection>
     <content id="items"></content>
   </template>
   <script>
     this.component({
-      created: function() {
-        // use selection module
-        var s = this.selection = document.createElement("g-selection");
-        s.addEventListener("select", this._select.bind(this));
-        s.addEventListener("deselect", this._deselect.bind(this));
-        s.multi = this.hasAttribute('multi');
-        // honor user input
-        this.selectedAttributeChanged();
-      },
       prototype: {
+        multiChanged: function() {
+          this.$.selection.multi = this.multi;
+        },
         getItems: function() {
-          return this.$.items.distributedNodes;
+          // TODO(sjmiles): distributedNodes not implemented natively yet
+          // this.childNodes is LightDOM fallback which works unless we
+          // are composited (in that case childNodes = <content>, and 
+          // distributeNodes is necessary to find the actual distributions)
+          return this.$.items.distributedNodes || 
+            Array.prototype.slice.call(this.childNodes, 0);
         },
         _valueToIndex: function(inValue) {
           // find an item with value == inValue and return it's index
@@ -34,39 +34,30 @@
               return i;
             }
           }
-          // if no item found, inSelected must be an index itself
+          // if no item found, the value is an index itself
           return inValue;
         },
-        selectedAttributeChanged: function() {
+        selectedChanged: function() {
           // remember that this.selected is an attribute-property,
           // it's for i/o, not for internal state tracking
-          var index = this._valueToIndex(this.selected);
-          var item = (this.getItems())[index];
-          if (item != null) {
-            this.selection.select(item);
+          var item = this.getItems()[this._valueToIndex(this.selected)];
+          if (item) {
+            this.$.selection.select(item);
           }
         },
         // events fired from <g-selection> object
-        _select: function(inEvent) {
+        selectionSelect: function(inEvent) {
           inEvent.detail.item.classList.add('selected');
         },
-        _deselect: function(inEvent) {
+        selectionDeselect: function(inEvent) {
           inEvent.detail.item.classList.remove('selected');
         },
         // event fired from host
         clickHandler: function(evt) {
           var items = this.getItems();
-          // find ancestor of target (including himself) that
-          // is in our item list, if any
-          var n = evt.target;
-          while (n && n != this) {
-            var i = items.indexOf(n);
-            if (i != undefined) {
-              // has side effects
-              this.selected = n.value || i;
-              break;
-            }
-            n = n.parentNode;
+          var i = this.utils.findDistributedTarget(evt.target, items);
+          if (i >= 0) {
+            this.selected = items[i].value || i;
           }
         }
       }
