@@ -11,6 +11,12 @@ license that can be found in the LICENSE file.
     });
   </script>
   <script>
+    // conventional names have implicit bindings
+    var conventions = {
+      PROPERTY_CHANGED_SUFFIX: "Changed",
+      CUSTOM_EVENT_PREFIX: "at"
+    };
+    
     // polyfill for DOMTokenList features: list of classes in add/remove; 
     // enable method.
     (function() {
@@ -33,35 +39,98 @@ license that can be found in the LICENSE file.
     })();
     
     (function(){
-      var bindAttrs = function(inAttrs) {
-        inAttrs.forEach(function(a) {
-          a = a.trim();
-          Object.defineProperty(this, a, {
-            get: function() {
-              return this.hasAttribute(a) ? this.getAttribute(a) :
-                this.__proto__[a];
-            },
-            set: function(v) {
-              return this.setAttribute(a, v);
+      
+      // attribute bindings
+     
+      var bindAttrs = function(inAttributes) {
+        var attrs = this.boundAttributes = [];
+        if (inAttributes) {
+          var bindables = inAttributes.value.split(",");
+          bindables.forEach(function(a) {
+            attrs.push(a.trim());
+            bindProperty.call(this, a, this[a]);
+          }, this);
+        }
+      };
+      
+      // event bindings
+      
+      var bindEvents = function(inEvents) {
+        if (inEvents) {
+          var bindables = inEvents.value.split(",");
+          bindables.forEach(function(e) {
+            // event name: handler name pairs
+            var pair = e.split(":");
+            var event = pair[0].trim();
+            var handler = pair[1].trim();
+            if (this[handler]) {
+              this.addEventListener(event, this[handler].bind(this));
             }
-          })
-        }, this);
+          }, this);
+        }
+      };
+      
+      // property bindings
+
+      var propertyChanged = function(inName, inOld) {
+        var fn = inName + conventions.PROPERTY_CHANGED_SUFFIX;
+        if (this[fn]) {
+          this[fn](inOld);
+        }
       };
 
-      var bindEvents = function(inEvents) {
-        inEvents.forEach(function(e) {
-          // event name: handler name pairs
-          var pair = e.split(":");
-          var event = pair[0].trim();
-          var handler = pair[1].trim();
-          if (this[handler]) {
-            this.addEventListener(event, this[handler].bind(this));
+      var sideEffectFactory = function(inName) {
+        var fn = inName + conventions.PROPERTY_CHANGED_SUFFIX;
+        return function(inOld) {
+          if (this[fn]) {
+            this[fn](inOld);
           }
-        }, this);
+        };
+      };
+      
+      var squelchSideEffects = false;
+
+      var setPropertySilently = function(inName, inValue) {
+        squelchSideEffects = true;
+        try {
+          this[inName] = inValue;
+        } finally {
+          squelchSideEffects = false;
+        }
+      };
+
+      var bindProperty = function(inName, inValue) {
+        if (inName in this) {
+          // set default value in a property already bound via attrs
+          setPropertySilently.call(this, inName, value);
+        } else {
+          var value = inValue;
+          var sideEffect = sideEffectFactory(inName);
+          Object.defineProperty(this, inName, {
+            get: function() {
+              return value;
+            },
+            set: function(v) {
+              var old = value;
+              value = v;
+              if (!squelchSideEffects && (old !== v)) {
+                sideEffect.call(this, old);
+              }
+            }
+          });
+        }
+      };
+      
+      var bindProperties = function(inProperties) {
+        if (inProperties) {
+          Object.keys(inProperties).forEach(function(n) {
+            bindProperty.call(this, n, inProperties[n]);
+          }, this);
+        }
       };
       
       var deref = function(inNode) {
-        return inNode.baby || inNode;
+        return inNode && (inNode.baby || inNode);
       };
 
       var establishNodeReferences = function(inRoot) {
@@ -73,11 +142,54 @@ license that can be found in the LICENSE file.
         }, this);
       };
 
+      // attribute mutations
+      
+      var deserializeValue = function(inValue) {
+        switch (inValue) {
+          case "":
+          case "true":
+            return true;
+          case "false":
+            return false;
+          case "\\false":
+            return "false";
+          }
+          var n = parseFloat(inValue);
+          return isNaN(n) ? inValue : n;
+      };
+
+      var takeAttributes = function() {
+        var changed = [];
+        try {
+          squelchSideEffects = true;
+          this.boundAttributes.forEach(function(a) {
+            if (this.hasAttribute(a)) {
+              var value = deserializeValue(this.getAttribute(a));
+              if (this[a] !== value) {
+                changed.push({name: a, old: this[a]});
+                this[a] = value;
+              }
+              this[a] = deserializeValue(value);
+            }
+          }, this);
+        } finally {
+          squelchSideEffects = false;
+        }
+        changed.forEach(function(c) {
+          propertyChanged.call(this, c.name, c.old);
+        }, this);
+      };
+      
+      var attributeChanged = function(inName) {
+        var value = this.getAttribute(inName);
+        this[inName] = deserializeValue(value);
+      };
+
       var handleMutations = function(inMxns) {
         inMxns.forEach(function(inMxn) {
-          var name = inMxn.attributeName, method = name + "AttributeChanged";
-          if (this[method]) {
-            this[method](inMxn.target.getAttribute(name), inMxn.oldValue);
+          var name = inMxn.attributeName;
+          if (this.boundAttributes[name]) {
+            attributeChanged.call(this, name);
           }
         }, this);
       };
@@ -91,30 +203,62 @@ license that can be found in the LICENSE file.
         return observer;
       };
 
-      var shadowRootCreated = function(inRoot, inUber, inAttributes) {
-        if (inAttributes.attributes) {
-          var attributes = inAttributes.attributes.value.split(",");
-          bindAttrs.call(this, attributes);
-        }
-        if (inAttributes.handlers) {
-          var events = inAttributes.handlers.value.split(",");
-          bindEvents.call(this, events);
-        }
+      // lifecycle
+
+      var automate = function(inAttributes, inPublished) {
+        bindAttrs.call(this, inAttributes.attributes);
+        bindEvents.call(this, inAttributes.handlers);
+        bindProperties.call(this, inPublished);
+      };
+
+      var initialize = function(inRoot, inUber) {
         establishNodeReferences.call(this, inRoot);
         if (inUber.shadowRootCreated) {
           inUber.shadowRootCreated.call(this, inRoot);
         }
-        this.attrObserver = new AttrObserver(this);
+        bindAllCustomEvents(inRoot);
       };
 
+      // decorate HTMLElementElement with toolkit API
+      
+      HTMLElementElement.prototype.component = function(inUber) {
+        var attributes = this.element.attributes;
+        this.lifecycle({
+          shadowRootCreated: function(inRoot) {
+            initialize.call(this, inRoot, inUber);
+          },
+          created: function() {
+            this.controller = this;
+            automate.call(this, attributes, inUber.published);
+            takeAttributes.call(this);
+            if (inUber.created) {
+              inUber.created.call(this);
+            }
+            this.attrObserver = new AttrObserver(this);
+          }
+        });
+        var p = inUber.prototype;
+        // attach some API
+        // TODO(sjmiles): this is probably not the best way to do this;
+        // probably better to insert another link in the prototype chain
+        p.utils = utils;
+        p.setPropertySilently = setPropertySilently;
+        // install our prototype
+        this.generatedConstructor.prototype = p;
+      };
+      
       // utility methods
       
+      // job
+      
       var job = function(inJobName, inJob, inWait) {
-        job.stop(inJobName);
-        job._jobs[inJobName] = setTimeout(function() {
-          job.stop(inJobName);
+        var name = inJobName || ("__" + Math.random());
+        job.stop(name);
+        job._jobs[name] = setTimeout(function() {
+          job.stop(name);
           inJob();
         }, inWait);
+        return name;
       };
       job.stop = function(inJobName) {
         if (job._jobs[inJobName]) {
@@ -123,25 +267,27 @@ license that can be found in the LICENSE file.
         }
       };
       job._jobs = {};
-      
-      var utils = {
-        job: job
+
+      // target finding
+       
+      findDistributedTarget = function(inTarget, inItems) {
+        // find ancestor of target (including himself) that
+        // is in our item list, if any
+        var n = inTarget;
+        while (n && n != this) {
+          var i = inItems.indexOf(n);
+          if (i >= 0) {
+            return i;
+          }
+          n = n.parentNode;
+        }
       };
       
-      // decorate HTMLElementElement with toolkit API
+      // collect utils 
       
-      HTMLElementElement.prototype.component = function(inUber) {
-        var attributes = this.element.attributes;
-        this.lifecycle({
-          shadowRootCreated: function(inRoot) {
-           shadowRootCreated.call(this, inRoot, inUber, attributes);
-          },
-          created: inUber.created
-        });
-        var p = this.generatedConstructor.prototype = inUber.prototype;
-        // attach utility library
-        // TODO(sjmiles): this is probably not the best way to do this
-        p.utils = utils;
+      var utils = {
+        job: job,
+        findDistributedTarget: findDistributedTarget
       };
       
       // code below provides a shim for declarative event handlers
@@ -189,11 +335,65 @@ license that can be found in the LICENSE file.
       // experimental event handler for mapping events to component instances
       // publish handler globally, make name as small as possible since
       // this is ideally an invisible helper API
+      
       x = function(inHandler) {
         var owner = findOwner(event.currentTarget);
         //console.log(inHandler, owner, event);
         if (owner && owner[inHandler]) {
           owner[inHandler](event);
+        }
+      };
+      
+      // newer experimental event handler
+
+      var findController = function(inNode) {
+        // find the nearest *containing* controller
+        var n = inNode.parentNode;
+        while (n) {
+          if (n.controller) {
+            return n.controller;
+          }
+          n = n.parentNode || n.host;
+        }
+      };
+      
+      _ = function(inHandlerName) {
+        var controller = findController(event.currentTarget);
+        //console.log(inHandler, owner, event);
+        if (controller && controller[inHandlerName]) {
+          controller[inHandlerName](event);
+        }
+      };
+      
+      // automagic event mapping
+
+      var bindCustomEvent = function(inNode, inEventName, inHandler) {
+        //console.log(inEventName, inHandler);
+        inNode.addEventListener(inEventName, function() {
+          _(inHandler);
+        });
+      };
+
+      var bindCustomEvents = function(inNode) {
+        var a$ = inNode.attributes;
+        if (a$) {
+          for (var i=0, a; a=a$[i]; i++) {
+            if (a.name.slice(0, 2) == conventions.CUSTOM_EVENT_PREFIX) {
+              bindCustomEvent(inNode, a.name.slice(2), a.value);
+            }
+          }
+        }
+      };
+      
+      // TODO(sjmiles): improper tree walking (?)
+      var bindAllCustomEvents = function(inNode) {
+        bindCustomEvents(inNode);
+        if (inNode.childNodes) {
+          for (var i=0, c; c=deref(inNode.childNodes[i]); i++) {
+            if (c.tagName !== 'SHADOW') {
+              bindAllCustomEvents(c);
+            }
+          }
         }
       };
 
