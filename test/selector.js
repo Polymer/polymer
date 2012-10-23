@@ -41,5 +41,14 @@ suite('g-selector', function() {
       selector.selected = 2;
       expect(selector.getItems()[2].className).to.be('selected');
     });
+    
+    test('multi', function() {
+      addItems(4);
+      selector.multi = true;
+      selector.selected = 0;
+      selector.selected = 1;
+      expect(selector.getItems()[0].className).to.be('selected');
+      expect(selector.getItems()[1].className).to.be('selected');
+    });
   });
 });
