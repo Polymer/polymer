@@ -41,6 +41,17 @@ suite('g-selection', function() {
     expect(selection.isSelected(item)).to.be(false);
   });
   
+  suite('attributes', function() {
+    test('multi', function() {
+      selection.multi = true;
+      selection.select('foo');
+      selection.select('bar');
+      expect(selection.getSelection()).to.have.length(2);
+      expect(selection.getSelection()).to.contain('foo');
+      expect(selection.getSelection()).to.contain('bar');
+    });
+  });
+  
   suite('events', function() {
     test('select', function() {
       var selected;
