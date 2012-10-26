@@ -157,7 +157,7 @@ license that can be found in the LICENSE file.
           // set default value in a property already bound via attrs
           setPropertySilently.call(this, inName, value);
         } else {
-          console.log('binding', inName, this)
+          //console.log('binding', inName, this)
           var value = inValue;
           var sideEffect = sideEffectFactory(inName);
           Object.defineProperty(this, inName, {
@@ -312,8 +312,7 @@ license that can be found in the LICENSE file.
       };
 
       var attributeChanged = function(inName) {
-        var value = this.getAttribute(inName);
-        this[inName] = deserializeValue(value);
+        this[inName] = deserializeValue(this.getAttribute(inName));
       };
 
       var handleMutations = function(inMxns) {
@@ -336,12 +335,7 @@ license that can be found in the LICENSE file.
 
       // lifecycle
 
-      var automate = function(inAttributes, inPublished) {
-        bindAttrs.call(this, inAttributes.attributes);
-        bindEvents.call(this, inAttributes.handlers);
-        bindProperties.call(this, inPublished);
-      };
-
+      // per-root
       var initialize = function(inRoot, inUber) {
         establishNodeReferences.call(this, inRoot);
         if (inUber.shadowRootCreated) {
@@ -387,8 +381,9 @@ license that can be found in the LICENSE file.
             initialize.call(this, inRoot, inUber);
           },
           created: function() {
+            //console.log("created", this);
             this.controller = this;
-            automate.call(this, attributes, inUber.published);
+            automate.call(this, attributes, inUber.published, inUber.delegates);
             takeAttributes.call(this);
             if (inUber.created) {
               inUber.created.call(this);
@@ -403,11 +398,13 @@ license that can be found in the LICENSE file.
         p.utils = utils;
         p.setPropertySilently = setPropertySilently;
         p.fireEvent = fireEvent;
+        p.asyncMethod = asyncMethod;
+        //p.$$ = $$;
         // install our prototype
         this.generatedConstructor.prototype = p;
       };
 
-      // utility methods
+      // utility methods (utils)
 
       // job
 
@@ -430,12 +427,12 @@ license that can be found in the LICENSE file.
 
       // target finding
 
-      var findDistributedTarget = function(inTarget, inItems) {
-        // find ancestor of target (including himself) that
-        // is in our item list, if any
+      var findDistributedTarget = function(inTarget, inNodes) {
+        // find first ancestor of target (including itself) that
+        // is in inNodes, if any
         var n = inTarget;
         while (n && n != this) {
-          var i = inItems.indexOf(n);
+          var i = inNodes.indexOf(n);
           if (i >= 0) {
             return i;
           }
@@ -443,9 +440,6 @@ license that can be found in the LICENSE file.
         }
       };
 
-      var fireEvent = function(inType, inDetail) {
-        return this.dispatchEvent(new CustomEvent(inType,
-          {bubbles: true, detail: inDetail}));
       };
 
       // collect utils
@@ -455,6 +449,7 @@ license that can be found in the LICENSE file.
         findDistributedTarget: findDistributedTarget
       };
 
+      /*
       // code below provides a shim for declarative event handlers
       // (aka 'x', as in onclick="x('click')")
       // it's only really for evaluating syntax, and not
@@ -508,7 +503,8 @@ license that can be found in the LICENSE file.
           owner[inHandler](event);
         }
       };
-
+      */
+     
       // newer experimental event handler
 
       var findController = function(inNode) {
@@ -571,12 +567,9 @@ license that can be found in the LICENSE file.
         }
       };
 
-      var __bindAllCustomEvents = function(inNode) {
-        _bindAllCustomEvents(inNode);
-      };
-
       var eventsObserver = function(inNode) {
-        new WebKitMutationObserver(__bindAllCustomEvents.bind(this, inNode))
+        // TODO(sjmiles): optimize so we only bind new nodes
+        new WebKitMutationObserver(_bindAllCustomEvents.bind(this, inNode))
           .observe(inNode, {
             childList: true,
             subTree: true
@@ -586,6 +579,7 @@ license that can be found in the LICENSE file.
       var bindAllCustomEvents = function(inNode) {
         if (inNode) {
           _bindAllCustomEvents(inNode);
+          // we need this for custom events in iterated templates
           eventsObserver(inNode);
         }
       };
