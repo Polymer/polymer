@@ -1,0 +1,176 @@
+<!--
+/*
+ * Copyright 2012 The Toolkitchen Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+-->
+<element name="g-panels" attributes="transition, selected, index" 
+         handlers="keydown: keydownHandler">
+<link rel="components" href="g-component.html">
+<link rel="components" href="panel-transitions/g-panel-transition.html">
+<link rel="components" href="panel-transitions/g-keyframe-panel-transition.html">
+<link rel="components" href="panel-transitions/g-flow-panel-transition.html">
+<link rel="stylesheet" href="css/g-panels.css" />
+<template>
+	<content id="content" select="*"></content>
+</template>
+<script>
+  // TODO(sorvell): promote this and figure out canonical way to do this;
+  // and support contenteditable.
+  var documentIsEditing = function() {
+    var a = document.activeElement;
+    if (a.tagName == "INPUT" || a.tagName == "SELECT" || a.tagName == "TEXTAREA") {
+      return true;
+    }
+  }
+  
+  this.component({
+    created: function() {
+      this.initPanels();
+      if (!this.index) {
+        this.index = 0;
+      }
+    },
+    prototype: {
+      tabIndex: -1,
+      defaultTransition: 'keyframe',
+      initPanels: function() {
+        this.getPanels().forEach(function(p, i) {
+          this.initPanel(p, i);
+        }, this);
+      },
+      initPanel: function() {},
+      indexChanged: function(inOldValue) {
+        var i = this.clampIndex(this.index);
+        var old = this.clampIndex(inOldValue);
+        if (i != this.index) {
+          this.index = i;
+          return;
+        }
+        if (this.index != old) {
+          this.lastIndex = old;
+          var fromPanel = this.panelAtIndex(this.lastIndex), 
+              toPanel = this.panelAtIndex(this.index),
+              forward = Boolean(this.index > this.lastIndex);
+          if (this.canTransition()) {
+            this.beginTransition(fromPanel, toPanel, forward);
+          } else {
+            this.finishTransition(fromPanel, toPanel, forward);
+          }
+        }
+      },
+      clampIndex: function(inIndex) {
+        return Math.max(0, Math.min(this.count-1, inIndex));
+      },
+      // selected is a virtual property so override getter
+      get selected() {
+        var selected = this.getSelectedPanel();
+        var name = selected && selected.getAttribute('name');
+        return name || this.index;
+      },
+      // selected is the name property of the panel to select
+      selectedChanged: function(inOldValue) {
+        var index = this.indexOfName(this.selected);
+        if (index >= 0) {
+          this.index = index;
+        }
+      },
+      transitionChanged: function(inOldValue) {
+        if (this.transitionNode) {
+          this.transitionNode.teardown();
+        }
+        this.transitionNode = this.makeTransitionNode(this.transition);
+        this.transitionNode.setup(this);
+        this.setAttribute('transition', this.transition);
+      },
+      makeTransitionNode: function(inName) {
+        var name = this.tagNameForTransition(inName);
+        var transition = document.createElement(name);
+        return transition.setup ? transition : 
+            this.makeTransitionNode(this.defaultTransition);
+      },
+      tagNameForTransition: function(inName) {
+        return "g-" + inName + (inName ? "-" : "") + "panel-transition";
+      },
+      // TODO: consider selecting something more specific so we don't need to
+      // filter out style/templates children.
+      getPanels: function() {
+        var n$ = this.$.content.getDistributedNodes();
+        return Array.prototype.filter.call(n$, function(c) {
+          return c.tagName != "STYLE" && c.tagName != "TEMPLATE";
+        });
+      },
+      getSelectedPanel: function() {
+        return this.getPanels()[this.index];
+      },
+      indexOfName: function(inName) {
+        var c$ = this.getPanels();
+        for (var i=0, c; c=c$[i]; i++) {
+          if (c.getAttribute("name") == inName) {
+            return i;
+          }
+        }
+        return -1;
+      },
+      indexOf: function(inPanel) {
+        return this.getPanels().indexOf(inPanel);
+      },
+      panelAtIndex: function(inIndex) {
+        return this.getPanels()[inIndex];
+      },
+      panelAtName: function(inName) {
+        return this.panelAtIndex(this.indexOfName(inName));
+      },
+      get count() {
+        return this.getPanels().length;
+      },
+      canTransition: function() {
+        return Boolean(this.transitionNode);
+      },
+      beginTransition: function(inFrom, inTo, inForward) {
+        var old = this.transitionInfo;
+        if (old && this.transitionNode) {
+          this.transitionNode.stop();
+        }
+        this.transitionInfo = {from: inFrom, to: inTo, forward: inForward};
+        webkitRequestAnimationFrame(function() {
+          inFrom.hidden = false;
+          inTo.hidden = false;
+          this.transitionNode.go(inFrom, inTo, inForward);
+        }.bind(this));
+      },
+      finishTransition: function() {
+        this.transitionInfo = null;
+        if (this.transitionNode && this.transitionNode.highlander) {
+          this.getPanels().forEach(function(p, i) {
+            p.hidden = (i != this.index);
+          }, this);
+        }
+      },
+      next: function() {
+        this.index++;
+      },
+      previous: function() {
+        this.index--;
+      },
+      keydownHandler: function(e) {
+        if (documentIsEditing()) {
+          return;
+        }
+        var i = this.index;
+        // right arrow
+        if (e.keyCode == 39) {
+          this.next();
+        // left arrow
+        } else if (e.keyCode == 37) {
+          this.previous();
+        }
+        if (i != this.index) {
+          e.stopPropagation();
+        }
+      }
+    }
+  });
+</script>
+</element>
