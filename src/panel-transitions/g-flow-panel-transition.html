@@ -1,0 +1,113 @@
+<!--
+/*
+ * Copyright 2012 The Toolkitchen Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+-->
+<element name="g-flow-panel-transition" extends="g-panel-transition">
+  <template>
+    <style scoped>
+      x-flowpanels > .right {
+        left: auto;
+        right: 0;
+      }
+
+      @media screen and (max-width: 800px) {
+        x-flowpanels > * {
+          width: 100% !important;
+          -webkit-box-shadow: none !important;
+        }
+      }
+    </style>
+  </template>
+  <script>
+    this.component({
+      shadowRootCreated: function(inRoot) {
+        this.sheet = inRoot.querySelector("style");
+      },
+      prototype: {
+        highlander: false,
+        narrowMedia: '(max-width: 800px)',
+        setup: function(inPanels) {
+          this.base.setup.call(this, inPanels);
+          this.listenForMediaMatch();
+          this.panels.appendChild(this.sheet);
+        },
+        teardown: function() {
+          this.base.teardown.call(this);
+          this.panels.removeChild(this.sheet);
+        },
+        listenForMediaMatch: function() {
+          var mq = window.matchMedia(this.narrowMedia);
+          this.narrowLayout = mq.matches;
+          mq.addListener(this.layoutChange.bind(this));
+          this.layoutChange(mq);
+        },
+        layoutChange: function(inQuery) {
+          this.narrowLayout = inQuery.matches;
+          this.refresh();
+        },
+        enableTransitions: function(inEnable) {
+          this.panels.getPanels().forEach(function(p) {
+            p.style.webkitTransition = inEnable ? null : 'none';
+          });
+        },
+        refresh: function() {
+          this.enableTransitions(false);
+          this.go(null, this.panels.getSelectedPanel());
+          webkitRequestAnimationFrame(function() {
+            this.enableTransitions(true);
+          }.bind(this));
+        },
+        begin: function() {
+          var i = this.panels.indexOf(this.to);
+          if (this.panelIsRightAligned(this.to)) {
+            this.applyRightLayout(this.to, i);
+          } else {
+            this.applyLeftLayout(this.to, i);
+          }
+        },
+        // inIndex appears at the left with subsequent nodes
+        // moved out of the way to the right; right aligned nodes are ignored
+        applyLeftLayout: function(inTo, inIndex) {
+          var l, count = this.count;
+          this.panels.getPanels().forEach(function(p, i) {
+            var x = !l ? 0 : (this.narrowLayout ? (i - inIndex) * 100 + 
+              '%' : l.offsetWidth + 'px');
+            var right = this.panelIsRightAligned(p);
+            p.style.zIndex = right ? -i : null;
+            p.style.webkitTransform = 'translate3d(' + (right ? 0 : x) + ',0,0)';
+            if (i >= inIndex) {
+              l = p;
+            }
+          }, this);
+        },
+        // inIndex appears at the right with previous nodes
+        // moved out of the way to the left; note z-index used to get proper stacking
+        applyRightLayout: function(inTo, inIndex) {
+          var p$ = this.panels.getPanels(), right=true, l;
+          for (var i=p$.length-1, p; p=p$[i]; i--) {
+            var x = l ? -l.offsetWidth : 0;
+            p.style.zIndex = right ? p$.length - i : null;
+            p.style.webkitTransform = 'translate3d(' + x + 'px,0,0)';
+            if (i <= inIndex) {
+              l = p;
+            }
+            // record where we stop being right aligned so we can stop z-stacking
+            right = right && this.panelIsRightAligned(p);
+          }
+        },
+        // TODO(sorvell): it's unsatisfying that we need a specific class to 
+        // determine right alignment because this defeats applying rightness via
+        // selectors (e.g. :last-child or media queries). We could look for 
+        // computed style right == 0 but this seems more brittle.
+        panelIsRightAligned: function(inNode) {
+          return !this.panels.narrowLayout && inNode &&
+              inNode.classList.contains('right');
+        }
+      }
+    });
+  </script>
+</element>
+
