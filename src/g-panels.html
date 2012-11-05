@@ -26,18 +26,29 @@
   }
   
   // TODO(sorvell): need key table
-  var KEY_RIGHT_ARROW = 39;
-  var KEY_LEFT_ARROW = 37;
+  var RIGHT_ARROW_KEY = 39;
+  var LEFT_ARROW_KEY = 37;
   
   this.component({
     created: function() {
+      // ensure default transition
+      if (!this.transition) {
+        this.transition = this.defaultTransition;
+        if (this.index != null) {
+          this.indexChanged();
+        }
+      }
+      // make focusable; note that default tabIndex == -1 but node is 
+      // only focusable if tabIndex attr is set.
+      if (this.tabIndex < 0) {
+        this.tabIndex = -1;
+      }
       this.initPanels();
       if (!this.index) {
         this.index = 0;
       }
     },
     prototype: {
-      tabIndex: -1,
       defaultTransition: 'keyframe',
       initPanels: function() {
         this.getPanels().forEach(function(p, i) {
@@ -62,20 +73,24 @@
           } else {
             this.finishTransition(fromPanel, toPanel, forward);
           }
+          // TODO(sorvell): replace with getter/setter for selected when
+          // g-component does not override these on instances.
+          this.selected = this.getSelectedValue();
         }
       },
       clampIndex: function(inIndex) {
         return Math.max(0, Math.min(this.count-1, inIndex));
       },
-      // selected is a virtual property so override getter
-      get selected() {
+      getSelectedValue: function() {
         var selected = this.getSelectedPanel();
-        var name = selected && selected.getAttribute('name');
+        var name = selected && (selected.getAttribute('id') || 
+            selected.getAttribute('name'));
         return name || this.index;
       },
       // selected is the name property of the panel to select
       selectedChanged: function(inOldValue) {
-        var index = this.indexOfName(this.selected);
+        var index = this.indexOfPropValue('id', this.selected);
+        index = index >= 0 ? index : this.indexOfPropValue('name', this.selected);
         if (index >= 0) {
           this.index = index;
         }
@@ -95,23 +110,23 @@
             this.makeTransitionNode(this.defaultTransition);
       },
       tagNameForTransition: function(inName) {
-        return "g-" + inName + (inName ? "-" : "") + "panel-transition";
+        return 'g-' + inName + (inName ? '-' : '') + 'panel-transition';
       },
       // TODO: consider selecting something more specific so we don't need to
       // filter out style/templates children.
       getPanels: function() {
         var n$ = this.$.content.getDistributedNodes();
         return Array.prototype.filter.call(n$, function(c) {
-          return c.tagName != "STYLE" && c.tagName != "TEMPLATE";
+          return c.tagName != 'STYLE' && c.tagName != 'TEMPLATE';
         });
       },
       getSelectedPanel: function() {
         return this.getPanels()[this.index];
       },
-      indexOfName: function(inName) {
+      indexOfPropValue: function(inProp, inValue) {
         var c$ = this.getPanels();
         for (var i=0, c; c=c$[i]; i++) {
-          if (c.getAttribute("name") == inName) {
+          if (c.getAttribute(inProp) == inValue) {
             return i;
           }
         }
@@ -130,24 +145,30 @@
         return this.getPanels().length;
       },
       canTransition: function() {
-        return Boolean(this.transitionNode);
+        return Boolean(this.transitionNode && 
+            this.transitionNode.canTransition());
       },
       beginTransition: function(inFrom, inTo, inForward) {
         if (this.transitionNode) {
           this.transitionNode.stop();
         }
         webkitRequestAnimationFrame(function() {
-          inFrom.hidden = false;
-          inTo.hidden = false;
+          this.enablePanelShowing(inFrom, true);
+          this.enablePanelShowing(inTo, true);
           this.transitionNode.go(inFrom, inTo, inForward);
         }.bind(this));
       },
       finishTransition: function() {
         if (this.transitionNode && this.transitionNode.highlander) {
           this.getPanels().forEach(function(p, i) {
-            p.hidden = (i != this.index);
+            this.enablePanelShowing(p, i == this.index);
           }, this);
         }
+      },
+      // note: cannot use hidden attr for this since it's trumped by display
+      // setting e.g. hidden + display: -webkit-flex == showing.
+      enablePanelShowing: function(inPanel, inEnable) {
+        inPanel.style.display = inEnable ? null : 'none';
       },
       next: function() {
         this.index++;
@@ -155,17 +176,25 @@
       previous: function() {
         this.index--;
       },
+      toggleBetween: function(inA, inB) {
+        this.selected = this.selected == inA ? inB : inA;
+      },
       keydownHandler: function(e) {
         if (!documentIsEditing()) {
           var beforeIndex = this.index;
-          if (e.keyCode == KEY_RIGHT_ARROW) {
+          if (e.keyCode == RIGHT_ARROW_KEY) {
             this.next();
-          } else if (e.keyCode == KEY_LEFT_ARROW) {
+          } else if (e.keyCode == LEFT_ARROW_KEY) {
             this.previous();
           }
           if (beforeIndex != this.index) {
             e.stopPropagation();
           }
+        }
+      },
+      refresh: function() {
+        if (this.transitionNode && this.transitionNode.canTransition()) {
+          this.transitionNode.refresh();
         }
       }
     }
