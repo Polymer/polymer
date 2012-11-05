@@ -8,13 +8,13 @@
 <element name="g-flow-panel-transition" extends="g-panel-transition">
   <template>
     <style scoped>
-      x-flowpanels > .right {
+      g-panels[transition='flow'] > .right {
         left: auto;
         right: 0;
       }
 
       @media screen and (max-width: 800px) {
-        x-flowpanels > * {
+        g-panels[transition='flow'] > * {
           width: 100% !important;
           -webkit-box-shadow: none !important;
         }
@@ -22,6 +22,11 @@
     </style>
   </template>
   <script>
+    
+    var isNodeHidden = function(inNode) {
+      return (inNode.offsetWidth) == 0 && (inNode.offsetHeight == 0);
+    }
+    
     this.component({
       shadowRootCreated: function(inRoot) {
         this.sheet = inRoot.querySelector("style");
@@ -33,6 +38,9 @@
           this.base.setup.call(this, inPanels);
           this.listenForMediaMatch();
           this.panels.appendChild(this.sheet);
+          // TODO(sorvell): hack, must fix better
+          // async refresh in case we need to wait for stylesheet to load
+          this.asyncMethod('refresh');
         },
         teardown: function() {
           this.base.teardown.call(this);
@@ -40,7 +48,6 @@
         },
         listenForMediaMatch: function() {
           var mq = window.matchMedia(this.narrowMedia);
-          this.narrowLayout = mq.matches;
           mq.addListener(this.layoutChange.bind(this));
           this.layoutChange(mq);
         },
@@ -53,9 +60,16 @@
             p.style.webkitTransition = inEnable ? null : 'none';
           });
         },
+        canTransition: function() {
+          var hidden = isNodeHidden(this.panels);
+          return !hidden;
+        },
         refresh: function() {
           this.enableTransitions(false);
-          this.go(null, this.panels.getSelectedPanel());
+          this.to = this.panels.getSelectedPanel();
+          if (this.canTransition()) {
+            this.begin();
+          }
           webkitRequestAnimationFrame(function() {
             this.enableTransitions(true);
           }.bind(this));
