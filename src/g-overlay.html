@@ -5,70 +5,90 @@
  * license that can be found in the LICENSE file.
  */
 -->
-<element name="g-overlay" attributes="showing, timeout">
+<element name="g-overlay" attributes="opened, timeout" 
+         handlers="click: clickHandler, keydown: keydownHandler,
+         webkitAniamtionEnd: finishAnimate, webkitTransitionEnd: finishAnimate">
 <link rel="components" href="g-component.html">
+<link rel="stylesheet" href="css/g-overlay.css">
 <template>
-	<style scoped>
-		@host {
-			position: absolute;
-			z-index: 10;
-		}
-	</style>
 	<content></content>
 </template>
 <script>
+  // TODO(sorvell): promote this if it becomes a pattern
+  var setBooleanAttribute = function(inNode, inName, inValue) {
+    inNode[inValue ? 'setAttribute' : 'removeAttribute'](inName, '');
+  };
+  
+  // TODO(sorvell): is there a more new-fangled way to do this?
+  var makeFocusable = function(inNode) {
+    if (!inNode.hasAttribute('tabIndex')) {
+      inNode.setAttribute('tabIndex', -1);
+    }
+  }
+  
+  /**
+   * The overlay component is hidden by default and can be opened to display
+   * its content. It's common to animate an overlay opened and closed. This 
+   * can be achieved by styling the overlay node via the `opened` and
+   * `animating` attributes.
+  */
   this.component({
     shadowRootCreated: function() {
       this.hidden = true;
     },
+    created: function() {
+      makeFocusable(this);
+    },
     prototype: {
+      //* Timeout (ms) for animation. After timeout, any opening animation will 
+      //* be aborted and overlay will be set to opened or not and not animating.
       timeout: 1000,
-      showingChanged: function() {
-        this.animateShowing();
-        webkitRequestAnimationFrame(this.fireShowingChange.bind(this));
+      openedChanged: function() {
+        this.startAnimation();
+        // TODO(sorvell): need a controllable api for this, including 
+        // maybe focusElement.
+        if (this.opened) {
+          this.focus();
+        }
+        this.fireEvent('openedChanged', {opened: this.opened});
       },
-      dispatch: function(inName, inDetail) {
-        this.dispatchEvent(new CustomEvent(inName, {
-          bubbles: true,
-          detail: inDetail
-        }));
-      },
-      fireShowingChange: function() {
-        this.dispatch("showingChange", {
-          showing: this.showing,
-          rect: this.getBoundingClientRect()
-        });
-      },
-      animateShowing: function() {
+      startAnimation: function() {
+        this.cancelAnimation();
         this.hidden = false;
         webkitRequestAnimationFrame(function() {
-          var setBooleanAttribute = function(inNode, inName, inValue) {
-            inNode[inValue ? "setAttribute" : "removeAttribute"](inName, "");
-          };
-          setBooleanAttribute(this, "opening", this.showing);
-          setBooleanAttribute(this, "closing", !this.showing);
-          this.unlisten();
-          this.listen();
+          setBooleanAttribute(this, 'opened', this.opened);
+          setBooleanAttribute(this, 'animating', true);
+          this._animating = setTimeout(this.finishAnimate.bind(this), this.timeout);
         }.bind(this));
       },
-      listen: function() {
-        this.animationListener = this.finishAnimate.bind(this);
-        this.addEventListener("webkitAnimationEnd", this.animationListener);
-        this.addEventListener("webkitTransitionEnd", this.animationListener);
-        // always finish animation within timeout
-        this.jobId = this.utils.job(this.jobId, this.animationListener, this.timeout);
-      },
       finishAnimate: function() {
-        if (!this.showing) {
-          this.hidden = true;
-          this.classList.remove(this.hideClass);
+        if (this._animating) {
+          this.cancelAnimation();
+          setBooleanAttribute(this, 'animating', false);
+          if (!this.opened) {
+            this.hidden = true;
+          }
         }
-        this.unlisten();
       },
-      unlisten: function() {
-        this.removeEventListener("webkitAnimationEnd", this.animationListener);
-        this.removeEventListener("webkitTransitionEnd", this.animationListener);
-        this.utils.job.stop(this.jobId);
+      cancelAnimation: function() {
+        if (this._animating) {
+          clearTimeout(this._animating);
+          this._animating = null;
+        }
+      },
+      //* Toggle the opened state of the overlay.
+      toggle: function() {
+        this.opened = !this.opened;
+      },
+      clickHandler: function(e) {
+        if (e.target && e.target.hasAttribute('overlay-toggle')) {
+          this.toggle();
+        }
+      },
+      keydownHandler: function(e) {
+        if (e.keyCode == 27) {
+          this.opened = false;
+        }
       }
     }
   });
