@@ -11,10 +11,15 @@ license that can be found in the LICENSE file.
     });
   </script>
   <script>
-    // conventional names have implicit bindings
+    // conventional names for automation
     var conventions = {
+      ATTRIBUTES_ATTRIBUTE: "attributes",
+      DELEGATES_DIRECTIVE: "bind",
+      OBSERVE_DIRECTIVE: "observe",
       PROPERTY_CHANGED_SUFFIX: "Changed",
-      CUSTOM_EVENT_PREFIX: "on-"
+      CUSTOM_EVENT_PREFIX: "on-",
+      BINDING_OUT_SUFFIX: "Output",
+      BINDING_IN_SUFFIX: "Input"
     };
 
     // polyfill for DOMTokenList features: 
@@ -193,8 +198,9 @@ license that can be found in the LICENSE file.
       };
 
       var establishNodeReferences = function(inRoot) {
+        // establish $ instance variable
         this.$ = this.$ || {};
-        // search the LOCAL tree
+        // populate $ from nodes with ID from the LOCAL tree
         if (inRoot) {
           var nodes = ShadowDOM.localQueryAll(inRoot, "[id]");
           Array.prototype.forEach.call(nodes, function(n) {
@@ -215,15 +221,21 @@ license that can be found in the LICENSE file.
         if (inDelegates) {
           var node = this;
           this.modelDelegate = function(inBinding) {
-            if (inDelegates[inBinding]) {
-              //console.log("bindDelegates:", inBinding, node);
+            if (inBinding in inDelegates) {
+              var dependencies = inDelegates[inBinding] || [inBinding];
+              if (typeof dependencies == 'string') {
+                dependencies = [dependencies];
+              }
+              //console.log("bindDelegates:", inBinding, dependencies, node);
+              var inMethod = inBinding + conventions.BINDING_IN_SUFFIX;
+              var outMethod = inBinding + conventions.BINDING_OUT_SUFFIX;
               return [
-                inDelegates[inBinding],
+                dependencies,
                 function(/*inValues*/) {
-                  return delegateBinding(node, inBinding + "Out", arguments);
+                  return delegateBinding(node, outMethod, arguments);
                 },
                 function(/*inValues*/) {
-                  return delegateBinding(node, inBinding + "In", arguments);
+                  return delegateBinding(node, inMethod, arguments);
                 }
               ];
             }
@@ -232,8 +244,10 @@ license that can be found in the LICENSE file.
       };
 
       var delegateBinding = function(inNode, inDelegate, inValues) {
+        // late binding to named delegate function
         var fn = inNode[inDelegate];
         var value = fn ? fn.apply(inNode, inValues) : undefined;
+        // whenever undefined, echo back first input value
         if (value === undefined) {
           value = inValues[0];
         }
@@ -336,7 +350,8 @@ license that can be found in the LICENSE file.
 
       // per-instance
       var automate = function(inAttributes, inPublished, inDelegates) {
-        bindAttrs.call(this, inAttributes.attributes);
+        bindAttrs.call(this, inAttributes[conventions.ATTRIBUTES_ATTRIBUTE]);
+        // TODO(sjmiles): replace with on-* syntax
         bindEvents.call(this, inAttributes.handlers);
         bindProperties.call(this, inPublished);
         bindDelegates.call(this, inDelegates);
@@ -369,7 +384,12 @@ license that can be found in the LICENSE file.
           created: function() {
             //console.log("created", this);
             this.controller = this;
-            automate.call(this, attributes, inUber.published, inUber.delegates);
+            automate.call(this, 
+              attributes, 
+              // TODO(sjmiles): remove backward-compatibility expressions
+              inUber[conventions.OBSERVE_DIRECTIVE] || inUber.published,  
+              inUber[conventions.DELEGATES_DIRECTIVE] || inUber.bindings || inUber.delegates
+            );
             takeAttributes.call(this);
             if (inUber.created) {
               inUber.created.call(this);
