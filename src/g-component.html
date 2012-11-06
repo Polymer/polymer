@@ -72,7 +72,7 @@ license that can be found in the LICENSE file.
 
       // event bindings
       //
-      // <element events="onclick: click, onkeypress: keypress, ..."
+      // <element handlers="onclick: click, onkeypress: keypress, ..."
       //
       // create listeners on instances that map named events to
       // methods on the instance
@@ -295,9 +295,20 @@ license that can be found in the LICENSE file.
           squelchSideEffects = true;
           this.boundAttributes.forEach(function(a) {
             if (this.hasAttribute(a)) {
-              var value = deserializeValue(this.getAttribute(a));
+              // get raw attribute value
+              var value = this.getAttribute(a);
+              // filter out 'mustached' values, these are to be
+              // replaced with bound-data and are not runtime
+              // values themselves
+              if (value.indexOf(bindModel.mustache) >= 0) {
+                return;
+              }
+              // deserialize Boolean or Number values from attribute
+              value = deserializeValue(value);
               if (this[a] !== value) {
+                // track values that differ from property values
                 changed.push({name: a, old: this[a]});
+                // install new value (side-effects squelched)
                 this[a] = value;
               }
             }
@@ -305,6 +316,8 @@ license that can be found in the LICENSE file.
         } finally {
           squelchSideEffects = false;
         }
+        // invoke side-effects in a batch after initializing
+        // all values
         changed.forEach(function(c) {
           propertyChanged.call(this, c.name, c.old);
         }, this);
@@ -365,37 +378,41 @@ license that can be found in the LICENSE file.
 
       // asyncMethod impl
       
-      var asyncMethod = function(inMethod, inArgs) {
-        window.setTimeout(function() {
+      var asyncMethod = function(inMethod, inArgs, inTimeout) {
+        return window.setTimeout(function() {
           this[inMethod].apply(this, inArgs);
-        }.bind(this), 0);
+        }.bind(this), inTimeout || 0);
       };
          
       // decorate HTMLElementElement with toolkit API
 
-      HTMLElementElement.prototype.component = function(inUber) {
+      HTMLElementElement.prototype.component = function(inLifecycle) {
         var attributes = this.element.attributes;
         this.lifecycle({
           shadowRootCreated: function(inRoot) {
-            initialize.call(this, inRoot, inUber);
+            initialize.call(this, inRoot, inLifecycle);
           },
           created: function() {
-            //console.log("created", this);
+            // TODO(sjmiles): notional event delegate attached to DOM tree
+            //   to explore declarative event mapping as platform feature
             this.controller = this;
+            // automate basic tasks, so applications never have to
             automate.call(this, 
               attributes, 
-              // TODO(sjmiles): remove backward-compatibility expressions
-              inUber[conventions.OBSERVE_DIRECTIVE] || inUber.published,  
-              inUber[conventions.DELEGATES_DIRECTIVE] || inUber.bindings || inUber.delegates
+              // TODO(sjmiles): remove deprecated expressions
+              inLifecycle[conventions.OBSERVE_DIRECTIVE] 
+                || inLifecycle.published,  
+              inLifecycle[conventions.DELEGATES_DIRECTIVE] 
+                 || inLifecycle.bindings || inLifecycle.delegates
             );
             takeAttributes.call(this);
-            if (inUber.created) {
-              inUber.created.call(this);
+            if (inLifecycle.created) {
+              inLifecycle.created.call(this);
             }
             this.attrObserver = new AttrObserver(this);
           }
         });
-        var p = inUber.prototype || {};
+        var p = inLifecycle.prototype || {};
         // attach some API
         // TODO(sjmiles): this is probably not the best way to do this;
         // probably better to insert another link in the prototype chain
