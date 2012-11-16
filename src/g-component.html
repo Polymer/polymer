@@ -5,6 +5,10 @@ license that can be found in the LICENSE file.
 -->
 <element name="g-component">
   <script>
+    // FOUC prevent, if user sets opacity 0 on body
+    window.addEventListener("WebComponentsReady", function() {
+      document.body.style.opacity = 1;
+    });
 
     // conventional names for automation
 
@@ -19,18 +23,17 @@ license that can be found in the LICENSE file.
     };
 
     // decorate HTMLElementElement with toolkit API
+    
+    HTMLElementElement.prototype.component = component;
 
-    HTMLElementElement.prototype.component = function(inLifecycle) {
+    // entry point for declarative component definition
+    
+    function component(inLifecycle) {
       var lifecycle = inLifecycle || {};
       var attributes = this.element.attributes;
-      var delegates = lifecycle[conventions.DELEGATES_DIRECTIVE];
       //
       this.lifecycle({
         shadowRootCreated: function(inRoot) {
-          if (!this.localModel) {
-            this.localModel = {};
-            bindDelegates.call(this, delegates);
-          }
           initialize.call(this, inRoot, lifecycle);
         },
         created: function() {
@@ -38,56 +41,93 @@ license that can be found in the LICENSE file.
           //   to explore declarative event mapping as platform feature
           this.controller = this;
           // automate basic tasks, so applications never have to
-          automate.call(this,
-            attributes,
-            lifecycle[conventions.OBSERVE_DIRECTIVE]
+          automateInstance.call(this,
+            // TODO(sjmiles): replace with conventions.CUSTOM_EVENT_PREFIX
+            attributes.handlers
           );
+          // process parsed attributes as inputs (the initial mutation)
           takeAttributes.call(this);
+          // invoke user's initialization
           if (lifecycle.created) {
             lifecycle.created.call(this);
           }
-          this.attrObserver = new AttrObserver(this);
+          // attach MutationObserver so that changes in the attributes
+          // are reflected in the matching properties
+          this.attributeObserver = new AttributeObserver(this);
+          //console.dir(this);
         }
       });
       //
       var p = lifecycle.prototype || {};
+      // set up property observers
+      automatePrototype.call(p, 
+        attributes[conventions.ATTRIBUTES_ATTRIBUTE],
+        lifecycle[conventions.OBSERVE_DIRECTIVE]
+      );
       //
-      // attach some API
+      // attach some misc API
       //
-      // TODO(sjmiles): this is probably not the best way to do this;
-      // probably better to insert another link in the prototype chain,
-      // but it's unclear if HTMLElementElement et al support this
+      // TODO(sjmiles): this is probably not the best way to do this
+      // better to insert another link in the prototype chain,
+      // but it's unclear if HTMLElementElement, et al, support this
       //
+      // not scoped (utils methods do not use 'this')
       p.utils = utils;
-      p.setPropertySilently = setPropertySilently;
+      // scoped (depend on 'this')
       p.fireEvent = fireEvent;
       p.asyncMethod = asyncMethod;
+      p.setPropertySilently = setPropertySilently;
       //
-      // install our prototype
+      // install our prototype (can p be a chain?)
       this.generatedConstructor.prototype = p;
     };
 
     // lifecycle
+    
+    // per-type, this == prototype
+    var automatePrototype = function(inAttributes, inPublished) {
+      // TODO(sjmiles): scoping is tricky
+      // this function is called in the context of a prototype, therefore
+      // this localModel is a repository for default properties only
+      // instances should chain their localModel to this prototypical one
+      this.localModel = {};
+      bindAttributes.call(this, inAttributes);
+      bindProperties.call(this, inPublished);
+    };
 
     // per-root
     var initialize = function(inRoot, inLifecycle) {
+      // we actually only want to do this per-instance, but it has to be 
+      // the first thing we do and we have no other entry point
+      if (!this.hasOwnProperty('localModel')) {
+        // the prototypical localModel contains our default values, so
+        // using copy-on-write feature of javascript is convenient here
+        this.localModel = Object.create(this.localModel);
+        bindDelegates.call(this, inLifecycle[conventions.DELEGATES_DIRECTIVE]);
+      }
+      // map nodes to their id's
       establishNodeReferences.call(this, inRoot);
+      // invoke user's initialization
       if (inLifecycle.shadowRootCreated) {
         inLifecycle.shadowRootCreated.call(this, inRoot);
       }
+      // parse custom declarative event syntax out of DOM
       bindAllCustomEvents(inRoot);
+      // model binding fixups for root, if it exists
       if (inRoot) {
-        bindModel(inRoot.childNodes, this.localModel, this.localModelDelegate);
+        // ShadowDOM: inRoot.model doesn't propagate, that propagation is 
+        // rooted in light DOM; simulate by installing a local model in 
+        // each immediate child
+        injectScope(inRoot.childNodes, this.localModel, this.localModelDelegate);
+        // parse and apply model binding markup in DOM
+        bindModel(inRoot.childNodes);
+        // TODO(sjmiles): nodes created ex-post facto need similar treatment
       }
     };
 
     // per-instance
-    var automate = function(inAttributes, inPublished/*, inDelegates*/) {
-      bindAttrs.call(this, inAttributes[conventions.ATTRIBUTES_ATTRIBUTE]);
-      // TODO(sjmiles): replace with on-* syntax
-      bindEvents.call(this, inAttributes.handlers);
-      bindProperties.call(this, inPublished);
-      //bindDelegates.call(this, inDelegates);
+    var automateInstance = function(inHandlers) {
+      bindEvents.call(this, inHandlers);
     };
 
     // property bindings
@@ -96,7 +136,7 @@ license that can be found in the LICENSE file.
     //
     // an observable property with <name> will automatically call
     // <name>Changed method when the property value changes
-    // (if <name>Changed exists)
+    // (if <name>Changed exists, late-bound)
 
     var bindProperties = function(inProperties) {
       if (inProperties) {
@@ -106,13 +146,12 @@ license that can be found in the LICENSE file.
       }
     };
 
+    // sometimes called in the context of a prototype
+    // localModel on the prototype is storage for default property values
     var bindProperty = function(inName, inValue) {
-      if (inName in this.localModel) {
-        this.setPropertySilently(inName, inValue);
-      } else {
-        this.setPropertySilently(inName, inValue);
+      if (!this.localModel.hasOwnProperty(inName)) {
         // weak-bound <inName>Changed caller
-        var sideEffect = sideEffectFactory(inName);
+        var changeEffect = sideEffectFactory(inName);
         // use get/set so we can catch side-effects
         // TODO(sjmiles): if we can switch to Object.observe
         // then we can watch 'this' directly for property
@@ -125,11 +164,25 @@ license that can be found in the LICENSE file.
             var old = this.localModel[inName];
             this.localModel[inName] = v;
             if (old !== v) {
-              sideEffect.call(this, old);
+              changeEffect.call(this, old);
             }
           }
         });
       }
+      setPropertySilently.call(this, inName, inValue);
+    };
+
+    var sideEffectFactory = function(inName) {
+      var fn = appendChangedSuffix(inName);
+      return function(inOld) {
+        if (!squelchSideEffects) {
+          invoke.call(this, fn, [inOld]);
+        }
+      };
+    };
+    
+    var setPropertySilently = function(inName, inValue) {
+      this.localModel[inName] = inValue;
     };
 
     var invoke = function(inMethod, inArgs) {
@@ -148,19 +201,6 @@ license that can be found in the LICENSE file.
 
     var squelchSideEffects = false;
 
-    var sideEffectFactory = function(inName) {
-      var fn = appendChangedSuffix(inName);
-      return function(inOld) {
-        if (!squelchSideEffects) {
-          invoke.call(this, fn, [inOld]);
-        }
-      };
-    };
-
-    var setPropertySilently = function(inName, inValue) {
-      this.localModel[inName] = inValue;
-    };
-
     // helper for shim tree magic
 
     var deref = function(inNode) {
@@ -172,13 +212,12 @@ license that can be found in the LICENSE file.
     // <element attributes="attr1, attr2..."
     //
     // create matching observed properties attr1, attr2, etc.
-    // and attaches MutationObserver so that changes in the attributes
-    // are reflected in the matching properties
 
-    var bindAttrs = function(inAttributes) {
+    var bindAttributes = function(inAttributes) {
       var attrs = this.boundAttributes = [];
       if (inAttributes) {
-        var bindables = inAttributes.value.split(",");
+        var a$ = inAttributes.value;
+        var bindables = a$.split(a$.indexOf(',') >= 0 ? ',' : ' ');
         bindables.forEach(function(a) {
           a = a.trim();
           attrs.push(a);
@@ -216,11 +255,9 @@ license that can be found in the LICENSE file.
     // MDV usually does this work but requires an additional
     // nested template and functions asynchronously
 
-    var bindModel = function(inNodes, inLocalModel, inLocalModelDelegate) {
+    var bindModel = function(inNodes) {
       var bindMustache = function(inN, inNameOrValue, inValue) {
         if ((inValue || inNameOrValue).search(bindModel.mustache) >= 0) {
-          inN.model = inLocalModel;
-          inN.modelDelegate = inLocalModelDelegate;
           inN.addBinding(inNameOrValue, inValue);
         }
       };
@@ -234,11 +271,27 @@ license that can be found in the LICENSE file.
           Array.prototype.forEach.call(n.attributes, function(a) {
             bindMustache(n, a.name, a.value);
           });
-          bindModel(n.childNodes, inLocalModel, inLocalModelDelegate);
+          bindModel(n.childNodes);
         }
       });
     };
     bindModel.mustache = /\{\{([^{}]*)}}/g;
+
+    // manually cascade a model and a delegate 
+    var injectScope = function(inNodes, inLocalModel, inLocalModelDelegate) {
+      Array.prototype.forEach.call(inNodes, function(n) {
+        n.model = inLocalModel;
+        n.modelDelegate = inLocalModelDelegate;
+        // if there is a baby, do it too
+        n = n.baby;
+        if (n) {
+          n.model = inLocalModel;
+          n.modelDelegate = inLocalModelDelegate;
+        }
+        //console.log('injectScope', inLocalModel);
+        //console.dir(n)
+      });
+    };
 
     // node bindings
     //
@@ -384,7 +437,7 @@ license that can be found in the LICENSE file.
       }, this);
     };
 
-    var AttrObserver = function(inNode) {
+    var AttributeObserver = function(inNode) {
       var observer = new WebKitMutationObserver(handleMutations.bind(inNode));
       observer.observe(inNode, {
         attributes: true,
@@ -556,12 +609,12 @@ license that can be found in the LICENSE file.
       var remove = DOMTokenList.prototype.remove;
       DOMTokenList.prototype.add = function() {
         for (var i = 0; i < arguments.length; i++) {
-        add.call(this, arguments[i]);
+          add.call(this, arguments[i]);
         }
       };
       DOMTokenList.prototype.remove = function() {
         for (var i = 0; i < arguments.length; i++) {
-        remove.call(this, arguments[i]);
+          remove.call(this, arguments[i]);
         }
       };
       DOMTokenList.prototype.toggle = function(name, value) {
