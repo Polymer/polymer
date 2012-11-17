@@ -5,9 +5,9 @@
  * license that can be found in the LICENSE file.
  */
 -->
-<element name="g-overlay" attributes="opened, timeout" 
+<element name="g-overlay" attributes="opened" 
          handlers="click: clickHandler, keydown: keydownHandler,
-         webkitAniamtionEnd: finishAnimate, webkitTransitionEnd: finishAnimate">
+         webkitAnimationEnd: animationEnd, webkitTransitionEnd: animationEnd">
 <link rel="components" href="g-component.html">
 <link rel="stylesheet" href="css/g-overlay.css">
 <template>
@@ -22,68 +22,69 @@
    * can be achieved by styling the overlay node via the `opened` and
    * `animating` attributes.
   */
+ 
   this.component({
-    shadowRootCreated: function() {
-      this.hidden = true;
-    },
-    created: function() {
-      // make focusable; note that default tabIndex == -1 but node is 
-      // only focusable if tabIndex attr is set.
-      if (this.tabIndex < 0) {
-        this.tabIndex = -1;
-      }
-    },
-    prototype: {
+    publish: {
       //* Timeout (ms) for animation. After timeout, any opening animation will 
-      //* be aborted and overlay will be set to opened or not and not animating.
+      //* be aborted and overlay will be set to opened (or not) and 
+      //* not animating.
       timeout: 1000,
-      openedChanged: function() {
-        this.startAnimation();
-        // TODO(sorvell): need a controllable api for this, including 
-        // maybe focusElement.
-        if (this.opened) {
-          this.focus();
-        }
-        this.fireEvent('openedChanged', {opened: this.opened});
-      },
-      startAnimation: function() {
-        this.cancelAnimation();
-        this.hidden = false;
-        this._animating = setTimeout(this.finishAnimate.bind(this), this.timeout);
-        this.asyncMethod('styleAnimationStart');
-      },
-      styleAnimationStart: function() {
-        this.classList.toggle('opened', this.opened);
-        this.classList.add('animating');
-      },
-      finishAnimate: function() {
-        if (this._animating) {
-          this.cancelAnimation();
-          this.classList.remove('animating');
-          if (!this.opened) {
-            this.hidden = true;
-          }
-        }
-      },
-      cancelAnimation: function() {
-        if (this._animating) {
-          clearTimeout(this._animating);
-          this._animating = null;
-        }
-      },
       //* Toggle the opened state of the overlay.
       toggle: function() {
-        this.opened = !this.opened;
-      },
-      clickHandler: function(e) {
-        if (e.target && e.target.hasAttribute('overlay-toggle')) {
-          this.toggle();
+        this.node.opened = !this.opened;
+      }
+    },
+    ready: function() {
+      this.node.hidden = true;
+      // make focusable; note that default tabIndex == -1 but node is 
+      // only focusable if tabIndex attr is set.
+      if (this.node.tabIndex < 0) {
+        this.node.tabIndex = -1;
+      }
+    },
+    openedChanged: function() {
+      this.startAnimation();
+      // TODO(sorvell): need a controllable api for this, including 
+      // maybe focusElement.
+      if (this.opened) {
+        this.node.focus();
+      }
+      this.fireEvent('openedChanged', this.opened);
+    },
+    startAnimation: function() {
+      this.cancelAnimation();
+      this.node.hidden = false;
+      // force animationEnd after timeout ms
+      this._animating = this.asyncMethod('animationEnd', null, this.timeout);
+      this.asyncMethod('styleAnimationStart');
+    },
+    styleAnimationStart: function() {
+      this.node.classList.toggle('opened', this.opened);
+      this.node.classList.add('animating');
+    },
+    animationEnd: function() {
+      if (this._animating) {
+        this.cancelAnimation();
+        this.node.classList.remove('animating');
+        if (!this.opened) {
+          this.node.hidden = true;
         }
-      },
-      keydownHandler: function(e) {
-        if (e.keyCode == ESCAPE_KEY) {
-          this.opened = false;
-        }
+      }
+    },
+    cancelAnimation: function() {
+      if (this._animating) {
+        clearTimeout(this._animating);
+        this._animating = null;
+      }
+    },
+    clickHandler: function(e) {
+      if (e.target && e.target.hasAttribute('overlay-toggle')) {
+        this.toggle();
+      }
+    },
+    keydownHandler: function(e) {
+      if (e.keyCode == ESCAPE_KEY) {
+        this.opened = false;
       }
     }
   });
