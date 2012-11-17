@@ -25,12 +25,12 @@ suite('g-selector', function() {
   
   test('getItems', function() {
     addItems(4);
-    expect(selector.getItems()).to.have.length(4);
+    expect(selector.items).to.have.length(4);
   });
   
   test('item textContent', function() {
     addItems(4);
-    selector.getItems().forEach(function(item, i) {
+    selector.items.forEach(function(item, i) {
       expect(item.textContent).to.be('item'+i);
     });
   });
@@ -39,16 +39,20 @@ suite('g-selector', function() {
     test('selected', function() {
       addItems(4);
       selector.selected = 2;
-      expect(selector.getItems()[2].className).to.be('selected');
+      expect(selector.items[2].className).to.be('selected');
     });
     
-    test('multi', function() {
+    test('multi', function(done) {
       addItems(4);
       selector.multi = true;
-      selector.selected = 0;
-      selector.selected = 1;
-      expect(selector.getItems()[0].className).to.be('selected');
-      expect(selector.getItems()[1].className).to.be('selected');
+      setTimeout(function() {
+        selector.selected = 0;
+        selector.selected = 1;
+        expect(selector.selection.length).to.be(2);
+        expect(selector.items[0].className).to.be('selected');
+        expect(selector.items[1].className).to.be('selected');
+        done();
+      }, 0);
     });
   });
 });
