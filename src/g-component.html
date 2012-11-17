@@ -5,449 +5,86 @@ license that can be found in the LICENSE file.
 -->
 <element name="g-component">
   <script>
-    this.lifecycle({
-      shadowRootCreated: function() {
-      }
+    // FOUC prevent, if user sets opacity 0 on body
+    
+    window.addEventListener("WebComponentsReady", function() {
+      document.body.style.opacity = 1;
     });
-  </script>
-  <script>
+
     // conventional names for automation
+
     var conventions = {
       ATTRIBUTES_ATTRIBUTE: "attributes",
-      DELEGATES_DIRECTIVE: "bind",
-      OBSERVE_DIRECTIVE: "observe",
+      PUBLISH_DIRECTIVE: "publish",
       PROPERTY_CHANGED_SUFFIX: "Changed",
       CUSTOM_EVENT_PREFIX: "on-",
+      DELEGATES_DIRECTIVE: "bind",
       BINDING_OUT_SUFFIX: "Output",
       BINDING_IN_SUFFIX: "Input"
     };
 
-    // polyfill for DOMTokenList features: 
-    //  add/remove multiple classes
-    //  arity-2 toggle
+    // decorate HTMLElementElement with toolkit API
     
-    (function() {
-      'use strict';
-      var add = DOMTokenList.prototype.add;
-      var remove = DOMTokenList.prototype.remove;
-      DOMTokenList.prototype.add = function() {
-        for (var i = 0; i < arguments.length; i++) {
-         add.call(this, arguments[i]);
+    HTMLElementElement.prototype.component = component;
+
+    // entry point for declarative component definition
+
+    function component(inLifecycle) {
+      // make sure we have an object
+      var lifecycle = inLifecycle || {};
+      // prepare callbacks
+      this.lifecycle({
+        shadowRootCreated: function(inRoot) {
+          initializeRoot.call(this, inRoot, lifecycle);
+        },
+        created: function(/*inSuper*/) {
+          initializeInstance.call(this, attributes);
         }
-      };
-      DOMTokenList.prototype.remove = function() {
-        for (var i = 0; i < arguments.length; i++) {
-         remove.call(this, arguments[i]);
-        }
-      };
-      DOMTokenList.prototype.toggle = function(name, value) {
-        if (value == undefined) {
-          value = !this.contains(name);
-        }
-        value ? this.add(name) : this.remove(name);
-      };
-    })();
+      });
+      // use markup directives from HTMLElementElement attributes
+      var attributes = this.element.attributes;
+      // desugar lifecycle definition into a public prototype
+      var prototype = desugar(lifecycle, this.name, this.extendsName);
+      // publish definitions from attributes attributes
+      publishAttributes(attributes[conventions.ATTRIBUTES_ATTRIBUTE], 
+          prototype);
+      // install our public interface
+      this.generatedConstructor.prototype = prototype;
+      // TODO(sjmiles): get clarity on whether 'prototype' can be a chain
+      //   (we are careful *not* to generate a chain)
+    };
+    
+    // ultimate base class for Toolkit Components
 
-    (function(){
+    // note $ used as name prefix to prevent collision with reserved words, 
+    // e.g. $super for super (also default, interface, etc.)
 
-      // attribute bindings
-      //
-      // <element attributes="attr1, attr2..."
-      // 
-      // create matching observed properties attr1, attr2, etc.
-      // and attaches MutationObserver so that changes in the attributes
-      // are reflected in the matching properties
-
-      var bindAttrs = function(inAttributes) {
-        var attrs = this.boundAttributes = [];
-        if (inAttributes) {
-          var bindables = inAttributes.value.split(",");
-          bindables.forEach(function(a) {
-            a = a.trim();
-            attrs.push(a);
-            bindProperty.call(this, a, this[a]);
-          }, this);
-        }
-      };
-
-      // event bindings
-      //
-      // <element handlers="onclick: click, onkeypress: keypress, ..."
-      //
-      // create listeners on instances that map named events to
-      // methods on the instance
-
-      var bindEvents = function(inEvents) {
-        if (inEvents) {
-          var bindables = inEvents.value.split(",");
-          bindables.forEach(function(e) {
-            // event name: handler name pairs
-            var pair = e.split(":");
-            var event = pair[0].trim();
-            var handler = pair[1].trim();
-            if (this[handler]) {
-              this.addEventListener(event, this[handler].bind(this));
-            }
-          }, this);
-        }
-      };
-      
-      // model bindings
-      //
-      // convert {{macro}} strings in markup into MDV bindings
-      // 
-      // MDV usually does this work but requires an additional
-      // nested template and functions asynchronously
-
-      var bindModel = function(inNodes) {
-        var m = bindModel.mustache;
-        Array.prototype.forEach.call(inNodes, function(n) {
-          n = n.baby || n;
-          if (n.nodeName == "#text") {
-            if (n.textContent.search(m) >= 0) {
-              //console.log('addBinding', n.textContent, n);
-              n.addBinding(n.textContent);
-            }
-          } else if (n.attributes && n.tagName !== "TEMPLATE") {
-            // attribute bindings
-            Array.prototype.forEach.call(n.attributes, function(a) {
-              if (a.value.search(m) >= 0) {
-                //console.log('addBinding', a.name, a.value, n);
-                n.addBinding(a.name, a.value);
-              }
-            });
-            bindModel(n.childNodes);
-          }
-        });
-      };
-      bindModel.mustache = /\{\{([^{}]*)}}/g;
-
-      // property bindings
-      //
-      // sets up observable properties
-      // 
-      // an observable property with <name> will automatically call 
-      // <name>Changed method when the property value changes
-      // (if <name>Changed exists)
-      
-      var propertyChanged = function(inName, inOld) {
-        var fn = inName + conventions.PROPERTY_CHANGED_SUFFIX;
-        if (this[fn]) {
-          this[fn](inOld);
-        }
-      };
-
-      var sideEffectFactory = function(inName) {
-        var fn = inName + conventions.PROPERTY_CHANGED_SUFFIX;
-        return function(inOld) {
-          if (this[fn]) {
-            this[fn](inOld);
-          }
-        };
-      };
-
-      var squelchSideEffects = false;
-
-      var setPropertySilently = function(inName, inValue) {
-        squelchSideEffects = true;
-        try {
-          this[inName] = inValue;
-        } finally {
-          squelchSideEffects = false;
-        }
-      };
-
-      var bindProperty = function(inName, inValue) {
-        if (inName in this) {
-          // set default value in a property already bound via attrs
-          setPropertySilently.call(this, inName, inValue);
-        } else {
-          //console.log('binding', inName, this)
-          var value = inValue;
-          var sideEffect = sideEffectFactory(inName);
-          Object.defineProperty(this, inName, {
-            get: function() {
-              return value;
-            },
-            set: function(v) {
-              var old = value;
-              value = v;
-              if (!squelchSideEffects && (old !== v)) {
-                sideEffect.call(this, old);
-              }
-            }
-          });
-        }
-      };
-
-      var bindProperties = function(inProperties) {
-        if (inProperties) {
-          Object.keys(inProperties).forEach(function(n) {
-            bindProperty.call(this, n, inProperties[n]);
-          }, this);
-        }
-      };
-
-      // node bindings
-      //
-      // local nodes that have ID and store references to them in 
-      // this.$ hash
-      
-      var deref = function(inNode) {
-        return inNode && (inNode.baby || inNode);
-      };
-
-      var establishNodeReferences = function(inRoot) {
-        // establish $ instance variable
-        this.$ = this.$ || {};
-        // populate $ from nodes with ID from the LOCAL tree
-        if (inRoot) {
-          var nodes = ShadowDOM.localQueryAll(inRoot, "[id]");
-          Array.prototype.forEach.call(nodes, function(n) {
-            this.$[n.id] = deref(n);
-          }, this);
-        }
-      };
-      
-      // data bindings
-      // 
-      // <name>: ['<path dependency>', '<path dependency>'...]
-      //
-      // bind MDV macros of the form {{<name>}} to formatting methods
-      // in inNode using MDV delegates
-      //
-      
-      var bindDelegates = function(inDelegates) {
-        if (inDelegates) {
-          var node = this;
-          this.modelDelegate = function(inBinding) {
-            if (inBinding in inDelegates) {
-              var dependencies = inDelegates[inBinding] || [inBinding];
-              if (typeof dependencies == 'string') {
-                dependencies = [dependencies];
-              }
-              //console.log("bindDelegates:", inBinding, dependencies, node);
-              var inMethod = inBinding + conventions.BINDING_IN_SUFFIX;
-              var outMethod = inBinding + conventions.BINDING_OUT_SUFFIX;
-              return [
-                dependencies,
-                function(/*inValues*/) {
-                  return delegateBinding(node, outMethod, arguments);
-                },
-                function(/*inValues*/) {
-                  return delegateBinding(node, inMethod, arguments);
-                }
-              ];
-            }
-          };
-        }
-      };
-
-      var delegateBinding = function(inNode, inDelegate, inValues) {
-        // late binding to named delegate function
-        var fn = inNode[inDelegate];
-        var value = fn ? fn.apply(inNode, inValues) : undefined;
-        // whenever undefined, echo back first input value
-        if (value === undefined) {
-          value = inValues[0];
-        }
-        //console.log(inDelegate, inValues, value);
-        return value;
-      };
-      
-      var deref = function(inNode) {
-        return inNode && (inNode.baby || inNode);
-      };
-
-      var establishNodeReferences = function(inRoot) {
-        this.$ = this.$ || {};
-        // search the LOCAL tree
-        if (inRoot) {
-          var nodes = ShadowDOM.localQueryAll(inRoot, "[id]");
-          Array.prototype.forEach.call(nodes, function(n) {
-            this.$[n.id] = deref(n);
-          }, this);
-        }
-      };
-      
-      // attribute mutations
-
-      var deserializeValue = function(inValue) {
-        switch (inValue) {
-          case "":
-          case "true":
-            return true;
-          case "false":
-            return false;
-          case "\\false":
-            return "false";
-          }
-          return isNaN(inValue) ? inValue : parseFloat(inValue);
-      };
-
-      // propagate initial bound-attribute values into properties
-      // as a batch, invoking side-effects only after all
-      // properties are initialized 
-      
-      var takeAttributes = function() {
-        var changed = [];
-        try {
-          squelchSideEffects = true;
-          this.boundAttributes.forEach(function(a) {
-            if (this.hasAttribute(a)) {
-              // get raw attribute value
-              var value = this.getAttribute(a);
-              // filter out 'mustached' values, these are to be
-              // replaced with bound-data and are not runtime
-              // values themselves
-              if (value.search(bindModel.mustache) >= 0) {
-                return;
-              }
-              // deserialize Boolean or Number values from attribute
-              value = deserializeValue(value);
-              if (this[a] !== value) {
-                // track values that differ from property values
-                changed.push({name: a, old: this[a]});
-                // install new value (side-effects squelched)
-                this[a] = value;
-              }
-            }
-          }, this);
-        } finally {
-          squelchSideEffects = false;
-        }
-        // invoke side-effects in a batch after initializing
-        // all values
-        changed.forEach(function(c) {
-          propertyChanged.call(this, c.name, c.old);
-        }, this);
-      };
-
-      var attributeChanged = function(inName) {
-        this[inName] = deserializeValue(this.getAttribute(inName));
-      };
-
-      var handleMutations = function(inMxns) {
-        inMxns.forEach(function(inMxn) {
-          var name = inMxn.attributeName;
-          if (this.boundAttributes.indexOf(name) >= 0) {
-            attributeChanged.call(this, name);
-          }
-        }, this);
-      };
-
-      var AttrObserver = function(inNode) {
-        var observer = new WebKitMutationObserver(handleMutations.bind(inNode));
-        observer.observe(inNode, {
-          attributes: true,
-          attributeOldValue: true
-        });
-        return observer;
-      };
-
-      // lifecycle
-
-      // per-root
-      var initialize = function(inRoot, inUber) {
-        establishNodeReferences.call(this, inRoot);
-        if (inUber.shadowRootCreated) {
-          inUber.shadowRootCreated.call(this, inRoot);
-        }
-        bindAllCustomEvents(inRoot);
-        if (inRoot) {
-          bindModel(inRoot.childNodes);
-        }
-      };
-
-      // per-instance
-      var automate = function(inAttributes, inPublished, inDelegates) {
-        bindAttrs.call(this, inAttributes[conventions.ATTRIBUTES_ATTRIBUTE]);
-        // TODO(sjmiles): replace with on-* syntax
-        bindEvents.call(this, inAttributes.handlers);
-        bindProperties.call(this, inPublished);
-        bindDelegates.call(this, inDelegates);
-      };
-
-      // fireEvent impl
-      
-      var fireEvent = function(inType, inDetail) {
-        this.asyncMethod("dispatchEvent", [
-          new CustomEvent(inType, {bubbles: true, detail: inDetail})
-        ]);
-      };
-
-      // asyncMethod impl
-      
-      var asyncMethod = function(inMethod, inArgs, inTimeout) {
+    var Base = {
+      $super: $super,
+      ready: function() {
+      },
+      asyncMethod: function(inMethod, inArgs, inTimeout) {
+        var args = (inArgs && inArgs.length) || [inArgs];
         return window.setTimeout(function() {
-          this[inMethod].apply(this, inArgs);
+          this[inMethod].apply(this, args);
         }.bind(this), inTimeout || 0);
-      };
-         
-      // decorate HTMLElementElement with toolkit API
-
-      HTMLElementElement.prototype.component = function(inLifecycle) {
-        var attributes = this.element.attributes;
-        this.lifecycle({
-          shadowRootCreated: function(inRoot) {
-            initialize.call(this, inRoot, inLifecycle);
-          },
-          created: function() {
-            // TODO(sjmiles): notional event delegate attached to DOM tree
-            //   to explore declarative event mapping as platform feature
-            this.controller = this;
-            // automate basic tasks, so applications never have to
-            automate.call(this, 
-              attributes, 
-              // TODO(sjmiles): remove deprecated expressions
-              inLifecycle[conventions.OBSERVE_DIRECTIVE] 
-                || inLifecycle.published,  
-              inLifecycle[conventions.DELEGATES_DIRECTIVE] 
-                 || inLifecycle.bindings || inLifecycle.delegates
-            );
-            takeAttributes.call(this);
-            if (inLifecycle.created) {
-              inLifecycle.created.call(this);
-            }
-            this.attrObserver = new AttrObserver(this);
+      },
+      setProperty: function(inName, inValue) {
+        var old = this[inName];
+        this[inName] = inValue;
+        if (old !== inValue) {
+          var fn = inName + "Changed";
+          if (this[fn]) {
+            this[fn](old);
           }
-        });
-        var p = inLifecycle.prototype || {};
-        // attach some API
-        // TODO(sjmiles): this is probably not the best way to do this;
-        // probably better to insert another link in the prototype chain
-        p.utils = utils;
-        p.setPropertySilently = setPropertySilently;
-        p.fireEvent = fireEvent;
-        p.asyncMethod = asyncMethod;
-        // install our prototype
-        this.generatedConstructor.prototype = p;
-      };
-
-      // utility methods (utils)
-
-      // job
-
-      var job = function(inJobName, inJob, inWait) {
-        var name = inJobName || ("__" + Math.random());
-        job.stop(name);
-        job._jobs[name] = setTimeout(function() {
-          job.stop(name);
-          inJob();
-        }, inWait);
-        return name;
-      };
-      job.stop = function(inJobName) {
-        if (job._jobs[inJobName]) {
-          clearTimeout(job._jobs[inJobName]);
-          delete job._jobs[inJobName];
         }
-      };
-      job._jobs = {};
-
-      // target finding
-
-      var findDistributedTarget = function(inTarget, inNodes) {
+      },
+      fireEvent: function(inType, inDetail) {
+        this.node.dispatchEvent(
+          new CustomEvent(inType, {bubbles: true, detail: inDetail})
+        );
+      },
+      findDistributedTarget: function(inTarget, inNodes) {
         // find first ancestor of target (including itself) that
         // is in inNodes, if any
         var n = inTarget;
@@ -458,110 +95,649 @@ license that can be found in the LICENSE file.
           }
           n = n.parentNode;
         }
+      }
+    };
+
+    // support properties declared via 'attributes' directive
+    // <element ... attributes="<attr1 attr2...">
+    // by copying declared property names to inLifecycle's published block
+
+    var publishAttributes = function(inAttributesAttribute, inPrototype) {
+      // We used to record these values on to the publish
+      // block before desugaring, to reuse the existing publish
+      // machinery, but this code operates after desugaring,
+      // poking the necessary objects directly.
+      // We publish manually to avoid improper type-inferencing
+      // by not setting any value for this name in the prototype.
+      if (inAttributesAttribute) {
+        // need a published block to extend
+        var pd = conventions.PUBLISH_DIRECTIVE;
+        var $protected = inPrototype.$protected;
+        var published = $protected[pd] = $protected[pd] || {};
+        // use the value of the attributes-attribute
+        var a$ = inAttributesAttribute.value;
+        // attributes="a b c" or attributes="a,b,c"
+        var names = a$.split(a$.indexOf(',') >= 0 ? ',' : ' ');
+        names.forEach(function(p) {
+          p = p.trim();
+          // record as published
+          published[p] = null;
+          // bind to exports
+          publish($protected, p, $protected.exports);
+        });
+      }
+    };    
+
+    //
+    // OO sugaring
+    //
+    
+    // build component prototype from element definition
+    
+    var desugar = function(inLifecycle, inName, inExtendsName) {
+      // inherit protected API from a cached prototype or ProtectedBase
+      var base = registry[inExtendsName] || ProtectedBase;
+      // build prototype that extends base
+      var prototype = extend(base, inLifecycle);
+      // cache and return desugared prototype
+      return registry[inName] = prototype;
+    };
+    
+    var ProtectedBase = {$protected: Base};
+      
+    // it's convenient to keep track of our own components 
+    // for protected inheritance
+    
+    var registry = {};
+    
+    // produce a prototype from inLifecycle which extends inBase
+    
+    var extend = function(inBase, inLifecycle) {
+      // reuse inLifecycle as the protected prototype to avoid copying
+      var $protected = inLifecycle || {};
+      // published properties to prototype and prototype.exports
+      publishProperties($protected);
+      // chain to inBase's protected prototype
+      $protected.__proto__ = inBase.$protected;
+      // we must return the public prototype
+      var $public = $protected.exports;
+      // store our protected prototype so we can instance it
+      // when we instance the public prototype
+      $public.$protected = $protected;
+      // return generated public prototype
+      return $public;
+    };
+
+    // TODO(sjmiles): for-in loops below possibly not x-platform safe,
+    // add 'hasOwnProperty' check?
+
+    var publishProperties = function(inPrototype) {
+      // 'publish' means to express on our prototype...
+      for (var n in inPrototype.publish) {
+        // prototype takes precendent
+        if (!(inPrototype.hasOwnProperty(n))) {
+          copyProperty(n, inPrototype.publish, inPrototype);
+        }
+      }
+      // ... and on our exports
+      inPrototype.exports = {};
+      for (var n in inPrototype.publish) {
+        publish(inPrototype, n, inPrototype.exports);
+      }
+      // return the configured prototype
+      return inPrototype;
+    };
+    
+    // copy property 'name' from src to obj
+
+    var copyProperty = function(name, src, obj) {
+      var g = src.__lookupGetter__(name);
+      if (g) {
+        obj.__defineGetter__(name, g);
+      } else {
+        obj[name] = src[name];
+      }
+      var s = src.__lookupSetter__(name);
+      if (s) {
+        obj.__defineSetter__(name, s);
+      }
+    };
+
+    // copy all properties (including get/set pairs) from 
+    // inProps (et al) to inObj
+
+    var mixin = function(inObj, inProps/*, inMoreProps, ...*/) {
+      var obj = inObj || {};
+      var p$ = Array.prototype.slice.call(arguments, 1);
+      for (var i=0, gs, p; (p=p$[i]); i++) {
+        for (var n in p) {
+          copyProperty(n, p, obj);
+        }
+      }
+      return obj;
+    };
+
+    // make inSource[inName] available via inTarget
+    //
+    // used to elevate inName from protected to public
+
+    var publish = function(inSource, inName, inTarget) {
+      // access property value (unless it is a getter itself)
+      var value = (!inSource.__lookupGetter__(inName)) && inSource[inName];
+      // delegate function-valued properties to this.$protected
+      if (typeof value == "function") {
+        inTarget[inName] = function() {
+          return value.apply(this.$protected, arguments);
+        }
+      } else {
+        // make the property enumerable
+        // TODO(sjmiles): use defineProperty to do this
+        //inTarget[inName] = null;
+        // delegate other properties to this.$protected
+        Object.defineProperty(inTarget, inName, {
+          get: function() {
+            return this.$protected[inName];
+          },
+          set: function(inValue) {
+            this.$protected.setProperty(inName, inValue);
+          },
+          enumerable: true
+        });
+      }
+    };
+
+    // super impl
+
+    var $super = (function() {
+      // TODO(sjmiles): will not work with mixins because
+      //    the memoization strategy assumes
+      //    each function exists on only one prototype chain
+      //    (i.e. we use the function object for memoizing)
+
+      var nextSuper = function(inProto, inName, inCaller) {
+        // look for an inherited prototype that implements inName
+        var proto = inProto;
+        while (proto && 
+            (!proto.hasOwnProperty(inName) || proto[inName] == inCaller)) {
+          proto = proto.__proto__;
+        }
+        return proto;
       };
 
-      // string interpolation
-      var macroize = function(inText, inMap, inPattern) {
-        var result = inText, pattern = inPattern || macroize.pattern;
-        var fn = function(macro, name) {
-          var v = inMap[name];
-          return (v === undefined || v === null) ? macro : v;
-        };
-        result = result.replace(pattern, fn);
-        return result;
+      var memoizeSuper = function(inMethod, inName, inProto) {
+        //console.log('$super: memoizing super');
+        // find and cache next prototype containing inName
+        // we need the prototype so we can another lookup 
+        // from here
+        inMethod._super = nextSuper(inProto, inName, inMethod);
+        if (inMethod._super) {
+          // _super is a prototype, the actual method is _super[inName]
+          // tag super method with it's name for further lookups
+          inMethod._super[inName]._nom = inName;
+        }
       };
-      // Matches macros of the form {{name}}.
-      macroize.pattern = /\{{([^{}]*)\}}/g;
 
-      // collect utils
-
-      var utils = {
-        job: job,
-        macroize: macroize,
-        findDistributedTarget: findDistributedTarget
-      };
-     
-      // newer experimental event handler
-
-      var findController = function(inNode) {
-        // find the shadow root that contains inNode
-        var n = inNode.changeling || inNode;
-        while (n.parentNode && n.tagName !== 'SHADOW-ROOT') {
-          n = n.parentNode;
-          if (n.changeling) {
-            n = n.changeling;
+      var nameInThis = function(inValue) {
+        for (var n in this) {
+          if (this[n] == inValue) {
+            return n;
           }
         }
-        return n.host.controller;
       };
 
-      var _ = function(inHandlerName) {
-        var controller = findController(event.currentTarget);
-        //console.log(inHandler, owner, event);
-        if (controller && controller[inHandlerName]) {
-          controller[inHandlerName](event);
-        }
-      };
-
-      // automagic event mapping
-      //
-      // locate attributes of the form <prefix><eventName>="<methodName>" and
-      // map <eventName> events to method <methodName> to inNode's controller
-      //
-
-      var bindCustomEvent = function(inNode, inEventName, inHandler) {
-        var h = inNode.__athandlers = inNode.__athandlers || {};
-        if (!h[inEventName]) {
-          //console.log("bindCustomEvent:", inEventName, inHandler, inNode);
-          h[inEventName] = function() {
-            _(inHandler);
-          };
-          inNode.addEventListener(inEventName, h[inEventName]);
-        }
-      };
-
-      var bindCustomEvents = function(inNode) {
-        var prefix = conventions.CUSTOM_EVENT_PREFIX;
-        var a$ = inNode.attributes;
-        if (a$) {
-          for (var i=0, a; a=a$[i]; i++) {
-            if (a.name.slice(0, prefix.length) == prefix) {
-              bindCustomEvent(inNode, a.name.slice(prefix.length), a.value);
-            }
+      return function(inArgs) {
+        // since we are thunking a method call, performance is important
+        // here: memoize all lookups, once memoized the fast path
+        // calls no helper functions
+        // 
+        // find the caller (can't be 'strict' here)
+        //var caller = arguments.callee.caller;
+        //console.log("super.caller good?", (this.$super.caller == caller));
+        var caller = this.$super.caller;
+        // memoization for 'name of method'
+        var nom = caller._nom;
+        if (!nom) {
+          // once per call chain
+          nom = caller._nom = nameInThis.call(this, caller);
+          if (!nom) {
+            console.warn('called super() on a method not in "this"');
+            return;
           }
         }
-      };
-
-      // TODO(sjmiles): improper tree walking (?)
-      var _bindAllCustomEvents = function(inNode) {
-        bindCustomEvents(inNode);
-        if (inNode.childNodes) {
-          for (var i=0, c; c=deref(inNode.childNodes[i]); i++) {
-            if (c.tagName !== 'SHADOW') {
-              bindAllCustomEvents(c);
-            }
+        // super prototype is either cached or we have to find it
+        // by searching __proto__ (at the 'top')
+        if (!('_super' in caller)) {
+          memoizeSuper(caller, nom, this.__proto__);
+        }
+        // memoized next implementation prototype
+        var _super = caller._super;
+        if (!_super) {
+          // if _super is falsey, there is no super implementation
+          console.warn('called $super(' + nom + ') where there is none');
+        } else {
+          // our super function
+          var fn = _super[nom];
+          // memoize information so 'fn' can call 'super'
+          if (!('_super' in fn)) {
+            memoizeSuper(fn, nom, _super);
           }
+          // invoke the inherited method
+          // if 'fn' is not function valued, this will throw
+          return fn.apply(this, inArgs || []);
         }
       };
-
-      var eventsObserver = function(inNode) {
-        // TODO(sjmiles): optimize so we only bind new nodes
-        new WebKitMutationObserver(_bindAllCustomEvents.bind(this, inNode))
-          .observe(inNode, {
-            childList: true,
-            subTree: true
-          });
-      };
-
-      var bindAllCustomEvents = function(inNode) {
-        if (inNode) {
-          _bindAllCustomEvents(inNode);
-          // we need this for custom events in iterated templates
-          eventsObserver(inNode);
-        }
-      };
-
     })();
+
+    // instance lifecycle
+ 
+    //
+    // per-root initialization
+    //
+    
+    var initializeRoot = function(inRoot/*, inLifecycle*/) {
+      // we only want to do this per-instance, but it has to be 
+      // the first thing we do and we have no other entry point
+      if (!this.hasOwnProperty("$protected")) {
+        // instance our protected interface
+        this.$protected = Object.create(this.$protected);
+        // point our protected instance at our node instance
+        this.$protected.node = this;
+      }
+      // map nodes to ids
+      establishNodeReferences.call(this.$protected, inRoot);
+      /*
+      // invoke user's initialization
+      if (inLifecycle.shadowRootCreated) {
+        inLifecycle.shadowRootCreated.call(this, inRoot);
+      }
+      */
+      // model binding fixups for root, if it exists
+      if (inRoot) {
+        // ShadowDOM: inRoot.model doesn't propagate, that propagation is 
+        // rooted in light DOM; simulate by installing a local model in 
+        // each immediate child
+        injectScope(inRoot.childNodes, this.$protected, this.localModelDelegate);
+        // parse and apply model binding markup in DOM
+        bindModel(inRoot.childNodes);
+        // TODO(sjmiles): nodes created ex-post facto need similar treatment
+      }
+      // parse custom declarative event syntax out of DOM
+      bindAllCustomEvents(inRoot);
+    };
+    
+    // locate nodes with id and store references to them in this.$ hash
+
+    var establishNodeReferences = function(inRoot) {
+      // establish $ instance variable
+      this.$ = this.$ || {};
+      // populate $ from nodes with ID from the LOCAL tree
+      if (inRoot) {
+        var nodes = ShadowDOM.localQueryAll(inRoot, "[id]");
+        Array.prototype.forEach.call(nodes, function(n) {
+          this.$[n.id] = deref(n);
+        }, this);
+      }
+    };
+
+    // helper for ShadowDOM shim compatibility
+    
+    var deref = function(inNode) {
+      // return the real node if inNode is a placeholder (Changeling)
+      return inNode && (inNode.baby || inNode);
+    };
+
+    // model bindings
+    //
+    // convert {{macro}} strings in markup into MDV bindings
+    //
+    // MDV usually does this work but requires an additional
+    // nested template and functions asynchronously
+
+    var bindModel = function(inNodes) {
+      var bindMustache = function(inN, inNameOrValue, inValue) {
+        if ((inValue || inNameOrValue).search(bindModel.mustache) >= 0) {
+          inN.addBinding(inNameOrValue, inValue);
+        }
+      };
+      Array.prototype.forEach.call(inNodes, function(n) {
+        n = deref(n);
+        if (n.nodeName == "#text") {
+          // text-node binding
+          bindMustache(n, n.textContent);
+        } else if (n.attributes && n.tagName !== "TEMPLATE") {
+          // attribute bindings
+          Array.prototype.forEach.call(n.attributes, function(a) {
+            bindMustache(n, a.name, a.value);
+          });
+          bindModel(n.childNodes);
+        }
+      });
+    };
+    bindModel.mustache = /\{\{([^{}]*)}}/g;
+
+    // manually cascade a model and a delegate
+    // 
+    // MDV uses node.model for binding, where node.model automatically
+    // cascades down the DOM tree
+    // 
+    // we need separate model for LightDOM vs ShadowDOM, so we
+    // short-circuit the MDV cascade and manually inject localModel 
+    // (and localModelDelegate) into all child nodes
+        
+    var injectScope = function(inNodes, inLocalModel, inLocalModelDelegate) {
+      Array.prototype.forEach.call(inNodes, function(n) {
+        n.model = inLocalModel;
+        n.modelDelegate = inLocalModelDelegate;
+        // if there is a baby, do it too
+        n = n.baby;
+        if (n) {
+          n.model = inLocalModel;
+          n.modelDelegate = inLocalModelDelegate;
+        }
+      });
+    };
+
+    // experimental delegating declarative event handler
+
+    // TODO(sjmiles):
+    // we wanted to simply look for nearest ancestor
+    // with a 'controller' property to be WLOG
+    // but we need to honor ShadowDOM, so we had to 
+    // customize this search
+
+    var findController = function(inNode) {
+      // find the shadow root that contains inNode
+      var n = inNode.changeling || inNode;
+      while (n.parentNode && n.tagName !== 'SHADOW-ROOT') {
+        n = n.parentNode;
+        if (n.changeling) {
+          n = n.changeling;
+        }
+      }
+      return n.host;
+      // TODO(sjmiles):
+      // the WLOG version uses a 'controller' concept
+      // but here, n.host.controller === n.host
+      //return n.host.controller;
+    };
+
+    // generic event delegate
+    // 
+    // find controller nearest the event.currentTarget
+    // and delegate event to that controller's 'inHandlerName' 
+    // method, if it has one
+    // 
+    // can function declaratively, e.g. onclick="_('method')"
+    // but we bind event listeners here directly
+    
+    var _ = function(inHandlerName) {
+      var controller = findController(event.currentTarget);
+      // TODO(sjmiles): have 'controller' dispatch this method itself
+      if (controller && controller.$protected && controller.$protected[inHandlerName]) {
+        controller.$protected[inHandlerName](event, event.detail);
+      }
+    };
+
+    // automagic event mapping
+    //
+    // locate attributes of the form <prefix><eventName>="<methodName>" and
+    // map <eventName> events to method <methodName> to inNode's controller
+
+    var bindCustomEvent = function(inNode, inEventName, inHandler) {
+      // only attach one listener per inEventName, so we can
+      // rebind without accumulating listeners
+      var h = inNode.__athandlers = inNode.__athandlers || {};
+      if (!h[inEventName]) {
+        var fn = function() {
+          _(inHandler);
+        };
+        h[inEventName] = fn;
+        inNode.addEventListener(inEventName, fn);
+      }
+    };
+
+    var bindCustomEvents = function(inNode) {
+      var prefix = conventions.CUSTOM_EVENT_PREFIX;
+      var a$ = inNode.attributes;
+      if (a$) {
+        for (var i=0, a; a=a$[i]; i++) {
+          if (a.name.slice(0, prefix.length) == prefix) {
+            bindCustomEvent(inNode, a.name.slice(prefix.length), a.value);
+          }
+        }
+      }
+    };
+
+    // TODO(sjmiles): improper tree walking (?)
+    var _bindAllCustomEvents = function(inNode) {
+      bindCustomEvents(inNode);
+      if (inNode.childNodes) {
+        for (var i=0, c; c=deref(inNode.childNodes[i]); i++) {
+          if (c.tagName !== 'SHADOW') {
+            bindAllCustomEvents(c);
+          }
+        }
+      }
+    };
+
+    // register a MutationObserver on inNode so we can bind
+    // custom events when the DOM subtree changes
+    var eventsObserver = function(inNode) {
+      // TODO(sjmiles): optimize so we only bind new nodes
+      new WebKitMutationObserver(_bindAllCustomEvents.bind(this, inNode))
+        .observe(inNode, {
+          childList: true,
+          subTree: true
+        });
+    };
+
+    var bindAllCustomEvents = function(inNode) {
+      if (inNode) {
+        _bindAllCustomEvents(inNode);
+        // we need this in particular for custom events in iterated templates
+        eventsObserver(inNode);
+      }
+    };
+    
+    //
+    // per-instance initialization
+    // TODO(sjmiles): performance sensitive
+    //
+    
+    var initializeInstance = function(inAttributes) {
+      // bind events as directed in handlers attribute
+      bindEvents.call(this.$protected, inAttributes.handlers);
+      // process parsed attributes as inputs (the initial mutation)
+      takeAttributes.call(this.$protected);
+      // watch changes to attributes
+      this.$protected.attributeObserver = new AttributeObserver(this);
+      // initialize protected controller
+      this.$protected.ready();
+    };
+    
+    // event bindings
+    //
+    // <element handlers="onclick: click, onkeypress: keypress, ..."
+    //
+    // create listeners on instances that map named events to
+    // methods on the instance
+
+    var bindEvents = function(inEvents) {
+      if (inEvents) {
+        var bindables = inEvents.value.split(",");
+        bindables.forEach(function(e) {
+          // {eventName: handlerName} pairs
+          var pair = e.split(":");
+          var event = pair[0].trim();
+          var handler = pair[1].trim();
+          // listener is weakly-bound to handler
+          this.node.addEventListener(event, function() {
+            var fn = this[handler];
+            if (fn) {
+              fn.apply(this, arguments);
+            }
+          }.bind(this));
+        }, this);
+      }
+    };
+
+    // propagate initial attribute values into properties as a batch,
+    // invoking side-effects only after all values are set
+
+    var takeAttributes = function() {
+      // accumulate a record of all non-default attribute values
+      // so we can invoke side-effects after all values are initialized
+      var changed = [];
+      // for each attribute
+      Array.prototype.forEach.call(this.node.attributes, function(a) {
+        // try to match this attribute to a property (attributess are
+        // all lower-case, so this is case-insensitive search)
+        var name = propertyForAttribute.call(this, a.name);
+        if (name) {
+          // filter out 'mustached' values, these are to be
+          // replaced with bound-data and are not yet values
+          // themselves
+          if (a.value.search(bindModel.mustache) >= 0) {
+            return;
+          }
+          // deserialize Boolean or Number values from attribute
+          var value = deserializeValue(a.value);
+          // only act if the value has changed
+          if (this[name] !== value) {
+            // track values that differ from property values
+            changed.push({name: name, old: this[name]});
+            // install new value (no side-effects on direct assignment)
+            this[name] = value;
+          }
+        }
+      }, this);
+      // batch invoke side-effects
+      changed.forEach(function(c) {
+        propertyChanged.call(this, c.name, c.old);
+      }, this);
+    };
+    
+    // helpers
+    
+    var invoke = function(inMethod, inArgs) {
+      if (this[inMethod]) {
+        return this[inMethod].apply(this, inArgs || []);
+      }
+    };
+
+    var appendChangedSuffix = function(inName) {
+      return inName + conventions.PROPERTY_CHANGED_SUFFIX;
+    };
+
+    var propertyChanged = function(inName, inOld) {
+      invoke.call(this, appendChangedSuffix(inName), [inOld]);
+    };
+
+    // data bindings
+    //
+    // <name>: ['<path dependency>', '<path dependency>'...]
+    //
+    // bind MDV macros of the form {{<name>}} to formatting methods
+    // in inNode using MDV delegates
+    //
+
+    var bindDelegates = function(inDelegates) {
+      if (inDelegates) {
+        var node = this;
+        this.localModelDelegate = function(inBinding) {
+          if (inBinding in inDelegates) {
+            var dependencies = inDelegates[inBinding] || [inBinding];
+            if (typeof dependencies == 'string') {
+              dependencies = [dependencies];
+            }
+            //console.log("bindDelegates:", inBinding, dependencies, node);
+            var inMethod = inBinding + conventions.BINDING_IN_SUFFIX;
+            var outMethod = inBinding + conventions.BINDING_OUT_SUFFIX;
+            return [
+              dependencies,
+              function(/*inValues*/) {
+                return delegateBinding(node, outMethod, arguments);
+              },
+              function(/*inValues*/) {
+                return delegateBinding(node, inMethod, arguments);
+              }
+            ];
+          }
+        };
+      }
+    };
+
+    var delegateBinding = function(inNode, inDelegate, inValues) {
+      // late binding to named delegate function
+      var fn = inNode[inDelegate];
+      var value = fn ? fn.apply(inNode, inValues) : undefined;
+      // whenever undefined, echo back first input value
+      if (value === undefined) {
+        value = inValues[0];
+      }
+      //console.log(inDelegate, inValues, value);
+      return value;
+    };
+
+    var deref = function(inNode) {
+      return inNode && (inNode.baby || inNode);
+    };
+
+    // attribute mutations
+
+    var propertyForAttribute = function(inAttributeName) {
+      for (var n in this[conventions.PUBLISH_DIRECTIVE]) {
+        if (n.toLowerCase() == inAttributeName) {
+          return n;
+        }
+      }
+    };
+    
+    var deserializeValue = function(inValue) {
+      switch (inValue) {
+        case "":
+        case "true":
+          return true;
+        case "false":
+          return false;
+        case "\\false":
+          return "false";
+        }
+        return isNaN(inValue) ? inValue : parseFloat(inValue);
+    };
+    
+    var attributeChanged = function(inName) {
+      // if this represents a value we are interested in
+      var name = propertyForAttribute.call(this, inName);
+      if (name) {
+        //console.log('attributeChanged:', name, '(as "' + inName + '") in', this);
+        this.setProperty(name, 
+          deserializeValue(this.node.getAttribute(inName)));
+      }
+    };
+
+    var handleMutations = function(inMxns) {
+      //console.log("handleMutations");
+      // summarize mutations
+      var names = {};
+      inMxns.forEach(function(inMxn) {
+        names[inMxn.attributeName] = 1;
+      });
+      // call attributeChanged for each unique name in inMxns
+      for (var name in names) {
+        attributeChanged.call(this, name);
+      }
+    };
+
+    var AttributeObserver = function(inNode) {
+      var observer = new WebKitMutationObserver(
+          handleMutations.bind(inNode.$protected));
+      observer.observe(inNode, {
+        attributes: true,
+        attributeOldValue: true
+      });
+      return observer;
+    };
+
   </script>
 </element>
-

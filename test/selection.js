@@ -24,7 +24,7 @@ suite('g-selection', function() {
   
   test('deselectItem', function() {
     selection.select(item);
-    selection.deselectItem(item);
+    selection.setItemSelected(item, false);
     expect(selection.isSelected(item)).to.be(false);
   });
   
@@ -54,21 +54,25 @@ suite('g-selection', function() {
   
   suite('events', function() {
     test('select', function() {
-      var selected;
+      var selected = null;
       selection.addEventListener('select', function(e) {
-        selected = e.detail.item;
+        if (e.detail.isSelected) {
+          selected = e.detail.item;
+        }
       });
       selection.select(item);
       expect(selected).to.be(item);
     });
     
     test('deselect', function() {
-      var deselected;
-      selection.addEventListener('deselect', function(e) {
-        deselected = e.detail.item;
+      var deselected = null;
+      selection.addEventListener('select', function(e) {
+        if (!e.detail.isSelected) {
+          deselected = e.detail.item;
+        }
       });
       selection.select(item);
-      selection.deselectItem(item);
+      selection.setItemSelected(item, false);
       expect(deselected).to.be(item);
     });
   });
