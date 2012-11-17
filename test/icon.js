@@ -18,9 +18,9 @@ suite('g-icon', function() {
   
   suite('attributes', function() {
     test('src', function() {
-      var i = ShadowDOM.localQuery(icon.shadow, '.icon');
       var src = 'http://foo.com/bar.png';
       icon.src = src;
+      var i = ShadowDOM.localQuery(icon.shadow, '.icon');
       expect(i.style.backgroundImage).to.be('url(' + src + ')');
     });
   });
