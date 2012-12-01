@@ -6,7 +6,7 @@ license that can be found in the LICENSE file.
 <element name="g-component">
   <script>
     // FOUC prevent, if user sets opacity 0 on body
-    
+
     window.addEventListener("WebComponentsReady", function() {
       document.body.style.opacity = 1;
     });
@@ -19,12 +19,12 @@ license that can be found in the LICENSE file.
       PROPERTY_CHANGED_SUFFIX: "Changed",
       CUSTOM_EVENT_PREFIX: "on-",
       DELEGATES_DIRECTIVE: "bind",
-      BINDING_OUT_SUFFIX: "Output",
-      BINDING_IN_SUFFIX: "Input"
+      DELEGATE_OUT_SUFFIX: "Output",
+      DELEGATE_IN_SUFFIX: "Input"
     };
 
     // decorate HTMLElementElement with toolkit API
-    
+
     HTMLElementElement.prototype.component = component;
 
     // entry point for declarative component definition
@@ -46,20 +46,21 @@ license that can be found in the LICENSE file.
       // desugar lifecycle definition into a public prototype
       var prototype = desugar(lifecycle, this.name, this.extendsName);
       // publish definitions from attributes attributes
-      publishAttributes(attributes[conventions.ATTRIBUTES_ATTRIBUTE], 
+      publishAttributes(attributes[conventions.ATTRIBUTES_ATTRIBUTE],
           prototype);
       // install our public interface
       this.generatedConstructor.prototype = prototype;
       // TODO(sjmiles): get clarity on whether 'prototype' can be a chain
       //   (we are careful *not* to generate a chain)
     };
-    
+
     // ultimate base class for Toolkit Components
 
-    // note $ used as name prefix to prevent collision with reserved words, 
+    // note $ used as name prefix to prevent collision with reserved words,
     // e.g. $super for super (also default, interface, etc.)
 
     var Base = {
+      //$super: function() ... see implementation below
       ready: function() {
       },
       asyncMethod: function(inMethod, inArgs, inTimeout) {
@@ -125,47 +126,46 @@ license that can be found in the LICENSE file.
           publish($protected, p, $protected.exports);
         });
       }
-    };    
+    };
 
     //
     // OO sugaring
     //
-    
+
     // build component prototype from element definition
-    
+
     var desugar = function(inLifecycle, inName, inExtendsName) {
-      // inherit protected API from a cached prototype or ProtectedBase
-      var base = registry[inExtendsName] || ProtectedBase;
       // build prototype that extends base
-      var prototype = extend(base, inLifecycle);
-      // cache and return desugared prototype
-      return registry[inName] = prototype;
+      var prototype = extend(inName, inExtendsName, inLifecycle);
+      // return desugared prototype
+      return prototype;
     };
-    
-    var ProtectedBase = {$protected: Base};
-    HTMLElementElement.prototype.ProtectedBase = ProtectedBase;
-      
-    // it's convenient to keep track of our own components 
+
+    // it's convenient to keep track of our own components
     // for protected inheritance
-    
+
     var registry = {};
-    
+
     // produce a prototype from inLifecycle which extends inBase
-    
-    var extend = function(inBase, inLifecycle) {
+
+    var PublicBase = {$protected: Base};
+
+    var extend = function(inName, inExtendsName, inLifecycle) {
+       // inherit protected API from a cached prototype or ProtectedBase
+      var base = registry[inExtendsName] || PublicBase;
       // reuse inLifecycle as the protected prototype to avoid copying
       var $protected = inLifecycle || {};
+      // chain to inBase's protected prototype
+      $protected.__proto__ = base.$protected;
       // published properties to prototype and prototype.exports
       publishProperties($protected);
-      // chain to inBase's protected prototype
-      $protected.__proto__ = inBase.$protected;
       // we must return the public prototype
       var $public = $protected.exports;
       // store our protected prototype so we can instance it
       // when we instance the public prototype
       $public.$protected = $protected;
-      // return generated public prototype
-      return $public;
+      // cache and return extended prototype
+      return registry[inName] = $public;
     };
 
     // TODO(sjmiles): for-in loops below possibly not x-platform safe,
@@ -181,13 +181,13 @@ license that can be found in the LICENSE file.
       }
       // ... and on our exports
       inPrototype.exports = {};
-      for (var n in inPrototype.publish) {
+      for (var n in inPrototype[conventions.PUBLISH_DIRECTIVE]) {
         publish(inPrototype, n, inPrototype.exports);
       }
       // return the configured prototype
       return inPrototype;
     };
-    
+
     // copy property 'name' from src to obj
 
     var copyProperty = function(name, src, obj) {
@@ -203,7 +203,7 @@ license that can be found in the LICENSE file.
       }
     };
 
-    // copy all properties (including get/set pairs) from 
+    // copy all properties (including get/set pairs) from
     // inProps (et al) to inObj
 
     var mixin = function(inObj, inProps/*, inMoreProps, ...*/) {
@@ -257,7 +257,7 @@ license that can be found in the LICENSE file.
       var nextSuper = function(inProto, inName, inCaller) {
         // look for an inherited prototype that implements inName
         var proto = inProto;
-        while (proto && 
+        while (proto &&
             (!proto.hasOwnProperty(inName) || proto[inName] == inCaller)) {
           proto = proto.__proto__;
         }
@@ -267,7 +267,7 @@ license that can be found in the LICENSE file.
       var memoizeSuper = function(inMethod, inName, inProto) {
         //console.log('$super: memoizing super');
         // find and cache next prototype containing inName
-        // we need the prototype so we can another lookup 
+        // we need the prototype so we can another lookup
         // from here
         inMethod._super = nextSuper(inProto, inName, inMethod);
         if (inMethod._super) {
@@ -289,7 +289,7 @@ license that can be found in the LICENSE file.
         // since we are thunking a method call, performance is important
         // here: memoize all lookups, once memoized the fast path
         // calls no helper functions
-        // 
+        //
         // find the caller (can't be 'strict' here)
         //var caller = arguments.callee.caller;
         //console.log("super.caller good?", (this.$super.caller == caller));
@@ -329,19 +329,22 @@ license that can be found in the LICENSE file.
     })();
 
     // instance lifecycle
- 
+
     //
     // per-root initialization
     //
-    
+
     var initializeRoot = function(inRoot/*, inLifecycle*/) {
-      // we only want to do this per-instance, but it has to be 
-      // the first thing we do and we have no other entry point
+      // we only want to do these tasks per-instance, but they must
+      // be done before root initializations, and we have no other entry point
       if (!this.hasOwnProperty("$protected")) {
         // instance our protected interface
         this.$protected = Object.create(this.$protected);
         // point our protected instance at our node instance
         this.$protected.node = this;
+        // process 'bind' directive to build a local model delegate, as needed
+        // TODO(sjmiles): move more of this to desugar-time
+        bindDelegates.call(this.$protected);
       }
       // map nodes to ids
       establishNodeReferences.call(this.$protected, inRoot);
@@ -353,10 +356,21 @@ license that can be found in the LICENSE file.
       */
       // model binding fixups for root, if it exists
       if (inRoot) {
-        // ShadowDOM: inRoot.model doesn't propagate, that propagation is 
-        // rooted in light DOM; simulate by installing a local model in 
+        // ShadowDOM: inRoot.model doesn't propagate, that propagation is
+        // rooted in light DOM; simulate by installing a local model in
         // each immediate child
-        injectScope(inRoot.childNodes, this.$protected, this.localModelDelegate);
+        injectScope(inRoot.insertions || inRoot.childNodes, this.$protected,
+            this.$protected.localModelDelegate);
+        // TODO(sjmiles): under shim, we can't rely on model cascade because
+        // we have played tricks on the DOM Tree
+        // TODO(sjmiles): make polymorphic instead of conditional
+        if (ShadowDOM.shim) {
+          var comps = ShadowDOM.localQueryAll(inRoot, "[is]");
+          comps.forEach(function(c) {
+            injectScope(c.lightDOM.childNodes, this.$protected,
+                this.$protected.localModelDelegate);
+          }, this);
+        }
         // parse and apply model binding markup in DOM
         bindModel(inRoot.childNodes);
         // TODO(sjmiles): nodes created ex-post facto need similar treatment
@@ -364,7 +378,7 @@ license that can be found in the LICENSE file.
       // parse custom declarative event syntax out of DOM
       bindAllCustomEvents(inRoot);
     };
-    
+
     // locate nodes with id and store references to them in this.$ hash
 
     var establishNodeReferences = function(inRoot) {
@@ -380,7 +394,7 @@ license that can be found in the LICENSE file.
     };
 
     // helper for ShadowDOM shim compatibility
-    
+
     var deref = function(inNode) {
       // return the real node if inNode is a placeholder (Changeling)
       return inNode && (inNode.baby || inNode);
@@ -416,19 +430,19 @@ license that can be found in the LICENSE file.
     bindModel.mustache = /\{\{([^{}]*)}}/g;
 
     // manually cascade a model and a delegate
-    // 
+    //
     // MDV uses node.model for binding, where node.model automatically
     // cascades down the DOM tree
-    // 
+    //
     // we need separate model for LightDOM vs ShadowDOM, so we
-    // short-circuit the MDV cascade and manually inject localModel 
+    // short-circuit the MDV cascade and manually inject localModel
     // (and localModelDelegate) into all child nodes
-        
+
     var injectScope = function(inNodes, inLocalModel, inLocalModelDelegate) {
       Array.prototype.forEach.call(inNodes, function(n) {
         n.model = inLocalModel;
         n.modelDelegate = inLocalModelDelegate;
-        // if there is a baby, do it too
+        // if there is a baby, inject to it too
         n = n.baby;
         if (n) {
           n.model = inLocalModel;
@@ -442,7 +456,7 @@ license that can be found in the LICENSE file.
     // TODO(sjmiles):
     // we wanted to simply look for nearest ancestor
     // with a 'controller' property to be WLOG
-    // but we need to honor ShadowDOM, so we had to 
+    // but we need to honor ShadowDOM, so we had to
     // customize this search
 
     var findController = function(inNode) {
@@ -465,14 +479,14 @@ license that can be found in the LICENSE file.
     };
 
     // generic event delegate
-    // 
+    //
     // find controller nearest the event.currentTarget
-    // and delegate event to that controller's 'inHandlerName' 
+    // and delegate event to that controller's 'inHandlerName'
     // method, if it has one
-    // 
+    //
     // can function declaratively, e.g. onclick="_('method')"
     // but we bind event listeners here directly
-    
+
     var _ = function(inHandlerName) {
       var controller = findController(event.currentTarget);
       // TODO(sjmiles): have 'controller' dispatch this method itself
@@ -517,7 +531,7 @@ license that can be found in the LICENSE file.
       if (inNode.childNodes) {
         for (var i=0, c; c=deref(inNode.childNodes[i]); i++) {
           if (c.tagName !== 'SHADOW') {
-            bindAllCustomEvents(c);
+            _bindAllCustomEvents(c);
           }
         }
       }
@@ -541,12 +555,12 @@ license that can be found in the LICENSE file.
         eventsObserver(inNode);
       }
     };
-    
+
     //
     // per-instance initialization
     // TODO(sjmiles): performance sensitive
     //
-    
+
     var initializeInstance = function(inAttributes) {
       // bind events as directed in handlers attribute
       bindEvents.call(this.$protected, inAttributes.handlers);
@@ -557,7 +571,7 @@ license that can be found in the LICENSE file.
       // initialize protected controller
       this.$protected.ready();
     };
-    
+
     // event bindings
     //
     // <element handlers="onclick: click, onkeypress: keypress, ..."
@@ -619,9 +633,9 @@ license that can be found in the LICENSE file.
         propertyChanged.call(this, c.name, c.old);
       }, this);
     };
-    
+
     // helpers
-    
+
     var invoke = function(inMethod, inArgs) {
       if (this[inMethod]) {
         return this[inMethod].apply(this, inArgs || []);
@@ -644,25 +658,26 @@ license that can be found in the LICENSE file.
     // in inNode using MDV delegates
     //
 
-    var bindDelegates = function(inDelegates) {
-      if (inDelegates) {
-        var node = this;
+    var bindDelegates = function() {
+      var delegates = this[conventions.DELEGATES_DIRECTIVE]
+      if (delegates) {
+        var delegate = this;
         this.localModelDelegate = function(inBinding) {
-          if (inBinding in inDelegates) {
-            var dependencies = inDelegates[inBinding] || [inBinding];
+          if (inBinding in delegates) {
+            var dependencies = delegates[inBinding] || [inBinding];
             if (typeof dependencies == 'string') {
               dependencies = [dependencies];
             }
-            //console.log("bindDelegates:", inBinding, dependencies, node);
-            var inMethod = inBinding + conventions.BINDING_IN_SUFFIX;
-            var outMethod = inBinding + conventions.BINDING_OUT_SUFFIX;
+            console.log("bindDelegates:", inBinding, dependencies, this);
+            var inMethod = inBinding + conventions.DELEGATE_IN_SUFFIX;
+            var outMethod = inBinding + conventions.DELEGATE_OUT_SUFFIX;
             return [
               dependencies,
               function(/*inValues*/) {
-                return delegateBinding(node, outMethod, arguments);
+                return delegateBinding.call(delegate, outMethod, arguments);
               },
               function(/*inValues*/) {
-                return delegateBinding(node, inMethod, arguments);
+                return delegateBinding.call(delegate, inMethod, arguments);
               }
             ];
           }
@@ -670,10 +685,10 @@ license that can be found in the LICENSE file.
       }
     };
 
-    var delegateBinding = function(inNode, inDelegate, inValues) {
+    var delegateBinding = function(inDelegate, inValues) {
       // late binding to named delegate function
-      var fn = inNode[inDelegate];
-      var value = fn ? fn.apply(inNode, inValues) : undefined;
+      var fn = this[inDelegate];
+      var value = fn ? fn.apply(this, inValues) : undefined;
       // whenever undefined, echo back first input value
       if (value === undefined) {
         value = inValues[0];
@@ -695,7 +710,7 @@ license that can be found in the LICENSE file.
         }
       }
     };
-    
+
     var deserializeValue = function(inValue) {
       switch (inValue) {
         case "":
@@ -708,13 +723,13 @@ license that can be found in the LICENSE file.
         }
         return isNaN(inValue) ? inValue : parseFloat(inValue);
     };
-    
+
     var attributeChanged = function(inName) {
       // if this represents a value we are interested in
       var name = propertyForAttribute.call(this, inName);
       if (name) {
         //console.log('attributeChanged:', name, '(as "' + inName + '") in', this);
-        this.setProperty(name, 
+        this.setProperty(name,
           deserializeValue(this.node.getAttribute(inName)));
       }
     };
