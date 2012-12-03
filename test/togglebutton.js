@@ -21,7 +21,7 @@ suite('g-togglebutton', function() {
   });
   
   test('toggle', function() {
-    var t = ShadowDOM.localQuery(togglebutton.shadow, '.toggle');
+    var t = shadowQuery(togglebutton, '.toggle');
     togglebutton.toggle();
     expect(t.classList.contains('on')).to.be(true);
     togglebutton.toggle();
@@ -30,7 +30,7 @@ suite('g-togglebutton', function() {
   
   suite('attributes', function() {
     test('value', function() {
-      var t = ShadowDOM.localQuery(togglebutton.shadow, '.toggle');
+      var t = shadowQuery(togglebutton, '.toggle');
       togglebutton.value = true;
       expect(t.classList.contains('on')).to.be(true);
       togglebutton.value = false;

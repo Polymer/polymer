@@ -17,11 +17,14 @@ suite('g-icon', function() {
   });
   
   suite('attributes', function() {
-    test('src', function() {
+    test('src', function(done) {
       var src = 'http://foo.com/bar.png';
       icon.src = src;
-      var i = ShadowDOM.localQuery(icon.shadow, '.icon');
-      expect(i.style.backgroundImage).to.be('url(' + src + ')');
+      async(function() {
+        var i = shadowQuery(icon, '.icon');
+        expect(i.style.backgroundImage).to.be('url(' + src + ')');
+        done();
+      });
     });
   });
 });
