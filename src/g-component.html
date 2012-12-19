@@ -63,9 +63,10 @@
   };
   
   function rootCreated(inRoot) {
+    // set shadow-root model
+    inRoot.model = this.$protected;
     // parse and apply model binding markup in DOM
     bindModel.call(this, inRoot.childNodes);
-    inRoot.model = this.model = this.$protected;
     // map id's to nodes, for nodes with id's
     marshalNodeReferences.call(this.$protected, inRoot);
     // bind event declarations
@@ -313,7 +314,8 @@
 
   Observable.prototype = {
     propertyChanged: function(inName, inOldValue) {
-      //console.log(inName, 'changed:', this[inName], 'was', inOldValue, this);
+      console.log('[%s] propertyChanged: [%s] now [%s] was [%s]', 
+        this.node.localName, inName, this[inName], inOldValue);
       var fn = inName + 'Changed';
       if (this[fn] && !Observable._squelch) {
         this[fn](inOldValue);
@@ -405,6 +407,8 @@
   };
 
   function bindNodeModel(inNode) {
+    // our local model is this node's outer model
+    inNode.model = this.$protected;
     var n = deref(inNode);
     if (n.nodeName == '#text') {
       // text-node binding
@@ -416,7 +420,8 @@
           bindMustache.call(this, n, a.name, a.value);
         }, this);
       }
-      bindModel.call(this, n.childNodes);
+      // walking the LOCAL tree
+      bindModel.call(this, n.lightDOM ? n.lightDOM.childNodes : n.childNodes);
     }
   };
   
@@ -425,12 +430,12 @@
     if (inNode.$protected) {
       var m = inValue.match(bindMustache.pattern);
       if (m) {
-        var source = propertyForAttribute.call(this.$protected, m[1]);
+        var source = m[1]; 
         var target = propertyForAttribute.call(inNode.$protected, inName);
         if (source && target) {
-          bindProperties(this, source, inNode, inName);
-          console.log('[' + inNode.localName + '] bindMustache:', source, 
-              'to', '[' + this.localName + '].' + inName);
+          bindProperties(this, source, inNode, target);
+          console.log('[%s] bindMustache: [%s] to [%s].[%s]', 
+              this.localName, source, inNode.localName, target)
         }
       }      
     } else {
