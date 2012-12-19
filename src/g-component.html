@@ -1,6 +1,6 @@
 ﻿<element name="g-component">
 <script>
-  
+
   // FOUC prevent (to opt-in set opacity: 0 on body)
 
   window.addEventListener('WebComponentsReady', function() {
@@ -40,10 +40,10 @@
     // install our prototype
     this.generatedConstructor.prototype = prototype;
   };
-      
+
   function initializeRoot(inRoot) {
     // we only want to do somes tasks per-instance, but they must
-    // be done before root initializations, and we have no other 
+    // be done before root initializations, and we have no other
     // entry point, so we have to multiplex this method
     if (!this.hasOwnProperty('$protected')) {
       instanceCreated.call(this);
@@ -52,7 +52,7 @@
       rootCreated.call(this, inRoot);
     }
   };
-  
+
   // component lifecycle
 
   function instanceCreated() {
@@ -61,7 +61,7 @@
     // point our protected instance at our node instance
     this.$protected.node = this;
   };
-  
+
   function rootCreated(inRoot) {
     // set shadow-root model
     inRoot.model = this.$protected;
@@ -72,7 +72,7 @@
     // bind event declarations
     bindChildEvents(inRoot);
   };
-  
+
   function instanceReady() {
     // delegate host events
     bindHostEvents.call(this.$protected);
@@ -83,7 +83,7 @@
     this.$protected.ready();
     console.log('[' + this.localName + '] ready');
   };
-  
+
   // helper functions
 
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
@@ -111,7 +111,7 @@
   };
 
   var parseHostEvents = function(inAttributes, inDefinition) {
-    inDefinition.eventDelegates = mixin(inDefinition.eventDelegates, 
+    inDefinition.eventDelegates = mixin(inDefinition.eventDelegates,
       parseEvents(inAttributes));
   };
 
@@ -127,7 +127,7 @@
     }
     return events;
   };
-  
+
   // conventional names for automation
 
   var conventions = {
@@ -143,7 +143,7 @@
   //
   // OOP abstractions
   //
-  
+
   // it's convenient to keep track of our own components
   // for protected inheritance
 
@@ -156,12 +156,12 @@
     publish(prototype);
     //
     // more desugaring
-    // 
+    //
     // return extended prototype
     return prototype;
   };
 
-  // it's convenient (but probably redundant) to maintain 
+  // it's convenient (but probably redundant) to maintain
   // an internal registry
 
   var registry = {};
@@ -175,13 +175,13 @@
 
   function extend(inDefinition, inBase) {
     var prototype = Object.create(inBase);
-    // use definition directly to avoid a mixin step 
+    // use definition directly to avoid a mixin step
     // (caveat: can't reuse definitions, relies on __proto__)
     prototype.$protected = inDefinition;
     prototype.$protected.__proto__ = inBase.$protected;
     return prototype;
   };
-  
+
   // publishing is a sugaring mechanism where properties
   // specified in a 'public' block are forwarded to the
   // public interface via get/set pairs or bound functions
@@ -193,12 +193,12 @@
       var $public = $protected[pd];
       // install public properties on $protected
       for (var n in $public) {
-        // do not overwrite default values already on prototype
-        if (!(n in $protected)) {
+        // do not overwrite default values already (directly) on prototype
+        if (!$protected.hasOwnProperty(n)) {
           copyProperty(n, $public, $protected)
         }
       }
-      // publish public properties to prototype
+      // publish public properties to master prototype
       publishProperties($public, $protected, inPrototype);
     }
   }
@@ -246,7 +246,11 @@
         return value.apply(this.$protected, arguments);
       }
     } else {
-      inTarget[inName] = null;
+      // TODO(sjmiles): can't remember why I needed to install
+      // the property before defining get/set
+      // if it turns out we do need this, beware of overrides
+      // where there is already a setter and there are side effects
+      //inTarget[inName] = null;
       Object.defineProperty(inTarget, inName, {
         get: function() {
           return this.$protected[inName];
@@ -264,13 +268,13 @@
 
   // data observer abstraction
   // this implementation uses MDV polyfill
-  
+
   var ﻿Observable = function() {
     api.activate.call(this);
   };
 
   var watch_blacklist = {$: 1, node: 1, eventDelegates: 1, publish: 1};
-  
+
   var api = Observable.api = {
     activate: function () {
       var watched = {};
@@ -281,18 +285,18 @@
     },
     propertySetChanged: function(inChange, inWatched) {
       if (inChange.mutation == 'add') {
-        console.log('[' + this.node.localName 
-            + '] propertySetChanged: adding watch for [' +  
+        console.log('[' + this.node.localName
+            + '] propertySetChanged: adding watch for [' +
             inChange.propertyName + ']')
         api.addWatch.call(this, inChange.propertyName, inWatched);
         this.propertyChanged(inChange.propertyName);
       }
     },
     watchable: function(inName, inWatched) {
-      return (inName[0] != '_') 
+      return (inName[0] != '_')
           && !(inName in Object.prototype)
-          && !inWatched[inName] 
-          && (typeof this[inName] != 'function') 
+          && !inWatched[inName]
+          && (typeof this[inName] != 'function')
           && !this.__lookupGetter__(inName)
           && !watch_blacklist[inName];
     },
@@ -314,7 +318,7 @@
 
   Observable.prototype = {
     propertyChanged: function(inName, inOldValue) {
-      console.log('[%s] propertyChanged: [%s] now [%s] was [%s]', 
+      console.log('[%s] propertyChanged: [%s] now [%s] was [%s]',
         this.node.localName, inName, this[inName], inOldValue);
       var fn = inName + 'Changed';
       if (this[fn] && !Observable._squelch) {
@@ -331,11 +335,91 @@
     }
   };
 
+  // super call implementation
+
+  var $super = (function() {
+    // TODO(sjmiles): will not work with mixins because
+    //    the memoization strategy assumes
+    //    each function exists on only one prototype chain
+    //    (i.e. we use the function object for memoizing)
+
+    var nextSuper = function(inProto, inName, inCaller) {
+      // look for an inherited prototype that implements inName
+      var proto = inProto;
+      while (proto &&
+          (!proto.hasOwnProperty(inName) || proto[inName] == inCaller)) {
+        proto = proto.__proto__;
+      }
+      return proto;
+    };
+
+    var memoizeSuper = function(inMethod, inName, inProto) {
+      // find and cache next prototype containing inName
+      // we need the prototype so we can another lookup
+      // from here
+      inMethod._super = nextSuper(inProto, inName, inMethod);
+      if (inMethod._super) {
+        // _super is a prototype, the actual method is _super[inName]
+        // tag super method with it's name for further lookups
+        inMethod._super[inName]._nom = inName;
+      }
+    };
+
+    var nameInThis = function(inValue) {
+      for (var n in this) {
+        if (this[n] == inValue) {
+          return n;
+        }
+      }
+    };
+
+    return function(inArgs) {
+      // since we are thunking a method call, performance is important
+      // here: memoize all lookups, once memoized the fast path
+      // calls no helper functions
+      //
+      // find the caller (can't be strict because of 'caller')
+      var caller = this.$super.caller;
+      // memoization for 'name of method'
+      var nom = caller._nom;
+      if (!nom) {
+        // once per call chain
+        nom = caller._nom = nameInThis.call(this, caller);
+        if (!nom) {
+          console.warn('called super() on a method not in "this"');
+          return;
+        }
+      }
+      // super prototype is either cached or we have to find it
+      // by searching __proto__ (at the 'top')
+      if (!('_super' in caller)) {
+        memoizeSuper(caller, nom, this.__proto__);
+      }
+      // memoized next implementation prototype
+      var _super = caller._super;
+      if (!_super) {
+        // if _super is falsey, there is no super implementation
+        console.warn('called $super(' + nom + ') where there is no super implementation');
+      } else {
+        // our super function
+        var fn = _super[nom];
+        // memoize information so 'fn' can call 'super'
+        if (!('_super' in fn)) {
+          memoizeSuper(fn, nom, _super);
+        }
+        // invoke the inherited method
+        // if 'fn' is not function valued, this will throw
+        return fn.apply(this, inArgs || []);
+      }
+    };
+  })();
+
   // (protected) Base API
 
   var ProtectedBase = {
     ready: function() {
     },
+    $super: $super,
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) || [inArgs];
       return window.setTimeout(function() {
@@ -377,10 +461,10 @@
     $protected: ProtectedBase
   };
 
-  // 
+  //
   // reference marshalling
-  // 
-  
+  //
+
   // locate nodes with id and store references to them in this.$ hash
   var marshalNodeReferences = function(inRoot) {
     // establish $ instance variable
@@ -393,7 +477,7 @@
       }, this);
     }
   };
-    
+
   //
   // model bindings
   //
@@ -415,7 +499,7 @@
       bindMustache.call(this, n, n.textContent);
     } else if (n.tagName !== 'TEMPLATE') {
       // scan for bindings in attributes
-      if (n.attributes) { 
+      if (n.attributes) {
         forEach(n.attributes, function(a) {
           bindMustache.call(this, n, a.name, a.value);
         }, this);
@@ -424,36 +508,36 @@
       bindModel.call(this, n.lightDOM ? n.lightDOM.childNodes : n.childNodes);
     }
   };
-  
+
   function bindMustache(inNode, inName, inValue) {
     // ad-hoc component test
     if (inNode.$protected) {
       var m = inValue.match(bindMustache.pattern);
       if (m) {
-        var source = m[1]; 
+        var source = m[1];
         var target = propertyForAttribute.call(inNode.$protected, inName);
         if (source && target) {
           bindProperties(this, source, inNode, target);
-          console.log('[%s] bindMustache: [%s] to [%s].[%s]', 
+          console.log('[%s] bindMustache: [%s] to [%s].[%s]',
               this.localName, source, inNode.localName, target)
         }
-      }      
+      }
     } else {
       if ((inValue || inName).search(bindMustache.pattern) >= 0) {
         inNode.addBinding(inName, inValue);
-        console.log('[' + this.localName + '] bindMustache: <' 
-            + (inNode.localName || '#text') + '>.addBinding("' + inName + '"' +  
-            (inValue ? ', "' + inValue + '"' : '') + ')'); 
+        console.log('[' + this.localName + '] bindMustache: <'
+            + (inNode.localName || '#text') + '>.addBinding("' + inName + '"' +
+            (inValue ? ', "' + inValue + '"' : '') + ')');
       }
     }
   };
-  
+
   bindMustache.pattern = /\{\{([^{}]*)}}/;
-  
+
   function bindProperties(inA, inPropA, inB, inPropB) {
     _bindProperties(inA.$protected, inPropA, inB.$protected, inPropB);
   };
-  
+
   function _bindProperties(inA, inPropA, inB, inPropB) {
     inB[inPropB] = inA[inPropA];
     Model.observe(inA, inPropA, function(inNew) {
@@ -465,11 +549,11 @@
       inA[inPropA] = inNew;
     });
   };
-  
-  // 
+
+  //
   // attribute processing
   //
-  
+
   // propagate initial attribute values into properties as a batch,
   // invoking side-effects only after all values are set
 
@@ -531,11 +615,11 @@
       }
       return isNaN(inValue) ? inValue : parseFloat(inValue);
   }
-  
+
   //
   // automagic event mapping
   //
-  
+
   // locate attributes of the form <prefix><eventName>="<methodName>" and
   // map <eventName> events to method <methodName> to inNode's controller
   var bindEvent = function(inNode, inEventName, inHandler) {
@@ -575,7 +659,7 @@
       }
     }
   };
-  
+
    var bindChildEvents = function(inNode) {
     if (inNode) {
       _bindChildEvents(inNode);
@@ -583,7 +667,7 @@
       //eventsObserver(inNode);
     }
   };
-  
+
   // experimental delegating declarative event handler
 
   // TODO(sjmiles):
@@ -627,7 +711,7 @@
     //console.log("_: delegating", inHandlerName, "to", controller);
     dispatch(controller, inHandlerName, [event, event.detail]);
   };
-  
+
   // automagic host-event binding
 
   var bindHostEvents = function() {
@@ -643,7 +727,7 @@
       p = p.__proto__;
     }
   };
-  
+
   var bindHostEvent = function(inNode, inEventName, inHandler) {
     var fn = function() {
       dispatch(inNode, inHandler, [event, event.detail]);
