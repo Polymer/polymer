@@ -4,7 +4,7 @@
   // FOUC prevent (to opt-in set opacity: 0 on body)
 
   window.addEventListener('WebComponentsReady', function() {
-    document.body.style.webkitTransition = "opacity 0.8s";
+    document.body.style.webkitTransition = "opacity 0.4s";
     document.body.style.opacity = 1;
   });
 
@@ -71,11 +71,22 @@
     marshalNodeReferences.call(this.$protected, inRoot);
     // bind event declarations
     bindChildEvents(inRoot);
+    // accumulate events of interest
+    // TODO(sjmiles): ideally on native we set up listeners directly on inRoot,
+    // under shim inRoot does not partcipate in event bubbling
+    //this.__events = accumulateEvents(inRoot, this.__events);
+    //console.log('[%s]:', this.localName, this.__events);
   };
 
   function instanceReady() {
     // delegate host events
     bindHostEvents.call(this.$protected);
+    // TODO(sjmiles): on native we can listen for mutations on shadow-root
+    // but on shim we listen on the composed tree
+    eventsObserver(this);
+    // TODO(sjmiles): ideally delegated events are set up per root
+    // not on the host node (see above)
+    //bindAccumulatedEvents(this, this.__events);
     // initialize our Observable aspect
     Observable.call(this.$protected);
     takeAttributes.call(this.$protected);
@@ -620,19 +631,22 @@
   // automagic event mapping
   //
 
-  // locate attributes of the form <prefix><eventName>="<methodName>" and
-  // map <eventName> events to method <methodName> to inNode's controller
-  var bindEvent = function(inNode, inEventName, inHandler) {
-    // only attach one listener per inEventName, so we can
-    // rebind without accumulating listeners
-    var h = inNode.__athandlers = inNode.__athandlers || {};
-    if (!h[inEventName]) {
-      var fn = function() {
-        _(inHandler);
-      };
-      h[inEventName] = fn;
-      inNode.addEventListener(inEventName, fn);
+  var prefix = conventions.CUSTOM_EVENT_PREFIX;
+
+  var localChildNodes = function(inNode) {
+    // insertion hosts?
+    return (inNode.lightDOM && inNode.lightDOM.childNodes) || inNode.childNodes;
+  };
+
+  var localParentNode = function(inNode) {
+    var node = inNode.parentNode;
+    if (node) {
+      if (node.isLightDOM) {
+        node = node.host;
+      }
+      node = node.changeling || node;
     }
+    return node;
   };
 
   var bindEvents = function(inNode) {
@@ -648,24 +662,57 @@
     }
   };
 
-  // TODO(sjmiles): improper tree walking (?)
+  // locate attributes of the form <prefix><eventName>="<methodName>" and
+  // map <eventName> events to method <methodName> to inNode's controller
+  var bindEvent = function(inNode, inEventName, inHandler) {
+    // only attach one listener per inEventName, so we can
+    // rebind without accumulating listeners
+    var h = inNode.__athandlers = inNode.__athandlers || {};
+    if (!h[inEventName]) {
+      var fn = function() {
+        _(inHandler);
+      };
+      h[inEventName] = fn;
+      inNode.addEventListener(inEventName, fn);
+    }
+  };
+
   var _bindChildEvents = function(inNode) {
-    bindEvents(inNode);
-    if (inNode.childNodes) {
-      for (var i=0, c; c=deref(inNode.childNodes[i]); i++) {
+    var childNodes = localChildNodes(inNode);
+    if (childNodes) {
+      for (var i=0, c; c=deref(childNodes[i]); i++) {
         if (c.tagName !== 'SHADOW') {
           _bindChildEvents(c);
         }
       }
     }
+    bindEvents(inNode);
   };
 
    var bindChildEvents = function(inNode) {
     if (inNode) {
+      console.group('[%s] bindChildEvents', inNode.localName);
       _bindChildEvents(inNode);
+      console.groupEnd();
       // we need this in particular for custom events in iterated templates
       //eventsObserver(inNode);
     }
+  };
+
+  // register a MutationObserver on inNode so we can bind
+  // custom events when the DOM subtree changes
+  var eventsObserver = function(inNode) {
+    var fn = function() {
+      console.group('[%s] eventsObserver: rebinding child events', inNode.localName);
+      _bindChildEvents(inNode);
+      console.groupEnd();
+    };
+    console.warn("EVENTSOBSERVER ON ", inNode);
+    // TODO(sjmiles): optimize so we only bind new nodes
+    new WebKitMutationObserver(fn).observe(inNode, {
+      childList: true,
+      subtree: true
+    });
   };
 
   // experimental delegating declarative event handler
@@ -680,13 +727,16 @@
     // find the shadow root that contains inNode
     var n = inNode.changeling || inNode;
     while (n.parentNode && n.tagName !== 'SHADOW-ROOT') {
+      n = localParentNode(n);
+      /*
       n = n.parentNode;
-      if (n.lightDOM) {
+      if (n.isLightDOM) {
         n = n.host;
       }
       if (n.changeling) {
         n = n.changeling;
       }
+      */
     }
     return n.host;
   };
@@ -736,5 +786,62 @@
     inNode.addEventListener(inEventName, fn);
     console.log('[' + inNode.localName + '] bindHostEvent', inEventName, inHandler);
   };
+
+  //
+  // new experimental late bound events
+  //
+
+  var accumulateEvents = function(inNode, inEvents) {
+    var events = inEvents || {};
+    accumulateNodeEvents(inNode, events);
+    accumulateChildEvents(inNode, events);
+    return events;
+  };
+
+  var accumulateNodeEvents = function(inNode, inEvents) {
+    var a$ = inNode.attributes;
+    if (a$) {
+      for (var i=0, a; a=a$[i]; i++) {
+        if (a.name.slice(0, prefix.length) == prefix) {
+          inEvents[a.name.slice(prefix.length)] = 1;
+        }
+      }
+    }
+  };
+
+  var accumulateChildEvents = function(inNode, inEvents) {
+    var cn$ = localChildNodes(inNode);
+    if (cn$) {
+      for (var i=0, n; n=deref(cn$[i]); i++) {
+        accumulateEvents(n, inEvents);
+      }
+    }
+  };
+
+  function bindAccumulatedEvents(inNode, inEvents) {
+    var fn = __.bind(inNode);
+    for (var n in inEvents) {
+      console.warn('[%s] bindAccumulatedEvents: %s', inNode.localName, n);
+      inNode.addEventListener(n, fn);
+    }
+  };
+
+  function __(inEvent) {
+    var t = inEvent.target;
+    var on = prefix + inEvent.type;
+    console.group("__", on)
+    while (t) {
+      if (t.attributes) {
+        var h = t.getAttribute(on);
+        if (h) {
+         console.log(h, t);
+        }
+      }
+      t = localParentNode(t);
+    }
+    console.groupEnd();
+    inEvent.stopPropagation();
+  };
+
 </script>
 </element>
