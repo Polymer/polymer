@@ -12,10 +12,11 @@
         left: auto;
         right: 0;
       }
-
-      g-panels[transition='flow'].narrow-layout > * {
-        width: 100% !important;
-        -webkit-box-shadow: none !important;
+      
+      /* note: won't win over node specific styling */
+      g-panels[transition='flow'] > .narrow-layout {
+        width: 100%;
+        -webkit-box-shadow: none;
       }
     </style>
   </template>
@@ -37,8 +38,11 @@
           // TODO(sorvell): hack, must fix better
           // async refresh in case we need to wait for stylesheet to load
           this.asyncMethod('refresh');
+          this.boundResizeHandler = this.resizeHandler.bind(this);
+          window.addEventListener('resize', this.boundResizeHandler);
         },
         teardown: function() {
+          window.removeEventListener('resize', this.boundResizeHandler);
           this.panels.node.removeChild(this.$.flowsheet);
           this.$super();
         },
@@ -49,7 +53,9 @@
         },
         layoutChange: function(inQuery) {
           this.narrowLayout = inQuery.matches;
-          this.panels.node.classList.toggle('narrow-layout', this.narrowLayout);
+          this.panels.getPanels().forEach(function(p) {
+            p.classList.toggle('narrow-layout', this.narrowLayout);
+          }, this);
           this.refresh();
         },
         enableTransitions: function(inEnable) {
@@ -60,7 +66,19 @@
         canTransition: function() {
           return !isNodeHidden(this.panels.node);
         },
+        resizeHandler: function(e) {
+          if (this.narrowLayout) {
+            this.refresh();
+          }
+        },
         refresh: function() {
+          if (!this.refreshing) {
+            this.refreshing = this.asyncMethod('_refresh', null, 50);
+          }
+        },
+        _refresh: function() {
+          clearTimeout(this.refreshing);
+          this.refreshing = null;
           this.enableTransitions(false);
           this.to = this.panels.getSelectedPanel();
           if (this.canTransition()) {
@@ -83,8 +101,7 @@
         applyLeftLayout: function(inTo, inIndex) {
           var l, count = this.count;
           this.panels.getPanels().forEach(function(p, i) {
-            var x = !l ? 0 : (this.narrowLayout ? (i - inIndex) * 100 + 
-              '%' : l.offsetWidth + 'px');
+            var x = !l ? 0 : l.offsetWidth + 'px';
             var right = this.panelIsRightAligned(p);
             p.style.zIndex = right ? -i : null;
             p.style.webkitTransform = 'translate3d(' + (right ? 0 : x) + ',0,0)';
