@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file.
  */
 -->
-<element name="g-overlay" attributes="opened" 
+<element name="g-overlay" attributes="opened, autoCloseDisabled" 
          handlers="click: clickHandler, keydown: keydownHandler,
          webkitAnimationStart: openedAnimationStart, 
          webkitAnimationEnd: openedAnimationEnd, 
@@ -73,7 +73,13 @@
         this.node.opened = !this.opened;
       }
     },
+    //* Maximum allowed animation time. 
+    // NOTE: This timeout acts as a catchall for completing animations
+    // which may not have received an animationEnd event due to, for example,
+    // a parent being hidden during animation.
+    timeout: 1000,
     opened: false,
+    autoCloseDisabled: false,
     ready: function() {
       // make focusable
       if (!this.node.hasAttribute('tabindex')) {
@@ -83,7 +89,16 @@
     openedChanged: function() {
       this.renderOpened();
       trackOverlays(this);
+      if (!this.autoCloseDisabled) {
+        this.captureClick();
+      }
       this.fireEvent('opened', this.opened);
+    },
+    captureClick: function() {
+      this.boundClickCaptureHandler = this.boundClickCaptureHandler ||
+        this.clickCaptureHandler.bind(this);
+      document[this.opened ? 'addEventListener' : 'removeEventListener'](
+        'click', this.boundClickCaptureHandler, true);
     },
     getFocusNode: function() {
       return this.node.querySelector('[autofocus]') || this.node;
@@ -109,11 +124,17 @@
     continueRenderOpened: function() {
       this.node.classList.toggle('opened', this.opened);
       this.node.classList.toggle('closing', !this.opened);
+      this.animating = this.asyncMethod('completeOpening', null, this.timeout);
     },
-    openedAnimationEnd: function(e) {
+    completeOpening: function() {
+      clearTimeout(this.animating);
+      this.animating = null;
       this.node.classList.remove('closing');
       this.node.classList.toggle('revealed', this.opened);
       this.applyFocus();
+    },
+    openedAnimationEnd: function(e) {
+      this.completeOpening();
       e.stopPropagation();
     },
     openedAnimationStart: function(e) {
@@ -124,8 +145,15 @@
         this.toggle();
       }
     },
+    clickCaptureHandler: function(e) {
+      if (!this.autoCloseDisabled && (currentOverlay() == this) && (this.node 
+          != e.target) && !(this.node.compareDocumentPosition(e.target) &
+          Node.DOCUMENT_POSITION_CONTAINED_BY)) {
+        this.node.opened = false;
+      }
+    },
     keydownHandler: function(e) {
-      if (e.keyCode == ESCAPE_KEY) {
+      if (!this.autoCloseDisabled && (e.keyCode == ESCAPE_KEY)) {
         this.node.opened = false;
         e.stopPropagation();
       }
