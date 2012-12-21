@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file.
  */
 -->
-<element name="g-overlay" attributes="opened" 
+<element name="g-overlay" attributes="opened, autoCloseDisabled" 
          handlers="click: clickHandler, keydown: keydownHandler,
          webkitAnimationStart: openedAnimationStart, 
          webkitAnimationEnd: openedAnimationEnd, 
@@ -73,7 +73,13 @@
         this.node.opened = !this.opened;
       }
     },
+    //* Maximum allowed animation time. 
+    // NOTE: This timeout acts as a catchall for completing animations
+    // which may not have received an animationEnd event due to, for example,
+    // a parent being hidden during animation.
+    timeout: 1000,
     opened: false,
+    autoCloseDisabled: false,
     ready: function() {
       // make focusable
       if (!this.node.hasAttribute('tabindex')) {
@@ -83,7 +89,16 @@
     openedChanged: function() {
       this.renderOpened();
       trackOverlays(this);
+      if (!this.autoCloseDisabled) {
+        this.captureClick();
+      }
       this.fireEvent('opened', this.opened);
+    },
+    captureClick: function() {
+      this.boundClickCaptureHandler = this.boundClickCaptureHandler ||
+        this.clickCaptureHandler.bind(this);
+      document[this.opened ? 'addEventListener' : 'removeEventListener'](
+        'click', this.boundClickCaptureHandler, true);
     },
     getFocusNode: function() {
       return this.node.querySelector('[autofocus]') || this.node;
@@ -109,23 +124,59 @@
     continueRenderOpened: function() {
       this.node.classList.toggle('opened', this.opened);
       this.node.classList.toggle('closing', !this.opened);
+      this.animating = this.asyncMethod('completeOpening', null, this.timeout);
     },
-    openedAnimationEnd: function(e) {
+    completeOpening: function() {
+      clearTimeout(this.animating);
+      this.animating = null;
       this.node.classList.remove('closing');
       this.node.classList.toggle('revealed', this.opened);
       this.applyFocus();
+    },
+    openedAnimationEnd: function(e) {
+      this.completeOpening();
       e.stopPropagation();
     },
     openedAnimationStart: function(e) {
       this.node.classList.add('animation');
     },
     clickHandler: function(e) {
+      this.selfClick = true;
       if (e.target && e.target.hasAttribute('overlay-toggle')) {
         this.toggle();
       }
     },
+    // TODO(sorvell): We install a capturing click handler on document while 
+    // the overlay is open so clicks outside the overlay can close it.
+    // However, when the overlay is inside shadowDOM and the click is inside
+    // the overlay, the event target seen by the document listener is always at
+    // least the overlay's host and possibly some ancestor's shadow host. 
+    // Therefore, clicks inside the overlay appear to come from outside it and
+    // it incorrectly closes. 
+    // We could address this if shadowDOM provided a way to get the original
+    // event target (perhaps only via privilege).
+    // Currently, we work around the problem by closing the overlay on a slight
+    // delay only if a click handler on the overlay itself does not fire. 
+    // Alternatively, we could turn off capturing for the document event, but
+    // then click handlers that stopPropagation would prevent the overlay 
+    // from closing.
+    // We would also avoid this problem if a overlays were re-parented to a top
+    // layer.
+    clickCaptureHandler: function(e) {
+      this.selfClick = null;
+      setTimeout(function() {
+        if (this.selfClick) {
+          return;
+        }
+        if (!this.autoCloseDisabled && (currentOverlay() == this) && (this.node 
+            != e.target) && !e.overlay && !(this.node.compareDocumentPosition(e.target) &
+            Node.DOCUMENT_POSITION_CONTAINED_BY)) {
+          this.node.opened = false;
+        }
+      }.bind(this));
+    },
     keydownHandler: function(e) {
-      if (e.keyCode == ESCAPE_KEY) {
+      if (!this.autoCloseDisabled && (e.keyCode == ESCAPE_KEY)) {
         this.node.opened = false;
         e.stopPropagation();
       }
