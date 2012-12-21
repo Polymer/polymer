@@ -5,95 +5,131 @@
  * license that can be found in the LICENSE file.
  */
 -->
-<!--<element name="g-overlay" attributes="opened" on-click="clickHandler" 
-    on-keydown="keydownHandler" on-webkitAnimationEnd="animationEnd" 
-    on-webkitTransitionEnd="animationEnd">-->
-<element name="g-overlay" attributes="opened">
-  <link rel="components" href="g-component.html">
-  <link rel="stylesheet" href="css/g-overlay.css">
-  <template>
-    <content></content>
-  </template>
-  <script>
-    var ESCAPE_KEY = 27;
-
-    /**
-     * The overlay component is hidden by default and can be opened to display
-     * its content. It's common to animate an overlay opened and closed. This 
-     * can be achieved by styling the overlay node via the `opened` and
-     * `animating` attributes.
-    */
-
-    this.component({
-      eventDelegates: {
-        click: "clickHandler",
-        keydown: "keydownHandler",
-        webkitAnimationEnd: "animationEnd",
-        webkitTransitionEnd: "animationEnd" 
-      },
-      publish: {
-        //* Timeout (ms) for animation. After timeout, any opening animation will 
-        //* be aborted and overlay will be set to opened (or not) and 
-        //* not animating.
-        timeout: 1000,
-        //* Toggle the opened state of the overlay.
-        toggle: function() {
-          this.node.opened = !this.opened;
-        }
-      },
-      ready: function() {
-        this.node.hidden = true;
-        // make focusable; note that default tabIndex == -1 but node is 
-        // only focusable if tabIndex attr is set.
-        if (this.node.tabIndex < 0) {
-          this.node.tabIndex = -1;
-        }
-      },
-      openedChanged: function() {
-        this.startAnimation();
-        // TODO(sorvell): need a controllable api for this, including 
-        // maybe focusElement.
-        if (this.opened) {
-          this.node.focus();
-        }
-        this.fireEvent('openedChanged', this.opened);
-      },
-      startAnimation: function() {
-        this.cancelAnimation();
-        this.node.hidden = false;
-        // force animationEnd after timeout ms
-        this._animating = this.asyncMethod('animationEnd', null, this.timeout);
-        this.asyncMethod('styleAnimationStart');
-      },
-      styleAnimationStart: function() {
-        this.node.classList.toggle('opened', this.opened);
-        this.node.classList.add('animating');
-      },
-      animationEnd: function() {
-        if (this._animating) {
-          this.cancelAnimation();
-          this.node.classList.remove('animating');
-          if (!this.opened) {
-            this.node.hidden = true;
-          }
-        }
-      },
-      cancelAnimation: function() {
-        if (this._animating) {
-          clearTimeout(this._animating);
-          this._animating = null;
-        }
-      },
-      clickHandler: function(e) {
-        if (e.target && e.target.hasAttribute('overlay-toggle')) {
-          this.toggle();
-        }
-      },
-      keydownHandler: function(e) {
-        if (e.keyCode == ESCAPE_KEY) {
-          this.opened = false;
-        }
+<element name="g-overlay" attributes="opened" 
+         handlers="click: clickHandler, keydown: keydownHandler,
+         webkitAnimationStart: openedAnimationStart, 
+         webkitAnimationEnd: openedAnimationEnd, 
+         webkitTransitionEnd: openedAnimationEnd">
+<link rel="components" href="g-component.html">
+<link rel="stylesheet" href="css/g-overlay.css">
+<template>
+	<content></content>
+</template>
+<script>
+  var ESCAPE_KEY = 27;
+  
+  // track overlays for z-index and focus managemant
+  var overlays = [];
+  var trackOverlays = function(inOverlay) {
+    if (inOverlay.opened) {
+      var z0 = overlayZ();
+      overlays.push(inOverlay);
+      var z1 = overlayZ();
+      if (z1 <= z0) {
+        inOverlay.node.style.zIndex = z0+1;
+      } 
+    } else {
+      var i = overlays.indexOf(inOverlay);
+      if (i >= 0) {
+        overlays.splice(i, 1);
+        inOverlay.node.style.zIndex = null;
       }
-    });
-  </script>
+    }
+  }
+
+  var currentOverlay = function() {
+    return overlays[overlays.length-1];
+  }
+  
+  var overlayZ = function() {
+    var z = -1;
+    var current = currentOverlay();
+    if (current) {
+      var z1 = window.getComputedStyle(current.node).zIndex;
+      if (!isNaN(z1)) {
+        z = Number(z1);
+      }
+    }
+    return z;
+  }
+  
+  var focusOverlay = function() {
+    var current = currentOverlay();
+    if (current) {
+      current.applyFocus();
+    }
+  }
+
+  /**
+   * The overlay component is hidden by default and can be opened to display
+   * its content. It's common to animate an overlay opened and closed. This 
+   * can be achieved by styling the overlay node via the `opened` and
+   * `animating` classes.
+  */
+  this.component({
+    publish: {
+      //* Toggle the opened state of the overlay.
+      toggle: function() {
+        this.node.opened = !this.opened;
+      }
+    },
+    opened: false,
+    ready: function() {
+      // make focusable
+      if (!this.node.hasAttribute('tabindex')) {
+        this.node.tabIndex = -1;
+      }
+    },
+    openedChanged: function() {
+      this.renderOpened();
+      trackOverlays(this);
+      this.fireEvent('opened', this.opened);
+    },
+    getFocusNode: function() {
+      return this.node.querySelector('[autofocus]') || this.node;
+    },
+    // TODO(sorvell): nodes stay focused when they become un-focusable due to
+    // an ancestory becoming display: none; file bug.
+    applyFocus: function() {
+      var focusNode = this.getFocusNode();
+      if (this.opened) {
+        focusNode.focus();
+      } else {
+        focusNode.blur();
+        focusOverlay();
+      }
+    },
+    renderOpened: function() {
+      this.node.classList.remove('closing');
+      this.node.classList.add('revealed');
+      // continue styling after delay so display state can change without
+      // aborting transitions
+      this.asyncMethod('continueRenderOpened');
+    },
+    continueRenderOpened: function() {
+      this.node.classList.toggle('opened', this.opened);
+      this.node.classList.toggle('closing', !this.opened);
+    },
+    openedAnimationEnd: function(e) {
+      this.node.classList.remove('closing');
+      this.node.classList.toggle('revealed', this.opened);
+      this.applyFocus();
+      e.stopPropagation();
+    },
+    openedAnimationStart: function(e) {
+      this.node.classList.add('animation');
+    },
+    clickHandler: function(e) {
+      if (e.target && e.target.hasAttribute('overlay-toggle')) {
+        this.toggle();
+      }
+    },
+    keydownHandler: function(e) {
+      if (e.keyCode == ESCAPE_KEY) {
+        this.node.opened = false;
+        e.stopPropagation();
+      }
+    }
+  });
+</script>
 </element>
