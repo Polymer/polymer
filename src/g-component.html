@@ -8,6 +8,15 @@
     document.body.style.opacity = 1;
   });
 
+  // log control
+  
+  var log = {
+    ready: 1,
+    events: 0,
+    data: 0
+  };
+  log = window.logFlags || log;
+  
   // decorate HTMLElementElement with toolkit API
 
   HTMLElementElement.prototype.component = component;
@@ -69,30 +78,27 @@
     bindModel.call(this, inRoot.childNodes);
     // map id's to nodes, for nodes with id's
     marshalNodeReferences.call(this.$protected, inRoot);
-    // bind event declarations
-    bindChildEvents(inRoot);
     // accumulate events of interest
     // TODO(sjmiles): ideally on native we set up listeners directly on inRoot,
     // under shim inRoot does not partcipate in event bubbling
-    //this.__events = accumulateEvents(inRoot, this.__events);
+    this.__events = accumulateEvents(inRoot, this.__events);
     //console.log('[%s]:', this.localName, this.__events);
   };
 
   function instanceReady() {
     // delegate host events
     bindHostEvents.call(this.$protected);
-    // TODO(sjmiles): on native we can listen for mutations on shadow-root
-    // but on shim we listen on the composed tree
-    eventsObserver(this);
     // TODO(sjmiles): ideally delegated events are set up per root
     // not on the host node (see above)
-    //bindAccumulatedEvents(this, this.__events);
+    bindAccumulatedEvents(this, this.__events);
     // initialize our Observable aspect
     Observable.call(this.$protected);
     takeAttributes.call(this.$protected);
     // call ready hook
     this.$protected.ready();
-    console.log('[' + this.localName + '] ready');
+    // force dirty check
+    Model.dirtyCheck();
+    log.ready && console.log('[%s#%s] ready', this.localName, this.id || '');
   };
 
   // helper functions
@@ -296,9 +302,7 @@
     },
     propertySetChanged: function(inChange, inWatched) {
       if (inChange.mutation == 'add') {
-        console.log('[' + this.node.localName
-            + '] propertySetChanged: adding watch for [' +
-            inChange.propertyName + ']')
+        log.data && console.log('[%s] propertySetChanged: adding watch for [%s]', this.node.localName, inChange.propertyName);
         api.addWatch.call(this, inChange.propertyName, inWatched);
         this.propertyChanged(inChange.propertyName);
       }
@@ -313,7 +317,7 @@
     },
     addWatch: function(inName, inWatched) {
       if (api.watchable.call(this, inName, inWatched)) {
-        console.log('[' + this.node.localName + '] watching [' + inName + ']');
+        log.data && console.log('[' + this.node.localName + '] watching [' + inName + ']');
         inWatched[inName] = true;
         Model.observe(this, inName, function(inNew, inOld) {
           this.propertyChanged(inName, inOld);
@@ -329,8 +333,7 @@
 
   Observable.prototype = {
     propertyChanged: function(inName, inOldValue) {
-      console.log('[%s] propertyChanged: [%s] now [%s] was [%s]',
-        this.node.localName, inName, this[inName], inOldValue);
+      log.data && console.log('[%s#%s] propertyChanged: [%s] now [%s] was [%s]', this.node.localName, this.node.id || '', inName, this[inName], inOldValue);
       var fn = inName + 'Changed';
       if (this[fn] && !Observable._squelch) {
         this[fn](inOldValue);
@@ -443,7 +446,7 @@
         this[inMethodName].apply(this, inArguments);
       }
     },
-    fireEvent: function(inType, inDetail) {
+    send: function(inType, inDetail) {
       this.node.dispatchEvent(
         new CustomEvent(inType, {bubbles: true, detail: inDetail})
       );
@@ -462,6 +465,10 @@
     }
   };
 
+  // TODO(sjmiles): deprecated
+  
+  ProtectedBase.fireEvent = ProtectedBase.send;
+  
   // use ProtectedBase directly to avoid a mixin step
   // (caveat: relies on __proto__)
 
@@ -502,9 +509,9 @@
   };
 
   function bindNodeModel(inNode) {
-    // our local model is this node's outer model
-    inNode.model = this.$protected;
     var n = deref(inNode);
+    // node's binding model is this component's protected object
+    n.model = this.$protected;
     if (n.nodeName == '#text') {
       // text-node binding
       bindMustache.call(this, n, n.textContent);
@@ -529,35 +536,65 @@
         var target = propertyForAttribute.call(inNode.$protected, inName);
         if (source && target) {
           bindProperties(this, source, inNode, target);
-          console.log('[%s] bindMustache: [%s] to [%s].[%s]',
-              this.localName, source, inNode.localName, target)
         }
       }
     } else {
       if ((inValue || inName).search(bindMustache.pattern) >= 0) {
         inNode.addBinding(inName, inValue);
-        console.log('[' + this.localName + '] bindMustache: <'
-            + (inNode.localName || '#text') + '>.addBinding("' + inName + '"' +
-            (inValue ? ', "' + inValue + '"' : '') + ')');
+        log.data && console.log('[%s] bindMustache: [%s] to [%s]%s', 
+            this.localName, inValue || inName, (inNode.localName || '#text'), 
+            inValue ? '.[' + inValue + ']' : '');
       }
     }
   };
 
   bindMustache.pattern = /\{\{([^{}]*)}}/;
 
-  function bindProperties(inA, inPropA, inB, inPropB) {
+  // property binding extensions to MDV
+  
+	function bindProperties(inA, inPropA, inB, inPropB) {
+     log.data && console.log('[%s] bindProperties [%s] to [%s].[%s]', inA.localName, inPropA, inB.localName, inPropB);
     _bindProperties(inA.$protected, inPropA, inB.$protected, inPropB);
   };
 
+  function _getProp(parts, create, context) {
+		var obj = context || window;
+		for(var i=0, p; obj && (p=parts[i]); i++){
+			obj = (p in obj ? obj[p] : (create ? obj[p]={} : undefined));
+		}
+		return obj;
+	};
+
+  // TODO(sjmiles): parameters crufty for the usage below, simplify
+  
+	function setProperty(name, value, context) {
+		var parts = name.split("."), p = parts.pop(), 
+        obj = _getProp(parts, true, context);
+		return obj && p ? (obj[p]=value) : undefined;
+	};
+
+  function getProperty(name, create, context) {
+		return _getProp(name.split("."), create, context);
+	};
+  
+ 
   function _bindProperties(inA, inPropA, inB, inPropB) {
-    inB[inPropB] = inA[inPropA];
+    setProperty(inPropB, getProperty(inPropA, false, inA), inB);
     Model.observe(inA, inPropA, function(inNew) {
-      //console.log('_bindProperties: propagating', inA, inPropA, '(' + inNew + ')', 'to', inB, inPropB);
-      inB[inPropB] = inNew;
+      // intermediate changes are observed, but are irrelevant
+      // we only propagate when the value stabilizes
+      if (getProperty(inPropA, false, inA) === inNew) {
+        log.data && console.log('_bindProperties: propagating', inA.node.localName, inPropA, '(' + inNew + ')', 'to', inB.node.localName, inPropB);
+        setProperty(inPropB, inNew, inB);
+      }
     });
     Model.observe(inB, inPropB, function(inNew) {
-      //console.log('_bindProperties: propagating', inB, inPropB, '(' + inNew + ')', 'to', inA, inPropA);
-      inA[inPropA] = inNew;
+      // intermediate changes are observed, but are irrelevant
+      // we only propagate when the value stabilizes
+      if (getProperty(inPropB, false, inB) === inNew) {
+        log.data && console.log('_bindProperties: propagating', inB.node.localName, inPropB, '(' + inNew + ')', 'to', inA.node.localName, inPropA);
+        setProperty(inPropA, inNew, inA);
+      }
     });
   };
 
@@ -639,7 +676,7 @@
   };
 
   var localParentNode = function(inNode) {
-    var node = inNode.parentNode;
+    var node = inNode.host || inNode.parentNode;
     if (node) {
       if (node.isLightDOM) {
         node = node.host;
@@ -647,72 +684,6 @@
       node = node.changeling || node;
     }
     return node;
-  };
-
-  var bindEvents = function(inNode) {
-    var prefix = conventions.CUSTOM_EVENT_PREFIX;
-    var a$ = inNode.attributes;
-    if (a$) {
-      for (var i=0, a; a=a$[i]; i++) {
-        if (a.name.slice(0, prefix.length) == prefix) {
-          console.log('[' + inNode.localName + '] bindEvents:', a.name, a.value);
-          bindEvent(inNode, a.name.slice(prefix.length), a.value);
-        }
-      }
-    }
-  };
-
-  // locate attributes of the form <prefix><eventName>="<methodName>" and
-  // map <eventName> events to method <methodName> to inNode's controller
-  var bindEvent = function(inNode, inEventName, inHandler) {
-    // only attach one listener per inEventName, so we can
-    // rebind without accumulating listeners
-    var h = inNode.__athandlers = inNode.__athandlers || {};
-    if (!h[inEventName]) {
-      var fn = function() {
-        _(inHandler);
-      };
-      h[inEventName] = fn;
-      inNode.addEventListener(inEventName, fn);
-    }
-  };
-
-  var _bindChildEvents = function(inNode) {
-    var childNodes = localChildNodes(inNode);
-    if (childNodes) {
-      for (var i=0, c; c=deref(childNodes[i]); i++) {
-        if (c.tagName !== 'SHADOW') {
-          _bindChildEvents(c);
-        }
-      }
-    }
-    bindEvents(inNode);
-  };
-
-   var bindChildEvents = function(inNode) {
-    if (inNode) {
-      console.group('[%s] bindChildEvents', inNode.localName);
-      _bindChildEvents(inNode);
-      console.groupEnd();
-      // we need this in particular for custom events in iterated templates
-      //eventsObserver(inNode);
-    }
-  };
-
-  // register a MutationObserver on inNode so we can bind
-  // custom events when the DOM subtree changes
-  var eventsObserver = function(inNode) {
-    var fn = function() {
-      console.group('[%s] eventsObserver: rebinding child events', inNode.localName);
-      _bindChildEvents(inNode);
-      console.groupEnd();
-    };
-    console.warn("EVENTSOBSERVER ON ", inNode);
-    // TODO(sjmiles): optimize so we only bind new nodes
-    new WebKitMutationObserver(fn).observe(inNode, {
-      childList: true,
-      subtree: true
-    });
   };
 
   // experimental delegating declarative event handler
@@ -728,15 +699,6 @@
     var n = inNode.changeling || inNode;
     while (n.parentNode && n.tagName !== 'SHADOW-ROOT') {
       n = localParentNode(n);
-      /*
-      n = n.parentNode;
-      if (n.isLightDOM) {
-        n = n.host;
-      }
-      if (n.changeling) {
-        n = n.changeling;
-      }
-      */
     }
     return n.host;
   };
@@ -751,15 +713,9 @@
   // but we bind event listeners here directly
 
   var dispatch = function(inNode, inHandlerName, inArguments) {
-      if (inNode && inNode.$protected) {
-        inNode.$protected.dispatch(inHandlerName, inArguments);
-      }
-  };
-
-  var _ = function(inHandlerName) {
-    var controller = findController(event.currentTarget);
-    //console.log("_: delegating", inHandlerName, "to", controller);
-    dispatch(controller, inHandlerName, [event, event.detail]);
+    if (inNode && inNode.$protected) {
+      inNode.$protected.dispatch(inHandlerName, inArguments);
+    }
   };
 
   // automagic host-event binding
@@ -784,7 +740,7 @@
     };
     // TODO(sjmiles): sadly permanent
     inNode.addEventListener(inEventName, fn);
-    console.log('[' + inNode.localName + '] bindHostEvent', inEventName, inHandler);
+    log.events && console.log('[%s] bindHostEvent: [%s] to [%s]', inNode.localName, inEventName, inHandler);
   };
 
   //
@@ -795,6 +751,9 @@
     var events = inEvents || {};
     accumulateNodeEvents(inNode, events);
     accumulateChildEvents(inNode, events);
+    if (inNode.tagName == 'TEMPLATE' && inNode.content) {
+      accumulateChildEvents(inNode.content, events);
+    }
     return events;
   };
 
@@ -821,27 +780,34 @@
   function bindAccumulatedEvents(inNode, inEvents) {
     var fn = __.bind(inNode);
     for (var n in inEvents) {
-      console.warn('[%s] bindAccumulatedEvents: %s', inNode.localName, n);
+      log.events && console.log('[%s] bindAccumulatedEvents: [%s]', inNode.localName, n);
       inNode.addEventListener(n, fn);
     }
   };
-
+  
   function __(inEvent) {
     var t = inEvent.target;
     var on = prefix + inEvent.type;
-    console.group("__", on)
-    while (t) {
+    log.events && console.group("[%s]: __ [%s]", this.localName, on);
+    while (t && t != this) {
+      t = deref(t);
+      log.events && console.dir(t);
       if (t.attributes) {
         var h = t.getAttribute(on);
         if (h) {
-         console.log(h, t);
+          var c = findController(t);
+          log.events && console.log('found handler [%s] for controller', h, c);
+          if (c == this) {
+            log.events && console.log('invoking [%s]', h);
+            if (this.$protected[h]) {
+              this.$protected[h](inEvent, inEvent.detail, t);
+            }
+          }
         }
       }
-      t = localParentNode(t);
+      t = t.parentNode;
     }
-    console.groupEnd();
-    inEvent.stopPropagation();
+    log.events && console.groupEnd();
   };
-
 </script>
 </element>
