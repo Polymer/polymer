@@ -75,7 +75,7 @@
     // set shadow-root model
     inRoot.model = this.$protected;
     // parse and apply model binding markup in DOM
-    bindModel.call(this, inRoot.childNodes);
+    bindModel.call(this, localChildNodes(inRoot));
     // map id's to nodes, for nodes with id's
     marshalNodeReferences.call(this.$protected, inRoot);
     // accumulate events of interest
@@ -435,7 +435,7 @@
     },
     $super: $super,
     asyncMethod: function(inMethod, inArgs, inTimeout) {
-      var args = (inArgs && inArgs.length) || [inArgs];
+      var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
       return window.setTimeout(function() {
         this[inMethod].apply(this, args);
       }.bind(this), inTimeout || 0);
@@ -447,9 +447,13 @@
       }
     },
     send: function(inType, inDetail) {
+      log.events && console.log('[%s]: sending [%s]', this.node.localName, inType);
       this.node.dispatchEvent(
         new CustomEvent(inType, {bubbles: true, detail: inDetail})
       );
+    },
+    asend: function(/*inType, inDetail*/) {
+      this.asyncMethod("send", arguments);
     },
     findDistributedTarget: function(inTarget, inNodes) {
       // find first ancestor of target (including itself) that
@@ -479,6 +483,30 @@
     $protected: ProtectedBase
   };
 
+  // ShadowDOM tree walking
+  // TODO(sjmiles): should be provided by ShadowDOM object
+
+  // TODO(sjmiles): make unit tests and stabilize the tree walking concepts
+  //    once and for all
+  var localChildNodes = function(inNode) {
+    return (inNode.tagName == 'CONTENT' && [])
+      || (inNode.lightDOM && inNode.lightDOM.childNodes) 
+      || inNode.insertions
+      || inNode.childNodes
+      ;
+  };
+  
+  var localParentNode = function(inNode) {
+    var node = inNode.host || inNode.parentNode;
+    if (node) {
+      if (node.isLightDOM) {
+        node = node.host;
+      }
+      node = node.changeling || node;
+    }
+    return node;
+  };
+  
   //
   // reference marshalling
   //
@@ -505,6 +533,12 @@
   // nested template and functions asynchronously
 
   function bindModel(inNodes) {
+    log.data && console.group("[%s] bindModel", this.localName);
+    _bindModel.call(this, inNodes);
+    log.data && console.groupEnd();
+  };
+
+  function _bindModel(inNodes) {
     forEach(inNodes, bindNodeModel, this);
   };
 
@@ -523,7 +557,7 @@
         }, this);
       }
       // walking the LOCAL tree
-      bindModel.call(this, n.lightDOM ? n.lightDOM.childNodes : n.childNodes);
+      _bindModel.call(this, localChildNodes(n));
     }
   };
 
@@ -670,22 +704,6 @@
 
   var prefix = conventions.CUSTOM_EVENT_PREFIX;
 
-  var localChildNodes = function(inNode) {
-    // insertion hosts?
-    return (inNode.lightDOM && inNode.lightDOM.childNodes) || inNode.childNodes;
-  };
-
-  var localParentNode = function(inNode) {
-    var node = inNode.host || inNode.parentNode;
-    if (node) {
-      if (node.isLightDOM) {
-        node = node.host;
-      }
-      node = node.changeling || node;
-    }
-    return node;
-  };
-
   // experimental delegating declarative event handler
 
   // TODO(sjmiles):
@@ -780,15 +798,15 @@
   function bindAccumulatedEvents(inNode, inEvents) {
     var fn = __.bind(inNode);
     for (var n in inEvents) {
-      log.events && console.log('[%s] bindAccumulatedEvents: [%s]', inNode.localName, n);
+      log.events && console.log('[%s] bindAccumulatedEvents: addEventListener("%s", __)', inNode.localName, n);
       inNode.addEventListener(n, fn);
     }
   };
   
   function __(inEvent) {
-    var t = inEvent.target;
     var on = prefix + inEvent.type;
     log.events && console.group("[%s]: __ [%s]", this.localName, on);
+    var t = inEvent.target;
     while (t && t != this) {
       t = deref(t);
       log.events && console.dir(t);
@@ -800,7 +818,6 @@
           if (c == this) {
             log.events && console.log('invoking [%s]', h);
             if (this.$protected[h]) {
-              inEvent.target = t;
               this.$protected[h](inEvent, inEvent.detail, t);
             }
           }
