@@ -1,7 +1,7 @@
 ﻿<element name="g-component">
 <script>
 
-  // FOUC prevent (to opt-in set opacity: 0 on body)
+  // FOUC prevent (to opt-in, set opacity: 0 on body)
 
   window.addEventListener('WebComponentsReady', function() {
     document.body.style.webkitTransition = "opacity 0.4s";
@@ -74,10 +74,10 @@
   function rootCreated(inRoot) {
     // set shadow-root model
     inRoot.model = this.$protected;
-    // parse and apply model binding markup in DOM
-    bindModel.call(this, localChildNodes(inRoot));
     // map id's to nodes, for nodes with id's
     marshalNodeReferences.call(this.$protected, inRoot);
+    // parse and apply model binding markup in DOM
+    bindModel.call(this, localChildNodes(inRoot));
     // accumulate events of interest
     // TODO(sjmiles): ideally on native we set up listeners directly on inRoot,
     // under shim inRoot does not participate in event bubbling
@@ -96,8 +96,8 @@
     takeAttributes.call(this.$protected);
     // call ready hook
     this.$protected.ready();
-    // force dirty check
-    Model.dirtyCheck();
+    // TODO(sjmiles): explain succinctly why this dirtyCheck is here
+    window.dirtyCheck();
     log.ready && console.log('[%s#%s] ready', this.localName, this.id || '');
   };
 
@@ -302,9 +302,9 @@
     },
     propertySetChanged: function(inChange, inWatched) {
       if (inChange.mutation == 'add') {
-        log.data && console.log('[%s] propertySetChanged: adding watch for [%s]', this.node.localName, inChange.propertyName);
+        //log.watch && console.log('[%s] propertySetChanged: adding watch for [%s]', this.node.localName, inChange.propertyName);
         api.addWatch.call(this, inChange.propertyName, inWatched);
-        this.propertyChanged(inChange.propertyName);
+        //this.propertyChanged(inChange.propertyName);
       }
     },
     watchable: function(inName, inWatched) {
@@ -317,9 +317,10 @@
     },
     addWatch: function(inName, inWatched) {
       if (api.watchable.call(this, inName, inWatched)) {
-        log.data && console.log('[' + this.node.localName + '] watching [' + inName + ']');
+        log.watch && console.log('[' + this.node.localName + '] watching [' + inName + ']');
         inWatched[inName] = true;
         Model.observe(this, inName, function(inNew, inOld) {
+          log.data && console.log('[%s#%s] watch: [%s] now [%s] was [%s]', this.node.localName, this.node.id || '', inName, this[inName], inOld);
           this.propertyChanged(inName, inOld);
         }.bind(this));
       }
@@ -333,7 +334,7 @@
 
   Observable.prototype = {
     propertyChanged: function(inName, inOldValue) {
-      log.data && console.log('[%s#%s] propertyChanged: [%s] now [%s] was [%s]', this.node.localName, this.node.id || '', inName, this[inName], inOldValue);
+      //log.data && console.log('[%s#%s] propertyChanged: [%s] now [%s] was [%s]', this.node.localName, this.node.id || '', inName, this[inName], inOldValue);
       var fn = inName + 'Changed';
       if (this[fn] && !Observable._squelch) {
         this[fn](inOldValue);
@@ -533,9 +534,9 @@
   // nested template and functions asynchronously
 
   function bindModel(inNodes) {
-    log.data && console.group("[%s] bindModel", this.localName);
+    log.bind && console.group("[%s] bindModel", this.localName);
     _bindModel.call(this, inNodes);
-    log.data && console.groupEnd();
+    log.bind && console.groupEnd();
   };
 
   function _bindModel(inNodes) {
@@ -575,7 +576,7 @@
     } else {
       if ((inValue || inName).search(bindMustache.pattern) >= 0) {
         inNode.addBinding(inName, inValue);
-        log.data && console.log('[%s] bindMustache: [%s] to [%s]%s', 
+        log.bind && console.log('[%s] bindMustache: [%s] to [%s]%s', 
             this.localName, inValue || inName, (inNode.localName || '#text'), 
             inValue ? '.[' + inValue + ']' : '');
       }
@@ -587,8 +588,10 @@
   // property binding extensions to MDV
   
 	function bindProperties(inA, inPropA, inB, inPropB) {
-     log.data && console.log('[%s] bindProperties [%s] to [%s].[%s]', inA.localName, inPropA, inB.localName, inPropB);
+     log.bind && console.log('[%s] bindProperties [%s] to [%s].[%s]', inA.localName, inPropA, inB.localName, inPropB);
     _bindProperties(inA.$protected, inPropA, inB.$protected, inPropB);
+    // TODO(sjmiles): explain succinctly why this dirtyCheck is here
+    window.dirtyCheck();
   };
 
   function _getProp(parts, create, context) {
@@ -610,28 +613,29 @@
   function getProperty(name, create, context) {
 		return _getProp(name.split("."), create, context);
 	};
-  
- 
+
   function _bindProperties(inA, inPropA, inB, inPropB) {
-    setProperty(inPropB, getProperty(inPropA, false, inA), inB);
+    var value = getProperty(inPropA, true, inA);
+    log.data && console.log('[%s] _bindProperties: sending [%s] (%s) to [%s].[%s]', inA.node.localName, inPropA, value, inB.node.localName, inPropB);
+    setProperty(inPropB, value, inB);
+    bindProperty(inA, inPropA, inB, inPropB);
+    bindProperty(inB, inPropB, inA, inPropA);
+  };
+  
+  function bindProperty(inA, inPropA, inB, inPropB) {
     Model.observe(inA, inPropA, function(inNew) {
       // intermediate changes are observed, but are irrelevant
       // we only propagate when the value stabilizes
       if (getProperty(inPropA, false, inA) === inNew) {
-        log.data && console.log('_bindProperties: propagating', inA.node.localName, inPropA, '(' + inNew + ')', 'to', inB.node.localName, inPropB);
-        setProperty(inPropB, inNew, inB);
-      }
-    });
-    Model.observe(inB, inPropB, function(inNew) {
-      // intermediate changes are observed, but are irrelevant
-      // we only propagate when the value stabilizes
-      if (getProperty(inPropB, false, inB) === inNew) {
-        log.data && console.log('_bindProperties: propagating', inB.node.localName, inPropB, '(' + inNew + ')', 'to', inA.node.localName, inPropA);
-        setProperty(inPropA, inNew, inA);
+        // probably redundant, but prevent circularity right here
+        if (getProperty(inPropB, false, inB) !== inNew) {
+          log.data && console.log('[%s] bindProperty: propagating [%s] (%s) to [%s].[%s]', inA.node.localName, inPropA, inNew, inB.node.localName, inPropB);
+          setProperty(inPropB, inNew, inB);
+        }
       }
     });
   };
-
+  
   //
   // attribute processing
   //
