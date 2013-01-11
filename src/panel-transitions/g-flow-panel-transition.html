@@ -26,6 +26,8 @@
       return (inNode.offsetWidth) == 0 && (inNode.offsetHeight == 0);
     }
     
+    var END_EVENT = 'webkitTransitionEnd';
+    
     this.component({
       publish: {
         highlander: false,
@@ -34,17 +36,21 @@
           this.$super(arguments);
           this.listenForMediaMatch();
           // TODO(sorvell): redo when reference combinators arrive
-          this.panels.node.appendChild(this.$.flowsheet);
+          this.panels.node.lightDOM.appendChild(this.$.flowsheet);
+          this.panels.node.distribute();
           // TODO(sorvell): hack, must fix better
           // async refresh in case we need to wait for stylesheet to load
           this.asyncMethod('refresh');
           this.boundResizeHandler = this.resizeHandler.bind(this);
           window.addEventListener('resize', this.boundResizeHandler);
+          this.panels.node.addEventListener(END_EVENT, this.finishListener);
         },
         teardown: function() {
           window.removeEventListener('resize', this.boundResizeHandler);
-          this.panels.node.removeChild(this.$.flowsheet);
+          this.panels.node.lightDOM.removeChild(this.$.flowsheet);
+          this.panels.node.distribute();
           this.$super();
+          this.panels.node.removeEventListener(END_EVENT, this.finishListener);
         },
         listenForMediaMatch: function() {
           var mq = window.matchMedia(this.narrowMedia);
@@ -67,18 +73,16 @@
           return !isNodeHidden(this.panels.node);
         },
         resizeHandler: function(e) {
-          if (this.narrowLayout) {
-            this.refresh();
+          if (this.narrowLayout && !this.resizing) {
+            this.resizing = this.asyncMethod('resize', null, 50);
           }
+        },
+        resize: function() {
+          clearTimeout(this.resizing);
+          this.resizing = null;
+          this.refresh();
         },
         refresh: function() {
-          if (!this.refreshing) {
-            this.refreshing = this.asyncMethod('_refresh', null, 50);
-          }
-        },
-        _refresh: function() {
-          clearTimeout(this.refreshing);
-          this.refreshing = null;
           this.enableTransitions(false);
           this.to = this.panels.getSelectedPanel();
           if (this.canTransition()) {
