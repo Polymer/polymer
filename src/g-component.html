@@ -88,7 +88,7 @@
   function instanceReady() {
     // delegate host events
     //bindHostEvents.call(this.$protected);
-    accumulateHostEvents.call(this.$protected, this.__events);
+    //accumulateHostEvents.call(this.$protected, this.__events);
     // TODO(sjmiles): ideally delegated events are set up per root
     // not on the host node (see above)
     bindAccumulatedEvents(this, this.__events);
@@ -616,9 +616,19 @@
 	};
 
   function _bindProperties(inA, inPropA, inB, inPropB) {
-    var value = getProperty(inPropA, true, inA);
-    log.data && console.log('[%s] _bindProperties: sending [%s] (%s) to [%s].[%s]', inA.node.localName, inPropA, value, inB.node.localName, inPropB);
-    setProperty(inPropB, value, inB);
+    var valueA = getProperty(inPropA, false, inA);
+    var valueB = getProperty(inPropB, false, inB);
+    if (valueA == undefined && valueB == undefined) {
+      log.data && console.log('[%s] _bindProperties: initializing [%s] and [%s].[%s]', inA.node.localName, inPropB, inA.node.localName, inPropA);
+      setProperty(inPropA, null, inA);
+      setProperty(inPropB, null, inB);
+    } else if (valueA == undefined) {
+      log.data && console.warn('[%s] _bindProperties: pulling [%s] (%s) from [%s].[%s]', inA.node.localName, inPropB, valueB, inA.node.localName, inPropA);
+      setProperty(inPropA, valueB, inA);
+    } else {
+      log.data && console.log('[%s] _bindProperties: sending [%s] (%s) to [%s].[%s]', inA.node.localName, inPropA, valueA, inB.node.localName, inPropB);
+      setProperty(inPropB, valueA, inB);
+    }
     bindProperty(inA, inPropA, inB, inPropB);
     bindProperty(inB, inPropB, inA, inPropA);
   };
@@ -726,77 +736,11 @@
     return n.host;
   };
 
-  // generic event delegate
-  //
-  // find controller nearest the event.currentTarget
-  // and delegate event to that controller's 'inHandlerName'
-  // method, if it has one
-  //
-  // can function declaratively, e.g. onclick="_('method')"
-  // but we bind event listeners here directly
-
   var dispatch = function(inNode, inHandlerName, inArguments) {
     if (inNode && inNode.$protected) {
       log.events && console.group('[%s] dispatch [%s]', inNode.localName, inHandlerName);
       inNode.$protected.dispatch(inHandlerName, inArguments);
       log.events && console.groupEnd();
-    }
-  };
-
-  // automagic host-event binding
-
-  /*
-  var bindHostEvents = function() {
-    // TODO(sjmiles): must walk the prototype tree
-    // to bind the superset of eventDelegate maps
-    var p = this;
-    while (p) {
-      if (p.hasOwnProperty('eventDelegates')) {
-        for (var n in p.eventDelegates) {
-          bindHostEvent(this.node, n, p.eventDelegates[n]);
-        }
-      }
-      p = p.__proto__;
-    }
-  };
-
-  var bindHostEvent = function(inNode, inEventName, inHandler) {
-    var fn = function() {
-      dispatch(inNode, inHandler, [event, event.detail]);
-    };
-    // TODO(sjmiles): sadly permanent
-    inNode.addEventListener(inEventName, fn);
-    log.events && console.log('[%s] bindHostEvent: [%s] to [%s]', inNode.localName, inEventName, inHandler);
-  };
-  */
-
-  var accumulateHostEvents = function(inEvents) {
-    // TODO(sjmiles): must walk the prototype tree to operate on the union of 
-    // eventDelegates maps
-    var p = this;
-    while (p) {
-      if (p.hasOwnProperty('eventDelegates')) {
-        for (var n in p.eventDelegates) {
-          inEvents[n] = 1;
-          //bindHostEvent(this.node, n, p.eventDelegates[n]);
-        }
-      }
-      p = p.__proto__;
-    }
-  };
-
-  var findHostHandler = function(inEventName) {
-    // TODO(sjmiles): walking the tree again is inefficient; combine with code 
-    // in accumulateHostEvents into something more sane
-    var p = this;
-    while (p) {
-      if (p.hasOwnProperty('eventDelegates')) {
-        var h = p.eventDelegates[inEventName];
-        if (h) {
-          return h;
-        }
-      }
-      p = p.__proto__;
     }
   };
   
@@ -829,8 +773,26 @@
     var cn$ = localChildNodes(inNode);
     if (cn$) {
       for (var i=0, n; n=deref(cn$[i]); i++) {
+        // TODO(sjmiles): unify calling convention (.call or not .call)
         accumulateEvents(n, inEvents);
+        if (n.$protected) {
+          accumulateHostEvents.call(n.$protected, inEvents);
+        }
       }
+    }
+  };
+
+   var accumulateHostEvents = function(inEvents) {
+    // TODO(sjmiles): must walk the prototype tree to operate on the union of 
+    // eventDelegates maps
+    var p = this;
+    while (p) {
+      if (p.hasOwnProperty('eventDelegates')) {
+        for (var n in p.eventDelegates) {
+          inEvents[n] = 1;
+        }
+      }
+      p = p.__proto__;
     }
   };
 
@@ -885,6 +847,22 @@
     if (h) {
       log.events && console.log('[%s] found host handler name [%s]', inNode.localName, h);
       dispatch(inNode, h, [inEvent, inEvent.detail, inNode]);
+    }
+  };
+
+  // find the method name (handler) in eventDelegates mapped to inEventName
+  var findHostHandler = function(inEventName) {
+    // TODO(sjmiles): walking the tree again is inefficient; combine with code 
+    // in accumulateHostEvents into something more sane
+    var p = this;
+    while (p) {
+      if (p.hasOwnProperty('eventDelegates')) {
+        var h = p.eventDelegates[inEventName];
+        if (h) {
+          return h;
+        }
+      }
+      p = p.__proto__;
     }
   };
 </script>
