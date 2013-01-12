@@ -41,15 +41,14 @@
     // Polyfill user-agent styles for template
     document.write('<link rel="stylesheet" href="' + path + 'template_element.css">');
     files = files.concat([
-      'transform.js',
-      'dependency_parser.js',
-      'expression_parser.js',
-      'place_holder_parser.js',
-      'bind_attribute_parser.js',
-      'element_model.js',
-      'html5_attributes.js',
+      'script_value_binding.js',
+      'text_replacements_binding.js',
+      'element_attribute_bindings.js',
       'element_bindings.js',
-      'template_element.js'
+      'input_bindings.js',
+      'template_element.js',
+      'delegates.js',
+      'test_common.js'
     ]);
   }
   
