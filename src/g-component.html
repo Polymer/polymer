@@ -87,7 +87,8 @@
 
   function instanceReady() {
     // delegate host events
-    bindHostEvents.call(this.$protected);
+    //bindHostEvents.call(this.$protected);
+    accumulateHostEvents.call(this.$protected, this.__events);
     // TODO(sjmiles): ideally delegated events are set up per root
     // not on the host node (see above)
     bindAccumulatedEvents(this, this.__events);
@@ -303,7 +304,7 @@
     propertySetChanged: function(inChange, inWatched) {
       if (inChange.mutation == 'add') {
         //log.watch && console.log('[%s] propertySetChanged: adding watch for [%s]', this.node.localName, inChange.propertyName);
-        api.addWatch.call(this, inChange.propertyName, inWatched);
+        api.addWatch.call(this, inChange.propertyName, null, inWatched);
         //this.propertyChanged(inChange.propertyName);
       }
     },
@@ -442,14 +443,14 @@
       }.bind(this), inTimeout || 0);
     },
     dispatch: function(inMethodName, inArguments) {
-        // TODO(sjmiles): have 'controller' dispatch this method itself
       if (this[inMethodName]) {
         this[inMethodName].apply(this, inArguments);
       }
     },
-    send: function(inType, inDetail) {
-      log.events && console.log('[%s]: sending [%s]', this.node.localName, inType);
-      this.node.dispatchEvent(
+    send: function(inType, inDetail, inToNode) {
+      var node = inToNode || this.node;
+      log.events && console.log('[%s]: sending [%s]', node.localName, inType);
+      node.dispatchEvent(
         new CustomEvent(inType, {bubbles: true, detail: inDetail})
       );
     },
@@ -736,12 +737,15 @@
 
   var dispatch = function(inNode, inHandlerName, inArguments) {
     if (inNode && inNode.$protected) {
+      log.events && console.group('[%s] dispatch [%s]', inNode.localName, inHandlerName);
       inNode.$protected.dispatch(inHandlerName, inArguments);
+      log.events && console.groupEnd();
     }
   };
 
   // automagic host-event binding
 
+  /*
   var bindHostEvents = function() {
     // TODO(sjmiles): must walk the prototype tree
     // to bind the superset of eventDelegate maps
@@ -764,7 +768,38 @@
     inNode.addEventListener(inEventName, fn);
     log.events && console.log('[%s] bindHostEvent: [%s] to [%s]', inNode.localName, inEventName, inHandler);
   };
+  */
 
+  var accumulateHostEvents = function(inEvents) {
+    // TODO(sjmiles): must walk the prototype tree to operate on the union of 
+    // eventDelegates maps
+    var p = this;
+    while (p) {
+      if (p.hasOwnProperty('eventDelegates')) {
+        for (var n in p.eventDelegates) {
+          inEvents[n] = 1;
+          //bindHostEvent(this.node, n, p.eventDelegates[n]);
+        }
+      }
+      p = p.__proto__;
+    }
+  };
+
+  var findHostHandler = function(inEventName) {
+    // TODO(sjmiles): walking the tree again is inefficient; combine with code 
+    // in accumulateHostEvents into something more sane
+    var p = this;
+    while (p) {
+      if (p.hasOwnProperty('eventDelegates')) {
+        var h = p.eventDelegates[inEventName];
+        if (h) {
+          return h;
+        }
+      }
+      p = p.__proto__;
+    }
+  };
+  
   //
   // new experimental late bound events
   //
@@ -807,29 +842,50 @@
     }
   };
   
+  // TODO(sjmiles): lots of work on the code here as we bash out a design
+  // we like, cruftiness increasing in the process. Will be cleaned up when 
+  // design solidifies.
   function __(inEvent) {
-    var on = prefix + inEvent.type;
-    log.events && console.group("[%s]: __ [%s]", this.localName, on);
+    inEvent.on = prefix + inEvent.type;
+    //var on = prefix + inEvent.type;
+    log.events && console.group("[%s]: __ [%s]", this.localName, inEvent.on);
     var t = inEvent.target;
     while (t && t != this) {
       t = deref(t);
-      log.events && console.dir(t);
-      if (t.attributes) {
-        var h = t.getAttribute(on);
-        if (h) {
-          var c = findController(t);
-          log.events && console.log('found handler [%s] for controller', h, c);
-          if (c == this) {
-            log.events && console.log('invoking [%s]', h);
-            if (this.$protected[h]) {
-              this.$protected[h](inEvent, inEvent.detail, t);
-            }
-          }
+      var c = findController(t);
+      if (c == this) {
+        log.events && console.log('node [%s]', t.localName);
+        handleHostEvent.call(this, t, inEvent);
+        handleEvent.call(this, t, inEvent);
+        if (inEvent.cancelBubble) {
+          return;
         }
       }
       t = t.parentNode;
     }
+    // if we are a top-level component, we have to fire our own host events
+    if (t == this && !findController(t)) {
+      handleHostEvent.call(this, t, inEvent);
+    }
     log.events && console.groupEnd();
+  };
+  
+  function handleEvent(inNode, inEvent) {
+    if (inNode.attributes) {
+      var h = inNode.getAttribute(inEvent.on);
+      if (h) {
+        log.events && console.log('[%s] found handler name [%s]', this.localName, h);
+        dispatch(this, h, [inEvent, inEvent.detail, inNode]);
+      }
+    }  
+  };
+  
+  function handleHostEvent(inNode, inEvent) {
+    var h = findHostHandler.call(inNode.$protected, inEvent.type);
+    if (h) {
+      log.events && console.log('[%s] found host handler name [%s]', inNode.localName, h);
+      dispatch(inNode, h, [inEvent, inEvent.detail, inNode]);
+    }
   };
 </script>
 </element>
