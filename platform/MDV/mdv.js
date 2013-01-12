@@ -5,7 +5,7 @@
  */
 (function() {
 
-  var thisFile = "mdv-polyfill.js";
+  var thisFile = "mdv.js";
 
   // if the HTMLElement prototype has addBinding, we should have MDV
   window.hasMDV = Boolean(window.HTMLElement && 
@@ -24,7 +24,7 @@
     }
   });
   
-  var folder = 'mdv-polyfill';
+  var folder = 'mdv';
   var path = base + folder + '/';
 
   // Polyfill for object observation

@@ -89,7 +89,7 @@ var require = function(inSrc) {
   "ComponentDocuments/parser.js",
   "CustomDOMElement/CustomDOMElements.js",
   "CustomDOMElement/HTMLElementElement.js",
-  "MDV/mdv-polyfill.js",
+  "MDV/mdv.js",
   "lib/boot.js"
 ].forEach(require);
 
