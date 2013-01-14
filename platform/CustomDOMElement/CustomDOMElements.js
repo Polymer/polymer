@@ -79,9 +79,11 @@ var finalize = function(inElement, inDefinition) {
       // polyfill UA parsing by instantiating any new custom elements
       // reported by MutationObservers. Each root is self-contained,
       // and so we must set up an observer for each one.
-      //watchDOM(root);
+      watchShadowDOM(root);
       // upgrade elements now so that references created
       // during distribution do not become stale.
+      //
+      // use upgradeAll not upgradeDOMChanges since root is not in DOM yet.
       upgradeAll(root);
     }
   });
@@ -107,7 +109,7 @@ var finalize = function(inElement, inDefinition) {
   //
   // upgrade custom elements that haven't been upgraded yet (due to race
   // condition in light dom upgrade, or user manipulation)
-  upgradeAll(inElement);
+  upgradeDOMChanges(inElement);
   //
   // TODO(sjmiles): OFF SPEC: support lifecycle.created
   if (inDefinition.lifecycle.created) {
@@ -286,7 +288,7 @@ var upgradeElement = function(inElement, inDefinition) {
   finalize(upgrade, inDefinition);
   // we need to upgrade any custom elements that appeared
   // as a result of this upgrade
-  upgradeAll(upgrade);
+  upgradeDOMChanges(upgrade);
   // 5.b.3 On UPGRADE, fire an event named elementupgrade with its bubbles
   // attribute set to true.
   // TODO(sjmiles): implement elementupgrade event
@@ -308,26 +310,61 @@ var upgradeElements = function(inTree, inDefinition) {
   }
 };
 
-var	upgradeAll = function(inNode) {
-	for (var n in registry) {
-		upgradeElements(inNode, registry[n]);
-	}
+var upgradeAll = function(inNode) {
+  for (var n in registry) {
+    upgradeElements(inNode, registry[n]);
+  }
 };
+
+var definitionForElement = function(inNode) {
+  return registry[inNode.localName];
+}
 
 // SECTION 6
 
 // polyfill UA parsing HTML by watching dom for changes via mutations observer
 // and upgrading if any are detected.
+var handleDOMMutations = function(mutations) {
+  mutations.forEach(function(mxn){
+    forEach(mxn.addedNodes, function(n) {
+      if (n.nodeType == Node.ELEMENT_NODE) {
+        var def = definitionForElement(n);
+        if (def) {
+          upgradeElement(n, def);
+        }
+        upgradeAll(n);
+      }
+    });
+  });
+}
+
+var DOMObserver;
 var watchDOM = function(inNode) {
   if (MutationObserver) {
-    var observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mxn){
-        if (mxn.addedNodes.length) {
-          upgradeAll(inNode);
-        }
-      });
-    });
-    observer.observe(inNode, {childList: true, subtree: true});
+    DOMObserver = new MutationObserver(handleDOMMutations);
+    DOMObserver.observe(inNode, {childList: true, subtree: true});
+  }
+}
+
+// TODO(sorvell): remove knowledge of state of shadowDOM impl.
+var watchShadowDOM = function(inRoot) {
+  if (!ShadowDOM.shim) {
+    watchDOM(inRoot);
+  }
+}
+
+// TODO(sorvell): remove knowledge of state of shadowDOM impl.
+var upgradeDOMChanges = function(inElement) {
+  if (ShadowDOM.shim) {
+    shimUpgradeChanges();
+  } else {
+    upgradeAll(inElement);
+  }
+}
+
+var shimUpgradeChanges = function() {
+  if (DOMObserver) {
+    handleDOMMutations(DOMObserver.takeRecords());
   }
 }
 

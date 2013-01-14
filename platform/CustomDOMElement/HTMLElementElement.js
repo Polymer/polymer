@@ -197,15 +197,24 @@ var elementParser = {
   adjustTemplateAttrPaths: function(element, template) {
     if (template) {
       var docUrl = path.documentUrlFromNode(element);
-      forEach($$(template.content, URL_ATTRS_SELECTOR), function(n) {
-        URL_ATTRS.forEach(function(v) {
-          var attr = n.attributes[v];
-          if (attr && attr.value && (attr.value.search(URL_TEMPLATE_SEARCH) < 0)) {
-            attr.value = path.resolveUrl(docUrl, attr.value);
-          }
-        })
-      });
+      this._adjustTemplateAttrPaths(template, docUrl);
     }
+  },
+  _adjustTemplateAttrPaths: function(template, inUrl) {
+    var templateContent = template.content || template;
+    // search for attributes that host urls in templates
+    forEach($$(templateContent, URL_ATTRS_SELECTOR), function(n) {
+      URL_ATTRS.forEach(function(v) {
+        var attr = n.attributes[v];
+        if (attr && attr.value && (attr.value.search(URL_TEMPLATE_SEARCH) < 0)) {
+          attr.value = path.resolveUrl(inUrl, attr.value);
+        }
+      });
+    }.bind(this));
+    // now search for templates in templates
+    forEach($$(templateContent, 'template'), function(n) {
+      this._adjustTemplateAttrPaths(n, inUrl);
+    }.bind(this));
   },
   sheets: function(element, template) {
     var sheet = [];
@@ -306,8 +315,8 @@ var elementUpgrader = {
   },
   go: function() {
     CustomDOMElements.upgradeElements = this._upgradeElements;
-    CustomDOMElements.upgradeAll(document);
     CustomDOMElements.watchDOM(document);
+    CustomDOMElements.upgradeAll(document);
   }
 };
 
