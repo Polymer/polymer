@@ -20,8 +20,9 @@ suite('g-icon', function() {
     test('src', function(done) {
       var src = 'http://foo.com/bar.png';
       icon.src = src;
+      dirtyCheck();
       async(function() {
-        var i = shadowQuery(icon, '.icon');
+        var i = shadowQuery(icon, '#icon');
         expect(i.style.backgroundImage).to.be('url(' + src + ')');
         done();
       });

@@ -23,8 +23,10 @@ suite('g-togglebutton', function() {
   test('toggle', function() {
     var t = shadowQuery(togglebutton, '.toggle');
     togglebutton.toggle();
+    dirtyCheck();
     expect(t.classList.contains('on')).to.be(true);
     togglebutton.toggle();
+    dirtyCheck();
     expect(t.classList.contains('on')).to.be(false);
   });
   
@@ -32,8 +34,10 @@ suite('g-togglebutton', function() {
     test('value', function() {
       var t = shadowQuery(togglebutton, '.toggle');
       togglebutton.value = true;
+      dirtyCheck();
       expect(t.classList.contains('on')).to.be(true);
       togglebutton.value = false;
+      dirtyCheck();
       expect(t.classList.contains('on')).to.be(false);
     });
   });

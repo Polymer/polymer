@@ -20,7 +20,7 @@ suite('g-menu', function() {
     for (var i = 0; i < inNum; i++) {
       var item = document.createElement('g-menu-item');
       item.textContent = 'item' + i;
-      menu.appendChild(item);
+      menu.lightDOM.appendChild(item);
     }
     ShadowDOM.distribute(menu);
   }
@@ -40,12 +40,16 @@ suite('g-menu', function() {
   test('selection', function() {
     addItems(4);
     menu.selected = 2;
+    dirtyCheck();
     expect(menu.selection).to.be(menu.items[2]); 
   });
   
   test('click item', function(done) {
     addItems(4);
-    menu.items[2].click();
+    // simulate mouseup on item
+    var e = document.createEvent('MouseEvents');
+    e.initMouseEvent('mouseup', true);
+    menu.items[2].dispatchEvent(e);
     async(function() {
       expect(menu.selected).to.be(2);
       done();
@@ -53,18 +57,25 @@ suite('g-menu', function() {
   });
   
   suite('attributes', function() {
-    test('selected', function() {
+    test('selected', function(done) {
       addItems(4);
       menu.selected = 2;
-      expect(menu.items[2].className).to.be('selected');
+      dirtyCheck();
+      async(function() {
+        expect(menu.items[2].className).to.be('selected');
+        done();
+      });
     });
     
     test('multi', function(done) {
       addItems(4);
       menu.multi = true;
+      dirtyCheck();
+      menu.selected = 0;
+      dirtyCheck();
+      menu.selected = 1;
+      dirtyCheck();
       async(function() {
-        menu.selected = 0;
-        menu.selected = 1;
         expect(menu.items[0].className).to.be('selected');
         expect(menu.items[1].className).to.be('selected');
         done();

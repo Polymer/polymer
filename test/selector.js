@@ -13,12 +13,12 @@ suite('g-selector', function() {
   });
   
   teardown(function() {
-    work.textContent = '';
+    //work.textContent = '';
   });
   
   function addItems(inNum) {
     for (var i=0; i<inNum; i++) {
-      selector.appendChild(document.createElement('div')).textContent = 'item' + i;
+      selector.lightDOM.appendChild(document.createElement('div')).textContent = 'item' + i;
     }
     ShadowDOM.distribute(selector);
   }
@@ -38,23 +38,31 @@ suite('g-selector', function() {
   test('selection', function() {
     addItems(4);
     selector.selected = 2;
+    dirtyCheck();
     expect(selector.selection).to.be(selector.items[2]); 
   });
   
   suite('attributes', function() {
-    test('selected', function() {
+    test('selected', function(done) {
       addItems(4);
       selector.selected = 2;
-      expect(selector.items[2].className).to.be('selected');
+      dirtyCheck();
+      async(function() {
+        expect(selector.items[2].className).to.be('selected');
+        done();
+      });
     });
     
     test('multi', function(done) {
       addItems(4);
       selector.multi = true;
+      dirtyCheck();
+      selector.selected = 0;
+      dirtyCheck();
+      selector.selected = 1;
+      dirtyCheck();
+      expect(selector.selection.length).to.be(2);
       async(function() {
-        selector.selected = 0;
-        selector.selected = 1;
-        expect(selector.selection.length).to.be(2);
         expect(selector.items[0].className).to.be('selected');
         expect(selector.items[1].className).to.be('selected');
         done();
