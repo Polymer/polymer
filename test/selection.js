@@ -53,7 +53,7 @@ suite('g-selection', function() {
   });
   
   suite('events', function() {
-    test('select', function() {
+    test('select', function(done) {
       var selected = null;
       selection.addEventListener('select', function(e) {
         if (e.detail.isSelected) {
@@ -61,10 +61,13 @@ suite('g-selection', function() {
         }
       });
       selection.select(item);
-      expect(selected).to.be(item);
+      async(function() {
+        expect(selected).to.be(item);
+        done();
+      });
     });
     
-    test('deselect', function() {
+    test('deselect', function(done) {
       var deselected = null;
       selection.addEventListener('select', function(e) {
         if (!e.detail.isSelected) {
@@ -73,7 +76,10 @@ suite('g-selection', function() {
       });
       selection.select(item);
       selection.setItemSelected(item, false);
-      expect(deselected).to.be(item);
+      async(function() {
+        expect(deselected).to.be(item);
+        done();
+      });
     });
   });
 });

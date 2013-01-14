@@ -20,6 +20,7 @@ suite('g-icon-button', function() {
     test('src', function(done) {
       var src = 'http://foo.com/bar.png';
       iconButton.src = src;
+      dirtyCheck();
       async(function() {
         var icon = shadowQuery(iconButton, 'g-icon');
         expect(icon.src).to.be(src);
@@ -29,8 +30,10 @@ suite('g-icon-button', function() {
     
     test('active', function() {
       iconButton.active = true;
+      dirtyCheck();
       expect(iconButton.classList.contains('selected')).to.be(true);
       iconButton.active = false;
+      dirtyCheck();
       expect(iconButton.classList.contains('selected')).to.be(false);
     });
   });
