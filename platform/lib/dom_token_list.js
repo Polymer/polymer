@@ -18,15 +18,18 @@
   var remove = DOMTokenList.prototype.remove;
   DOMTokenList.prototype.add = function() {
     for (var i = 0; i < arguments.length; i++) {
-     add.call(this, arguments[i]);
+      add.call(this, arguments[i]);
     }
   };
   DOMTokenList.prototype.remove = function() {
     for (var i = 0; i < arguments.length; i++) {
-     remove.call(this, arguments[i]);
+      remove.call(this, arguments[i]);
     }
   };
-  DOMTokenList.prototype.toggle = function(name, value) {
-    value ? this.add(name) : this.remove(name);
+  DOMTokenList.prototype.toggle = function(name, bool) {
+    if (arguments.length == 1) {
+      bool = !this.contains(name);
+    }
+    bool ? this.add(name) : this.remove(name);
   };
 })();
