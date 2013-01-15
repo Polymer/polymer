@@ -83,13 +83,13 @@ var require = function(inSrc) {
 [
   "lib/lang.js",
   "lib/dom_token_list.js",
+  "MDV/mdv.js",
   "ShadowDOM/shadowdom-polyfill.js",
   "ComponentDocuments/path.js",
   "ComponentDocuments/loader.js",
   "ComponentDocuments/parser.js",
   "CustomDOMElement/CustomDOMElements.js",
   "CustomDOMElement/HTMLElementElement.js",
-  "MDV/mdv.js",
   "lib/boot.js"
 ].forEach(require);
 

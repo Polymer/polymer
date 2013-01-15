@@ -166,9 +166,14 @@ var elementParser = {
   },
   normalizeTemplate: function(inTemplate) {
     if (inTemplate && !inTemplate.content) {
-      var c = inTemplate.content = document.createDocumentFragment();
-      while (inTemplate.childNodes.length) {
-        c.appendChild(inTemplate.childNodes[0]);
+      // allow MDV to normalize template, if it's available
+      if (HTMLTemplateElement && HTMLTemplateElement.decorate) {
+        HTMLTemplateElement.decorate(inTemplate);
+      } else {
+        var c = inTemplate.content = document.createDocumentFragment();
+        while (inTemplate.childNodes.length) {
+          c.appendChild(inTemplate.childNodes[0]);
+        }
       }
     }
     return inTemplate;
