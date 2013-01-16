@@ -3,7 +3,7 @@ Copyright 2012 The Toolkitchen Authors. All rights reserved.
 Use of this source code is governed by a BSD-style
 license that can be found in the LICENSE file.
 -->
-<element name="g-panels" attributes="transition, selected, index" 
+<element name="g-panels" attributes="transition selected index autoselect" 
          on-keydown="keydownHandler">
 <link rel="components" href="g-component.html">
 <link rel="components" href="panel-transitions/g-panel-transition.html">
@@ -56,6 +56,10 @@ license that can be found in the LICENSE file.
     initPanel: function() {},
     indexChanged: function(inOldValue) {
       var i = this.clampIndex(this.index);
+      if (!this.canSelect(i)) {
+        this.index = inOldValue;
+        return;
+      }
       if (i != this.index) {
         this.index = i;
       }
@@ -72,15 +76,37 @@ license that can be found in the LICENSE file.
         this.selected = this.getSelectedValue();
       }
     },
+    canSelect: function(inIndex) {
+      var canSelect = true;
+      // TODO(sorvell): dirtyCheck before we sent the canSelect event since
+      // it's likely that the decision needs to rely on binding state.
+      // consider doing this in g-component.send.
+      dirtyCheck();
+      this.send('canselect', {
+        index: inIndex, 
+        selected: this.selectedValueForIndex(inIndex),
+        preventSelect: function() {
+          canSelect = false;
+        }
+      });
+      return canSelect;
+    },
     clampIndex: function(inIndex) {
       var i = isNaN(inIndex) ? 0 : inIndex;
       return Math.max(0, Math.min(this.count-1, i));
     },
     getSelectedValue: function() {
       var selected = this.getSelectedPanel();
-      var name = selected && (selected.getAttribute('id') ||
-          selected.getAttribute('name'));
-      return name || this.index;
+      return this.selectedValueForPanel(selected);
+    },
+    selectedValueForPanel: function(inPanel) {
+      var name = inPanel && (inPanel.getAttribute('id') ||
+          inPanel.getAttribute('name'));
+      return name || this.indexOfPanel(inPanel);
+    },
+    selectedValueForIndex: function(inIndex) {
+      var panel = this.panelAtIndex(inIndex);
+      return this.selectedValueForPanel(panel);
     },
     // selected is the name property of the panel to select
     selectedChanged: function(inOldValue) {
@@ -149,15 +175,19 @@ license that can be found in the LICENSE file.
       this.asend('select');
     },
     keydownHandler: function(e) {
-      if (!documentIsEditing()) {
-        var beforeIndex = this.index;
+      if (this.autoselect && !documentIsEditing()) {
+        var oldIndex = this.index;
         if (e.keyCode == RIGHT_ARROW_KEY) {
           this.next();
         } else if (e.keyCode == LEFT_ARROW_KEY) {
           this.previous();
         }
-        if (beforeIndex != this.index) {
+        // TODO(sorvell): dirtyCheck so we know syncronously if index changed.
+        dirtyCheck();
+        if (this.index != oldIndex) {
+          //console.log('keydown: change!', this.node, this.index);
           e.cancelBubble = true;
+          this.node.focus();
         }
       }
     },
