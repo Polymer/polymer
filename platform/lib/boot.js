@@ -23,7 +23,7 @@ scope.ready = function() {
   componentLoader.preload(document, function() {
     documentParser.parse(document, elementParser.parse);
     elementUpgrader.go();
-    scope.webComponentsReady(); 
+    scope.webComponentsReady();
   });
 };
 
@@ -46,7 +46,16 @@ if (!scope.flags.runManually) {
 window.addEventListener('WebComponentsReady', function() {
    HTMLTemplateElement.decorateAll(document);
 });
- 
+
+// FOUC prevention tactic
+
+document.write('<style>body {opacity: 0; }</style>');
+
+window.addEventListener('WebComponentsReady', function() {
+  document.body.style.webkitTransition = "opacity 0.3s";
+  document.body.style.opacity = 1;
+});
+
 // we are using this object for cross-module support only
 // use 'export' directive to get a global reference
 // (see components-polyfill.js)
