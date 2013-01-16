@@ -47,12 +47,16 @@ window.addEventListener('WebComponentsReady', function() {
    HTMLTemplateElement.decorateAll(document);
 });
 
-// mobile compatibility tag
-// TODO(sjmiles): we probably cannot get away with forcing this in general
-document.write('<meta name="viewport" content="width=device-width initial-scale=1.0, maximum-scale=1.0, user-scalable=no">');
+// mobile compatibility tags
+// TODO(sjmiles): we probably cannot get away with forcing these in general
+
+document.write('<!-- meta tags for mobile -->\n');
+document.write('<meta name="apple-mobile-web-app-capable" content="yes">\n');
+document.write('<meta name="viewport" content="width=device-width initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n');
 
 // FOUC prevention tactic
 
+document.write('<!-- FOUC prevention -->\n');
 document.write('<style>body {opacity: 0; }</style>');
 
 window.addEventListener('WebComponentsReady', function() {
