@@ -3,7 +3,7 @@ Copyright 2012 The Toolkitchen Authors. All rights reserved.
 Use of this source code is governed by a BSD-style
 license that can be found in the LICENSE file.
 -->
-<element name="g-ajax" attributes="url handleAs auto params">
+<element name="g-ajax" attributes="url handleAs auto params response">
   <link rel="components" href="g-component.html">
   <link rel="components" href="g-xhr.html">
   <template>
@@ -19,7 +19,7 @@ license that can be found in the LICENSE file.
       },
       receive: function(inResponse, inXhr) {
         if (this.isSuccess(inXhr)) {
-          this.response(inXhr);
+          this.processResponse(inXhr);
         } else {
           this.error(inXhr);
         }
@@ -29,16 +29,17 @@ license that can be found in the LICENSE file.
         var status = inXhr.status || 0;
         return !status || (status >= 200 && status < 300);
       },
-      response: function(inXhr) {
+      processResponse: function(inXhr) {
         var response = this.evalResponse(inXhr);
-        this.fireEvent('response', {response: response, xhr: inXhr});
+        this.response = response;
+        this.send('response', {response: response, xhr: inXhr});
       },
       error: function(inXhr) {
         var response = inXhr.status + ': ' + inXhr.responseText;
-        this.fireEvent('error', {response: response, xhr: inXhr});
+        this.send('error', {response: response, xhr: inXhr});
       },
       complete: function(inXhr) {
-        this.fireEvent('complete', {response: inXhr.status, xhr: inXhr});
+        this.send('complete', {response: inXhr.status, xhr: inXhr});
       },
       evalResponse: function(inXhr) {
         return this[(this.handleAs || 'text') + 'Handler'](inXhr);
@@ -70,9 +71,10 @@ license that can be found in the LICENSE file.
       publish: {
         /**
          * Performs an Ajax request to the url specified.
+         * 
          */
         go: function() {
-          var params = this.params ? JSON.parse(this.params) : null;
+          var params = typeof(this.params) == 'string' ? JSON.parse(this.params) : this.params || null;
           return this.$.xhr.request({url: this.url, 
             callback: this.receive.bind(this), params: params});
         }
