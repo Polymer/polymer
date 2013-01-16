@@ -47,6 +47,10 @@ window.addEventListener('WebComponentsReady', function() {
    HTMLTemplateElement.decorateAll(document);
 });
 
+// mobile compatibility tag
+// TODO(sjmiles): we probably cannot get away with forcing this in general
+document.write('<meta name="viewport" content="width=device-width initial-scale=1.0, maximum-scale=1.0, user-scalable=no">');
+
 // FOUC prevention tactic
 
 document.write('<style>body {opacity: 0; }</style>');
