@@ -158,11 +158,9 @@ var componentLoader = {
         }
       });
     });
-    if (inNode != document) {
-      $$(inNode, "link[rel=stylesheet],script[src]").forEach(function(n) {
-        loader.load(n, nop);
-      });
-    }
+    $$(inNode, "element link[rel=stylesheet],element script[src]").forEach(function(n) {
+      loader.load(n, nop);
+    });
     if (!loader.inflight) {
       loader.oncomplete();
     }
