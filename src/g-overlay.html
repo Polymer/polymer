@@ -4,7 +4,7 @@ Use of this source code is governed by a BSD-style
 license that can be found in the LICENSE file.
 -->
 <element name="g-overlay" 
-         attributes="opened, autoCloseDisabled" 
+         attributes="opened autoCloseDisabled modal" 
          on-click="clickHandler"
          on-keydown="keydownHandler"
          on-webkitAnimationStart="openedAnimationStart"
@@ -80,6 +80,7 @@ license that can be found in the LICENSE file.
     timeout: 1000,
     opened: false,
     autoCloseDisabled: false,
+    captureEventType: 'click',
     ready: function() {
       // make focusable
       if (!this.node.hasAttribute('tabindex')) {
@@ -90,15 +91,15 @@ license that can be found in the LICENSE file.
       this.renderOpened();
       trackOverlays(this);
       if (!this.autoCloseDisabled) {
-        this.captureClick();
+        this.enableCaptureHandler(this.opened);
       }
       this.fireEvent('opened', this.opened);
     },
-    captureClick: function() {
-      this.boundClickCaptureHandler = this.boundClickCaptureHandler ||
-        this.clickCaptureHandler.bind(this);
-      document[this.opened ? 'addEventListener' : 'removeEventListener'](
-        'click', this.boundClickCaptureHandler, true);
+    enableCaptureHandler: function(inEnable) {
+      this.boundCaptureHandler = this.boundCaptureHandler ||
+        this.captureHandler.bind(this);
+      document[inEnable ? 'addEventListener' : 'removeEventListener'](
+        this.captureEventType, this.boundCaptureHandler, true);
     },
     getFocusNode: function() {
       return this.node.querySelector('[autofocus]') || this.node;
@@ -141,39 +142,27 @@ license that can be found in the LICENSE file.
       this.node.classList.add('animation');
     },
     clickHandler: function(e) {
-      this.selfClick = true;
       if (e.target && e.target.hasAttribute('overlay-toggle')) {
         this.toggle();
       }
     },
-    // TODO(sorvell): We install a capturing click handler on document while 
-    // the overlay is open so clicks outside the overlay can close it.
-    // However, when the overlay is inside shadowDOM and the click is inside
-    // the overlay, the event target seen by the document listener is always at
-    // least the overlay's host and possibly some ancestor's shadow host. 
-    // Therefore, clicks inside the overlay appear to come from outside it and
-    // it incorrectly closes. 
-    // We could address this if shadowDOM provided a way to get the original
-    // event target (perhaps only via privilege).
-    // Currently, we work around the problem by closing the overlay on a slight
-    // delay only if a click handler on the overlay itself does not fire. 
-    // Alternatively, we could turn off capturing for the document event, but
-    // then click handlers that stopPropagation would prevent the overlay 
-    // from closing.
-    // We would also avoid this problem if a overlays were re-parented to a top
-    // layer.
-    clickCaptureHandler: function(e) {
-      this.selfClick = null;
-      setTimeout(function() {
-        if (this.selfClick) {
-          return;
+    // TODO(sorvell): This approach will not work with native shadowDOM.
+    // This handler is intended to be able to distinguish if an event target
+    // is inside or outside the overlay. To do this we capture events on
+    // document. However, the target document seems may have been retargeted
+    // such that it's not possible to tell if the original event target is 
+    // inside the overlay.
+    // Can solve this by always using a scrim.
+    captureHandler: function(e) {
+      if (!this.autoCloseDisabled && (currentOverlay() == this) && (this.node 
+          != e.target) && !e.overlay && !(this.node.compareDocumentPosition(e.target) &
+          Node.DOCUMENT_POSITION_CONTAINED_BY)) {
+        this.node.opened = false;
+        if (this.modal) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
         }
-        if (!this.autoCloseDisabled && (currentOverlay() == this) && (this.node 
-            != e.target) && !e.overlay && !(this.node.compareDocumentPosition(e.target) &
-            Node.DOCUMENT_POSITION_CONTAINED_BY)) {
-          this.node.opened = false;
-        }
-      }.bind(this));
+      }
     },
     keydownHandler: function(e) {
       if (!this.autoCloseDisabled && (e.keyCode == ESCAPE_KEY)) {
