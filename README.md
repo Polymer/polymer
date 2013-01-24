@@ -12,54 +12,92 @@ Toolkitchen Toolkit is based on a set of future technologies, including [Shadow 
 
 Although we plan to support all major evergreen (auto-updating) browsers, **currently Toolkit requires a Webkit browser** (essentially Chrome and Safari). 
 
-Note: Chromium has native support for ShadowDOM but Toolkit only supports the shim at this time.
+Note: Chrome 25 has native support for Shadow DOM but Toolkit only supports the shim at this time.
 
 ## Getting Started
 
 To enable Custom Element functionality (et al), include the `platform/platform.js` file in your document. The platform code enables the `<link rel="components" href="component.html">` for loading components.
 
-After loading `platform/platform.js`, one can load components with `<link>` and deploy them using simple HTML. E.g.:
+After loading `platform/platform.js`, one can load components with `<link>` and deploy them using simple HTML:
 
-	<!DOCTYPE html>
-	<html>
-  		<head>
-    		<script src="../platform/platform.js"></script>
-		    <link rel="components" href="../src/g-toolbar.html">
-  		</head>
-  		<body>
-			<g-toolbar></g-toolbar>
-  		</body>
-	</html>
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <script src="platform/platform.js"></script>
+        <link rel="components" href="src/g-toolbar.html">
+      </head>
+      <body>
+        <g-toolbar></g-toolbar>
+      </body>
+    </html>
 
-A basic example as above is available in `getting_started/index.html`. Also, there are various samples in the `workbench` folder that are intended to exercise the basic components.
+A basic example as above is available in [`getting_started/index.html`](getting_started/index.html). Also, there are various samples in the `workbench` folder that are intended to exercise the basic components.
 
 ## Runtime Concepts
 
-### Switches
+### Configuration switches
 
-Toolkit supports runtime options which are settable via the script tag that loads `platform.js`, or as query parameters. The most useful option at the moment is `log` which controls console output. 
+Toolkit supports runtime options which are settable via the `<script>` tag that loads `platform.js`, or as URL query parameters.
 
-Example of setting log output on the platform script tag:
+#### log
 
-    <script src="../../../toolkit/platform/platform.js" log="bind,ready"></script>
+*Controls console output.*
 
-Example of setting log output via url:
+Example:
 
-	http://localhost/toolkitchen/toolkit/getting_started/?log=bind,ready
+    <script src="platform/platform.js" log="bind,ready"></script>
 
-At the moment, loggable topics include:
+which is equivalent to:
 
-	bind: setup actions performed by the data-binding engine
-	data: runtime data transforms that result from bindings
-	watch: data change notifications
- 	events: custom event bindings and event propagations
-	ready: a custom element reaching a ready state
+    http://localhost/toolkitchen/toolkit/getting_started/?log=bind,ready
 
-It is also possible to select a specific Shadow DOM implementation via the `shadow` option. Shadow options include:
+Loggable items include:
 
-	shim: required for Toolkit components (default)
-	webkit: native webkit implementation
-	polyfill: experimental polyfill for non-webkit browsers
+<table>
+  <tr>
+    <th>value</th><th>description</th>
+  </tr>
+  <tr>
+    <td>bind</td><td>setup actions performed by the data-binding engine</td>
+  </tr>
+  <tr>
+    <td>data</td><td>runtime data transforms that result from bindings</td>
+  </tr>
+  <tr>
+    <td>watch</td><td>data change notifications</td>
+  </tr>
+  <tr>
+    <td>events</td><td>custom event bindings and event propagations</td>
+  </tr>
+  <tr>
+    <td>ready</td><td>a custom element reaching a ready state</td>
+  </tr>
+</table>
+
+#### shadow
+
+*Selects a specific Shadow DOM implementation.*
+
+Example:
+
+    <script src="platform/platform.js" shadow="shim"></script>
+
+Possible values include:
+
+<table>
+  <tr>
+    <th>value</th><th>description</th>
+  </tr>
+  <tr>
+    <td>shim</td><td>required for Toolkit components (default)</td>
+  </tr>
+  <tr>
+    <td>webkit</td><td>native webkit implementation</td>
+  </tr>
+  <tr>
+    <td>polyfill</td><td>experimental polyfill for non-webkit browsers</td>
+  </tr>
+</table>
 
 ### Shadow DOM Shim
 
@@ -72,4 +110,3 @@ Toolkit platform shims the Custom DOM Element Loader (`<link rel="components">`)
 ### Toolkit and G-Component
 
 All Toolkit components depend on `src/g-component.html` which provides the Toolkit sugaring layer (+see link to Toolkit syntax sugaring information). However, one can load `platform.js` and take advantage of the raw Custom Element and Shadow DOM support directly. See `toolkitchen/projects/CustomElementPlayground` for examples.
-
