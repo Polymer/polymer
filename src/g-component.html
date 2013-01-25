@@ -75,7 +75,7 @@ license that can be found in the LICENSE file.
     // set shadow-root model
     inRoot.model = this.$protected;
     // parse and apply model binding markup in DOM
-    bindModel.call(this, localChildNodes(inRoot));
+    bindModel.call(this, ShadowDOM.localNodes(inRoot));
     // accumulate events of interest
     // TODO(sjmiles): ideally on native we set up listeners directly on inRoot,
     // under shim inRoot does not participate in event bubbling
@@ -107,14 +107,6 @@ license that can be found in the LICENSE file.
   };
 
   // helper functions
-
-  var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
-
-  // helper for ShadowDOM shim compatibility
-  var deref = function(inNode) {
-    // return the real node if inNode is a placeholder (Changeling)
-    return inNode && (inNode.baby || inNode);
-  };
 
   var publishAttributes = function(inAttributes, inDefinition) {
     if (inAttributes) {
@@ -454,9 +446,8 @@ license that can be found in the LICENSE file.
     send: function(inType, inDetail, inToNode) {
       var node = inToNode || this.node;
       log.events && console.log('[%s]: sending [%s]', node.localName, inType);
-      node.dispatchEvent(
-        new CustomEvent(inType, {bubbles: true, detail: inDetail})
-      );
+      node.dispatchEvent(new CustomEvent(inType, {bubbles: true, 
+          detail: inDetail}));
     },
     asend: function(/*inType, inDetail*/) {
       this.asyncMethod("send", arguments);
@@ -489,30 +480,6 @@ license that can be found in the LICENSE file.
     $protected: ProtectedBase
   };
 
-  // ShadowDOM tree walking
-  // TODO(sjmiles): should be provided by ShadowDOM object
-
-  // TODO(sjmiles): make unit tests and stabilize the tree walking concepts
-  //    once and for all
-  var localChildNodes = function(inNode) {
-    return (inNode.tagName == 'CONTENT' && [])
-      || (inNode.lightDOM && inNode.lightDOM.childNodes)
-      || inNode.insertions
-      || inNode.childNodes
-      ;
-  };
-
-  var localParentNode = function(inNode) {
-    var node = inNode.host || inNode.parentNode;
-    if (node) {
-      if (node.isLightDOM) {
-        node = node.host;
-      }
-      node = node.changeling || node;
-    }
-    return node;
-  };
-
   //
   // reference marshalling
   //
@@ -524,8 +491,8 @@ license that can be found in the LICENSE file.
     // populate $ from nodes with ID from the LOCAL tree
     if (inRoot) {
       var nodes = ShadowDOM.localQueryAll(inRoot, "[id]");
-      forEach(nodes, function(n) {
-        this.$[n.id] = deref(n);
+      ShadowDOM.forEach(nodes, function(n) {
+        this.$[n.id] = ShadowDOM.deref(n);
       }, this);
     }
   };
@@ -539,8 +506,8 @@ license that can be found in the LICENSE file.
   // nested template and functions asynchronously
 
   function injectModel(inNodes) {
-    forEach(inNodes, function(n) {
-      deref(n).model = this.$protected;
+    ShadowDOM.forEach(inNodes, function(n) {
+      ShadowDOM.deref(n).model = this.$protected;
     }, this);
   };
 
@@ -551,11 +518,11 @@ license that can be found in the LICENSE file.
   };
 
   function _bindModel(inNodes) {
-    forEach(inNodes, bindNodeModel, this);
+    ShadowDOM.forEach(inNodes, bindNodeModel, this);
   };
 
   function bindNodeModel(inNode) {
-    var n = deref(inNode);
+    var n = ShadowDOM.deref(inNode);
     // node's binding model is this component's protected object
     n.model = this.$protected;
     if (n.nodeName == '#text') {
@@ -564,12 +531,12 @@ license that can be found in the LICENSE file.
     } else if (n.tagName !== 'TEMPLATE') {
       // scan for bindings in attributes
       if (n.attributes) {
-        forEach(n.attributes, function(a) {
+        ShadowDOM.forEach(n.attributes, function(a) {
           bindMustache.call(this, n, a.name, a.value);
         }, this);
       }
       // walking the LOCAL tree
-      _bindModel.call(this, localChildNodes(n));
+      _bindModel.call(this, ShadowDOM.localNodes(n));
     }
   };
 
@@ -685,7 +652,7 @@ license that can be found in the LICENSE file.
     // so we can invoke side-effects after all values are initialized
     //var changed = [];
     // for each attribute
-    forEach(this.node.attributes, function(a) {
+    ShadowDOM.forEach(this.node.attributes, function(a) {
       // try to match this attribute to a property (attributess are
       // all lower-case, so this is case-insensitive search)
       var name = propertyForAttribute.call(this, a.name);
@@ -757,7 +724,7 @@ license that can be found in the LICENSE file.
     // find the shadow root that contains inNode
     var n = inNode.changeling || inNode;
     while (n.parentNode && n.tagName !== 'SHADOW-ROOT') {
-      n = localParentNode(n);
+      n = ShadowDOM.localParent(n);
     }
     return n.host;
   };
@@ -809,9 +776,9 @@ license that can be found in the LICENSE file.
   };
 
   var accumulateChildEvents = function(inNode, inEvents) {
-    var cn$ = localChildNodes(inNode);
+    var cn$ = ShadowDOM.localNodes(inNode);
     if (cn$) {
-      for (var i=0, n; n=deref(cn$[i]); i++) {
+      for (var i=0, n; n=ShadowDOM.deref(cn$[i]); i++) {
         // TODO(sjmiles): unify calling convention (.call or not .call)
         accumulateEvents(n, inEvents);
         if (n.$protected) {
@@ -855,7 +822,7 @@ license that can be found in the LICENSE file.
     log.events && console.group("[%s]: __ [%s]", this.localName, inEvent.on);
     var t = inEvent.target;
     while (t && t != this) {
-      t = deref(t);
+      t = ShadowDOM.deref(t);
       var c = findController(t);
       if (c == this) {
         log.events && console.log('node [%s]', t.localName);
