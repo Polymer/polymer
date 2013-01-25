@@ -18,6 +18,8 @@ var ShadowRoot = function(inNode) {
   root.olderSubtree = inNode.shadow;
   // mutual references
   root.host = inNode;
+  inNode.webkitShadowRoot = root;
+  // TODO(sjmiles): deprecated
   inNode.shadow = root;
   // get shadows store
   var shadows = inNode.shadows;
@@ -36,62 +38,6 @@ var ShadowRoot = function(inNode) {
 
 var isInsertionPoint = function(inNode) {
   return (inNode.tagName == "SHADOW" || inNode.tagName == "CONTENT");
-};
-
-// ShadowDOM Query (simplistic)
-
-// custom selectors:
-//
-// ~        = any node with lightDOM
-// #<id>    = node with id = <id>
-// *        = any non-Text node
-// .<class> = any node with <class> in it's classList
-// [<attr>] = any node with attribute <attr>
-//
-var matches = function(inNode, inSlctr) {
-  if (inSlctr == "~") {
-    return Boolean(inNode.lightDOM);
-  }
-  if (inSlctr[0] == '#') {
-    return inNode.id == inSlctr.slice(1);
-  }
-  if (inSlctr == '*') {
-    return inNode.nodeName != '#text';
-  }
-  if (inSlctr[0] == '.') {
-    return inNode.classList && inNode.classList.contains(inSlctr.slice(1));
-  }
-  if (inSlctr[0] == '[') {
-    return inNode.hasAttribute && inNode.hasAttribute(inSlctr.slice(1, -1));
-  }
-  return (inNode.tagName == inSlctr.toUpperCase());
-};
-
-var search = function(inNodes, inSlctr) {
-  var results = [];
-  for (var i=0, n; (n=inNodes[i]); i++) {
-    n = n.baby || n;
-    if (matches(n, inSlctr)) {
-      results.push(n);
-    }
-    if (!isInsertionPoint(n)) {
-      results = results.concat(_search(n, inSlctr));
-    }
-  }
-  return results;
-};
-
-var _search = function(inNode, inSlctr) {
-  return search((inNode.lightDOM && inNode.lightDOM.childNodes) ||
-    inNode.insertions || inNode.childNodes, inSlctr);
-};
-
-var localQueryAll = function(inNode, inSlctr) {
-  return search(inNode.insertions || inNode.childNodes, inSlctr);
-};
-
-var localQuery = function(inNode, inSlctr) {
-  return localQueryAll(inNode, inSlctr)[0];
 };
 
 // distribution
@@ -209,6 +155,108 @@ var flatten = function(inTree) {
   }
 };
 
+// ShadowDOM Query (simplistic)
+
+// custom selectors:
+//
+// ~        = any node with lightDOM
+// #<id>    = node with id = <id>
+// *        = any non-Text node
+// .<class> = any node with <class> in it's classList
+// [<attr>] = any node with attribute <attr>
+//
+var matches = function(inNode, inSlctr) {
+  if (inSlctr == "~") {
+    return Boolean(inNode.lightDOM);
+  }
+  if (inSlctr[0] == '#') {
+    return inNode.id == inSlctr.slice(1);
+  }
+  if (inSlctr == '*') {
+    return inNode.nodeName != '#text';
+  }
+  if (inSlctr[0] == '.') {
+    return inNode.classList && inNode.classList.contains(inSlctr.slice(1));
+  }
+  if (inSlctr[0] == '[') {
+    return inNode.hasAttribute && inNode.hasAttribute(inSlctr.slice(1, -1));
+  }
+  return (inNode.tagName == inSlctr.toUpperCase());
+};
+
+var search = function(inNodes, inSlctr) {
+  var results = [];
+  for (var i=0, n, np; (n=inNodes[i]); i++) {
+    np = n.baby || n;
+    // TODO(sjmiles): returning baby (np) is problematic as we lose tree 
+    // context. So, we attach that context here. The context is only 
+    // valid until the next _search_.
+    np.tree = n;
+    if (matches(np, inSlctr)) {
+      results.push(np);
+    }
+    if (!isInsertionPoint(np)) {
+      results = results.concat(_search(np, inSlctr));
+    }
+  }
+  return results;
+};
+
+var _search = function(inNode, inSlctr) {
+  return search((inNode.lightDOM && inNode.lightDOM.childNodes) ||
+    inNode.insertions || inNode.childNodes, inSlctr);
+};
+
+var localQueryAll = function(inNode, inSlctr) {
+  return search(inNode.insertions || inNode.childNodes, inSlctr);
+};
+
+var localQuery = function(inNode, inSlctr) {
+  return localQueryAll(inNode, inSlctr)[0];
+};
+
+// helper functions
+
+var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
+
+var deref = function(inNode) {
+  // return the real node if inNode is a placeholder (Changeling)
+  return inNode && (inNode.baby || inNode);
+};  
+
+// tree walking
+
+// TODO(sjmiles): proposal: child list is processed by localChildNodes
+// into a simple array of deref'd nodes with .tree context set to local
+// parent (as in _search_ above).
+
+var localChildNodes = function(inNode) {
+  var n$ = 
+    (inNode.tagName == 'CONTENT' && [])
+    || (inNode.lightDOM && inNode.lightDOM.childNodes)
+    || inNode.insertions
+    || inNode.childNodes
+    ;
+  var nodes = [];
+  forEach(n$, function(np) {
+    var n = deref(np);
+    n.tree = np
+    nodes.push(n);
+  })
+  return nodes;
+};
+
+var localParentNode = function(inNode) {
+  var node = inNode.host || inNode.parentNode;
+  if (node) {
+    if (node.isLightDOM) {
+      node = node.host;
+    }
+    node = node.changeling || node;
+  }
+  return node;
+};
+
 // exports
 
 scope.ShimShadowDOM = {
@@ -218,7 +266,11 @@ scope.ShimShadowDOM = {
     inNode.distribute();
   },
   localQueryAll: localQueryAll,
-  localQuery: localQuery
+  localQuery: localQuery,
+  localNodes: localChildNodes,
+  localParent: localParentNode,
+  forEach: forEach,
+  deref: deref
 };
 
 })(window.__exported_components_polyfill_scope__);
