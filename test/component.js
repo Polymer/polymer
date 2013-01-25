@@ -85,7 +85,11 @@ suite('component', function() {
   
   test('handler', function() {
     expect(foo.$protected._click).to.be(undefined);
-    foo.click();
+    // TODO(sjmiles): Mozilla didn't like 'foo.click', seems 'click' is only 
+    // defined on specific elements, or at least is not available on 
+    // HTMLUnknownElement
+    //foo.click();
+    foo.dispatchEvent(new CustomEvent('click', {bubbles: true}));
     expect(foo.$protected._click).to.be(true);
   });
   

@@ -23,7 +23,12 @@ suite('g-icon', function() {
       dirtyCheck();
       async(function() {
         var i = shadowQuery(icon, '#icon');
-        expect(i.style.backgroundImage).to.be('url(' + src + ')');
+        // Mozilla returns this value as 
+        //    url("<path>") 
+        // where webkit returns 
+        //    url(<path>)
+        // so to be less brittle we only try to match the <path> part
+        expect(i.style.backgroundImage).to.contain(src);
         done();
       });
     });
