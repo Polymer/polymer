@@ -65,7 +65,7 @@ var loader = {
     return "..." + inUrl.split("/").slice(-2).join("/");
   },
   nodeUrl: function(inNode) {
-    return path.resolveNodeUrl(inNode, path.nodeUrl(inNode));
+    return path.nodeUrl(inNode);
   },
   loadFromNode: function(inNode, inNext) {
     var url = loader.nodeUrl(inNode);
