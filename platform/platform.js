@@ -83,6 +83,7 @@ var require = function(inSrc) {
 [
   "lib/lang.js",
   "lib/dom_token_list.js",
+  "PointerGestures/src/pointergestures.js",
   "MDV/mdv.js",
   "ShadowDOM/shadowdom-polyfill.js",
   "ComponentDocuments/path.js",
