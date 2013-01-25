@@ -7,13 +7,17 @@ license that can be found in the LICENSE file.
          attributes="opened autoCloseDisabled modal" 
          on-click="clickHandler"
          on-keydown="keydownHandler"
-         on-webkitAnimationStart="openedAnimationStart"
-         on-webkitAnimationEnd="openedAnimationEnd"
-         on-webkitTransitionEnd="openedAnimationEnd">
+         >
 <link rel="components" href="g-component.html">
 <link rel="stylesheet" href="css/g-overlay.css">
 <template>
-	<content></content>
+  <div id="scrim" class="scrim"></div>
+  <div id="overlay" tabIndex="-1" class="overlay"
+       on-webkitAnimationStart="openedAnimationStart"
+       on-webkitAnimationEnd="openedAnimationEnd"
+       on-webkitTransitionEnd="openedAnimationEnd">
+    <content></content>
+  </div>
 </template>
 <script>
   var ESCAPE_KEY = 27;
@@ -81,11 +85,8 @@ license that can be found in the LICENSE file.
     opened: false,
     autoCloseDisabled: false,
     captureEventType: 'click',
-    ready: function() {
-      // make focusable
-      if (!this.node.hasAttribute('tabindex')) {
-        this.node.tabIndex = -1;
-      }
+    modalChanged: function() {
+      this.node.classList.toggle('modal', this.modal);
     },
     openedChanged: function() {
       this.renderOpened();
@@ -93,16 +94,26 @@ license that can be found in the LICENSE file.
       if (!this.autoCloseDisabled) {
         this.enableCaptureHandler(this.opened);
       }
-      this.fireEvent('opened', this.opened);
+      this.enableResizeHandler(this.opened);
+      this.send('opened', this.opened);
+    },
+    enableHandler: function(inEnable, inMethodName, inNode, inEventName, inCapture) {
+      var m = 'bound' + inMethodName;
+      this[m] = this[m] || this[inMethodName].bind(this);
+      
+      inNode[inEnable ? 'addEventListener' : 'removeEventListener'](
+        inEventName, this[m], inCapture);
+    },
+    enableResizeHandler: function(inEnable) {
+      this.enableHandler(inEnable, 'resizeHandler', window, 
+        'resize');
     },
     enableCaptureHandler: function(inEnable) {
-      this.boundCaptureHandler = this.boundCaptureHandler ||
-        this.captureHandler.bind(this);
-      document[inEnable ? 'addEventListener' : 'removeEventListener'](
-        this.captureEventType, this.boundCaptureHandler, true);
+      this.enableHandler(inEnable, 'captureHandler', document, 
+        this.captureEventType, true);
     },
     getFocusNode: function() {
-      return this.node.querySelector('[autofocus]') || this.node;
+      return this.node.querySelector('[autofocus]') || this.$.overlay;
     },
     // TODO(sorvell): nodes stay focused when they become un-focusable due to
     // an ancestory becoming display: none; file bug.
@@ -118,6 +129,9 @@ license that can be found in the LICENSE file.
     renderOpened: function() {
       this.node.classList.remove('closing');
       this.node.classList.add('revealed');
+      if (this.modal && this.opened) {
+        this.sizeScrim();
+      }
       // continue styling after delay so display state can change without
       // aborting transitions
       this.asyncMethod('continueRenderOpened');
@@ -135,11 +149,19 @@ license that can be found in the LICENSE file.
       this.applyFocus();
     },
     openedAnimationEnd: function(e) {
-      this.completeOpening();
-      e.stopPropagation();
+      // TODO(sorvell): Necessary due to 
+      // https://bugs.webkit.org/show_bug.cgi?id=107892
+      // Remove when that bug is addressed.
+      if (e.target == this.$.overlay) {
+        this.completeOpening();
+        e.stopPropagation();
+        e.cancelBubble = true;
+      }
     },
     openedAnimationStart: function(e) {
       this.node.classList.add('animation');
+      e.stopPropagation();
+      e.cancelBubble = true;
     },
     clickHandler: function(e) {
       if (e.target && e.target.hasAttribute('overlay-toggle')) {
@@ -154,13 +176,14 @@ license that can be found in the LICENSE file.
     // inside the overlay.
     // Can solve this by always using a scrim.
     captureHandler: function(e) {
-      if (!this.autoCloseDisabled && (currentOverlay() == this) && (this.node 
-          != e.target) && !e.overlay && !(this.node.compareDocumentPosition(e.target) &
+      if (!this.autoCloseDisabled && (currentOverlay() == this) && (this.$.overlay 
+          != e.target) && !e.overlay && !(this.$.overlay.compareDocumentPosition(e.target) &
           Node.DOCUMENT_POSITION_CONTAINED_BY)) {
         this.node.opened = false;
         if (this.modal) {
           e.stopImmediatePropagation();
           e.preventDefault();
+          e.cancelBubble = true;
         }
       }
     },
@@ -168,7 +191,20 @@ license that can be found in the LICENSE file.
       if (!this.autoCloseDisabled && (e.keyCode == ESCAPE_KEY)) {
         this.node.opened = false;
         e.stopPropagation();
+        e.cancelBubble = true;
       }
+    },
+    sizeScrim: function() {
+      var style = this.$.scrim.style;
+      style.left = style.top = style.height = style.width = null;
+      var r = this.$.scrim.getBoundingClientRect();
+      style.left = -r.left +'px';
+      style.top = -r.top +'px';
+      style.width = window.innerWidth +'px';
+      style.height = window.innerHeight +'px';
+    },
+    resizeHandler: function() {
+      this.sizeScrim();
     }
   });
 </script>
