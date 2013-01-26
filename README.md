@@ -99,6 +99,20 @@ Possible values include:
   </tr>
 </table>
 
+#### eval
+
+*If true, execute component scripts using `eval` instead of script tag injection.*
+
+Example:
+
+    <script src="platform/platform.js" eval="true"></script>
+
+	or
+
+	http://localhost/toolkitchen/toolkit/getting_started/?eval
+
+_eval_ is boolean.
+
 ### Shadow DOM Shim
 
 Currently Toolkit platform is configured to utilize a shim for [Shadow DOM](https://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/shadow/index.html). Shadow DOM is designed to provide encapsulation by hiding subtrees under shadow roots. Unfortunately, as implemented in the shim, the visible DOM in inspector represents *rendered* DOM. In other words, there is a lot of complexity visible in DOM inspector that would be hidden under a native Shadow DOM implementation. (+Link to more information on this complicated topic).
