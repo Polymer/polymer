@@ -69,10 +69,17 @@ var parser = {
       $$(inDocument, 'script[src]').forEach(this.injectScriptElement, this);
     }
   },
-  injectScriptElement: function(inScript) {
-    var ss = document.createElement("script");
-    ss.textContent = loader.fetch(inScript);
-    document.body.previousElementSibling.appendChild(ss);
+  injectScriptElement: function(inScriptElement) {
+    this.injectScript(loader.fetch(inScriptElement));
+  },
+  injectScript: function(inScript) {
+    if (scope.flags.eval) {
+      eval(inScript);
+    } else {
+      var ss = document.createElement("script");
+      ss.textContent = inScript;
+      document.body.previousElementSibling.appendChild(ss);
+    }
   },
   parseElements: function(inDocument) {
     if (this.onElement) {

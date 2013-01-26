@@ -25,17 +25,17 @@ var context;
 
 // invoke inScript in inContext scope
 var inject = function(inScript, inContext, inName, inSourceUrl) {
+  // set (highlander) context
   context = inContext;
-  // inject a (debuggable!) script tag
-  var tag = document.createElement("script");
-  tag.textContent = "componentScript('" 
+  // compose script
+  var code = "componentScript('" 
     + inName 
     + "', function(){"
     + inScript 
     + "});"
     + "\n//@ sourceURL=" + inSourceUrl + "\n"
   ;
-  document.body.previousElementSibling.appendChild(tag);
+  scope.ComponentDocuments.parser.injectScript(code);
 };
 
 // global necessary for script injection
