@@ -17,9 +17,9 @@ scope = scope || {};
 
 // directives
 
-var thisFile = "platform.js";
+var thisFile = 'platform.js';
 
-var source, base = "";
+var source, base = '';
 
 (function() {
   var s$ = document.querySelectorAll('[src]');
@@ -81,17 +81,17 @@ var require = function(inSrc) {
 };
 
 [
-  "lib/lang.js",
-  "lib/dom_token_list.js",
-  "PointerGestures/src/pointergestures.js",
-  "MDV/mdv.js",
-  "ShadowDOM/shadowdom-polyfill.js",
-  "ComponentDocuments/path.js",
-  "ComponentDocuments/loader.js",
-  "ComponentDocuments/parser.js",
-  "CustomDOMElement/CustomDOMElements.js",
-  "CustomDOMElement/HTMLElementElement.js",
-  "lib/boot.js"
+  'lib/lang.js',
+  'lib/dom_token_list.js',
+  'PointerGestures/src/pointergestures.js',
+  'MDV/mdv.js',
+  'ShadowDOM/shadowdom-polyfill.js',
+  'ComponentDocuments/path.js',
+  'ComponentDocuments/loader.js',
+  'ComponentDocuments/parser.js',
+  'CustomDOMElement/CustomDOMElements.js',
+  'CustomDOMElement/HTMLElementElement.js',
+  'lib/boot.js'
 ].forEach(require);
 
 })(window.__exported_components_polyfill_scope__);
