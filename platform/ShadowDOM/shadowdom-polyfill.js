@@ -8,7 +8,6 @@
 
 scope = scope || {};
 
-
 var thisFile = "shadowdom-polyfill.js";
 
 var source, base = "";
@@ -55,10 +54,7 @@ if (!scope.flags) {
   console.log(flags);
 }
 
-scope.flags.shadow = scope.flags.shadow
-    || 'shim'
-    //|| (HTMLElement.prototype.webkitCreateShadowRoot ? 'webkit' : 'shim')
-    ;
+scope.flags.shadow = scope.flags.shadow || 'shim';
 
 var require = function(inSrc) {
   document.write('<script src="' + base + inSrc + '"></script>');

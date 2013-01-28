@@ -1,5 +1,7 @@
 (function(scope) {
 
+var scope = scope || {};
+
 var LightDOM = function(inNode) {
   // store lightDOM as a document fragment
   inNode.lightDOM = document.createDocumentFragment();
