@@ -11,7 +11,7 @@ license that can be found in the LICENSE file.
 <link rel="components" href="panel-transitions/g-flow-panel-transition.html">
 <link rel="stylesheet" href="css/g-panels.css" />
 <template>
-	<content id="content" select="*"></content>
+  <content id="content" select="*"></content>
 </template>
 <script>
   // TODO(sorvell): promote this and figure out canonical way to do this;
@@ -149,9 +149,6 @@ license that can be found in the LICENSE file.
     panelAtName: function(inName) {
       return this.panelAtIndex(this.indexOfName(inName));
     },
-    enableTransitions: function(inEnable) {
-      this._canTransition = inEnable;
-    },
     canTransition: function(inFrom, inTo, inForward) {
       return this._canTransition && Boolean(this.transitionNode && inFrom && inTo &&
           this.transitionNode.canTransition(inFrom, inTo, inForward));
@@ -160,21 +157,23 @@ license that can be found in the LICENSE file.
       if (this.transitionNode) {
         this.transitionNode.stop();
       }
-      //console.time('transition:' + this.transition);
-      this.enablePanelShowing(inFrom, true);
-      this.enablePanelShowing(inTo, true);
-      this.transitionNode.go(inFrom, inTo, inForward);
+      //console.time('transition: ' + this.transition + ', ' + this.node.className);
+      //webkitRequestAnimationFrame(function() {
+        this.enablePanelShowing(inFrom, true);
+        this.enablePanelShowing(inTo, true);
+        if (this.showByZ) {
+          this.applyZ(inFrom, this.topZ);
+          this.applyZ(inTo, this.topZ - 1);
+        }
+        this.transitionNode.go(inFrom, inTo, inForward);
+      //}.bind(this));
     },
     finishTransition: function(inFrom, inTo, inForward) {
-      //console.timeEnd('transition:' + this.transition);
       if (!this.canTransition(inFrom, inTo, inForward)) {
         this.transitionNode.refresh();
       }
-      if (this.transitionNode.highlander) {
-        this.getPanels().forEach(function(p, i) {
-          this.enablePanelShowing(p, i == this.index);
-        }, this);
-      }
+      this.ensureSelectedShowing();
+      //console.timeEnd('transition: ' + this.transition + ', ' + this.node.className);
       this.asend('select');
     },
     keydownHandler: function(e) {
@@ -188,7 +187,6 @@ license that can be found in the LICENSE file.
         // TODO(sorvell): dirtyCheck so we know syncronously if index changed.
         dirtyCheck();
         if (this.index != oldIndex) {
-          //console.log('keydown: change!', this.node, this.index);
           e.cancelBubble = true;
           this.node.focus();
         }
@@ -197,6 +195,7 @@ license that can be found in the LICENSE file.
     refresh: function() {
       if (this.transitionNode && this.transitionNode.canTransition()) {
         this.transitionNode.refresh();
+        this.ensureSelectedShowing();
       }
     },
     // TODO(sorvell): need to refresh when inserted into DOM,
@@ -213,7 +212,36 @@ license that can be found in the LICENSE file.
       }.bind(this);
       document.addEventListener(ready, fn);
     },
+    ensureSelectedShowing: function() {
+      if (this.transitionNode.highlander) {
+        this.getPanels().forEach(function(p, i) {
+          if (this.showByZ) {
+            this.applyZ(p, i == this.index ? this.topZ : 0);
+          } else {
+            this.enablePanelShowing(p, i == this.index);
+          }
+        }, this);
+      }
+    },
+    // TODO(sorvell): this is an experimental mode where panels are 
+    // shown by altering z-index... will probably either be removed
+    // or used exclusively.
+    showByZ: false,
+    topZ: 2,
+    applyZ: function(inNode, inZ) {
+      inNode.style.zIndex = inZ;
+    },
     publish: {
+      enableTransitions: function(inEnable) {
+        this._canTransition = inEnable;
+      },
+      // note: cannot use hidden attr for this since it's trumped by display
+      // setting e.g. hidden + display: -webkit-flex == showing.
+      enablePanelShowing: function(inPanel, inEnable) {
+        if (inPanel) {
+          inPanel.style.display = inEnable ? null : 'none';
+        }
+      }, 
       // TODO: consider selecting something more specific so we don't need to
       // filter out style/templates children.
       getPanels: function() {
@@ -224,13 +252,6 @@ license that can be found in the LICENSE file.
       },
       get count() {
         return this.getPanels().length;
-      },
-      // note: cannot use hidden attr for this since it's trumped by display
-      // setting e.g. hidden + display: -webkit-flex == showing.
-      enablePanelShowing: function(inPanel, inEnable) {
-        if (inPanel) {
-          inPanel.style.display = inEnable ? null : 'none';
-        }
       },
       getSelectedPanel: function() {
         return this.getPanels()[this.index];
@@ -251,6 +272,12 @@ license that can be found in the LICENSE file.
       },
       toggleBetween: function(inA, inB) {
         this.selected = this.selected == inA ? inB : inA;
+      },
+      // TODO(sorvell): temporary api; this needs to be automated
+      panelAdded: function(inPanel) {
+        this.node.distribute();
+        this.transitionNode.setupPanel(inPanel);
+        this.refresh();
       }
     }
   });
