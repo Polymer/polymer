@@ -54,7 +54,7 @@ document.write('<!-- begin client-side injections -->\n');
 
 document.write('<!-- injected meta tags for mobile -->\n');
 document.write('<meta name="apple-mobile-web-app-capable" content="yes">\n');
-document.write('<meta name="viewport" content="width=device-width initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n');
+document.write('<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n');
 
 // FOUC prevention tactic
 
