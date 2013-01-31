@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright 2012 The Toolkitchen Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
@@ -10,25 +10,12 @@ module.exports = function(grunt) {
       events: {
         src: [
           'PointerGestures/src/PointerEvents/third_party/mutation_summary/mutation_summary.js',
-          'PointerGestures/src/PointerEvents/src/PointerEvent.js',
-          'PointerGestures/src/PointerEvents/src/sidetable.js',
-          'PointerGestures/src/PointerEvents/src/initialize.js',
-          'PointerGestures/src/PointerEvents/src/pointermap.js',
-          'PointerGestures/src/PointerEvents/src/dispatcher.js',
-          'PointerGestures/src/PointerEvents/src/installer.js',
-          'PointerGestures/src/PointerEvents/src/platform-events.js',
-          'PointerGestures/src/PointerEvents/src/capture.js'
+          'PointerGestures/src/PointerEvents/src/!(pointerevents).js'
         ],
         dest: 'min/PointerEvents.js'
       },
       gestures: {
-        src: [
-          'PointerGestures/src/PointerGestureEvent.js',
-          'PointerGestures/src/initialize.js',
-          'PointerGestures/src/dispatcher.js',
-          'PointerGestures/src/hold.js',
-          'PointerGestures/src/tap.js'
-        ],
+        src: 'PointerGestures/src/!(pointergestures).js',
         dest: 'min/PointerGestures.js'
       },
       mdv: {
