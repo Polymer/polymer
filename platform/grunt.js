@@ -53,10 +53,10 @@ module.exports = function(grunt) {
       },
       ShadowDOM: {
         src: [
-          'ShadowDOM/polyfill/LightDOM.js',
-          'ShadowDOM/polyfill/Changeling.js',
-          'ShadowDOM/polyfill/Projection.js',
-          'ShadowDOM/polyfill/ShimShadowDOM.js',
+          'ShadowDOM/shim/LightDOM.js',
+          'ShadowDOM/shim/Changeling.js',
+          'ShadowDOM/shim/Projection.js',
+          'ShadowDOM/shim/ShimShadowDOM.js',
           'ShadowDOM/ShadowDOMImpl.js'
         ],
         dest: 'min/ShadowDOM.js'
