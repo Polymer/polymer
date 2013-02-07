@@ -56,13 +56,13 @@ var poolify = function(inNodes) {
   return pool;
 };
 
-var extract = function(inPool, inSlctr) {
-  if (!inSlctr) {
+var extract = function(inPool, inMatcher) {
+  if (!inMatcher) {
     return inPool.splice(0);
   } else {
     var result = [];
     for (var i=0, n; (n=inPool[i]); i++) {
-      if (matches(n, inSlctr)) {
+      if (inMatcher(n)) {
         result.push(n);
         inPool.splice(i--, 1);
       }
@@ -114,7 +114,7 @@ var distributePool = function(inPool, inRoot) {
   insertions.forEach(function(insertion) {
     decorateInsertionPoint(insertion);
     var slctr = insertion.getAttribute("select");
-    var nodes = extract(inPool, slctr);
+    var nodes = extract(inPool, generateMatcher(slctr));
     hostInsertions(insertion, nodes);
   });
   //
@@ -165,26 +165,46 @@ var flatten = function(inTree) {
 // .<class> = any node with <class> in it's classList
 // [<attr>] = any node with attribute <attr>
 //
-var matches = function(inNode, inSlctr) {
+var generateMatcher = function(inSlctr) {
+  if (!inSlctr) {
+    return;
+  }
+  var m;
   if (inSlctr == "~") {
-    return Boolean(inNode.lightDOM);
+    return function(inNode) { 
+      return Boolean(inNode.lightDOM);
+    };
   }
   if (inSlctr[0] == '#') {
-    return inNode.id == inSlctr.slice(1);
+    m = inSlctr.slice(1);
+    return function(inNode) {
+      return inNode.id == m;
+    };
   }
   if (inSlctr == '*') {
-    return inNode.nodeName != '#text';
+    return function(inNode) {
+      return inNode.nodeName != '#text';
+    };
   }
   if (inSlctr[0] == '.') {
-    return inNode.classList && inNode.classList.contains(inSlctr.slice(1));
+    m = inSlctr.slice(1);
+    return function(inNode) {
+      return inNode.classList && inNode.classList.contains(m1);
+    }
   }
   if (inSlctr[0] == '[') {
-    return inNode.hasAttribute && inNode.hasAttribute(inSlctr.slice(1, -1));
+    m = inSlctr.slice(1, -1);
+    return function(inNode) {
+      return inNode.hasAttribute && inNode.hasAttribute(m);
+    }
   }
-  return (inNode.tagName == inSlctr.toUpperCase());
-};
+  m = inSlctr.toUpperCase();
+  return function(inNode) {
+    return (inNode.tagName == m);
+  }
+}
 
-var search = function(inNodes, inSlctr) {
+var search = function(inNodes, inMatcher) {
   var results = [];
   for (var i=0, n, np; (n=inNodes[i]); i++) {
     np = n.baby || n;
@@ -192,23 +212,23 @@ var search = function(inNodes, inSlctr) {
     // context. So, we attach that context here. The context is only 
     // valid until the next _search_.
     np.tree = n;
-    if (matches(np, inSlctr)) {
+    if (inMatcher(np)) {
       results.push(np);
     }
     if (!isInsertionPoint(np)) {
-      results = results.concat(_search(np, inSlctr));
+      results = results.concat(_search(np, inMatcher));
     }
   }
   return results;
 };
 
-var _search = function(inNode, inSlctr) {
+var _search = function(inNode, inMatcher) {
   return search((inNode.lightDOM && inNode.lightDOM.childNodes) ||
-    inNode.insertions || inNode.childNodes, inSlctr);
+    inNode.insertions || inNode.childNodes, inMatcher);
 };
 
 var localQueryAll = function(inNode, inSlctr) {
-  return search(inNode.insertions || inNode.childNodes, inSlctr);
+  return search(inNode.insertions || inNode.childNodes, generateMatcher(inSlctr));
 };
 
 var localQuery = function(inNode, inSlctr) {
@@ -258,7 +278,6 @@ var localParentNode = function(inNode) {
 };
 
 // exports
-
 scope.ShimShadowDOM = {
   shim: true,
   ShadowRoot: ShadowRoot,
