@@ -289,21 +289,21 @@ var elementParser = {
   },
   addComponentsRule: function(inCssText) {
     if (inCssText) {
-      if (!this.componentsSheet) {
-        this.createComponentsSheet();
-        //this.insertComponentsSheet();
-      }
-      this.componentsSheet.appendChild(document.createTextNode(inCssText));
+      this.getComponentsSheet().appendChild(document.createTextNode(inCssText));
     }
   },
   // support for creating @host rules
-  createComponentsSheet: function() {
-    this.componentsSheet = document.createElement("style");
-    // make sure stylesheets aren't rendered
-    this.addComponentsRule('style { display: none !important; }\n');
+  getComponentsSheet: function() {
+    if (!this.componentsSheet) {
+      this.componentsSheet = document.createElement("style");
+      // make sure stylesheets aren't rendered
+      this.addComponentsRule('style { display: none !important; }\n');
+      //this.insertComponentsSheet();
+    }
+    return this.componentsSheet;
   },
   insertComponentsSheet: function() {
-    document.head.insertBefore(this.componentsSheet, document.head.children[0]);
+    document.head.insertBefore(this.getComponentsSheet(), document.head.children[0]);
   }
 };
 
