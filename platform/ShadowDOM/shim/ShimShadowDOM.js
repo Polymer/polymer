@@ -189,7 +189,7 @@ var generateMatcher = function(inSlctr) {
   if (inSlctr[0] == '.') {
     m = inSlctr.slice(1);
     return function(inNode) {
-      return inNode.classList && inNode.classList.contains(m1);
+      return inNode.classList && inNode.classList.contains(m);
     }
   }
   if (inSlctr[0] == '[') {
