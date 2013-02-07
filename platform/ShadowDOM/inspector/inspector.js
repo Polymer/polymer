@@ -110,7 +110,14 @@
 
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
+  var blacklist = function(inNode) {
+    return inNode.localName == 'style';
+  };
+
   var output = function(inNode, inChildNodes, inIndent) {
+    if (blacklist(inNode)) {
+      return '';
+    }
     var indent = inIndent || '';
     if (inNode.localName) {
       inChildNodes = ShadowDOM.localNodes(inNode);
@@ -120,6 +127,9 @@
       if (!inNode.children.length) {
         info += catTextContent(inChildNodes);
       } else {
+        if (inNode.localName == 'content') {
+          inChildNodes = inNode.getDistributedNodes();
+        }
         info += '<br/>';
         var ind = indent + '&nbsp;&nbsp;';
         forEach(inChildNodes, function(n) {
