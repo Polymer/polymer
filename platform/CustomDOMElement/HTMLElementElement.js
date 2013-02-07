@@ -134,7 +134,7 @@ HTMLElementElement.prototype = {
       template: this.template,
       lifecycle: this.lifecycleImpl || {}
     };
-    CustomDOMElements.registry[this.name] = definition;
+    CustomDOMElements.addDefinition(this.name, definition);
     CustomDOMElements.upgradeElements(document, definition);
     //
     // optionally install the constructor on the global object
@@ -166,15 +166,7 @@ var elementParser = {
   },
   normalizeTemplate: function(inTemplate) {
     if (inTemplate && !inTemplate.content) {
-      // allow MDV to normalize template, if it's available
-      if (HTMLTemplateElement && HTMLTemplateElement.decorate) {
-        HTMLTemplateElement.decorate(inTemplate);
-      } else {
-        var c = inTemplate.content = document.createDocumentFragment();
-        while (inTemplate.childNodes.length) {
-          c.appendChild(inTemplate.childNodes[0]);
-        }
-      }
+      HTMLTemplateElement.decorate(inTemplate);
     }
     return inTemplate;
   },
@@ -261,9 +253,9 @@ var elementParser = {
         // process other host rules
         var cssText = s.textContent.replace(this.mediaRe, '');
         var hostCss = this.calcHostStyles(cssText, name);
-        this.addHostRule(hostCss);
+        this.addComponentsRule(hostCss);
         // add media rules last
-        this.addHostRule(mediaCss);
+        this.addComponentsRule(mediaCss);
       }, this);
     }
   },
@@ -283,9 +275,6 @@ var elementParser = {
     }
     return rules.join('\n');
   },
-  addHostRule: function(inCssText) {
-    this.hostSheet.appendChild(document.createTextNode(inCssText));
-  },
   // convert e.g. @host to x-foo, [is=x-foo]
   convertHostRules: function(selectors, name) {
     var o=[], parts = selectors.split(',');
@@ -298,18 +287,23 @@ var elementParser = {
     });
     return o.join(", ");
   },
-  // support for creating @host rules
-  createHostSheet: function() {
-    var s = document.createElement("style");
-    var h = document.head;
-    if (h.children.length) {
-      h.insertBefore(s, h.children[0]);
-    } else {
-      h.appendChild(s);
+  addComponentsRule: function(inCssText) {
+    if (inCssText) {
+      if (!this.componentsSheet) {
+        this.createComponentsSheet();
+        //this.insertComponentsSheet();
+      }
+      this.componentsSheet.appendChild(document.createTextNode(inCssText));
     }
+  },
+  // support for creating @host rules
+  createComponentsSheet: function() {
+    this.componentsSheet = document.createElement("style");
     // make sure stylesheets aren't rendered
-    s.innerHTML = 'style { display: none !important; }\n';
-    this.hostSheet = s;
+    this.addComponentsRule('style { display: none !important; }\n');
+  },
+  insertComponentsSheet: function() {
+    document.head.insertBefore(this.componentsSheet, document.head.children[0]);
   }
 };
 
@@ -319,9 +313,11 @@ var elementUpgrader = {
     CustomDOMElements.upgradeElements = nop;
   },
   go: function() {
+    elementParser.insertComponentsSheet();
     CustomDOMElements.upgradeElements = this._upgradeElements;
-    CustomDOMElements.watchDOM(document);
     CustomDOMElements.upgradeAll(document);
+    CustomDOMElements.watchDOM(document);
+    
   }
 };
 

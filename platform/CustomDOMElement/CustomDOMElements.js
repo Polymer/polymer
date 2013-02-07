@@ -295,11 +295,15 @@ var upgradeElement = function(inElement, inDefinition) {
   return upgrade;
 };
 
+
 var upgradeElements = function(inTree, inDefinition) {
   // 6.b.1 Let NAME be the custom element name part of DEFINITION
   var name = inDefinition.name;
   // 6.b.2 For each element ELEMENT in TREE whose custom element name is NAME:
-  var elements = ShadowDOM.localQueryAll(inTree, name);
+  // TODO(sorvell): we are choosing to scan the composed tree instead of the
+  // shadow local tree for performance.
+  //var elements = ShadowDOM.localQueryAll(inTree, name);
+  var elements = inTree.querySelectorAll(name);
   for (var i=0, element; element=elements[i]; i++) {
     // when an element is upgraded, its children are upgraded. This makes
     // stale elements in this list that are children of components. Avoid
@@ -310,18 +314,30 @@ var upgradeElements = function(inTree, inDefinition) {
   }
 };
 
-var upgradeAll = function(inNode) {
-  for (var n in registry) {
-    upgradeElements(inNode, registry[n]);
-  }
-};
-
 var definitionForElement = function(inNode) {
   return registry[inNode.localName];
 }
 
-// SECTION 6
+var upgradeAll = function(inNode) {
+  // 6.b.2 For each element ELEMENT in TREE whose custom element name is NAME:
+  if (!registrySearch) {
+    return;
+  }
+  // TODO(sorvell): we are choosing to scan the composed tree instead of the
+  // shadow local tree for performance.
+  var elements = inNode.querySelectorAll(registrySearch);
+  for (var i=0, d, element; element=elements[i]; i++) {
+    // when an element is upgraded, its children are upgraded. This makes
+    // stale elements in this list that are children of components. Avoid
+    // trying to upgrading them by checking if they have a parentNode.
+    if (element.parentNode) {
+      d = definitionForElement(element);
+      upgradeElement(element, d);
+    }
+  }
+}
 
+// SECTION 6
 // polyfill UA parsing HTML by watching dom for changes via mutations observer
 // and upgrading if any are detected.
 var handleDOMMutations = function(mutations) {
@@ -331,8 +347,9 @@ var handleDOMMutations = function(mutations) {
         var def = definitionForElement(n);
         if (def) {
           upgradeElement(n, def);
+        } else {
+          upgradeAll(n);
         }
-        upgradeAll(n);
       }
     });
   });
@@ -355,16 +372,10 @@ var watchShadowDOM = function(inRoot) {
 
 // TODO(sorvell): remove knowledge of state of shadowDOM impl.
 var upgradeDOMChanges = function(inElement) {
-  if (ShadowDOM.shim) {
-    shimUpgradeChanges();
+  if (ShadowDOM.shim && DOMObserver) {
+    handleDOMMutations(DOMObserver.takeRecords());
   } else {
     upgradeAll(inElement);
-  }
-}
-
-var shimUpgradeChanges = function() {
-  if (DOMObserver) {
-    handleDOMMutations(DOMObserver.takeRecords());
   }
 }
 
@@ -424,7 +435,7 @@ var register = function(inName, inOptions) {
   }
   //
   // 7.1.5: Register the DEFINITION with DOCUMENT
-  registry[inName] = definition;
+  addDefinition(inName, definition);
   //
   // TODO(sjmiles): OFFSPEC: re-ordering the flow
   // so that prototype has the correct constructor on it
@@ -454,6 +465,13 @@ var register = function(inName, inOptions) {
   return ctor;
 };
 
+registrySearch = '';
+
+var addDefinition = function(inName, inDefinition) {
+  registry[inName] = inDefinition;
+  registrySearch += (registrySearch ? ',' : '') + inName;
+}
+
 // SECTION 7.2
 
 // see HTMLElementElement.js
@@ -461,6 +479,7 @@ var register = function(inName, inOptions) {
 // exports
 
 scope.CustomDOMElements = {
+  addDefinition: addDefinition,
   registry: registry,
   instantiate: instantiate,
   generateConstructor: generateConstructor,

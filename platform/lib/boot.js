@@ -17,12 +17,26 @@ var elementUpgrader = scope.CustomDOMElements.elementUpgrader;
 
 // NOTE: uses 'window' and 'document' globals
 
+// timer that's inspectable after the fact via console.timers
+console.timer = function(inName) {
+  console.timers[inName] = Date.now();
+  console.time(inName);
+}
+
+console.timerEnd = function(inName) {
+  console.timers[inName] = Date.now() - console.timers[inName];
+  console.timeEnd(inName);
+}
+
+console.timers = {};
+
 scope.ready = function() {
-  elementParser.createHostSheet();
   elementUpgrader.initialize();
   componentLoader.preload(document, function() {
     documentParser.parse(document, elementParser.parse);
+    console.timer('components upgrade');
     elementUpgrader.go();
+    console.timerEnd('components upgrade');
     scope.webComponentsReady();
   });
 };
