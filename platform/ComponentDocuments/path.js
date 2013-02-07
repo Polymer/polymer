@@ -35,8 +35,9 @@ var path = {
     if (this.isAbsUrl(inUrl)) {
       return inUrl;
     }
-    var base = this.urlToPath(inBaseUrl);
-    return this.compressUrl(base + inUrl);
+    var constructedUrl = inUrl[0] != "/" ? this.urlToPath(inBaseUrl) + inUrl :
+        [location.protocol, "", location.host].join('/') + inUrl;
+    return this.compressUrl(constructedUrl);
   },
   urlToPath: function(inBaseUrl) {
     var parts = inBaseUrl.split("/");
