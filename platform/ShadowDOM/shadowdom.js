@@ -70,11 +70,12 @@ var fileSets = {
     'shim/Changeling.js',
     'shim/Projection.js',
     'shim/ShimShadowDOM.js',
+    'inspector/inspector.js',
     'ShadowDOMImpl.js'
   ],
   // load both webkit and shim
   testing: [
-    "../lib/lang.js",
+    '../lib/lang.js',
     'webkit/WebkitShadowDOM.js',
     'shim/LightDOM.js',
     'shim/Changeling.js',
