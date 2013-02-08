@@ -1,7 +1,7 @@
 (function() {
   var inspector;
 
-  window.xinspect = function(inNode, inProxy) {
+  window.sinspect = function(inNode, inProxy) {
     if (!inspector) {
       inspector = window.open('', 'ShadowDOM Inspector');
       inspector.document.write(extractHtml(containHtml.toString()));
@@ -10,7 +10,7 @@
         shadowize: shadowize
       };
     }
-    inspect(inNode, inProxy);
+    inspect(inNode || document.body, inProxy);
   };
 
   var crumbs = [];
@@ -167,11 +167,6 @@
     forEach(inNode.attributes, function(a) {
       tag += ' ' + a.name + (a.value ? '="' + a.value + '"' : '');
     });
-//    if (inNode.shadow) {
-//      tag += ' <button idx="' + drillable.length +
-//          '" onclick="api.shadowize.call(this)">shadow</button>';
-//      drillable.push(inNode);
-//    }
     tag += '&gt;'+ '</tag>';
     return tag;
   };
@@ -183,7 +178,7 @@
     //alert(idx);
     var node = drillable[idx];
     if (node) {
-      xinspect(node.shadow, node)
+      sinspect(node.shadow, node)
     } else {
       console.log("bad shadowize node");
       console.dir(this);
