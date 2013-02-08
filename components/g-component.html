@@ -282,52 +282,31 @@ license that can be found in the LICENSE file.
 
   // data observer abstraction
   // this implementation uses MDV polyfill
-
   var ﻿Observable = function() {
     api.activate.call(this);
   };
-
-  var watch_blacklist = {$: 1, node: 1, eventDelegates: 1, publish: 1};
-
+  
   var api = Observable.api = {
     activate: function () {
-      var watched = {};
-      Model.observePropertySet(this, function(inChange) {
-        api.propertySetChanged.call(this, inChange, watched);
+      Model.observeObject(this, function(inAdded, inRemoved, inChanged, inOldValueGetter) {
+        api.propertiesChanged.call(this, inChanged, inOldValueGetter);
+        api.propertiesChanged.call(this, inAdded, inOldValueGetter);
+        // TODO(sorvell): do we care about removal?
+        //api.propertiesChanged.call(this, inRemoved, inOldValueGetter);
       }.bind(this));
-      api.watchAll.call(this, watched);
     },
-    propertySetChanged: function(inChange, inWatched) {
-      if (inChange.mutation == 'add') {
-        //log.watch && console.log('[%s] propertySetChanged: adding watch for [%s]', this.node.localName, inChange.propertyName);
-        api.addWatch.call(this, inChange.propertyName, inWatched);
-        //this.propertyChanged(inChange.propertyName);
-      }
-    },
-    watchable: function(inName, inWatched) {
-      return (inName[0] != '_')
-          && !(inName in Object.prototype)
-          && !inWatched[inName]
-          && (typeof this[inName] != 'function')
-          && !this.__lookupGetter__(inName)
-          && !watch_blacklist[inName];
-    },
-    addWatch: function(inName, inWatched) {
-      if (api.watchable.call(this, inName, inWatched)) {
-        log.watch && console.log('[' + this.node.localName + '] watching [' + inName + ']');
-        inWatched[inName] = true;
-        Model.observe(this, inName, function(inNew, inOld) {
-          log.data && console.log('[%s#%s] watch: [%s] now [%s] was [%s]', this.node.localName, this.node.id || '', inName, this[inName], inOld);
-          this.propertyChanged(inName, inOld);
-        }.bind(this));
-      }
-    },
-    watchAll: function(inWatched) {
-      for (var n in this) {
-        api.addWatch.call(this, n, inWatched);
-      }
+    propertiesChanged: function(inProperties, inOldValueGetter) {
+      Object.keys(inProperties).forEach(function(k) {
+        old = inOldValueGetter(k);
+        // TODO(sorvell): this is intended to ignore added properties 
+        // set to the same value as prototype (could be factored out from 
+        // changes if necessary)
+        if ((old !== undefined) || (this[k] != this.__proto__[k])) {
+          this.propertyChanged(k, old);
+        }
+      }, this);
     }
-  };
+  }
 
   Observable.prototype = {
     propertyChanged: function(inName, inOldValue) {
@@ -627,7 +606,7 @@ license that can be found in the LICENSE file.
   };
 
   function bindProperty(inA, inPropA, inB, inPropB) {
-    Model.observe(inA, inPropA, function(inNew) {
+    Model.observePath(inA, inPropA, function(inNew) {
       // intermediate changes are observed, but are irrelevant
       // we only propagate when the value stabilizes
       if (getProperty(inPropA, false, inA) === inNew) {

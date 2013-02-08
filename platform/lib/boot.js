@@ -17,7 +17,8 @@ var elementUpgrader = scope.CustomDOMElements.elementUpgrader;
 
 // NOTE: uses 'window' and 'document' globals
 
-// timer that's inspectable after the fact via console.timers
+// TODO(sorvell): add a timer that's inspectable after the fact
+// this is helpful for testing on ios.
 console.timer = function(inName) {
   console.timers[inName] = Date.now();
   console.time(inName);
@@ -55,12 +56,6 @@ if (!scope.flags.runManually) {
   scope.run();
 }
 
-// temporary hack for template elements under shims
-
-window.addEventListener('WebComponentsReady', function() {
-   HTMLTemplateElement.decorateAll(document);
-});
-
 document.write('<!-- begin client-side injections -->\n');
 
 // mobile compatibility tags
@@ -80,7 +75,7 @@ document.write('<style>body {opacity: 0; }</style>');
 document.write('<!-- end client-side injections -->\n');
 
 window.addEventListener('WebComponentsReady', function() {
-  document.body.style.webkitTransition = "opacity 0.3s";
+  //document.body.style.webkitTransition = "opacity 0.3s";
   document.body.style.opacity = 1;
 });
 

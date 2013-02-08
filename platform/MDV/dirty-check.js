@@ -5,7 +5,7 @@
  */
 (function() {
   var check = function() {
-    Model.dirtyCheck();
+    Model.notifyChanges();
   };
   window.dirtyCheck = function() {
     logFlags.data && console.group("Model.dirtyCheck()"); 

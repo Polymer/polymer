@@ -31,7 +31,7 @@
   var files = [
     'platform/compat.js',
     'side_table.js',
-    'path.js',
+    'ChangeSummary/change_summary.js',
     'model.js',
     '../dirty-check.js'
   ];

@@ -138,8 +138,9 @@ var cloneNodeWithTemplates = function(inNode) {
   var clone = inNode.cloneNode(true);
   var sourceTemplates = inNode.querySelectorAll('template');
   var targetTemplates = clone.querySelectorAll('template');
-  for (var i = 0; i < sourceTemplates.length; i++) {
-    targetTemplates[i].content = sourceTemplates[i].content
+  for (var i = 0, t; t=targetTemplates[i]; i++) {
+    HTMLTemplateElement.decorate(t);
+    t.content = sourceTemplates[i].content;
   }
   return clone;
 };
