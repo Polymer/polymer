@@ -44,7 +44,7 @@ var path = {
     return parts.join("/") + "/";
   },
   isAbsUrl: function(inUrl) {
-    return /^data:/.test(inUrl) || /^http[s]?:/.test(inUrl);
+    return /(^data:)|(^http[s]?:)|(^\/)/.test(inUrl);
   },
   // make a relative path from source to target
   makeRelPath: function(inSource, inTarget) {
