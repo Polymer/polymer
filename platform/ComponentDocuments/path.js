@@ -35,9 +35,8 @@ var path = {
     if (this.isAbsUrl(inUrl)) {
       return inUrl;
     }
-    var constructedUrl = inUrl[0] != "/" ? this.urlToPath(inBaseUrl) + inUrl :
-        [location.protocol, "", location.host].join('/') + inUrl;
-    return this.compressUrl(constructedUrl);
+    var base = this.urlToPath(inBaseUrl);
+    return this.compressUrl(base + inUrl);
   },
   urlToPath: function(inBaseUrl) {
     var parts = inBaseUrl.split("/");
@@ -45,7 +44,7 @@ var path = {
     return parts.join("/") + "/";
   },
   isAbsUrl: function(inUrl) {
-    return /^data:/.test(inUrl) || /^http[s]?:/.test(inUrl);
+    return /(^data:)|(^http[s]?:)|(^\/)/.test(inUrl);
   },
   // make a relative path from source to target
   makeRelPath: function(inSource, inTarget) {
