@@ -106,7 +106,7 @@ var hostInsertions = function(insertion, nodes) {
     n.host = insertion;
   }
   new Projection(insertion).addNodes(nodes);
-}
+};
 
 var distributePool = function(inPool, inRoot) {
   // distribute pool to <content> nodes
