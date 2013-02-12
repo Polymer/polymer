@@ -6,7 +6,7 @@ Source files for Web Components that implement the Toolkitchen Toolkit.
 
 The Toolkitchen Toolkit is a new type of library for the web, designed to leverage the existing browser infrastructure to provide the encapsulation and extendability currently only available in JS libraries.
 
-Toolkitchen Toolkit is based on a set of future technologies, including [Shadow DOM](https://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/shadow/index.html), [Custom Elements](https://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/custom/index.html) and Model Driven Views. Currently these technologies are implemented as polyfills or shims, but as browsers adapt these features natively, the platform code that drives Toolkit evacipates, leaving only the value-adds.
+Toolkitchen Toolkit is based on a set of future technologies, including [Shadow DOM](https://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/shadow/index.html), [Custom Elements](https://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/custom/index.html) and Model Driven Views. Currently these technologies are implemented as polyfills or shims, but as browsers adopt these features natively, the platform code that drives Toolkit evacipates, leaving only the value-adds.
 
 ## Requirements
 
