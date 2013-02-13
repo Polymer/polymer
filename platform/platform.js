@@ -84,7 +84,7 @@ var require = function(inSrc) {
   'lib/lang.js',
   'lib/dom_token_list.js',
   'PointerGestures/src/pointergestures.js',
-  'MDV/mdv.js',
+  'MDV/mdv-loader.js',
   'ShadowDOM/shadowdom.js',
   'ComponentDocuments/path.js',
   'ComponentDocuments/loader.js',
