@@ -217,25 +217,24 @@ license that can be found in the LICENSE file.
     }
   }
 
+  function getPropertyDescriptor(object, name) {
+    if (object == null)
+      return undefined;
+    var pd = Object.getOwnPropertyDescriptor(object, name);
+    return pd || getPropertyDescriptor(Object.getPrototypeOf(object));
+  }
+
   // copy property 'name' from src to obj
   var copyProperty = function(name, src, obj) {
-    var g = src.__lookupGetter__(name);
-    if (g) {
-      obj.__defineGetter__(name, g);
-    } else {
-      obj[name] = src[name];
-    }
-    var s = src.__lookupSetter__(name);
-    if (s) {
-      obj.__defineSetter__(name, s);
-    }
+    var pd = getPropertyDescriptor(src, name);
+    Object.defineProperty(obj, name, pd);
   };
 
   // copy all properties from inProps (et al) to inObj
   var mixin = function(inObj/*, inProps, inMoreProps, ...*/) {
     var obj = inObj || {};
-    var p$ = Array.prototype.slice.call(arguments, 1);
-    for (var i=0, p; (p=p$[i]); i++) {
+    for (var i = 1; i < arguments.length; i++) {
+      var p = arguments[i];
       for (var n in p) {
         copyProperty(n, p, obj);
       }
@@ -250,11 +249,16 @@ license that can be found in the LICENSE file.
     }
   };
 
+  function hasGetter(object, name) {
+    var pd = getPropertyDescriptor(object, name);
+    return !!(pd && pd.get);
+  }
+
   // make inSource[inName] available on inTarget as a getter/setter
   // pair or a method bound to this.$protected
   function publishProperty(inSource, inName, inTarget) {
     // access property value (unless it is a getter itself)
-    var value = (!inSource.__lookupGetter__(inName)) && inSource[inName];
+    var value = !hasGetter(inSource, inName) && inSource[inName];
     if (typeof value == 'function') {
       inTarget[inName] = function() {
         return value.apply(this.$protected, arguments);
