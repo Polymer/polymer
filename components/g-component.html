@@ -290,27 +290,41 @@ license that can be found in the LICENSE file.
     api.activate.call(this);
   };
   
+
+
+  var watch_blacklist = {$: 1, node: 1, eventDelegates: 1, publish: 1};
+
   var api = Observable.api = {
     activate: function () {
-      Model.observeObject(this, function(inAdded, inRemoved, inChanged, inOldValueGetter) {
-        api.propertiesChanged.call(this, inChanged, inOldValueGetter);
-        api.propertiesChanged.call(this, inAdded, inOldValueGetter);
-        // TODO(sorvell): do we care about removal?
-        //api.propertiesChanged.call(this, inRemoved, inOldValueGetter);
-      }.bind(this));
+      var watched = {};
+      // Watch all properties that exist on the object at create time.
+      api.watchAll.call(this, watched);
     },
-    propertiesChanged: function(inProperties, inOldValueGetter) {
-      Object.keys(inProperties).forEach(function(k) {
-        old = inOldValueGetter(k);
-        // TODO(sorvell): this is intended to ignore added properties 
-        // set to the same value as prototype (could be factored out from 
-        // changes if necessary)
-        if ((old !== undefined) || (this[k] != this.__proto__[k])) {
-          this.propertyChanged(k, old);
-        }
-      }, this);
+    watchable: function(inName, inWatched) {
+      return (inName[0] != '_')
+          && !(inName in Object.prototype)
+          && !inWatched[inName]
+          && (typeof this[inName] != 'function')
+          && !this.__lookupGetter__(inName)
+          && !watch_blacklist[inName];
+    },
+
+    addWatch: function(inName, inWatched) {
+      if (api.watchable.call(this, inName, inWatched)) {
+        log.watch && console.log('[' + this.node.localName + '] watching [' + inName + ']');
+        inWatched[inName] = true;
+        Model.observePath(this, inName, function(inNew, inOld) {
+          log.data && console.log('[%s#%s] watch: [%s] now [%s] was [%s]', this.node.localName, this.node.id || '', inName, this[inName], inOld);
+          this.propertyChanged(inName, inOld);
+        }.bind(this));
+      }
+    },
+    watchAll: function(inWatched) {
+      for (var n in this) {
+        api.addWatch.call(this, n, inWatched);
+      }
     }
-  }
+  };
 
   Observable.prototype = {
     propertyChanged: function(inName, inOldValue) {
@@ -567,8 +581,10 @@ license that can be found in the LICENSE file.
 	function bindProperties(inA, inPropA, inB, inPropB) {
      log.bind && console.log('[%s] bindProperties [%s] to [%s].[%s]', inA.localName, inPropA, inB.localName, inPropB);
     _bindProperties(inA.$protected, inPropA, inB.$protected, inPropB);
-    // TODO(sjmiles): explain succinctly why this dirtyCheck is here
-    window.dirtyCheck();
+    // TODO(sorvell): this dirty check should be unnecessary since each 
+    // component dirtyChecks when ready. Note, this method of binding properties
+    // together will be replaced with MDV's 2-way binding primitive when available.
+    //window.dirtyCheck();
   };
 
   function _getProp(parts, create, context) {
