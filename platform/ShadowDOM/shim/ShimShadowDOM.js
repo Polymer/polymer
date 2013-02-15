@@ -260,7 +260,7 @@ var localChildNodes = function(inNode) {
   var nodes = [];
   forEach(n$, function(np) {
     var n = deref(np);
-    n.tree = np;
+    n.tree = np
     nodes.push(n);
   })
   return nodes;
