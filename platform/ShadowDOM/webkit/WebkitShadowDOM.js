@@ -20,7 +20,17 @@ scope.WebkitShadowDOM = {
   },
   localQueryAll: function(inElement, inSlctr) {
     return inElement.querySelectorAll(inSlctr);
-  }
+  },
+  deref: function(inNode) {
+    return inNode;
+  },
+  localNodes: function(inNode) {
+    return inNode.childNodes;
+  },
+  localParent: function(inNode) {
+    return inNode.parentNode;
+  },
+  forEach: Array.prototype.forEach.call.bind(Array.prototype.forEach)
 };
 
 })(window.__exported_components_polyfill_scope__);
