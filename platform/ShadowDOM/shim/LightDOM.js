@@ -4,7 +4,9 @@ var scope = scope || {};
 
 var LightDOM = function(inNode) {
   // store lightDOM as a document fragment
-  inNode.lightDOM = document.createDocumentFragment();
+  //inNode.lightDOM = document.createDocumentFragment();
+  // store lightDOM in a custom subtree
+  inNode.lightDOM = document.createElement('lightDOM');
   // back-reference host
   inNode.lightDOM.host = inNode;
   // identify this fragment as lightDOM
