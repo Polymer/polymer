@@ -248,6 +248,7 @@ var generatePrototype = function(inExtends, inProperties) {
   // OUTPUT
   return prototype;
 };
+
 var upgradeElement = function(inElement, inDefinition) {
   var upgrade = inElement;
   // do not re-upgrade
