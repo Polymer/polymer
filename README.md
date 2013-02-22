@@ -129,7 +129,7 @@ All Toolkit components depend on `src/g-component.html` which provides the Toolk
 
 ### Step 1: Install dev dependencies
 
-Toolkit uses [`testacular`](http://http://vojtajina.github.com/testacular/) and [`mocha`](http://visionmedia.github.com/mocha/) to run tests. Install them with `npm`:
+Toolkit uses [`testacular`](http://vojtajina.github.com/testacular/) and [`mocha`](http://visionmedia.github.com/mocha/) to run tests. Install them with `npm`:
 
   npm install
 
