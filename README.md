@@ -129,12 +129,12 @@ All Toolkit components depend on `src/g-component.html` which provides the Toolk
 
 ### Step 1: Install dev dependencies
 
-Toolkit uses [`testacular`](http://vojtajina.github.com/testacular/) and [`mocha`](http://visionmedia.github.com/mocha/) to run tests. Install them with `npm`:
+Make sure dependencies are installed:
 
   npm install
 
 ### Step 2: Run tests!
 
-Invoke `testacular` to run tests. For example, to run shadow DOM tests once:
+This command will attempt to run all the tests:
 
-  node_modules/testacular/bin/testacular start --singleRun=true testacular-shadowdom.conf.js
+  grunt test
