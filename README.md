@@ -131,10 +131,10 @@ All Toolkit components depend on `src/g-component.html` which provides the Toolk
 
 Make sure dependencies are installed:
 
-  npm install
+	npm install
 
 ### Step 2: Run tests!
 
 This command will attempt to run all the tests:
 
-  grunt test
+	grunt test
