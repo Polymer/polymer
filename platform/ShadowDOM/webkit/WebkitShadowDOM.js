@@ -8,6 +8,14 @@ scope.WebkitShadowDOM = {
     root.olderSubtree = inElement.shadow;
     inElement.shadow = root;
     root.host = inElement;
+    // Set up gesture events on shadow
+    if (window.PointerGestures) {
+      PointerGestures.register(root);
+      // Set up pointerevents on shadow
+      if (window.PointerEventsPolyfill) {
+        PointerEventsPolyfill.setTouchAction(root, inElement.getAttribute('touch-action'));
+      }
+    }
     // TODO(sjmiles): enabled by default so that @host polyfills will
     // work under composition. Can remove when @host is implemented
     // natively.
