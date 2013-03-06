@@ -474,7 +474,8 @@ scope.CustomDOMElements = {
   upgradeAll: upgradeAll,
   watchDOM: watchDOM,
   validateArguments: validateArguments,
-  register: register
+  register: register,
+  getAncestorChain: getAncestorChain
 };
 
 // new public API

@@ -79,8 +79,6 @@ HTMLElementElement.prototype = {
     elementParser.sheets(element, this.template);
     // ensure all style tags are scoped.
     elementParser.scopeStyles(element, this.template);
-    // apply @host styles.
-    elementParser.applyHostStyles(this.template, this.name);
     //
     // to register a custom element, I need
     //
@@ -135,6 +133,8 @@ HTMLElementElement.prototype = {
       lifecycle: this.lifecycleImpl || {}
     };
     CustomDOMElements.addDefinition(this.name, definition);
+    // apply @host styles and pseudo scope css if style.scoped is unavailable
+    elementParser.applyComponentStyles(definition);
     CustomDOMElements.upgradeElements(document, definition);
     //
     // optionally install the constructor on the global object
@@ -216,20 +216,17 @@ var elementParser = {
   sheets: function(element, template) {
     var sheet = [];
     if (template) {
-      //console.group("sheets");
       forEach($$(element, "link[rel=stylesheet]"), function(s) {
         var styles = componentLoader.fetch(s);
         styles = this.makeCssUrlsRelative(styles, path.nodeUrl(s));
         sheet.push(styles);
       }.bind(this));
       if (sheet.length) {
-        //console.log("sheets found (", sheet.length, "), injecting");
         var style = document.createElement("style");
         style.style.display = "none !important;";
         style.innerHTML = sheet.join('');
         template.content.appendChild(style);
       }
-      //console.groupEnd();
     }
   },
   scopeStyles: function(element, template) {
@@ -239,55 +236,171 @@ var elementParser = {
       });
     }
   },
-  hostRe:/(@host[^{]*)({[\s\S]*?})/gim,
-  mediaRe: /(@media[^{]*)(({[\s\S]*?}[\s\S]*?)*)}/gim,
-  applyHostStyles: function(template, name) {
-    // strategy: apply a rule for each @host rule with @host replaced with
-    // the component name into a stylesheet added at the top of head (so it's
-    // least specific)
-    if (template) {
-      forEach($$(template.content, "style"), function(s) {
-        // in lieu of parser, do a 2-step regexp for media queries...
-        // process media query based rules and isolate
-        var mediaCss = this.calcMediaStyles(s.textContent, name);
-        // process other host rules
-        var cssText = s.textContent.replace(this.mediaRe, '');
-        var hostCss = this.calcHostStyles(cssText, name);
-        this.addComponentsRule(hostCss);
-        // add media rules last
-        this.addComponentsRule(mediaCss);
-      }, this);
+  needsPsuedoStyleScoping: ShadowDOM.shim && 
+    (document.createElement('style').scoped !== false),
+  hostRuleRe: /@host[^{]*{(([^}]*?{[^{]*?}[\s\S]*?)+)}/gim,
+  simpleHostRuleRe: /(@host[^{]*)({[\s\S]*?})/gim,
+  selectorRe: /([^{]*)({[\s\S]*?})/gim,
+  hostFixableRe: /^[\.|\[]/,
+  hostRe: /@host/gim,
+  // Apply styles to component. This includes:
+  // 1. @host rules and inherited @host rules
+  // 2. psuedo-scoped (e.g. a selector 'div' becomes 'x-foo div' where
+  // x-foo is the component name) rules when style.scoped is not supported.
+  applyComponentStyles: function(definition) {
+    this.cacheDefinitionStyles(definition);
+    this.applyHostStyles(definition);
+    if (this.needsPsuedoStyleScoping) {
+      this.applyPseudoScopedStyles(definition);
     }
   },
-  calcMediaStyles: function(inCssText, inName) {
-    var rules = [], matches, innerCss;
-    while (matches = this.mediaRe.exec(inCssText)) {
-      innerCss = this.calcHostStyles(matches[2], inName);
-      rules.push(matches[1] + '{\n' + innerCss + '\n}\n');
+  cacheDefinitionStyles: function(definition) {
+    definition.styles = [];
+    if (definition.template) {
+      var styles = Array.prototype.slice.call(
+        $$(definition.template.content, "style"), 0);
+      definition.styles = styles.filter(function(s) {
+        return !s.id;
+      });
     }
-    return rules.join('\n');
+    definition.inheritedStyles = this.findInheritedStyles(definition) || [];
   },
-  calcHostStyles: function(inCssText, inName) {
-    var rules = [], matches;
-    while (matches = this.hostRe.exec(inCssText)) {
-      rules.push(this.convertHostRules(matches[1], inName) + " "
-       + matches[2]);
-    }
-    return rules.join('\n');
-  },
-  // convert e.g. @host to x-foo, [is=x-foo]
-  convertHostRules: function(selectors, name) {
-    var o=[], parts = selectors.split(',');
-    var h = '@host';
-    parts.forEach(function(p) {
-      if (p.indexOf(h) >= 0) {
-        var r = p.trim();
-        o.push(r.replace(h, name));
-      }
+  stylesToCssText: function(styles) {
+    var cssText = '';
+    forEach(styles, function(s) {
+      cssText += s.textContent + '\n\n';
     });
-    return o.join(", ");
+    return cssText;
   },
-  addComponentsRule: function(inCssText) {
+  // TODO(sorvell): host styles don't need promotion when scoped is supported.
+  applyHostStyles: function(definition) {
+    var cssText = this.stylesToCssText((definition.inheritedStyles).concat(
+      definition.styles));
+    // form: @host { .foo { declarations } }
+    //if (ShadowDOM.shim) {
+      cssText = this.convertHostCss(cssText, definition.name);
+    //}
+    // form: @host { declarations }
+    cssText = this.convertSimpleHostCss(cssText, definition.name)
+    // TODO(sorvell): use cssom to interrogate component rules, 
+    // requires being attached to document or ?
+    var style = document.createElement('style');
+    style.textContent = cssText;
+    document.head.appendChild(style);
+    cssText = this.rulesToCss(this.findHostRules(style.sheet.cssRules,
+      definition.name));
+    style.parentNode.removeChild(style);
+    this.addCss(cssText);
+  },
+  convertHostCss: function(cssText, name) {
+    var r = '', l=0, matches;
+    while (matches=this.hostRuleRe.exec(cssText)) {
+      r += cssText.substring(l, matches.index);
+      r += this.psuedoHostScopeCss(matches[1], name);
+      l = this.hostRuleRe.lastIndex;
+    }
+    r += cssText.substring(l, cssText.length);
+    return r;
+  },
+  psuedoHostScopeCss: function(cssText, name) {
+    var r = '', matches;
+    while (matches=this.selectorRe.exec(cssText)) {
+      r += this.psuedoHostScopeSelector(matches[1], name) +' ' + matches[2] + '\n\t';
+    }
+    return r;
+  },
+  psuedoHostScopeSelector: function(selector, name) {
+    var r = [], parts = selector.split(',');
+    parts.forEach(function(p) {
+      p = p.trim();
+      // selector: * -> name
+      if (p.indexOf('*') >= 0) {
+        p = p.replace('*', name);   
+      // selector: .foo -> name.foo, [bar] -> name[bar]
+      } else if (p.match(this.hostFixableRe)) {
+        p = name + p;
+      }
+      r.push(p);
+    });
+    return r.join(', ');
+  },
+  convertSimpleHostCss: function(cssText, name) {
+   return cssText.replace(this.hostRe, name);
+  },
+  // consider styles that do not include component name in the selector to be
+  // unscoped and in need of promotion; 
+  // for convenience, also consider keyframe rules this way.
+  findHostRules: function(cssRules, name) {
+    return Array.prototype.filter.call(cssRules, this.isHostRule.bind(this, name));
+  },
+  isHostRule: function(name, cssRule) {
+    return (cssRule.selectorText && cssRule.selectorText.indexOf(name) >= 0) ||
+      (cssRule.cssRules && this.findHostRules(cssRule.cssRules, name).length) ||
+      (cssRule.type == CSSRule.WEBKIT_KEYFRAMES_RULE);
+  },
+  // @host styles are inherited IFF a <shadow> element
+  // exists in the shadowRoot.
+  findInheritedStyles: function(definition) {
+    var styles = [];
+    if (this.templateHasShadow(definition.template)) {
+      var extendor = this.findExtendor(definition);
+      styles = (extendor.styles || []).slice(0);
+      var inherited = extendor.inheritedStyles || 
+        this.findInheritedStyles(extendor);
+      Array.prototype.unshift.apply(styles, inherited);
+    }
+    return styles;
+  },
+  templateHasShadow: function(template) {
+    if (template) {
+      return template.content.querySelector('shadow');
+    }
+  },
+  findExtendor: function(definition) {
+    return CustomDOMElements.registry[definition.prototype.extendsName];
+  },
+  applyPseudoScopedStyles: function(definition) {
+    // remove the un-psuedoscoped orignal style element from template 
+    forEach(definition.styles, function(s) {
+      s.parentNode.removeChild(s);
+    });
+    var cssText = this.stylesToCssText(definition.styles);
+    // TODO(sorvell): use cssom rather than regex to remove @host rules?
+    cssText = cssText.replace(this.hostRuleRe, '').replace(this.simpleHostRuleRe, '');
+    var style = document.createElement('style');
+    style.textContent = cssText;
+    // TODO(sorvell): use cssom to interrogate component rules, 
+    // requires being attached to document or ?
+    document.head.appendChild(style);
+    this.pseudoScopeRules(style.sheet.cssRules, definition.name);
+    var css = this.rulesToCss(style.sheet.cssRules);
+    style.parentNode.removeChild(style);
+    this.addCss(css);
+  },
+  // change a selector like 'div' to 'name div'
+  pseudoScopeRules: function(cssRules, name) {
+    forEach(cssRules, function(rule) {
+      if (rule.selectorText && (rule.selectorText.indexOf(name) < 0)) {
+        rule.selectorText = this.pseudoScopeSelector(rule.selectorText, name);
+      } else if (rule.cssRules) {
+        this.pseudoScopeRules(rule.cssRules, name);
+      }
+    }, this);
+  },
+  pseudoScopeSelector: function(selector, name) {
+    var r = [], parts = selector.split(',');
+    parts.forEach(function(p) {
+      r.push(name + ' ' + p.trim());
+    });
+    return r.join(', ');
+  },
+  rulesToCss: function(cssRules) {
+    for (var i=0, css=[]; i < cssRules.length; i++) {
+      css.push(cssRules[i].cssText);
+    }
+    return css.join('\n\n');
+  },
+  addCss: function(inCssText) {
     if (inCssText) {
       this.getComponentsSheet().appendChild(document.createTextNode(inCssText));
     }
@@ -297,7 +410,7 @@ var elementParser = {
     if (!this.componentsSheet) {
       this.componentsSheet = document.createElement("style");
       // make sure stylesheets aren't rendered
-      this.addComponentsRule('style { display: none !important; }\n');
+      this.addCss('style { display: none !important; }\n');
       //this.insertComponentsSheet();
     }
     return this.componentsSheet;
@@ -317,7 +430,6 @@ var elementUpgrader = {
     CustomDOMElements.upgradeElements = this._upgradeElements;
     CustomDOMElements.upgradeAll(document);
     CustomDOMElements.watchDOM(document);
-    
   }
 };
 
