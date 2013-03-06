@@ -116,17 +116,34 @@ license that can be found in the LICENSE file.
       }
     },
     transitionChanged: function(inOldValue) {
-      if (this.transitionNode) {
-        if (this.transitionNode.localName == 
-            this.tagNameForTransition(this.transition)) {
-          return;
+      var userTransition = this.findTransitionNode();
+      if (userTransition) {
+        this.transitionNode = userTransition;
+      } else {
+        if (this.transitionNode) {
+          if (this.transitionNode.localName == 
+              this.tagNameForTransition(this.transition)) {
+            return;
+          }
+          this.transitionNode.teardown();
         }
-        this.transitionNode.teardown();
+        this.transitionNode = this.makeTransitionNode(this.transition);
+        this.node.setAttribute('transition', this.transition);
       }
-      this.transitionNode = this.makeTransitionNode(this.transition);
       this.transitionNode.setup(this);
-      this.node.setAttribute('transition', this.transition);
       this.refresh();
+    },
+    findTransitionNode: function() {
+      var n$ = this.$.content.getDistributedNodes();
+      for (var i=0, n; n=n$[i]; i++) {
+        if (this.isTransitionNode(n)) {
+          return n;
+        }
+      };
+    },
+    isTransitionNode: function(inNode) {
+      return inNode && (inNode.nodeType == Node.ELEMENT_NODE) &&
+        inNode.localName.match(/^g-.*panel-transition$/);
     },
     makeTransitionNode: function(inName) {
       var name = this.tagNameForTransition(inName);
@@ -246,9 +263,11 @@ license that can be found in the LICENSE file.
       // filter out style/templates children.
       getPanels: function() {
         var n$ = this.$.content.getDistributedNodes();
+        var excluded = ['style', 'template'];
         return Array.prototype.filter.call(n$, function(c) {
-          return c.nodeType == 1 && c.tagName != 'STYLE' && c.tagName != 'TEMPLATE';
-        });
+          return (c.nodeType == Node.ELEMENT_NODE) && (excluded.indexOf(c.localName) < 0)
+            && !this.isTransitionNode(c);
+        }.bind(this));
       },
       get count() {
         return this.getPanels().length;
