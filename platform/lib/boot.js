@@ -31,13 +31,25 @@ console.timerEnd = function(inName) {
 
 console.timers = {};
 
+var upgradeLogName = 'component upgrade';
+var logUpgrade = function() {
+  logFlags.upgrade && console.timer(upgradeLogName);
+  logFlags['upgrade-profile'] && console.profile(upgradeLogName);
+}
+
+var logUpgradeEnd = function() {
+  logFlags.upgrade && console.timerEnd(upgradeLogName);
+  logFlags['upgrade-profile'] && console.profileEnd(upgradeLogName);
+}
+
+
 scope.ready = function() {
   elementUpgrader.initialize();
   componentLoader.preload(document, function() {
     documentParser.parse(document, elementParser.parse);
-    console.timer('components upgrade');
+    logUpgrade();
     elementUpgrader.go();
-    console.timerEnd('components upgrade');
+    logUpgradeEnd();
     scope.webComponentsReady();
   });
 };

@@ -98,6 +98,12 @@ license that can be found in the LICENSE file.
     bindAccumulatedEvents(this, this.__events);
     // initialize our Observable aspect
     Observable.call(this.$protected);
+    // TODO(sorvell): resolve changes that have occurred due to property bindings
+    // before changing values from attributes since these changes can conflict
+    // with changes made (specifically to undefined properties)
+    // during property binding. Note, we must call takeAttributes after becoming
+    // observable so that these changes trigger side effects.
+    window.dirtyCheck();
     takeAttributes.call(this.$protected);
     // call ready hook
     this.$protected.ready();
@@ -217,44 +223,51 @@ license that can be found in the LICENSE file.
     }
   }
 
-  // copy property 'name' from src to obj
-  var copyProperty = function(name, src, obj) {
-    var g = src.__lookupGetter__(name);
-    if (g) {
-      obj.__defineGetter__(name, g);
-    } else {
-      obj[name] = src[name];
-    }
-    var s = src.__lookupSetter__(name);
-    if (s) {
-      obj.__defineSetter__(name, s);
-    }
-  };
-
   // copy all properties from inProps (et al) to inObj
-  var mixin = function(inObj/*, inProps, inMoreProps, ...*/) {
+  function mixin(inObj/*, inProps, inMoreProps, ...*/) {
     var obj = inObj || {};
-    var p$ = Array.prototype.slice.call(arguments, 1);
-    for (var i=0, p; (p=p$[i]); i++) {
+    for (var i = 1; i < arguments.length; i++) {
+      var p = arguments[i];
       for (var n in p) {
         copyProperty(n, p, obj);
       }
     }
     return obj;
-  };
+  }
+
+  // copy property inName from inSource object to inTarget object
+  function copyProperty(inName, inSource, inTarget) {
+    var pd = getPropertyDescriptor(inSource, inName);
+    Object.defineProperty(inTarget, inName, pd);
+  }
+
+  // get property descriptor for inName on inObject, even if
+  // inName exists on some link in inObject's prototype chain
+  function getPropertyDescriptor(inObject, inName) {
+    if (inObject == null) {
+      return undefined;
+    }
+    var pd = Object.getOwnPropertyDescriptor(inObject, inName);
+    return pd || getPropertyDescriptor(Object.getPrototypeOf(inObject));
+  }
 
   // publish properties identified by inProperties from inSource to inTarget
   function publishProperties(inProperties, inSource, inTarget) {
     for (var n in inProperties) {
       publishProperty(inSource, n, inTarget);
     }
-  };
+  }
+
+  function hasGetter(object, name) {
+    var pd = getPropertyDescriptor(object, name);
+    return !!(pd && pd.get);
+  }
 
   // make inSource[inName] available on inTarget as a getter/setter
   // pair or a method bound to this.$protected
   function publishProperty(inSource, inName, inTarget) {
     // access property value (unless it is a getter itself)
-    var value = (!inSource.__lookupGetter__(inName)) && inSource[inName];
+    var value = !hasGetter(inSource, inName) && inSource[inName];
     if (typeof value == 'function') {
       inTarget[inName] = function() {
         return value.apply(this.$protected, arguments);
@@ -285,28 +298,40 @@ license that can be found in the LICENSE file.
   var ﻿Observable = function() {
     api.activate.call(this);
   };
-  
+
+  var watch_blacklist = {$: 1, node: 1, eventDelegates: 1, publish: 1};
+
   var api = Observable.api = {
     activate: function () {
-      Model.observeObject(this, function(inAdded, inRemoved, inChanged, inOldValueGetter) {
-        api.propertiesChanged.call(this, inChanged, inOldValueGetter);
-        api.propertiesChanged.call(this, inAdded, inOldValueGetter);
-        // TODO(sorvell): do we care about removal?
-        //api.propertiesChanged.call(this, inRemoved, inOldValueGetter);
-      }.bind(this));
+      var watched = {};
+      // Watch all properties that exist on the object at create time.
+      api.watchAll.call(this, watched);
     },
-    propertiesChanged: function(inProperties, inOldValueGetter) {
-      Object.keys(inProperties).forEach(function(k) {
-        old = inOldValueGetter(k);
-        // TODO(sorvell): this is intended to ignore added properties 
-        // set to the same value as prototype (could be factored out from 
-        // changes if necessary)
-        if ((old !== undefined) || (this[k] != this.__proto__[k])) {
-          this.propertyChanged(k, old);
-        }
-      }, this);
+    watchable: function(inName, inWatched) {
+      return (inName[0] != '_')
+          && !(inName in Object.prototype)
+          && !inWatched[inName]
+          && (typeof this[inName] != 'function')
+          && !this.__lookupGetter__(inName)
+          && !watch_blacklist[inName];
+    },
+
+    addWatch: function(inName, inWatched) {
+      if (api.watchable.call(this, inName, inWatched)) {
+        log.watch && console.log('[' + this.node.localName + '] watching [' + inName + ']');
+        inWatched[inName] = true;
+        Model.observePath(this, inName, function(inNew, inOld) {
+          log.data && console.log('[%s#%s] watch: [%s] now [%s] was [%s]', this.node.localName, this.node.id || '', inName, this[inName], inOld);
+          this.propertyChanged(inName, inOld);
+        }.bind(this));
+      }
+    },
+    watchAll: function(inWatched) {
+      for (var n in this) {
+        api.addWatch.call(this, n, inWatched);
+      }
     }
-  }
+  };
 
   Observable.prototype = {
     propertyChanged: function(inName, inOldValue) {
@@ -425,7 +450,7 @@ license that can be found in the LICENSE file.
     send: function(inType, inDetail, inToNode) {
       var node = inToNode || this.node;
       log.events && console.log('[%s]: sending [%s]', node.localName, inType);
-      node.dispatchEvent(new CustomEvent(inType, {bubbles: true, 
+      node.dispatchEvent(new CustomEvent(inType, {bubbles: true,
           detail: inDetail}));
     },
     asend: function(/*inType, inDetail*/) {
@@ -543,7 +568,9 @@ license that can be found in the LICENSE file.
       }
     }
   };
-  
+
+  bindMustache.pattern = /\{\{([^{}]*)}}/;
+
   // Support MDV 2-way bindings to inputs.
   function addInputBinding(inNode, inName, inValue) {
     var v = inValue.replace('{{', '').replace('}}', '');
@@ -556,15 +583,15 @@ license that can be found in the LICENSE file.
     }
   }
 
-  bindMustache.pattern = /\{\{([^{}]*)}}/;
-
   // property binding extensions to MDV
 
 	function bindProperties(inA, inPropA, inB, inPropB) {
      log.bind && console.log('[%s] bindProperties [%s] to [%s].[%s]', inA.localName, inPropA, inB.localName, inPropB);
     _bindProperties(inA.$protected, inPropA, inB.$protected, inPropB);
-    // TODO(sjmiles): explain succinctly why this dirtyCheck is here
-    window.dirtyCheck();
+    // TODO(sorvell): this dirty check should be unnecessary since each
+    // component dirtyChecks when ready. Note, this method of binding properties
+    // together will be replaced with MDV's 2-way binding primitive when available.
+    //window.dirtyCheck();
   };
 
   function _getProp(parts, create, context) {
@@ -719,13 +746,25 @@ license that can be found in the LICENSE file.
   //
   // new experimental late bound events
   //
+  // TODO(sorvell): Currently in MDV, there is no way to get a template's
+  // effective content. A template can have a ref property
+  // that points to the template from which this one has been cloned.
+  // Remove this when the MDV api is improved
+  // (https://github.com/toolkitchen/mdv/issues/15).
+  var getTemplateContent = function(inTemplate) {
+    return inTemplate.ref ? inTemplate.ref.content : inTemplate.content;
+  }
+
 
   var accumulateEvents = function(inNode, inEvents) {
     var events = inEvents || {};
     accumulateNodeEvents(inNode, events);
     accumulateChildEvents(inNode, events);
-    if (inNode.tagName == 'TEMPLATE' && inNode.content) {
-      accumulateChildEvents(inNode.content, events);
+    if (inNode.tagName == 'TEMPLATE') {
+      var content = getTemplateContent(inNode);
+      if (content) {
+        accumulateChildEvents(content, events);
+      }
     }
     return events;
   };
@@ -785,9 +824,22 @@ license that can be found in the LICENSE file.
     var fn = __.bind(inNode);
     for (var n in inEvents) {
       log.events && console.log('[%s] bindAccumulatedEvents: addEventListener("%s", __)', inNode.localName, n);
-      inNode.addEventListener(n, fn);
+      if (ShadowDOM.shim) {
+        inNode.addEventListener(n, fn);
+      } else {
+        bindShadowEvent(inNode, n, fn);
+      }
     }
   };
+
+  // TODO(sorvell): experimental native shadowDOM event binding.
+  function bindShadowEvent(inNode, inEvent, inFn) {
+    var shadow = inNode.webkitShadowRoot;
+    while (shadow) {
+      shadow.addEventListener(inEvent, inFn);
+      shadow = shadow.olderSubtree;
+    }
+  }
 
   // TODO(sjmiles): lots of work on the code here as we bash out a design
   // we like, cruftiness increasing in the process. Will be cleaned up when

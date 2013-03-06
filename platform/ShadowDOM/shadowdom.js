@@ -16,13 +16,15 @@ var source, base = "";
   var s$ = document.querySelectorAll('[src]');
   Array.prototype.forEach.call(s$, function(s) {
     var src = s.getAttribute('src');
-    if (src.slice(-thisFile.length) == thisFile) {
+    var re = new RegExp(thisFile + '[^\\\\]*');
+    var match = src.match(re);
+    if (match) {
       source = s;
-      base = src.slice(0, -thisFile.length);
+      base = src.slice(0, -match[0].length);
     }
   });
   source = source || {
-    getAttribute: nop
+    getAttribute: function() {}
   };
 })();
 

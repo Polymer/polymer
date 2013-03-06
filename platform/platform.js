@@ -25,9 +25,11 @@ var source, base = '';
   var s$ = document.querySelectorAll('[src]');
   Array.prototype.forEach.call(s$, function(s) {
     var src = s.getAttribute('src');
-    if (src.slice(-thisFile.length) == thisFile) {
+    var re = new RegExp(thisFile + '[^\\\\]*');
+    var match = src.match(re);
+    if (match) {
       source = s;
-      base = src.slice(0, -thisFile.length);
+      base = src.slice(0, -match[0].length);
     }
   });
   source = source || {
@@ -84,7 +86,7 @@ var require = function(inSrc) {
   'lib/lang.js',
   'lib/dom_token_list.js',
   'PointerGestures/src/pointergestures.js',
-  'MDV/mdv.js',
+  'MDV/mdv-loader.js',
   'ShadowDOM/shadowdom.js',
   'ComponentDocuments/path.js',
   'ComponentDocuments/loader.js',

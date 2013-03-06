@@ -33,7 +33,7 @@ Projection.prototype = {
         
         // TODO(sjmiles): ad hoc 
         //   we want a backpointer to the shadow DOM from the light DOM
-        //   for event retargetting
+        //   for event retargeting
         //   
         //   we project from older shadows into younger shadows,
         //   and then from ultimate shadow to the render tree

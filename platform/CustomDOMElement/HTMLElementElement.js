@@ -166,7 +166,7 @@ var elementParser = {
   },
   normalizeTemplate: function(inTemplate) {
     if (inTemplate && !inTemplate.content) {
-      HTMLTemplateElement.decorate(inTemplate);
+      HTMLTemplateElement.bootstrap(inTemplate);
     }
     return inTemplate;
   },

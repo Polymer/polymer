@@ -132,19 +132,6 @@ var getAncestorChain = function(inDefinition) {
   return chain;
 };
 
-// TODO(sjmiles): special cloneNode required for nodes that
-// might contain <template> tags
-var cloneNodeWithTemplates = function(inNode) {
-  var clone = inNode.cloneNode(true);
-  var sourceTemplates = inNode.querySelectorAll('template');
-  var targetTemplates = clone.querySelectorAll('template');
-  for (var i = 0, t; t=targetTemplates[i]; i++) {
-    HTMLTemplateElement.decorate(t);
-    t.content = sourceTemplates[i].content;
-  }
-  return clone;
-};
-
 var createShadowDOM = function(inElement, inDefinition) {
   if (inDefinition.template) {
     // 4.a.3.1 create a shadow root with ELEMENT as it's host
@@ -156,8 +143,7 @@ var createShadowDOM = function(inElement, inDefinition) {
     if (!shadowRoot.host) {
       shadowRoot.host = inElement;
     }
-    var contents = cloneNodeWithTemplates(inDefinition.template.content);
-    //var contents = inDefinition.template.content.cloneNode(true);
+    var contents = inDefinition.template.createInstance();
     shadowRoot.appendChild(contents);
   }
   return shadowRoot;
@@ -282,7 +268,6 @@ var upgradeElement = function(inElement, inDefinition) {
   // TODO(sjmiles): OFFSPEC: it's more convenient for
   // polyfill to upgrade in-place, instead of creating
   // a new element.
-  
   initialize(upgrade, inDefinition);
   //
   // complete element setup (compute redistributions)

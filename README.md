@@ -124,3 +124,17 @@ Toolkit platform shims the Custom DOM Element Loader (`<link rel="components">`)
 ### Toolkit and G-Component
 
 All Toolkit components depend on `src/g-component.html` which provides the Toolkit sugaring layer (+see link to Toolkit syntax sugaring information). However, one can load `platform.js` and take advantage of the raw Custom Element and Shadow DOM support directly. See `toolkitchen/projects/CustomElementPlayground` for examples.
+
+## Tests
+
+### Step 1: Install dev dependencies
+
+Make sure dependencies are installed:
+
+	npm install
+
+### Step 2: Run tests!
+
+This command will attempt to run all the tests:
+
+	grunt test
