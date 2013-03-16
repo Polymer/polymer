@@ -29,6 +29,8 @@
       // needs unwrapped 'this', but all custom API needs wrapped objects
       instanceReady.call(wrap(this), inElement);
     }
+    // parse declared on-* delegates into imperative form
+    Toolkit.parseHostEvents(inElement.attributes, prototype);
     // invoke element.register
     inElement.register({prototype: prototype});
     // logging
@@ -36,8 +38,16 @@
   };
 
   function instanceReady(inElement) {
+    // install template and create shadow root, as needed
     var root = installTemplate.call(this, inElement);
+    // process input attributes
     Toolkit.takeAttributes.call(this);
+    // add host-events to the event accumulation
+    Toolkit.accumulateHostEvents.call(this, this.mappedEvents);
+    // TODO(sjmiles): ideally delegated events are set up per root
+    // not on the host node (see above)
+    Toolkit.bindAccumulatedEvents.call(this, this.mappedEvents);
+    // invoke user 'ready'
     this.ready(root);
   };
 
@@ -58,6 +68,11 @@
     Toolkit.bindModel.call(this, inRoot);
     // locate nodes with id and store references to them in this.$ hash
     Toolkit.marshalNodeReferences.call(this, inRoot);
+    // accumulate events of interest
+    // TODO(sjmiles): ideally on native we set up listeners directly on inRoot,
+    // under shim inRoot does not participate in event bubbling
+    this.mappedEvents = Toolkit.accumulateEvents(inRoot, this.mappedEvents);
+    console.log("[%s]:", this.localName, this.mappedEvents);
   };
 
   var base = {
@@ -69,11 +84,11 @@
         this[inMethod].apply(this, args);
       }.bind(this), inTimeout || 0);
     },
-//    dispatch: function(inMethodName, inArguments) {
-//      if (this[inMethodName]) {
-//        this[inMethodName].apply(this, inArguments);
-//      }
-//    },
+    dispatch: function(inMethodName, inArguments) {
+      if (this[inMethodName]) {
+        this[inMethodName].apply(this, inArguments);
+      }
+    },
     send: function(inType, inDetail, inToNode) {
       var node = inToNode || this;
       log.events && console.log('[%s]: sending [%s]', node.localName, inType);
