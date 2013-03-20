@@ -84,7 +84,8 @@ var modules = [
   'src/bindMDV.js',
   'src/attrs.js',
   'src/marshal.js',
-  'src/events.js'
+  'src/events.js',
+  'src/observeProperties.js'
 ];
 
 // write script tags for dependencies

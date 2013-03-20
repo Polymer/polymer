@@ -38,6 +38,9 @@
   };
 
   function instanceReady(inElement) {
+    // install property observation side effects
+    // do this first so we can observe changes during initialization
+    Toolkit.observeProperties.call(this);
     // install template and create shadow root, as needed
     var root = installTemplate.call(this, inElement);
     // process input attributes
