@@ -96,38 +96,38 @@
   }
 
   var accumulateHostEvents = function(inEvents) {
+    var events = inEvents || {};
     // TODO(sjmiles): we walk the prototype tree to operate on the union of
     // eventDelegates maps; it might be better to merge maps when extending
     var p = Object.getPrototypeOf(this);
     //while (p) {
       if (p.hasOwnProperty('eventDelegates')) {
         for (var n in p.eventDelegates) {
-          accumulateEvent(n, inEvents);
+          accumulateEvent(n, events);
         }
       }
       //p = p.__proto__;
     //}
+    return events;
   };
 
-  function bindAccumulatedEvents(inEvents) {
-    var fn = listen.bind(this);
+
+  function bindAccumulatedEvents(inNode, inEvents, inListener) {
+    var fn = inListener.bind(this);
     for (var n in inEvents) {
-      log.events && console.log('[%s] bindAccumulatedEvents: addEventListener("%s", listen)', this.localName, n);
-      //if (ShadowDOM.shim) {
-        this.addEventListener(n, fn);
-      //} else {
-        //bindShadowEvent(this, n, fn);
-      //}
+      log.events && console.log('[%s] bindAccumulatedEvents: addEventListener("%s", listen)', inNode.localName, n);
+      inNode.addEventListener(n, fn);
     }
   };
-
-  // TODO(sorvell): experimental native shadowDOM event binding.
-  function bindShadowEvent(inNode, inEvent, inFn) {
-    var shadow = inNode.webkitShadowRoot;
-    while (shadow) {
-      shadow.addEventListener(inEvent, inFn);
-      shadow = shadow.olderSubtree;
-    }
+  
+  // host events should be listened for on a host element
+  function bindAccumulatedHostEvents(inEvents) {
+    bindAccumulatedEvents.call(this, this, inEvents, listenHost);
+  }
+  
+  // local events should be listened for on a shadowRoot
+  function bindAccumulatedLocalEvents(inNode, inEvents) {
+    bindAccumulatedEvents.call(this, inNode, inEvents, listenLocal);
   }
 
   // experimental delegating declarative event handler
@@ -137,7 +137,6 @@
   // with a 'controller' property to be WLOG
   // but we need to honor ShadowDOM, so we had to
   // customize this search
-
   var findController = function(inNode) {
     // find the shadow root that contains inNode
     var n = inNode;
@@ -155,51 +154,67 @@
     }
   };
 
-  //
-  // new experimental late bound events
-  //
 
-  // TODO(sjmiles): lots of work on the code here as we bash out a design
-  // we like, cruftiness increasing in the process. Will be cleaned up when
-  // design solidifies.
-  function listen(inEvent) {
+  // TODO(sorvell): Note that findController will not return the expected 
+  // controller when when the event target is a distributed node.
+  // This because we cannot traverse from a composed node to a node 
+  // in shadowRoot.
+  // This will be addressed via an event path api 
+  // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21066
+  function listenLocal(inEvent) {
     if (inEvent.cancelBubble) {
       return;
     }
     inEvent.on = prefix + inEvent.type;
-    //var on = prefix + inEvent.type;
-    log.events && console.group("[%s]: __ [%s]", this.localName, inEvent.on);
-    var t = wrap(inEvent.target);
-    while (t && t !== this) {
+    log.events && console.group("[%s]: listenLocal [%s]", this.localName, inEvent.on);
+    var t = inEvent.target;
+    while (t && t != this) {
       var c = findController(t);
-      if (c === this) {
-        log.events && console.log('node [%s]', t.localName);
-        if (handleHostEvent.call(this, t, inEvent)) {
-          return;
-        } else if (handleEvent.call(this, t, inEvent)) {
+      if (c) {
+        if (handleEvent.call(c, t, inEvent)) {
           return;
         }
       }
       t = t.parentNode;
     }
-    // if we are a top-level component, we have to fire our own host events
-    if (t === this && !findController(t)) {
-      handleHostEvent.call(this, t, inEvent);
-    }
     log.events && console.groupEnd();
-  };
+  }
+  
+  function listenHost(inEvent) {
+    if (inEvent.cancelBubble) {
+      return;
+    }
+    log.events && console.group("[%s]: listenHost [%s]", this.localName, inEvent.type);
+    handleHostEvent.call(this, this, inEvent);
+    log.events && console.groupEnd();
+  }
+
+  var eventHandledTable = new SideTable('handledList');
+  
+  function getHandledListForEvent(inEvent) {
+    var handledList = eventHandledTable.get(inEvent);
+    if (!handledList) {
+      handledList = [];
+      eventHandledTable.set(inEvent, handledList);
+    }
+    return handledList;
+  }
 
   function handleEvent(inNode, inEvent) {
     if (inNode.attributes) {
-      var h = inNode.getAttribute(inEvent.on);
-      if (h) {
-        log.events && console.log('[%s] found handler name [%s]', this.localName, h);
-        dispatch(this, h, [inEvent, inEvent.detail, inNode]);
+      var handledList = getHandledListForEvent(inEvent);
+      if (handledList.indexOf(inNode) < 0) {
+        handledList.push(inNode);
+        var h = inNode.getAttribute(inEvent.on);
+        if (h) {
+          log.events && console.log('[%s] found handler name [%s]', this.localName, h);
+          dispatch(this, h, [inEvent, inEvent.detail, inNode]);
+        }
       }
     }
     return inEvent.cancelBubble;
   };
-
+ 
   function handleHostEvent(inNode, inEvent) {
     var h = findHostHandler.call(inNode, inEvent.type);
     if (h) {
@@ -231,6 +246,7 @@
 Toolkit.parseHostEvents = parseHostEvents;
 Toolkit.accumulateEvents = accumulateEvents;
 Toolkit.accumulateHostEvents = accumulateHostEvents;
-Toolkit.bindAccumulatedEvents = bindAccumulatedEvents;
+Toolkit.bindAccumulatedHostEvents = bindAccumulatedHostEvents;
+Toolkit.bindAccumulatedLocalEvents = bindAccumulatedLocalEvents;
 
 })();

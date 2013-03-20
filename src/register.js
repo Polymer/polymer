@@ -42,11 +42,9 @@
     var root = installTemplate.call(this, inElement);
     // process input attributes
     Toolkit.takeAttributes.call(this);
-    // add host-events to the event accumulation
-    Toolkit.accumulateHostEvents.call(this, this.mappedEvents);
-    // TODO(sjmiles): ideally delegated events are set up per root
-    // not on the host node (see above)
-    Toolkit.bindAccumulatedEvents.call(this, this.mappedEvents);
+    // add host-events...
+    var hostEvents = Toolkit.accumulateHostEvents.call(this);
+    Toolkit.bindAccumulatedHostEvents.call(this, hostEvents);
     // invoke user 'ready'
     this.ready(root);
   };
@@ -55,6 +53,9 @@
     var template = inElement.querySelector('template');
     if (template) {
       var root = this.webkitCreateShadowRoot();
+      // TODO(sorvell): host not set per spec; we set it for convenience
+      // so we can traverse from root to host.
+      root.host = this;
       root.appendChild(templateContent(template).cloneNode(true));
       rootCreated.call(this, root);
       return root;
@@ -68,11 +69,9 @@
     Toolkit.bindModel.call(this, inRoot);
     // locate nodes with id and store references to them in this.$ hash
     Toolkit.marshalNodeReferences.call(this, inRoot);
-    // accumulate events of interest
-    // TODO(sjmiles): ideally on native we set up listeners directly on inRoot,
-    // under shim inRoot does not participate in event bubbling
-    this.mappedEvents = Toolkit.accumulateEvents(inRoot, this.mappedEvents);
-    console.log("[%s]:", this.localName, this.mappedEvents);
+    // add local events of interest...
+    var rootEvents = Toolkit.accumulateEvents(inRoot);
+    Toolkit.bindAccumulatedLocalEvents.call(this, inRoot, rootEvents);
   };
 
   var base = {
