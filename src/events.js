@@ -100,14 +100,14 @@
     // TODO(sjmiles): we walk the prototype tree to operate on the union of
     // eventDelegates maps; it might be better to merge maps when extending
     var p = Object.getPrototypeOf(this);
-    //while (p) {
+    while (p && p !== HTMLElement.prototype) {
       if (p.hasOwnProperty('eventDelegates')) {
         for (var n in p.eventDelegates) {
           accumulateEvent(n, events);
         }
       }
-      //p = p.__proto__;
-    //}
+      p = Object.getPrototypeOf(p);
+    }
     return events;
   };
 
