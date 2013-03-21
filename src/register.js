@@ -86,7 +86,6 @@
   var base = {
     ready: function() {
     },
-    $: {},
     super: $super,
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
