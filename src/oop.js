@@ -96,7 +96,7 @@
       var _super = caller._super;
       if (!_super) {
         // if _super is falsey, there is no super implementation
-        console.warn('called $super(' + nom + ') where there is no super implementation');
+        //console.warn('called $super(' + nom + ') where there is no super implementation');
       } else {
         // our super function
         var fn = _super[nom];
@@ -134,11 +134,12 @@
 
     function nameInThis(inValue) {
       for (var n in this) {
-        if (this[n] == inValue) {
+        var d = getPropertyDescriptor(this, n);
+        if (d.value == inValue) {
           return n;
         }
       }
-    };
+    }
     
     // mixin
     
