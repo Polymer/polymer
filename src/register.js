@@ -20,14 +20,22 @@
     // HTMLElementElement.prototype.register, so we have to mix them
     // together
     var prototype = mixin({}, base, inPrototype);
-    // install custom callback
+    // install custom callbacks
+    prototype.instanceReady = function() {
+      this.super();
+      instanceReady.call(this, inElement);
+    }
     prototype.readyCallback = function() {
       // TODO(sjmiles):
       // polyfill has unwrapped 'this' because it thinks readyCallback
       // is an internal method
       // I believe is a general problem: there is native API that
       // needs unwrapped 'this', but all custom API needs wrapped objects
-      instanceReady.call(wrap(this), inElement);
+      var instance = wrap(this);
+      // invoke boilerplate 'instanceReady'
+      instance.instanceReady();
+      // invoke user 'ready'
+      instance.ready();
     }
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
@@ -48,8 +56,6 @@
     // add host-events...
     var hostEvents = Toolkit.accumulateHostEvents.call(this);
     Toolkit.bindAccumulatedHostEvents.call(this, hostEvents);
-    // invoke user 'ready'
-    this.ready(root);
   };
 
   function installTemplate(inElement) {
@@ -80,6 +86,8 @@
   var base = {
     ready: function() {
     },
+    $: {},
+    super: $super,
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
       return window.setTimeout(function() {
