@@ -21,10 +21,10 @@
     // together
     var prototype = mixin({}, base, inPrototype);
     // install custom callbacks
-    prototype.instanceReady = function() {
+    prototype.installTemplate = function() {
       this.super();
-      instanceReady.call(this, inElement);
-    }
+      installTemplate.call(this, inElement);
+    };
     prototype.readyCallback = function() {
       // TODO(sjmiles):
       // polyfill has unwrapped 'this' because it thinks readyCallback
@@ -32,10 +32,10 @@
       // I believe is a general problem: there is native API that
       // needs unwrapped 'this', but all custom API needs wrapped objects
       var instance = wrap(this);
+      // invoke boilerplate 'installTemplate'
+      instance.installTemplate();
       // invoke boilerplate 'instanceReady'
-      instance.instanceReady();
-      // invoke user 'ready'
-      instance.ready();
+      instanceReady.call(instance);
     }
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
@@ -43,19 +43,6 @@
     inElement.register({prototype: prototype});
     // logging
     console.log("initialized component " + inElement.options.name);
-  };
-
-  function instanceReady(inElement) {
-    // install property observation side effects
-    // do this first so we can observe changes during initialization
-    Toolkit.observeProperties.call(this);
-    // install template and create shadow root, as needed
-    var root = installTemplate.call(this, inElement);
-    // process input attributes
-    Toolkit.takeAttributes.call(this);
-    // add host-events...
-    var hostEvents = Toolkit.accumulateHostEvents.call(this);
-    Toolkit.bindAccumulatedHostEvents.call(this, hostEvents);
   };
 
   function installTemplate(inElement) {
@@ -81,6 +68,19 @@
     // add local events of interest...
     var rootEvents = Toolkit.accumulateEvents(inRoot);
     Toolkit.bindAccumulatedLocalEvents.call(this, inRoot, rootEvents);
+  };
+
+  function instanceReady(inElement) {
+    // install property observation side effects
+    // do this first so we can observe changes during initialization
+    Toolkit.observeProperties.call(this);
+    // process input attributes
+    Toolkit.takeAttributes.call(this);
+    // add host-events...
+    var hostEvents = Toolkit.accumulateHostEvents.call(this);
+    Toolkit.bindAccumulatedHostEvents.call(this, hostEvents);
+    // invoke user 'ready'
+    this.ready();
   };
 
   var base = {
