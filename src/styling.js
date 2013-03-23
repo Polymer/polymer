@@ -67,6 +67,8 @@
     }
   }
   
+  // TODO(sorvell): it would be better to identify blocks of rules within
+  // style declarations than require different style/link elements.
   function findStyles(inElementElement, inDescriptor) {
     var styleList = [];
     // handle stylesheets
