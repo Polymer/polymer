@@ -39,6 +39,8 @@
     }
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
+    //
+    Toolkit.installSheets(inElement);
     // invoke element.register
     inElement.register({prototype: prototype});
     // logging

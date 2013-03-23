@@ -85,7 +85,9 @@ var modules = [
   'src/attrs.js',
   'src/marshal.js',
   'src/events.js',
-  'src/observeProperties.js'
+  'src/observeProperties.js',
+  'src/styling.js',
+  'src/boot.js'
 ];
 
 // write script tags for dependencies
