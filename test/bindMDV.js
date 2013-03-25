@@ -10,7 +10,7 @@ suite('bindMDV', function() {
   test('bindModel bindPattern', function() {
     var test = document.createElement('div');
     test.innerHTML = '<div id="a" foo="{{bar}}"></div>';
-    var a = test.children[0];
+    var a = test.firstChild;
     Toolkit.bindModel.call(test, test);
     test.bar = 5;
     dirtyCheck();
@@ -24,21 +24,28 @@ suite('bindMDV', function() {
   test('bindModel bindComponent', function() {
     var test = document.createElement('div');
     test.innerHTML = '<x-a id="a" foo="{{bar}}"></x-a>';
-    var a = test.children[0];
+    var a = test.firstChild;
     // ad-hoc to make x-a a component
     a.ready = true;
     //
     Toolkit.bindModel.call(test, test);
     test.bar = 5;
-    dirtyCheck();
     assert.equal(a.foo, 5);
     //
     test.bar = 8;
-    dirtyCheck();
     assert.equal(a.foo, 8);
     // 2 ways
     a.foo = 6;
-    dirtyCheck();
     assert.equal(test.bar, 6);
+  });
+  
+  test('bindModel bindInput', function() {
+    var test = document.createElement('div');
+    test.innerHTML = '<input value="{{bar}}" />';
+    var a = test.firstChild;
+    Toolkit.bindModel.call(test, test);
+    test.bar = 'hello';
+    dirtyCheck();
+    assert.equal(a.value, 'hello');
   });
 });
