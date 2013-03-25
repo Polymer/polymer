@@ -15,7 +15,10 @@
       var style = document.createElement('style');
       style.textContent = inSheet.__resource;
       return style;
+    } else {
+      console.warn('Could not find content for stylesheet', inSheet);
     }
+    
   }
 
   function installLocalSheets(inElementElement) {
@@ -30,7 +33,9 @@
           // in case we're in document, remove from element
           sheet.parentNode.removeChild(sheet);
           var style = createStyleElementFromSheet(sheet);
-          template.content.insertBefore(style, template.content.firstChild);
+          if (style) {
+            template.content.insertBefore(style, template.content.firstChild);
+          }
         }
       });
     }
