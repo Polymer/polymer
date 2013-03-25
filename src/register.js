@@ -54,7 +54,8 @@
       // TODO(sorvell): host not set per spec; we set it for convenience
       // so we can traverse from root to host.
       root.host = this;
-      root.appendChild(templateContent(template).cloneNode(true));
+      //root.appendChild(templateContent(template).cloneNode(true));
+      root.appendChild(template.createInstance());
       rootCreated.call(this, root);
       return root;
     }
