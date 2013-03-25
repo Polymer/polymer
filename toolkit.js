@@ -31,7 +31,7 @@ var source, base = '';
 
 // flags
 
-var flags = {};
+var flags = window.flags || {};
 
 // acquire flags from script tag attributes
 
@@ -50,7 +50,7 @@ if (!flags.noOpts) {
 
 // process log flags
 
-var logFlags = {};
+var logFlags = window.logFlags || {};
 if (flags.log) {
   flags.log.split(',').forEach(function(f) {
     logFlags[f] = true;
