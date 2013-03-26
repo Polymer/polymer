@@ -28,13 +28,16 @@
     var sheets = inElementElement.querySelectorAll('[rel=stylesheet]');
     var template = inElementElement.querySelector('template');
     if (template) {
+      var content = templateContent(template);
+    }
+    if (content) {
       Array.prototype.forEach.call(sheets, function(sheet) {
         if (!sheet.hasAttribute('toolkit-scope')) {
           // in case we're in document, remove from element
           sheet.parentNode.removeChild(sheet);
           var style = createStyleElementFromSheet(sheet);
           if (style) {
-            template.content.insertBefore(style, template.content.firstChild);
+            content.insertBefore(style, content.firstChild);
           }
         }
       });
