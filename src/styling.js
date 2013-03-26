@@ -18,7 +18,6 @@
     } else {
       console.warn('Could not find content for stylesheet', inSheet);
     }
-    
   }
 
   function installLocalSheets(inElementElement) {
@@ -44,7 +43,6 @@
     }
   }
   
-  
   /*
     Promote stylesheet links and style tags with the global attribute 
     into global scope.
@@ -58,7 +56,6 @@
       (inElementElement.globalStyles = findStyles(inElementElement, 'global'));
     applyStylesToScope(styles, inScope);
   }
-  
   
   function applyStylesToScope(inStyles, inScope) {
     inStyles.forEach(function(style) {
@@ -127,6 +124,7 @@
   }
 
   // exports
+  
   Toolkit.installSheets = installSheets;
   Toolkit.installControllerStyles = installControllerStyles;
 })();
