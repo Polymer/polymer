@@ -26,16 +26,10 @@
       installTemplate.call(this, inElement);
     };
     prototype.readyCallback = function() {
-      // TODO(sjmiles):
-      // polyfill has unwrapped 'this' because it thinks readyCallback
-      // is an internal method
-      // I believe is a general problem: there is native API that
-      // needs unwrapped 'this', but all custom API needs wrapped objects
-      var instance = wrap(this);
-      // invoke boilerplate 'installTemplate'
-      instance.installTemplate();
+      // invoke closed 'installTemplate'
+      this.installTemplate();
       // invoke boilerplate 'instanceReady'
-      instanceReady.call(instance);
+      instanceReady.call(this);
     }
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
@@ -44,7 +38,7 @@
     // invoke element.register
     inElement.register({prototype: prototype});
     // logging
-    console.log("initialized component " + inElement.options.name);
+    logFlags.comps && console.log("initialized component " + inElement.options.name);
   };
 
   function installTemplate(inElement) {
