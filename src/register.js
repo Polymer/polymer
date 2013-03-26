@@ -16,9 +16,13 @@
     if (inElement == window) {
       return;
     }
-    // we don't yet support intermediate prototypes in calls to
-    // HTMLElementElement.prototype.register, so we have to mix them
-    // together
+    // TODO(sjmiles): it's not obvious at this point whether inElement 
+    // will chain to another toolkit element, so we just copy base boilerplate 
+    // anyway
+    // this can result in multiple copies of boilerplate methods on a custom
+    // element chain, which is inefficient and has ramifications for 'super'
+    // also, we don't yet support intermediate prototypes in calls to
+    // HTMLElementElement.prototype.register, so we have to use mixin
     var prototype = mixin({}, base, inPrototype);
     // install custom callbacks
     prototype.installTemplate = function() {
@@ -33,7 +37,7 @@
     }
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
-    //
+    // install external stylesheets as if they are inline
     Toolkit.installSheets(inElement);
     // invoke element.register
     inElement.register({prototype: prototype});
@@ -77,12 +81,12 @@
     var hostEvents = Toolkit.accumulateHostEvents.call(this);
     Toolkit.bindAccumulatedHostEvents.call(this, hostEvents);
     // invoke user 'ready'
-    this.ready();
+    if (this.ready) {
+      this.ready();
+    }
   };
 
   var base = {
-    ready: function() {
-    },
     super: $super,
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
