@@ -88,6 +88,7 @@
 
   var base = {
     super: $super,
+    isToolkitElement: true,
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
       return window.setTimeout(function() {

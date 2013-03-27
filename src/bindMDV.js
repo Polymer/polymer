@@ -53,9 +53,8 @@
   }
 
   function bindAttributes(inNode) {
-    // ad-hoc component test
-    var binder = (inNode.ready || (inNode.node && inNode.node.ready)) ? 
-        bindComponent : bindPattern;
+    // custom binding for toolkit elements
+    var binder = inNode.isToolkitElement ? bindComponent : bindPattern;
     // scan for bindings in attributes
     if (inNode.attributes) {
       forEach(inNode.attributes, function(a) {
