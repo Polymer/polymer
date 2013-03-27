@@ -26,7 +26,7 @@ suite('bindMDV', function() {
     test.innerHTML = '<x-a id="a" foo="{{bar}}"></x-a>';
     var a = test.firstChild;
     // ad-hoc to make x-a a component
-    a.ready = true;
+    a.isToolkitElement = true;
     //
     Toolkit.bindModel.call(test, test);
     test.bar = 5;
