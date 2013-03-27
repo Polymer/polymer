@@ -7,31 +7,36 @@
 (function() {
 
   // imports
-
   var log = window.logFlags || {};
 
-  function createStyleElementFromSheet(inSheet) {
-    if (inSheet.__resource) {
-      var style = document.createElement('style');
-      style.textContent = inSheet.__resource;
-      return style;
-    } else {
-      console.warn('Could not find content for stylesheet', inSheet);
-    }
+  /**
+   * Install external stylesheets loaded in <element> elements into the 
+   * element's template.
+   * @param inElementElement The <element> element to style.
+   */
+  function installSheets(inElementElement) {
+    installLocalSheets(inElementElement);
+    installGlobalStyles(inElementElement);
   }
-
+  
+  /**
+   * Takes external stylesheets loaded in an <element> element and moves
+   * their content into a <style> element inside the <element>'s template.
+   * The sheet is then removed from the <element>. This is done only so 
+   * that if the element is loaded in the main document, the sheet does
+   * not become active.
+   * Note, ignores sheets with the attribute 'toolkit-scope'.
+   * @param inElementElement The <element> element to style.
+   */
   function installLocalSheets(inElementElement) {
-    if (inElementElement == window) {
-      return;
-    }
     var sheets = inElementElement.querySelectorAll('[rel=stylesheet]');
     var template = inElementElement.querySelector('template');
     if (template) {
       var content = templateContent(template);
     }
     if (content) {
-      Array.prototype.forEach.call(sheets, function(sheet) {
-        if (!sheet.hasAttribute('toolkit-scope')) {
+      forEach(sheets, function(sheet) {
+        if (!sheet.hasAttribute(SCOPE_ATTR)) {
           // in case we're in document, remove from element
           sheet.parentNode.removeChild(sheet);
           var style = createStyleElementFromSheet(sheet);
@@ -43,32 +48,81 @@
     }
   }
   
-  /*
-    Promote stylesheet links and style tags with the global attribute 
-    into global scope.
-  
-    This is particularly useful for defining @keyframe rules which 
-    currently do not function in scoped or shadow style elements.
-    (See wkb.ug/72462)
+  /**
+   * Promotes external stylesheets and <style> elements with the attribute 
+   * toolkit-scope='global' into global scope.
+   * This is particularly useful for defining @keyframe rules which 
+   * currently do not function in scoped or shadow style elements.
+   * (See wkb.ug/72462)
+   * @param inElementElement The <element> element to style.
   */
-  function globalizeStyles(inElementElement, inScope) {
+  // TODO(sorvell): remove when wkb.ug/72462 is addressed.
+  function installGlobalStyles(inElementElement) {
     var styles = inElementElement.globalStyles || 
       (inElementElement.globalStyles = findStyles(inElementElement, 'global'));
-    applyStylesToScope(styles, inScope);
+    applyStylesToScope(styles, document.head);
   }
   
+  
+  /**
+   * Installs external stylesheets and <style> elements with the attribute 
+   * toolkit-scope='controller' into the scope of inElement. This is intended
+   * to be a called during custom element construction. Note, this incurs a per
+   * instance cost and should be used sparingly.
+   * The need for this type of styling should go away when the shadowDOM spec
+   * addresses these issues:
+   * 
+   * https://www.w3.org/Bugs/Public/show_bug.cgi?id=21391
+   * https://www.w3.org/Bugs/Public/show_bug.cgi?id=21390
+   * https://www.w3.org/Bugs/Public/show_bug.cgi?id=21389
+   * 
+   * @param inElement The custom element instance into whose controller (parent)
+   * scope styles will be installed.
+   * @param inElementElement The <element> containing controller styles.
+  */
+  // TODO(sorvell): remove when spec issues are addressed
+  function installControllerStyles(inElement, inElementElement) {
+    webkitRequestAnimationFrame(function() {
+      var styles = inElementElement.controllerStyles || 
+        (inElementElement.controllerStyles = findStyles(inElementElement, 'controller'));
+      var scope = findStyleController(inElement);
+      if (scope) {
+        applyStylesToScope(styles, scope);
+      }
+    });
+  }
+  
+  var findStyleController = function(inNode) {
+    // find the shadow root that contains inNode
+    var n = inNode;
+    while (n.parentNode && n.localName != 'shadow-root') {
+      n = n.parentNode;
+    }
+    return n == document ? document.head : n;
+  };
+
+  function createStyleElementFromSheet(inSheet) {
+    if (inSheet.__resource) {
+      var style = document.createElement('style');
+      style.textContent = inSheet.__resource;
+      return style;
+    } else {
+      console.warn('Could not find content for stylesheet', inSheet);
+    }
+  }
+
   function applyStylesToScope(inStyles, inScope) {
     inStyles.forEach(function(style) {
       inScope.appendChild(style.cloneNode(true));
     });
   }
   
-  // TODO(sorvell): polyfill this better
+  var eltProto = HTMLElement.prototype;
+  var matches = eltProto.matches || eltProto.matchesSelector || 
+      eltProto.webkitMatchesSelector || eltProto.mozMatchesSelector;
   function matchesSelector(inNode, inSelector) {
-    var matcher = inNode.matches || inNode.matchesSelector || 
-      inNode.webkitMatchesSelector || inNode.mozMatchesSelector;
-    if (matcher) {
-      return matcher.call(inNode, inSelector);
+    if (matches) {
+      return matches.call(inNode, inSelector);
     }
   }
   
@@ -78,7 +132,7 @@
     var styleList = [];
     // handle stylesheets
     var sheets = inElementElement.querySelectorAll('[rel=stylesheet]');
-    var selector = '[toolkit-scope=' + inDescriptor + ']';
+    var selector = '[' + SCOPE_ATTR + '=' + inDescriptor + ']';
     Array.prototype.forEach.call(sheets, function(sheet) {
       if (matchesSelector(sheet, selector)) {
         // in case we're in document, remove from element
@@ -98,33 +152,10 @@
     return styleList;
   }
   
-  function installSheets(inElementElement) {
-    installLocalSheets(inElementElement);
-    globalizeStyles(inElementElement, document.head);
-  }
+  var SCOPE_ATTR = 'toolkit-scope';
+  var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
   
-  var findStyleController = function(inNode) {
-    // find the shadow root that contains inNode
-    var n = inNode;
-    while (n.parentNode && n.localName !== 'shadow-root') {
-      n = n.parentNode;
-    }
-    return n == document ? document.head : n;
-  };
-  
-  function installControllerStyles(inElement, inElementElement) {
-    webkitRequestAnimationFrame(function() {
-      var styles = inElementElement.controllerStyles || 
-        (inElementElement.controllerStyles = findStyles(inElementElement, 'controller'));
-      var scope = findStyleController(inElement);
-      if (scope) {
-        applyStylesToScope(styles, scope);
-      }
-    });
-  }
-
   // exports
-  
   Toolkit.installSheets = installSheets;
   Toolkit.installControllerStyles = installControllerStyles;
 })();
