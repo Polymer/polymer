@@ -24,6 +24,12 @@
     // also, we don't yet support intermediate prototypes in calls to
     // HTMLElementElement.prototype.register, so we have to use mixin
     var prototype = mixin({}, base, inPrototype);
+    // TODO(sorvell): install a helper method this.resolvePath to aid in 
+    // setting resource paths. e.g. 
+    // this.$.image.src = this.resolvePath('images/foo.png')
+    // Potentially remove when spec bug is addressed.
+    // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
+    Toolkit.addResolvePath(prototype, inElement);
     // install custom callbacks
     prototype.installTemplate = function() {
       this.super();

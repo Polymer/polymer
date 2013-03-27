@@ -15,6 +15,7 @@ module.exports = function(grunt) {
     'src/events.js',
     'src/observeProperties.js',
     'src/styling.js',
+    'src/path.js',
     'src/boot.js'
   ];
   grunt.initConfig({
