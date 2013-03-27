@@ -14,15 +14,22 @@
   }
   
   function urlToPath(inUrl) {
-    var parts = inUrl.split("/");
-    parts.pop();
-    parts.push('');
-    return parts.join("/");
+    if (inUrl) {
+      var parts = inUrl.split('/');
+      parts.pop();
+      parts.push('');
+      return parts.join('/');
+    } else {
+      return '';
+    }
   }
   
   function calcElementPath(inElement) {
     return urlToPath(inElement.ownerDocument.URL 
-      || inElement.ownerDocument._URL);
+      || inElement.ownerDocument._URL 
+      // TODO(sorvell): ShadowDOM polyfill pollution; WebComponents works on
+      // non-wrapped documents and stores _url there
+      || inElement.ownerDocument.impl._URL);
   }
   
   // exports
