@@ -96,6 +96,15 @@
   var base = {
     super: $super,
     isToolkitElement: true,
+    bind: function(inName, inModel, inPath) {
+      if (inModel.isToolkitElement) {
+        var property = Toolkit.propertyForAttribute.call(this, inName);
+        if (property) {
+          Toolkit.bindProperties(this, property, inModel, inPath);
+        }
+      }
+      HTMLElement.prototype.bind.apply(this, arguments);
+    },
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
       return window.setTimeout(function() {
