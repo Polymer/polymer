@@ -65,5 +65,6 @@
   // exports
   
   Toolkit.takeAttributes = takeAttributes;
+  Toolkit.propertyForAttribute = propertyForAttribute;
   
 })();
