@@ -15,6 +15,8 @@
     var parts = inPath.split(".");
     var property = parts.pop();
     var path = parts.length ? '.' + parts.join('.') : '';
+    // TODO(sjmiles): we can't do this under CSP, maybe MDV provides
+    // a utility
     var getObject = new Function(['inObject'], 'return inObject' + path + ';');
     Object.defineProperty(inA, inProperty, {
       // TODO(sjmiles): right now we are null-checking the penultimate object
