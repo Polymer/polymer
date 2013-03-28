@@ -68,6 +68,7 @@
   function rootCreated(inRoot) {
     // upgrade elements in shadow root
     document.upgradeElements(inRoot);
+    document.watchDOM(inRoot);
     // parse and apply MDV bindings
     Toolkit.bindModel.call(this, inRoot);
     // locate nodes with id and store references to them in this.$ hash
