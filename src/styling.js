@@ -82,17 +82,42 @@
   */
   // TODO(sorvell): remove when spec issues are addressed
   function installControllerStyles(inElement, inElementElement) {
-    webkitRequestAnimationFrame(function() {
       var styles = inElementElement.controllerStyles || 
         (inElementElement.controllerStyles = findStyles(inElementElement, 'controller'));
-      var scope = findStyleController(inElement);
-      if (scope) {
-        applyStylesToScope(styles, scope);
-      }
-    });
+      async.queue(function() {
+        var scope = findStyleController(inElement);
+        if (scope) {
+          applyStylesToScope(styles, scope);
+        }
+      });
   }
   
-  var findStyleController = function(inNode) {
+  // queue a series of functions to occur async.
+  var async = {
+    list: [],
+    queue: function(inFn) {
+      if (inFn) {
+        async.list.push(inFn);
+      }
+      async.queueFlush();
+    },
+    queueFlush: function() {
+      if (!async.flushing) {
+        async.flushing = true;
+        webkitRequestAnimationFrame(async.flush);
+      }
+    },
+    flush: function() {
+      async.list.forEach(function(fn) {
+        fn();
+      });
+      async.list = [];
+      async.flusing = false;
+    }
+    
+  }
+  
+  function findStyleController(inNode) {
     // find the shadow root that contains inNode
     var n = inNode;
     while (n.parentNode && n.localName != 'shadow-root') {
