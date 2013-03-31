@@ -45,6 +45,7 @@
     Toolkit.parseHostEvents(inElement.attributes, prototype);
     // install external stylesheets as if they are inline
     Toolkit.installSheets(inElement);
+    Toolkit.shimStyling(inElement);
     // invoke element.register
     inElement.register({prototype: prototype});
     // logging

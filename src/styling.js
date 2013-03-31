@@ -9,6 +9,8 @@
   // imports
   var log = window.logFlags || {};
 
+  var doc = window.ShadowDOMPolyfill ? ShadowDOMPolyfill.wrap(document) : document;
+
   /**
    * Install external stylesheets loaded in <element> elements into the 
    * element's template.
@@ -60,7 +62,7 @@
   function installGlobalStyles(inElementElement) {
     var styles = inElementElement.globalStyles || 
       (inElementElement.globalStyles = findStyles(inElementElement, 'global'));
-    applyStylesToScope(styles, document.head);
+    applyStylesToScope(styles, doc.head);
   }
   
   
@@ -123,12 +125,12 @@
     while (n.parentNode && n.localName != 'shadow-root') {
       n = n.parentNode;
     }
-    return n == document ? document.head : n;
+    return n == doc ? doc.head : n;
   };
 
   function createStyleElementFromSheet(inSheet) {
     if (inSheet.__resource) {
-      var style = document.createElement('style');
+      var style = doc.createElement('style');
       style.textContent = inSheet.__resource;
       return style;
     } else {

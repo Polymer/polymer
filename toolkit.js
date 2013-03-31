@@ -84,6 +84,7 @@ var modules = [
   'src/events.js',
   'src/observeProperties.js',
   'src/styling.js',
+  'src/shimStyling.js',
   'src/path.js',
   'src/boot.js'
 ];
