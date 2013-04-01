@@ -11,11 +11,11 @@ suite('register', function() {
   
   setup(function() {
     work = document.createElement('div');
-    document.body.appendChild(work);
+    wrap(document.body).appendChild(work);
   });
 
   teardown(function() {
-    document.body.removeChild(work);
+    wrap(document.body).removeChild(work);
   });
 
   test('register', function() {

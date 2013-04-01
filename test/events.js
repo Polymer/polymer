@@ -11,13 +11,13 @@ suite('events', function() {
   
   setup(function() {
     work = document.createElement('div');
-    document.body.appendChild(work);
+    wrap(document.body).appendChild(work);
     // store results
     work.innerHTML = '<div id="results" style="display: none;"></div>';
   });
 
   teardown(function() {
-    document.body.removeChild(work);
+    wrap(document.body).removeChild(work);
   });
   
   function createTestElement(inName, inTemplateContent, inExtend) {
