@@ -86,6 +86,7 @@ var modules = [
   'src/styling.js',
   'src/shimStyling.js',
   'src/path.js',
+  'src/job.js',
   'src/boot.js'
 ];
 
