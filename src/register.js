@@ -122,25 +122,29 @@
     },
     asend: function(/*inType, inDetail*/) {
       this.asyncMethod("send", arguments);
-    },
-    findDistributedTarget: function(inTarget, inNodes) {
-      // find first ancestor of target (including itself) that
-      // is in inNodes, if any
-      var n = inTarget;
-      while (n && n != this) {
-        var i = Array.prototype.indexOf.call(inNodes, n);
-        if (i >= 0) {
-          return i;
-        }
-        n = n.parentNode;
-      }
     }
   };
+
+  // user utility 
+  
+  function findDistributedTarget(inTarget, inNodes) {
+    // find first ancestor of target (including itself) that
+    // is in inNodes, if any
+    var n = inTarget;
+    while (n && n != this) {
+      var i = Array.prototype.indexOf.call(inNodes, n);
+      if (i >= 0) {
+        return i;
+      }
+      n = n.parentNode;
+    }
+  }
 
   // exports
 
   window.Toolkit = {
-    register: register
+    register: register,
+    findDistributedTarget: findDistributedTarget
   };
 
 })();
