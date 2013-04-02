@@ -11,7 +11,7 @@ suite('events', function() {
   
   setup(function() {
     work = document.createElement('div');
-    wrap(document.body).appendChild(work);
+    document.body.appendChild(work);
     // store results
     work.innerHTML = '<div id="results" style="display: none;"></div>';
   });
