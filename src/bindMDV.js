@@ -24,10 +24,20 @@
     log.bind && console.groupEnd();
   }
 
+  function bind(inName, inModel, inPath) {
+    var property = Toolkit.propertyForAttribute.call(this, inName);
+    if (property) {
+      Toolkit.bindProperties(this, property, inModel, inPath);
+    } else {
+      HTMLElement.prototype.bind.apply(this, arguments);
+    }
+  }
+  
   var mustachePattern = /\{\{([^{}]*)}}/;
 
   // exports
   
+  Toolkit.bind = bind;
   Toolkit.bindModel = bindModel;
   Toolkit.bindPattern = mustachePattern;
   
