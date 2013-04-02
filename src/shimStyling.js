@@ -8,12 +8,11 @@
   This is a limited shim for shadowDOM css styling.
   https://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/shadow/index.html#styles
   
-  The intention here is to support only the features which can be relatively 
-  simply implemented. The goal is to allow users to avoid the most obvious 
-  pitfalls and do so without compromising performance. For shadowDOM styling 
-  that's not covered here, a set of best practices can be provided that should
-  allow users to accomplish more complex styling if they adhere to a
-  restricted set of patterns.
+  The intention here is to support only the styling features which can be 
+  relatively simply implemented. The goal is to allow users to avoid the 
+  most obvious pitfalls and do so without compromising performance significantly. 
+  For shadowDOM styling that's not covered here, a set of best practices
+  can be provided that should allow users to accomplish more complex styling.
 
   The following is a list of specific shadowDOM styling features and a brief
   discussion of the approach used to shim.
@@ -21,10 +20,9 @@
   Shimmed features:
 
   * @host: ShadowDOM allows styling of the shadowRoot's host element using the 
-  @host rule. To shim this feature for a given shadowRoot, the @host styles
-  are reformatted and prefixed with a given scope name and promoted to a 
-  document level stylesheet. For example, given a scope name of .foo,
-  a rule like this:
+  @host rule. To shim this feature, the @host styles are reformatted and 
+  prefixed with a given scope name and promoted to a document level stylesheet.
+  For example, given a scope name of .foo, a rule like this:
   
     @host {
       * {
@@ -32,45 +30,47 @@
       }
     }
   
-  is shimmed to:
+  becomes:
   
     .foo {
       background: red;
     }
   
   * functional encapsultion: Styles defined within shadowDOM, apply only to 
-  dom inside the shadowDOM. To shim this feature, non-@host rules within the 
-  style elements in a given shadowRoot are prefixed with a given scope name. 
-  Thus, they apply via a descendent selector to the dom inside the shadowRoot.
+  dom inside the shadowDOM. To shim this feature, non-@host rules within 
+  style elements are prefixed with a given scope name. Thus, they apply via
+  a descendent selector to the dom inside the shadowRoot.
   For example, given a scope name of .foo, a rule like this:
   
     div {
       font-weight: bold;
     }
   
-  is shimmed to:
+  becomes:
   
     .foo div {
       font-weight: bold;
     }
   
-  Un-shimmed features:
+  Unaddressed shadowDOM styling features:
   
   * upper/lower bound encapsulation: Styles which are defined outside a
   shadowRoot should not cross the shadowDOM boundary and should not apply
   inside a shadowRoot.
 
-  This feature is not shimmed. Some possible ways to do this that 
+  This styling behavior is not emulated. Some possible ways to do this that 
   were rejected due to complexity and/or performance concerns include: (1) reset
   every possible property for every possible selector for a given scope name;
   (2) re-implement css in javascript.
   
-  Instead of shimming this feature, users can make sure to use selectors
+  As an alternative, users should make sure to use selectors
   specific to the scope in which they are working.
   
-  * ::distributed: Not shimmed. Users can create an extra node around an 
-  insertion point and style that node's contents via descendent selectors.
-  For example, with a shadowRoot like this:
+  * ::distributed: This behavior is not emulated. It's often not necessary
+  to style the contents of a specific insertion point and instead, descendants
+  of the host element can be styled selectively. Users can also create an 
+  extra node around an insertion point and style that node's contents
+  via descendent selectors. For example, with a shadowRoot like this:
   
     <style>
       content::-webkit-distributed(div) {
@@ -79,14 +79,11 @@
     </style>
     <content></content>
   
-  could be made like tihs:
+  could become:
   
     <style>
+      / *@polyfill .content-container div * / 
       content::-webkit-distributed(div) {
-        background: red;
-      }
-  
-      .content-container div {
         background: red;
       }
     </style>
@@ -94,68 +91,160 @@
       <content></content>
     </div>
   
-  This shim could automate this.
+  Note the use of @polyfill in the comment above a shadowDOM specific style
+  declaration. This is a directive to the styling shim to use the selector 
+  in comments in lieu of the next selector when running under polyfill.
   
-  * ::pseudo: Not shimmed. Users can create an extra rule to target the 
-  pseudo node directly. Given a shadowRoot like this:
+  * ::pseudo: This behavior is not emulated. Users can create an extra 
+  rule to target the pseudo node directly. Given a shadowRoot like this:
   
     <div pseudo="x-special">Special</div>
   
   This can be styled using native and polyfilled shadowDOM as follows:
   
+    / *@polyfill x-foo [pseudo=x-special] * /
     x-foo::x-special {
       color: orange;
     }
-    
-    x-foo [pseudo=x-special] {
-      color: orange;
-    }
-  
-  This shim could automate this.
-
 */
 (function(scope) {
 
 var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 var concat = Array.prototype.concat.call.bind(Array.prototype.concat);
-
-var doc = window.ShadowDOMPolyfill ? ShadowDOMPolyfill.wrap(document) : document;
+var slice = Array.prototype.slice.call.bind(Array.prototype.slice);
 
 var stylizer = {
   supportsCssScoped: (document.createElement('style').scoped === false),
   hostRuleRe: /@host[^{]*{(([^}]*?{[^{]*?}[\s\S]*?)+)}/gim,
   selectorRe: /([^{]*)({[\s\S]*?})/gim,
-  hostFixableRe: /^[\.|\[]/,
+  hostFixableRe: /^[.\[:]/,
   cssCommentRe: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim, 
+  cssPolyfillCommentRe: /\/\*@polyfill ([^*]*\*+([^/*][^*]*\*+)*\/)([^{]*?){/gim, 
+  selectorReSuffix: '([>\\s~+\[.,{:][\\s\\S]*)?$',
   hostRe: /@host/gim,
+  cache: {},
   shimStyling: function(inElementElement) {
     if (window.ShadowDOMPolyfill) {
-      var template = inElementElement.querySelector('template');
-      var content = template && templateContent(template);
-      if (content) {
-        var scope = inElementElement.options.name;
-        stylizer.shimShadowDomStyling(content, scope);
-      }
+      // use caching to make working with styles nodes easier and to facilitate
+      // lookup of extendee
+      stylizer.cacheDefinition(inElementElement);
+      stylizer.shimShadowDOMStyling(inElementElement.styles, 
+        inElementElement.options.name);
     }
   },
-  // Shim styles contained in a shadowRoot.
-  // TODO(sorvell) could also be template.content that will become a shadowRoot.
+  // Shim styles to be placed inside a shadowRoot.
   // 1. shim @host rules and inherited @host rules
   // 2. shim scoping: apply .scoped when available or pseudo-scoping when not 
   // (e.g. a selector 'div' becomes 'x-foo div')
-  shimShadowDomStyling: function(inRoot, inScope) {
-    this.shimAtHost.call(stylizer, inRoot, inScope);
-    this.shimScoping.call(stylizer, inRoot, inScope);
+  shimShadowDOMStyling: function(inStyles, inScope) {
+    if (window.ShadowDOMPolyfill) {
+      stylizer.shimPolyfillDirectives(inStyles, inScope);
+      stylizer.shimAtHost(inStyles, inScope);
+      stylizer.shimScoping(inStyles, inScope);
+    }
+  },
+  //TODO(sorvell): use SideTable
+  cacheDefinition: function(inElementElement) {
+    var name = inElementElement.options.name;
+    var template = inElementElement.querySelector('template');
+    var content = template && templateContent(template);
+    var styles = content && content.querySelectorAll('style');
+    inElementElement.styles = styles ? slice(styles) : [];
+    inElementElement.templateContent = content;
+    stylizer.cache[name] = inElementElement;
+  },
+  /*
+   * Process styles to convert native ShadowDOM rules that will trip
+   * up the css parser; we rely on decorating the stylesheet with comments.
+   * 
+   * For example, we convert this rule:
+   * 
+   * (comment start) @polyfill @host g-menu-item (comment end)
+   * shadow::-webkit-distributed(g-menu-item) {
+   * 
+   * to this:
+   * 
+   * scopeName g-menu-item {
+   *
+  **/
+  shimPolyfillDirectives: function(inStyles, inScope) {
+    if (inStyles) {
+      forEach(inStyles, function(s) {
+        s.textContent = this.convertPolyfillDirectives(s.textContent, inScope);
+      }, this);
+    }
   },
   // form: @host { .foo { declarations } }
-  shimAtHost: function(inRoot, inScope) {
-    var styles = this.findAtHostStyles(inRoot);
-    var cssText = this.convertAtHostStyles(styles, inScope);
-    this.addCssToDocument(cssText);
+  // becomes: scopeName.foo { declarations }
+  shimAtHost: function(inStyles, inScope) {
+    var styles = this.findAtHostStyles(inStyles, inScope);
+    if (styles) {
+      var cssText = this.convertAtHostStyles(styles, inScope);
+      this.addCssToDocument(cssText);
+    }
+  },
+  /* Ensure styles are scoped. Use css 'scoped' when supported and
+   * apply pseudo-scoping when not. Pseudo-scoping takes a rule like:
+   * 
+   *  .foo {... } 
+   *  
+   *  and converts this to
+   *  
+   *  scopeName .foo { ... }
+  */
+  shimScoping: function(inStyles, inScope) {
+    if (inStyles) {
+      if (this.supportsCssScoped) {
+        this.applyScopedAttribute(inStyles);
+      } else {
+        //console.warn('No support detected for css scoped');
+        this.applyPseudoScoping(inStyles, inScope);
+      }
+    }
+  },
+  convertPolyfillDirectives: function(inCssText, inScope) {
+    var r = '', cssText = inCssText, l = 0, matches;
+    while (matches=this.cssPolyfillCommentRe.exec(cssText)) {
+      r += cssText.substring(l, matches.index);
+      // remove end comment delimiter (*/)
+      r += matches[1].slice(0, -2) + '{';
+      l = this.cssPolyfillCommentRe.lastIndex;
+    }
+    r += cssText.substring(l, cssText.length);
+    return r;
+  },
+  findAtHostStyles: function(inStyles, inScope) {
+    var styles = inStyles;
+    var definition = this.cache[inScope];
+    var shadow = definition.templateContent && 
+      definition.templateContent.querySelector('shadow');
+    if (shadow) {
+      var extendee = this.findExtendee(inScope);
+      if (extendee) {
+        var extendeeName = extendee.options.name;
+        var extendeeStyles = this.findAtHostStyles(extendee.styles, extendeeName);
+        styles = concat(slice(extendeeStyles), slice(styles));
+      }
+    }
+    return styles;
+  },
+  findExtendee: function(inScope) {
+    var elt = this.cache[inScope];
+    return elt && this.cache[elt.options.extends];
+  },
+  // consider styles that do not include component name in the selector to be
+  // unscoped and in need of promotion; 
+  // for convenience, also consider keyframe rules this way.
+  findAtHostRules: function(cssRules, inMatcher) {
+    return Array.prototype.filter.call(cssRules, this.isHostRule.bind(this, inMatcher));
+  },
+  isHostRule: function(inMatcher, cssRule) {
+    return (cssRule.selectorText && cssRule.selectorText.match(inMatcher)) ||
+      (cssRule.cssRules && this.findAtHostRules(cssRule.cssRules, inMatcher).length) ||
+      (cssRule.type == CSSRule.WEBKIT_KEYFRAMES_RULE);
   },
   convertAtHostStyles: function(inStyles, inScope) {
     var cssText = this.stylesToCssText(inStyles);
-    //
     var r = '', l=0, matches;
     while (matches=this.hostRuleRe.exec(cssText)) {
       r += cssText.substring(l, matches.index);
@@ -163,9 +252,9 @@ var stylizer = {
       l = this.hostRuleRe.lastIndex;
     }
     r += cssText.substring(l, cssText.length);
-    //
+    var selectorRe = new RegExp('^' + inScope + this.selectorReSuffix, 'm');
     var cssText = this.rulesToCss(this.findAtHostRules(this.cssToRules(r),
-      inScope));
+      selectorRe));
     return cssText;
   },
   scopeHostCss: function(cssText, inScope) {
@@ -187,57 +276,19 @@ var stylizer = {
         p = inScope + p;
       }
       r.push(p);
-    });
+    }, this);
     return r.join(', ');
-  },
-  findAtHostStyles: function(inRoot, inScope) {
-    var styles = inRoot.querySelectorAll('style') || [];
-    var shadow = inRoot.querySelector('shadow');
-    if (shadow) {
-      var olderShadowRoot = this.findOlderShadowRoot(shadow, inScope);
-      if (olderShadowRoot) {
-        styles = concat(this.findAtHostStyles(olderShadowRoot, inScope));
-      }
-    }
-    return styles;
-  },
-  // TODO(sorvell): If inRoot is a shadowRoot, we can look for 
-  // olderShadowRoot. We will also need to support inRoot being 
-  // template.content. In this case, we need another way to find olderShadowRoot.
-  findOlderShadowRoot: function(inShadow, inScope) {
-    return inShadow.olderShadowRoot;
-  },
-  // consider styles that do not include component name in the selector to be
-  // unscoped and in need of promotion; 
-  // for convenience, also consider keyframe rules this way.
-  findAtHostRules: function(cssRules, name) {
-    return Array.prototype.filter.call(cssRules, this.isHostRule.bind(this, name));
-  },
-  isHostRule: function(name, cssRule) {
-    return (cssRule.selectorText && cssRule.selectorText.indexOf(name) >= 0) ||
-      (cssRule.cssRules && this.findAtHostRules(cssRule.cssRules, name).length) ||
-      (cssRule.type == CSSRule.WEBKIT_KEYFRAMES_RULE);
-  },
-  shimScoping: function(inRoot, inScope) {
-    var styles = inRoot.querySelectorAll('style');
-    if (this.supportsCssScoped) {
-      this.applyScopedAttribute(styles);
-    } else {
-      //console.warn('No support detected for css scoped');
-      this.applyPseudoScoping(styles, inScope);
-    }
   },
   applyScopedAttribute: function(inStylesList) {
     forEach(inStylesList, function(s) {
-      s.setAttribute("scoped", "");
+      s.setAttribute('scoped', '');
     });
   },
   applyPseudoScoping: function(inStyles, inScope) {
-    // remove the un-psuedoscoped orignal style element...
-    // TODO(sorvell): if this is done on a template.content, then styles
-    // must be cached.
     forEach(inStyles, function(s) {
-      s.parentNode.removeChild(s);
+      if (s.parentNode) {
+        s.parentNode.removeChild(s);
+      }
     });
     // TODO(sorvell): remove @host rules (use cssom rather than regex?)
     var cssText = this.stylesToCssText(inStyles).replace(this.hostRuleRe, '');
@@ -249,7 +300,7 @@ var stylizer = {
   // change a selector like 'div' to 'name div'
   pseudoScopeRules: function(cssRules, inScope) {
     forEach(cssRules, function(rule) {
-      if (rule.selectorText && (rule.selectorText.indexOf(inScope) < 0)) {
+      if (rule.selectorText) {
         rule.selectorText = this.pseudoScopeSelector(rule.selectorText, inScope);
       } else if (rule.cssRules) {
         this.pseudoScopeRules(rule.cssRules, inScope);
@@ -263,13 +314,15 @@ var stylizer = {
     });
     return r.join(', ');
   },
-  stylesToCssText: function(inStyles) {
+  stylesToCssText: function(inStyles, inPreserveComments) {
     var cssText = '';
     forEach(inStyles, function(s) {
       cssText += s.textContent + '\n\n';
     });
     // strip comments for easier processing
-    cssText = this.stripCssComments(cssText);
+    if (!inPreserveComments) {
+      cssText = this.stripCssComments(cssText);
+    }
     return cssText;
   },
   stripCssComments: function(inCssText) {
@@ -278,7 +331,7 @@ var stylizer = {
   cssToRules: function(inCssText) {
     var style = document.createElement('style');
     style.textContent = inCssText;
-    doc.head.appendChild(style);
+    document.head.appendChild(style);
     var rules = style.sheet.cssRules;
     style.parentNode.removeChild(style);
     return rules;
@@ -303,15 +356,19 @@ var stylizer = {
   },
   apply: function() {
     this.addCssToDocument('style { display: none !important; }\n');
-    doc.head.insertBefore(this.getSheet(), doc.head.children[0]);
+    // TODO(sorvell): change back to insertBefore when ShadowDOM polyfill
+    // supports this.
+    document.head.appendChild(this.getSheet());
+    //document.head.insertBefore(this.getSheet(), doc.head.children[0]);
   }
 };
 
-doc.addEventListener('WebComponentsReady', function() {
+document.addEventListener('WebComponentsReady', function() {
   stylizer.apply();
 })
 
 // exports
 Toolkit.shimStyling = stylizer.shimStyling;
+Toolkit.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
 
 })(window);
