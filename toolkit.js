@@ -13,14 +13,14 @@ var thisFile = 'toolkit.js';
 
 // acquire directives and base path from script element
 
-var attrs={}, base = '';
+var attributes={}, base = '';
 
 (function() {
   var s$ = document.querySelectorAll('script[src]');
   Array.prototype.forEach.call(s$, function(s) {
     var src = s.getAttribute('src');
     if (src.slice(-thisFile.length) === thisFile) {
-      attrs = s.attributes;
+      attributes = s.attributes;
       base = src.slice(0, -thisFile.length);
     }
   });
@@ -32,7 +32,7 @@ var flags = window.flags || {};
 
 // acquire flags from script tag attributes
 
-for (var i=0, a; (a=attrs[i]); i++) {
+for (var i=0, a; (a=attributes[i]); i++) {
   flags[a.name] = a.value || true;
 }
 
