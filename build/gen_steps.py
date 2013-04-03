@@ -3,12 +3,15 @@
 For more information, see scripts/slave/annotated_run.py in
 https://chromium.googlesource.com/chromium/tools/build/"""
 
-def GetSteps(_api, build_properties):
-  return [
-      {'name': 'update-install',
-       'cmd': ['npm', 'install'],
-       'cwd': ['toolkit']},
-      {'name': 'grunt-test',
-       'cmd': ['grunt', 'test'],
-       'cwd': ['toolkit']}
-  ]
+def GetSteps(api, _factory_properties, build_properties):
+  steps = api.Steps(build_properties)
+  return {
+    'steps': [
+        steps.step('update-install',
+                   ['npm', 'install'],
+                   cwd=api.checkout_path()),
+        steps.step('grunt-test',
+                   ['grunt', 'test'],
+                   cwd=api.checkout_path()),
+    ]
+  }
