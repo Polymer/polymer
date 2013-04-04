@@ -38,5 +38,7 @@
     job.stop();
     job.start(inCallback, inWait);
   }
+
+  Toolkit.job = job;
   
 })();
