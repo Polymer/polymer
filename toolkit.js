@@ -19,9 +19,11 @@ var attributes={}, base = '';
   var s$ = document.querySelectorAll('script[src]');
   Array.prototype.forEach.call(s$, function(s) {
     var src = s.getAttribute('src');
-    if (src.slice(-thisFile.length) === thisFile) {
+    var re = new RegExp(thisFile + '[^\\\\]*');
+    var match = src.match(re);
+    if (match) {
       attributes = s.attributes;
-      base = src.slice(0, -thisFile.length);
+      base = src.slice(0, -match[0].length);
     }
   });
 })();

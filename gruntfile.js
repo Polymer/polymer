@@ -19,6 +19,12 @@ module.exports = function(grunt) {
     'src/boot.js'
   ];
   grunt.initConfig({
+    karma: {
+      toolkit: {
+        configFile: 'conf/karma.conf.js',
+        keepalive: true
+      }
+    },
     uglify: {
       Toolkit: {
         options: {
@@ -50,10 +56,12 @@ module.exports = function(grunt) {
   // plugins
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
+  grunt.loadNpmTasks('grunt-karma');
 
   // tasks
   grunt.registerTask('default', ['uglify']);
   grunt.registerTask('minify', ['uglify']);
   grunt.registerTask('docs', ['yuidoc']);
+  grunt.registerTask('test', ['karma']);
 };
 
