@@ -20,6 +20,7 @@
   };
   Job.prototype = {
     go: function(inCallback, inWait) {
+      this.callback = inCallback;
       this.handle = setTimeout(function() {
         this.handle = null;
         inCallback.call(this.context);
@@ -30,13 +31,21 @@
         clearTimeout(this.handle);
         this.handle = null;
       }
+    },
+    complete: function() {
+      if (this.handle) {
+        this.stop();
+        this.callback.call(this.context);
+      }
     }
   };
   
   function job(inJob, inCallback, inWait) {
     var job = inJob || new Job(this);
+    console.log('JOB', inJob, job);
     job.stop();
-    job.start(inCallback, inWait);
+    job.go(inCallback, inWait);
+    return job;
   }
 
   Toolkit.job = job;

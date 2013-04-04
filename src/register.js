@@ -101,7 +101,7 @@
       Toolkit.bind.apply(this, arguments);
     },
     job: function() {
-      Toolkit.job.apply(this, arguments);
+      return Toolkit.job.apply(this, arguments);
     },
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
