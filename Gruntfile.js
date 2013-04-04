@@ -11,7 +11,7 @@ module.exports = function(grunt) {
     pkg: '<json:package.json>',
     testacular: {
       options: {
-        browsers: ['Chrome', 'ChromeCanary', 'Firefox'],
+        browsers: browsers,
         keepalive: true,
         singleRun: true
       },
