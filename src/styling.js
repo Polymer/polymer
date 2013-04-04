@@ -106,7 +106,7 @@
     queueFlush: function() {
       if (!async.flushing) {
         async.flushing = true;
-        webkitRequestAnimationFrame(async.flush);
+        requestAnimationFrame(async.flush);
       }
     },
     flush: function() {
