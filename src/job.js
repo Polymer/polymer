@@ -42,7 +42,6 @@
   
   function job(inJob, inCallback, inWait) {
     var job = inJob || new Job(this);
-    console.log('JOB', inJob, job);
     job.stop();
     job.go(inCallback, inWait);
     return job;
