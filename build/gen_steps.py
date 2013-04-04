@@ -10,6 +10,6 @@ def GetSteps(api, _factory_properties, build_properties):
                ['npm', 'install'],
                cwd=api.checkout_path()),
     steps.step('grunt-test',
-               ['grunt', 'test'],
+               ['xvfb-run', 'grunt', 'test'],
                cwd=api.checkout_path()),
   ]
