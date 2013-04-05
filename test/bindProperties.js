@@ -43,29 +43,48 @@ suite('bindProperties-declarative', function() {
   var iframe;
   
   setup(function() {
-    listener = window.addEventListener("message", function(event) {
-      if (event.data === 'ok') {
-        magic();
-      } else {
-        throw event.data;
-      }
-    });
     iframe = document.createElement('iframe');
     iframe.style.cssText = 'position: absolute; left: -9000em; width:768px; height: 1024px';
     document.body.appendChild(iframe);
   });
 
   teardown(function() {
-    window.removeEventListener(listener);
     document.body.removeChild(iframe);
   });
 
-  function htmlTest(src) {
-    test(src, function(done) {
-      magic = done;
+  function htmlTest(src, fn) {
+    test(src, function() {
+      iframe.onload = function(done) {
+        $document.addEventListener('WebComponentsReady', function() {
+          fn(iframe.contentWindow, iframe.contentDocument);
+        });
+        if (fn.length === 0) {
+          done();
+        }
+      }
       iframe.src = src + "?" + Math.random();
     });
   };
   
-  htmlTest('bind-object-repeat.html');
+  htmlTest('bind-object-repeat.html', function($window, $document) {
+    $window.dirtyCheck();
+    var o = $document.querySelector('x-bind-obj');
+    var root = o.webkitShadowRoot;
+    var f = root.querySelector('x-foo');
+    assert.equal(f.obj, o.testObj);
+
+    function checkXFoo(inXFoo) {
+      var p = inXFoo.webkitShadowRoot.querySelector('p');
+      assert.isDefined(inXFoo.obj.foo);
+      console.log(p, p.innerHTML);
+      assert.equal(p.innerHTML, 'obj.foo is ' + inXFoo.obj.foo);
+    }
+
+    checkXFoo(f);
+
+    var d = root.querySelector('div');
+    Array.prototype.forEach.call(d.querySelectorAll('x-foo'), function(x) {
+      checkXFoo(x);
+    });
+  });
 });
