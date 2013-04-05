@@ -61,6 +61,7 @@
       root.host = this;
       //root.appendChild(templateContent(template).cloneNode(true));
       root.appendChild(template.createInstance());
+      PointerGestures.register(root);
       rootCreated.call(this, root);
       return root;
     }
