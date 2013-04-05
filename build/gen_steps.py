@@ -10,7 +10,7 @@ def GetSteps(api, _factory_properties, build_properties):
                ['npm', 'install'],
                cwd=api.checkout_path()),
     steps.step('test-chrome',
-               ['grunt', 'testacular:chrome'],
+               ['xvfb-run', 'grunt', 'testacular:chrome'],
                cwd=api.checkout_path()),
     steps.step('test-firefox',
                ['xvfb-run', 'grunt', 'testacular:firefox'],
