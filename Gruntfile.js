@@ -11,22 +11,31 @@ module.exports = function(grunt) {
     pkg: '<json:package.json>',
     testacular: {
       options: {
-        browsers: browsers,
+        configFile: "testacular-shadowdom.conf.js",
         keepalive: true,
         singleRun: true
       },
-      shadowdom: {
+      chrome: {
         options: {
-          configFile: "testacular-shadowdom.conf.js",
+          browsers: ['Chrome']
         }
       },
-      component: {
+      chrome_canary: {
         options: {
-          configFile: "testacular.conf.js",
+          browsers: ['ChromeCanary']
+        }
+      },
+      firefox: {
+        options: {
+          browsers: ['Firefox']
+        }
+      },
+      ie: {
+        options: {
+          browsers: ['IE']
         }
       }
     },
   });
   grunt.loadNpmTasks('grunt-testacular');
-  grunt.registerTask('test', ['testacular']);
 }
