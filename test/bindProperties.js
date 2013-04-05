@@ -34,3 +34,38 @@ suite('bindProperties', function() {
     assert.equal(a.foo, 9);
   });
 });
+
+suite('bindProperties-declarative', function() {
+  var assert = chai.assert;
+  
+  var listener;
+  var magic;
+  var iframe;
+  
+  setup(function() {
+    listener = window.addEventListener("message", function(event) {
+      if (event.data === 'ok') {
+        magic();
+      } else {
+        throw event.data;
+      }
+    });
+    iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position: absolute; left: -9000em; width:768px; height: 1024px';
+    document.body.appendChild(iframe);
+  });
+
+  teardown(function() {
+    window.removeEventListener(listener);
+    document.body.removeChild(iframe);
+  });
+
+  function htmlTest(src) {
+    test(src, function(done) {
+      magic = done;
+      iframe.src = src + "?" + Math.random();
+    });
+  };
+  
+  htmlTest('bind-object-repeat.html');
+});
