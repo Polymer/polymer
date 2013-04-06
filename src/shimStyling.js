@@ -114,7 +114,6 @@ var concat = Array.prototype.concat.call.bind(Array.prototype.concat);
 var slice = Array.prototype.slice.call.bind(Array.prototype.slice);
 
 var stylizer = {
-  supportsCssScoped: (document.createElement('style').scoped === false),
   hostRuleRe: /@host[^{]*{(([^}]*?{[^{]*?}[\s\S]*?)+)}/gim,
   selectorRe: /([^{]*)({[\s\S]*?})/gim,
   hostFixableRe: /^[.\[:]/,
@@ -183,8 +182,7 @@ var stylizer = {
       this.addCssToDocument(cssText);
     }
   },
-  /* Ensure styles are scoped. Use css 'scoped' when supported and
-   * apply pseudo-scoping when not. Pseudo-scoping takes a rule like:
+  /* Ensure styles are scoped. Pseudo-scoping takes a rule like:
    * 
    *  .foo {... } 
    *  
@@ -194,12 +192,7 @@ var stylizer = {
   */
   shimScoping: function(inStyles, inScope) {
     if (inStyles) {
-      if (this.supportsCssScoped) {
-        this.applyScopedAttribute(inStyles);
-      } else {
-        //console.warn('No support detected for css scoped');
-        this.applyPseudoScoping(inStyles, inScope);
-      }
+      this.applyPseudoScoping(inStyles, inScope);
     }
   },
   convertPolyfillDirectives: function(inCssText, inScope) {
@@ -278,11 +271,6 @@ var stylizer = {
       r.push(p);
     }, this);
     return r.join(', ');
-  },
-  applyScopedAttribute: function(inStylesList) {
-    forEach(inStylesList, function(s) {
-      s.setAttribute('scoped', '');
-    });
   },
   applyPseudoScoping: function(inStyles, inScope) {
     forEach(inStyles, function(s) {
