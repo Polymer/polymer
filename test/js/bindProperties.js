@@ -35,9 +35,14 @@ suite('bindProperties', function() {
   });
 });
 
+htmlSuite('bindProperties-declarative', function() {
+  htmlTest('html/bind-object-repeat.html');
+});
+
+/*
 suite('bindProperties-declarative', function() {
   var assert = chai.assert;
-  
+
   var listener;
   var magic;
   var iframe;
@@ -69,3 +74,4 @@ suite('bindProperties-declarative', function() {
   
   htmlTest('bind-object-repeat.html');
 });
+*/
