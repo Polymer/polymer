@@ -42,6 +42,7 @@ module.exports = function(grunt) {
         url: '<%= pkg.homepage %>',
         options: {
           exclude: 'third_party',
+          extension: '.js,.html',
           paths: '.',
           outdir: 'docs',
           linkNatives: 'true',
