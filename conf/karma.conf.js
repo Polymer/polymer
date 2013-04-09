@@ -15,9 +15,10 @@ files = [
   MOCHA_ADAPTER,
   'conf/mocha.conf.js',
   'node_modules/chai/chai.js',
+  'test/lib/test-html.js',
   'platform/platform.js',
   'toolkit.js',
-  'test/*.js',
+  'test/js/*.js',
   {pattern: 'platform/**/*', included: false},
   {pattern: 'src/*.js', included: false}
 ];
@@ -60,11 +61,14 @@ autoWatch = true;
 // - PhantomJS
 // - IE (only Windows)
 // CLI --browsers Chrome,Firefox,Safari
-browsers = ['Chrome', 'ChromeCanary', 'Firefox']
+//browsers = ['ChromeCanary']
+//browsers = ['ChromeCanary', 'IE'];
+browsers = ['Chrome', 'ChromeCanary', 'Firefox'];
+//browsers = ['Chrome', 'ChromeCanary', 'Firefox', 'IE'];
 
 // If browser does not capture in given timeout [ms], kill it
 // CLI --capture-timeout 5000
-captureTimeout = 5000;
+captureTimeout = 50000;
 
 // Auto run tests on start (when browsers are captured) and exit
 // CLI --single-run --no-single-run
