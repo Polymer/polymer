@@ -18,10 +18,23 @@ module.exports = function(grunt) {
     'src/path.js',
     'src/boot.js'
   ];
+  // karma setup
+  var browsers;
+  (function() {
+    var os = require('os');
+    browsers = ['Chrome', 'Firefox'];
+    if (os.type() === 'Darwin') {
+      browsers.push('ChromeCanary');
+    }
+    if (os.type() === 'Windows_NT') {
+      browsers.push('IE');
+    }
+  })();
   grunt.initConfig({
     karma: {
       toolkit: {
         configFile: 'conf/karma.conf.js',
+        browsers: browsers,
         keepalive: true
       }
     },

@@ -1,1 +1,4 @@
-mocha.setup({ui:'tdd'});
+mocha.setup({
+  ui:'tdd',
+  slow: 1000
+});

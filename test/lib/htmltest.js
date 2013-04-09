@@ -16,10 +16,10 @@ if (window.top === window) {
 // if part of a test suite
 {
   window.done = function() {
-    top.postMessage('ok', '*');
+    parent.postMessage('ok', '*');
   }
   window.onerror = function(x) {
-    top.postMessage(x, '*');
+    parent.postMessage({msg: x}, '*');
   };
 }
 

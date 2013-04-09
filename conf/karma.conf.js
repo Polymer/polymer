@@ -13,14 +13,16 @@ basePath = '../';
 files = [
   MOCHA,
   MOCHA_ADAPTER,
+  'test/lib/mocha-htmltest.js',
   'conf/mocha.conf.js',
   'node_modules/chai/chai.js',
-  'test/lib/test-html.js',
   'platform/platform.js',
   'toolkit.js',
   'test/js/*.js',
   {pattern: 'platform/**/*', included: false},
-  {pattern: 'src/*.js', included: false}
+  {pattern: 'src/*.js', included: false},
+  {pattern: 'test/**/*.html', included: false},
+  {pattern: 'test/**/*.js', included: false}
 ];
 
 // list of files to exclude
@@ -61,10 +63,7 @@ autoWatch = true;
 // - PhantomJS
 // - IE (only Windows)
 // CLI --browsers Chrome,Firefox,Safari
-//browsers = ['ChromeCanary']
-//browsers = ['ChromeCanary', 'IE'];
-browsers = ['Chrome', 'ChromeCanary', 'Firefox'];
-//browsers = ['Chrome', 'ChromeCanary', 'Firefox', 'IE'];
+browsers = ['ChromeCanary'];
 
 // If browser does not capture in given timeout [ms], kill it
 // CLI --capture-timeout 5000
