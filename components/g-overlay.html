@@ -4,11 +4,11 @@ Use of this source code is governed by a BSD-style
 license that can be found in the LICENSE file.
 -->
 <element name="g-overlay" 
-         attributes="opened autoCloseDisabled modal scrim" 
+         attributes="opened autoCloseDisabled" 
          on-webkitAnimationStart="openedAnimationStart"
          on-webkitAnimationEnd="openedAnimationEnd"
          on-webkitTransitionEnd="openedTransitionEnd"
-         on-click="tapHandler"
+         on-tap="tapHandler"
          on-keydown="keydownHandler"
          >
 <link rel="stylesheet" href="css/g-overlay.css">
@@ -83,13 +83,12 @@ license that can be found in the LICENSE file.
   Toolkit.register(this, {
     opened: false,
     autoCloseDisabled: false,
-    modal: false,
     //* Maximum allowed animation time. 
     // NOTE: This timeout acts as a catchall for completing animations
     // which may not have received an animationEnd event due to, for example,
     // a parent being hidden during animation.
     timeout: 1000,
-    captureEventType: 'click',
+    captureEventType: 'tap',
     ready: function() {
       if (this.tabIndex === undefined) {
         this.tabIndex = -1;
@@ -158,7 +157,7 @@ license that can be found in the LICENSE file.
       //this.animating = this.asyncMethod('completeOpening', null, this.timeout);
     },
     completeOpening: function() {
-      clearTimeout(this.animating);
+      //clearTimeout(this.animating);
       this.animating = null;
       this.classList.remove('closing');
       this.classList.toggle('revealed', this.opened);
@@ -189,25 +188,23 @@ license that can be found in the LICENSE file.
     tapHandler: function(e) {
       if (e.target && e.target.hasAttribute('overlay-toggle')) {
         this.toggle();
+      } else {
+        if (this.autoCloseJob) {
+          this.autoCloseJob.stop();
+          this.autoCloseJob = null;
+        }
       }
     },
-    // TODO(sorvell): This approach will not work with native shadowDOM.
-    // This handler is intended to be able to distinguish if an event target
-    // is inside or outside the overlay. To do this we capture events on
-    // document. However, the target document see may have been retargeted
-    // such that it's not possible to tell if the original event target is 
-    // inside the overlay.
-    // Can solve this by always using a scrim.
+    // TODO(sorvell): This approach will not work with modal. For this we need a
+    // scrim.
+    // 
     captureHandler: function(e) {
-      if (!this.autoCloseDisabled && (currentOverlay() == this) && (this.$.overlay 
-          != e.target) && !e.overlay && !(this.compareDocumentPosition(e.target) &
+      if (!this.autoCloseDisabled && (currentOverlay() == this) && (this 
+          != e.target) && !(this.compareDocumentPosition(e.target) &
           Node.DOCUMENT_POSITION_CONTAINED_BY)) {
-        this.opened = false;
-        if (this.modal) {
-          e.stopImmediatePropagation();
-          e.preventDefault();
-          e.cancelBubble = true;
-        }
+        this.autoCloseJob = this.job(this.autoCloseJob, function() {
+          this.opened = false;
+        });
       }
     },
     keydownHandler: function(e) {
