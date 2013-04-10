@@ -11,8 +11,8 @@ def GetSteps(api, _factory_properties, build_properties):
                cwd=api.checkout_path()),
     steps.step('test-chrome',
                ['xvfb-run', 'grunt', 'testacular:chrome'],
-               cwd=api.checkout_path()),
+               cwd=api.checkout_path(), always_run=True),
     steps.step('test-firefox',
                ['xvfb-run', 'grunt', 'testacular:firefox'],
-               cwd=api.checkout_path()),
+               cwd=api.checkout_path(), always_run=True),
   ]
