@@ -6,11 +6,18 @@
 
 // if standalone
 if (window.top === window) {
+  // if standalone
   window.done = function() {
-    alert('Test Passed');
+    var d = document.createElement('pre');
+    d.style.cssText = 'padding: 6px; background-color: lightgreen;';
+    d.textContent = 'Passed';
+    document.body.insertBefore(d, document.body.firstChild);
   }
   window.onerror = function(x) {
-    alert('Test FAILED: ' + x);
+    var d = document.createElement('pre');
+    d.style.cssText = 'padding: 6px; background-color: #FFE0E0;';
+    d.textContent = 'FAILED: ' + x + '\n\n' + lastError.stack;
+    document.body.insertBefore(d, document.body.firstChild);
   };
 } else
 // if part of a test suite
