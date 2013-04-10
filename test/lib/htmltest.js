@@ -16,7 +16,7 @@ if (window.top === window) {
   window.onerror = function(x) {
     var d = document.createElement('pre');
     d.style.cssText = 'padding: 6px; background-color: #FFE0E0;';
-    d.textContent = 'FAILED: ' + x + '\n\n' + lastError.stack;
+    d.textContent = 'FAILED: ' + x;
     document.body.insertBefore(d, document.body.firstChild);
   };
 } else
