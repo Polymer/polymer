@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright 2013 The Toolkitchen Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
@@ -6,7 +6,7 @@
 
 (function() {
   var thisFile = 'lib/mocha-htmltest.js';
-  var base, next, iframe;
+  var base = '';
 
   (function() {
     var s$ = document.querySelectorAll('script[src]');
@@ -20,6 +20,8 @@
     });
   })();
 
+  var next, iframe;
+
   var listener = function(event) {
     if (event.data === 'ok') {
       next();
@@ -27,7 +29,7 @@
       throw event.data.error;
     }
   };
-  
+
   function htmlSetup() {
     window.addEventListener("message", listener);
     iframe = document.createElement('iframe');
@@ -43,12 +45,10 @@
   function htmlTest(src) {
     test(src, function(done) {
       next = done;
-      iframe.onload = function() {
-      };
       iframe.src = base + src + "?" + Math.random();
     });
   };
-  
+
   function htmlSuite(inName, inFn) {
     suite(inName, function() {
       setup(htmlSetup);
@@ -56,7 +56,7 @@
       inFn();
     });
   };
-  
+
   window.htmlTest = htmlTest;
   window.htmlSuite = htmlSuite;
 })();
