@@ -22,13 +22,20 @@ module.exports = function(grunt) {
   // karma setup
   var browsers;
   (function() {
-    var os = require('os');
-    browsers = ['Chrome', 'Firefox'];
-    if (os.type() === 'Darwin') {
-      browsers.push('ChromeCanary');
-    }
-    if (os.type() === 'Windows_NT') {
-      browsers.push('IE');
+    try {
+      var config = grunt.file.readJSON('local.json');
+      if (config.browsers) {
+        browsers = config.browsers;
+      }
+    } catch (e) {
+      var os = require('os');
+      browsers = ['Chrome', 'Firefox'];
+      if (os.type() === 'Darwin') {
+        browsers.push('ChromeCanary');
+      }
+      if (os.type() === 'Windows_NT') {
+        browsers.push('IE');
+      }
     }
   })();
   
