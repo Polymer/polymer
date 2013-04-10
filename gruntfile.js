@@ -18,6 +18,7 @@ module.exports = function(grunt) {
     'src/path.js',
     'src/boot.js'
   ];
+  
   // karma setup
   var browsers;
   (function() {
@@ -30,6 +31,7 @@ module.exports = function(grunt) {
       browsers.push('IE');
     }
   })();
+  
   grunt.initConfig({
     karma: {
       toolkit: {
