@@ -23,8 +23,8 @@
   var listener = function(event) {
     if (event.data === 'ok') {
       next();
-    } else if (event.data && event.data.msg) {
-      throw event.data.msg;
+    } else if (event.data && event.data.error) {
+      throw event.data.error;
     }
   };
   
