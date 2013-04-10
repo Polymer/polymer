@@ -50,7 +50,7 @@
   };
   
   function htmlSuite(inName, inFn) {
-    suite('bindProperties-declarative', function() {
+    suite(inName, function() {
       setup(htmlSetup);
       teardown(htmlTeardown);
       inFn();
