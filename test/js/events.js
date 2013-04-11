@@ -24,12 +24,12 @@ suite('events', function() {
     work.innerHTML += '<element name="' + inName + '"' + 
         (inExtend ? ' extends="' + inExtend + '"' : '') + ' on-click="clickHandler">' +
       '<template>' + (inTemplateContent || '') + '</template>' +
-      '<script>' +
-        'Toolkit.register(this, {' +
-          'clickHandler: function() {' +
-            'results.textContent += this.localName;' +
-          '}' +
-        '});' +
+      '<script>\n' +
+        'Toolkit.register(this, {\n' +
+          'clickHandler: function() {\n' +
+            'results.textContent += this.localName;\n' +
+          '}\n' +
+        '});\n' +
       '</script>' +
       '</element>';
     new HTMLElementElement(work.lastChild);
