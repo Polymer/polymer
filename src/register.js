@@ -35,6 +35,8 @@
       this.super();
       installTemplate.call(this, inElement);
     };
+    // parse attribute-attributes
+    Toolkit.publishAttributes(inElement.attributes.attribute);
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
     // install external stylesheets as if they are inline
