@@ -87,5 +87,6 @@
   
   Toolkit.takeAttributes = takeAttributes;
   Toolkit.propertyForAttribute = propertyForAttribute;
+  Toolkit.publishAttributes = publishAttributes;
   
 })();
