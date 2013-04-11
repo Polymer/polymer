@@ -39,10 +39,13 @@
 
   // find the public property identified by inAttributeName
   function propertyForAttribute(inAttributeName) {
+    // specifically search the __proto__ (as opposed to getPrototypeOf) 
+    // __proto__ is simulated on platforms which don't support it naturally 
     // TODO(sjmiles): I'm reluctant to search the entire namespace
     // but this set is too small. Perhaps in 'full public' mode, one
-    // must declare 'attributable properties'. 
-    var properties = Object.keys(Object.getPrototypeOf(this));
+    // must declare 'attributable properties'.
+    var properties = Object.keys(this.__proto__);
+    //var properties = Object.keys(Object.getPrototypeOf(this));
     for (var i=0, n; (n=properties[i]); i++) {
       if (n.toLowerCase() == inAttributeName) {
         return n;

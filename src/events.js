@@ -97,16 +97,18 @@
 
   var accumulateHostEvents = function(inEvents) {
     var events = inEvents || {};
+    // specifically search the __proto__ (as opposed to getPrototypeOf) 
+    // __proto__ is simulated on platforms which don't support it naturally 
     // TODO(sjmiles): we walk the prototype tree to operate on the union of
     // eventDelegates maps; it might be better to merge maps when extending
-    var p = Object.getPrototypeOf(this);
+    var p = this.__proto__;
     while (p && p !== HTMLElement.prototype) {
       if (p.hasOwnProperty('eventDelegates')) {
         for (var n in p.eventDelegates) {
           accumulateEvent(n, events);
         }
       }
-      p = Object.getPrototypeOf(p);
+      p = p.__proto__;
     }
     return events;
   };
