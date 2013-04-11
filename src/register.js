@@ -30,17 +30,13 @@
     // Potentially remove when spec bug is addressed.
     // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
     Toolkit.addResolvePath(prototype, inElement);
-    // install custom callbacks
+    // install instance method that closes over 'inElement'
     prototype.installTemplate = function() {
       this.super();
       installTemplate.call(this, inElement);
     };
-    prototype.readyCallback = function() {
-      // invoke closed 'installTemplate'
-      this.installTemplate();
-      // invoke boilerplate 'instanceReady'
-      instanceReady.call(this);
-    }
+    // parse attribute-attributes
+    Toolkit.publishAttributes(inElement.attributes.attribute);
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
     // install external stylesheets as if they are inline
@@ -98,6 +94,13 @@
   var base = {
     isToolkitElement: true,
     super: $super,
+    readyCallback: function() {
+      // invoke closed 'installTemplate'
+      this.installTemplate();
+      // invoke boilerplate 'instanceReady'
+      instanceReady.call(this);
+    },
+	// MDV binding
     bind: function() {
       Toolkit.bind.apply(this, arguments);
     },

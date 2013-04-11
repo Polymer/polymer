@@ -10,6 +10,24 @@
   
   var bindPattern = Toolkit.bindPattern;
 
+	var publishAttributes = function(inAttributes, inDefinition) {
+    if (inAttributes) {
+    	/*
+      var pd = conventions.PUBLISH_DIRECTIVE;
+      // need a publish block to extend
+      var pub = inDefinition[pd] = inDefinition[pd] || {};
+      // use the value of the attributes-attribute
+      var a$ = inAttributes.value;
+      // attributes='a b c' or attributes='a,b,c'
+      var names = a$.split(a$.indexOf(',') >= 0 ? ',' : ' ');
+      // record each name for publishing
+      names.forEach(function(p) {
+        pub[p.trim()] = null;
+      });
+      */
+    }
+  };
+  
   function takeAttributes() {
     // for each attribute
     forEach(this.attributes, function(a) {
