@@ -57,7 +57,9 @@
       root.host = this;
       //root.appendChild(templateContent(template).cloneNode(true));
       root.appendChild(template.createInstance());
+      // set up gestures
       PointerGestures.register(root);
+      PointerEventsPolyfill.setTouchAction(root, inElement.getAttribute('touch-action'));
       rootCreated.call(this, root);
       return root;
     }
