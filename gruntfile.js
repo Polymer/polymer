@@ -41,11 +41,16 @@ module.exports = function(grunt) {
   
   grunt.initConfig({
     karma: {
-      toolkit: {
+      options: {
         configFile: 'conf/karma.conf.js',
         browsers: browsers,
         keepalive: true
-      }
+      },
+      buildbot: {
+        reporters: ['crbot'],
+        logLevel: 'OFF'
+      },
+      toolkit: {}
     },
     uglify: {
       Toolkit: {
@@ -85,6 +90,7 @@ module.exports = function(grunt) {
   grunt.registerTask('default', ['uglify']);
   grunt.registerTask('minify', ['uglify']);
   grunt.registerTask('docs', ['yuidoc']);
-  grunt.registerTask('test', ['karma']);
+  grunt.registerTask('test', ['karma:toolkit']);
+  grunt.registerTask('test-buildbot', ['karma:buildbot']);
 };
 

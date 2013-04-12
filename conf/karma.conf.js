@@ -86,5 +86,6 @@ plugins = [
   'karma-mocha',
   'karma-chrome-launcher',
   'karma-firefox-launcher',
-  'karma-script-launcher'
+  'karma-script-launcher',
+  'karma-crbot-reporter'
 ]
