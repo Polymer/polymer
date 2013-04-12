@@ -92,11 +92,6 @@ var modules = [
   'src/boot.js'
 ];
 
-// load platform it it's not already available
-if (!window.__platform__) {
-    modules.unshift('platform/platform.js');
-}
-
 // write script tags for dependencies
 
 modules.forEach(function(inSrc) {
