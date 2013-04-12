@@ -79,7 +79,7 @@ module.exports = function(grunt) {
   // plugins
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
-  grunt.loadNpmTasks('grunt-karma');
+  grunt.loadNpmTasks('grunt-karma-0.9.1');
 
   // tasks
   grunt.registerTask('default', ['uglify']);

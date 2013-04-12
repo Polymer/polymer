@@ -11,8 +11,6 @@ basePath = '../';
 
 // list of files / patterns to load in the browser
 files = [
-  MOCHA,
-  MOCHA_ADAPTER,
   'lib/test/mocha-htmltest.js',
   'conf/mocha.conf.js',
   'node_modules/chai/chai.js',
@@ -28,6 +26,8 @@ files = [
 
 // list of files to exclude
 exclude = [];
+
+frameworks = ['mocha'];
 
 // use dots reporter, as travis terminal does not support escaping sequences
 // possible values: 'dots', 'progress', 'junit', 'teamcity'
@@ -83,6 +83,8 @@ preprocessors = {
 };
 
 plugins = [
+  'karma-mocha',
   'karma-chrome-launcher',
-  'karma-firefox-launcher'
+  'karma-firefox-launcher',
+  'karma-script-launcher'
 ]
