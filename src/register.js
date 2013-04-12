@@ -59,7 +59,7 @@
       root.appendChild(template.createInstance());
       // set up gestures
       PointerGestures.register(root);
-      PointerEventsPolyfill.setTouchAction(root, inElement.getAttribute('touch-action'));
+      PointerEventsPolyfill.setTouchAction(root, this.getAttribute('touch-action'));
       rootCreated.call(this, root);
       return root;
     }
