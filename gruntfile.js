@@ -4,6 +4,14 @@
  * license that can be found in the LICENSE file.
  */
 module.exports = function(grunt) {
+  Platform = [
+    'platform/platform.min.js'
+  ];
+  
+  PlatformNative = [
+    'platform/platform.native.min.js'
+  ];
+  
   Toolkit = [
     'src/lang.js',
     'src/oop.js',
@@ -15,10 +23,12 @@ module.exports = function(grunt) {
     'src/events.js',
     'src/observeProperties.js',
     'src/styling.js',
+    'src/shimStyling.js',
     'src/path.js',
+    'src/job.js',
     'src/boot.js'
   ];
-  
+
   // karma setup
   var browsers;
   (function() {
@@ -54,10 +64,13 @@ module.exports = function(grunt) {
     },
     uglify: {
       Toolkit: {
-        options: {
-        },
         files: {
-          'toolkit.min.js': Toolkit
+          'toolkit.min.js': [].concat(Platform, Toolkit)
+        }
+      },
+      ToolkitNative: {
+        files: {
+          'toolkit.native.min.js': [].concat(PlatformNative, Toolkit)
         }
       }
     },
@@ -92,5 +105,6 @@ module.exports = function(grunt) {
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['karma:toolkit']);
   grunt.registerTask('test-buildbot', ['karma:buildbot']);
+
 };
 
