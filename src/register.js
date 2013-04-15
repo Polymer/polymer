@@ -16,6 +16,10 @@
     if (inElement == window) {
       return;
     }
+    // catch common mistake of omitting 'this' in call to register
+    if (!inElement || !(inElement instanceof HTMLElement)) {
+      throw "First argument to Toolkit.register must be an HTMLElement";
+    }
     // TODO(sjmiles): it's not obvious at this point whether inElement 
     // will chain to another toolkit element, so we just copy base boilerplate 
     // anyway
@@ -35,17 +39,18 @@
       this.super();
       installTemplate.call(this, inElement);
     };
-    // parse attribute-attributes
-    Toolkit.publishAttributes(inElement.attributes.attribute);
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
+    // parse attribute-attributes
+    Toolkit.publishAttributes(inElement, prototype);
     // install external stylesheets as if they are inline
     Toolkit.installSheets(inElement);
     Toolkit.shimStyling(inElement);
     // invoke element.register
     inElement.register({prototype: prototype});
     // logging
-    logFlags.comps && console.log("initialized component " + inElement.options.name);
+    logFlags.comps && 
+          console.log("Toolkit: element registered" + inElement.options.name);
   };
 
   function installTemplate(inElement) {
@@ -94,15 +99,17 @@
   };
 
   var base = {
-    isToolkitElement: true,
     super: $super,
+    // object on prototype used mindfully
+    attributes: {},
+    isToolkitElement: true,
     readyCallback: function() {
       // invoke closed 'installTemplate'
       this.installTemplate();
       // invoke boilerplate 'instanceReady'
       instanceReady.call(this);
     },
-	// MDV binding
+    // MDV binding
     bind: function() {
       Toolkit.bind.apply(this, arguments);
     },
@@ -132,7 +139,7 @@
   };
 
   // user utility 
-  
+
   function findDistributedTarget(inTarget, inNodes) {
     // find first ancestor of target (including itself) that
     // is in inNodes, if any

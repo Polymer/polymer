@@ -9,25 +9,39 @@
   // imports
   
   var bindPattern = Toolkit.bindPattern;
+  
+  // constants
+  
+  var published$ = '__published';
+  var attributes$ = 'attributes';
+  var attrProps$ = 'publish'; 
+  //var attrProps$ = 'attributeDefaults';
 
-	var publishAttributes = function(inAttributes, inDefinition) {
-    if (inAttributes) {
-    	/*
-      var pd = conventions.PUBLISH_DIRECTIVE;
-      // need a publish block to extend
-      var pub = inDefinition[pd] = inDefinition[pd] || {};
-      // use the value of the attributes-attribute
-      var a$ = inAttributes.value;
+  var publishAttributes = function(inElement, inPrototype) {
+    var published = {};
+    // merge attribute names from 'attributes' attribute
+    var attributes = inElement.getAttribute(attributes$);
+    if (attributes) {
       // attributes='a b c' or attributes='a,b,c'
-      var names = a$.split(a$.indexOf(',') >= 0 ? ',' : ' ');
+      var names = attributes.split(attributes.indexOf(',') >= 0 ? ',' : ' ');
       // record each name for publishing
       names.forEach(function(p) {
-        pub[p.trim()] = null;
+        published[p.trim()] = null;
       });
-      */
     }
+    // combine with 'publish' object from prototype'
+    published = mixin(published, inPrototype[attrProps$]);
+    // install actual properties on the prototype
+    Object.keys(published).forEach(function(p) {
+      inPrototype[p] = published[p];
+    });
+    // combine with inherited published properties
+    inPrototype[published$] = mixin(
+      {}, 
+      inElement.options.prototype[published$],
+      published);
   };
-  
+
   function takeAttributes() {
     // for each attribute
     forEach(this.attributes, function(a) {
@@ -55,6 +69,18 @@
     }, this);
   };
 
+  var lowerCase = String.prototype.toLowerCase.call.bind(
+      String.prototype.toLowerCase);
+      
+  // return the published property matching name, or undefined
+  function propertyForAttribute(name) {
+    // matchable properties must be published
+    var properties = Object.keys(this[published$]);
+    // search for a matchable property
+    return properties[properties.map(lowerCase).indexOf(name)];
+  };
+  
+  /*
   // find the public property identified by inAttributeName
   function propertyForAttribute(inAttributeName) {
     // specifically search the __proto__ (as opposed to getPrototypeOf) 
@@ -70,7 +96,8 @@
       }
     }
   };
-
+  */
+ 
   function deserializeValue(inValue, inDefaultValue) {
     var inferredType = typeof inDefaultValue;
     switch (inValue) {
@@ -86,7 +113,7 @@
   // exports
   
   Toolkit.takeAttributes = takeAttributes;
-  Toolkit.propertyForAttribute = propertyForAttribute;
   Toolkit.publishAttributes = publishAttributes;
+  Toolkit.propertyForAttribute = propertyForAttribute;
   
 })();
