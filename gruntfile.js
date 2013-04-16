@@ -39,7 +39,8 @@ module.exports = function(grunt) {
       }
     } catch (e) {
       var os = require('os');
-      browsers = ['Chrome', 'Firefox'];
+      //browsers = ['Chrome', 'Firefox'];
+      browsers = ['Chrome'];
       if (os.type() === 'Darwin') {
         browsers.push('ChromeCanary');
       }
