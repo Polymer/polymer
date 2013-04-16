@@ -100,8 +100,6 @@
 
   var base = {
     super: $super,
-    // object on prototype used mindfully
-    attributes: {},
     isToolkitElement: true,
     readyCallback: function() {
       // invoke closed 'installTemplate'
