@@ -9,7 +9,7 @@
 
   // bind a property in A to a path in B by converting A[property] to a
   // getter/setter pair that accesses B[...path...]
-    function bindProperties(inA, inProperty, inB, inPath) {
+  function bindProperties(inA, inProperty, inB, inPath) {
     log.bind && console.log("[%s]: bindProperties: [%s] to [%s].[%s]",
         inB.localName, inPath, inA.localName, inProperty);
     Object.defineProperty(inA, inProperty, {
