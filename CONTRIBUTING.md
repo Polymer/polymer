@@ -30,9 +30,9 @@ Here's an easy guide that should get you up and running:
         git submodule init
         git submodule update
 
-2. Development happens on the `dev` branch. Get yourself on it!
+2. Development happens on the `master` branch. Get yourself on it!
 
-        git checkout dev
+        git checkout master
 
 That's it for the one time setup. Now you're ready to make a change.
 
@@ -43,18 +43,18 @@ We iterate fast! To avoid potential merge conflicts, it's a good idea to pull fr
     cd toolkit
     git remote add upstream git://github.com/toolkitchen/toolkit.git
 
-Then before making a change, do a pull from the upstream `dev` branch:
+Then before making a change, do a pull from the upstream `master` branch:
 
-    git pull upstream dev
+    git pull upstream master
 
 To make life easier, add a "pull upstream" alias in your `.gitconfig`:
 
     [alias]
-      pu = !"git fetch origin -v; git fetch upstream -v; git merge upstream/dev"
+      pu = !"git fetch origin -v; git fetch upstream -v; git merge upstream/master"
 
 That will pull in changes from your forked repo, the main (upstream) repo, and merge the two. Then it's just a matter of running `git pu` before a change and pushing to your repo:
 
-    git checkout dev
+    git checkout master
     git pu
     # make change
     git commit -a -m 'Awesome things.'
