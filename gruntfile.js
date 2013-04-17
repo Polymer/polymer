@@ -112,6 +112,5 @@ module.exports = function(grunt) {
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['karma:toolkit']);
   grunt.registerTask('test-buildbot', ['karma:buildbot']);
-
 };
 
