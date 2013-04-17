@@ -14,7 +14,6 @@ files = [
   'tools/test/mocha-htmltest.js',
   'conf/mocha.conf.js',
   'node_modules/chai/chai.js',
-  'platform/platform.js',
   'toolkit.js',
   'test/js/*.js',
   {pattern: 'tools/**/*.js', included: false},
