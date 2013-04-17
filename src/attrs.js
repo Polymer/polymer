@@ -29,17 +29,31 @@
         published[p.trim()] = null;
       });
     }
-    // combine with 'publish' object from prototype'
-    published = mixin(published, inPrototype[attrProps$]);
-    // install actual properties on the prototype
+    // our suffix prototype chain (inPrototype is 'own')
+    var inherited = inElement.options.prototype;
+    // install 'attributes' properties on the prototype, unless they
+    // are already defaulted
     Object.keys(published).forEach(function(p) {
-      inPrototype[p] = published[p];
+      if (!(p in inPrototype) && !(p in inherited)) {
+        inPrototype[p] = published[p];
+      }
     });
+    // acquire properties published imperatively
+    var imperative = inPrototype[attrProps$];
+    if (imperative) {
+      // install imperative properties, overriding defaults
+      Object.keys(imperative).forEach(function(p) {
+        inPrototype[p] = imperative[p];
+      });
+      // combine declaratively and imperatively published properties
+      published = mixin(published, imperative);
+    }
     // combine with inherited published properties
     inPrototype[published$] = mixin(
-      {}, 
-      inElement.options.prototype[published$],
-      published);
+      {},
+      inherited[published$],
+      published
+    );
   };
 
   function takeAttributes() {
