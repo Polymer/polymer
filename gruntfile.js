@@ -4,6 +4,14 @@
  * license that can be found in the LICENSE file.
  */
 module.exports = function(grunt) {
+  Platform = [
+    'platform/platform.min.js'
+  ];
+  
+  PlatformNative = [
+    'platform/platform.native.min.js'
+  ];
+  
   Toolkit = [
     'src/lang.js',
     'src/oop.js',
@@ -15,10 +23,12 @@ module.exports = function(grunt) {
     'src/events.js',
     'src/observeProperties.js',
     'src/styling.js',
+    'src/shimStyling.js',
     'src/path.js',
+    'src/job.js',
     'src/boot.js'
   ];
-  
+
   // karma setup
   var browsers;
   (function() {
@@ -30,6 +40,7 @@ module.exports = function(grunt) {
     } catch (e) {
       var os = require('os');
       browsers = ['Chrome', 'Firefox'];
+      //browsers = ['Chrome'];
       if (os.type() === 'Darwin') {
         browsers.push('ChromeCanary');
       }
@@ -41,18 +52,32 @@ module.exports = function(grunt) {
   
   grunt.initConfig({
     karma: {
-      toolkit: {
+      options: {
         configFile: 'conf/karma.conf.js',
         browsers: browsers,
         keepalive: true
-      }
+      },
+      buildbot: {
+        reporters: ['crbot'],
+        logLevel: 'OFF'
+      },
+      toolkit: {}
     },
     uglify: {
       Toolkit: {
         options: {
+          sourceMap: 'toolkit.min.js.map'
         },
         files: {
-          'toolkit.min.js': Toolkit
+          'toolkit.min.js': [].concat(Platform, Toolkit)
+        }
+      },
+      ToolkitNative: {
+        options: {
+          sourceMap: 'toolkit.native.min.js.map'
+        },
+        files: {
+          'toolkit.native.min.js': [].concat(PlatformNative, Toolkit)
         }
       }
     },
@@ -69,7 +94,7 @@ module.exports = function(grunt) {
           outdir: 'docs',
           linkNatives: 'true',
           tabtospace: 2,
-          themedir: '../docs/doc_themes/simple'
+          themedir: '../docs/doc_themes/bootstrap'
         }
       }
     },
@@ -79,12 +104,13 @@ module.exports = function(grunt) {
   // plugins
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
-  grunt.loadNpmTasks('grunt-karma');
+  grunt.loadNpmTasks('grunt-karma-0.9.1');
 
   // tasks
   grunt.registerTask('default', ['uglify']);
   grunt.registerTask('minify', ['uglify']);
   grunt.registerTask('docs', ['yuidoc']);
-  grunt.registerTask('test', ['karma']);
+  grunt.registerTask('test', ['karma:toolkit']);
+  grunt.registerTask('test-buildbot', ['karma:buildbot']);
 };
 
