@@ -28,6 +28,8 @@
     // also, we don't yet support intermediate prototypes in calls to
     // HTMLElementElement.prototype.register, so we have to use mixin
     var prototype = mixin({}, base, inPrototype);
+    //
+    prototype.elementElement = inElement;
     // TODO(sorvell): install a helper method this.resolvePath to aid in 
     // setting resource paths. e.g. 
     // this.$.image.src = this.resolvePath('images/foo.png')
