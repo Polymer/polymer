@@ -20,7 +20,7 @@
   function bindModel(inRoot) {
     log.bind && console.group("[%s] bindModel", this.localName);
     // TODO(sjmiles): allow 'this' to supply a 'delegate'
-    HTMLTemplateElement.bindTree(inRoot, this)
+    HTMLTemplateElement.bindAllMustachesFrom_(inRoot, this)
     log.bind && console.groupEnd();
   }
 
