@@ -117,7 +117,7 @@
   function bindAccumulatedEvents(inNode, inEvents, inListener) {
     var fn = inListener.bind(this);
     for (var n in inEvents) {
-      log.events && console.log('[%s] bindAccumulatedEvents: addEventListener("%s", listen)', inNode.localName, n);
+      log.events && console.log('[%s] bindAccumulatedEvents: addEventListener("%s", listen)', inNode.localName || 'root', n);
       inNode.addEventListener(n, fn);
     }
   };
