@@ -25,11 +25,7 @@
   }
   
   function calcElementPath(inElement) {
-    return urlToPath(inElement.ownerDocument.URL 
-      || inElement.ownerDocument._URL 
-      // TODO(sorvell): ShadowDOM polyfill pollution; WebComponents works on
-      // non-wrapped documents and stores _url there
-      || inElement.ownerDocument.impl._URL);
+    return urlToPath(HTMLImports.getDocumentUrl(inElement.ownerDocument));
   }
   
   // exports

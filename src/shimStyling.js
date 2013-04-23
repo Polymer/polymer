@@ -281,19 +281,25 @@ var stylizer = {
     // TODO(sorvell): remove @host rules (use cssom rather than regex?)
     var cssText = this.stylesToCssText(inStyles).replace(this.hostRuleRe, '');
     var rules = this.cssToRules(cssText);
-    this.pseudoScopeRules(rules, inScope);
-    var cssText = this.rulesToCss(rules);
+    var cssText = this.pseudoScopeRules(rules, inScope);
     this.addCssToDocument(cssText);
   },
   // change a selector like 'div' to 'name div'
   pseudoScopeRules: function(cssRules, inScope) {
+    var cssText = '';
     forEach(cssRules, function(rule) {
-      if (rule.selectorText) {
-        rule.selectorText = this.pseudoScopeSelector(rule.selectorText, inScope);
-      } else if (rule.cssRules) {
-        this.pseudoScopeRules(rule.cssRules, inScope);
+      if (rule.selectorText && (rule.style && rule.style.cssText)) {
+        cssText += this.pseudoScopeSelector(rule.selectorText, inScope) + ' {\n\t';
+        cssText += rule.style.cssText + '\n}\n\n';
+      } else if (rule.media) {
+        cssText += '@media ' + rule.media.mediaText + ' {\n';
+        cssText += this.pseudoScopeRules(rule.cssRules, inScope);
+        cssText += '\n}\n\n';
+      } else if (rule.cssText) {
+        cssText += rule.cssText + '\n\n';
       }
     }, this);
+    return cssText;
   },
   pseudoScopeSelector: function(selector, name) {
     var r = [], parts = selector.split(',');

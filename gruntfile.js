@@ -57,6 +57,9 @@ module.exports = function(grunt) {
         browsers: browsers,
         keepalive: true
       },
+      browserstack: {
+        browsers: ["BrowserStack:IE:Win", "BrowserStack:iPad 3rd (6.0):iOS"]
+      },
       buildbot: {
         reporters: ['crbot'],
         logLevel: 'OFF'
