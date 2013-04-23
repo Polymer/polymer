@@ -84,6 +84,7 @@ preprocessors = {
 
 plugins = [
   'karma-mocha',
+  'karma-browserstack-launcher',
   'karma-chrome-launcher',
   'karma-firefox-launcher',
   'karma-script-launcher',
