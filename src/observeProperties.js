@@ -23,7 +23,7 @@
   
   function observeProperty(inName) {
     if (isObservable.call(this, inName)) {
-      log.watch && console.log('[' + this.localName + '] watching [' + inName + ']');
+      log.observe && console.log('[' + this.localName + '] watching [' + inName + ']');
       Model.observePath(this, inName, function(inNew, inOld) {
         log.data && console.log('[%s#%s] watch: [%s] now [%s] was [%s]', this.localName, this.node.id || '', inName, this[inName], inOld);
         propertyChanged.call(this, inName, inOld);
