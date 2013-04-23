@@ -59,6 +59,8 @@
     var template = inElement.querySelector('template');
     if (template) {
       var root = this.webkitCreateShadowRoot();
+      // TODO(sjmiles): override createShadowRoot to do this automatically
+      CustomElements.watchShadow(this);
       // TODO(sorvell): host not set per spec; we set it for convenience
       // so we can traverse from root to host.
       root.host = this;
@@ -66,16 +68,20 @@
       root.appendChild(template.createInstance());
       // set up gestures
       PointerGestures.register(root);
-      PointerEventsPolyfill.setTouchAction(root, this.getAttribute('touch-action'));
+      PointerEventsPolyfill.setTouchAction(root, 
+          this.getAttribute('touch-action'));
       rootCreated.call(this, root);
       return root;
     }
   };
 
   function rootCreated(inRoot) {
+    // to resolve this node synchronously we must process CustomElements 
+    // in the subtree immediately
+    CustomElements.takeRecords();
     // upgrade elements in shadow root
-    document.upgradeElements(inRoot);
-    document.watchDOM(inRoot);
+    //document.upgradeElements(inRoot);
+    //document.watchDOM(inRoot);
     // parse and apply MDV bindings
     Toolkit.bindModel.call(this, inRoot);
     // locate nodes with id and store references to them in this.$ hash

@@ -11,7 +11,7 @@
   // getter/setter pair that accesses B[...path...]
   function bindProperties(inA, inProperty, inB, inPath) {
     log.bind && console.log("[%s]: bindProperties: [%s] to [%s].[%s]",
-        inB.localName, inPath, inA.localName, inProperty);
+        inB.localName || 'object', inPath, inA.localName, inProperty);
     Object.defineProperty(inA, inProperty, {
       get: function() {
         return ChangeSummary.getValueAtPath(inB, inPath);
