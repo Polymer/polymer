@@ -54,17 +54,19 @@ module.exports = function(grunt) {
     karma: {
       options: {
         configFile: 'conf/karma.conf.js',
-        browsers: browsers,
         keepalive: true
       },
       browserstack: {
-        browsers: ["BrowserStack:IE:Win", "BrowserStack:iPad 3rd (6.0):iOS"]
+        browsers: ["BrowserStack:IE:Win"]
       },
       buildbot: {
+        browsers: browsers,
         reporters: ['crbot'],
         logLevel: 'OFF'
       },
-      toolkit: {}
+      toolkit: {
+        browsers: browsers
+      }
     },
     uglify: {
       Toolkit: {
