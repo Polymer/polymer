@@ -167,10 +167,12 @@ var stylizer = {
    *
   **/
   shimPolyfillDirectives: function(inStyles, inScope) {
-    if (inStyles) {
-      forEach(inStyles, function(s) {
-        s.textContent = this.convertPolyfillDirectives(s.textContent, inScope);
-      }, this);
+    if (window.ShadowDOMPolyfill) {
+      if (inStyles) {
+        forEach(inStyles, function(s) {
+          s.textContent = this.convertPolyfillDirectives(s.textContent, inScope);
+        }, this);
+      }
     }
   },
   // form: @host { .foo { declarations } }
@@ -364,5 +366,6 @@ document.addEventListener('WebComponentsReady', function() {
 // exports
 Toolkit.shimStyling = stylizer.shimStyling;
 Toolkit.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
+Toolkit.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
 
 })(window);

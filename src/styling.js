@@ -89,6 +89,7 @@
       async.queue(function() {
         var scope = findStyleController(inElement);
         if (scope) {
+          Toolkit.shimPolyfillDirectives(styles, inElement.localName);
           applyStylesToScope(styles, scope);
         }
       });
