@@ -125,7 +125,7 @@
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
       return window.setTimeout(function() {
-        this[inMethod].apply(this, args);
+        (this[inMethod] || inMethod).apply(this, args);
       }.bind(this), inTimeout || 0);
     },
     dispatch: function(inMethodName, inArguments) {
