@@ -27,7 +27,7 @@
     // element chain, which is inefficient and has ramifications for 'super'
     // also, we don't yet support intermediate prototypes in calls to
     // HTMLElementElement.prototype.register, so we have to use mixin
-    var prototype = mixin({}, base, inPrototype);
+    var prototype = mixin({}, Toolkit.base, inPrototype);
     //
     prototype.elementElement = inElement;
     // TODO(sorvell): install a helper method this.resolvePath to aid in 
@@ -106,44 +106,6 @@
     }
   };
 
-  var base = {
-    super: $super,
-    isToolkitElement: true,
-    readyCallback: function() {
-      // invoke closed 'installTemplate'
-      this.installTemplate();
-      // invoke boilerplate 'instanceReady'
-      instanceReady.call(this);
-    },
-    // MDV binding
-    bind: function() {
-      Toolkit.bind.apply(this, arguments);
-    },
-    job: function() {
-      return Toolkit.job.apply(this, arguments);
-    },
-    asyncMethod: function(inMethod, inArgs, inTimeout) {
-      var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
-      return window.setTimeout(function() {
-        (this[inMethod] || inMethod).apply(this, args);
-      }.bind(this), inTimeout || 0);
-    },
-    dispatch: function(inMethodName, inArguments) {
-      if (this[inMethodName]) {
-        this[inMethodName].apply(this, inArguments);
-      }
-    },
-    send: function(inType, inDetail, inToNode) {
-      var node = inToNode || this;
-      log.events && console.log('[%s]: sending [%s]', node.localName, inType);
-      node.dispatchEvent(
-          new CustomEvent(inType, {bubbles: true, detail: inDetail}));
-    },
-    asend: function(/*inType, inDetail*/) {
-      this.asyncMethod("send", arguments);
-    }
-  };
-
   // user utility 
 
   function findDistributedTarget(inTarget, inNodes) {
@@ -163,7 +125,8 @@
 
   window.Toolkit = {
     register: register,
-    findDistributedTarget: findDistributedTarget
+    findDistributedTarget: findDistributedTarget,
+    instanceReady: instanceReady
   };
 
 })();
