@@ -59,6 +59,8 @@
     var template = inElement.querySelector('template');
     if (template) {
       var root = this.webkitCreateShadowRoot();
+      // TODO(sjmiles): must be settable ex post facto
+      root.applyAuthorStyles = this.applyAuthorStyles;
       // TODO(sjmiles): override createShadowRoot to do this automatically
       CustomElements.watchShadow(this);
       // TODO(sorvell): host not set per spec; we set it for convenience
