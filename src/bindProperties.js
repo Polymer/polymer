@@ -12,7 +12,8 @@
   function bindProperties(inA, inProperty, inB, inPath) {
     log.bind && console.log("[%s]: bindProperties: [%s] to [%s].[%s]",
         inB.localName || 'object', inPath, inA.localName, inProperty);
-    // capture A's value if B's value is null or undefined, otherwise use B's value
+    // capture A's value if B's value is null or undefined, 
+    // otherwise use B's value
     var v = ChangeSummary.getValueAtPath(inB, inPath);
     if (v == null || v === undefined) {
       ChangeSummary.setValueAtPath(inB, inPath, inA[inProperty]);
