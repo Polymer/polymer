@@ -73,7 +73,6 @@
         var defaultValue = this[name];
         // deserialize Boolean or Number values from attribute
         var value = deserializeValue(a.value, defaultValue);
-        //console.log('takeAttributes: ', a.name, a.value);
         // only act if the value has changed
         if (value !== defaultValue) {
           // install new value (has side-effects)
@@ -93,24 +92,6 @@
     // search for a matchable property
     return properties[properties.map(lowerCase).indexOf(name)];
   };
-  
-  /*
-  // find the public property identified by inAttributeName
-  function propertyForAttribute(inAttributeName) {
-    // specifically search the __proto__ (as opposed to getPrototypeOf) 
-    // __proto__ is simulated on platforms which don't support it naturally 
-    // TODO(sjmiles): I'm reluctant to search the entire namespace
-    // but this set is too small. Perhaps in 'full public' mode, one
-    // must declare 'attributable properties'.
-    var properties = Object.keys(this.__proto__);
-    //var properties = Object.keys(Object.getPrototypeOf(this));
-    for (var i=0, n; (n=properties[i]); i++) {
-      if (n.toLowerCase() == inAttributeName) {
-        return n;
-      }
-    }
-  };
-  */
  
   function deserializeValue(inValue, inDefaultValue) {
     var inferredType = typeof inDefaultValue;
@@ -121,7 +102,8 @@
       case 'false':
         return inferredType == 'boolean' ? false : inValue;
       }
-      return isNaN(inValue) ? inValue : parseFloat(inValue);
+      var float = parseFloat(inValue);
+      return isNaN(float) ? inValue : float;
   }
 
   // exports
