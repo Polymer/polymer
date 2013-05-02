@@ -115,7 +115,7 @@
         fn();
       });
       async.list = [];
-      async.flusing = false;
+      async.flushing = false;
     }
     
   }
