@@ -93,6 +93,8 @@
     return properties[properties.map(lowerCase).indexOf(name)];
   };
  
+  var isNotNumber = /[^\d\.]/;
+  
   function deserializeValue(inValue, inDefaultValue) {
     var inferredType = typeof inDefaultValue;
     switch (inValue) {
@@ -101,9 +103,12 @@
         return inferredType == 'boolean' ? true : inValue;
       case 'false':
         return inferredType == 'boolean' ? false : inValue;
-      }
-      var float = parseFloat(inValue);
-      return isNaN(float) ? inValue : float;
+    }
+    if (isNotNumber.test(inValue)) {
+      return inValue;
+    }
+    var float = parseFloat(inValue);
+    return isNaN(float) ? inValue : float;
   }
 
   // exports
