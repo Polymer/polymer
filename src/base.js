@@ -23,6 +23,9 @@
     bind: function() {
       Toolkit.bind.apply(this, arguments);
     },
+    unbind: function() {
+      Toolkit.unbind.apply(this, arguments);
+    },
     job: function() {
       return Toolkit.job.apply(this, arguments);
     },
