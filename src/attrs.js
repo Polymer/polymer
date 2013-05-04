@@ -90,7 +90,7 @@
     // matchable properties must be published
     var properties = Object.keys(this[published$]);
     // search for a matchable property
-    return properties[properties.map(lowerCase).indexOf(name)];
+    return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
   };
  
   var isNotNumber = /[^\d\.]/;
