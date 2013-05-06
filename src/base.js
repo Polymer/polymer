@@ -13,12 +13,6 @@
   var base = {
     super: $super,
     isToolkitElement: true,
-    readyCallback: function() {
-      // invoke closed 'installTemplate'
-      this.installTemplate();
-      // invoke boilerplate 'instanceReady'
-      Toolkit.instanceReady.call(this);
-    },
     // MDV binding
     bind: function() {
       Toolkit.bind.apply(this, arguments);

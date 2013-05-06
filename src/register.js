@@ -10,6 +10,8 @@
 
   var log = window.logFlags || {};
 
+  // api
+
   function register(inElement, inPrototype) {
     // in the main document, parser runs script in <element> tags in the wrong
     // context, filter that out here
@@ -28,7 +30,7 @@
     // also, we don't yet support intermediate prototypes in calls to
     // HTMLElementElement.prototype.register, so we have to use mixin
     var prototype = mixin({}, Toolkit.base, inPrototype);
-    //
+    // capture defining element
     prototype.elementElement = inElement;
     // TODO(sorvell): install a helper method this.resolvePath to aid in 
     // setting resource paths. e.g. 
@@ -39,8 +41,10 @@
     // install instance method that closes over 'inElement'
     prototype.installTemplate = function() {
       this.super();
-      installTemplate.call(this, inElement);
+      staticInstallTemplate.call(this, inElement);
     };
+    // install readyCallback
+    prototype.readyCallback = readyCallback;
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
     // parse attribute-attributes
@@ -55,7 +59,14 @@
           console.log("Toolkit: element registered" + inElement.options.name);
   };
 
-  function installTemplate(inElement) {
+  function readyCallback() {
+    // invoke 'installTemplate' closure
+    this.installTemplate();
+    // invoke boilerplate 'instanceReady'
+    instanceReady.call(this);
+  };
+
+  function staticInstallTemplate(inElement) {
     var template = inElement.querySelector('template');
     if (template) {
       var root = this.webkitCreateShadowRoot();
