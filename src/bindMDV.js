@@ -19,7 +19,7 @@
     if (!b$) {
       bindings.set(element, b$ = {});
     }
-    b$[name] = path;   
+    b$[name.toLowerCase()] = path;   
   }
   
   function unregisterBinding(element, name) {
@@ -29,18 +29,25 @@
     }
   }
   
-  var originalBind = Element.prototype.bind;
-  var originalUnbind = Element.prototype.unbind;
+  function overrideBinding(ctor) {
+    var proto = ctor.prototype;
+    var originalBind = proto.bind;
+    var originalUnbind = proto.unbind;
   
-  Element.prototype.bind = function(name, model, path) {
-    registerBinding(this, name, path);
-    originalBind.apply(this, arguments);
-  }
+    proto.bind = function(name, model, path) {
+      originalBind.apply(this, arguments);
+      // note: must do this last because mdv may unbind before binding
+      registerBinding(this, name, path);
+    }
+
+    proto.unbind = function(name) {
+      originalUnbind.apply(this, arguments);
+      unregisterBinding(this, name);
+    }
+  };
   
-  Element.prototype.unbind = function(name) {
-    unregisterBinding(this, name);
-    originalUnbind.apply(this, arguments);
-  }
+  [Node, Element, Text, HTMLInputElement].forEach(overrideBinding);
+  
   
   var emptyBindings = {};
   
