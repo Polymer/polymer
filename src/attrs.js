@@ -26,7 +26,10 @@
       var names = attributes.split(attributes.indexOf(',') >= 0 ? ',' : ' ');
       // record each name for publishing
       names.forEach(function(p) {
-        published[p.trim()] = null;
+        p = p.trim();
+        if (p) {
+          published[p] = null;
+        }
       });
     }
     // our suffix prototype chain (inPrototype is 'own')
@@ -92,23 +95,22 @@
     // search for a matchable property
     return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
   };
- 
-  var isNotNumber = /[^\d\.]/;
   
   function deserializeValue(inValue, inDefaultValue) {
     var inferredType = typeof inDefaultValue;
-    switch (inValue) {
-      case '':
-      case 'true':
-        return inferredType == 'boolean' ? true : inValue;
-      case 'false':
-        return inferredType == 'boolean' ? false : inValue;
-    }
-    if (isNotNumber.test(inValue)) {
+    if (inferredType === 'string') {
       return inValue;
     }
+    switch (inValue) {
+      case '':
+        return inferredType === 'boolean' ? true : '';
+      case 'true':
+        return true;
+      case 'false':
+        return false;
+    }
     var float = parseFloat(inValue);
-    return isNaN(float) ? inValue : float;
+    return (String(float) === inValue) ? float : inValue;
   }
 
   // exports
