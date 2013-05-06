@@ -25,7 +25,7 @@
   function unregisterBinding(element, name) {
     var b$ = bindings.get(element);
     if (b$) {
-      delete b$[name];
+      delete b$[name.toLowerCase()];
     }
   }
   
