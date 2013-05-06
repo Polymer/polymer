@@ -52,7 +52,7 @@
   var emptyBindings = {};
   
   function getBindings(element) {
-    return bindings.get(element) || emptyBindings;
+    return element && bindings.get(element) || emptyBindings;
   }
   
   function getBinding(element, name) {
