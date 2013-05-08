@@ -14,17 +14,17 @@
         inB.localName || 'object', inPath, inA.localName, inProperty);
     // capture A's value if B's value is null or undefined, 
     // otherwise use B's value
-    var v = ChangeSummary.getValueAtPath(inB, inPath);
+    var v = PathObserver.getValueAtPath(inB, inPath);
     if (v == null || v === undefined) {
-      ChangeSummary.setValueAtPath(inB, inPath, inA[inProperty]);
+      PathObserver.setValueAtPath(inB, inPath, inA[inProperty]);
     }
     // redefine A's property as an accessor on path in B
     Object.defineProperty(inA, inProperty, {
       get: function() {
-        return ChangeSummary.getValueAtPath(inB, inPath);
+        return PathObserver.getValueAtPath(inB, inPath);
       },
       set: function(inValue) {
-        ChangeSummary.setValueAtPath(inB, inPath, inValue);
+        PathObserver.setValueAtPath(inB, inPath, inValue);
       },
       configurable: true,
       enumerable: true
