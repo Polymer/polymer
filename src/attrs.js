@@ -103,6 +103,7 @@
     if (defaultValue instanceof Date) {
       inferredType = 'date';
     }
+    // special handling for inferredTypes
     switch (inferredType) {
       case 'string':
         return value;
@@ -113,12 +114,14 @@
           return true;
         }
     }
+    // unless otherwise typed, convert 'true|false' to boolean values
     switch (value) {
       case 'true':
         return true;
       case 'false':
         return false;
     }
+    // unless otherwise typed, convert eponymous floats to float values
     var float = parseFloat(value);
     return (String(float) === value) ? float : value;
   }
