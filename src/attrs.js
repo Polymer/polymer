@@ -62,7 +62,7 @@
   function takeAttributes() {
     // for each attribute
     forEach(this.attributes, function(a) {
-      // try to match this attribute to a property (attributess are
+      // try to match this attribute to a property (attributes are
       // all lower-case, so this is case-insensitive search)
       var name = propertyForAttribute.call(this, a.name);
       if (name) {
@@ -87,7 +87,7 @@
 
   var lowerCase = String.prototype.toLowerCase.call.bind(
       String.prototype.toLowerCase);
-      
+     
   // return the published property matching name, or undefined
   function propertyForAttribute(name) {
     // matchable properties must be published
@@ -95,7 +95,7 @@
     // search for a matchable property
     return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
   };
-  
+
   function deserializeValue(inValue, inDefaultValue) {
     var inferredType = typeof inDefaultValue;
     if (inferredType === 'string') {
@@ -109,6 +109,11 @@
       case 'false':
         return false;
     }
+
+    if (inDefaultValue instanceof Date) {
+      return new Date(Date.parse(inValue) || Date.now());
+    }
+
     var float = parseFloat(inValue);
     return (String(float) === inValue) ? float : inValue;
   }
