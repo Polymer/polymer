@@ -85,9 +85,6 @@
     }, this);
   };
 
-  var lowerCase = String.prototype.toLowerCase.call.bind(
-      String.prototype.toLowerCase);
-     
   // return the published property matching name, or undefined
   function propertyForAttribute(name) {
     // matchable properties must be published
@@ -96,26 +93,34 @@
     return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
   };
 
-  function deserializeValue(inValue, inDefaultValue) {
-    var inferredType = typeof inDefaultValue;
-    if (inferredType === 'string') {
-      return inValue;
+  var lowerCase = String.prototype.toLowerCase.call.bind(
+    String.prototype.toLowerCase);
+     
+
+  function deserializeValue(value, defaultValue) {
+    // attempt to infer type from default value
+    var inferredType = typeof defaultValue;
+    if (defaultValue instanceof Date) {
+      inferredType = 'date';
     }
-    switch (inValue) {
-      case '':
-        return inferredType === 'boolean' ? true : '';
+    switch (inferredType) {
+      case 'string':
+        return value;
+      case 'date':
+        return new Date(Date.parse(value) || Date.now());
+      case 'boolean':
+        if (value == '') {
+          return true;
+        }
+    }
+    switch (value) {
       case 'true':
         return true;
       case 'false':
         return false;
     }
-
-    if (inDefaultValue instanceof Date) {
-      return new Date(Date.parse(inValue) || Date.now());
-    }
-
-    var float = parseFloat(inValue);
-    return (String(float) === inValue) ? float : inValue;
+    var float = parseFloat(value);
+    return (String(float) === value) ? float : value;
   }
 
   // exports
