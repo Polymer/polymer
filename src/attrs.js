@@ -96,15 +96,6 @@
     return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
   };
 
-  function createDate(year, month, day, hour, minute, second, millisecond) {
-    // hour through ms are optional and undefined if not provided. Passing 
-    // undefined into the Date constructor results in an invalid date. 
-    // Null, on the other hand, is valid.
-    return new Date(year, month-1, day,
-      hour ? hour : null, minute ? minute : null,
-      second ? second : null, millisecond ? millisecond : null);
-  };
- 
   function deserializeValue(inValue, inDefaultValue) {
     var inferredType = typeof inDefaultValue;
     if (inferredType === 'string') {
@@ -119,19 +110,8 @@
         return false;
     }
 
-    // If the default attribute value is a Date, provide a Date object
-    // for the specified value.
     if (inDefaultValue instanceof Date) {
-      // Strip the date string into its component parts and pass each into
-      // the Date constructor.
-      var dateParts = inValue.match(/(\d+)/g);
-      
-      // length < 3 means a text format was used (ex. March 20, 2010)
-      if (dateParts.length >= 3) {
-        return createDate.apply(null, dateParts);
-      } else {
-        return new Date(inValue);
-      }
+      return new Date(Date.parse(inValue) || Date.now());
     }
 
     var float = parseFloat(inValue);
