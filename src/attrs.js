@@ -83,7 +83,7 @@
         }
       }
     }, this);
-  };
+  }
 
   // return the published property matching name, or undefined
   function propertyForAttribute(name) {
@@ -91,27 +91,20 @@
     var properties = Object.keys(this[published$]);
     // search for a matchable property
     return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
-  };
+  }
 
   var lowerCase = String.prototype.toLowerCase.call.bind(
     String.prototype.toLowerCase);
 
   function deserializeValue(value, defaultValue) {
-    // attempt to infer type from default value
-    var inferredType = typeof defaultValue;
-    if (defaultValue instanceof Date) {
-      inferredType = 'date';
-    } else if (defaultValue instanceof Array) {
-      inferredType = 'array';
-    }
-
-    // special handling for inferredTypes
-    switch (inferredType) {
-      case 'string':
+    var typeHandlers = {
+      'string': function() {
         return value;
-      case 'date':
+      },
+      'date': function() {
         return new Date(Date.parse(value) || Date.now());
-      case 'array':
+      },
+      'array': function() {
         try {
           // If the string is a true array, we can parse is with the JSON library.
           value = JSON.parse(value);
@@ -120,18 +113,33 @@
         }
 
         return value;
-      case 'boolean':
-        if (value == '') {
+      },
+      'boolean': function() {
+        if (value === '') {
           return true;
         }
+
+        return value === 'false' ? false : !!value;
+      }
+    };
+
+    // attempt to infer type from default value
+    var inferredType = typeof defaultValue;
+    if (defaultValue instanceof Date) {
+      inferredType = 'date';
+    } else if (defaultValue instanceof Array) {
+      inferredType = 'array';
     }
+
+    if (inferredType in typeHandlers) {
+      return typeHandlers[inferredType]();
+    }
+
     // unless otherwise typed, convert 'true|false' to boolean values
-    switch (value) {
-      case 'true':
-        return true;
-      case 'false':
-        return false;
+    if ((/^(true|false)$/i).test(value)) {
+      return (value === 'true');
     }
+
     // unless otherwise typed, convert eponymous floats to float values
     var floatVal = parseFloat(value);
     return (String(floatVal) === value) ? floatVal : value;
