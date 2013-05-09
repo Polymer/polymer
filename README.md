@@ -1,5 +1,7 @@
 # Toolkitchen:Toolkit
 
+Build Status: [http://build.chromium.org/p/client.toolkit/waterfall](http://build.chromium.org/p/client.toolkit/waterfall)
+
 ## Brief Overview
 
 For more detailed info goto [http://toolkitchen.github.io/](http://toolkitchen.github.io/).

@@ -117,40 +117,62 @@ var stylizer = {
   hostRuleRe: /@host[^{]*{(([^}]*?{[^{]*?}[\s\S]*?)+)}/gim,
   selectorRe: /([^{]*)({[\s\S]*?})/gim,
   hostFixableRe: /^[.\[:]/,
-  cssCommentRe: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim, 
-  cssPolyfillCommentRe: /\/\*@polyfill ([^*]*\*+([^/*][^*]*\*+)*\/)([^{]*?){/gim, 
+  cssCommentRe: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
+  cssPolyfillCommentRe: /\/\*\s*@polyfill ([^*]*\*+([^/*][^*]*\*+)*\/)([^{]*?){/gim,
   selectorReSuffix: '([>\\s~+\[.,{:][\\s\\S]*)?$',
   hostRe: /@host/gim,
   cache: {},
-  shimStyling: function(inElementElement) {
-    if (window.ShadowDOMPolyfill) {
+  shimStyling: function(element) {
+    if (window.ShadowDOMPolyfill && element) {
       // use caching to make working with styles nodes easier and to facilitate
       // lookup of extendee
-      stylizer.cacheDefinition(inElementElement);
-      stylizer.shimShadowDOMStyling(inElementElement.styles, 
-        inElementElement.options.name);
+      var name = element.options.name;
+      stylizer.cacheDefinition(element);
+      stylizer.shimPolyfillDirectives(element.styles, name);
+      // find styles and apply shimming...
+      stylizer.applyShimming(stylizer.stylesForElement(element), name);
     }
   },
   // Shim styles to be placed inside a shadowRoot.
   // 1. shim @host rules and inherited @host rules
   // 2. shim scoping: apply .scoped when available or pseudo-scoping when not 
   // (e.g. a selector 'div' becomes 'x-foo div')
-  shimShadowDOMStyling: function(inStyles, inScope) {
+  shimShadowDOMStyling: function(styles, name) {
     if (window.ShadowDOMPolyfill) {
-      stylizer.shimPolyfillDirectives(inStyles, inScope);
-      stylizer.shimAtHost(inStyles, inScope);
-      stylizer.shimScoping(inStyles, inScope);
+      stylizer.shimPolyfillDirectives(styles, name);
+      stylizer.applyShimming(styles, name);
     }
   },
+  applyShimming: function(styles, name) {
+    this.shimAtHost(styles, name);
+    this.shimScoping(styles, name);
+  },
   //TODO(sorvell): use SideTable
-  cacheDefinition: function(inElementElement) {
-    var name = inElementElement.options.name;
-    var template = inElementElement.querySelector('template');
+  cacheDefinition: function(element) {
+    var name = element.options.name;
+    var template = element.querySelector('template');
     var content = template && templateContent(template);
     var styles = content && content.querySelectorAll('style');
-    inElementElement.styles = styles ? slice(styles) : [];
-    inElementElement.templateContent = content;
-    stylizer.cache[name] = inElementElement;
+    element.styles = styles ? slice(styles) : [];
+    element.templateContent = content;
+    stylizer.cache[name] = element;
+  },
+  stylesForElement: function(element) {
+    var styles = element.styles;
+    var shadow = element.templateContent && 
+      element.templateContent.querySelector('shadow');
+    if (shadow || (element.templateContent === null)) {
+      var extendee = this.findExtendee(element.options.name);
+      if (extendee) {
+        var extendeeStyles = this.stylesForElement(extendee);
+        styles = concat(slice(extendeeStyles), slice(styles));
+      }
+    }
+    return styles;
+  },
+  findExtendee: function(name) {
+    var element = this.cache[name];
+    return element && this.cache[element.options.extends];
   },
   /*
    * Process styles to convert native ShadowDOM rules that will trip
@@ -166,19 +188,20 @@ var stylizer = {
    * scopeName g-menu-item {
    *
   **/
-  shimPolyfillDirectives: function(inStyles, inScope) {
-    if (inStyles) {
-      forEach(inStyles, function(s) {
-        s.textContent = this.convertPolyfillDirectives(s.textContent, inScope);
-      }, this);
+  shimPolyfillDirectives: function(styles, name) {
+    if (window.ShadowDOMPolyfill) {
+      if (styles) {
+        forEach(styles, function(s) {
+          s.textContent = this.convertPolyfillDirectives(s.textContent, name);
+        }, this);
+      }
     }
   },
   // form: @host { .foo { declarations } }
   // becomes: scopeName.foo { declarations }
-  shimAtHost: function(inStyles, inScope) {
-    var styles = this.findAtHostStyles(inStyles, inScope);
+  shimAtHost: function(styles, name) {
     if (styles) {
-      var cssText = this.convertAtHostStyles(styles, inScope);
+      var cssText = this.convertAtHostStyles(styles, name);
       this.addCssToDocument(cssText);
     }
   },
@@ -190,13 +213,13 @@ var stylizer = {
    *  
    *  scopeName .foo { ... }
   */
-  shimScoping: function(inStyles, inScope) {
-    if (inStyles) {
-      this.applyPseudoScoping(inStyles, inScope);
+  shimScoping: function(styles, name) {
+    if (styles) {
+      this.applyPseudoScoping(styles, name);
     }
   },
-  convertPolyfillDirectives: function(inCssText, inScope) {
-    var r = '', cssText = inCssText, l = 0, matches;
+  convertPolyfillDirectives: function(cssText, name) {
+    var r = '', l = 0, matches;
     while (matches=this.cssPolyfillCommentRe.exec(cssText)) {
       r += cssText.substring(l, matches.index);
       // remove end comment delimiter (*/)
@@ -206,94 +229,82 @@ var stylizer = {
     r += cssText.substring(l, cssText.length);
     return r;
   },
-  findAtHostStyles: function(inStyles, inScope) {
-    var styles = inStyles;
-    var definition = this.cache[inScope];
-    var shadow = definition.templateContent && 
-      definition.templateContent.querySelector('shadow');
-    if (shadow) {
-      var extendee = this.findExtendee(inScope);
-      if (extendee) {
-        var extendeeName = extendee.options.name;
-        var extendeeStyles = this.findAtHostStyles(extendee.styles, extendeeName);
-        styles = concat(slice(extendeeStyles), slice(styles));
-      }
-    }
-    return styles;
-  },
-  findExtendee: function(inScope) {
-    var elt = this.cache[inScope];
-    return elt && this.cache[elt.options.extends];
-  },
   // consider styles that do not include component name in the selector to be
   // unscoped and in need of promotion; 
   // for convenience, also consider keyframe rules this way.
-  findAtHostRules: function(cssRules, inMatcher) {
-    return Array.prototype.filter.call(cssRules, this.isHostRule.bind(this, inMatcher));
+  findAtHostRules: function(cssRules, matcher) {
+    return Array.prototype.filter.call(cssRules, 
+      this.isHostRule.bind(this, matcher));
   },
-  isHostRule: function(inMatcher, cssRule) {
-    return (cssRule.selectorText && cssRule.selectorText.match(inMatcher)) ||
-      (cssRule.cssRules && this.findAtHostRules(cssRule.cssRules, inMatcher).length) ||
+  isHostRule: function(matcher, cssRule) {
+    return (cssRule.selectorText && cssRule.selectorText.match(matcher)) ||
+      (cssRule.cssRules && this.findAtHostRules(cssRule.cssRules, matcher).length) ||
       (cssRule.type == CSSRule.WEBKIT_KEYFRAMES_RULE);
   },
-  convertAtHostStyles: function(inStyles, inScope) {
-    var cssText = this.stylesToCssText(inStyles);
+  convertAtHostStyles: function(styles, name) {
+    var cssText = this.stylesToCssText(styles);
     var r = '', l=0, matches;
     while (matches=this.hostRuleRe.exec(cssText)) {
       r += cssText.substring(l, matches.index);
-      r += this.scopeHostCss(matches[1], inScope);
+      r += this.scopeHostCss(matches[1], name);
       l = this.hostRuleRe.lastIndex;
     }
     r += cssText.substring(l, cssText.length);
-    var selectorRe = new RegExp('^' + inScope + this.selectorReSuffix, 'm');
+    var selectorRe = new RegExp('^' + name + this.selectorReSuffix, 'm');
     var cssText = this.rulesToCss(this.findAtHostRules(this.cssToRules(r),
       selectorRe));
     return cssText;
   },
-  scopeHostCss: function(cssText, inScope) {
+  scopeHostCss: function(cssText, name) {
     var r = '', matches;
     while (matches = this.selectorRe.exec(cssText)) {
-      r += this.scopeHostSelector(matches[1], inScope) +' ' + matches[2] + '\n\t';
+      r += this.scopeHostSelector(matches[1], name) +' ' + matches[2] + '\n\t';
     }
     return r;
   },
-  scopeHostSelector: function(selector, inScope) {
+  scopeHostSelector: function(selector, name) {
     var r = [], parts = selector.split(',');
     parts.forEach(function(p) {
       p = p.trim();
       // selector: * -> name
       if (p.indexOf('*') >= 0) {
-        p = p.replace('*', inScope);   
+        p = p.replace('*', name);   
       // selector: .foo -> name.foo, [bar] -> name[bar]
       } else if (p.match(this.hostFixableRe)) {
-        p = inScope + p;
+        p = name + p;
       }
       r.push(p);
     }, this);
     return r.join(', ');
   },
-  applyPseudoScoping: function(inStyles, inScope) {
-    forEach(inStyles, function(s) {
+  applyPseudoScoping: function(styles, name) {
+    forEach(styles, function(s) {
       if (s.parentNode) {
         s.parentNode.removeChild(s);
       }
     });
     // TODO(sorvell): remove @host rules (use cssom rather than regex?)
-    var cssText = this.stylesToCssText(inStyles).replace(this.hostRuleRe, '');
+    var cssText = this.stylesToCssText(styles).replace(this.hostRuleRe, '');
     var rules = this.cssToRules(cssText);
-    this.pseudoScopeRules(rules, inScope);
-    var cssText = this.rulesToCss(rules);
+    var cssText = this.pseudoScopeRules(rules, name);
     this.addCssToDocument(cssText);
   },
   // change a selector like 'div' to 'name div'
-  pseudoScopeRules: function(cssRules, inScope) {
+  pseudoScopeRules: function(cssRules, name) {
+    var cssText = '';
     forEach(cssRules, function(rule) {
-      if (rule.selectorText) {
-        rule.selectorText = this.pseudoScopeSelector(rule.selectorText, inScope);
-      } else if (rule.cssRules) {
-        this.pseudoScopeRules(rule.cssRules, inScope);
+      if (rule.selectorText && (rule.style && rule.style.cssText)) {
+        cssText += this.pseudoScopeSelector(rule.selectorText, name) + ' {\n\t';
+        cssText += rule.style.cssText + '\n}\n\n';
+      } else if (rule.media) {
+        cssText += '@media ' + rule.media.mediaText + ' {\n';
+        cssText += this.pseudoScopeRules(rule.cssRules, name);
+        cssText += '\n}\n\n';
+      } else if (rule.cssText) {
+        cssText += rule.cssText + '\n\n';
       }
     }, this);
+    return cssText;
   },
   pseudoScopeSelector: function(selector, name) {
     var r = [], parts = selector.split(',');
@@ -302,37 +313,37 @@ var stylizer = {
     });
     return r.join(', ');
   },
-  stylesToCssText: function(inStyles, inPreserveComments) {
+  stylesToCssText: function(styles, preserveComments) {
     var cssText = '';
-    forEach(inStyles, function(s) {
+    forEach(styles, function(s) {
       cssText += s.textContent + '\n\n';
     });
     // strip comments for easier processing
-    if (!inPreserveComments) {
+    if (!preserveComments) {
       cssText = this.stripCssComments(cssText);
     }
     return cssText;
   },
-  stripCssComments: function(inCssText) {
-    return inCssText.replace(this.cssCommentRe, '');
+  stripCssComments: function(cssText) {
+    return cssText.replace(this.cssCommentRe, '');
   },
-  cssToRules: function(inCssText) {
+  cssToRules: function(cssText) {
     var style = document.createElement('style');
-    style.textContent = inCssText;
+    style.textContent = cssText;
     document.head.appendChild(style);
     var rules = style.sheet.cssRules;
     style.parentNode.removeChild(style);
     return rules;
   },
-  rulesToCss: function(inRules) {
-    for (var i=0, css=[]; i < inRules.length; i++) {
-      css.push(inRules[i].cssText);
+  rulesToCss: function(cssRules) {
+    for (var i=0, css=[]; i < cssRules.length; i++) {
+      css.push(cssRules[i].cssText);
     }
     return css.join('\n\n');
   },
-  addCssToDocument: function(inCssText) {
-    if (inCssText) {
-      this.getSheet().appendChild(document.createTextNode(inCssText));
+  addCssToDocument: function(cssText) {
+    if (cssText) {
+      this.getSheet().appendChild(document.createTextNode(cssText));
     }
   },
   // support for creating @host rules
@@ -358,5 +369,6 @@ document.addEventListener('WebComponentsReady', function() {
 // exports
 Toolkit.shimStyling = stylizer.shimStyling;
 Toolkit.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
+Toolkit.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
 
 })(window);

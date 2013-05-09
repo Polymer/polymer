@@ -19,6 +19,7 @@ var modules = [
   'src/lang.js',
   'src/oop.js',
   'src/register.js',
+  'src/base.js',
   'src/bindProperties.js',
   'src/bindMDV.js',
   'src/attrs.js',

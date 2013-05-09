@@ -10,6 +10,8 @@
 
   var log = window.logFlags || {};
 
+  // api
+
   function register(inElement, inPrototype) {
     // in the main document, parser runs script in <element> tags in the wrong
     // context, filter that out here
@@ -27,7 +29,9 @@
     // element chain, which is inefficient and has ramifications for 'super'
     // also, we don't yet support intermediate prototypes in calls to
     // HTMLElementElement.prototype.register, so we have to use mixin
-    var prototype = mixin({}, base, inPrototype);
+    var prototype = mixin({}, Toolkit.base, inPrototype);
+    // capture defining element
+    prototype.elementElement = inElement;
     // TODO(sorvell): install a helper method this.resolvePath to aid in 
     // setting resource paths. e.g. 
     // this.$.image.src = this.resolvePath('images/foo.png')
@@ -37,8 +41,10 @@
     // install instance method that closes over 'inElement'
     prototype.installTemplate = function() {
       this.super();
-      installTemplate.call(this, inElement);
+      staticInstallTemplate.call(this, inElement);
     };
+    // install readyCallback
+    prototype.readyCallback = readyCallback;
     // parse declared on-* delegates into imperative form
     Toolkit.parseHostEvents(inElement.attributes, prototype);
     // parse attribute-attributes
@@ -53,10 +59,21 @@
           console.log("Toolkit: element registered" + inElement.options.name);
   };
 
-  function installTemplate(inElement) {
+  function readyCallback() {
+    // invoke 'installTemplate' closure
+    this.installTemplate();
+    // invoke boilerplate 'instanceReady'
+    instanceReady.call(this);
+  };
+
+  function staticInstallTemplate(inElement) {
     var template = inElement.querySelector('template');
     if (template) {
       var root = this.webkitCreateShadowRoot();
+      // TODO(sjmiles): must be settable ex post facto
+      root.applyAuthorStyles = this.applyAuthorStyles;
+      // TODO(sjmiles): override createShadowRoot to do this automatically
+      CustomElements.watchShadow(this);
       // TODO(sorvell): host not set per spec; we set it for convenience
       // so we can traverse from root to host.
       root.host = this;
@@ -64,16 +81,20 @@
       root.appendChild(template.createInstance());
       // set up gestures
       PointerGestures.register(root);
-      PointerEventsPolyfill.setTouchAction(root, this.getAttribute('touch-action'));
+      PointerEventsPolyfill.setTouchAction(root, 
+          this.getAttribute('touch-action'));
       rootCreated.call(this, root);
       return root;
     }
   };
 
   function rootCreated(inRoot) {
+    // to resolve this node synchronously we must process CustomElements 
+    // in the subtree immediately
+    CustomElements.takeRecords();
     // upgrade elements in shadow root
-    document.upgradeElements(inRoot);
-    document.watchDOM(inRoot);
+    //document.upgradeElements(inRoot);
+    //document.watchDOM(inRoot);
     // parse and apply MDV bindings
     Toolkit.bindModel.call(this, inRoot);
     // locate nodes with id and store references to them in this.$ hash
@@ -98,44 +119,6 @@
     }
   };
 
-  var base = {
-    super: $super,
-    isToolkitElement: true,
-    readyCallback: function() {
-      // invoke closed 'installTemplate'
-      this.installTemplate();
-      // invoke boilerplate 'instanceReady'
-      instanceReady.call(this);
-    },
-    // MDV binding
-    bind: function() {
-      Toolkit.bind.apply(this, arguments);
-    },
-    job: function() {
-      return Toolkit.job.apply(this, arguments);
-    },
-    asyncMethod: function(inMethod, inArgs, inTimeout) {
-      var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
-      return window.setTimeout(function() {
-        this[inMethod].apply(this, args);
-      }.bind(this), inTimeout || 0);
-    },
-    dispatch: function(inMethodName, inArguments) {
-      if (this[inMethodName]) {
-        this[inMethodName].apply(this, inArguments);
-      }
-    },
-    send: function(inType, inDetail, inToNode) {
-      var node = inToNode || this;
-      log.events && console.log('[%s]: sending [%s]', node.localName, inType);
-      node.dispatchEvent(
-          new CustomEvent(inType, {bubbles: true, detail: inDetail}));
-    },
-    asend: function(/*inType, inDetail*/) {
-      this.asyncMethod("send", arguments);
-    }
-  };
-
   // user utility 
 
   function findDistributedTarget(inTarget, inNodes) {
@@ -155,7 +138,8 @@
 
   window.Toolkit = {
     register: register,
-    findDistributedTarget: findDistributedTarget
+    findDistributedTarget: findDistributedTarget,
+    instanceReady: instanceReady
   };
 
 })();

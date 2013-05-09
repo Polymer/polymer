@@ -20,6 +20,7 @@ files = [
   {pattern: 'platform/**/*', included: false},
   {pattern: 'src/*.js', included: false},
   {pattern: 'test/**/*.html', included: false},
+  {pattern: 'test/**/*.css', included: false},
   {pattern: 'test/**/*.js', included: false}
 ];
 
@@ -83,6 +84,7 @@ preprocessors = {
 
 plugins = [
   'karma-mocha',
+  'karma-browserstack-launcher',
   'karma-chrome-launcher',
   'karma-firefox-launcher',
   'karma-script-launcher',
