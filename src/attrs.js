@@ -5,16 +5,16 @@
  */
 
 (function() {
-  
+
   // imports
-  
+
   var bindPattern = Toolkit.bindPattern;
-  
+
   // constants
-  
+
   var published$ = '__published';
   var attributes$ = 'attributes';
-  var attrProps$ = 'publish'; 
+  var attrProps$ = 'publish';
   //var attrProps$ = 'attributeDefaults';
 
   var publishAttributes = function(inElement, inPrototype) {
@@ -95,7 +95,6 @@
 
   var lowerCase = String.prototype.toLowerCase.call.bind(
     String.prototype.toLowerCase);
-     
 
   function deserializeValue(value, defaultValue) {
     // attempt to infer type from default value
@@ -103,7 +102,7 @@
     if (defaultValue instanceof Date) {
       inferredType = 'date';
     } else if (defaultValue instanceof Array) {
-      inferredType = 'array'
+      inferredType = 'array';
     }
 
     // special handling for inferredTypes
@@ -113,8 +112,14 @@
       case 'date':
         return new Date(Date.parse(value) || Date.now());
       case 'array':
-        // A string-based array is easily parsed by the JSON built-in library
-        return JSON.parse(value);
+        try {
+          // If the string is a true array, we can parse is with the JSON library.
+          value = JSON.parse(value);
+        } catch(e) {
+          value = value.replace(/\s+/g, '').split(',');
+        }
+
+        return value;
       case 'boolean':
         if (value == '') {
           return true;
@@ -128,14 +133,14 @@
         return false;
     }
     // unless otherwise typed, convert eponymous floats to float values
-    var float = parseFloat(value);
-    return (String(float) === value) ? float : value;
+    var floatVal = parseFloat(value);
+    return (String(floatVal) === value) ? floatVal : value;
   }
 
   // exports
-  
+
   Toolkit.takeAttributes = takeAttributes;
   Toolkit.publishAttributes = publishAttributes;
   Toolkit.propertyForAttribute = propertyForAttribute;
-  
+
 })();
