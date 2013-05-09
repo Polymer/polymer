@@ -102,13 +102,19 @@
     var inferredType = typeof defaultValue;
     if (defaultValue instanceof Date) {
       inferredType = 'date';
+    } else if (defaultValue instanceof Array) {
+      inferredType = 'array'
     }
+
     // special handling for inferredTypes
     switch (inferredType) {
       case 'string':
         return value;
       case 'date':
         return new Date(Date.parse(value) || Date.now());
+      case 'array':
+        // A string-based array is easily parsed by the JSON built-in library
+        return JSON.parse(value);
       case 'boolean':
         if (value == '') {
           return true;
