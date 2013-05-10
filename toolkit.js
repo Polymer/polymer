@@ -22,6 +22,7 @@ var modules = [
   'src/base.js',
   'src/bindProperties.js',
   'src/bindMDV.js',
+  'src/parseDates.js',
   'src/attrs.js',
   'src/marshal.js',
   'src/events.js',

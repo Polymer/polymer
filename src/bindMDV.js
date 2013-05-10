@@ -48,7 +48,6 @@
   
   [Node, Element, Text, HTMLInputElement].forEach(overrideBinding);
   
-  
   var emptyBindings = {};
   
   function getBindings(element) {
