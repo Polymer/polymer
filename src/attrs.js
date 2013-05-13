@@ -96,53 +96,49 @@
   var lowerCase = String.prototype.toLowerCase.call.bind(
     String.prototype.toLowerCase);
 
-  function deserializeValue(value, defaultValue) {
-    var typeHandlers = {
-      'string': function() {
-        return value;
-      },
-      'date': function() {
-        return new Date(Date.parse(value) || Date.now());
-      },
-      'array': function() {
-        try {
-          // If the string is a true array, we can parse is with the JSON library.
-          value = JSON.parse(value);
-        } catch(e) {
-          value = value.replace(/\s+/g, '').split(',');
-        }
-
-        return value;
-      },
-      'boolean': function() {
-        if (value === '') {
-          return true;
-        }
-
-        return value === 'false' ? false : !!value;
+  var typeHandlers = {
+    'string': function(value) {
+      return value;
+    },
+    'date': function(value) {
+      return new Date(Date.parse(value) || Date.now());
+    },
+    'boolean': function(value) {
+      if (value === '') {
+        return true;
       }
-    };
 
+      return value === 'false' ? false : !!value;
+    },
+    'object': function(value, defaultValue) {
+      try {
+        // If the string is an object, we can parse is with the JSON library.
+        value = JSON.parse(value);
+      } catch(e) {
+        // If the value is a comma-delimited string, convert to Array.
+        var splitValue = value.replace(/\s+/g, '').split(',');
+        
+        // Otherwise, return the value as-is.
+        if (splitValue.length > 1)
+        {
+          value = splitValue;
+        }
+      }
+
+      // unless otherwise typed, convert eponymous floats to float values
+      var floatVal = parseFloat(value);
+      return (String(floatVal) === value) ? floatVal : value;
+    }
+  };
+
+  function deserializeValue(value, defaultValue) {
     // attempt to infer type from default value
     var inferredType = typeof defaultValue;
     if (defaultValue instanceof Date) {
       inferredType = 'date';
-    } else if (defaultValue instanceof Array) {
-      inferredType = 'array';
     }
 
-    if (inferredType in typeHandlers) {
-      return typeHandlers[inferredType]();
-    }
-
-    // unless otherwise typed, convert 'true|false' to boolean values
-    if ((/^(true|false)$/i).test(value)) {
-      return (value === 'true');
-    }
-
-    // unless otherwise typed, convert eponymous floats to float values
-    var floatVal = parseFloat(value);
-    return (String(floatVal) === value) ? floatVal : value;
+    return typeHandlers[inferredType](value, defaultValue);
   }
 
   // exports
