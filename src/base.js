@@ -34,11 +34,12 @@
         this[inMethodName].apply(this, inArguments);
       }
     },
-    send: function(inType, inDetail, inToNode) {
+    fire: function(inType, inDetail, inToNode) {
       var node = inToNode || this;
       log.events && console.log('[%s]: sending [%s]', node.localName, inType);
       node.dispatchEvent(
           new CustomEvent(inType, {bubbles: true, detail: inDetail}));
+      return inDetail;
     },
     asend: function(/*inType, inDetail*/) {
       this.asyncMethod("send", arguments);
@@ -53,6 +54,10 @@
       }
     }
   };
+ 
+  // TODO(sjmiles): backward-compat for deprecated syntax
+  
+  base.send = base.fire;
   
   // exports
   
