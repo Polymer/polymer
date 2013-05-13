@@ -5,16 +5,16 @@
  */
 
 (function() {
-  
+
   // imports
-  
+
   var bindPattern = Toolkit.bindPattern;
-  
+
   // constants
-  
+
   var published$ = '__published';
   var attributes$ = 'attributes';
-  var attrProps$ = 'publish'; 
+  var attrProps$ = 'publish';
   //var attrProps$ = 'attributeDefaults';
 
   var publishAttributes = function(inElement, inPrototype) {
@@ -83,7 +83,7 @@
         }
       }
     }, this);
-  };
+  }
 
   // return the published property matching name, or undefined
   function propertyForAttribute(name) {
@@ -91,11 +91,10 @@
     var properties = Object.keys(this[published$]);
     // search for a matchable property
     return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
-  };
+  }
 
   var lowerCase = String.prototype.toLowerCase.call.bind(
     String.prototype.toLowerCase);
-     
 
   function deserializeValue(value, defaultValue) {
     // attempt to infer type from default value
@@ -110,7 +109,7 @@
       case 'date':
         return new Date(Date.parse(value) || Date.now());
       case 'boolean':
-        if (value == '') {
+        if (value === '') {
           return true;
         }
     }
@@ -122,14 +121,14 @@
         return false;
     }
     // unless otherwise typed, convert eponymous floats to float values
-    var float = parseFloat(value);
-    return (String(float) === value) ? float : value;
+    var floatVar = parseFloat(value);
+    return (String(floatVar) === value) ? floatVar : value;
   }
 
   // exports
-  
+
   Toolkit.takeAttributes = takeAttributes;
   Toolkit.publishAttributes = publishAttributes;
   Toolkit.propertyForAttribute = propertyForAttribute;
-  
+
 })();
