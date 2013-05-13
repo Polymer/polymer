@@ -5,16 +5,16 @@
  */
 
 (function() {
-  
+
   // imports
-  
+
   var bindPattern = Toolkit.bindPattern;
-  
+
   // constants
-  
+
   var published$ = '__published';
   var attributes$ = 'attributes';
-  var attrProps$ = 'publish'; 
+  var attrProps$ = 'publish';
   //var attrProps$ = 'attributeDefaults';
 
   var publishAttributes = function(inElement, inPrototype) {
@@ -83,7 +83,7 @@
         }
       }
     }, this);
-  };
+  }
 
   // return the published property matching name, or undefined
   function propertyForAttribute(name) {
@@ -91,11 +91,45 @@
     var properties = Object.keys(this[published$]);
     // search for a matchable property
     return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
-  };
+  }
 
   var lowerCase = String.prototype.toLowerCase.call.bind(
     String.prototype.toLowerCase);
-     
+
+  var typeHandlers = {
+    'string': function(value) {
+      return value;
+    },
+    'date': function(value) {
+      return new Date(Date.parse(value) || Date.now());
+    },
+    'boolean': function(value) {
+      if (value === '') {
+        return true;
+      }
+
+      return value === 'false' ? false : !!value;
+    },
+    'object': function(value, defaultValue) {
+      try {
+        // If the string is an object, we can parse is with the JSON library.
+        value = JSON.parse(value);
+      } catch(e) {
+        // If the value is a comma-delimited string, convert to Array.
+        var splitValue = value.replace(/\s+/g, '').split(',');
+        
+        // Otherwise, return the value as-is.
+        if (splitValue.length > 1)
+        {
+          value = splitValue;
+        }
+      }
+
+      // unless otherwise typed, convert eponymous floats to float values
+      var floatVal = parseFloat(value);
+      return (String(floatVal) === value) ? floatVal : value;
+    }
+  };
 
   function deserializeValue(value, defaultValue) {
     // attempt to infer type from default value
@@ -103,33 +137,14 @@
     if (defaultValue instanceof Date) {
       inferredType = 'date';
     }
-    // special handling for inferredTypes
-    switch (inferredType) {
-      case 'string':
-        return value;
-      case 'date':
-        return new Date(Date.parse(value) || Date.now());
-      case 'boolean':
-        if (value == '') {
-          return true;
-        }
-    }
-    // unless otherwise typed, convert 'true|false' to boolean values
-    switch (value) {
-      case 'true':
-        return true;
-      case 'false':
-        return false;
-    }
-    // unless otherwise typed, convert eponymous floats to float values
-    var float = parseFloat(value);
-    return (String(float) === value) ? float : value;
+
+    return typeHandlers[inferredType](value, defaultValue);
   }
 
   // exports
-  
+
   Toolkit.takeAttributes = takeAttributes;
   Toolkit.publishAttributes = publishAttributes;
   Toolkit.propertyForAttribute = propertyForAttribute;
-  
+
 })();
