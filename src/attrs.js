@@ -8,7 +8,7 @@
   
   // imports
   
-  var bindPattern = Toolkit.bindPattern;
+  var bindPattern = Polymer.bindPattern;
   
   // constants
   
@@ -128,8 +128,8 @@
 
   // exports
   
-  Toolkit.takeAttributes = takeAttributes;
-  Toolkit.publishAttributes = publishAttributes;
-  Toolkit.propertyForAttribute = propertyForAttribute;
+  Polymer.takeAttributes = takeAttributes;
+  Polymer.publishAttributes = publishAttributes;
+  Polymer.propertyForAttribute = propertyForAttribute;
   
 })();

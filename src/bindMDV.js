@@ -73,17 +73,17 @@
   }
 
   function bind(name, model, path) {
-    var property = Toolkit.propertyForAttribute.call(this, name);
+    var property = Polymer.propertyForAttribute.call(this, name);
     if (property) {
       registerBinding(this, property, path);
-      Toolkit.bindProperties(this, property, model, path);
+      Polymer.bindProperties(this, property, model, path);
     } else {
       HTMLElement.prototype.bind.apply(this, arguments);
     }
   }
   
   function unbind(name) {
-    var property = Toolkit.propertyForAttribute.call(this, name);
+    var property = Polymer.propertyForAttribute.call(this, name);
     if (property) {
       unregisterBinding(this, name);
       Object.defineProperty(this, name, {
@@ -101,11 +101,11 @@
 
   // exports
   
-  Toolkit.bind = bind;
-  Toolkit.unbind = unbind;
-  Toolkit.getBinding = getBinding;
-  Toolkit.bindModel = bindModel;
-  Toolkit.bindPattern = mustachePattern;
+  Polymer.bind = bind;
+  Polymer.unbind = unbind;
+  Polymer.getBinding = getBinding;
+  Polymer.bindModel = bindModel;
+  Polymer.bindPattern = mustachePattern;
   
 })();
 

@@ -7,7 +7,7 @@
 (function(scope) {
 
 // add a notation about polymer document modifications
-document.write('<!-- begin Toolkit injections -->\n');
+document.write('<!-- begin Polymer injections -->\n');
 
 // mobile compatibility tags
 // TODO(sjmiles): we probably cannot get away with forcing these in general
@@ -20,7 +20,7 @@ document.write('<!-- injected FOUC prevention -->\n');
 document.write('<style>body {opacity: 0;}</style>');
 
 // done with write
-document.write('<!-- end Toolkit injections -->\n');
+document.write('<!-- end Polymer injections -->\n');
 
 window.addEventListener('WebComponentsReady', function() {
   document.body.style.webkitTransition = 'opacity 0.3s';

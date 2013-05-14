@@ -47,6 +47,6 @@
     return job;
   }
 
-  Toolkit.job = job;
+  Polymer.job = job;
   
 })();

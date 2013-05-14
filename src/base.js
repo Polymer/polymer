@@ -15,13 +15,13 @@
     isToolkitElement: true,
     // MDV binding
     bind: function() {
-      Toolkit.bind.apply(this, arguments);
+      Polymer.bind.apply(this, arguments);
     },
     unbind: function() {
-      Toolkit.unbind.apply(this, arguments);
+      Polymer.unbind.apply(this, arguments);
     },
     job: function() {
-      return Toolkit.job.apply(this, arguments);
+      return Polymer.job.apply(this, arguments);
     },
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
@@ -63,4 +63,4 @@
   
   scope.base = base;
   
-})(window.Toolkit);
+})(window.Polymer);

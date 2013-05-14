@@ -89,7 +89,7 @@
       async.queue(function() {
         var scope = findStyleController(inElement);
         if (scope) {
-          Toolkit.shimPolyfillDirectives(styles, inElement.localName);
+          Polymer.shimPolyfillDirectives(styles, inElement.localName);
           applyStylesToScope(styles, scope);
         }
       });
@@ -184,6 +184,6 @@
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
   
   // exports
-  Toolkit.installSheets = installSheets;
-  Toolkit.installControllerStyles = installControllerStyles;
+  Polymer.installSheets = installSheets;
+  Polymer.installControllerStyles = installControllerStyles;
 })();

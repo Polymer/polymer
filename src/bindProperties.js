@@ -32,6 +32,6 @@
   }
 
   // exports
-  Toolkit.bindProperties = bindProperties;
+  Polymer.bindProperties = bindProperties;
 
 })();

@@ -9,7 +9,7 @@
 //
 
 // locate nodes with id and store references to them in this.$ hash
-Toolkit.marshalNodeReferences = function(inRoot) {
+Polymer.marshalNodeReferences = function(inRoot) {
   // establish $ instance variable
   var $ = this.$ = this.$ || {};
   // populate $ from nodes with ID from the LOCAL tree

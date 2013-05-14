@@ -29,5 +29,5 @@
   }
   
   // exports
-  Toolkit.addResolvePath = addResolvePath;
+  Polymer.addResolvePath = addResolvePath;
 })();

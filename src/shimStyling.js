@@ -367,8 +367,8 @@ document.addEventListener('WebComponentsReady', function() {
 })
 
 // exports
-Toolkit.shimStyling = stylizer.shimStyling;
-Toolkit.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
-Toolkit.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
+Polymer.shimStyling = stylizer.shimStyling;
+Polymer.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
+Polymer.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
 
 })(window);

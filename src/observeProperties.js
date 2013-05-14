@@ -46,6 +46,6 @@
   }
   
   // exports
-  Toolkit.observeProperties = observeProperties;
+  Polymer.observeProperties = observeProperties;
 
 })();

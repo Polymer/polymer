@@ -245,10 +245,10 @@
 
 // exports
 
-Toolkit.parseHostEvents = parseHostEvents;
-Toolkit.accumulateEvents = accumulateEvents;
-Toolkit.accumulateHostEvents = accumulateHostEvents;
-Toolkit.bindAccumulatedHostEvents = bindAccumulatedHostEvents;
-Toolkit.bindAccumulatedLocalEvents = bindAccumulatedLocalEvents;
+Polymer.parseHostEvents = parseHostEvents;
+Polymer.accumulateEvents = accumulateEvents;
+Polymer.accumulateHostEvents = accumulateHostEvents;
+Polymer.bindAccumulatedHostEvents = bindAccumulatedHostEvents;
+Polymer.bindAccumulatedLocalEvents = bindAccumulatedLocalEvents;
 
 })();
