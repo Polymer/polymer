@@ -78,7 +78,7 @@ module.exports = function(grunt) {
           'polymer.min.js': [].concat(Platform, Polymer)
         }
       },
-      ToolkitNative: {
+      PolymerNative: {
         options: {
           sourceMap: 'polymer.native.min.js.map'
         },
