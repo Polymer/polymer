@@ -6,7 +6,7 @@
 
 (function(scope) {
 
-// add a notation about toolkit document modifications
+// add a notation about polymer document modifications
 document.write('<!-- begin Toolkit injections -->\n');
 
 // mobile compatibility tags

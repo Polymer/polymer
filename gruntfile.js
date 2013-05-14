@@ -72,18 +72,18 @@ module.exports = function(grunt) {
     uglify: {
       Toolkit: {
         options: {
-          sourceMap: 'toolkit.min.js.map'
+          sourceMap: 'polymer.min.js.map'
         },
         files: {
-          'toolkit.min.js': [].concat(Platform, Toolkit)
+          'polymer.min.js': [].concat(Platform, Toolkit)
         }
       },
       ToolkitNative: {
         options: {
-          sourceMap: 'toolkit.native.min.js.map'
+          sourceMap: 'polymer.native.min.js.map'
         },
         files: {
-          'toolkit.native.min.js': [].concat(PlatformNative, Toolkit)
+          'polymer.native.min.js': [].concat(PlatformNative, Toolkit)
         }
       }
     },

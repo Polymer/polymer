@@ -23,7 +23,7 @@
       throw "First argument to Toolkit.register must be an HTMLElement";
     }
     // TODO(sjmiles): it's not obvious at this point whether inElement 
-    // will chain to another toolkit element, so we just copy base boilerplate 
+    // will chain to another polymer element, so we just copy base boilerplate 
     // anyway
     // this can result in multiple copies of boilerplate methods on a custom
     // element chain, which is inefficient and has ramifications for 'super'

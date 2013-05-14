@@ -27,7 +27,7 @@
    * The sheet is then removed from the <element>. This is done only so 
    * that if the element is loaded in the main document, the sheet does
    * not become active.
-   * Note, ignores sheets with the attribute 'toolkit-scope'.
+   * Note, ignores sheets with the attribute 'polymer-scope'.
    * @param inElementElement The <element> element to style.
    */
   function installLocalSheets(inElementElement) {
@@ -52,7 +52,7 @@
   
   /**
    * Promotes external stylesheets and <style> elements with the attribute 
-   * toolkit-scope='global' into global scope.
+   * polymer-scope='global' into global scope.
    * This is particularly useful for defining @keyframe rules which 
    * currently do not function in scoped or shadow style elements.
    * (See wkb.ug/72462)
@@ -68,7 +68,7 @@
   
   /**
    * Installs external stylesheets and <style> elements with the attribute 
-   * toolkit-scope='controller' into the scope of inElement. This is intended
+   * polymer-scope='controller' into the scope of inElement. This is intended
    * to be a called during custom element construction. Note, this incurs a per
    * instance cost and should be used sparingly.
    * The need for this type of styling should go away when the shadowDOM spec
@@ -180,7 +180,7 @@
     return styleList;
   }
   
-  var SCOPE_ATTR = 'toolkit-scope';
+  var SCOPE_ATTR = 'polymer-scope';
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
   
   // exports
