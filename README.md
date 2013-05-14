@@ -4,7 +4,7 @@ Build Status: [http://build.chromium.org/p/client.toolkit/waterfall](http://buil
 
 ## Brief Overview
 
-For more detailed info goto [http://toolkitchen.github.io/](http://toolkitchen.github.io/).
+For more detailed info goto [http://polymer-project.appspot.com/](http://polymer-project.appspot.com/).
 
 The Toolkitchen Toolkit is a new type of library for the web, designed to leverage the existing browser infrastructure to provide the encapsulation and extendability currently only available in JS libraries.
 
