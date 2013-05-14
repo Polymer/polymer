@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2013 The Polymer-Project Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -12,7 +12,7 @@ module.exports = function(grunt) {
     'platform/platform.native.min.js'
   ];
   
-  Toolkit = [
+  Polymer = [
     'src/lang.js',
     'src/oop.js',
     'src/register.js',
@@ -65,17 +65,17 @@ module.exports = function(grunt) {
         reporters: ['crbot'],
         logLevel: 'OFF'
       },
-      toolkit: {
+      polymer: {
         browsers: browsers
       }
     },
     uglify: {
-      Toolkit: {
+      Polymer: {
         options: {
           sourceMap: 'polymer.min.js.map'
         },
         files: {
-          'polymer.min.js': [].concat(Platform, Toolkit)
+          'polymer.min.js': [].concat(Platform, Polymer)
         }
       },
       ToolkitNative: {
@@ -83,7 +83,7 @@ module.exports = function(grunt) {
           sourceMap: 'polymer.native.min.js.map'
         },
         files: {
-          'polymer.native.min.js': [].concat(PlatformNative, Toolkit)
+          'polymer.native.min.js': [].concat(PlatformNative, Polymer)
         }
       }
     },
@@ -116,7 +116,7 @@ module.exports = function(grunt) {
   grunt.registerTask('default', ['uglify']);
   grunt.registerTask('minify', ['uglify']);
   grunt.registerTask('docs', ['yuidoc']);
-  grunt.registerTask('test', ['karma:toolkit']);
+  grunt.registerTask('test', ['karma:polymer']);
   grunt.registerTask('test-buildbot', ['karma:buildbot']);
 };
 

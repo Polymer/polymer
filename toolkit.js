@@ -1,19 +1,19 @@
 /*
- * Copyright 2013 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2013 The Polymer-Project Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
 
 /* 
- * Copyright 2013 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2013 The Polymer-Project Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
 
 (function() {
   
-var thisFile = 'toolkit.js';
-var scopeName = 'Toolkit';
+var thisFile = 'polymer.js';
+var scopeName = 'Polymer';
 var modules = [
   'platform/platform.js',
   'src/lang.js',

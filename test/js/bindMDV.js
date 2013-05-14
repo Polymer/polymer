@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2013 The Polymer-Project Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -11,7 +11,7 @@ suite('bindMDV', function() {
     var test = document.createElement('div');
     test.innerHTML = '<div id="a" foo="{{bar}}"></div>';
     var a = test.firstChild;
-    Toolkit.bindModel.call(test, test);
+    Polymer.bindModel.call(test, test);
     test.bar = 5;
     dirtyCheck();
     assert.equal(a.getAttribute('foo'), 5);
@@ -25,7 +25,7 @@ suite('bindMDV', function() {
     var test = document.createElement('div');
     test.innerHTML = '<input value="{{bar}}" />';
     var a = test.firstChild;
-    Toolkit.bindModel.call(test, test);
+    Polymer.bindModel.call(test, test);
     test.bar = 'hello';
     dirtyCheck();
     assert.equal(a.value, 'hello');
