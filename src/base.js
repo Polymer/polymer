@@ -12,7 +12,7 @@
 
   var base = {
     super: $super,
-    isToolkitElement: true,
+    isPolymerElement: true,
     // MDV binding
     bind: function() {
       Polymer.bind.apply(this, arguments);
