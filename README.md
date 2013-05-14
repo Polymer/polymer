@@ -1,10 +1,10 @@
-# Polymer-Project:Polymer
+# Polymer
 
 Build Status: [http://build.chromium.org/p/client.polymer/waterfall](http://build.chromium.org/p/client.polymer/waterfall)
 
 ## Brief Overview
 
-For more detailed info goto [http://polymer-project.github.io/](http://polymer-project.github.io/).
+For more detailed info goto [http://polymer-project.appspot.com/](http://polymer-project.appspot.com/).
 
 The Polymer is a new type of library for the web, designed to leverage the existing browser infrastructure to provide the encapsulation and extendability currently only available in JS libraries.
 
@@ -12,4 +12,4 @@ Polymer is based on a set of future technologies, including [Shadow DOM](https:/
 
 ## Tools & Testing
 
-For running tests or building minified files, consult the [tooling information](http://polymer-project.github.com/tooling-strategy.html).
+For running tests or building minified files, consult the [tooling information](http://polymer-project.appspot.com/tooling-strategy.html).
