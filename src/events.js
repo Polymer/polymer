@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2013 The Polymer Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -90,7 +90,7 @@
   // effective content. A template can have a ref property
   // that points to the template from which this one has been cloned.
   // Remove this when the MDV api is improved
-  // (https://github.com/toolkitchen/mdv/issues/15).
+  // (https://github.com/polymer-project/mdv/issues/15).
   var getTemplateContent = function(inTemplate) {
     return inTemplate.ref ? inTemplate.ref.content : inTemplate.content;
   }
@@ -245,10 +245,10 @@
 
 // exports
 
-Toolkit.parseHostEvents = parseHostEvents;
-Toolkit.accumulateEvents = accumulateEvents;
-Toolkit.accumulateHostEvents = accumulateHostEvents;
-Toolkit.bindAccumulatedHostEvents = bindAccumulatedHostEvents;
-Toolkit.bindAccumulatedLocalEvents = bindAccumulatedLocalEvents;
+Polymer.parseHostEvents = parseHostEvents;
+Polymer.accumulateEvents = accumulateEvents;
+Polymer.accumulateHostEvents = accumulateHostEvents;
+Polymer.bindAccumulatedHostEvents = bindAccumulatedHostEvents;
+Polymer.bindAccumulatedLocalEvents = bindAccumulatedLocalEvents;
 
 })();

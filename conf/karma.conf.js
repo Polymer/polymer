@@ -14,7 +14,7 @@ files = [
   'tools/test/mocha-htmltest.js',
   'conf/mocha.conf.js',
   'node_modules/chai/chai.js',
-  'toolkit.js',
+  'polymer.js',
   'test/js/*.js',
   {pattern: 'tools/**/*.js', included: false},
   {pattern: 'platform/**/*', included: false},
@@ -84,7 +84,6 @@ preprocessors = {
 
 plugins = [
   'karma-mocha',
-  'karma-browserstack-launcher',
   'karma-chrome-launcher',
   'karma-firefox-launcher',
   'karma-script-launcher',

@@ -1,5 +1,5 @@
 /* 
- * Copyright 2013 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2013 The Polymer Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -8,7 +8,7 @@
   
   // imports
   
-  var bindPattern = Toolkit.bindPattern;
+  var bindPattern = Polymer.bindPattern;
   
   // constants
   
@@ -128,8 +128,8 @@
 
   // exports
   
-  Toolkit.takeAttributes = takeAttributes;
-  Toolkit.publishAttributes = publishAttributes;
-  Toolkit.propertyForAttribute = propertyForAttribute;
+  Polymer.takeAttributes = takeAttributes;
+  Polymer.publishAttributes = publishAttributes;
+  Polymer.propertyForAttribute = propertyForAttribute;
   
 })();

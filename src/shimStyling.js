@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2012 The Polymer Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -367,8 +367,8 @@ document.addEventListener('WebComponentsReady', function() {
 })
 
 // exports
-Toolkit.shimStyling = stylizer.shimStyling;
-Toolkit.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
-Toolkit.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
+Polymer.shimStyling = stylizer.shimStyling;
+Polymer.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
+Polymer.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
 
 })(window);
