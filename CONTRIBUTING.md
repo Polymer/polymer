@@ -1,8 +1,8 @@
 # Contributing
 
-Want to contribute to the toolkit? Great!
+Want to contribute to the polymer? Great!
 
-We are more than happy to accept external contributions to the project in the form of [feedback](https://groups.google.com/forum/?fromgroups=#!forum/toolkitchen), [bug reports](/toolkitchen/toolkit/issues), and pull requests.
+We are more than happy to accept external contributions to the project in the form of [feedback](https://groups.google.com/forum/?fromgroups=#!forum/polymer-dev), [bug reports](/polymer-project/polymer/issues), and pull requests.
 
 ## Contributor License Agreement
 
@@ -23,7 +23,7 @@ Here's an easy guide that should get you up and running:
 
 1. Fork the project on github and pull down your copy.
 
-        git clone git@github.com:username/toolkit.git --recursive
+        git clone git@github.com:username/polymer.git --recursive
 
     Note the `--recursive`. This is necessary for submodules to initialize properly. If you don't do a recursive clone, you'll have to init them manually:
 
@@ -40,8 +40,8 @@ That's it for the one time setup. Now you're ready to make a change.
 
 We iterate fast! To avoid potential merge conflicts, it's a good idea to pull from the main project before making a change and submitting a pull request. The easiest way to do this is setup a remote called `upstream` and do a pull before working on a change:
 
-    cd toolkit
-    git remote add upstream git://github.com/toolkitchen/toolkit.git
+    cd polymer
+    git remote add upstream git://github.com/polymer-project/polymer.git
 
 Then before making a change, do a pull from the upstream `master` branch:
 

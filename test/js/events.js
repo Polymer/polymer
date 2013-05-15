@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2013 The Polymer Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -25,7 +25,7 @@ suite('events', function() {
         (inExtend ? ' extends="' + inExtend + '"' : '') + ' on-click="clickHandler">' +
       '<template>' + (inTemplateContent || '') + '</template>' +
       '<script>\n' +
-        'Toolkit.register(this, {\n' +
+        'Polymer.register(this, {\n' +
           'clickHandler: function() {\n' +
             'results.textContent += this.localName;\n' +
           '}\n' +

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 The Toolkitchen Authors. All rights reserved.
+ * Copyright 2013 The Polymer Authors. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
@@ -12,16 +12,16 @@
 
   var base = {
     super: $super,
-    isToolkitElement: true,
+    isPolymerElement: true,
     // MDV binding
     bind: function() {
-      Toolkit.bind.apply(this, arguments);
+      Polymer.bind.apply(this, arguments);
     },
     unbind: function() {
-      Toolkit.unbind.apply(this, arguments);
+      Polymer.unbind.apply(this, arguments);
     },
     job: function() {
-      return Toolkit.job.apply(this, arguments);
+      return Polymer.job.apply(this, arguments);
     },
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
@@ -34,11 +34,12 @@
         this[inMethodName].apply(this, inArguments);
       }
     },
-    send: function(inType, inDetail, inToNode) {
+    fire: function(inType, inDetail, inToNode) {
       var node = inToNode || this;
       log.events && console.log('[%s]: sending [%s]', node.localName, inType);
       node.dispatchEvent(
           new CustomEvent(inType, {bubbles: true, detail: inDetail}));
+      return inDetail;
     },
     asend: function(/*inType, inDetail*/) {
       this.asyncMethod("send", arguments);
@@ -53,9 +54,13 @@
       }
     }
   };
+ 
+  // TODO(sjmiles): backward-compat for deprecated syntax
+  
+  base.send = base.fire;
   
   // exports
   
   scope.base = base;
   
-})(window.Toolkit);
+})(window.Polymer);
