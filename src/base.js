@@ -25,9 +25,11 @@
     },
     asyncMethod: function(inMethod, inArgs, inTimeout) {
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
-      return window.setTimeout(function() {
+      var fn = function() {
         (this[inMethod] || inMethod).apply(this, args);
-      }.bind(this), inTimeout || 0);
+      }.bind(this);
+      return inTimeout ? window.setTimeout(fn, inTimeout) :
+        requestAnimationFrame(fn);
     },
     dispatch: function(inMethodName, inArguments) {
       if (this[inMethodName]) {
