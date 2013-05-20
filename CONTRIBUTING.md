@@ -1,6 +1,6 @@
 # Contributing
 
-Want to contribute to polymer? Great!
+Want to contribute to Polymer? Great!
 
 We are more than happy to accept external contributions to the project in the form of [feedback](https://groups.google.com/forum/?fromgroups=#!forum/polymer-dev), [bug reports](/polymer-project/polymer/issues), and pull requests.
 
