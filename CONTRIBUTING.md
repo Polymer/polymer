@@ -1,6 +1,6 @@
 # Contributing
 
-Want to contribute to the polymer? Great!
+Want to contribute to polymer? Great!
 
 We are more than happy to accept external contributions to the project in the form of [feedback](https://groups.google.com/forum/?fromgroups=#!forum/polymer-dev), [bug reports](/polymer-project/polymer/issues), and pull requests.
 
@@ -41,7 +41,7 @@ That's it for the one time setup. Now you're ready to make a change.
 We iterate fast! To avoid potential merge conflicts, it's a good idea to pull from the main project before making a change and submitting a pull request. The easiest way to do this is setup a remote called `upstream` and do a pull before working on a change:
 
     cd polymer
-    git remote add upstream git://github.com/polymer-project/polymer.git
+    git remote add upstream git://github.com/Polymer/polymer.git
 
 Then before making a change, do a pull from the upstream `master` branch:
 
