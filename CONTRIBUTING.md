@@ -2,7 +2,7 @@
 
 Want to contribute to the polymer? Great!
 
-We are more than happy to accept external contributions to the project in the form of [feedback](https://groups.google.com/forum/?fromgroups=#!forum/polymer-dev), [bug reports](/polymer-project/polymer/issues), and pull requests.
+We are more than happy to accept external contributions to the project in the form of [feedback](https://groups.google.com/forum/?fromgroups=#!forum/polymer-dev), [bug reports](https://github.com/Polymer/polymer/issues), and pull requests.
 
 ## Contributor License Agreement
 
