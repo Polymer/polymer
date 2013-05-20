@@ -164,7 +164,7 @@
     inEvent.on = prefix + inEvent.type;
     log.events && console.group("[%s]: listenLocal [%s]", this.localName, 
       inEvent.on);
-    var path = inEvent.path();
+    var path = inEvent.path && inEvent.path();
     if (!path || window.ShadowDOMPolyfill) {
       listenLocalPolyfill(inEvent);
     } else {
