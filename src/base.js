@@ -41,8 +41,8 @@
           new CustomEvent(inType, {bubbles: true, detail: inDetail}));
       return inDetail;
     },
-    asend: function(/*inType, inDetail*/) {
-      this.asyncMethod("send", arguments);
+    asyncFire: function(/*inType, inDetail*/) {
+      this.asyncMethod("fire", arguments);
     },
     // remove class from old, add class to anew, if they exist
     classFollows: function(anew, old, className) {
@@ -58,6 +58,7 @@
   // TODO(sjmiles): backward-compat for deprecated syntax
   
   base.send = base.fire;
+  base.asend = base.asyncFire;
   
   // exports
   
