@@ -157,21 +157,46 @@
   };
 
 
-  // TODO(sorvell): Note that findController will not return the expected 
-  // controller when when the event target is a distributed node.
-  // This because we cannot traverse from a composed node to a node 
-  // in shadowRoot.
-  // This will be addressed via an event path api 
-  // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21066
   function listenLocal(inEvent) {
     if (inEvent.cancelBubble) {
       return;
     }
     inEvent.on = prefix + inEvent.type;
-    log.events && console.group("[%s]: listenLocal [%s]", this.localName, inEvent.on);
-    var t = inEvent.target;
+    log.events && console.group("[%s]: listenLocal [%s]", this.localName, 
+      inEvent.on);
+    var path = inEvent.path();
+    if (!path || window.ShadowDOMPolyfill) {
+      listenLocalPolyfill(inEvent);
+    } else {
+      var c = null;
+      Array.prototype.some.call(path, function(t) {
+        if (t === this) {
+          return true;
+        }
+        c = c === this ? c : findController(t);
+        if (c) {
+          if (handleEvent.call(c, t, inEvent)) {
+            return true;
+          }
+        }
+      }, this);
+    }
+    log.events && console.groupEnd();
+  }
+  
+  
+  // TODO(sorvell): remove when ShadowDOM polyfill supports event path.
+  // Note that findController will not return the expected 
+  // controller when when the event target is a distributed node.
+  // This because we cannot traverse from a composed node to a node 
+  // in shadowRoot.
+  // This will be addressed via an event path api 
+  // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21066
+  function listenLocalPolyfill(inEvent) {
+    log.events && console.log('event.path() not supported for', inEvent.type);
+    var t = inEvent.target, c = null;
     while (t && t != this) {
-      var c = findController(t);
+      c = c === this ? c : findController(t);
       if (c) {
         if (handleEvent.call(c, t, inEvent)) {
           return;
@@ -179,7 +204,6 @@
       }
       t = t.parentNode;
     }
-    log.events && console.groupEnd();
   }
   
   function listenHost(inEvent) {
