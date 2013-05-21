@@ -19,6 +19,7 @@ module.exports = function(grunt) {
     'src/base.js',
     'src/bindProperties.js',
     'src/bindMDV.js',
+    'src/polymerSyntaxMDV.js',
     'src/attrs.js',
     'src/marshal.js',
     'src/events.js',

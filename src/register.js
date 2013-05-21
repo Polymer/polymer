@@ -69,6 +69,11 @@
   function staticInstallTemplate(inElement) {
     var template = inElement.querySelector('template');
     if (template) {
+      // apply our MDV strategy
+      // TODO(sjmiles): we have to apply this strategy directly for the root template
+      // in bindMDV.js, but we also need the attribute here so sub-templates can see it
+      template.setAttribute('syntax', 'Polymer');
+      // make a shadow root
       var root = this.webkitCreateShadowRoot();
       // TODO(sjmiles): must be settable ex post facto
       root.applyAuthorStyles = this.applyAuthorStyles;
@@ -108,6 +113,8 @@
     // install property observation side effects
     // do this first so we can observe changes during initialization
     Polymer.observeProperties.call(this);
+    // install boilerplate attributes
+    Polymer.installInstanceAttributes.call(this);
     // process input attributes
     Polymer.takeAttributes.call(this);
     // add host-events...
