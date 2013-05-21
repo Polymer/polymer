@@ -131,6 +131,7 @@ var stylizer = {
       stylizer.shimPolyfillDirectives(element.styles, name);
       // find styles and apply shimming...
       stylizer.applyShimming(stylizer.stylesForElement(element), name);
+      stylizer.apply();
     }
   },
   // Shim styles to be placed inside a shadowRoot.

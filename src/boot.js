@@ -17,14 +17,16 @@ document.write('<meta name="viewport" content="initial-scale=1.0, maximum-scale=
 
 // FOUC prevention tactic
 document.write('<!-- injected FOUC prevention -->\n');
-document.write('<style>body {opacity: 0;}</style>');
+document.write('<style>body {opacity: 0;};</style>');
 
 // done with write
 document.write('<!-- end Polymer injections -->\n');
 
 window.addEventListener('WebComponentsReady', function() {
-  document.body.style.webkitTransition = 'opacity 0.3s';
-  document.body.style.opacity = 1;
+  setTimeout(function() {
+    document.body.style.webkitTransition = 'opacity 0.3s';
+    document.body.style.opacity = 1;
+  }, 400);
 });
 
 })();
