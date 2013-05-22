@@ -5,5 +5,9 @@
  */
 htmlSuite('styling', function() {
   htmlTest('html/styling/host.html');
+  htmlTest('html/styling/host.html?shadow');
+  htmlTest('html/styling/pseudo-scoping.html?shadow');
+  htmlTest('html/styling/sheet-order.html');
+  htmlTest('html/styling/sheet-order.html?shadow');
 });
 
