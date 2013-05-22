@@ -77,12 +77,12 @@
       // TODO(sorvell): host not set per spec; we set it for convenience
       // so we can traverse from root to host.
       root.host = this;
-      //root.appendChild(templateContent(template).cloneNode(true));
-      root.appendChild(template.createInstance());
-      // set up gestures
-      PointerGestures.register(root);
-      PointerEventsPolyfill.setTouchAction(root, 
-          this.getAttribute('touch-action'));
+      var templateInstance = template.createInstance();
+      // parse and apply MDV bindings
+      // do this before being inserted to avoid {{}} in attribute values
+      // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
+      Polymer.bindModel.call(this, templateInstance);
+      root.appendChild(templateInstance);
       rootCreated.call(this, root);
       return root;
     }
@@ -92,16 +92,16 @@
     // to resolve this node synchronously we must process CustomElements 
     // in the subtree immediately
     CustomElements.takeRecords();
-    // upgrade elements in shadow root
-    //document.upgradeElements(inRoot);
-    //document.watchDOM(inRoot);
     // parse and apply MDV bindings
-    Polymer.bindModel.call(this, inRoot);
     // locate nodes with id and store references to them in this.$ hash
     Polymer.marshalNodeReferences.call(this, inRoot);
     // add local events of interest...
     var rootEvents = Polymer.accumulateEvents(inRoot);
     Polymer.bindAccumulatedLocalEvents.call(this, inRoot, rootEvents);
+    // set up gestures
+    PointerGestures.register(inRoot);
+    PointerEventsPolyfill.setTouchAction(inRoot,
+        this.getAttribute('touch-action'));
   };
 
   function instanceReady(inElement) {
