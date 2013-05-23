@@ -23,6 +23,7 @@
     /**
      * When called in a method, invoke the method's super.
      * @method super
+     * @param {Array} Array of arguments.
      */
     super: $super,
     /**
