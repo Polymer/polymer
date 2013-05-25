@@ -8,7 +8,7 @@ We are more than happy to accept external contributions to the project in the fo
 
 Before we can accept patches, there's a quick web form you need to fill out.
 
-- If you're contributing as and individual (e.g. you own the intellectual property), fill out [this form](http://code.google.com/legal/individual-cla-v1.0.html).
+- If you're contributing as an individual (e.g. you own the intellectual property), fill out [this form](http://code.google.com/legal/individual-cla-v1.0.html).
 - If you're contributing under a company, fill out [this form](http://code.google.com/legal/corporate-cla-v1.0.html) instead.
 
 This CLA asserts that contributions are owned by you and that we can license all work under our [license](LICENSE).
