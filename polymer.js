@@ -20,6 +20,7 @@ var modules = [
   'src/oop.js',
   'src/register.js',
   'src/base.js',
+  'src/trackObservers.js',
   'src/bindProperties.js',
   'src/bindMDV.js',
   'src/attrs.js',

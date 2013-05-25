@@ -47,6 +47,13 @@
       Polymer.unbind.apply(this, arguments);
     },
     /**
+     * MDV unbindAll.
+     * @method unbindAll
+     */
+    unbindAll: function() {
+      Polymer.unbindAll.apply(this, arguments);
+    },
+    /**
      * Schedules an async job with timeout and returns a handle.
      * @method job
      * @param {Polymer.Job} [job] A job handle if re-registering.
