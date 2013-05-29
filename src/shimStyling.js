@@ -36,11 +36,13 @@
       background: red;
     }
   
-  * functional encapsultion: Styles defined within shadowDOM, apply only to 
+  * encapsultion: Styles defined within shadowDOM, apply only to 
   dom inside the shadowDOM. To shim this feature, non-@host rules within 
-  style elements are prefixed with a given scope name. Thus, they apply via
-  a descendent selector to the dom inside the shadowRoot.
-  For example, given a scope name of .foo, a rule like this:
+  style elements are scoped by adding an attribute selector suffix to each
+  simple selector that contains the scope name. Each element in the definition
+  template content is also given the scope attribute. Thus, these rules match
+  only elements that have the scope attribute.
+  For example, given a scope name of x-foo, a rule like this:
   
     div {
       font-weight: bold;
@@ -48,9 +50,25 @@
   
   becomes:
   
-    .foo div {
+    div[x-foo] {
       font-weight: bold;
     }
+
+  Note that elements that are dynamically added to a scope must have the scope
+  selector added to them manually.
+
+  * ::pseudo: These rules are converted to rules that take advantage of the
+  pseudo attribute. For example, a shadowRoot like this inside an x-foo
+
+    <div pseudo="x-special">Special</div>
+
+  with a rule like this:
+
+    x-foo::x-special { ... }
+
+  becomes:
+
+    x-foo [pseudo=x-special] { ... }
   
   Unaddressed shadowDOM styling features:
   
@@ -94,18 +112,6 @@
   Note the use of @polyfill in the comment above a shadowDOM specific style
   declaration. This is a directive to the styling shim to use the selector 
   in comments in lieu of the next selector when running under polyfill.
-  
-  * ::pseudo: This behavior is not emulated. Users can create an extra 
-  rule to target the pseudo node directly. Given a shadowRoot like this:
-  
-    <div pseudo="x-special">Special</div>
-  
-  This can be styled using native and polyfilled shadowDOM as follows:
-  
-    / *@polyfill x-foo [pseudo=x-special] * /
-    x-foo::x-special {
-      color: orange;
-    }
 */
 (function(scope) {
 
@@ -119,6 +125,7 @@ var stylizer = {
   hostFixableRe: /^[.\[:]/,
   cssCommentRe: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
   cssPolyfillCommentRe: /\/\*\s*@polyfill ([^*]*\*+([^/*][^*]*\*+)*\/)([^{]*?){/gim,
+  cssPseudoRe: /::(x-[^\s{,(]*)/gim,
   selectorReSuffix: '([>\\s~+\[.,{:][\\s\\S]*)?$',
   hostRe: /@host/gim,
   cache: {},
@@ -128,6 +135,7 @@ var stylizer = {
       // lookup of extendee
       var name = element.options.name;
       stylizer.cacheDefinition(element);
+      stylizer.applyScopeToContent(element.templateContent, name);
       stylizer.shimPolyfillDirectives(element.styles, name);
       // find styles and apply shimming...
       stylizer.applyShimming(stylizer.stylesForElement(element), name);
@@ -144,8 +152,9 @@ var stylizer = {
     }
   },
   applyShimming: function(styles, name) {
-    this.shimAtHost(styles, name);
-    this.shimScoping(styles, name);
+    var cssText = this.shimAtHost(styles, name);
+    cssText += this.shimScoping(styles, name);
+    this.addCssToDocument(cssText);
   },
   //TODO(sorvell): use SideTable
   cacheDefinition: function(element) {
@@ -156,6 +165,16 @@ var stylizer = {
     element.styles = styles ? slice(styles) : [];
     element.templateContent = content;
     stylizer.cache[name] = element;
+  },
+  applyScopeToContent: function(root, name) {
+    if (root) {
+      forEach(root.querySelectorAll('*'), function(node) {
+        node.setAttribute(name, '');
+      });
+      forEach(root.querySelectorAll('template'), function(template) {
+        this.applyScopeToContent(templateContent(template), name);
+      }, this);
+    }
   },
   stylesForElement: function(element) {
     var styles = element.styles;
@@ -201,8 +220,7 @@ var stylizer = {
   // becomes: scopeName.foo { declarations }
   shimAtHost: function(styles, name) {
     if (styles) {
-      var cssText = this.convertAtHostStyles(styles, name);
-      this.addCssToDocument(cssText);
+      return this.convertAtHostStyles(styles, name);
     }
   },
   /* Ensure styles are scoped. Pseudo-scoping takes a rule like:
@@ -215,7 +233,7 @@ var stylizer = {
   */
   shimScoping: function(styles, name) {
     if (styles) {
-      this.applyPseudoScoping(styles, name);
+      return this.convertScopedStyles(styles, name);
     }
   },
   convertPolyfillDirectives: function(cssText, name) {
@@ -223,7 +241,7 @@ var stylizer = {
     while (matches=this.cssPolyfillCommentRe.exec(cssText)) {
       r += cssText.substring(l, matches.index);
       // remove end comment delimiter (*/)
-      r += matches[1].slice(0, -2) + '{';
+      r += name + ' ' + matches[1].slice(0, -2) + '{';
       l = this.cssPolyfillCommentRe.lastIndex;
     }
     r += cssText.substring(l, cssText.length);
@@ -277,7 +295,7 @@ var stylizer = {
     }, this);
     return r.join(', ');
   },
-  applyPseudoScoping: function(styles, name) {
+  convertScopedStyles: function(styles, name) {
     forEach(styles, function(s) {
       if (s.parentNode) {
         s.parentNode.removeChild(s);
@@ -286,19 +304,22 @@ var stylizer = {
     // TODO(sorvell): remove @host rules (use cssom rather than regex?)
     var cssText = this.stylesToCssText(styles).replace(this.hostRuleRe, '');
     var rules = this.cssToRules(cssText);
-    var cssText = this.pseudoScopeRules(rules, name);
-    this.addCssToDocument(cssText);
+    cssText = this.scopeRules(rules, name);
+    return this.convertPseudos(cssText);
+  },
+  convertPseudos: function(cssText) {
+    return cssText.replace(this.cssPseudoRe, ' [pseudo=$1]');
   },
   // change a selector like 'div' to 'name div'
-  pseudoScopeRules: function(cssRules, name) {
+  scopeRules: function(cssRules, name) {
     var cssText = '';
     forEach(cssRules, function(rule) {
       if (rule.selectorText && (rule.style && rule.style.cssText)) {
-        cssText += this.pseudoScopeSelector(rule.selectorText, name) + ' {\n\t';
+        cssText += this.scopeSelector(rule.selectorText, name) + ' {\n\t';
         cssText += rule.style.cssText + '\n}\n\n';
       } else if (rule.media) {
         cssText += '@media ' + rule.media.mediaText + ' {\n';
-        cssText += this.pseudoScopeRules(rule.cssRules, name);
+        cssText += this.scopeRules(rule.cssRules, name);
         cssText += '\n}\n\n';
       } else if (rule.cssText) {
         cssText += rule.cssText + '\n\n';
@@ -306,12 +327,37 @@ var stylizer = {
     }, this);
     return cssText;
   },
-  pseudoScopeSelector: function(selector, name) {
-    var r = [], parts = selector.split(',');
+  scopeSelector: function(selector, name) {
+    var r = [], parts = selector.split(','), t;
+    var selectorRe = new RegExp('^' + name + this.selectorReSuffix, 'm');
     parts.forEach(function(p) {
-      r.push(name + ' ' + p.trim());
-    });
+      t = p.trim();
+      if (t.match(selectorRe)) {
+        r.push(t);
+      } else {
+        r.push(this.scopeCompoundSelector(t, name));
+      }
+    }, this);
     return r.join(', ');
+  },
+  // return a selector with [name] suffix on each simple selector
+  // e.g. .foo.bar > .zot becomes .foo[name].bar[name] > .zot[name]
+  scopeCompoundSelector: function(selector, name) {
+    // TODO(sorvell): process complete set of complex selector markers
+    var splits = [' ', '.', '>'],
+      scoped = selector,
+      attrName = '[' + name + ']';
+    splits.forEach(function(sep) {
+      var parts = scoped.split(sep);
+      scoped = parts.map(function(p) {
+        var t = p.trim();
+        if (t && (splits.indexOf(t) < 0) && (t.indexOf(attrName) < 0)) {
+          p = t.replace(/([^:]*)(:*)(.*)/, '$1' + attrName + '$2$3')
+        }
+        return p;
+      }).join(sep);
+    });
+    return scoped;
   },
   stylesToCssText: function(styles, preserveComments) {
     var cssText = '';
@@ -350,21 +396,21 @@ var stylizer = {
   getSheet: function() {
     if (!this.sheet) {
       this.sheet = document.createElement("style");
+      this.sheet.setAttribute('polymer-polyfill', '');
     }
     return this.sheet;
   },
-  apply: function() {
+  addSheetToDocument: function() {
     this.addCssToDocument('style { display: none !important; }\n');
-    // TODO(sorvell): change back to insertBefore when ShadowDOM polyfill
-    // supports this.
-    document.head.appendChild(this.getSheet());
-    //document.head.insertBefore(this.getSheet(), doc.head.children[0]);
+    var head = document.querySelector('head');
+    head.insertBefore(this.getSheet(), head.childNodes[0]);
   }
 };
 
-document.addEventListener('WebComponentsReady', function() {
-  stylizer.apply();
-})
+// add polyfill stylesheet to document
+if (window.ShadowDOMPolyfill) {
+  stylizer.addSheetToDocument();
+}
 
 // exports
 Polymer.shimStyling = stylizer.shimStyling;
