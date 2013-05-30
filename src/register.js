@@ -85,7 +85,7 @@
       // parse and apply MDV bindings
       // do this before being inserted to avoid {{}} in attribute values
       // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
-      root.appendChild(template.createInstance(this));
+      root.appendChild(template.createInstance(this, 'Polymer'));
       rootCreated.call(this, root);
       return root;
     }
