@@ -113,6 +113,8 @@
     // install property observation side effects
     // do this first so we can observe changes during initialization
     Polymer.observeProperties.call(this);
+    // install boilerplate attributes
+    Polymer.installInstanceAttributes.call(this);
     // process input attributes
     Polymer.takeAttributes.call(this);
     // add host-events...
