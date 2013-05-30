@@ -66,7 +66,8 @@
       return Polymer.job.apply(this, arguments);
     },
     /**
-     * Invokes a function asynchronously.
+     * Invokes a function asynchronously. The context of the callback
+     * function is bound to 'this' automatically.
      * @method asyncMethod
      * @param {Function} method
      * @param {Object|Array} args
