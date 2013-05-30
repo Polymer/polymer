@@ -3,14 +3,10 @@
 
   function Scope() {}
 
-  var bindPattern = /([\w\.\$]*)[\s]*as[\s]*([\w]*)/;
-  var repeatPattern = /([\w]*)[\s]*in[\s]*([\w\.\$]*)/;
+  var bindPattern = /([\w\.\$]*)[\s]+as[\s]+([\w]*)/;
+  var repeatPattern = /([\w]*)[\s]+in[\s]+([\w\.\$]*)/;
 
   function createBindRepeatBinding(model, path, name, node) {
-    var binding = new CompoundBinding(function(values) {
-      return values['value'];
-    });
-
     var scopeName, scopePath;
     var match = path.match(repeatPattern);
     if (match) {
@@ -25,7 +21,9 @@
         return;
       }
     }
-
+    var binding = new CompoundBinding(function(values) {
+      return values['value'];
+    });
     binding.bind('value', model, scopePath);
     templateScopeTable.set(node, { model: model, scope: scopeName });
     return binding;
