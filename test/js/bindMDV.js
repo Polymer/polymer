@@ -9,9 +9,11 @@ suite('bindMDV', function() {
   
   test('bindModel bindModel', function() {
     var test = document.createElement('div');
-    test.innerHTML = '<div id="a" foo="{{bar}}"></div>';
-    var a = test.firstChild;
-    Polymer.bindModel.call(test, test);
+    var template = document.createElement('template');
+    template.innerHTML = '<div id="a" foo="{{bar}}"></div>';
+    test.appendChild(template.createInstance(test, 'Polymer'));
+    var a = test.querySelector('#a');
+    
     test.bar = 5;
     dirtyCheck();
     assert.equal(a.getAttribute('foo'), 5);
@@ -23,9 +25,11 @@ suite('bindMDV', function() {
     
   test('bindModel bind input', function() {
     var test = document.createElement('div');
-    test.innerHTML = '<input value="{{bar}}" />';
-    var a = test.firstChild;
-    Polymer.bindModel.call(test, test);
+    var template = document.createElement('template');
+    template.innerHTML = '<input value="{{bar}}" />';
+    test.appendChild(template.createInstance(test, 'Polymer'));
+    var a = test.querySelector('input');
+    
     test.bar = 'hello';
     dirtyCheck();
     assert.equal(a.value, 'hello');
