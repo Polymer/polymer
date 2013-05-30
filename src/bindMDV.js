@@ -59,19 +59,6 @@
   }
 
   // model bindings
-  //
-  // convert {{macro}} strings in markup into MDV bindings
-  //
-  // MDV usually does this work but requires an additional
-  // nested template and functions asynchronously
-
-  function bindModel(inRoot) {
-    log.bind && console.group("[%s] bindModel", this.localName);
-    // TODO(sjmiles): allow 'this' to supply a 'delegate'
-    HTMLTemplateElement.bindAllMustachesFrom_(inRoot, this, HTMLTemplateElement.syntax.Polymer);
-    log.bind && console.groupEnd();
-  }
-  
   function bind(name, model, path) {
     var property = Polymer.propertyForAttribute.call(this, name);
     if (property) {
@@ -110,7 +97,6 @@
   Polymer.unbind = unbind;
   Polymer.unbindAll = unbindAll;
   Polymer.getBinding = getBinding;
-  Polymer.bindModel = bindModel;
   Polymer.unbindModel = unbindModel;
   Polymer.bindPattern = mustachePattern;
   

@@ -82,12 +82,10 @@
       // TODO(sorvell): host not set per spec; we set it for convenience
       // so we can traverse from root to host.
       root.host = this;
-      var templateInstance = template.createInstance();
       // parse and apply MDV bindings
       // do this before being inserted to avoid {{}} in attribute values
       // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
-      Polymer.bindModel.call(this, templateInstance);
-      root.appendChild(templateInstance);
+      root.appendChild(template.createInstance(this));
       rootCreated.call(this, root);
       return root;
     }
