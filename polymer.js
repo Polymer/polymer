@@ -15,7 +15,7 @@
 var thisFile = 'polymer.js';
 var scopeName = 'Polymer';
 var modules = [
-  'platform/platform.js',
+  '../platform/platform.js',
   'src/lang.js',
   'src/oop.js',
   'src/register.js',

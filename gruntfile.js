@@ -5,15 +5,15 @@
  */
 module.exports = function(grunt) {
   Platform = [
-    'platform/platform.min.js'
+    '../platform/platform.min.js'
   ];
   
   PlatformNative = [
-    'platform/platform.native.min.js'
+    '../platform/platform.native.min.js'
   ];
 
   PlatformSandbox = [
-    'platform/platform.sandbox.min.js'
+    '../platform/platform.sandbox.min.js'
   ];
   
   Polymer = [
