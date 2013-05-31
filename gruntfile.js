@@ -11,6 +11,10 @@ module.exports = function(grunt) {
   PlatformNative = [
     'platform/platform.native.min.js'
   ];
+
+  PlatformSandbox = [
+    'platform/platform.sandbox.min.js'
+  ];
   
   Polymer = [
     'src/lang.js',
@@ -86,6 +90,17 @@ module.exports = function(grunt) {
         },
         files: {
           'polymer.native.min.js': [].concat(PlatformNative, Polymer)
+        }
+      },
+      PolymerSandbox: {
+        options: {
+          sourceMap: 'polymer.sandbox.min.js.map',
+          mangle: false,
+          beautify: true,
+          compress: false
+        },
+        files: {
+          'polymer.sandbox.min.js': [].concat(PlatformSandbox, Polymer)
         }
       }
     },

@@ -6,21 +6,11 @@
 
 (function(scope) {
 
-// add a notation about polymer document modifications
-document.write('<!-- begin Polymer injections -->\n');
-
-// mobile compatibility tags
-// TODO(sjmiles): we probably cannot get away with forcing these in general
-document.write('<!-- injected meta tags for mobile -->\n');
-document.write('<meta name="apple-mobile-web-app-capable" content="yes">\n');
-document.write('<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no">\n');
-
 // FOUC prevention tactic
-document.write('<!-- injected FOUC prevention -->\n');
-document.write('<style>body {opacity: 0;}</style>');
-
-// done with write
-document.write('<!-- end Polymer injections -->\n');
+var style = document.createElement('style');
+style.textContent = 'body {opacity: 0;}';
+var head = document.querySelector('head');
+head.insertBefore(style, head.firstChild);
 
 window.addEventListener('WebComponentsReady', function() {
   document.body.style.webkitTransition = 'opacity 0.3s';
