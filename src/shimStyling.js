@@ -37,11 +37,31 @@
     }
   
   * encapsultion: Styles defined within shadowDOM, apply only to 
-  dom inside the shadowDOM. To shim this feature, non-@host rules within 
-  style elements are scoped by adding an attribute selector suffix to each
-  simple selector that contains the scope name. Each element in the definition
-  template content is also given the scope attribute. Thus, these rules match
-  only elements that have the scope attribute.
+  dom inside the shadowDOM. Polymer uses one of two techniques to imlement
+  this feature.
+  
+  By default, rules are prefixed with the host element tag name 
+  as a descendant selector. This ensures styling does not leak out of the 'top'
+  of the element's shadowDOM. For example,
+
+  div {
+      font-weight: bold;
+    }
+  
+  becomes:
+
+  x-foo div {
+      font-weight: bold;
+    }
+  
+  becomes:
+
+
+  Alternatively, if Polymer.strictPolyfillStyling is set to true then 
+  selectors are scoped by adding an attribute selector suffix to each
+  simple selector that contains the host element tag name. Each element 
+  in the element's shadowDOM template is also given the scope attribute. 
+  Thus, these rules match only elements that have the scope attribute.
   For example, given a scope name of x-foo, a rule like this:
   
     div {
@@ -136,9 +156,11 @@ var stylizer = {
       // lookup of extendee
       var name = element.options.name;
       stylizer.cacheDefinition(element);
-      stylizer.applyScopeToContent(element.templateContent, name);
       stylizer.shimPolyfillDirectives(element.styles, name);
       // find styles and apply shimming...
+      if (Polymer.strictPolyfillStyling) {
+        stylizer.applyScopeToContent(element.templateContent, name);
+      }
       stylizer.applyShimming(stylizer.stylesForElement(element), name);
     }
   },
@@ -157,7 +179,6 @@ var stylizer = {
     cssText += this.shimScoping(styles, name);
     this.addCssToDocument(cssText);
   },
-  //TODO(sorvell): use SideTable
   cacheDefinition: function(element) {
     var name = element.options.name;
     var template = element.querySelector('template');
@@ -314,9 +335,11 @@ var stylizer = {
   // change a selector like 'div' to 'name div'
   scopeRules: function(cssRules, name) {
     var cssText = '';
+    var scopeFn = Polymer.strictPolyfillStyling ? this.scopeSelectorStrict
+      : this.scopeSelector;
     forEach(cssRules, function(rule) {
       if (rule.selectorText && (rule.style && rule.style.cssText)) {
-        cssText += this.scopeSelector(rule.selectorText, name) + ' {\n\t';
+        cssText += scopeFn.call(this, rule.selectorText, name) + ' {\n\t';
         cssText += rule.style.cssText + '\n}\n\n';
       } else if (rule.media) {
         cssText += '@media ' + rule.media.mediaText + ' {\n';
@@ -329,6 +352,13 @@ var stylizer = {
     return cssText;
   },
   scopeSelector: function(selector, name) {
+    var r = [], parts = selector.split(',');
+    parts.forEach(function(p) {
+      r.push(name + ' ' + p.trim());
+    });
+    return r.join(', ');
+  },
+  scopeSelectorStrict: function(selector, name) {
     var r = [], parts = selector.split(','), t;
     var selectorRe = new RegExp('^' + name + this.selectorReSuffix, 'm');
     parts.forEach(function(p) {
@@ -344,8 +374,7 @@ var stylizer = {
   // return a selector with [name] suffix on each simple selector
   // e.g. .foo.bar > .zot becomes .foo[name].bar[name] > .zot[name]
   scopeCompoundSelector: function(selector, name) {
-    // TODO(sorvell): process complete set of complex selector markers
-    var splits = [' ', '.', '>'],
+    var splits = [' ', '>', '+', '~'],
       scoped = selector,
       attrName = '[' + name + ']';
     splits.forEach(function(sep) {
@@ -417,5 +446,6 @@ if (window.ShadowDOMPolyfill) {
 Polymer.shimStyling = stylizer.shimStyling;
 Polymer.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
 Polymer.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
+Polymer.strictPolyfillStyling = false;
 
 })(window);
