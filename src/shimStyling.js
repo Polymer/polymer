@@ -142,7 +142,7 @@ var slice = Array.prototype.slice.call.bind(Array.prototype.slice);
 var stylizer = {
   hostRuleRe: /@host[^{]*{(([^}]*?{[^{]*?}[\s\S]*?)+)}/gim,
   selectorRe: /([^{]*)({[\s\S]*?})/gim,
-  hostElementRe: /(\*)|(\:scope)/,
+  hostElementRe: /(.*)((?:\*)|(?:\:scope))(.*)/,
   hostFixableRe: /^[.\[:]/,
   cssCommentRe: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
   cssPolyfillCommentRe: /\/\*\s*@polyfill ([^*]*\*+([^/*][^*]*\*+)*\/)([^{]*?){/gim,
@@ -308,7 +308,7 @@ var stylizer = {
       p = p.trim();
       // selector: *|:scope -> name
       if (p.match(this.hostElementRe)) {
-        p = p.replace(this.hostElementRe, name);   
+        p = p.replace(this.hostElementRe, name + '$1$3');   
       // selector: .foo -> name.foo, [bar] -> name[bar]
       } else if (p.match(this.hostFixableRe)) {
         p = name + p;
