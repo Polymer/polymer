@@ -340,7 +340,7 @@ var stylizer = {
     forEach(cssRules, function(rule) {
       if (rule.selectorText && (rule.style && rule.style.cssText)) {
         cssText += scopeFn.call(this, rule.selectorText, name) + ' {\n\t';
-        cssText += rule.style.cssText + '\n}\n\n';
+        cssText += this.propertiesFromRule(rule) + '\n}\n\n';
       } else if (rule.media) {
         cssText += '@media ' + rule.media.mediaText + ' {\n';
         cssText += this.scopeRules(rule.cssRules, name);
@@ -350,6 +350,16 @@ var stylizer = {
       }
     }, this);
     return cssText;
+  },
+  propertiesFromRule: function(rule) {
+    var properties = rule.style.cssText;
+    // TODO(sorvell): file bug: on Chrome cssom incorrectly removes
+    // the quotes from the content property.
+    if (rule.style.content.match(/[^']/)) {
+      properties = 'content: \'' + rule.style.content + '\';\n' + 
+        rule.style.cssText.replace(/content:[^;]*;/g, '');
+    }
+    return properties;
   },
   scopeSelector: function(selector, name) {
     var r = [], parts = selector.split(',');
