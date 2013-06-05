@@ -11,14 +11,20 @@ module.exports = function(grunt) {
   PlatformNative = [
     'platform/platform.native.min.js'
   ];
+
+  PlatformSandbox = [
+    'platform/platform.sandbox.min.js'
+  ];
   
   Polymer = [
     'src/lang.js',
     'src/oop.js',
     'src/register.js',
     'src/base.js',
+    'src/trackObservers.js',
     'src/bindProperties.js',
     'src/bindMDV.js',
+    'src/polymerSyntaxMDV.js',
     'src/attrs.js',
     'src/marshal.js',
     'src/events.js',
@@ -70,6 +76,9 @@ module.exports = function(grunt) {
       }
     },
     uglify: {
+      options: {
+        banner: '/* Copyright 2013 The Polymer Authors. All rights reserved. Use of this source code is governed by a BSD-style license that can be found in the LICENSE file. */\n'
+      },
       Polymer: {
         options: {
           sourceMap: 'polymer.min.js.map'
@@ -84,6 +93,17 @@ module.exports = function(grunt) {
         },
         files: {
           'polymer.native.min.js': [].concat(PlatformNative, Polymer)
+        }
+      },
+      PolymerSandbox: {
+        options: {
+          sourceMap: 'polymer.sandbox.min.js.map',
+          mangle: false,
+          beautify: true,
+          compress: false
+        },
+        files: {
+          'polymer.sandbox.min.js': [].concat(PlatformSandbox, Polymer)
         }
       }
     },

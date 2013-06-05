@@ -1,8 +1,8 @@
 # Contributing
 
-Want to contribute to polymer? Great!
+Want to contribute to Polymer? Great!
 
-We are more than happy to accept external contributions to the project in the form of [feedback](https://groups.google.com/forum/?fromgroups=#!forum/polymer-dev), [bug reports](https://github.com/Polymer/polymer/issues), and pull requests.
+We are more than happy to accept external contributions to the project in the form of [feedback](https://groups.google.com/forum/?fromgroups=#!forum/polymer-dev), [bug reports](../../issues), and pull requests.
 
 ## Contributor License Agreement
 
@@ -22,8 +22,9 @@ Other projects require a similar agreement: jQuery, Firefox, Apache, Node, and m
 Here's an easy guide that should get you up and running:
 
 1. Fork the project on github and pull down your copy.
+   > replace the {{ username }} with your username and {{ repository }} with the repository name
 
-        git clone git@github.com:username/polymer.git --recursive
+        git clone git@github.com:{{ username }}/{{ repository }}.git --recursive
 
     Note the `--recursive`. This is necessary for submodules to initialize properly. If you don't do a recursive clone, you'll have to init them manually:
 
@@ -40,8 +41,7 @@ That's it for the one time setup. Now you're ready to make a change.
 
 We iterate fast! To avoid potential merge conflicts, it's a good idea to pull from the main project before making a change and submitting a pull request. The easiest way to do this is setup a remote called `upstream` and do a pull before working on a change:
 
-    cd polymer
-    git remote add upstream git://github.com/Polymer/polymer.git
+    git remote add upstream git://github.com/Polymer/{{ repository }}.git
 
 Then before making a change, do a pull from the upstream `master` branch:
 

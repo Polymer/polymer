@@ -17,7 +17,12 @@
   var attrProps$ = 'publish'; 
   //var attrProps$ = 'attributeDefaults';
 
-  var publishAttributes = function(inElement, inPrototype) {
+  function publishAttributes(element, prototype) {
+    publishAttributesAttributes(element, prototype);
+    publishInstanceAttributes(element, prototype);
+  }
+
+  function publishAttributesAttributes(inElement, inPrototype) {
     var published = {};
     // merge attribute names from 'attributes' attribute
     var attributes = inElement.getAttribute(attributes$);
@@ -57,7 +62,32 @@
       inherited[published$],
       published
     );
-  };
+  }
+
+  function publishInstanceAttributes(element, prototype) {
+    // our suffix prototype chain (prototype is 'own')
+    var inherited = element.options.prototype, attributes = element.attributes;
+    var a$ = prototype.instanceAttributes = Object.create(inherited.instanceAttributes || null);
+    for (var i=0, l=attributes.length, a; (i<l) && (a=attributes[i]); i++) {
+      switch (a.name) {
+        case 'name':
+        case 'extends':
+        case attributes$: 
+          break;
+        default: 
+          if (a.name.slice(0, 3) !== 'on-') {
+            a$[a.name] = a.value;
+          }
+      }
+    }
+  }
+
+  function installInstanceAttributes() {
+    var a$ = this.instanceAttributes;
+    Object.keys(a$).forEach(function(name) {
+      this.setAttribute(name, a$[name]);
+    }, this);
+  }
 
   function takeAttributes() {
     // for each attribute
@@ -83,7 +113,7 @@
         }
       }
     }, this);
-  };
+  }
 
   // return the published property matching name, or undefined
   function propertyForAttribute(name) {
@@ -91,7 +121,7 @@
     var properties = Object.keys(this[published$]);
     // search for a matchable property
     return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
-  };
+  }
 
   var lowerCase = String.prototype.toLowerCase.call.bind(
     String.prototype.toLowerCase);
@@ -131,5 +161,6 @@
   Polymer.takeAttributes = takeAttributes;
   Polymer.publishAttributes = publishAttributes;
   Polymer.propertyForAttribute = propertyForAttribute;
+  Polymer.installInstanceAttributes = installInstanceAttributes;
   
 })();
