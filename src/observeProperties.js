@@ -28,6 +28,7 @@
         log.data && console.log('[%s#%s] watch: [%s] now [%s] was [%s]', this.localName, this.node.id || '', inName, this[inName], inOld);
         propertyChanged.call(this, inName, inOld);
       }.bind(this));
+      Polymer.registerObserver(this, 'property', inName, observer);
     }
   }
 

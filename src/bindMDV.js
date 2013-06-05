@@ -59,42 +59,34 @@
   }
 
   // model bindings
-  //
-  // convert {{macro}} strings in markup into MDV bindings
-  //
-  // MDV usually does this work but requires an additional
-  // nested template and functions asynchronously
-
-  function bindModel(inRoot) {
-    log.bind && console.group("[%s] bindModel", this.localName);
-    // TODO(sjmiles): allow 'this' to supply a 'delegate'
-    HTMLTemplateElement.bindAllMustachesFrom_(inRoot, this)
-    log.bind && console.groupEnd();
-  }
-
   function bind(name, model, path) {
     var property = Polymer.propertyForAttribute.call(this, name);
     if (property) {
       registerBinding(this, property, path);
-      Polymer.bindProperties(this, property, model, path);
+      Polymer.registerObserver(this, 'binding', property,
+        Polymer.bindProperties(this, property, model, path)
+      );
     } else {
       HTMLElement.prototype.bind.apply(this, arguments);
     }
   }
   
+  function unbindModel(node) {
+    node.unbindAll();
+    for (var child = node.firstChild; child; child = child.nextSibling) {
+      unbindModel(child);
+    }
+  }
+  
   function unbind(name) {
-    var property = Polymer.propertyForAttribute.call(this, name);
-    if (property) {
-      unregisterBinding(this, name);
-      Object.defineProperty(this, name, {
-        value: this[name],
-        enumerable: true,
-        writable: true,
-        configurable: true
-      });
-    } else {
+    if (!Polymer.unregisterObserver(this, 'binding', name)) {
       HTMLElement.prototype.unbind.apply(this, arguments);
     }
+  }
+  
+  function unbindAll() {
+    Polymer.unregisterObserversOfType(this, 'property');
+    HTMLElement.prototype.unbindAll.apply(this, arguments);
   }
   
   var mustachePattern = /\{\{([^{}]*)}}/;
@@ -103,8 +95,9 @@
   
   Polymer.bind = bind;
   Polymer.unbind = unbind;
+  Polymer.unbindAll = unbindAll;
   Polymer.getBinding = getBinding;
-  Polymer.bindModel = bindModel;
+  Polymer.unbindModel = unbindModel;
   Polymer.bindPattern = mustachePattern;
   
 })();

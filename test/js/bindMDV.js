@@ -7,27 +7,39 @@
 suite('bindMDV', function() {
   var assert = chai.assert;
   
-  test('bindModel bindModel', function() {
+  test('bindModel bindModel', function(done) {
     var test = document.createElement('div');
-    test.innerHTML = '<div id="a" foo="{{bar}}"></div>';
-    var a = test.firstChild;
-    Polymer.bindModel.call(test, test);
+    var template = document.createElement('template');
+    template.innerHTML = '<div id="a" foo="{{bar}}"></div>';
+    test.appendChild(template.createInstance(test, 'Polymer'));
+    var a = test.querySelector('#a');
+    
     test.bar = 5;
     dirtyCheck();
-    assert.equal(a.getAttribute('foo'), 5);
-    //
-    test.bar = 8;
-    dirtyCheck();
-    assert.equal(a.getAttribute('foo'), 8);
+    setTimeout(function() {
+      assert.equal(a.getAttribute('foo'), 5);
+      //
+      test.bar = 8;
+      dirtyCheck();
+      setTimeout(function() {
+        assert.equal(a.getAttribute('foo'), 8);
+        done();
+      });
+    });
   });
     
-  test('bindModel bind input', function() {
+  test('bindModel bind input', function(done) {
     var test = document.createElement('div');
-    test.innerHTML = '<input value="{{bar}}" />';
-    var a = test.firstChild;
-    Polymer.bindModel.call(test, test);
+    var template = document.createElement('template');
+    template.innerHTML = '<input value="{{bar}}" />';
+    test.appendChild(template.createInstance(test, 'Polymer'));
+    var a = test.querySelector('input');
+    
     test.bar = 'hello';
     dirtyCheck();
-    assert.equal(a.value, 'hello');
+    setTimeout(function() {
+      assert.equal(a.value, 'hello');
+      done();
+    });
   });
 });
