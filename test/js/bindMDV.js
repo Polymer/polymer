@@ -7,7 +7,7 @@
 suite('bindMDV', function() {
   var assert = chai.assert;
   
-  test('bindModel bindModel', function() {
+  test('bindModel bindModel', function(done) {
     var test = document.createElement('div');
     var template = document.createElement('template');
     template.innerHTML = '<div id="a" foo="{{bar}}"></div>';
@@ -16,14 +16,19 @@ suite('bindMDV', function() {
     
     test.bar = 5;
     dirtyCheck();
-    assert.equal(a.getAttribute('foo'), 5);
-    //
-    test.bar = 8;
-    dirtyCheck();
-    assert.equal(a.getAttribute('foo'), 8);
+    setTimeout(function() {
+      assert.equal(a.getAttribute('foo'), 5);
+      //
+      test.bar = 8;
+      dirtyCheck();
+      setTimeout(function() {
+        assert.equal(a.getAttribute('foo'), 8);
+        done();
+      });
+    });
   });
     
-  test('bindModel bind input', function() {
+  test('bindModel bind input', function(done) {
     var test = document.createElement('div');
     var template = document.createElement('template');
     template.innerHTML = '<input value="{{bar}}" />';
@@ -32,6 +37,9 @@ suite('bindMDV', function() {
     
     test.bar = 'hello';
     dirtyCheck();
-    assert.equal(a.value, 'hello');
+    setTimeout(function() {
+      assert.equal(a.value, 'hello');
+      done();
+    });
   });
 });
