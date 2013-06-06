@@ -163,12 +163,11 @@
     inEvent.on = prefix + inEvent.type;
     log.events && console.group("[%s]: listenLocal [%s]", this.localName, 
       inEvent.on);
-    var path = inEvent.path && inEvent.path();
-    if (!path || window.ShadowDOMPolyfill) {
-      listenLocalPolyfill(inEvent);
+    if (!inEvent.path || window.ShadowDOMPolyfill) {
+      listenLocalNoEventPath(inEvent);
     } else {
       var c = null;
-      Array.prototype.some.call(path, function(t) {
+      Array.prototype.some.call(inEvent.path, function(t) {
         if (t === this) {
           return true;
         }
@@ -191,7 +190,7 @@
   // in shadowRoot.
   // This will be addressed via an event path api 
   // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21066
-  function listenLocalPolyfill(inEvent) {
+  function listenLocalNoEventPath(inEvent) {
     log.events && console.log('event.path() not supported for', inEvent.type);
     var t = inEvent.target, c = null;
     while (t && t != this) {
