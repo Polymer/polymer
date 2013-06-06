@@ -366,7 +366,10 @@ var stylizer = {
     parts.forEach(function(p) {
       r.push(name + ' ' + p.trim());
     });
-    return r.join(', ');
+    var selector = r.join(', ');
+    // support [is=name] syntax as well as tag name
+    selector = selector + ', ' + selector.replace(name, '[is=' + name + ']');
+    return selector;
   },
   scopeSelectorStrict: function(selector, name) {
     var r = [], parts = selector.split(','), t;
