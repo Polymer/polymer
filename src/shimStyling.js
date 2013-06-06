@@ -353,9 +353,9 @@ var stylizer = {
   },
   propertiesFromRule: function(rule) {
     var properties = rule.style.cssText;
-    // TODO(sorvell): file bug: on Chrome cssom incorrectly removes
-    // the quotes from the content property.
-    if (rule.style.content.match(/[^']/)) {
+    // TODO(sorvell): Chrome cssom incorrectly removes quotes from the content
+    // property. (https://code.google.com/p/chromium/issues/detail?id=247231)
+    if (!rule.style.content.match(/['"]+/)) {
       properties = 'content: \'' + rule.style.content + '\';\n' + 
         rule.style.cssText.replace(/content:[^;]*;/g, '');
     }
