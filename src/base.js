@@ -74,6 +74,9 @@
      * @param {number} timeout
      */
     asyncMethod: function(inMethod, inArgs, inTimeout) {
+      // when polyfilling Object.observe, ensure changes 
+      // propagate before executing the async method
+      Platform.flush();
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
       var fn = function() {
         (this[inMethod] || inMethod).apply(this, args);

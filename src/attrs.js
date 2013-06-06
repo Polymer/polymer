@@ -54,10 +54,10 @@
         inPrototype[p] = imperative[p];
       });
       // combine declaratively and imperatively published properties
-      published = mixin(published, imperative);
+      published = Platform.mixin(published, imperative);
     }
     // combine with inherited published properties
-    inPrototype[published$] = mixin(
+    inPrototype[published$] = Platform.mixin(
       {},
       inherited[published$],
       published

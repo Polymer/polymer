@@ -29,7 +29,7 @@
     // element chain, which is inefficient and has ramifications for 'super'
     // also, we don't yet support intermediate prototypes in calls to
     // HTMLElementElement.prototype.register, so we have to use mixin
-    var prototype = mixin({}, Polymer.base, inPrototype);
+    var prototype = Platform.mixin({}, Polymer.base, inPrototype);
     // capture defining element
     prototype.elementElement = inElement;
     // TODO(sorvell): install a helper method this.resolvePath to aid in 

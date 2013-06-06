@@ -17,7 +17,7 @@
   var prefix = "on-";
 
   var parseHostEvents = function(inAttributes, inPrototype) {
-//    inDefinition.eventDelegates = mixin(inDefinition.eventDelegates,
+//    inDefinition.eventDelegates = Platform.mixin(inDefinition.eventDelegates,
 //      parseEvents(inAttributes));
     inPrototype.eventDelegates = parseEvents(inAttributes);
   };
@@ -155,7 +155,6 @@
       log.events && console.groupEnd();
     }
   };
-
 
   function listenLocal(inEvent) {
     if (inEvent.cancelBubble) {
