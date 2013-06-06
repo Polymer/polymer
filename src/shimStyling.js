@@ -259,11 +259,12 @@ var stylizer = {
     }
   },
   convertPolyfillDirectives: function(cssText, name) {
-    var r = '', l = 0, matches;
+    var r = '', l = 0, matches, selector;
     while (matches=this.cssPolyfillCommentRe.exec(cssText)) {
       r += cssText.substring(l, matches.index);
       // remove end comment delimiter (*/)
-      r += name + ' ' + matches[1].slice(0, -2) + '{';
+      selector = matches[1].slice(0, -2).replace('@host', name);
+      r += this.scopeSelector(selector, name) + '{';
       l = this.cssPolyfillCommentRe.lastIndex;
     }
     r += cssText.substring(l, cssText.length);
@@ -302,6 +303,8 @@ var stylizer = {
     }
     return r;
   },
+  // TODO(sorvell): factor to use scopeSelector;
+  // support [is=name] syntax
   scopeHostSelector: function(selector, name) {
     var r = [], parts = selector.split(',');
     parts.forEach(function(p) {
@@ -335,11 +338,10 @@ var stylizer = {
   // change a selector like 'div' to 'name div'
   scopeRules: function(cssRules, name) {
     var cssText = '';
-    var scopeFn = Polymer.strictPolyfillStyling ? this.scopeSelectorStrict
-      : this.scopeSelector;
     forEach(cssRules, function(rule) {
       if (rule.selectorText && (rule.style && rule.style.cssText)) {
-        cssText += scopeFn.call(this, rule.selectorText, name) + ' {\n\t';
+        cssText += this.scopeSelector(rule.selectorText, name, 
+          Polymer.strictPolyfillStyling) + ' {\n\t';
         cssText += this.propertiesFromRule(rule) + '\n}\n\n';
       } else if (rule.media) {
         cssText += '@media ' + rule.media.mediaText + ' {\n';
@@ -361,32 +363,34 @@ var stylizer = {
     }
     return properties;
   },
-  scopeSelector: function(selector, name) {
+  selectorNeedsScoping: function(selector, name) {
+    var matchScope = '(' + name + '|\\[is=' + name + '\\])';
+    var selectorRe = new RegExp('^' + matchScope + this.selectorReSuffix, 'm');
+    return !selector.match(selectorRe);
+  },
+  scopeSelector: function(selector, name, strict) {
     var r = [], parts = selector.split(',');
     parts.forEach(function(p) {
-      r.push(name + ' ' + p.trim());
-    });
+      var p = p.trim();
+      if (this.selectorNeedsScoping(p, name)) {
+        p = strict ? this.applyStrictSelectorScope(p, name) :
+          this.applySimpleSelectorScope(p, name);
+      }
+      r.push(p);
+    }, this);
     var selector = r.join(', ');
-    // support [is=name] syntax as well as tag name
-    selector = selector + ', ' + selector.replace(name, '[is=' + name + ']');
     return selector;
   },
-  scopeSelectorStrict: function(selector, name) {
-    var r = [], parts = selector.split(','), t;
-    var selectorRe = new RegExp('^' + name + this.selectorReSuffix, 'm');
-    parts.forEach(function(p) {
-      t = p.trim();
-      if (t.match(selectorRe)) {
-        r.push(t);
-      } else {
-        r.push(this.scopeCompoundSelector(t, name));
-      }
-    }, this);
-    return r.join(', ');
+  applySimpleSelectorScope: function(selector, name) {
+    selector = name + ' ' + selector
+    // TODO(sorvell): replacing name is not good enough since it will fail
+    // on g-menu in g-menu-item.
+    // support [is=name] syntax as well as tag name
+    return selector + ', ' + selector.replace(name, '[is=' + name + ']');
   },
   // return a selector with [name] suffix on each simple selector
   // e.g. .foo.bar > .zot becomes .foo[name].bar[name] > .zot[name]
-  scopeCompoundSelector: function(selector, name) {
+  applyStrictSelectorScope: function(selector, name) {
     var splits = [' ', '>', '+', '~'],
       scoped = selector,
       attrName = '[' + name + ']';
