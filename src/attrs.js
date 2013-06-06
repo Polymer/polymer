@@ -39,8 +39,8 @@
     }
     // our suffix prototype chain (inPrototype is 'own')
     var inherited = inElement.options.prototype;
-    // install 'attributes' properties on the prototype, unless they
-    // are already defaulted
+    // install 'attributes' as properties on the prototype, but don't
+    // override
     Object.keys(published).forEach(function(p) {
       if (!(p in inPrototype) && !(p in inherited)) {
         inPrototype[p] = published[p];
@@ -66,21 +66,21 @@
 
   function publishInstanceAttributes(element, prototype) {
     // our suffix prototype chain (prototype is 'own')
-    var inherited = element.options.prototype, attributes = element.attributes;
-    var a$ = prototype.instanceAttributes = Object.create(inherited.instanceAttributes || null);
+    var inherited = element.options.prototype;
+    var attributes = element.attributes;
+    var a$ = prototype.instanceAttributes = 
+        Object.create(inherited.instanceAttributes || null);
     for (var i=0, l=attributes.length, a; (i<l) && (a=attributes[i]); i++) {
-      switch (a.name) {
-        case 'name':
-        case 'extends':
-        case attributes$: 
-          break;
-        default: 
-          if (a.name.slice(0, 3) !== 'on-') {
-            a$[a.name] = a.value;
-          }
+      if (!publishInstanceAttributes.blackList[a.name]) {
+        if (a.name.slice(0, 3) !== 'on-') {
+          a$[a.name] = a.value;
+        }
       }
     }
   }
+
+  publishInstanceAttributes.blackList = {name: 1, 'extends': 1, constructor: 1};
+  publishInstanceAttributes.blackList[attributes$] = 1;
 
   function installInstanceAttributes() {
     var a$ = this.instanceAttributes;
@@ -125,7 +125,6 @@
 
   var lowerCase = String.prototype.toLowerCase.call.bind(
     String.prototype.toLowerCase);
-     
 
   function deserializeValue(value, defaultValue) {
     // attempt to infer type from default value
@@ -162,5 +161,5 @@
   Polymer.publishAttributes = publishAttributes;
   Polymer.propertyForAttribute = propertyForAttribute;
   Polymer.installInstanceAttributes = installInstanceAttributes;
-  
+
 })();
