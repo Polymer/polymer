@@ -140,31 +140,6 @@
         }
       }
     }
-    
-    // mixin
-    
-    function mixin(inObj/*, inProps, inMoreProps, ...*/) {
-      var obj = inObj || {};
-      for (var i=1; i<arguments.length; i++) {
-        var p = arguments[i];
-        // TODO(sjmiles): (IE): trap here instead of copyProperty so we can 
-        // abort copying altogether when we hit a bad property 
-        try {
-          for (var n in p) {
-            copyProperty(n, p, obj);
-          }
-        } catch(x) {
-          //console.log(x);
-        }
-      }
-      return obj;
-    }
-    
-    // copy property inName from inSource object to inTarget object
-    function copyProperty(inName, inSource, inTarget) {
-      Object.defineProperty(inTarget, inName, 
-        getPropertyDescriptor(inSource, inName));
-    }
 
     // exports
     
