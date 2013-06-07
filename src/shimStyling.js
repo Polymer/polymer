@@ -355,7 +355,7 @@ var stylizer = {
     var properties = rule.style.cssText;
     // TODO(sorvell): Chrome cssom incorrectly removes quotes from the content
     // property. (https://code.google.com/p/chromium/issues/detail?id=247231)
-    if (!rule.style.content.match(/['"]+/)) {
+    if (rule.style.content && !rule.style.content.match(/['"]+/)) {
       properties = 'content: \'' + rule.style.content + '\';\n' + 
         rule.style.cssText.replace(/content:[^;]*;/g, '');
     }
@@ -380,7 +380,7 @@ var stylizer = {
   },
   // scope via name and [is=name]
   applySimpleSelectorScope: function(selector, name) {
-    return name + ' ' + selector + ', ' + '[is=' + name + ']' + selector;
+    return name + ' ' + selector + ', ' + '[is=' + name + '] ' + selector;
   },
   // return a selector with [name] suffix on each simple selector
   // e.g. .foo.bar > .zot becomes .foo[name].bar[name] > .zot[name]
