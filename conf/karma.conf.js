@@ -17,7 +17,6 @@ files = [
   'polymer.js',
   'test/js/*.js',
   {pattern: 'tools/**/*.js', included: false},
-  {pattern: 'platform/**/*', included: false},
   {pattern: 'src/*.js', included: false},
   {pattern: 'test/**/*.html', included: false},
   {pattern: 'test/**/*.css', included: false},
