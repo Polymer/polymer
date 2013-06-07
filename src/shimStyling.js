@@ -303,18 +303,17 @@ var stylizer = {
     }
     return r;
   },
-  // TODO(sorvell): factor to use scopeSelector;
-  // support [is=name] syntax
+  // supports scopig by name and  [is=name] syntax
   scopeHostSelector: function(selector, name) {
-    var r = [], parts = selector.split(',');
+    var r = [], parts = selector.split(','), is = '[is=' + name + ']';
     parts.forEach(function(p) {
       p = p.trim();
       // selector: *|:scope -> name
       if (p.match(this.hostElementRe)) {
-        p = p.replace(this.hostElementRe, name + '$1$3');   
+        p = p.replace(this.hostElementRe, name + '$1$3, ' + is + '$1$3');
       // selector: .foo -> name.foo, [bar] -> name[bar]
       } else if (p.match(this.hostFixableRe)) {
-        p = name + p;
+        p = name + p + ', ' + is + p;
       }
       r.push(p);
     }, this);
@@ -326,7 +325,6 @@ var stylizer = {
         s.parentNode.removeChild(s);
       }
     });
-    // TODO(sorvell): remove @host rules (use cssom rather than regex?)
     var cssText = this.stylesToCssText(styles).replace(this.hostRuleRe, '');
     var rules = this.cssToRules(cssText);
     cssText = this.scopeRules(rules, name);
@@ -371,22 +369,18 @@ var stylizer = {
   scopeSelector: function(selector, name, strict) {
     var r = [], parts = selector.split(',');
     parts.forEach(function(p) {
-      var p = p.trim();
+      p = p.trim();
       if (this.selectorNeedsScoping(p, name)) {
         p = strict ? this.applyStrictSelectorScope(p, name) :
           this.applySimpleSelectorScope(p, name);
       }
       r.push(p);
     }, this);
-    var selector = r.join(', ');
-    return selector;
+    return r.join(', ');
   },
+  // scope via name and [is=name]
   applySimpleSelectorScope: function(selector, name) {
-    selector = name + ' ' + selector
-    // TODO(sorvell): replacing name is not good enough since it will fail
-    // on g-menu in g-menu-item.
-    // support [is=name] syntax as well as tag name
-    return selector + ', ' + selector.replace(name, '[is=' + name + ']');
+    return name + ' ' + selector + ', ' + '[is=' + name + ']' + selector;
   },
   // return a selector with [name] suffix on each simple selector
   // e.g. .foo.bar > .zot becomes .foo[name].bar[name] > .zot[name]
