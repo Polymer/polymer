@@ -37,17 +37,14 @@
     var content = elementTemplateContent(elementElement);
     if (content) {
       // in case we're in document, remove from element
+      var cssText = '';
       sheets.forEach(function(sheet) {
         sheet.parentNode.removeChild(sheet);
+        cssText += cssTextFromSheet(sheet) + '\n';
       });
-      var fragment = document.createDocumentFragment();
-      sheets.forEach(function(sheet) {
-        var style = createStyleElementFromSheet(sheet);
-        if (style) {
-          fragment.appendChild(style);
-        }
-      });
-      content.insertBefore(fragment, content.firstChild);
+      if (cssText) {
+        content.insertBefore(createStyleElement(cssText), content.firstChild);
+      }
     }
   }
   
@@ -61,7 +58,8 @@
   */
   // TODO(sorvell): remove when wkb.ug/72462 is addressed.
   function installGlobalStyles(elementElement) {
-    applyStylesToScope(findStyles(elementElement, 'global'), doc.head);
+    applyStyleToScope(styleFromElement(elementElement, STYLE_GLOBAL_SCOPE),
+      doc.head);
   }
   
   /**
@@ -82,45 +80,27 @@
   */
   // TODO(sorvell): remove when spec issues are addressed
   function installControllerStyles(element, elementElement) {
-      if (!elementElement.controllerStyles) {
-        elementElement.controllerStyles = findStyles(elementElement,
-          'controller');
+      if (!elementElement.controllerStyle) {
+        elementElement.controllerStyle = styleFromElement(elementElement,
+          STYLE_CONTROLLER_SCOPE);
       }
-      var styles = elementElement.controllerStyles;
+      var styleElement = elementElement.controllerStyle;
       async.queue(function() {
         var scope = findStyleController(element);
-        if (scope) {
-          Polymer.shimPolyfillDirectives(styles, element.localName);
-          applyStylesToScope(styles, scope);
+        // apply controller styles only if they are not yet applied
+        if (scope && !scopeHasElementStyle(scope, element, 
+          STYLE_CONTROLLER_SCOPE)) {
+          Polymer.shimPolyfillDirectives([styleElement], element.localName);
+          applyStyleToScope(styleElement, scope);
         }
       });
   }
-  //
-  // TODO(sorvell): it would be better to identify blocks of rules within
-  // style declarations than require different style/link elements.
-  function findStyles(elementElement, descriptor) {
-    var styleList = [];
-    // handle stylesheets
-    var selector = '[' + SCOPE_ATTR + '=' + descriptor + ']';
-    var matcher = function(s) {
-      return matchesSelector(s, selector);
-    };
-    var sheets = findInElement(elementElement, SHEET_SELECTOR, matcher);
-    sheets.forEach(function(sheet) {
-      // in case we're in document, remove from element
-      sheet.parentNode.removeChild(sheet);
-      styleList.push(createStyleElementFromSheet(sheet));
-    });
-    // handle style elements
-    var styles = findInElement(elementElement, STYLE_SELECTOR, matcher);
-    styles.forEach(function(style) {
-      // in case we're in document, remove from element
-      style.parentNode.removeChild(style);
-      styleList.push(style);
-    });
-    return styleList;
+  
+  function scopeHasElementStyle(scope, element, descriptor) {
+    return scope.querySelector('style[' + STYLE_SCOPE_ATTRIBUTE + '=' + 
+      element.localName + '-' + descriptor + ']');
   }
-
+  
   function cssTextFromElement(elementElement, descriptor) {
     var cssText = '';
     // handle stylesheets
@@ -142,6 +122,16 @@
       cssText += style.textContent + '\n\n';
     });
     return cssText;
+  }
+  
+  function styleFromElement(elementElement, descriptor) {
+    var cssText = cssTextFromElement(elementElement, descriptor);
+    if (cssText) {
+      var style = createStyleElement(cssText);
+      style.setAttribute(STYLE_SCOPE_ATTRIBUTE, elementElement.options.name +
+      '-' + descriptor);
+      return style;
+    }
   }
   
   function findInElement(elementElement, selector, matcher) {
@@ -191,24 +181,20 @@
     return n == doc ? doc.head : n;
   };
 
-  function createStyleElementFromSheet(sheet) {
-    if (sheet.__resource) {
-      var style = doc.createElement('style');
-      style.textContent = sheet.__resource;
-      return style;
-    } else {
-      console.warn('Could not find content for stylesheet', sheet);
-    }
+  function createStyleElement(cssText) {
+    var style = document.createElement('style');
+    style.textContent = cssText;
+    return style;
   }
 
   function cssTextFromSheet(sheet) {
     return (sheet && sheet.__resource) || '';
   }
 
-  function applyStylesToScope(styles, scope) {
-    styles.forEach(function(style) {
+  function applyStyleToScope(style, scope) {
+    if (style) {
       scope.appendChild(style.cloneNode(true));
-    });
+    }
   }
 
   var eltProto = HTMLElement.prototype;
@@ -227,6 +213,9 @@
   
   var STYLE_SELECTOR = 'style';
   var SHEET_SELECTOR = '[rel=stylesheet]';
+  var STYLE_SCOPE_ATTRIBUTE = 'element';
+  var STYLE_GLOBAL_SCOPE = 'global';
+  var STYLE_CONTROLLER_SCOPE = 'controller';
   var SCOPE_ATTR = 'polymer-scope';
   function arrayFromNodeList(nodeList) {
     return Array.prototype.slice.call(nodeList || [], 0);
