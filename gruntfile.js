@@ -77,7 +77,8 @@ module.exports = function(grunt) {
     },
     uglify: {
       options: {
-        banner: grunt.file.read('LICENSE')
+        banner: grunt.file.read('LICENSE'),
+        nonull: true
       },
       Polymer: {
         options: {
