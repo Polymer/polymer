@@ -326,9 +326,10 @@ var stylizer = {
       }
     });
     var cssText = this.stylesToCssText(styles).replace(this.hostRuleRe, '');
+    cssText = this.convertPseudos(cssText);
     var rules = this.cssToRules(cssText);
     cssText = this.scopeRules(rules, name);
-    return this.convertPseudos(cssText);
+    return cssText;
   },
   convertPseudos: function(cssText) {
     return cssText.replace(this.cssPseudoRe, ' [pseudo=$1]');
