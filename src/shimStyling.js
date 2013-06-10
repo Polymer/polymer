@@ -263,7 +263,7 @@ var stylizer = {
     while (matches=this.cssPolyfillCommentRe.exec(cssText)) {
       r += cssText.substring(l, matches.index);
       // remove end comment delimiter (*/)
-      selector = matches[1].slice(0, -2).replace('@host', name);
+      selector = matches[1].slice(0, -2).replace(this.hostRe, name);
       r += this.scopeSelector(selector, name) + '{';
       l = this.cssPolyfillCommentRe.lastIndex;
     }
