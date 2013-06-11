@@ -48,6 +48,8 @@
     prototype.installTemplate.nom = 'installTemplate';
     // install readyCallback
     prototype.readyCallback = readyCallback;
+    // hint super call engine by tagging methods with names
+    hintSuper(prototype);
     // parse declared on-* delegates into imperative form
     scope.parseHostEvents(inElement.attributes, prototype);
     // parse attribute-attributes
@@ -126,6 +128,15 @@
       this.ready();
     }
   };
+
+  function hintSuper(prototype) {
+    Object.getOwnPropertyNames(prototype).forEach(function(n) {
+      var d = Object.getOwnPropertyDescriptor(prototype, n);
+      if (typeof d.value == 'function') {
+        d.value.nom = n;
+      }
+    });
+  }
 
   // user utility 
 
