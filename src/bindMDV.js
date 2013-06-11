@@ -10,6 +10,10 @@
   
   var log = window.logFlags || {};
 
+  // use the MDV syntax
+
+  HTMLTemplateElement.syntax['MDV'] = new MDVSyntax;
+
   // bind tracking
   
   var bindings = new SideTable();

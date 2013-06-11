@@ -24,7 +24,6 @@ module.exports = function(grunt) {
     'src/trackObservers.js',
     'src/bindProperties.js',
     'src/bindMDV.js',
-    'src/polymerSyntaxMDV.js',
     'src/attrs.js',
     'src/marshal.js',
     'src/events.js',
@@ -77,7 +76,8 @@ module.exports = function(grunt) {
     },
     uglify: {
       options: {
-        banner: '/* Copyright 2013 The Polymer Authors. All rights reserved. Use of this source code is governed by a BSD-style license that can be found in the LICENSE file. */\n'
+        banner: grunt.file.read('LICENSE'),
+        nonull: true
       },
       Polymer: {
         options: {
