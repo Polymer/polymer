@@ -25,7 +25,7 @@
      * @method super
      * @param {Array} Array of arguments.
      */
-    super: $super,
+    super: Polymer.$super,
     /**
      * True if this object is a Polymer element.
      * @property isPolymerElement
