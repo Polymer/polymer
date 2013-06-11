@@ -24,7 +24,6 @@ module.exports = function(grunt) {
     'src/trackObservers.js',
     'src/bindProperties.js',
     'src/bindMDV.js',
-    'src/polymerSyntaxMDV.js',
     'src/attrs.js',
     'src/marshal.js',
     'src/events.js',
