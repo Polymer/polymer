@@ -5,16 +5,16 @@
  */
 
 (function() {
-  
+
   // imports
-  
+
   var bindPattern = Polymer.bindPattern;
-  
+
   // constants
-  
+
   var published$ = '__published';
   var attributes$ = 'attributes';
-  var attrProps$ = 'publish'; 
+  var attrProps$ = 'publish';
   //var attrProps$ = 'attributeDefaults';
 
   function publishAttributes(element, prototype) {
@@ -126,37 +126,54 @@
   var lowerCase = String.prototype.toLowerCase.call.bind(
     String.prototype.toLowerCase);
 
+  var typeHandlers = {
+    'string': function(value) {
+      return value;
+    },
+    'date': function(value) {
+      return new Date(Date.parse(value) || Date.now());
+    },
+    'boolean': function(value) {
+      if (value === '') {
+        return true;
+      }
+
+      return value === 'false' ? false : !!value;
+    },
+    'number': function(value) {
+      var floatVal = parseFloat(value);
+
+      return (String(floatVal) === value) ? floatVal : value;
+    },
+    'object': function(value, defaultValue) {
+      if (!defaultValue) {
+        return value;
+      }
+
+      try {
+        // If the string is an object, we can parse is with the JSON library.
+        // include convenience replace for single-quotes. If the author omits
+        // quotes altogether, parse will fail.
+        return JSON.parse(value.replace(/'/g, '"'));
+      } catch(e) {
+        // The object isn't valid JSON, return the raw value
+        return value;
+      }
+    }
+  };
+
   function deserializeValue(value, defaultValue) {
     // attempt to infer type from default value
     var inferredType = typeof defaultValue;
     if (defaultValue instanceof Date) {
       inferredType = 'date';
     }
-    // special handling for inferredTypes
-    switch (inferredType) {
-      case 'string':
-        return value;
-      case 'date':
-        return new Date(Date.parse(value) || Date.now());
-      case 'boolean':
-        if (value == '') {
-          return true;
-        }
-    }
-    // unless otherwise typed, convert 'true|false' to boolean values
-    switch (value) {
-      case 'true':
-        return true;
-      case 'false':
-        return false;
-    }
-    // unless otherwise typed, convert eponymous floats to float values
-    var float = parseFloat(value);
-    return (String(float) === value) ? float : value;
+
+    return typeHandlers[inferredType](value, defaultValue);
   }
 
   // exports
-  
+
   Polymer.takeAttributes = takeAttributes;
   Polymer.publishAttributes = publishAttributes;
   Polymer.propertyForAttribute = propertyForAttribute;
