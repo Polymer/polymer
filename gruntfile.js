@@ -17,6 +17,7 @@ module.exports = function(grunt) {
   ];
   
   Polymer = [
+    'src/build.js',
     'src/lang.js',
     'src/oop.js',
     'src/register.js',
