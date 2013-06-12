@@ -40,3 +40,7 @@ suite('register', function() {
     assert.equal(foo.message, 'hello');
   });
 });
+
+htmlSuite('element callbacks', function() {
+  htmlTest('html/callbacks.html');
+});

@@ -46,8 +46,12 @@
     // hint the supercall mechanism
     // TODO(sjmiles): make prototype extension api that does this 
     prototype.installTemplate.nom = 'installTemplate';
-    // install readyCallback
+    // install callbacks
     prototype.readyCallback = readyCallback;
+    prototype.insertedCallback = insertedCallback;
+    prototype.removedCallback = removedCallback;
+    prototype.attributeChangedCallback = attributeChangedCallback;
+
     // hint super call engine by tagging methods with names
     hintSuper(prototype);
     // parse declared on-* delegates into imperative form
@@ -123,11 +127,35 @@
     // add host-events...
     var hostEvents = scope.accumulateHostEvents.call(this);
     scope.bindAccumulatedHostEvents.call(this, hostEvents);
+    // asynchronously unbindAll... will be cancelled if inserted
+    this.asyncUnbindAll();
     // invoke user 'ready'
     if (this.ready) {
       this.ready();
     }
   };
+  
+  function insertedCallback() {
+    this.cancelUnbindAll(true);
+    // invoke user 'inserted'
+    if (this.inserted) {
+      this.inserted();
+    }
+  }
+  
+  function removedCallback() {
+    this.asyncUnbindAll();
+    // invoke user 'removed'
+    if (this.removed) {
+      this.removed();
+    }
+  }
+  
+  function attributeChangedCallback() {
+    if (this.attributeChanged) {
+      this.attributeChanged.apply(this, arguments);
+    }
+  }
 
   function hintSuper(prototype) {
     Object.getOwnPropertyNames(prototype).forEach(function(n) {
