@@ -6,4 +6,5 @@
 
 htmlSuite('MDV syntax', function() {
   htmlTest('html/mdv-syntax.html');
+  htmlTest('html/mdv-syntax.html?shadow');
 });
