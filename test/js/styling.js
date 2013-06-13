@@ -12,5 +12,6 @@ htmlSuite('styling', function() {
   htmlTest('html/styling/sheet-order.html?shadow');
   htmlTest('html/styling/polyfill-directive.html?shadow');
   htmlTest('html/styling/pseudo-scoping.html?shadow');
+  htmlTest('html/styling/sheet-main-doc.html');
 });
 
