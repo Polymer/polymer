@@ -44,5 +44,8 @@ suite('bindMDV', function() {
 });
 
 htmlSuite('unbind', function() {
+  htmlTest('html/template-distribute-dynamic.html');
+  htmlTest('html/template-distribute-dynamic.html?shadow');
   htmlTest('html/unbind.html');
+  htmlTest('html/unbind.html?shadow');
 });
