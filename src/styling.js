@@ -193,7 +193,14 @@
 
   function applyStyleToScope(style, scope) {
     if (style) {
-      scope.appendChild(style.cloneNode(true));
+      var clone = style.cloneNode(true);
+      // TODO(sorvell): this is here for IE, which requires deep cloning
+      // of style elements.
+      // see https://github.com/Polymer/ShadowDOM/issues/165
+      if (window.ShadowDOMPolyfill) {
+        clone.textContent = style.textContent;
+      }
+      scope.appendChild(clone);
     }
   }
 
