@@ -125,6 +125,28 @@ module.exports = function(grunt) {
         }
       }
     },
+    audit: {
+      polymer: {
+        options: {
+          repos: [
+            '.',
+            '../platform',
+            '../ShadowDOM',
+            '../HTMLImports',
+            '../CustomElements',
+            '../PointerEvents',
+            '../PointerGestures',
+            '../mdv'
+          ]
+        },
+        dest: 'build.log',
+        src: [
+          'polymer.min.js',
+          'polymer.native.min.js',
+          'polymer.sandbox.min.js'
+        ]
+      }
+    },
     pkg: grunt.file.readJSON('package.json')
   });
 
@@ -132,9 +154,10 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
   grunt.loadNpmTasks('grunt-karma-0.9.1');
+  grunt.loadNpmTasks('grunt-audit');
 
   // tasks
-  grunt.registerTask('default', ['uglify']);
+  grunt.registerTask('default', ['uglify', 'audit']);
   grunt.registerTask('minify', ['uglify']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['karma:polymer']);
