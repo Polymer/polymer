@@ -10,10 +10,8 @@
 
   var log = window.logFlags || {};
 
-  // use the MDV syntax
-
+  // use the ExperssionSyntax
   var expressionSyntax = new ExpressionSyntax;
-//  HTMLTemplateElement.syntax['MDV'] = new MDVSyntax;
 
   // bind tracking
   var bindings = new SideTable();
