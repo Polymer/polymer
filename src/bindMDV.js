@@ -176,6 +176,7 @@
   Polymer.unbindNodeTree = unbindNodeTree;
   Polymer.parseAndBindHTML = parseAndBindHTML;
   Polymer.bindPattern = mustachePattern;
+  Polymer.expressionSyntax = expressionSyntax;
 
 })();
 
