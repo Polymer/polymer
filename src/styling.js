@@ -85,15 +85,13 @@
           STYLE_CONTROLLER_SCOPE);
       }
       var styleElement = elementElement.controllerStyle;
-      async.queue(function() {
-        var scope = findStyleController(element);
-        // apply controller styles only if they are not yet applied
-        if (scope && !scopeHasElementStyle(scope, element, 
-          STYLE_CONTROLLER_SCOPE)) {
-          Polymer.shimPolyfillDirectives([styleElement], element.localName);
-          applyStyleToScope(styleElement, scope);
-        }
-      });
+      var scope = findStyleController(element);
+      // apply controller styles only if they are not yet applied
+      if (scope && !scopeHasElementStyle(scope, element, 
+        STYLE_CONTROLLER_SCOPE)) {
+        Polymer.shimPolyfillDirectives([styleElement], element.localName);
+        applyStyleToScope(styleElement, scope);
+      }
   }
   
   function scopeHasElementStyle(scope, element, descriptor) {
@@ -145,33 +143,6 @@
     }
     return nodes.filter(matcher);
   }
-
-
-  // queue a series of functions to occur async.
-  var async = {
-    list: [],
-    queue: function(inFn) {
-      if (inFn) {
-        async.list.push(inFn);
-      }
-      async.queueFlush();
-    },
-    queueFlush: function() {
-      if (!async.flushing) {
-        async.flushing = true;
-        requestAnimationFrame(async.flush);
-      }
-    },
-    flush: function() {
-      async.list.forEach(function(fn) {
-        fn();
-      });
-      async.list = [];
-      async.flushing = false;
-    }
-
-  }
-
   function findStyleController(node) {
     // find the shadow root that contains inNode
     var n = node;
@@ -193,7 +164,13 @@
 
   function applyStyleToScope(style, scope) {
     if (style) {
-      scope.appendChild(style.cloneNode(true));
+      var clone = style.cloneNode(true);
+      // TODO(sorvell): necessary for IE
+      // see https://connect.microsoft.com/IE/feedback/details/790212/
+      // cloning-a-style-element-and-adding-to-document-produces
+      // -unexpected-result#details
+      clone.textContent = style.textContent;
+      scope.appendChild(clone);
     }
   }
 
