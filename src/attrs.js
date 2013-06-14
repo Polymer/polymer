@@ -65,18 +65,16 @@
   }
 
   function publishInstanceAttributes(element, prototype) {
+    var attributes = element.attributes;
     // our suffix prototype chain (prototype is 'own')
     var inherited = element.options.prototype;
-    var attributes = element.attributes;
-    var a$ = prototype.instanceAttributes = 
-        Object.create(inherited.instanceAttributes || null);
+    var a$ = Object.create(inherited.instanceAttributes || null);
     for (var i=0, l=attributes.length, a; (i<l) && (a=attributes[i]); i++) {
-      if (!publishInstanceAttributes.blackList[a.name]) {
-        if (a.name.slice(0, 3) !== 'on-') {
-          a$[a.name] = a.value;
-        }
+      if (!publishInstanceAttributes.blackList[a.name] && (a.name.slice(0, 3) !== 'on-')) {
+        a$[a.name] = a.value;
       }
     }
+    prototype.instanceAttributes = a$;
   }
 
   publishInstanceAttributes.blackList = {name: 1, 'extends': 1, constructor: 1};
@@ -137,19 +135,16 @@
       if (value === '') {
         return true;
       }
-
       return value === 'false' ? false : !!value;
     },
     'number': function(value) {
       var floatVal = parseFloat(value);
-
       return (String(floatVal) === value) ? floatVal : value;
     },
     'object': function(value, defaultValue) {
       if (!defaultValue) {
         return value;
       }
-
       try {
         // If the string is an object, we can parse is with the JSON library.
         // include convenience replace for single-quotes. If the author omits
@@ -164,11 +159,7 @@
 
   function deserializeValue(value, defaultValue) {
     // attempt to infer type from default value
-    var inferredType = typeof defaultValue;
-    if (defaultValue instanceof Date) {
-      inferredType = 'date';
-    }
-
+    var inferredType = (defaultValue instanceof Date)  ? 'date' : typeof defaultValue;
     return typeHandlers[inferredType](value, defaultValue);
   }
 
