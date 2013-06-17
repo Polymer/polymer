@@ -3,61 +3,7 @@
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
- (function() {
-    // $class
-    
-    function $class(inExtends, inProperties) {
-      // support optional inExtends (rare exception: allow two signatures)
-      if (arguments.length == 1) {
-        inProperties = inExtends;
-        inExtends = null;
-      }
-      // make sure we have a `constructor` property one way or another
-      // it's important to name the method for `super` to work 
-      // the default constructor calls `super`
-      if (!inProperties || !inProperties.hasOwnProperty('constructor')) {
-        inProperties.constructor = function() {
-          this.super();
-        }
-      }
-      // use the supplied constructor or a stock version
-      var ctor = inProperties.constructor;
-      // base prototype is either supplied or stock
-      var basePrototype = inExtends && inExtends.prototype 
-        || Object.prototype;
-      // use `extend` primitive to build new prototype
-      ctor.prototype = extend(basePrototype, inProperties);
-      // install `super` functionality if needed
-      if (!('super' in ctor.prototype)) {
-        ctor.prototype.super = $super;
-      }
-      // return newly minted constructor
-      return ctor;
-    };
-    
-    // extend
-    
-    // return a prototype containing inProperties chained to inBasePrototype
-    function extend(inBasePrototype, inProperties) {
-      return Object.create(inBasePrototype, 
-          getPropertyDescriptors(inProperties));
-    }
-    
-    // copy property inName from inSource object to inTarget object
-    function getPropertyDescriptors(inObject) {
-      var descriptors = {};
-      for (var n in inObject) {
-        descriptors[n] = getPropertyDescriptor(inObject, n);
-      }
-      return descriptors;
-    }
-    
-    function getPropertyDescriptor(inObject, inName) {
-      return inObject && 
-          Object.getOwnPropertyDescriptor(inObject, inName) || 
-              getPropertyDescriptor(Object.getPrototypeOf(inObject), inName);
-    }
-
+ (function(scope) {
     // super
     
     // TODO(sjmiles):
@@ -78,14 +24,12 @@
       // find the caller (cannot be `strict` because of 'caller')
       var caller = $super.caller;
       // memoization for 'name of method' 
-      var nom = caller._nom;
+      var nom = caller.nom;
       if (!nom) {
-        // once per call chain
-        nom = caller._nom = nameInThis.call(this, caller);
-        if (!nom) {
-          console.warn('called super() on a method not in "this"');
-          return;
-        }
+        nom = nameInThis.call(this, caller);
+      }
+      if (!nom) {
+        console.warn('called super() on a method not installed declaratively (has no .nom property)');
       }
       // super prototype is either cached or we have to find it
       // by searching __proto__ (at the 'top')
@@ -133,45 +77,24 @@
     };
 
     function nameInThis(inValue) {
-      for (var n in this) {
-        var d = getPropertyDescriptor(this, n);
-        if (d.value == inValue) {
-          return n;
-        }
-      }
-    }
-    
-    // mixin
-    
-    function mixin(inObj/*, inProps, inMoreProps, ...*/) {
-      var obj = inObj || {};
-      for (var i=1; i<arguments.length; i++) {
-        var p = arguments[i];
-        // TODO(sjmiles): (IE): trap here instead of copyProperty so we can 
-        // abort copying altogether when we hit a bad property 
-        try {
-          for (var n in p) {
-            copyProperty(n, p, obj);
+      console.group('nameInThis');
+      var p = this;
+      while (p && p !== HTMLElement.prototype) {
+        var n$ = Object.getOwnPropertyNames(p);
+        for (var i=0, l=n$.length, n; i<l && (n=n$[i]); i++) {
+          console.log(n);
+          var d = Object.getOwnPropertyDescriptor(p, n);
+          if (d.value == inValue) {
+            return n;
           }
-        } catch(x) {
-          //console.log(x);
         }
+        p = Object.getPrototypeOf(p);
       }
-      return obj;
+      console.groupEnd('nameInThis');
     }
-    
-    // copy property inName from inSource object to inTarget object
-    function copyProperty(inName, inSource, inTarget) {
-      Object.defineProperty(inTarget, inName, 
-        getPropertyDescriptor(inSource, inName));
-    }
-
     // exports
     
-    // `class` is a reserved word
-    window.$class = $class;
-    window.extend = extend;
     // `super` is a reserved word
-    window.$super = $super;
+    scope.$super = $super;
     
-  })();
+  })(Polymer);

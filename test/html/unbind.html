@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+  <head>
+    <title>unbind</title>
+    <script src="../../polymer.js"></script>
+    <script src="../../tools/test/htmltest.js"></script>
+    <script src="../../node_modules/chai/chai.js"></script>
+  </head>
+  <body>
+
+  <x-test></x-test>
+  
+  <element name="x-test" attributes="bar">
+    <template>
+    </template>
+    <script>
+      Polymer.register(this, {
+        foo: '',
+        ready: function() {},
+        fooChanged: function() {
+          this.fooWasChanged = true;
+        },
+        barChanged: function() {
+          this.validBar = this.bar;
+        },
+        isBarValid: function() {
+          return this.validBar == this.bar;
+        }
+      });
+    </script>  
+  </element>
+  
+  <script>
+     function testAsync(tests, delay, args) {
+       if (tests.length) {
+         setTimeout(function() {
+           var lastArgs = tests.shift().apply(null, args || []);
+           testAsync(tests, delay, lastArgs);
+         }, delay);
+       } else {
+         done();
+       }
+     }
+    
+    document.addEventListener('WebComponentsReady', function() {
+      xTest = document.querySelector('x-test');
+      xTest.foo = 'bar';
+      Platform.flush();
+      
+      testAsync([
+        function() {
+          chai.assert.ok(!Polymer.isElementUnbound(xTest), 
+            'element is bound when inserted');
+          chai.assert.isTrue(xTest.fooWasChanged, 
+            'element is actually bound');  
+          xTest.parentNode.removeChild(xTest);
+        },
+        function() {
+          chai.assert.isTrue(Polymer.isElementUnbound(xTest),
+            'element is unbound when removed');
+          return [document.createElement('x-test')];
+        },
+        function(node) {
+          chai.assert.isTrue(Polymer.isElementUnbound(node),
+            'element is unbound when not inserted');
+          node.foo = 'bar';  
+          Platform.flush();
+          chai.assert.isUndefined(node.fooWasChanged, 'node is actually unbound'); 
+          var n = document.createElement('x-test');
+          n.cancelUnbindAll();
+          return [n];
+        },
+        function(node) {
+          chai.assert.ok(!Polymer.isElementUnbound(node), 
+            'element is bound when cancelUnbindAll is called');
+          node.unbindAll();
+          chai.assert.isTrue(Polymer.isElementUnbound(node), 
+            'element is unbound when unbindAll is called');
+          var n = document.createElement('x-test');
+          document.body.appendChild(n);
+          return [n];
+        },
+        function(node) {
+          chai.assert.ok(!Polymer.isElementUnbound(node), 
+            'element is bound when manually inserted');
+          document.body.removeChild(node);
+          return [node];
+        },
+        function(node) {
+          chai.assert.isTrue(Polymer.isElementUnbound(node), 
+            'element is unbound when manually removed is called');
+        }
+        // TODO(sorvell): make test work in ShadowDOM Polyfill then uncomment
+        /*,
+        function() {
+          var o = document.createElement('x-test');
+          document.body.appendChild(o);
+          o.bar = 'testbar';
+          var fragment = Polymer.parseAndBindHTML('<div>' +
+            '<x-test bar="{{bar}}"></x-test></div>', o);
+          o.webkitShadowRoot.appendChild(fragment);
+          return [o.webkitShadowRoot.lastChild];
+        },
+        function(node) {
+          var xTestNode = node.firstChild;
+          chai.assert.ok(!Polymer.isElementUnbound(xTestNode), 
+            'element is bound when manually inserted');
+          Platform.flush();
+          
+          chai.assert.isTrue(xTestNode.isBarValid(), 'binding is active');
+          return;
+          Polymer.unbindNodeTree(node);
+          node.textContent = '';
+          chai.assert.isTrue(Polymer.isElementUnbound(xTestNode), 
+            'element is unbound when parent calls unbindNodeTree');
+        }*/
+      ], 10);
+    });
+  </script>
+  </body>
+</html>

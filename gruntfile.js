@@ -5,18 +5,19 @@
  */
 module.exports = function(grunt) {
   Platform = [
-    'platform/platform.min.js'
+    '../platform/platform.min.js'
   ];
   
   PlatformNative = [
-    'platform/platform.native.min.js'
+    '../platform/platform.native.min.js'
   ];
 
   PlatformSandbox = [
-    'platform/platform.sandbox.min.js'
+    '../platform/platform.sandbox.min.js'
   ];
   
   Polymer = [
+    'src/build.js',
     'src/lang.js',
     'src/oop.js',
     'src/register.js',
@@ -24,7 +25,6 @@ module.exports = function(grunt) {
     'src/trackObservers.js',
     'src/bindProperties.js',
     'src/bindMDV.js',
-    'src/polymerSyntaxMDV.js',
     'src/attrs.js',
     'src/marshal.js',
     'src/events.js',
@@ -77,7 +77,8 @@ module.exports = function(grunt) {
     },
     uglify: {
       options: {
-        banner: '/* Copyright 2013 The Polymer Authors. All rights reserved. Use of this source code is governed by a BSD-style license that can be found in the LICENSE file. */\n'
+        banner: grunt.file.read('LICENSE'),
+        nonull: true
       },
       Polymer: {
         options: {
@@ -124,6 +125,28 @@ module.exports = function(grunt) {
         }
       }
     },
+    audit: {
+      polymer: {
+        options: {
+          repos: [
+            '.',
+            '../platform',
+            '../ShadowDOM',
+            '../HTMLImports',
+            '../CustomElements',
+            '../PointerEvents',
+            '../PointerGestures',
+            '../mdv'
+          ]
+        },
+        dest: 'build.log',
+        src: [
+          'polymer.min.js',
+          'polymer.native.min.js',
+          'polymer.sandbox.min.js'
+        ]
+      }
+    },
     pkg: grunt.file.readJSON('package.json')
   });
 
@@ -131,9 +154,10 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
   grunt.loadNpmTasks('grunt-karma-0.9.1');
+  grunt.loadNpmTasks('grunt-audit');
 
   // tasks
-  grunt.registerTask('default', ['uglify']);
+  grunt.registerTask('default', ['uglify', 'audit']);
   grunt.registerTask('minify', ['uglify']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['karma:polymer']);

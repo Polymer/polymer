@@ -25,7 +25,7 @@
      * @method super
      * @param {Array} Array of arguments.
      */
-    super: $super,
+    super: Polymer.$super,
     /**
      * True if this object is a Polymer element.
      * @property isPolymerElement
@@ -54,6 +54,49 @@
       Polymer.unbindAll.apply(this, arguments);
     },
     /**
+     * Ensures MDV bindings persist.
+     * 
+     * Typically, it's not necessary to call this method. Polymer
+     * automatically manages bindings when elements are inserted
+     * and removed from the document. 
+     * 
+     * However, if an element is created and not inserted into the document, 
+     * cancelUnbindAll should be called to ensure bindings remain active. 
+     * Otherwise bindings will be removed so that the element 
+     * may be garbage collected, freeing the memory it uses. Please note that
+     * if cancelUnbindAll is called and the element is not inserted 
+     * into the document, then unbindAll or asyncUnbindAll must be called 
+     * to dispose of the element.
+     * 
+     * @method cancelUnbindAll
+     * @param {Boolean} [preventCascade] If true, cancelUnbindAll will not 
+     * cascade to shadowRoot children. In the case described above,
+     * and in general in application code, this should not be set to true.
+     */
+    cancelUnbindAll: function(preventCascade) {
+      Polymer.cancelUnbindAll.apply(this, arguments);
+    },
+    /**
+     * Schedules MDV bindings to be removed asynchronously.
+     *
+     * Typically, it's not necessary to call this method. Polymer
+     * automatically manages bindings when elements are inserted
+     * and removed from the document. 
+     * 
+     * However, if an element is created and not inserted into the document, 
+     * cancelUnbindAll should be called to ensure bindings remain active. 
+     * Otherwise bindings will be removed so that the element 
+     * may be garbage collected, freeing the memory it uses. Please note that
+     * if cancelUnbindAll is called and the element is not inserted 
+     * into the document, then unbindAll or asyncUnbindAll must be called 
+     * to dispose of the element.
+     * 
+     * @method asyncUnbindAll
+     */
+    asyncUnbindAll: function() {
+      Polymer.asyncUnbindAll.apply(this, arguments);
+    },
+    /**
      * Schedules an async job with timeout and returns a handle.
      * @method job
      * @param {Polymer.Job} [job] A job handle if re-registering.
@@ -74,6 +117,9 @@
      * @param {number} timeout
      */
     asyncMethod: function(inMethod, inArgs, inTimeout) {
+      // when polyfilling Object.observe, ensure changes 
+      // propagate before executing the async method
+      Platform.flush();
       var args = (inArgs && inArgs.length) ? inArgs : [inArgs];
       var fn = function() {
         (this[inMethod] || inMethod).apply(this, args);

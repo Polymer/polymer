@@ -9,18 +9,18 @@ suite('bindMDV', function() {
   
   test('bindModel bindModel', function(done) {
     var test = document.createElement('div');
-    var template = document.createElement('template');
-    template.innerHTML = '<div id="a" foo="{{bar}}"></div>';
-    test.appendChild(template.createInstance(test, 'Polymer'));
+    var fragment = Polymer.parseAndBindHTML('<div id="a" foo="{{bar}}"></div>',
+      test);
+    test.appendChild(fragment);
     var a = test.querySelector('#a');
     
     test.bar = 5;
-    dirtyCheck();
+    Platform.flush();
     setTimeout(function() {
       assert.equal(a.getAttribute('foo'), 5);
       //
       test.bar = 8;
-      dirtyCheck();
+      Platform.flush();
       setTimeout(function() {
         assert.equal(a.getAttribute('foo'), 8);
         done();
@@ -30,16 +30,22 @@ suite('bindMDV', function() {
     
   test('bindModel bind input', function(done) {
     var test = document.createElement('div');
-    var template = document.createElement('template');
-    template.innerHTML = '<input value="{{bar}}" />';
-    test.appendChild(template.createInstance(test, 'Polymer'));
+    var fragment = Polymer.parseAndBindHTML('<input value="{{bar}}" />', test);
+    test.appendChild(fragment);
     var a = test.querySelector('input');
     
     test.bar = 'hello';
-    dirtyCheck();
+    Platform.flush();
     setTimeout(function() {
       assert.equal(a.value, 'hello');
       done();
     });
   });
+});
+
+htmlSuite('unbind', function() {
+  htmlTest('html/template-distribute-dynamic.html');
+  htmlTest('html/template-distribute-dynamic.html?shadow');
+  htmlTest('html/unbind.html');
+  htmlTest('html/unbind.html?shadow');
 });
