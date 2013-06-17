@@ -9,7 +9,7 @@
 var thisFile = 'polymer.js';
 var scopeName = 'Polymer';
 var modules = [
-  'platform/platform.js',
+  '../platform/platform.js',
   'src/lang.js',
   'src/oop.js',
   'src/register.js',
@@ -17,7 +17,6 @@ var modules = [
   'src/trackObservers.js',
   'src/bindProperties.js',
   'src/bindMDV.js',
-  'src/polymerSyntaxMDV.js',
   'src/attrs.js',
   'src/marshal.js',
   'src/events.js',

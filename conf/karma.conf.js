@@ -7,21 +7,21 @@
 
 
 // base path, that will be used to resolve files and exclude
-basePath = '../';
+basePath = '../../';
 
 // list of files / patterns to load in the browser
 files = [
-  'tools/test/mocha-htmltest.js',
-  'conf/mocha.conf.js',
-  'node_modules/chai/chai.js',
-  'polymer.js',
-  'test/js/*.js',
-  {pattern: 'tools/**/*.js', included: false},
-  {pattern: 'platform/**/*', included: false},
-  {pattern: 'src/*.js', included: false},
-  {pattern: 'test/**/*.html', included: false},
-  {pattern: 'test/**/*.css', included: false},
-  {pattern: 'test/**/*.js', included: false}
+  'polymer/tools/test/mocha-htmltest.js',
+  'polymer/conf/mocha.conf.js',
+  'polymer/node_modules/chai/chai.js',
+  'polymer/polymer.js',
+  'polymer/test/js/*.js',
+  {pattern: 'platform/*.js', included: false},
+  {pattern: 'polymer/tools/**/*.js', included: false},
+  {pattern: 'polymer/src/*.js', included: false},
+  {pattern: 'polymer/test/**/*.html', included: false},
+  {pattern: 'polymer/test/**/*.css', included: false},
+  {pattern: 'polymer/test/**/*.js', included: false}
 ];
 
 // list of files to exclude

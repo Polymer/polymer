@@ -4,7 +4,7 @@
  * license that can be found in the LICENSE file.
  */
 
-(function() {
+(function(scope) {
 
   // imports
 
@@ -29,7 +29,7 @@
     // element chain, which is inefficient and has ramifications for 'super'
     // also, we don't yet support intermediate prototypes in calls to
     // HTMLElementElement.prototype.register, so we have to use mixin
-    var prototype = mixin({}, Polymer.base, inPrototype);
+    var prototype = Platform.mixin({}, scope.base, inPrototype);
     // capture defining element
     prototype.elementElement = inElement;
     // TODO(sorvell): install a helper method this.resolvePath to aid in 
@@ -37,21 +37,30 @@
     // this.$.image.src = this.resolvePath('images/foo.png')
     // Potentially remove when spec bug is addressed.
     // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
-    Polymer.addResolvePath(prototype, inElement);
+    scope.addResolvePath(prototype, inElement);
     // install instance method that closes over 'inElement'
     prototype.installTemplate = function() {
       this.super();
       staticInstallTemplate.call(this, inElement);
     };
-    // install readyCallback
+    // hint the supercall mechanism
+    // TODO(sjmiles): make prototype extension api that does this 
+    prototype.installTemplate.nom = 'installTemplate';
+    // install callbacks
     prototype.readyCallback = readyCallback;
+    prototype.insertedCallback = insertedCallback;
+    prototype.removedCallback = removedCallback;
+    prototype.attributeChangedCallback = attributeChangedCallback;
+
+    // hint super call engine by tagging methods with names
+    hintSuper(prototype);
     // parse declared on-* delegates into imperative form
-    Polymer.parseHostEvents(inElement.attributes, prototype);
+    scope.parseHostEvents(inElement.attributes, prototype);
     // parse attribute-attributes
-    Polymer.publishAttributes(inElement, prototype);
+    scope.publishAttributes(inElement, prototype);
     // install external stylesheets as if they are inline
-    Polymer.installSheets(inElement);
-    Polymer.shimStyling(inElement);
+    scope.installSheets(inElement);
+    scope.shimStyling(inElement);
     // invoke element.register
     inElement.register({prototype: prototype});
     // logging
@@ -69,10 +78,6 @@
   function staticInstallTemplate(inElement) {
     var template = inElement.querySelector('template');
     if (template) {
-      // apply our MDV strategy
-      // TODO(sjmiles): we have to apply this strategy directly for the root template
-      // in bindMDV.js, but we also need the attribute here so sub-templates can see it
-      template.setAttribute('syntax', 'Polymer');
       // make a shadow root
       var root = this.webkitCreateShadowRoot();
       // TODO(sjmiles): must be settable ex post facto
@@ -85,7 +90,7 @@
       // parse and apply MDV bindings
       // do this before being inserted to avoid {{}} in attribute values
       // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
-      root.appendChild(template.createInstance(this, 'Polymer'));
+      root.appendChild(template.createInstance(this, Polymer.expressionSyntax));
       rootCreated.call(this, root);
       return root;
     }
@@ -97,10 +102,10 @@
     CustomElements.takeRecords();
     // parse and apply MDV bindings
     // locate nodes with id and store references to them in this.$ hash
-    Polymer.marshalNodeReferences.call(this, inRoot);
+    scope.marshalNodeReferences.call(this, inRoot);
     // add local events of interest...
-    var rootEvents = Polymer.accumulateEvents(inRoot);
-    Polymer.bindAccumulatedLocalEvents.call(this, inRoot, rootEvents);
+    var rootEvents = scope.accumulateEvents(inRoot);
+    scope.bindAccumulatedLocalEvents.call(this, inRoot, rootEvents);
     // set up gestures
     PointerGestures.register(inRoot);
     PointerEventsPolyfill.setTouchAction(inRoot,
@@ -110,19 +115,52 @@
   function instanceReady(inElement) {
     // install property observation side effects
     // do this first so we can observe changes during initialization
-    Polymer.observeProperties.call(this);
+    scope.observeProperties.call(this);
     // install boilerplate attributes
-    Polymer.installInstanceAttributes.call(this);
+    scope.installInstanceAttributes.call(this);
     // process input attributes
-    Polymer.takeAttributes.call(this);
+    scope.takeAttributes.call(this);
     // add host-events...
-    var hostEvents = Polymer.accumulateHostEvents.call(this);
-    Polymer.bindAccumulatedHostEvents.call(this, hostEvents);
+    var hostEvents = scope.accumulateHostEvents.call(this);
+    scope.bindAccumulatedHostEvents.call(this, hostEvents);
+    // asynchronously unbindAll... will be cancelled if inserted
+    this.asyncUnbindAll();
     // invoke user 'ready'
     if (this.ready) {
       this.ready();
     }
   };
+  
+  function insertedCallback() {
+    this.cancelUnbindAll(true);
+    // invoke user 'inserted'
+    if (this.inserted) {
+      this.inserted();
+    }
+  }
+  
+  function removedCallback() {
+    this.asyncUnbindAll();
+    // invoke user 'removed'
+    if (this.removed) {
+      this.removed();
+    }
+  }
+  
+  function attributeChangedCallback() {
+    if (this.attributeChanged) {
+      this.attributeChanged.apply(this, arguments);
+    }
+  }
+
+  function hintSuper(prototype) {
+    Object.getOwnPropertyNames(prototype).forEach(function(n) {
+      var d = Object.getOwnPropertyDescriptor(prototype, n);
+      if (typeof d.value == 'function') {
+        d.value.nom = n;
+      }
+    });
+  }
 
   // user utility 
 
@@ -141,10 +179,8 @@
 
   // exports
 
-  window.Polymer = {
-    register: register,
-    findDistributedTarget: findDistributedTarget,
-    instanceReady: instanceReady
-  };
+  scope.register = register;
+  scope.findDistributedTarget = findDistributedTarget;
+  scope.instanceReady = instanceReady;
 
-})();
+})(Polymer);
