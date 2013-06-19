@@ -13,15 +13,12 @@ var modules = [
   "../platform/platform.js"
 ].concat([
   "shimStyling.js",
-  //
   "lib/lang.js",
   "lib/dom.js",
   "lib/deserialize.js",
   "lib/job.js",
   "lib/super.js",
-  //
   "api.js",
-  //
   "instance/utils.js",
   "instance/events.js",
   "instance/attributes.js",
@@ -29,7 +26,6 @@ var modules = [
   "instance/mdv.js",
   "instance/base.js",
   "instance/styles.js",
-  //
   "declaration/path.js",
   "declaration/events.js",
   "declaration/attributes.js",
