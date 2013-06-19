@@ -19,6 +19,7 @@ var modules = [
   "job.js",
   "super.js",
   "api.js",
+  "instance-utils.js",
   "instance-events.js",
   "instance-attributes.js",
   "instance-properties.js",
