@@ -5,12 +5,17 @@
  */
 (function(scope) {
 
+  var registry = {};
+
+  HTMLElement.register = function(tag, prototype) {
+    registry[tag] = prototype;
+  }
+
   // get prototype mapped to node <tag>
   HTMLElement.getPrototypeForTag = function(tag) {
-    return !tag ? HTMLElement.prototype :
-      // TODO(sjmiles): creating <tag> is likely to have wasteful 
-      // side-effects, we need a better way to access the prototype
-      Object.getPrototypeOf(document.createElement(tag));
+    var prototype = !tag ? HTMLElement.prototype : registry[tag];
+    // TODO(sjmiles): creating <tag> is likely to have wasteful side-effects
+    return prototype || Object.getPrototypeOf(document.createElement(tag));
   };
 
   // we have to flag propagation stoppage for the event dispatcher

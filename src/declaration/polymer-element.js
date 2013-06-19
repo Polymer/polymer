@@ -15,7 +15,7 @@
   // maps tag names to prototypes
   var registry = {};
 
-  // register a prototype for tag `name`
+  // register an 'own' prototype for tag `name`
   function element(name, prototype) {
     registry[name] = prototype;
   }
@@ -117,6 +117,8 @@
       });
       // constructor shenanigans
       this.prototype.constructor = this.ctor;
+      // register the prototype with HTMLElement for name lookup
+      HTMLElement.register(name, this.prototype);
     },
     // if a named constructor is requested in element, map a reference
     // to the constructor to the given symbol
