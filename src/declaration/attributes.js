@@ -76,17 +76,14 @@
     },
     // record clonable attributes from <element>
     accumulateInstanceAttributes: function() {
-      // our suffix prototype chain
-      var inherited = this.prototype.__proto__;
       // inherit instance attributes
-      var clonable = Object.create(inherited[INSTANCE_ATTRIBUTES] || null);
+      var clonable = this.prototype[INSTANCE_ATTRIBUTES];
       // merge attributes from element
       this.attributes.forEach(function(a) {
         if (this.isInstanceAttribute(a.name)) {
           clonable[a.name] = a.value;
         }
       }, this);
-      this.prototype[INSTANCE_ATTRIBUTES] = clonable;
     },
     isInstanceAttribute: function(name) {
       return !this.blackList[name] && name.slice(0,3) !== 'on-';

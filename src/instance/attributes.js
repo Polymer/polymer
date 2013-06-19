@@ -5,15 +5,20 @@
  */
 (function(scope) {
 
+  // magic words
+
+  var PUBLISHED = '__published';
+  var INSTANCE_ATTRIBUTES = '__instance_attributes';
+
   // instance api for attributes
 
   var attributes = {
-    PUBLISHED: '__published',
-    INSTANCE_ATTRIBUTES: '__instance_attributes',
+    PUBLISHED: PUBLISHED,
+    INSTANCE_ATTRIBUTES: INSTANCE_ATTRIBUTES,
     copyInstanceAttributes: function () {
-      var a$ = this[attributes.INSTANCE_ATTRIBUTES];
-      Object.keys(a$).forEach(function(name) {
-        this.setAttribute(name, a$[name]);
+      var a$ = this[INSTANCE_ATTRIBUTES];
+      Object.keys(a$).forEach(function(n) {
+        this.setAttribute(n, a$[n]);
       }, this);
     },
     // for each attribute on this, deserialize value to property as needed
@@ -49,7 +54,7 @@
     // return the published property matching name, or undefined
     propertyForAttribute: function(name) {
       // matchable properties must be published
-      var properties = Object.keys(this[attributes.PUBLISHED]);
+      var properties = Object.keys(this[PUBLISHED]);
       // search for a matchable property
       return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
     },

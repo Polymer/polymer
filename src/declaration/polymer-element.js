@@ -102,19 +102,12 @@
     // mix api registered to 'name' into 'prototype' 
     addNamedApi: function(prototype, name) { 
       // combine custom api into prototype
-      var api = registry[name];
-      if (api) {
-        extend(prototype, api);
-      }
-      return prototype;
+      return extend(prototype, registry[name]);
     },
-    // make a fresh object that inherits from an inherited object on 
-    // this.prototype
+    // make a fresh object that inherits from a prototype object
     inheritObject: function(prototype, name) {
-      // inherited object
-      var object = prototype.__proto__[name] || null;
-      // make an object on our prototype chained to the inherited one
-      prototype[name] = Object.create(object);
+      // copy inherited properties onto a new object
+      prototype[name] = extend({}, prototype.__proto__[name]);
     },
     // register 'prototype' to custom element 'name', store constructor 
     register: function(name) { 
