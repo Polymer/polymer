@@ -78,11 +78,6 @@
   function staticInstallTemplate(inElement) {
     var template = inElement.querySelector('template');
     if (template) {
-      // apply our MDV strategy
-      // TODO(sjmiles): we have to apply this strategy directly for the root template
-      // in createInstance (below), but we also need the attribute here so sub-templates 
-      // can see it
-      template.setAttribute('syntax', 'MDV');
       // make a shadow root
       var root = this.webkitCreateShadowRoot();
       // TODO(sjmiles): must be settable ex post facto
@@ -95,7 +90,7 @@
       // parse and apply MDV bindings
       // do this before being inserted to avoid {{}} in attribute values
       // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
-      root.appendChild(template.createInstance(this, 'MDV'));
+      root.appendChild(template.createInstance(this, Polymer.expressionSyntax));
       rootCreated.call(this, root);
       return root;
     }
