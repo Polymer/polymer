@@ -30,7 +30,6 @@
         registerBinding(this, property, path);
       } else {
         this.super(arguments);
-        // HTMLElement.prototype.bind.apply(this, arguments);
       }
     },
     // custom MDV entry point (overrides [at least] `HTMLElement.prototype.unbind`)
@@ -40,19 +39,18 @@
         unregisterBinding(this, name);
       } else {
         this.super(arguments);
-        //HTMLElement.prototype.unbind.apply(this, arguments);
       }
     },
     asyncUnbindAll: function() {
       if (!this._unbound) {
-        log.bind && console.log('asyncUnbindAll', this.localName);
+        log.unbind && console.log('[%s] asyncUnbindAll', this.localName);
         this._unbindAllJob = this.job(this._unbindAllJob, this.unbindAll, 100);
       }
     },
     unbindAll: function() {
       if (!this._unbound) {
         this.unbindAllProperties();
-        this.super(); //HTMLElement.prototype.unbindAll.apply(this, arguments);
+        this.super(); 
         // unbind shadowRoot
         unbindNodeTree(this.shadowRoot);
         // TODO(sjmiles): must also unbind inherited shadow roots
@@ -61,10 +59,10 @@
     },
     cancelUnbindAll: function(preventCascade) {
       if (this._unbound) {
-        log.bind && console.warn(this.localName, 'is already unbound, cannot cancel unbindAll');
+        log.unbind && console.warn('[%s] already unbound, cannot cancel unbindAll', this.localName);
         return;
       }
-      log.bind && console.log('cancelUnbindAll', this.localName);
+      log.unbind && console.log('[%s] cancelUnbindAll', this.localName);
       if (this._unbindAllJob) {
         this._unbindAllJob = this._unbindAllJob.stop();
       }

@@ -7,8 +7,7 @@
   
   // imports
 
-  var logFlags = window.logFlags || {};
-  var log = logFlags.observe || logFlags.data;
+  var log = window.logFlags || {};
   
   // magic words
 
@@ -50,9 +49,9 @@
     // observe property if shouldObserveProperty 
     observeProperty: function(name) {
       if (this.shouldObserveProperty(name)) {
-        log && console.log(LOG_OBSERVE, this.localName, name);
+        log.watch && console.log(LOG_OBSERVE, this.localName, name);
         var propertyChanged = function(neo, old) {
-            log && console.log(LOG_OBSERVED, this.localName, this.node.id || '', name, this[name], old);
+            log.watch && console.log(LOG_OBSERVED, this.localName, this.id || '', name, this[name], old);
             this.propertyChanged(name, old);
           }.bind(this);
         var observer = new PathObserver(this, name, propertyChanged);
@@ -80,7 +79,7 @@
   // bind a property in A to a path in B by converting A[property] to a
   // getter/setter pair that accesses B[...path...]
   function bindProperties(inA, inProperty, inB, inPath) {
-    log && console.log(LOG_BIND_PROPS, inB.localName || 'object', inPath, inA.localName, inProperty);
+    log.bind && console.log(LOG_BIND_PROPS, inB.localName || 'object', inPath, inA.localName, inProperty);
     // capture A's value if B's value is null or undefined,
     // otherwise use B's value
     var v = PathObserver.getValueAtPath(inB, inPath);

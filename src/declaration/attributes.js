@@ -29,10 +29,8 @@
       this.accumulateInstanceAttributes();
     },
     publishAttributes: function(prototype) {
-      // our suffix prototype chain
-      var inherited = prototype.__proto__;
-      // inherit published properties
-      var published = Object.create(inherited[PUBLISHED] || null);
+      // get published properties
+      var published = prototype[PUBLISHED];
       // merge attribute names from 'attributes' attribute
       var attributes = this.getAttribute(ATTRIBUTES);
       if (attributes) {
@@ -49,12 +47,10 @@
       // install 'attributes' as properties on the prototype, 
       // but don't override
       Object.keys(published).forEach(function(p) {
-        if (!(p in prototype) && !(p in inherited)) {
+        if (!(p in prototype)) {
           prototype[p] = published[p];
         }
       });
-      // store list of published properties on prototype
-      prototype[PUBLISHED] = published
     },
     publishProperties: function() {
       this.publishPublish(this.prototype);
