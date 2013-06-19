@@ -13,24 +13,28 @@ var modules = [
   "../platform/platform.js"
 ].concat([
   "shimStyling.js",
-  "lang.js",
-  "dom.js",
-  "deserialize.js",
-  "job.js",
-  "super.js",
+  //
+  "lib/lang.js",
+  "lib/dom.js",
+  "lib/deserialize.js",
+  "lib/job.js",
+  "lib/super.js",
+  //
   "api.js",
-  "instance-utils.js",
-  "instance-events.js",
-  "instance-attributes.js",
-  "instance-properties.js",
-  "instance-mdv.js",
-  "instance-base.js",
-  "instance-styles.js",
-  "declarative-path.js",
-  "declarative-events.js",
-  "declarative-attributes.js",
-  "declarative-styles.js",
-  "polymer-element.js"
+  //
+  "instance/utils.js",
+  "instance/events.js",
+  "instance/attributes.js",
+  "instance/properties.js",
+  "instance/mdv.js",
+  "instance/base.js",
+  "instance/styles.js",
+  //
+  "declaration/path.js",
+  "declaration/events.js",
+  "declaration/attributes.js",
+  "declaration/styles.js",
+  "declaration/polymer-element.js"
 ].map(function(n) {
   return "src/" + n;
 }));

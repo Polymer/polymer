@@ -6,7 +6,8 @@
 (function(scope) {
 
   var api = {};
-  api.declarative = {};
+
+  api.declaration = {};
   api.instance = {};
 
   // exports
