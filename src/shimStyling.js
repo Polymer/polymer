@@ -154,7 +154,7 @@ var stylizer = {
     if (window.ShadowDOMPolyfill && element) {
       // use caching to make working with styles nodes easier and to facilitate
       // lookup of extendee
-      var name = element.options.name;
+      var name = element.getAttribute('name');
       stylizer.cacheDefinition(element);
       stylizer.shimPolyfillDirectives(element.styles, name);
       // find styles and apply shimming...
@@ -180,7 +180,7 @@ var stylizer = {
     this.addCssToDocument(cssText);
   },
   cacheDefinition: function(element) {
-    var name = element.options.name;
+    var name = element.getAttribute('name');
     var template = element.querySelector('template');
     var content = template && templateContent(template);
     var styles = content && content.querySelectorAll('style');
@@ -203,7 +203,7 @@ var stylizer = {
     var shadow = element.templateContent && 
       element.templateContent.querySelector('shadow');
     if (shadow || (element.templateContent === null)) {
-      var extendee = this.findExtendee(element.options.name);
+      var extendee = this.findExtendee(element.getAttribute('name'));
       if (extendee) {
         var extendeeStyles = this.stylesForElement(extendee);
         styles = concat(slice(extendeeStyles), slice(styles));
@@ -213,7 +213,7 @@ var stylizer = {
   },
   findExtendee: function(name) {
     var element = this.cache[name];
-    return element && this.cache[element.options.extends];
+    return element && this.cache[element.getAttribute('extends')];
   },
   /*
    * Process styles to convert native ShadowDOM rules that will trip
