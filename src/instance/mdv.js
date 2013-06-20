@@ -69,7 +69,7 @@
       // cancel unbinding our shadow tree iff we're not in the process of
       // cascading our tree (as we do, for example, when the element is inserted).
       if (!preventCascade) {
-        forNodeTree(this.shadowRoot, true, function(n) {
+        forNodeTree(this.shadowRoot, function(n) {
           if (n.cancelUnbindAll) {
             n.cancelUnbindAll();
           }
