@@ -63,9 +63,6 @@ module.exports = function(grunt) {
         configFile: 'conf/karma.conf.js',
         keepalive: true
       },
-      browserstack: {
-        browsers: ["BrowserStack:IE:Win"]
-      },
       buildbot: {
         browsers: browsers,
         reporters: ['crbot'],
