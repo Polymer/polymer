@@ -44,7 +44,7 @@
     asyncUnbindAll: function() {
       if (!this._unbound) {
         log.unbind && console.log('[%s] asyncUnbindAll', this.localName);
-        this._unbindAllJob = this.job(this._unbindAllJob, this.unbindAll, 100);
+        this._unbindAllJob = this.job(this._unbindAllJob, this.unbindAll, 0);
       }
     },
     unbindAll: function() {
