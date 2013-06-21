@@ -26,6 +26,7 @@
     },
     parseAttributes: function() {
       this.publishAttributes(this.prototype);
+      this.publishProperties(this.prototype);
       this.accumulateInstanceAttributes();
     },
     publishAttributes: function(prototype) {
@@ -52,8 +53,8 @@
         }
       });
     },
-    publishProperties: function() {
-      this.publishPublish(this.prototype);
+    publishProperties: function(prototype) {
+      this.publishPublish(prototype);
     },
     publishPublish: function(prototype) {
       // acquire properties published imperatively
