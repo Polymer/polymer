@@ -4,8 +4,8 @@
  * license that can be found in the LICENSE file.
  */
 htmlSuite('styling', function() {
-  htmlTest('html/styling/host.html');
-  htmlTest('html/styling/host.html?shadow');
+//  htmlTest('html/styling/host.html');
+//  htmlTest('html/styling/host.html?shadow');
   htmlTest('html/styling/pseudos.html');
   htmlTest('html/styling/pseudos.html?shadow');
   htmlTest('html/styling/sheet-order.html');
