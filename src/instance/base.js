@@ -86,7 +86,7 @@
       // set up pointer gestures
       PointerGestures.register(root);
       // set up pointer events
-      var touchAction = this.getAttribute('touch-action')
+      var touchAction = this.getAttribute('touch-action');
       PointerEventsPolyfill.setTouchAction(root, touchAction);
     },
     // locate nodes with id and store references to them in this.$ hash
@@ -98,6 +98,11 @@
         root.querySelectorAll("[id]").forEach(function(n) {
           $[n.id] = n;
         });
+      }
+    },
+    attributeChangedCallback: function() {
+      if (this.attributeChanged) {
+        this.attributeChanged.apply(this, arguments);
       }
     }
   };
