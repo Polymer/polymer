@@ -12,6 +12,7 @@ var scopeName = 'Polymer';
 var modules = [
   "../platform/platform.js"
 ].concat([
+  "boot.js",
   "shimStyling.js",
   "lib/lang.js",
   "lib/dom.js",
