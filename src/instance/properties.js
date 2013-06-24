@@ -36,8 +36,8 @@
       // bookkeep this observer for memory management
       registerObserver(this, 'binding', property, observer);
     },
-    unbindProperty: function(name) {
-      return unregisterObserver(name);
+    unbindProperty: function(type, name) {
+      return unregisterObserver(this, type, name);
     },
     unbindAllProperties: function() {
       unregisterObserversOfType(this, 'property');

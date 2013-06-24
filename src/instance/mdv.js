@@ -34,7 +34,7 @@
     },
     // custom MDV entry point (overrides [at least] `HTMLElement.prototype.unbind`)
     unbind: function(name) {
-      if (this.unbindProperty(this, 'binding', name)) {
+      if (this.unbindProperty('binding', name)) {
         // bookkeep the binding
         unregisterBinding(this, name);
       } else {
