@@ -57,6 +57,10 @@
       this.publishPublish(prototype);
     },
     publishPublish: function(prototype) {
+      // process only the PUBLISH block on this prototype, not the chain
+      if (!prototype.hasOwnProperty(PUBLISH)) {
+        return;
+      }
       // acquire properties published imperatively
       var imperative = prototype[PUBLISH];
       if (imperative) {
