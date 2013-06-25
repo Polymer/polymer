@@ -52,7 +52,7 @@
         log.watch && console.log(LOG_OBSERVE, this.localName, name);
         var propertyChanged = function(neo, old) {
             log.watch && console.log(LOG_OBSERVED, this.localName, this.id || '', name, this[name], old);
-            this.propertyChanged(name, old);
+            this.dispatchPropertyChange(name, old);
           }.bind(this);
         var observer = new PathObserver(this, name, propertyChanged);
         registerObserver(this, 'property', name, observer);
@@ -62,7 +62,7 @@
     shouldObserveProperty: function(name) {
       return Boolean(this[name + OBSERVE_SUFFIX]);
     },
-    propertyChanged: function(name, oldValue) {
+    dispatchPropertyChange: function(name, oldValue) {
       invoke.call(this, name + OBSERVE_SUFFIX, [oldValue]);
     }
   };
