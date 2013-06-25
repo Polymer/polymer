@@ -57,7 +57,7 @@
       while (n.parentNode) {
         n = n.parentNode;
       }
-      return n == document ? document.head : n;
+      return n === wrap(document) ? document.head : n;
     }
   };
 

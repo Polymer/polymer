@@ -159,7 +159,7 @@ var stylizer = {
       stylizer.shimPolyfillDirectives(element.styles, name);
       // find styles and apply shimming...
       if (Polymer.strictPolyfillStyling) {
-        stylizer.applyScopeToContent(element.templateContent, name);
+        stylizer.applyScopeToContent(element.templateContent(), name);
       }
       stylizer.applyShimming(stylizer.stylesForElement(element), name);
     }
@@ -181,11 +181,9 @@ var stylizer = {
   },
   cacheDefinition: function(element) {
     var name = element.getAttribute('name');
-    var template = element.querySelector('template');
-    var content = template && templateContent(template);
+    var content = element.templateContent();
     var styles = content && content.querySelectorAll('style');
     element.styles = styles ? slice(styles) : [];
-    element.templateContent = content;
     stylizer.cache[name] = element;
   },
   applyScopeToContent: function(root, name) {
@@ -200,9 +198,9 @@ var stylizer = {
   },
   stylesForElement: function(element) {
     var styles = element.styles;
-    var shadow = element.templateContent && 
-      element.templateContent.querySelector('shadow');
-    if (shadow || (element.templateContent === null)) {
+    var content = element.templateContent();
+    var shadow = content && content.querySelector('shadow');
+    if (shadow || (content === null)) {
       var extendee = this.findExtendee(element.getAttribute('name'));
       if (extendee) {
         var extendeeStyles = this.stylesForElement(extendee);
