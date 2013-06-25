@@ -111,16 +111,17 @@
   
   // bookkeep bindings for reflection
 
+  // bind tracking
   var bindings = new SideTable();
-  
+
   function registerBinding(element, name, path) {
     var b$ = bindings.get(element);
     if (!b$) {
       bindings.set(element, b$ = {});
     }
-    b$[name.toLowerCase()] = path;   
+    b$[name.toLowerCase()] = path;
   }
-  
+
   function unregisterBinding(element, name) {
     var b$ = bindings.get(element);
     if (b$) {
@@ -128,11 +129,41 @@
     }
   }
 
+  function overrideBinding(ctor) {
+    var proto = ctor.prototype;
+    var originalBind = proto.bind;
+    var originalUnbind = proto.unbind;
+
+    proto.bind = function(name, model, path) {
+      originalBind.apply(this, arguments);
+      // note: must do this last because mdv may unbind before binding
+      registerBinding(this, name, path);
+    }
+
+    proto.unbind = function(name) {
+      originalUnbind.apply(this, arguments);
+      unregisterBinding(this, name);
+    }
+  };
+
+  [Node, Element, Text, HTMLInputElement].forEach(overrideBinding);
+  
+  var emptyBindings = {};
+
+  function getBindings(element) {
+    return element && bindings.get(element) || emptyBindings;
+  }
+
+  function getBinding(element, name) {
+    return getBindings(element)[name.toLowerCase()];
+  }
+
   var mustachePattern = /\{\{([^{}]*)}}/;
    
   // exports
 
   scope.bindPattern = mustachePattern;
+  scope.getBinding = getBinding;
   scope.api.instance.mdv = mdv;
   
 })(Polymer);
