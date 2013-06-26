@@ -43,3 +43,7 @@ suite('register', function() {
 htmlSuite('element callbacks', function() {
   htmlTest('html/callbacks.html');
 });
+
+htmlSuite('element script', function() {
+  htmlTest('html/element-script.html');
+});
