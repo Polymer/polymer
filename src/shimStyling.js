@@ -5,16 +5,16 @@
  */
 
 /*
-  This is a limited shim for shadowDOM css styling.
+  This is a limited shim for ShadowDOM css styling.
   https://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/shadow/index.html#styles
   
   The intention here is to support only the styling features which can be 
   relatively simply implemented. The goal is to allow users to avoid the 
   most obvious pitfalls and do so without compromising performance significantly. 
-  For shadowDOM styling that's not covered here, a set of best practices
+  For ShadowDOM styling that's not covered here, a set of best practices
   can be provided that should allow users to accomplish more complex styling.
 
-  The following is a list of specific shadowDOM styling features and a brief
+  The following is a list of specific ShadowDOM styling features and a brief
   discussion of the approach used to shim.
 
   Shimmed features:
@@ -36,13 +36,13 @@
       background: red;
     }
   
-  * encapsultion: Styles defined within shadowDOM, apply only to 
-  dom inside the shadowDOM. Polymer uses one of two techniques to imlement
+  * encapsultion: Styles defined within ShadowDOM, apply only to 
+  dom inside the ShadowDOM. Polymer uses one of two techniques to imlement
   this feature.
   
   By default, rules are prefixed with the host element tag name 
   as a descendant selector. This ensures styling does not leak out of the 'top'
-  of the element's shadowDOM. For example,
+  of the element's ShadowDOM. For example,
 
   div {
       font-weight: bold;
@@ -60,7 +60,7 @@
   Alternatively, if Polymer.strictPolyfillStyling is set to true then 
   selectors are scoped by adding an attribute selector suffix to each
   simple selector that contains the host element tag name. Each element 
-  in the element's shadowDOM template is also given the scope attribute. 
+  in the element's ShadowDOM template is also given the scope attribute. 
   Thus, these rules match only elements that have the scope attribute.
   For example, given a scope name of x-foo, a rule like this:
   
@@ -90,10 +90,10 @@
 
     x-foo [pseudo=x-special] { ... }
   
-  Unaddressed shadowDOM styling features:
+  Unaddressed ShadowDOM styling features:
   
   * upper/lower bound encapsulation: Styles which are defined outside a
-  shadowRoot should not cross the shadowDOM boundary and should not apply
+  shadowRoot should not cross the ShadowDOM boundary and should not apply
   inside a shadowRoot.
 
   This styling behavior is not emulated. Some possible ways to do this that 
@@ -129,7 +129,7 @@
       <content></content>
     </div>
   
-  Note the use of @polyfill in the comment above a shadowDOM specific style
+  Note the use of @polyfill in the comment above a ShadowDOM specific style
   declaration. This is a directive to the styling shim to use the selector 
   in comments in lieu of the next selector when running under polyfill.
 */
@@ -154,12 +154,12 @@ var stylizer = {
     if (window.ShadowDOMPolyfill && element) {
       // use caching to make working with styles nodes easier and to facilitate
       // lookup of extendee
-      var name = element.options.name;
+      var name = element.getAttribute('name');
       stylizer.cacheDefinition(element);
       stylizer.shimPolyfillDirectives(element.styles, name);
       // find styles and apply shimming...
       if (Polymer.strictPolyfillStyling) {
-        stylizer.applyScopeToContent(element.templateContent, name);
+        stylizer.applyScopeToContent(element.templateContent(), name);
       }
       stylizer.applyShimming(stylizer.stylesForElement(element), name);
     }
@@ -180,12 +180,10 @@ var stylizer = {
     this.addCssToDocument(cssText);
   },
   cacheDefinition: function(element) {
-    var name = element.options.name;
-    var template = element.querySelector('template');
-    var content = template && templateContent(template);
+    var name = element.getAttribute('name');
+    var content = element.templateContent();
     var styles = content && content.querySelectorAll('style');
     element.styles = styles ? slice(styles) : [];
-    element.templateContent = content;
     stylizer.cache[name] = element;
   },
   applyScopeToContent: function(root, name) {
@@ -200,10 +198,10 @@ var stylizer = {
   },
   stylesForElement: function(element) {
     var styles = element.styles;
-    var shadow = element.templateContent && 
-      element.templateContent.querySelector('shadow');
-    if (shadow || (element.templateContent === null)) {
-      var extendee = this.findExtendee(element.options.name);
+    var content = element.templateContent();
+    var shadow = content && content.querySelector('shadow');
+    if (shadow || (content === null)) {
+      var extendee = this.findExtendee(element.getAttribute('name'));
       if (extendee) {
         var extendeeStyles = this.stylesForElement(extendee);
         styles = concat(slice(extendeeStyles), slice(styles));
@@ -213,7 +211,7 @@ var stylizer = {
   },
   findExtendee: function(name) {
     var element = this.cache[name];
-    return element && this.cache[element.options.extends];
+    return element && this.cache[element.getAttribute('extends')];
   },
   /*
    * Process styles to convert native ShadowDOM rules that will trip
@@ -455,9 +453,10 @@ if (window.ShadowDOMPolyfill) {
 }
 
 // exports
-Polymer.shimStyling = stylizer.shimStyling;
-Polymer.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
-Polymer.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
-Polymer.strictPolyfillStyling = false;
 
-})(window);
+scope.shimStyling = stylizer.shimStyling;
+scope.shimShadowDOMStyling = stylizer.shimShadowDOMStyling;
+scope.shimPolyfillDirectives = stylizer.shimPolyfillDirectives.bind(stylizer);
+scope.strictPolyfillStyling = false;
+
+})(Polymer);

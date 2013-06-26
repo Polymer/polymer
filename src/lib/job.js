@@ -4,7 +4,7 @@
  * license that can be found in the LICENSE file.
  */
 
-(function() {
+(function(scope) {
   
   // usage
   
@@ -19,12 +19,9 @@
     this.context = inContext;
   };
   Job.prototype = {
-    go: function(inCallback, inWait) {
-      this.callback = inCallback;
-      this.handle = setTimeout(function() {
-        this.handle = null;
-        inCallback.call(this.context);
-      }.bind(this), inWait);
+    go: function(callback, wait) {
+      this.callback = callback;
+      this.handle = setTimeout(this.complete.bind(this), wait);
     },
     stop: function() {
       if (this.handle) {
@@ -40,13 +37,18 @@
     }
   };
   
-  function job(inJob, inCallback, inWait) {
-    var job = inJob || new Job(this);
-    job.stop();
-    job.go(inCallback, inWait);
+  function job(job, callback, wait) {
+    if (job) {
+      job.stop();
+    } else {
+      job = new Job(this);
+    }
+    job.go(callback, wait);
     return job;
   }
-
-  Polymer.job = job;
   
-})();
+  // exports 
+
+  scope.job = job;
+  
+})(Polymer);

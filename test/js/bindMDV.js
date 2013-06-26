@@ -7,9 +7,16 @@
 suite('bindMDV', function() {
   var assert = chai.assert;
   
+  function parseAndBindHTML(html, model) {
+    var t = document.createElement('template');
+    t.innerHTML = html;
+    return t.createInstance(model);
+  }
+  
+  
   test('bindModel bindModel', function(done) {
     var test = document.createElement('div');
-    var fragment = Polymer.parseAndBindHTML('<div id="a" foo="{{bar}}"></div>',
+    var fragment = parseAndBindHTML('<div id="a" foo="{{bar}}"></div>',
       test);
     test.appendChild(fragment);
     var a = test.querySelector('#a');
@@ -30,7 +37,7 @@ suite('bindMDV', function() {
     
   test('bindModel bind input', function(done) {
     var test = document.createElement('div');
-    var fragment = Polymer.parseAndBindHTML('<input value="{{bar}}" />', test);
+    var fragment = parseAndBindHTML('<input value="{{bar}}" />', test);
     test.appendChild(fragment);
     var a = test.querySelector('input');
     
