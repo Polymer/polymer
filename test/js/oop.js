@@ -7,28 +7,10 @@
 suite('oop', function() {
   var assert = chai.assert;
   
-  /*
-  test('extend', function() {
-    var Base = function() {};
-    Base.prototype = {
-      sayHello: function() {
-        this.value = 'hello';
-      }
-    };
-    var Sub = function() {};
-    Sub.prototype = extend(Base.prototype, {});
-    var SubSub = function() {};
-    SubSub.prototype = extend(Sub.prototype, {});
-    var subSub = new SubSub();
-    subSub.sayHello();
-    assert(subSub.value, 'hello');
-  });
-  */
-
   test('super', function() {
     var Base = function() {};
     Base.prototype = {
-      super: Polymer.$super,
+      super: Polymer.super,
       msg: '',
       log: function(inMsg) {
         this.msg += inMsg;

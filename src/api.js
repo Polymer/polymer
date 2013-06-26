@@ -3,6 +3,15 @@
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  */
- if (!window.Polymer) {
-   window.Polymer = {};
- }
+(function(scope) {
+
+  var api = {};
+
+  api.declaration = {};
+  api.instance = {};
+
+  // exports
+
+  scope.api = api;
+
+})(Polymer);
