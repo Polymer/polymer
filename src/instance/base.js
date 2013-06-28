@@ -44,7 +44,11 @@
     },
     // parse input <element> as needed, override for custom behavior
     parseElement: function(elementElement) {
-      this.shadowFromTemplate(elementElement.querySelector('template')); 
+      this.shadowFromTemplate(this.fetchTemplate(elementElement));
+    },
+    // return a shadow-root template (if desired), override for custom behavior
+    fetchTemplate: function(elementElement) {
+      return elementElement.querySelector('template'); 
     },
     // utility function that creates a shadow root from a <template>
     shadowFromTemplate: function(template) {
@@ -115,8 +119,9 @@
   // name a base constructor for dev tools
 
   function PolymerBase() {};
+  PolymerBase.prototype = base;
   base.constructor = PolymerBase;
-
+  
   // exports
 
   scope.Base = PolymerBase;

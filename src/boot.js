@@ -17,4 +17,4 @@ window.addEventListener('WebComponentsReady', function() {
   document.body.style.opacity = 1;
 });
 
-})();
+})(Polymer);
