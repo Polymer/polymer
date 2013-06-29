@@ -24,12 +24,14 @@ Here's an easy guide that should get you up and running:
 1. Fork the project on github and pull down your copy.
    > replace the {{ username }} with your username and {{ repository }} with the repository name
 
-        git clone git@github.com:{{ username }}/{{ repository }}.git --recursive
+        git clone git@github.com:{{ username }}/{{ repository }}.git -b master --recursive
 
     Note the `--recursive`. This is necessary for submodules to initialize properly. If you don't do a recursive clone, you'll have to init them manually:
 
         git submodule init
         git submodule update
+
+    Adding `-b master` is a shorthand to checkout the `master` branch. If you include it, skip step 2.
 
 2. Development happens on the `master` branch. Get yourself on it!
 
