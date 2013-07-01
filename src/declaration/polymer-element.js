@@ -44,7 +44,7 @@
       // this.$.image.src = this.resolvePath('images/foo.png')
       // Potentially remove when spec bug is addressed.
       // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
-      this.addResolvePath();
+      this.addResolvePathApi();
       // declarative features
       this.desugar();
       // register our custom element
@@ -61,13 +61,15 @@
       // parse on-* delegates declared in templates
       this.parseLocalEvents();
       // install external stylesheets as if they are inline
-      this.installSheets(this);
+      this.installSheets();
       // transforms to approximate missing CSS features
       scope.shimStyling(this);
       // allow custom element access to the declarative context
       if (this.prototype.registerCallback) {
         this.prototype.registerCallback(this);
       }
+      // cache the list of custom prototype names for faster reflection
+      this.cacheProperties();
     },
     // prototype marshaling
     // build prototype combining extendee, Polymer base, and named api

@@ -17,15 +17,15 @@
     INSTANCE_ATTRIBUTES: INSTANCE_ATTRIBUTES,
     copyInstanceAttributes: function () {
       var a$ = this[INSTANCE_ATTRIBUTES];
-      Object.keys(a$).forEach(function(n) {
-        this.setAttribute(n, a$[n]);
-      }, this);
+      for (var k in a$) {
+        this.setAttribute(k, a$[k]);
+      }
     },
     // for each attribute on this, deserialize value to property as needed
     takeAttributes: function() {
-      this.attributes.forEach(function(a) {
+      for (var i=0, a$=this.attributes, l=a$.length, a; (a=a$[i]) && i<l; i++) {
         this.attributeToProperty(a.name, a.value);
-      }, this);
+      }
     },
     // if attribute 'name' is mapped to a property, deserialize
     // 'value' into that property

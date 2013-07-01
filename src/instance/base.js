@@ -61,8 +61,6 @@
         root.olderShadowRoot = elderRoot;
         // migrate flag(s)
         root.applyAuthorStyles = this.applyAuthorStyles;
-        // TODO(sjmiles): override createShadowRoot to do this automatically
-        CustomElements.watchShadow(this);
         // TODO(sorvell): host not set per spec; we set it for convenience
         // so we can traverse from root to host.
         root.host = this;
@@ -75,14 +73,13 @@
         root.appendChild(dom);
         // perform post-construction initialization tasks on shadow root
         this.shadowRootReady(root, template);
+        // watch future changes to shadow root
+        CustomElements.watchShadow(this);
         // return the created shadow root
         return root;
       }
     },
     shadowRootReady: function(root, template) {
-      // to resolve this node synchronously we must process custom elements 
-      // in the subtree immediately
-      CustomElements.takeRecords();
       // locate nodes with id and store references to them in this.$ hash
       this.marshalNodeReferences(root);
       // add local events of interest...
@@ -99,9 +96,10 @@
       var $ = this.$ = this.$ || {};
       // populate $ from nodes with ID from the LOCAL tree
       if (root) {
-        root.querySelectorAll("[id]").forEach(function(n) {
+        var n$ = root.querySelectorAll("[id]");
+        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           $[n.id] = n;
-        });
+        };
       }
     },
     attributeChangedCallback: function() {

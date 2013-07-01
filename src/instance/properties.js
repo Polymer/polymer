@@ -15,36 +15,20 @@
 
   // element api
   
+  var empty = [];
+
   var properties = {
-    // fetch an array of all property names in our prototype chain
-    // above PolymerBase
-    getCustomPropertyNames: function() {
-      var properties = {};
-      // TODO(sjmiles): __proto__ is simulated on non-supporting platforms
-      var p = this.__proto__;
-      while (p && !scope.isBase(p)) {
-        Object.getOwnPropertyNames(p).forEach(function(n) {
-          properties[n] = true;
-        });
-        p = p.__proto__;
-      }  
-      return Object.keys(properties);
-    },
-    bindProperty: function(property, model, path) {
-      // apply Polymer two-way reference binding
-      var observer = bindProperties(this, property, model, path);
-      // bookkeep this observer for memory management
-      registerObserver(this, 'binding', property, observer);
-    },
-    unbindProperty: function(type, name) {
-      return unregisterObserver(this, type, name);
-    },
-    unbindAllProperties: function() {
-      unregisterObserversOfType(this, 'property');
-    },
     // set up property observers 
     observeProperties: function() {
-      this.getCustomPropertyNames().forEach(this.observeProperty, this);
+      var names = this.getCustomPropertyNames();
+      for (var i=0, l=names.length, n; (i<l) && (n=names[i]); i++) {
+        this.observeProperty(n);
+      }
+    },
+    // fetch an pre-constructor array of all property names in our prototype
+    // chain above PolymerBase
+    getCustomPropertyNames: function() {
+      return this.customPropertyNames;
     },
     // observe property if shouldObserveProperty 
     observeProperty: function(name) {
@@ -57,6 +41,18 @@
         var observer = new PathObserver(this, name, propertyChanged);
         registerObserver(this, 'property', name, observer);
       }
+    },
+    bindProperty: function(property, model, path) {
+      // apply Polymer two-way reference binding
+      var observer = bindProperties(this, property, model, path);
+      // bookkeep this observer for memory management
+      registerObserver(this, 'binding', property, observer);
+    },
+    unbindProperty: function(type, name) {
+      return unregisterObserver(this, type, name);
+    },
+    unbindAllProperties: function() {
+      unregisterObserversOfType(this, 'property');
     },
     // property should be observed if it has an observation callback
     shouldObserveProperty: function(name) {

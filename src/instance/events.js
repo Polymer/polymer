@@ -29,18 +29,21 @@
       log.events && (Object.keys(events).length > 0) && console.log('[%s] addHostListeners:', this.localName, events);
       this.addNodeListeners(this, events, this.hostEventListener);
     },
-    addNodeListeners: function(node, events, listener) {
-      var fn = listener.bind(this);
-      Object.keys(events).forEach(function(n) {
-        node.addEventListener(n, fn);
-      });
-    },
     // event listeners inside a shadow-root
     addInstanceListeners: function(root, template) {
       var events = template.delegates;
       if (events) {
         log.events && (Object.keys(events).length > 0) && console.log('[%s:root] addInstanceListeners:', this.localName, events);
         this.addNodeListeners(root, events, this.instanceEventListener);
+      }
+    },
+    addNodeListeners: function(node, events, listener) {
+      var fn;
+      for (var n in events) {
+        if (!fn) {
+          fn = listener.bind(this);
+        }
+        node.addEventListener(n, fn);
       }
     },
     hostEventListener: function(event) {

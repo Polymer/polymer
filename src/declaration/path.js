@@ -7,7 +7,7 @@
 (function(scope) {
   
   var path = {
-    addResolvePath: function() {
+    addResolvePathApi: function() {
       var root = this.elementPath();
       this.prototype.resolvePath = function(inPath) {
         return root + inPath;
