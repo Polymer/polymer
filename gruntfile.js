@@ -28,15 +28,16 @@ module.exports = function(grunt) {
     "api.js",
     "instance/utils.js",
     "instance/events.js",
-    "instance/attributes.js",
     "instance/properties.js",
+    "instance/attributes.js",
     "instance/mdv.js",
     "instance/base.js",
     "instance/styles.js",
     "declaration/path.js",
-    "declaration/events.js",
-    "declaration/attributes.js",
     "declaration/styles.js",
+    "declaration/events.js",
+    "declaration/properties.js",
+    "declaration/attributes.js",
     "declaration/polymer-element.js"
   ].map(function(n) {
     return "src/" + n;
