@@ -12,7 +12,7 @@ module.exports = function(karma) {
       'polymer/test/js/*.js',
       {pattern: 'platform/*.js', included: false},
       {pattern: 'polymer/tools/**/*.js', included: false},
-      {pattern: 'polymer/src/*.js', included: false},
+      {pattern: 'polymer/src/**/*.js', included: false},
       {pattern: 'polymer/test/**/*.html', included: false},
       {pattern: 'polymer/test/**/*.css', included: false},
       {pattern: 'polymer/test/**/*.js', included: false}
