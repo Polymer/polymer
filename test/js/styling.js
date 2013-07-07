@@ -13,5 +13,6 @@ htmlSuite('styling', function() {
   htmlTest('html/styling/polyfill-directive.html?shadow');
   htmlTest('html/styling/pseudo-scoping.html?shadow');
   htmlTest('html/styling/sheet-main-doc.html');
+  htmlTest('html/styling/apply-reset-styles.html');
 });
 
