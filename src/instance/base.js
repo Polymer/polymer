@@ -61,6 +61,7 @@
         root.olderShadowRoot = elderRoot;
         // migrate flag(s)
         root.applyAuthorStyles = this.applyAuthorStyles;
+        root.resetStyleInheritance = this.resetStyleInheritance;
         // TODO(sorvell): host not set per spec; we set it for convenience
         // so we can traverse from root to host.
         root.host = this;
