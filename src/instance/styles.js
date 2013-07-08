@@ -43,7 +43,10 @@
       // apply controller styles, but only if they are not yet applied
       var scope = this.findStyleController();
       if (scope && !this.scopeHasElementStyle(scope, STYLE_CONTROLLER_SCOPE)) {
-        Polymer.shimPolyfillDirectives([styleElement], this.localName);
+        if (Platform.ShadowCSSShim) {
+          Platform.ShadowCSSShim.shimPolyfillDirectives([styleElement],
+              this.localName);
+        }
         Polymer.applyStyleToScope(styleElement, scope);
       }
     },

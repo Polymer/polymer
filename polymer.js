@@ -13,7 +13,6 @@ var modules = [
   "../platform/platform.js"
 ].concat([
   "boot.js",
-  "shimStyling.js",
   "lib/lang.js",
   "lib/job.js",
   "lib/dom.js",

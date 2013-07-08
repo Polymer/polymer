@@ -47,6 +47,11 @@
       this.addResolvePathApi();
       // declarative features
       this.desugar();
+      // transforms to approximate missing CSS features
+      if (Platform.ShadowCSSShim) {
+        Platform.ShadowCSSShim.shimStyling(
+            this.querySelector('template').content, name, extnds);
+      }
       // register our custom element
       this.register(name);
       // reference constructor in a global named by 'constructor' attribute    
@@ -62,8 +67,6 @@
       this.parseLocalEvents();
       // install external stylesheets as if they are inline
       this.installSheets();
-      // transforms to approximate missing CSS features
-      scope.shimStyling(this);
       // allow custom element access to the declarative context
       if (this.prototype.registerCallback) {
         this.prototype.registerCallback(this);
