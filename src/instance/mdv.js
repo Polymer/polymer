@@ -26,18 +26,13 @@
       if (property) {
         // use n-way Polymer binding
         this.bindProperty(property, model, path);
-        // bookkeep the binding
-        registerBinding(this, property, path);
       } else {
         this.super(arguments);
       }
     },
     // custom MDV entry point (overrides [at least] `HTMLElement.prototype.unbind`)
     unbind: function(name) {
-      if (this.unbindProperty('binding', name)) {
-        // bookkeep the binding
-        unregisterBinding(this, name);
-      } else {
+      if (!this.unbindProperty('binding', name)) {
         this.super(arguments);
       }
     },
@@ -109,61 +104,11 @@
     }
   }
   
-  // bookkeep bindings for reflection
-
-  // bind tracking
-  var bindings = new SideTable();
-
-  function registerBinding(element, name, path) {
-    var b$ = bindings.get(element);
-    if (!b$) {
-      bindings.set(element, b$ = {});
-    }
-    b$[name.toLowerCase()] = path;
-  }
-
-  function unregisterBinding(element, name) {
-    var b$ = bindings.get(element);
-    if (b$) {
-      delete b$[name.toLowerCase()];
-    }
-  }
-
-  function overrideBinding(ctor) {
-    var proto = ctor.prototype;
-    var originalBind = proto.bind;
-    var originalUnbind = proto.unbind;
-
-    proto.bind = function(name, model, path) {
-      originalBind.apply(this, arguments);
-      // note: must do this last because mdv may unbind before binding
-      registerBinding(this, name, path);
-    }
-
-    proto.unbind = function(name) {
-      originalUnbind.apply(this, arguments);
-      unregisterBinding(this, name);
-    }
-  };
-
-  [Node, Element, Text, HTMLInputElement].forEach(overrideBinding);
-  
-  var emptyBindings = {};
-
-  function getBindings(element) {
-    return element && bindings.get(element) || emptyBindings;
-  }
-
-  function getBinding(element, name) {
-    return getBindings(element)[name.toLowerCase()];
-  }
-
   var mustachePattern = /\{\{([^{}]*)}}/;
    
   // exports
 
   scope.bindPattern = mustachePattern;
-  scope.getBinding = getBinding;
   scope.api.instance.mdv = mdv;
   
 })(Polymer);
