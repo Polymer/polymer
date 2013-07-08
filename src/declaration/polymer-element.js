@@ -47,9 +47,9 @@
       this.addResolvePathApi();
       // declarative features
       this.desugar();
-      // transforms to approximate missing CSS features
-      if (Platform.ShadowCSSShim) {
-        Platform.ShadowCSSShim.shimStyling(
+      // under ShadowDOMPolyfill, transforms to approximate missing CSS features
+      if (window.ShadowDOMPolyfill) {
+        Platform.ShadowCSS.shimStyling(
             this.querySelector('template').content, name, extnds);
       }
       // register our custom element
