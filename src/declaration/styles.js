@@ -121,6 +121,10 @@
       // -unexpected-result#details
       // var clone = style.cloneNode(true);
       var clone = createStyleElement(style.textContent);
+      var attr = style.getAttribute(STYLE_SCOPE_ATTRIBUTE);
+      if (attr) {
+        clone.setAttribute(STYLE_SCOPE_ATTRIBUTE, attr);
+      }
       scope.appendChild(clone);
     }
   }
