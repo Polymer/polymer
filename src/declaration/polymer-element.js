@@ -49,8 +49,7 @@
       this.desugar();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
       if (window.ShadowDOMPolyfill) {
-        Platform.ShadowCSS.shimStyling(
-            this.querySelector('template').content, name, extnds);
+        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extnds);
       }
       // register our custom element
       this.register(name);
