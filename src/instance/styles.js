@@ -35,20 +35,25 @@
     */
     // TODO(sorvell): remove when spec issues are addressed
     installControllerStyles: function() {
-      var styleElement = this.element.controllerStyle;
-      if (!styleElement) {
-        styleElement = this.element.styleForScope(STYLE_CONTROLLER_SCOPE);
-        this.element.controllerStyle = styleElement;
-      }
       // apply controller styles, but only if they are not yet applied
       var scope = this.findStyleController();
       if (scope && !this.scopeHasElementStyle(scope, STYLE_CONTROLLER_SCOPE)) {
-        // shim styling under ShadowDOMPolyfill
-        if (window.ShadowDOMPolyfill) {
-          Platform.ShadowCSS.shimPolyfillDirectives([styleElement],
-              this.localName);
+        // allow inherited controller styles
+        var proto = Object.getPrototypeOf(this), cssText = '';
+        while (proto && proto.element) {
+          cssText += proto.element.cssTextForScope(STYLE_CONTROLLER_SCOPE);
+          proto = Object.getPrototypeOf(proto);
         }
-        Polymer.applyStyleToScope(styleElement, scope);
+        if (cssText) {
+          var style = this.element.cssTextToScopeStyle(cssText,
+              STYLE_CONTROLLER_SCOPE);
+          // shim styling under ShadowDOMPolyfill
+          if (window.ShadowDOMPolyfill) {
+            Platform.ShadowCSS.shimPolyfillDirectives([style],
+                this.localName);
+          }
+          Polymer.applyStyleToScope(style, scope);
+        }
       }
     },
     scopeHasElementStyle: function(scope, descriptor) {
@@ -56,12 +61,16 @@
       return scope.querySelector('style[' + rule + ']');
     },
     findStyleController: function() {
-      // find the shadow root that contains inNode
-      var n = this;
-      while (n.parentNode) {
-        n = n.parentNode;
+      if (window.ShadowDOMPolyfill) {
+        return wrap(document.head);
+      } else {
+        // find the shadow root that contains this element
+        var n = this;
+        while (n.parentNode) {
+          n = n.parentNode;
+        }
+        return n === document ? document.head : n;
       }
-      return n === wrap(document) ? document.head : n;
     }
   };
 
