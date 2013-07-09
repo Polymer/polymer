@@ -19,21 +19,17 @@
     instanceTemplate: function(template) {
       return template.createInstance(this, mdv_syntax);
     },
-    // custom MDV entry point (overrides [at least] `HTMLElement.prototype.bind`)
-    bind: function(name, model, path) {
-      // is the bind target a published property?
+    createBinding: function(name, model, path) {
+      //console.log(arguments);
       var property = this.propertyForAttribute(name);
       if (property) {
         // use n-way Polymer binding
-        this.bindProperty(property, model, path);
+        var observer = this.bindProperty(property, model, path);
+        // stick path on observer so it's available via this.bindings
+        observer.path = path;
+        return observer;
       } else {
-        this.super(arguments);
-      }
-    },
-    // custom MDV entry point (overrides [at least] `HTMLElement.prototype.unbind`)
-    unbind: function(name) {
-      if (!this.unbindProperty('binding', name)) {
-        this.super(arguments);
+        return this.super(arguments);
       }
     },
     asyncUnbindAll: function() {
