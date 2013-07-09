@@ -25,8 +25,20 @@
      * @param elementElement The <element> element to style.
      */
     installSheets: function() {
+      this.cacheSheets();
       this.installLocalSheets();
       this.installGlobalStyles();
+    },
+    /**
+     * Remove all sheets from element and store for later use.
+     */
+    cacheSheets: function() {
+      this.sheets = this.findNodes(SHEET_SELECTOR);
+      this.sheets.forEach(function(s) {
+        if (s.parentNode) {
+          s.parentNode.removeChild(s);
+        }
+      });
     },
     /**
      * Takes external stylesheets loaded in an <element> element and moves
@@ -38,15 +50,13 @@
      * @param elementElement The <element> element to style.
      */
     installLocalSheets: function () {
-      var sheets = this.findNodes(SHEET_SELECTOR, function(s) {
+      var sheets = this.sheets.filter(function(s) {
         return !s.hasAttribute(SCOPE_ATTR);
       });
       var content = this.templateContent();
       if (content) {
-        // in case we're in document, remove from element
         var cssText = '';
         sheets.forEach(function(sheet) {
-          sheet.parentNode.removeChild(sheet);
           cssText += cssTextFromSheet(sheet) + '\n';
         });
         if (cssText) {
@@ -61,7 +71,7 @@
         var templateNodes = content.querySelectorAll(selector).array();
         nodes = nodes.concat(templateNodes);
       }
-      return nodes.filter(matcher);
+      return matcher ? nodes.filter(matcher) : nodes;
     },
     templateContent: function() {
       var template = this.querySelector('template');
@@ -87,10 +97,8 @@
       var matcher = function(s) {
         return matchesSelector(s, selector);
       };
-      var sheets = this.findNodes(SHEET_SELECTOR, matcher);
+      var sheets = this.sheets.filter(matcher);
       sheets.forEach(function(sheet) {
-        // in case we're in document, remove from element
-        sheet.parentNode.removeChild(sheet);
         cssText += cssTextFromSheet(sheet) + '\n\n';
       });
       // handle style elements
@@ -104,6 +112,9 @@
     },
     styleForScope: function(scopeDescriptor) {
       var cssText = this.cssTextForScope(scopeDescriptor);
+      return this.cssTextToScopeStyle(cssText, scopeDescriptor);
+    },
+    cssTextToScopeStyle: function(cssText, scopeDescriptor) {
       if (cssText) {
         var style = createStyleElement(cssText);
         style.setAttribute(STYLE_SCOPE_ATTRIBUTE, this.getAttribute('name') +
