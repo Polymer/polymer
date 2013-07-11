@@ -10,7 +10,7 @@ suite('bindProperties', function() {
   test('bind properties getter', function() {
     var a = {};
     var b = {bar: 1};
-    Polymer.bindProperties(a, 'foo', b, 'bar');
+    Polymer.api.instance.properties.bindProperty.call(a, 'foo', b, 'bar');
     assert.equal(a.foo, 1);
     b.bar = 5;
     assert.equal(a.foo, 5);
@@ -19,7 +19,7 @@ suite('bindProperties', function() {
   test('bind properties setter', function() {
     var a = {};
     var b = {bar: 1};
-    Polymer.bindProperties(a, 'foo', b, 'bar');
+    Polymer.api.instance.properties.bindProperty.call(a, 'foo', b, 'bar');
     assert.equal(b.bar, 1);
     a.foo = 5;
     assert.equal(b.bar, 5);
@@ -28,7 +28,7 @@ suite('bindProperties', function() {
   test('bind properties paths', function() {
     var a = {};
     var b = {bar: {zot: 2}};
-    Polymer.bindProperties(a, 'foo', b, 'bar.zot');
+    Polymer.api.instance.properties.bindProperty.call(a, 'foo', b, 'bar.zot');
     assert.equal(a.foo, 2);
     b.bar.zot = 9;
     assert.equal(a.foo, 9);

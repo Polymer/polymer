@@ -18,29 +18,32 @@ suite('register', function() {
     wrap(document.body).removeChild(work);
   });
 
-  test('register', function() {
-    work.innerHTML = '<element name="x-foo">' +
-      '<script>' +
-        'Polymer.register(this, {' +
-          'ready: function() {' +
-            'this.message = "foo";' +
-          '},' +
-          'sayHello: function() {' +
-            'this.message = "hello";' +
-          '}' +
-        '});' +
-      '</script>' +
-      '</element>';
-    var test = new HTMLElementElement(work.querySelector('element'));
-    var foo = document.createElement('x-foo');
-    // test ready
-    assert.equal(foo.message, 'foo');
-    // test sayHello
-    foo.sayHello();
-    assert.equal(foo.message, 'hello');
+  test('register', function(done) {
+    Polymer('x-foo', {
+      ready: function() {
+        this.message = 'foo';
+      },
+      sayHello: function() {
+        this.message = 'hello';
+      }
+    });
+    work.innerHTML = '<polymer-element name="x-foo"></polymer-element>';
+    setTimeout(function() {
+      var foo = document.createElement('x-foo');
+      // test ready
+      assert.equal(foo.message, 'foo');
+      // test sayHello
+      foo.sayHello();
+      assert.equal(foo.message, 'hello');
+      done();
+    }, 0);
   });
 });
 
 htmlSuite('element callbacks', function() {
   htmlTest('html/callbacks.html');
+});
+
+htmlSuite('element script', function() {
+  htmlTest('html/element-script.html');
 });
