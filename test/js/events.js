@@ -21,26 +21,25 @@ suite('events', function() {
   });
   
   function createTestElement(inName, inTemplateContent, inExtend) {
-    work.innerHTML += '<element name="' + inName + '"' + 
+    Polymer(inName, {
+      clickHandler: function() {
+        results.textContent += this.localName;
+      }
+    });
+    work.innerHTML += '<polymer-element name="' + inName + '"' + 
         (inExtend ? ' extends="' + inExtend + '"' : '') + ' on-click="clickHandler">' +
-      '<template>' + (inTemplateContent || '') + '</template>' +
-      '<script>\n' +
-        'Polymer.register(this, {\n' +
-          'clickHandler: function() {\n' +
-            'results.textContent += this.localName;\n' +
-          '}\n' +
-        '});\n' +
-      '</script>' +
-      '</element>';
-    new HTMLElementElement(work.lastChild);
+      '<template>' + (inTemplateContent || '') + '</template></polymer-element>';
   }
   
-  test('host event', function() {
+  test('host event', function(done) {
     createTestElement('x-foo');
-    var foo = document.createElement('x-foo');
-    work.appendChild(foo);
-    foo.click();
-    assert.equal(results.textContent, 'x-foo');
+    setTimeout(function() {
+      var foo = document.createElement('x-foo');
+      work.appendChild(foo);
+      foo.click();
+      assert.equal(results.textContent, 'x-foo');
+      done();
+    }, 0);
   });
   
   /*test('host events order', function() {

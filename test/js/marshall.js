@@ -10,7 +10,7 @@ suite('marshall', function() {
   test('node references self', function() {
     var foo = document.createElement('x-foo');
     foo.innerHTML = '<div id="bar">barContent</div><div id="zot">zotContent</div>';
-    Polymer.marshalNodeReferences.call(foo, foo);
+    Polymer.api.instance.base.marshalNodeReferences.call(foo, foo);
     assert.equal(foo.$.bar.textContent, 'barContent');
     assert.equal(foo.$.zot.textContent, 'zotContent');
   });
@@ -19,7 +19,7 @@ suite('marshall', function() {
     var foo = document.createElement('x-foo');
     var sr = foo.webkitCreateShadowRoot();
     sr.innerHTML = '<div id="bar">barContent</div><div id="zot">zotContent</div>';
-    Polymer.marshalNodeReferences.call(foo, sr);
+    Polymer.api.instance.base.marshalNodeReferences.call(foo, sr);
     assert.equal(foo.$.bar.textContent, 'barContent');
     assert.equal(foo.$.zot.textContent, 'zotContent');
   });

@@ -8,25 +8,33 @@
   
 var thisFile = 'polymer.js';
 var scopeName = 'Polymer';
+
 var modules = [
-  '../platform/platform.js',
-  'src/lang.js',
-  'src/oop.js',
-  'src/register.js',
-  'src/base.js',
-  'src/trackObservers.js',
-  'src/bindProperties.js',
-  'src/bindMDV.js',
-  'src/attrs.js',
-  'src/marshal.js',
-  'src/events.js',
-  'src/observeProperties.js',
-  'src/styling.js',
-  'src/shimStyling.js',
-  'src/path.js',
-  'src/job.js',
-  'src/boot.js'
-];
+  "../platform/platform.js"
+].concat([
+  "boot.js",
+  "lib/lang.js",
+  "lib/job.js",
+  "lib/dom.js",
+  "lib/super.js",
+  "lib/deserialize.js",
+  "api.js",
+  "instance/utils.js",
+  "instance/events.js",
+  "instance/properties.js",
+  "instance/attributes.js",
+  "instance/mdv.js",
+  "instance/base.js",
+  "instance/styles.js",
+  "declaration/path.js",
+  "declaration/styles.js",
+  "declaration/events.js",
+  "declaration/properties.js",
+  "declaration/attributes.js",
+  "declaration/polymer-element.js"
+].map(function(n) {
+  return "src/" + n;
+}));
 
 // export 
 

@@ -17,24 +17,31 @@ module.exports = function(grunt) {
   ];
   
   Polymer = [
-    'src/build.js',
-    'src/lang.js',
-    'src/oop.js',
-    'src/register.js',
-    'src/base.js',
-    'src/trackObservers.js',
-    'src/bindProperties.js',
-    'src/bindMDV.js',
-    'src/attrs.js',
-    'src/marshal.js',
-    'src/events.js',
-    'src/observeProperties.js',
-    'src/styling.js',
-    'src/shimStyling.js',
-    'src/path.js',
-    'src/job.js',
-    'src/boot.js'
-  ];
+    "polymer.js",
+    "boot.js",
+    "shimStyling.js",
+    "lib/lang.js",
+    "lib/dom.js",
+    "lib/deserialize.js",
+    "lib/job.js",
+    "lib/super.js",
+    "api.js",
+    "instance/utils.js",
+    "instance/events.js",
+    "instance/properties.js",
+    "instance/attributes.js",
+    "instance/mdv.js",
+    "instance/base.js",
+    "instance/styles.js",
+    "declaration/path.js",
+    "declaration/styles.js",
+    "declaration/events.js",
+    "declaration/properties.js",
+    "declaration/attributes.js",
+    "declaration/polymer-element.js"
+  ].map(function(n) {
+    return "src/" + n;
+  });
 
   // karma setup
   var browsers;
@@ -63,9 +70,6 @@ module.exports = function(grunt) {
         configFile: 'conf/karma.conf.js',
         keepalive: true
       },
-      browserstack: {
-        browsers: ["BrowserStack:IE:Win"]
-      },
       buildbot: {
         browsers: browsers,
         reporters: ['crbot'],
@@ -82,7 +86,8 @@ module.exports = function(grunt) {
       },
       Polymer: {
         options: {
-          sourceMap: 'polymer.min.js.map'
+          sourceMap: 'polymer.min.js.map',
+          //mangle: false, beautify: true, compress: false
         },
         files: {
           'polymer.min.js': [].concat(Platform, Polymer)
@@ -99,9 +104,7 @@ module.exports = function(grunt) {
       PolymerSandbox: {
         options: {
           sourceMap: 'polymer.sandbox.min.js.map',
-          mangle: false,
-          beautify: true,
-          compress: false
+          //mangle: false, beautify: true, compress: false
         },
         files: {
           'polymer.sandbox.min.js': [].concat(PlatformSandbox, Polymer)
@@ -153,7 +156,7 @@ module.exports = function(grunt) {
   // plugins
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
-  grunt.loadNpmTasks('grunt-karma-0.9.1');
+  grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-audit');
 
   // tasks
