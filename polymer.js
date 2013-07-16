@@ -31,7 +31,8 @@ var modules = [
   "declaration/events.js",
   "declaration/properties.js",
   "declaration/attributes.js",
-  "declaration/polymer-element.js"
+  "declaration/polymer-element.js",
+  "deprecated.js"
 ].map(function(n) {
   return "src/" + n;
 }));
