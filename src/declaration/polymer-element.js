@@ -10,6 +10,8 @@
   var extend = Polymer.extend;
   var apis = scope.api.declaration;
 
+  var deferred = {};
+
   // imperative implementation: Polymer()
   
   // maps tag names to prototypes
@@ -18,6 +20,9 @@
   // register an 'own' prototype for tag `name`
   function element(name, prototype) {
     registry[name] = prototype;
+    if (deferred[name]) {
+      deferred[name].define();
+    }
   }
   
   // returns a prototype that chains to <tag> or HTMLElement
@@ -29,8 +34,24 @@
  
   var prototype = generatePrototype();
   extend(prototype, {
-    // custom element processing
+    // TODO(sjmiles): temporary BC
     readyCallback: function() {
+      this._createdCallback();
+    },
+    createdCallback: function() {
+      this._createdCallback();
+    },
+    // custom element processing
+    _createdCallback: function() {
+      // fetch our element name
+      var name = this.getAttribute('name');
+      if (registry[name] || this.hasAttribute('noscript')) {
+        this.define();
+      } else {
+        deferred[name] = this;
+      }
+    },
+    define: function() {
       // fetch our element name
       var name = this.getAttribute('name');
       // fetch our extendee name

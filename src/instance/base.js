@@ -12,8 +12,15 @@
     // user entry point for constructor-like initialization
     ready: function() {
     },
-    // system entry point, do not override
+    // TODO(sjmiles): temporary BC
     readyCallback: function() {
+      this._createdCallback();
+    },
+    createdCallback: function() {
+      this._createdCallback();
+    },
+    // system entry point, do not override
+    _createdCallback: function() {
       //this.style.display = 'inline-block';
       // install property observers
       // do this first so we can observe changes during initialization
@@ -31,7 +38,7 @@
       // bindings will self destruct after a short time; this is 
       // necessary to make elements collectable as garbage
       // when polyfilling Object.observe
-      this.asyncUnbindAll();
+      //this.asyncUnbindAll();
       // user initialization
       this.ready();
     },
