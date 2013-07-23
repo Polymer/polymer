@@ -19,7 +19,7 @@
 
   // register an 'own' prototype for tag `name`
   function element(name, prototype) {
-    registry[name] = prototype;
+    registry[name] = prototype || {};
     if (deferred[name]) {
       deferred[name].define();
     }
