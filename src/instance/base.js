@@ -64,14 +64,9 @@
         var elderRoot = this.shadowRoot;
         // make a shadow root
         var root = this.createShadowRoot();
-        // memoize the elder root
-        root.olderShadowRoot = elderRoot;
         // migrate flag(s)
         root.applyAuthorStyles = this.applyAuthorStyles;
         root.resetStyleInheritance = this.resetStyleInheritance;
-        // TODO(sorvell): host not set per spec; we set it for convenience
-        // so we can traverse from root to host.
-        root.host = this;
         // stamp template
         // which includes parsing and applying MDV bindings before being 
         // inserted (to avoid {{}} in attribute values)
@@ -81,8 +76,6 @@
         root.appendChild(dom);
         // perform post-construction initialization tasks on shadow root
         this.shadowRootReady(root, template);
-        // watch future changes to shadow root
-        CustomElements.watchShadow(this);
         // return the created shadow root
         return root;
       }
