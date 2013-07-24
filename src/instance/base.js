@@ -100,7 +100,8 @@
         };
       }
     },
-    attributeChangedCallback: function() {
+    attributeChangedCallback: function(name, oldValue) {
+      this.attributeToProperty(name, this.getAttribute(name));
       if (this.attributeChanged) {
         this.attributeChanged.apply(this, arguments);
       }
