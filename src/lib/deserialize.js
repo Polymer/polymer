@@ -24,9 +24,6 @@
       return (String(floatVal) === value) ? floatVal : value;
     },
     'object': function(value, defaultValue) {
-      if (!defaultValue) {
-        return value;
-      }
       try {
         // If the string is an object, we can parse is with the JSON library.
         // include convenience replace for single-quotes. If the author omits
