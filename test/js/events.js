@@ -39,7 +39,7 @@ suite('events', function() {
       foo.click();
       assert.equal(results.textContent, 'x-foo');
       done();
-    }, 0);
+    }, 100);
   });
   
   /*test('host events order', function() {

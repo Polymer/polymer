@@ -36,7 +36,7 @@ suite('register', function() {
       foo.sayHello();
       assert.equal(foo.message, 'hello');
       done();
-    }, 0);
+    }, 100);
   });
 });
 
