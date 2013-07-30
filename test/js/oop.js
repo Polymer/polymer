@@ -4,6 +4,16 @@
  * license that can be found in the LICENSE file.
  */
 
+function createObjectWithProto(prototype) {
+    var obj = Object.create(prototype);
+    // NOTE: On some platforms (IE10) __proto__ does not exist.
+    // In this case, we install it.
+    if (!Object.__proto__) {
+      obj.__proto__ = prototype;
+    }
+    return obj;
+  }
+
 suite('oop', function() {
   var assert = chai.assert;
   
@@ -21,7 +31,7 @@ suite('oop', function() {
     };
     //
     var Sub = function() {};
-    Sub.prototype = Object.create(Base.prototype);
+    Sub.prototype = createObjectWithProto(Base.prototype);
     Sub.prototype.say = function() {
       this.super();
       this.log(' sub');
@@ -29,7 +39,7 @@ suite('oop', function() {
     Sub.prototype.say.nom = 'say';
     //
     var SubSub = function() {};
-    SubSub.prototype = Object.create(Sub.prototype);
+    SubSub.prototype = createObjectWithProto(Sub.prototype);
     SubSub.prototype.say = function() {
       this.super();
       this.log(' subsub');
