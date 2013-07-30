@@ -33,13 +33,15 @@ suite('events', function() {
   
   test('host event', function(done) {
     createTestElement('x-foo');
+    // Ensure IE goes...
+    CustomElements.takeRecords();
     setTimeout(function() {
       var foo = document.createElement('x-foo');
       work.appendChild(foo);
       foo.click();
       assert.equal(results.textContent, 'x-foo');
       done();
-    }, 100);
+    }, 0);
   });
   
   /*test('host events order', function() {

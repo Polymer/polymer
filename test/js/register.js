@@ -28,6 +28,8 @@ suite('register', function() {
       }
     });
     work.innerHTML = '<polymer-element name="x-foo"></polymer-element>';
+    // Ensure IE goes...
+    CustomElements.takeRecords();
     setTimeout(function() {
       var foo = document.createElement('x-foo');
       // test ready
@@ -36,7 +38,7 @@ suite('register', function() {
       foo.sayHello();
       assert.equal(foo.message, 'hello');
       done();
-    }, 100);
+    }, 0);
   });
 });
 
