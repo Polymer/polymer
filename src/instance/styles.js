@@ -39,10 +39,10 @@
       var scope = this.findStyleController();
       if (scope && !this.scopeHasElementStyle(scope, STYLE_CONTROLLER_SCOPE)) {
         // allow inherited controller styles
-        var proto = Object.getPrototypeOf(this), cssText = '';
+        var proto = getPrototypeOf(this), cssText = '';
         while (proto && proto.element) {
           cssText += proto.element.cssTextForScope(STYLE_CONTROLLER_SCOPE);
-          proto = Object.getPrototypeOf(proto);
+          proto = getPrototypeOf(proto);
         }
         if (cssText) {
           var style = this.element.cssTextToScopeStyle(cssText,
@@ -73,6 +73,12 @@
       }
     }
   };
+  
+  // NOTE: use raw prototype traversal so that we ensure correct traversal
+  // on platforms where the protoype chain is simulated via __proto__ (IE10)
+  function getPrototypeOf(prototype) {
+    return prototype.__proto__;
+  }
 
   // exports
 
