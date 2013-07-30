@@ -29,6 +29,20 @@
   function generatePrototype(tag) {
     return Object.create(HTMLElement.getPrototypeForTag(tag));
   }
+  
+  // On platforms that do not support __proto__ (IE10), the prototype chain
+  // of a custom element is simulated via installation of __proto__.
+  // Although custom elements manages this, we install it here so it's 
+  // available during desuaring.
+  function ensurePrototypeTraversal(prototype) {
+    if (!Object.__proto__) {
+      var ancestor = Object.getPrototypeOf(prototype);
+      prototype.__proto__ = ancestor;
+      if (scope.isBase(ancestor)) {
+        ancestor.__proto__ = Object.getPrototypeOf(ancestor);
+      }
+    }
+  }
 
   // declarative implementation: <polymer-element> 
  
@@ -66,17 +80,15 @@
       // Potentially remove when spec bug is addressed.
       // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
       this.addResolvePathApi();
+      ensurePrototypeTraversal(this.prototype);
+      // declarative features
+      this.desugar();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
       if (window.ShadowDOMPolyfill) {
         Platform.ShadowCSS.shimStyling(this.templateContent(), name, extnds);
       }
       // register our custom element
       this.register(name);
-      // declarative features
-      // NOTE: make sure to desugar after calling register. Registration
-      // ensures the __proto__ chain exists on platforms that don't support it
-      // natively (IE10), and desugar uses the __proto__ chain.
-      this.desugar();
       // reference constructor in a global named by 'constructor' attribute    
       this.publishConstructor();
     },
