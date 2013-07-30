@@ -66,14 +66,17 @@
       // Potentially remove when spec bug is addressed.
       // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
       this.addResolvePathApi();
-      // declarative features
-      this.desugar();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
       if (window.ShadowDOMPolyfill) {
         Platform.ShadowCSS.shimStyling(this.templateContent(), name, extnds);
       }
       // register our custom element
       this.register(name);
+      // declarative features
+      // NOTE: make sure to desugar after calling register. Registration
+      // ensures the __proto__ chain exists on platforms that don't support it
+      // natively (IE10), and desugar uses the __proto__ chain.
+      this.desugar();
       // reference constructor in a global named by 'constructor' attribute    
       this.publishConstructor();
     },
@@ -132,7 +135,7 @@
     // make a fresh object that inherits from a prototype object
     inheritObject: function(prototype, name) {
       // copy inherited properties onto a new object
-      prototype[name] = extend({}, prototype.__proto__[name]);
+      prototype[name] = extend({}, Object.getPrototypeOf(prototype)[name]);
     },
     // register 'prototype' to custom element 'name', store constructor 
     register: function(name) { 
