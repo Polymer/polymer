@@ -19,7 +19,7 @@ suite('register', function() {
   });
 
   test('register', function(done) {
-    Polymer('x-foo', {
+    Polymer('x-register-foo', {
       ready: function() {
         this.message = 'foo';
       },
@@ -27,11 +27,11 @@ suite('register', function() {
         this.message = 'hello';
       }
     });
-    work.innerHTML = '<polymer-element name="x-foo"></polymer-element>';
+    work.innerHTML = '<polymer-element name="x-register-foo"></polymer-element>';
     // Ensure IE goes...
     CustomElements.takeRecords();
     setTimeout(function() {
-      var foo = document.createElement('x-foo');
+      var foo = document.createElement('x-register-foo');
       // test ready
       assert.equal(foo.message, 'foo');
       // test sayHello

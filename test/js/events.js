@@ -32,14 +32,14 @@ suite('events', function() {
   }
   
   test('host event', function(done) {
-    createTestElement('x-foo');
+    createTestElement('x-events-foo');
     // Ensure IE goes...
     CustomElements.takeRecords();
     setTimeout(function() {
-      var foo = document.createElement('x-foo');
+      var foo = document.createElement('x-events-foo');
       work.appendChild(foo);
       foo.click();
-      assert.equal(results.textContent, 'x-foo');
+      assert.equal(results.textContent, 'x-events-foo');
       done();
     }, 0);
   });
