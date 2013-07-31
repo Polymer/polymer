@@ -59,7 +59,7 @@
     _createdCallback: function() {
       // fetch our element name
       var name = this.getAttribute('name');
-      if (registry[name] || this.hasAttribute('noscript')) {
+      if (registry[name]) {
         this.define();
       } else {
         deferred[name] = this;
