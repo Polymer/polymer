@@ -66,20 +66,6 @@
           }
         });
       }
-    },
-    insertedCallback: function() {
-      this.cancelUnbindAll(true);
-      // invoke user 'inserted'
-      if (this.inserted) {
-        this.inserted();
-      }
-    },
-    removedCallback: function() {
-      this.asyncUnbindAll();
-      // invoke user 'removed'
-      if (this.removed) {
-        this.removed();
-      }
     }
   };
 

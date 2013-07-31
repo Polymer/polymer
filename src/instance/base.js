@@ -42,6 +42,40 @@
       // user initialization
       this.ready();
     },
+    insertedCallback: function() {
+      this._enteredDocumentCallback();
+    },
+    enteredDocumentCallback: function() {
+      this._enteredDocumentCallback();
+    },
+    _enteredDocumentCallback: function() {
+      this.cancelUnbindAll(true);
+      // TODO(sorvell): bc
+      if (this.inserted) {
+        this.inserted();
+      }
+      // invoke user action
+      if (this.enteredDocument) {
+        this.enteredDocument();
+      }
+    },
+    removedCallback: function() {
+      this._leftDocumentCallback();
+    },
+    leftDocumentCallback: function() {
+      this._leftDocumentCallback();
+    },
+    _leftDocumentCallback: function() {
+      this.asyncUnbindAll();
+      // TODO(sorvell): bc
+      if (this.removed) {
+        this.removed();
+      }
+      // invoke user action
+      if (this.leftDocument) {
+        this.leftDocument();
+      }
+    },
     // recursive ancestral <element> initialization, oldest first
     parseElements: function(p) {
       if (p && p.element) {
