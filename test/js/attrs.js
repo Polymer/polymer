@@ -8,4 +8,5 @@ htmlSuite('attributes-declarative', function() {
   htmlTest('html/publish-attributes.html');
   htmlTest('html/take-attributes.html');
   htmlTest('html/attr-mustache.html');
+  htmlTest('html/prop-attr-reflection.html');
 });

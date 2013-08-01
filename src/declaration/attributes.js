@@ -89,7 +89,8 @@
     isInstanceAttribute: function(name) {
       return !this.blackList[name] && name.slice(0,3) !== 'on-';
     },
-    blackList: {name: 1, 'extends': 1, constructor: 1}
+    // do not clone these attributes onto instances
+    blackList: {name: 1, 'extends': 1, constructor: 1, noscript: 1}
   };
 
   // add ATTRIBUTES symbol to blacklist

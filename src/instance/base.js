@@ -12,8 +12,15 @@
     // user entry point for constructor-like initialization
     ready: function() {
     },
-    // system entry point, do not override
+    // TODO(sjmiles): temporary BC
     readyCallback: function() {
+      this._createdCallback();
+    },
+    createdCallback: function() {
+      this._createdCallback();
+    },
+    // system entry point, do not override
+    _createdCallback: function() {
       //this.style.display = 'inline-block';
       // install property observers
       // do this first so we can observe changes during initialization
@@ -31,9 +38,43 @@
       // bindings will self destruct after a short time; this is 
       // necessary to make elements collectable as garbage
       // when polyfilling Object.observe
-      this.asyncUnbindAll();
+      //this.asyncUnbindAll();
       // user initialization
       this.ready();
+    },
+    insertedCallback: function() {
+      this._enteredDocumentCallback();
+    },
+    enteredDocumentCallback: function() {
+      this._enteredDocumentCallback();
+    },
+    _enteredDocumentCallback: function() {
+      this.cancelUnbindAll(true);
+      // TODO(sorvell): bc
+      if (this.inserted) {
+        this.inserted();
+      }
+      // invoke user action
+      if (this.enteredDocument) {
+        this.enteredDocument();
+      }
+    },
+    removedCallback: function() {
+      this._leftDocumentCallback();
+    },
+    leftDocumentCallback: function() {
+      this._leftDocumentCallback();
+    },
+    _leftDocumentCallback: function() {
+      this.asyncUnbindAll();
+      // TODO(sorvell): bc
+      if (this.removed) {
+        this.removed();
+      }
+      // invoke user action
+      if (this.leftDocument) {
+        this.leftDocument();
+      }
     },
     // recursive ancestral <element> initialization, oldest first
     parseElements: function(p) {
@@ -57,14 +98,9 @@
         var elderRoot = this.shadowRoot;
         // make a shadow root
         var root = this.createShadowRoot();
-        // memoize the elder root
-        root.olderShadowRoot = elderRoot;
         // migrate flag(s)
         root.applyAuthorStyles = this.applyAuthorStyles;
         root.resetStyleInheritance = this.resetStyleInheritance;
-        // TODO(sorvell): host not set per spec; we set it for convenience
-        // so we can traverse from root to host.
-        root.host = this;
         // stamp template
         // which includes parsing and applying MDV bindings before being 
         // inserted (to avoid {{}} in attribute values)
@@ -74,8 +110,6 @@
         root.appendChild(dom);
         // perform post-construction initialization tasks on shadow root
         this.shadowRootReady(root, template);
-        // watch future changes to shadow root
-        CustomElements.watchShadow(this);
         // return the created shadow root
         return root;
       }
@@ -100,7 +134,8 @@
         };
       }
     },
-    attributeChangedCallback: function() {
+    attributeChangedCallback: function(name, oldValue) {
+      this.attributeToProperty(name, this.getAttribute(name));
       if (this.attributeChanged) {
         this.attributeChanged.apply(this, arguments);
       }
