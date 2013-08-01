@@ -21,8 +21,8 @@ var modules = [
   "api.js",
   "instance/utils.js",
   "instance/events.js",
-  "instance/properties.js",
   "instance/attributes.js",
+  "instance/properties.js",
   "instance/mdv.js",
   "instance/base.js",
   "instance/styles.js",
@@ -31,7 +31,8 @@ var modules = [
   "declaration/events.js",
   "declaration/properties.js",
   "declaration/attributes.js",
-  "declaration/polymer-element.js"
+  "declaration/polymer-element.js",
+  "deprecated.js"
 ].map(function(n) {
   return "src/" + n;
 }));

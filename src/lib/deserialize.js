@@ -24,7 +24,7 @@
       return (String(floatVal) === value) ? floatVal : value;
     },
     'object': function(value, defaultValue) {
-      if (!defaultValue) {
+      if (defaultValue === null) {
         return value;
       }
       try {

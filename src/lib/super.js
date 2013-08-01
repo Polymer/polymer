@@ -38,7 +38,7 @@
         }
         // super prototype is either cached or we have to find it
         // by searching __proto__ (at the 'top')
-        memoizeSuper(caller, nom, Object.getPrototypeOf(this));
+        memoizeSuper(caller, nom, getPrototypeOf(this));
       }
       var _super = caller._super;
       if (!_super) {
@@ -61,7 +61,7 @@
       // look for an inherited prototype that implements name
       while (proto &&
           (!proto.hasOwnProperty(name) || proto[name] === caller)) {
-        proto = Object.getPrototypeOf(proto);
+        proto = getPrototypeOf(proto);
       }
       return proto;
     };
@@ -92,6 +92,13 @@
         }
         p = p.__proto__;
       }
+    }
+    
+    // NOTE: In some platforms (IE10) the prototype chain is faked via 
+    // __proto__. Therefore, always get prototype via __proto__ instead of
+    // the more standard Object.getPrototypeOf.
+    function getPrototypeOf(prototype) {
+      return prototype.__proto__;
     }
 
     // exports

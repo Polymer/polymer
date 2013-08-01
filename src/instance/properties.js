@@ -12,6 +12,8 @@
   // magic words
 
   var OBSERVE_SUFFIX = 'Changed';
+  
+  var PUBLISHED = scope.api.instance.attributes.PUBLISHED;
 
   // element api
   
@@ -53,10 +55,13 @@
       unregisterObservers(this);
     },
     // property should be observed if it has an observation callback
+    // or if it is published
     shouldObserveProperty: function(name) {
-      return Boolean(this[name + OBSERVE_SUFFIX]);
+      return Boolean(this[name + OBSERVE_SUFFIX] || 
+          Object.keys(this[PUBLISHED]).indexOf(name) >= 0);
     },
     dispatchPropertyChange: function(name, oldValue) {
+      this.propertyToAttribute(name);
       invoke.call(this, name + OBSERVE_SUFFIX, [oldValue]);
     }
   };

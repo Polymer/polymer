@@ -10,6 +10,8 @@
   var extend = Polymer.extend;
   var apis = scope.api.declaration;
 
+  var deferred = {};
+
   // imperative implementation: Polymer()
   
   // maps tag names to prototypes
@@ -17,20 +19,53 @@
 
   // register an 'own' prototype for tag `name`
   function element(name, prototype) {
-    registry[name] = prototype;
+    registry[name] = prototype || {};
+    if (deferred[name]) {
+      deferred[name].define();
+    }
   }
   
   // returns a prototype that chains to <tag> or HTMLElement
   function generatePrototype(tag) {
     return Object.create(HTMLElement.getPrototypeForTag(tag));
   }
+  
+  // On platforms that do not support __proto__ (IE10), the prototype chain
+  // of a custom element is simulated via installation of __proto__.
+  // Although custom elements manages this, we install it here so it's 
+  // available during desuaring.
+  function ensurePrototypeTraversal(prototype) {
+    if (!Object.__proto__) {
+      var ancestor = Object.getPrototypeOf(prototype);
+      prototype.__proto__ = ancestor;
+      if (scope.isBase(ancestor)) {
+        ancestor.__proto__ = Object.getPrototypeOf(ancestor);
+      }
+    }
+  }
 
   // declarative implementation: <polymer-element> 
  
   var prototype = generatePrototype();
   extend(prototype, {
-    // custom element processing
+    // TODO(sjmiles): temporary BC
     readyCallback: function() {
+      this._createdCallback();
+    },
+    createdCallback: function() {
+      this._createdCallback();
+    },
+    // custom element processing
+    _createdCallback: function() {
+      // fetch our element name
+      var name = this.getAttribute('name');
+      if (registry[name]) {
+        this.define();
+      } else {
+        deferred[name] = this;
+      }
+    },
+    define: function() {
       // fetch our element name
       var name = this.getAttribute('name');
       // fetch our extendee name
@@ -45,6 +80,7 @@
       // Potentially remove when spec bug is addressed.
       // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
       this.addResolvePathApi();
+      ensurePrototypeTraversal(this.prototype);
       // declarative features
       this.desugar();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
@@ -111,7 +147,7 @@
     // make a fresh object that inherits from a prototype object
     inheritObject: function(prototype, name) {
       // copy inherited properties onto a new object
-      prototype[name] = extend({}, prototype.__proto__[name]);
+      prototype[name] = extend({}, Object.getPrototypeOf(prototype)[name]);
     },
     // register 'prototype' to custom element 'name', store constructor 
     register: function(name) { 

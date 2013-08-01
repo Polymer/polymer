@@ -61,6 +61,19 @@
     // convert representation of 'stringValue' based on type of 'defaultValue'
     deserializeValue: function(stringValue, defaultValue) {
       return scope.deserializeValue(stringValue, defaultValue);
+    },
+    serializeValue: function(value) {
+      if (typeof value != 'object' && value !== undefined) {
+        return value;
+      }
+    },
+    propertyToAttribute: function(name) {
+      if (Object.keys(this[PUBLISHED]).indexOf(name) >= 0) {
+        var serializedValue = this.serializeValue(this[name]);
+        if (serializedValue !== undefined) {
+          this.setAttribute(name, serializedValue);
+        }
+      }
     }
   };
 
