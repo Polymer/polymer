@@ -10,21 +10,44 @@
   var extend = Polymer.extend;
   var apis = scope.api.declaration;
 
-  var deferred = {};
-
   // imperative implementation: Polymer()
   
   // maps tag names to prototypes
   var registry = {};
 
-  // register an 'own' prototype for tag `name`
+  function getRegisteredPrototype(name) {
+    return registry[name];
+  }
+
+  // elements waiting for prototype, by name
+  var waitPrototype = {};
+
+  // specify an 'own' prototype for tag `name`
   function element(name, prototype) {
+    // cache the prototype
     registry[name] = prototype || {};
-    if (deferred[name]) {
-      deferred[name].define();
+    // notify the registrar waiting for 'name', if any
+    notifyPrototype(name);
+  }
+
+  function notifyPrototype(name) {
+    if (waitPrototype[name]) {
+      waitPrototype[name].define();
     }
   }
-  
+
+  // elements waiting for super, by name
+  var waitSuper = {};
+
+  function notifySuper(name) {
+    var waiting = waitSuper[name];
+    if (waiting) {
+      waiting.forEach(function(w) {
+        w.define();
+      });
+    }
+  }
+
   // returns a prototype that chains to <tag> or HTMLElement
   function generatePrototype(tag) {
     return Object.create(HTMLElement.getPrototypeForTag(tag));
@@ -33,7 +56,7 @@
   // On platforms that do not support __proto__ (IE10), the prototype chain
   // of a custom element is simulated via installation of __proto__.
   // Although custom elements manages this, we install it here so it's 
-  // available during desuaring.
+  // available during desugaring.
   function ensurePrototypeTraversal(prototype) {
     if (!Object.__proto__) {
       var ancestor = Object.getPrototypeOf(prototype);
@@ -44,9 +67,10 @@
     }
   }
 
-  // declarative implementation: <polymer-element> 
- 
+  // declarative implementation: <polymer-element>
+
   var prototype = generatePrototype();
+
   extend(prototype, {
     // TODO(sjmiles): temporary BC
     readyCallback: function() {
@@ -58,21 +82,30 @@
     // custom element processing
     _createdCallback: function() {
       // fetch our element name
-      var name = this.getAttribute('name');
-      if (registry[name]) {
+      this.name = this.getAttribute('name');
+      if (getRegisteredPrototype(this.name)) {
         this.define();
       } else {
-        deferred[name] = this;
+        waitPrototype[this.name] = this;
       }
     },
     define: function() {
-      // fetch our element name
-      var name = this.getAttribute('name');
       // fetch our extendee name
       var extnds = this.getAttribute('extends');
+      // if extending a custom element...
+      if (extnds && extnds.indexOf('-') >= 0) {
+        // wait for the extendee to be registered first
+        if (!getRegisteredPrototype(extnds)) {
+          (waitSuper[extnds] = (waitSuper[extnds] || [])).push(this);
+          return;
+        }
+      }
+      this.register(this.name, extnds);
+    },
+    register: function(name, extnds) {
       // build prototype combining extendee, Polymer base, and named api
       this.prototype = this.generateCustomPrototype(name, extnds);
-      // questionable backref
+      // backref
       this.prototype.element = this;
       // TODO(sorvell): install a helper method this.resolvePath to aid in 
       // setting resource paths. e.g. 
@@ -88,9 +121,11 @@
         Platform.ShadowCSS.shimStyling(this.templateContent(), name, extnds);
       }
       // register our custom element
-      this.register(name);
-      // reference constructor in a global named by 'constructor' attribute    
+      this.registerPrototype(name);
+      // reference constructor in a global named by 'constructor' attribute
       this.publishConstructor();
+      // subclasses may now register themselves
+      notifySuper(name);
     },
     // implement various declarative features
     desugar: function(prototype) {
@@ -142,7 +177,7 @@
     // mix api registered to 'name' into 'prototype' 
     addNamedApi: function(prototype, name) { 
       // combine custom api into prototype
-      return extend(prototype, registry[name]);
+      return extend(prototype, getRegisteredPrototype(name));
     },
     // make a fresh object that inherits from a prototype object
     inheritObject: function(prototype, name) {
@@ -150,7 +185,7 @@
       prototype[name] = extend({}, Object.getPrototypeOf(prototype)[name]);
     },
     // register 'prototype' to custom element 'name', store constructor 
-    register: function(name) { 
+    registerPrototype: function(name) { 
       // register the custom type
       this.ctor = document.register(name, {
         prototype: this.prototype
