@@ -32,7 +32,7 @@
 
   function notifyPrototype(name) {
     if (waitPrototype[name]) {
-      waitPrototype[name].define();
+      waitPrototype[name].registerWhenReady();
     }
   }
 
@@ -43,7 +43,7 @@
     var waiting = waitSuper[name];
     if (waiting) {
       waiting.forEach(function(w) {
-        w.define();
+        w.registerWhenReady();
       });
     }
   }
@@ -74,22 +74,32 @@
   extend(prototype, {
     // TODO(sjmiles): temporary BC
     readyCallback: function() {
-      this._createdCallback();
+      this.createdCallback();
     },
     createdCallback: function() {
-      this._createdCallback();
-    },
-    // custom element processing
-    _createdCallback: function() {
-      // fetch our element name
+      // fetch the element name
       this.name = this.getAttribute('name');
-      if (getRegisteredPrototype(this.name)) {
-        this.define();
-      } else {
-        waitPrototype[this.name] = this;
-      }
+      // install element definition, if ready
+      this.registerWhenReady();
     },
-    define: function() {
+    registerWhenReady: function() {
+      var name = this.name;
+      // if we have no prototype
+      if (!getRegisteredPrototype(name)) {
+        // then wait for a prototype
+        waitPrototype[name] = this;
+        // if we are not explicitly async,
+        // then wait for end of microtask(-ish)
+        // and use whatever prototype is available
+        if (!this.hasAttribute('async')) {
+          setTimeout(function() {
+            if (!getRegisteredPrototype(name)) {
+              element(name, null);
+            }
+          }, 0);
+        }
+        return;
+      }
       // fetch our extendee name
       var extnds = this.getAttribute('extends');
       // if extending a custom element...
@@ -100,7 +110,7 @@
           return;
         }
       }
-      this.register(this.name, extnds);
+      this.register(name, extnds);
     },
     register: function(name, extnds) {
       // build prototype combining extendee, Polymer base, and named api

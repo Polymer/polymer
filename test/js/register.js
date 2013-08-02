@@ -6,9 +6,9 @@
 
 suite('register', function() {
   var assert = chai.assert;
-  
+
   var work;
-  
+
   setup(function() {
     work = document.createElement('div');
     wrap(document.body).appendChild(work);
