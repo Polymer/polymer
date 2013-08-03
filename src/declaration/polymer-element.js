@@ -24,6 +24,7 @@
 
   // specify an 'own' prototype for tag `name`
   function element(name, prototype) {
+    //console.log('registering [' + name + ']');
     // cache the prototype
     registry[name] = prototype || {};
     // notify the registrar waiting for 'name', if any
@@ -33,6 +34,7 @@
   function notifyPrototype(name) {
     if (waitPrototype[name]) {
       waitPrototype[name].registerWhenReady();
+      delete waitPrototype[name];
     }
   }
 
@@ -45,6 +47,7 @@
       waiting.forEach(function(w) {
         w.registerWhenReady();
       });
+      delete waitSuper[name];
     }
   }
 
@@ -88,14 +91,29 @@
       if (!getRegisteredPrototype(name)) {
         // then wait for a prototype
         waitPrototype[name] = this;
+        // TODO(sjmiles): there is currently a massive delay between parsing
+        // HTML in imports and executing script that foils this `async` gambit
+        // Ideally the import polyfill has timing closer to the real deal; in
+        // the meantime, invert the strategy and require `noscript` marking
+        // instead.
+        /*
         // if we are not explicitly async,
         // then wait for end of microtask(-ish)
         // and use whatever prototype is available
         if (!this.hasAttribute('async')) {
           setTimeout(function() {
             if (!getRegisteredPrototype(name)) {
+              console.warn('giving up waiting for script for [' + name + ']');
               element(name, null);
             }
+          }, 3000);
+        }
+        */
+        if (this.hasAttribute('noscript')) {
+          // go async so the parser can process the element's children before
+          // registration
+          setTimeout(function() {
+            element(name, null);
           }, 0);
         }
         return;
