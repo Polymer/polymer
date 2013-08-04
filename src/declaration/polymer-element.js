@@ -91,7 +91,7 @@
       if (!getRegisteredPrototype(name)) {
         // then wait for a prototype
         waitPrototype[name] = this;
-        // TODO(sjmiles): there is currently a massive delay between parsing
+        // TODO(sjmiles): there is a massive asynchrony between parsing
         // HTML in imports and executing script that foils this `async` gambit
         // Ideally the import polyfill has timing closer to the real deal; in
         // the meantime, invert the strategy and require `noscript` marking
@@ -119,20 +119,28 @@
         return;
       }
       // fetch our extendee name
-      var extnds = this.getAttribute('extends');
+      var extendee = this.getAttribute('extends');
       // if extending a custom element...
-      if (extnds && extnds.indexOf('-') >= 0) {
+      if (extendee && extendee.indexOf('-') >= 0) {
         // wait for the extendee to be registered first
-        if (!getRegisteredPrototype(extnds)) {
-          (waitSuper[extnds] = (waitSuper[extnds] || [])).push(this);
+        if (!getRegisteredPrototype(extendee)) {
+          (waitSuper[extendee] = (waitSuper[extendee] || [])).push(this);
           return;
         }
       }
-      this.register(name, extnds);
+      // TODO(sjmiles): HTMLImports polyfill awareness
+      if (document.contains(this) && window.HTMLImports && !HTMLImports.readyTime) {
+        addEventListener('HTMLImportsLoaded', function() {
+          this.register(name, extendee);
+        }.bind(this));
+      } else {
+        this.register(name, extendee);
+      }
     },
-    register: function(name, extnds) {
+    register: function(name, extendee) {
+      console.log(name, extendee);
       // build prototype combining extendee, Polymer base, and named api
-      this.prototype = this.generateCustomPrototype(name, extnds);
+      this.prototype = this.generateCustomPrototype(name, extendee);
       // backref
       this.prototype.element = this;
       // TODO(sorvell): install a helper method this.resolvePath to aid in 
@@ -146,7 +154,7 @@
       this.desugar();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
       if (window.ShadowDOMPolyfill) {
-        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extnds);
+        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
       }
       // register our custom element
       this.registerPrototype(name);
@@ -240,12 +248,12 @@
   // register polymer-element with document
 
   document.register('polymer-element', {prototype: prototype});
-  
-  // namespace shenanigans
+
+  // namespace shenanigans so we can expose our scope on the registration function
 
   // TODO(sjmiles): find a way to do this that is less terrible
   // copy window.Polymer properties onto `element()`
-  extend(element, window.Polymer);
+  extend(element, scope);
   // make window.Polymer reference `element()`
   window.Polymer = element;
 
