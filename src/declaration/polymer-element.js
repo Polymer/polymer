@@ -13,10 +13,10 @@
   // imperative implementation: Polymer()
   
   // maps tag names to prototypes
-  var registry = {};
+  var prototypesByName = {};
 
   function getRegisteredPrototype(name) {
-    return registry[name];
+    return prototypesByName[name];
   }
 
   // elements waiting for prototype, by name
@@ -26,7 +26,7 @@
   function element(name, prototype) {
     //console.log('registering [' + name + ']');
     // cache the prototype
-    registry[name] = prototype || {};
+    prototypesByName[name] = prototype || {};
     // notify the registrar waiting for 'name', if any
     notifyPrototype(name);
   }
@@ -40,12 +40,7 @@
 
   // elements waiting for super, by name
   var waitSuper = {};
-  var registered = {};
-  
-  function isRegistered(name) {
-    return registered[name];
-  }
-  
+
   function notifySuper(name) {
     registered[name] = true;
     var waiting = waitSuper[name];
@@ -55,6 +50,14 @@
       });
       delete waitSuper[name];
     }
+  }
+
+  // track document.register'ed tag names
+
+  var registered = {};
+
+  function isRegistered(name) {
+    return registered[name];
   }
 
   // returns a prototype that chains to <tag> or HTMLElement
