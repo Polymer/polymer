@@ -40,8 +40,14 @@
 
   // elements waiting for super, by name
   var waitSuper = {};
-
+  var registered = {};
+  
+  function isRegistered(name) {
+    return registered[name];
+  }
+  
   function notifySuper(name) {
+    registered[name] = true;
     var waiting = waitSuper[name];
     if (waiting) {
       waiting.forEach(function(w) {
@@ -123,7 +129,7 @@
       // if extending a custom element...
       if (extendee && extendee.indexOf('-') >= 0) {
         // wait for the extendee to be registered first
-        if (!getRegisteredPrototype(extendee)) {
+        if (!isRegistered(extendee)) {
           (waitSuper[extendee] = (waitSuper[extendee] || [])).push(this);
           return;
         }
@@ -138,7 +144,7 @@
       }
     },
     register: function(name, extendee) {
-      //console.log(name, extendee);
+      //console.log('register', name, extendee);
       // build prototype combining extendee, Polymer base, and named api
       this.prototype = this.generateCustomPrototype(name, extendee);
       // backref
