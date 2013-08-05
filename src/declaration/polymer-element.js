@@ -138,7 +138,7 @@
       }
     },
     register: function(name, extendee) {
-      console.log(name, extendee);
+      //console.log(name, extendee);
       // build prototype combining extendee, Polymer base, and named api
       this.prototype = this.generateCustomPrototype(name, extendee);
       // backref
