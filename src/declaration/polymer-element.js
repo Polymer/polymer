@@ -6,12 +6,12 @@
 (function(scope) {
 
   // imports
-  
+
   var extend = Polymer.extend;
   var apis = scope.api.declaration;
 
   // imperative implementation: Polymer()
-  
+
   // maps tag names to prototypes
   var prototypesByName = {};
 
@@ -64,7 +64,7 @@
   function generatePrototype(tag) {
     return Object.create(HTMLElement.getPrototypeForTag(tag));
   }
-  
+
   // On platforms that do not support __proto__ (IE10), the prototype chain
   // of a custom element is simulated via installation of __proto__.
   // Although custom elements manages this, we install it here so it's 
@@ -76,6 +76,14 @@
       if (scope.isBase(ancestor)) {
         ancestor.__proto__ = Object.getPrototypeOf(ancestor);
       }
+    }
+  }
+
+  function whenImportsLoaded(doThis) {
+    if (window.HTMLImports && !HTMLImports.readyTime) {
+      addEventListener('HTMLImportsLoaded', doThis);
+    } else {
+      doThis();
     }
   }
 
@@ -100,30 +108,31 @@
       if (!getRegisteredPrototype(name)) {
         // then wait for a prototype
         waitPrototype[name] = this;
-        // TODO(sjmiles): there is a massive asynchrony between parsing
-        // HTML in imports and executing script that foils this `async` gambit
-        // Ideally the import polyfill has timing closer to the real deal; in
-        // the meantime, invert the strategy and require `noscript` marking
-        // instead.
-        /*
-        // if we are not explicitly async,
-        // then wait for end of microtask(-ish)
-        // and use whatever prototype is available
+        // if we are not explicitly async...
         if (!this.hasAttribute('async')) {
-          setTimeout(function() {
+          // then we expect the script to be registered
+          // by end of microtask(-ish) and can otherwise
+          // consider this element to have no script
+          //
+          // TODO(sjmiles):
+          // we have to wait for end-of-microtask because
+          // native CE upgrades polymer-element (any custom
+          // element, really) *before* it's children are
+          // parsed, and it's common for the script to
+          // exist as a child of the polymer-element
+          //
+          // additionally, there is a massive asynchrony
+          // between parsing HTML in imports and executing
+          // script that foils the end of microtask gambit
+          // Waiting on HTMLImportsLoaded signal solves
+          // both timing problems for imports loaded
+          // at startup under the import polyfill
+          whenImportsLoaded(function() {
             if (!getRegisteredPrototype(name)) {
               console.warn('giving up waiting for script for [' + name + ']');
               element(name, null);
             }
-          }, 3000);
-        }
-        */
-        if (this.hasAttribute('noscript')) {
-          // go async so the parser can process the element's children before
-          // registration
-          setTimeout(function() {
-            element(name, null);
-          }, 0);
+          });
         }
         return;
       }
@@ -138,8 +147,8 @@
         }
       }
       // TODO(sjmiles): HTMLImports polyfill awareness
-      if (document.contains(this) && window.HTMLImports && !HTMLImports.readyTime) {
-        addEventListener('HTMLImportsLoaded', function() {
+      if (document.contains(this)) {
+        whenImportsLoaded(function() {
           this.register(name, extendee);
         }.bind(this));
       } else {
