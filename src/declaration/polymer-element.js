@@ -108,6 +108,21 @@
       if (!getRegisteredPrototype(name)) {
         // then wait for a prototype
         waitPrototype[name] = this;
+        // TODO(sjmiles): 'noscript' gambit is mutually exclusive
+        // with 'async' gambit below
+        //
+        // if explicitly marked as 'noscript'
+        if (this.hasAttribute('noscript')) {
+          // go async to allow children to parse
+          setTimeout(function() {
+            // register with the default prototype
+            element(name, null);
+          }, 0);
+        }
+        // TODO(sjmiles): 'async' gambit is deemed too dangerous
+        // because it changes the timing of noscript elements
+        // in import from 'timeout 0' to 'HTMLImportsReady'
+        /*
         // if we are not explicitly async...
         if (!this.hasAttribute('async')) {
           // then we expect the script to be registered
@@ -134,6 +149,7 @@
             }
           });
         }
+        */
         return;
       }
       // fetch our extendee name
@@ -147,6 +163,11 @@
         }
       }
       // TODO(sjmiles): HTMLImports polyfill awareness
+      // elements in the main document are likely to parse
+      // in advance of elements in imports because the
+      // polyfill parser is simulated
+      // therefore, wait for imports loaded before
+      // finalizing elements in the main document
       if (document.contains(this)) {
         whenImportsLoaded(function() {
           this.register(name, extendee);
