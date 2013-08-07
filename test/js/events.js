@@ -68,9 +68,5 @@ suite('events', function() {
 
 htmlSuite('events-declarative', function() {
   htmlTest('html/event-path.html');
-  // TODO(sorvell): include when we expect to pass
-  //htmlTest('html/event-path-getDistributedNodes.html');
-  // TODO(sorvell): include when we expect to pass; currently expected
-  // to pass only in Canary with expr. features on.
-  //htmlTest('html/event-path-declarative.html');
+  htmlTest('html/event-path-declarative.html');
 });
