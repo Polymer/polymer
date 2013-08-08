@@ -19,15 +19,15 @@
     instanceTemplate: function(template) {
       return template.createInstance(this, mdv_syntax);
     },
-    createBinding: function(name, model, path) {
-      //console.log(arguments);
+    bind: function(name, model, path) {
       var property = this.propertyForAttribute(name);
       if (property) {
+        this.unbind(name);
         // use n-way Polymer binding
         var observer = this.bindProperty(property, model, path);
         // stick path on observer so it's available via this.bindings
         observer.path = path;
-        return observer;
+        return this.bindings[name] = observer;
       } else {
         return this.super(arguments);
       }

@@ -4,6 +4,7 @@
  * license that can be found in the LICENSE file.
  */
 module.exports = function(grunt) {
+  var banner = [grunt.file.read('LICENSE'), '// @version ' + grunt.file.readJSON('package.json').version, ''].join(grunt.util.linefeed);
   Platform = [
     '../platform/platform.min.js'
   ];
@@ -81,7 +82,7 @@ module.exports = function(grunt) {
     },
     uglify: {
       options: {
-        banner: grunt.file.read('LICENSE'),
+        banner: banner,
         nonull: true
       },
       Polymer: {

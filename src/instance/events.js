@@ -85,7 +85,7 @@
     if (!event.cancelBubble) {
       event.on = EVENT_PREFIX + event.type;
       log.events && console.group("[%s]: listenLocal [%s]", host.localName, event.on);
-      if (!event.path || window.ShadowDOMPolyfill) {
+      if (!event.path) {
         _listenLocalNoEventPath(host, event);
       } else {
         _listenLocal(host, event);

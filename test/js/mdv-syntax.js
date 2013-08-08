@@ -11,5 +11,4 @@ htmlSuite('MDV syntax', function() {
   if (!window.ShadowDOMPolyfill) {
     htmlTest('html/mdv-syntax.html');
   }
-  //htmlTest('html/mdv-syntax.html?shadow');
 });
