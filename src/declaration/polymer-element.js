@@ -6,34 +6,69 @@
 (function(scope) {
 
   // imports
-  
+
   var extend = Polymer.extend;
   var apis = scope.api.declaration;
 
-  var deferred = {};
-
   // imperative implementation: Polymer()
-  
-  // maps tag names to prototypes
-  var registry = {};
 
-  // register an 'own' prototype for tag `name`
+  // maps tag names to prototypes
+  var prototypesByName = {};
+
+  function getRegisteredPrototype(name) {
+    return prototypesByName[name];
+  }
+
+  // elements waiting for prototype, by name
+  var waitPrototype = {};
+
+  // specify an 'own' prototype for tag `name`
   function element(name, prototype) {
-    registry[name] = prototype || {};
-    if (deferred[name]) {
-      deferred[name].define();
+    //console.log('registering [' + name + ']');
+    // cache the prototype
+    prototypesByName[name] = prototype || {};
+    // notify the registrar waiting for 'name', if any
+    notifyPrototype(name);
+  }
+
+  function notifyPrototype(name) {
+    if (waitPrototype[name]) {
+      waitPrototype[name].registerWhenReady();
+      delete waitPrototype[name];
     }
   }
-  
+
+  // elements waiting for super, by name
+  var waitSuper = {};
+
+  function notifySuper(name) {
+    registered[name] = true;
+    var waiting = waitSuper[name];
+    if (waiting) {
+      waiting.forEach(function(w) {
+        w.registerWhenReady();
+      });
+      delete waitSuper[name];
+    }
+  }
+
+  // track document.register'ed tag names
+
+  var registered = {};
+
+  function isRegistered(name) {
+    return registered[name];
+  }
+
   // returns a prototype that chains to <tag> or HTMLElement
   function generatePrototype(tag) {
     return Object.create(HTMLElement.getPrototypeForTag(tag));
   }
-  
+
   // On platforms that do not support __proto__ (IE10), the prototype chain
   // of a custom element is simulated via installation of __proto__.
   // Although custom elements manages this, we install it here so it's 
-  // available during desuaring.
+  // available during desugaring.
   function ensurePrototypeTraversal(prototype) {
     if (!Object.__proto__) {
       var ancestor = Object.getPrototypeOf(prototype);
@@ -44,35 +79,108 @@
     }
   }
 
-  // declarative implementation: <polymer-element> 
- 
+  function whenImportsLoaded(doThis) {
+    if (window.HTMLImports && !HTMLImports.readyTime) {
+      addEventListener('HTMLImportsLoaded', doThis);
+    } else {
+      doThis();
+    }
+  }
+
+  // declarative implementation: <polymer-element>
+
   var prototype = generatePrototype();
+
   extend(prototype, {
     // TODO(sjmiles): temporary BC
     readyCallback: function() {
-      this._createdCallback();
+      this.createdCallback();
     },
     createdCallback: function() {
-      this._createdCallback();
+      // fetch the element name
+      this.name = this.getAttribute('name');
+      // install element definition, if ready
+      this.registerWhenReady();
     },
-    // custom element processing
-    _createdCallback: function() {
-      // fetch our element name
-      var name = this.getAttribute('name');
-      if (registry[name]) {
-        this.define();
+    registerWhenReady: function() {
+      var name = this.name;
+      // if we have no prototype
+      if (!getRegisteredPrototype(name)) {
+        // then wait for a prototype
+        waitPrototype[name] = this;
+        // TODO(sjmiles): 'noscript' gambit is mutually exclusive
+        // with 'async' gambit below
+        //
+        // if explicitly marked as 'noscript'
+        if (this.hasAttribute('noscript')) {
+          // go async to allow children to parse
+          setTimeout(function() {
+            // register with the default prototype
+            element(name, null);
+          }, 0);
+        }
+        // TODO(sjmiles): 'async' gambit is deemed too dangerous
+        // because it changes the timing of noscript elements
+        // in import from 'timeout 0' to 'HTMLImportsReady'
+        /*
+        // if we are not explicitly async...
+        if (!this.hasAttribute('async')) {
+          // then we expect the script to be registered
+          // by end of microtask(-ish) and can otherwise
+          // consider this element to have no script
+          //
+          // TODO(sjmiles):
+          // we have to wait for end-of-microtask because
+          // native CE upgrades polymer-element (any custom
+          // element, really) *before* it's children are
+          // parsed, and it's common for the script to
+          // exist as a child of the polymer-element
+          //
+          // additionally, there is a massive asynchrony
+          // between parsing HTML in imports and executing
+          // script that foils the end of microtask gambit
+          // Waiting on HTMLImportsLoaded signal solves
+          // both timing problems for imports loaded
+          // at startup under the import polyfill
+          whenImportsLoaded(function() {
+            if (!getRegisteredPrototype(name)) {
+              console.warn('giving up waiting for script for [' + name + ']');
+              element(name, null);
+            }
+          });
+        }
+        */
+        return;
+      }
+      // fetch our extendee name
+      var extendee = this.getAttribute('extends');
+      // if extending a custom element...
+      if (extendee && extendee.indexOf('-') >= 0) {
+        // wait for the extendee to be registered first
+        if (!isRegistered(extendee)) {
+          (waitSuper[extendee] = (waitSuper[extendee] || [])).push(this);
+          return;
+        }
+      }
+      // TODO(sjmiles): HTMLImports polyfill awareness
+      // elements in the main document are likely to parse
+      // in advance of elements in imports because the
+      // polyfill parser is simulated
+      // therefore, wait for imports loaded before
+      // finalizing elements in the main document
+      if (document.contains(this)) {
+        whenImportsLoaded(function() {
+          this.register(name, extendee);
+        }.bind(this));
       } else {
-        deferred[name] = this;
+        this.register(name, extendee);
       }
     },
-    define: function() {
-      // fetch our element name
-      var name = this.getAttribute('name');
-      // fetch our extendee name
-      var extnds = this.getAttribute('extends');
+    register: function(name, extendee) {
+      //console.log('register', name, extendee);
       // build prototype combining extendee, Polymer base, and named api
-      this.prototype = this.generateCustomPrototype(name, extnds);
-      // questionable backref
+      this.prototype = this.generateCustomPrototype(name, extendee);
+      // backref
       this.prototype.element = this;
       // TODO(sorvell): install a helper method this.resolvePath to aid in 
       // setting resource paths. e.g. 
@@ -85,12 +193,14 @@
       this.desugar();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
       if (window.ShadowDOMPolyfill) {
-        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extnds);
+        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
       }
       // register our custom element
-      this.register(name);
-      // reference constructor in a global named by 'constructor' attribute    
+      this.registerPrototype(name);
+      // reference constructor in a global named by 'constructor' attribute
       this.publishConstructor();
+      // subclasses may now register themselves
+      notifySuper(name);
     },
     // implement various declarative features
     desugar: function(prototype) {
@@ -142,7 +252,7 @@
     // mix api registered to 'name' into 'prototype' 
     addNamedApi: function(prototype, name) { 
       // combine custom api into prototype
-      return extend(prototype, registry[name]);
+      return extend(prototype, getRegisteredPrototype(name));
     },
     // make a fresh object that inherits from a prototype object
     inheritObject: function(prototype, name) {
@@ -150,7 +260,7 @@
       prototype[name] = extend({}, Object.getPrototypeOf(prototype)[name]);
     },
     // register 'prototype' to custom element 'name', store constructor 
-    register: function(name) { 
+    registerPrototype: function(name) { 
       // register the custom type
       this.ctor = document.register(name, {
         prototype: this.prototype
@@ -177,12 +287,12 @@
   // register polymer-element with document
 
   document.register('polymer-element', {prototype: prototype});
-  
-  // namespace shenanigans
+
+  // namespace shenanigans so we can expose our scope on the registration function
 
   // TODO(sjmiles): find a way to do this that is less terrible
   // copy window.Polymer properties onto `element()`
-  extend(element, window.Polymer);
+  extend(element, scope);
   // make window.Polymer reference `element()`
   window.Polymer = element;
 

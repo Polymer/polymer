@@ -6,9 +6,9 @@
 
 suite('register', function() {
   var assert = chai.assert;
-  
+
   var work;
-  
+
   setup(function() {
     work = document.createElement('div');
     wrap(document.body).appendChild(work);
@@ -48,4 +48,8 @@ htmlSuite('element callbacks', function() {
 
 htmlSuite('element script', function() {
   htmlTest('html/element-script.html');
+});
+
+htmlSuite('element registration', function() {
+  htmlTest('html/element-registration.html');
 });
