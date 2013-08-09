@@ -108,48 +108,13 @@
       if (!getRegisteredPrototype(name)) {
         // then wait for a prototype
         waitPrototype[name] = this;
-        // TODO(sjmiles): 'noscript' gambit is mutually exclusive
-        // with 'async' gambit below
-        //
         // if explicitly marked as 'noscript'
         if (this.hasAttribute('noscript')) {
-          // go async to allow children to parse
-          setTimeout(function() {
-            // register with the default prototype
-            element(name, null);
-          }, 0);
+          var script = document.createElement('script');
+          script.textContent = 'Polymer(\'' + name + '\');';
+          this.appendChild(script);
+          
         }
-        // TODO(sjmiles): 'async' gambit is deemed too dangerous
-        // because it changes the timing of noscript elements
-        // in import from 'timeout 0' to 'HTMLImportsReady'
-        /*
-        // if we are not explicitly async...
-        if (!this.hasAttribute('async')) {
-          // then we expect the script to be registered
-          // by end of microtask(-ish) and can otherwise
-          // consider this element to have no script
-          //
-          // TODO(sjmiles):
-          // we have to wait for end-of-microtask because
-          // native CE upgrades polymer-element (any custom
-          // element, really) *before* it's children are
-          // parsed, and it's common for the script to
-          // exist as a child of the polymer-element
-          //
-          // additionally, there is a massive asynchrony
-          // between parsing HTML in imports and executing
-          // script that foils the end of microtask gambit
-          // Waiting on HTMLImportsLoaded signal solves
-          // both timing problems for imports loaded
-          // at startup under the import polyfill
-          whenImportsLoaded(function() {
-            if (!getRegisteredPrototype(name)) {
-              console.warn('giving up waiting for script for [' + name + ']');
-              element(name, null);
-            }
-          });
-        }
-        */
         return;
       }
       // fetch our extendee name
@@ -177,7 +142,6 @@
       }
     },
     register: function(name, extendee) {
-      //console.log('register', name, extendee);
       // build prototype combining extendee, Polymer base, and named api
       this.prototype = this.generateCustomPrototype(name, extendee);
       // backref
