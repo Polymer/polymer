@@ -140,7 +140,10 @@ module.exports = function(grunt) {
             '../CustomElements',
             '../PointerEvents',
             '../PointerGestures',
-            '../mdv'
+            '../PolymerExpressions',
+            '../ObserveJS',
+            '../Node-bind',
+            '../Template-instantiation'
           ]
         },
         dest: 'build.log',
