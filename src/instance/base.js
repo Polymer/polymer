@@ -10,7 +10,11 @@
     job: Polymer.job,
     super: Polymer.super,
     // user entry point for constructor-like initialization
+    created: function() {
+    },
+    // TODO(sorvell): temporary BC
     ready: function() {
+
     },
     // TODO(sjmiles): temporary BC
     readyCallback: function() {
@@ -40,7 +44,9 @@
       // when polyfilling Object.observe
       //this.asyncUnbindAll();
       // user initialization
+      // TODO(sorvell): bc
       this.ready();
+      this.created();
     },
     insertedCallback: function() {
       this._enteredDocumentCallback();
