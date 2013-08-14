@@ -38,9 +38,19 @@
         waitPrototype[name] = this;
         // if explicitly marked as 'noscript'
         if (this.hasAttribute('noscript')) {
-          var script = document.createElement('script');
-          script.textContent = 'Polymer(\'' + name + '\');';
-          this.appendChild(script);
+          // TODO(sorvell): CustomElements polyfill awareness:
+          // noscript elements should upgrade in logical order
+          // script injection ensures this under native custom elements;
+          // under imports + ce polyfill, scripts run before upgrades
+          // dependencies should be ready at upgrade time so register
+          // prototype at this time.
+          if (window.CustomElements && !CustomElements.useNative) {
+            element(name);
+          } else {
+            var script = document.createElement('script');
+            script.textContent = 'Polymer(\'' + name + '\');';
+            this.appendChild(script);
+          }
         }
         return;
       }
