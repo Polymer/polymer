@@ -144,7 +144,7 @@ module.exports = function(grunt) {
             '../polymer-expressions',
             '../observe-js',
             '../NodeBind',
-            '../TemplateInstances'
+            '../TemplateBinding'
           ]
         },
         dest: 'build.log',
