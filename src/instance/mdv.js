@@ -27,6 +27,10 @@
         var observer = this.bindProperty(property, model, path);
         // stick path on observer so it's available via this.bindings
         observer.path = path;
+        // reflect bound property to attribute when binding
+        // to ensure binding is not left on attribute if property
+        // does not update due to not changing.
+        this.propertyToAttribute(name);
         return this.bindings[name] = observer;
       } else {
         return this.super(arguments);

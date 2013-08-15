@@ -37,7 +37,7 @@
         // filter out 'mustached' values, these are to be
         // replaced with bound-data and are not yet values
         // themselves
-        if (value.search(scope.bindPattern) >= 0) {
+        if (value && value.search(scope.bindPattern) >= 0) {
           return;
         }
         // get original value
@@ -70,7 +70,14 @@
     propertyToAttribute: function(name) {
       if (Object.keys(this[PUBLISHED]).indexOf(name) >= 0) {
         var serializedValue = this.serializeValue(this[name]);
-        if (serializedValue !== undefined) {
+        // boolean properties must reflect as boolean attributes
+        if (typeof this.__proto__[name] === 'boolean') {
+          if (serializedValue) {
+            this.setAttribute(name, '');
+          } else {
+            this.removeAttribute(name);
+          }
+        } else if (serializedValue !== undefined) {
           this.setAttribute(name, serializedValue);
         }
       }
@@ -78,7 +85,7 @@
   };
 
   var lowerCase = String.prototype.toLowerCase.call.bind(
-      String.prototype.toLowerCase);
+    String.prototype.toLowerCase);
 
   // exports
 
