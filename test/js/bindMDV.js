@@ -23,18 +23,17 @@ suite('bindMDV', function() {
     
     test.bar = 5;
     Platform.flush();
-    setTimeout(function() {
+    Platform.endOfMicrotask(function() {
       assert.equal(a.getAttribute('foo'), 5);
-      //
       test.bar = 8;
       Platform.flush();
-      setTimeout(function() {
+      Platform.endOfMicrotask(function() {
         assert.equal(a.getAttribute('foo'), 8);
         done();
       });
     });
   });
-    
+  
   test('bindModel bind input', function(done) {
     var test = document.createElement('div');
     var fragment = parseAndBindHTML('<input value="{{bar}}" />', test);
@@ -43,12 +42,14 @@ suite('bindMDV', function() {
     
     test.bar = 'hello';
     Platform.flush();
-    setTimeout(function() {
+    Platform.endOfMicrotask(function() {
       assert.equal(a.value, 'hello');
       done();
     });
   });
+  
 });
+
 
 htmlSuite('unbind', function() {
   htmlTest('html/template-distribute-dynamic.html');

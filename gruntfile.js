@@ -38,6 +38,7 @@ module.exports = function(grunt) {
     "declaration/events.js",
     "declaration/properties.js",
     "declaration/attributes.js",
+    "declaration/prototype.js",
     "declaration/polymer-element.js",
     "deprecated.js"
   ].map(function(n) {
@@ -140,7 +141,10 @@ module.exports = function(grunt) {
             '../CustomElements',
             '../PointerEvents',
             '../PointerGestures',
-            '../mdv'
+            '../polymer-expressions',
+            '../observe-js',
+            '../NodeBind',
+            '../TemplateInstances'
           ]
         },
         dest: 'build.log',

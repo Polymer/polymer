@@ -46,10 +46,8 @@ htmlSuite('element callbacks', function() {
   htmlTest('html/callbacks.html');
 });
 
-htmlSuite('element script', function() {
-  htmlTest('html/element-script.html');
-});
-
 htmlSuite('element registration', function() {
+  htmlTest('html/element-script.html');
   htmlTest('html/element-registration.html');
+  htmlTest('html/element-import.html');
 });

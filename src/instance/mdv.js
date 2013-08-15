@@ -11,7 +11,7 @@
 
   // use an MDV syntax
     
-  var mdv_syntax = new ExpressionSyntax();
+  var mdv_syntax = new PolymerExpressions();
 
   // element api supporting mdv
 
