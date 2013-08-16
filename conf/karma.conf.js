@@ -1,5 +1,5 @@
 module.exports = function(karma) {
-  karma.configure({
+  karma.set({
     // base path, that will be used to resolve files and exclude
     basePath: '../../',
 
@@ -21,13 +21,16 @@ module.exports = function(karma) {
       {pattern: 'CustomElements/src/*.js', included: false},
       {pattern: 'HTMLImports/html-imports.js', included: false},
       {pattern: 'HTMLImports/src/*', included: false},
-      {pattern: 'mdv/mdv.js', included: false},
-      {pattern: 'mdv/src/*', included: false},
-      {pattern: 'mdv/third_party/**/*.js', included: false},
-      {pattern: 'mdv/util/*.js', included: false},
-      {pattern: 'mdv/tests/*.js', included: false},
       {pattern: 'ShadowDOM/shadowdom.js', included: false},
       {pattern: 'ShadowDOM/src/**/*.js', included: false},
+			{pattern: 'observe-js/src/*.js', included: false},
+			{pattern: 'observe-js/util/*.js', included: false},
+			{pattern: 'NodeBind/src/*.js', included: false},
+			{pattern: 'TemplateBinding/load.js', included: false},
+			{pattern: 'TemplateBinding/src/*.js', included: false},
+			{pattern: 'TemplateBinding/src/*.css', included: false},
+			{pattern: 'polymer-expressions/src/*.js', included: false},
+			{pattern: 'polymer-expressions/third_party/**/*.js', included: false},
       {pattern: 'PointerEvents/pointerevents.js', included: false},
       {pattern: 'PointerEvents/src/*.js', included: false},
       {pattern: 'PointerGestures/pointergestures.js', included: false},
