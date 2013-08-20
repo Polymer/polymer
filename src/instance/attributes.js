@@ -62,24 +62,30 @@
     deserializeValue: function(stringValue, defaultValue) {
       return scope.deserializeValue(stringValue, defaultValue);
     },
-    serializeValue: function(value) {
-      if (typeof value != 'object' && value !== undefined) {
+    serializeValue: function(value, inferredType) {
+      if (inferredType === 'boolean') {
+        return value ? '' : undefined;
+      } else if (inferredType !== 'object' && typeof value !== 'object' &&
+          value !== undefined) {
         return value;
       }
     },
     propertyToAttribute: function(name) {
       if (Object.keys(this[PUBLISHED]).indexOf(name) >= 0) {
-        var serializedValue = this.serializeValue(this[name]);
+        var inferredType = typeof this.__proto__[name];
+        var serializedValue = this.serializeValue(this[name], inferredType);
         // boolean properties must reflect as boolean attributes
-        if (typeof this.__proto__[name] === 'boolean') {
-          if (serializedValue) {
-            this.setAttribute(name, '');
-          } else {
-            this.removeAttribute(name);
-          }
-        } else if (serializedValue !== undefined) {
+        if (serializedValue !== undefined) {
           this.setAttribute(name, serializedValue);
+        // TODO(sorvell): we should remove attr for all properties 
+        // that have undefined serialization; however, we will need to 
+        // refine the attr reflection system to achieve this; pica, for example,
+        // relies on having inferredType object properties not removed as 
+        // attrs.
+        } else if (inferredType === 'boolean') {
+          this.removeAttribute(name);
         }
+        
       }
     }
   };
