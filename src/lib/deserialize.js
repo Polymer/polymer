@@ -7,23 +7,23 @@
 (function(scope) {
 
   var typeHandlers = {
-    'string': function(value) {
+    string: function(value) {
       return value;
     },
-    'date': function(value) {
+    date: function(value) {
       return new Date(Date.parse(value) || Date.now());
     },
-    'boolean': function(value) {
+    boolean: function(value) {
       if (value === '') {
         return true;
       }
       return value === 'false' ? false : !!value;
     },
-    'number': function(value) {
+    number: function(value) {
       var floatVal = parseFloat(value);
       return (String(floatVal) === value) ? floatVal : value;
     },
-    'object': function(value, defaultValue) {
+    object: function(value, defaultValue) {
       if (defaultValue === null) {
         return value;
       }
