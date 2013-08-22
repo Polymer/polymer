@@ -5,45 +5,26 @@
  */
 module.exports = function(grunt) {
   var banner = [grunt.file.read('LICENSE'), '// @version ' + grunt.file.readJSON('package.json').version, ''].join(grunt.util.linefeed);
-  Platform = [
-    '../platform/platform.min.js'
-  ];
-  
-  PlatformNative = [
-    '../platform/platform.native.min.js'
-  ];
 
-  PlatformSandbox = [
-    '../platform/platform.sandbox.min.js'
-  ];
-  
-  Polymer = [
-    "polymer.js",
-    "boot.js",
-    "lib/lang.js",
-    "lib/job.js",
-    "lib/dom.js",
-    "lib/super.js",
-    "lib/deserialize.js",
-    "api.js",
-    "instance/utils.js",
-    "instance/events.js",
-    "instance/attributes.js",
-    "instance/properties.js",
-    "instance/mdv.js",
-    "instance/base.js",
-    "instance/styles.js",
-    "declaration/path.js",
-    "declaration/styles.js",
-    "declaration/events.js",
-    "declaration/properties.js",
-    "declaration/attributes.js",
-    "declaration/prototype.js",
-    "declaration/polymer-element.js",
-    "deprecated.js"
-  ].map(function(n) {
-    return "src/" + n;
-  });
+  // recursive module builder
+  var path = require('path');
+  function readManifest(filename, modules) {
+    modules = modules || [];
+    var lines = grunt.file.readJSON(filename);
+    var dir = path.dirname(filename);
+    lines.forEach(function(line) {
+      var fullpath = path.join(dir, line);
+      if (line.slice(-5) == '.json') {
+        // recurse
+        readManifest(fullpath, modules);
+      } else {
+        modules.push(fullpath);
+      }
+    });
+    return modules;
+  }
+
+  Polymer = readManifest('build.json');
 
   // karma setup
   var browsers;
@@ -81,6 +62,16 @@ module.exports = function(grunt) {
         browsers: browsers
       }
     },
+    concat_sourcemap: {
+      Polymer: {
+        options: {
+          sourcesContent: true
+        },
+        files: {
+          'polymer.concat.js': Polymer
+        }
+      }
+    },
     uglify: {
       options: {
         banner: banner,
@@ -89,27 +80,11 @@ module.exports = function(grunt) {
       Polymer: {
         options: {
           sourceMap: 'polymer.min.js.map',
+          sourceMapIn: 'polymer.concat.js.map'
           //mangle: false, beautify: true, compress: false
         },
         files: {
-          'polymer.min.js': [].concat(Platform, Polymer)
-        }
-      },
-      PolymerNative: {
-        options: {
-          sourceMap: 'polymer.native.min.js.map'
-        },
-        files: {
-          'polymer.native.min.js': [].concat(PlatformNative, Polymer)
-        }
-      },
-      PolymerSandbox: {
-        options: {
-          sourceMap: 'polymer.sandbox.min.js.map',
-          //mangle: false, beautify: true, compress: false
-        },
-        files: {
-          'polymer.sandbox.min.js': [].concat(PlatformSandbox, Polymer)
+          'polymer.min.js': 'polymer.concat.js'
         }
       }
     },
@@ -150,8 +125,6 @@ module.exports = function(grunt) {
         dest: 'build.log',
         src: [
           'polymer.min.js',
-          'polymer.native.min.js',
-          'polymer.sandbox.min.js'
         ]
       }
     },
@@ -161,11 +134,18 @@ module.exports = function(grunt) {
   // plugins
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
+  grunt.loadNpmTasks('grunt-concat-sourcemap');
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-audit');
 
   // tasks
-  grunt.registerTask('default', ['uglify', 'audit']);
+  grunt.registerTask('sourcemap_copy', 'Copy sourcesContent between sourcemaps', function(source, dest) {
+    var sourceMap = grunt.file.readJSON(source);
+    var destMap = grunt.file.readJSON(dest);
+    destMap.sourcesContent = sourceMap.sourcesContent;
+    grunt.file.write(dest, JSON.stringify(destMap));
+  });
+  grunt.registerTask('default', ['concat_sourcemap', 'uglify', 'sourcemap_copy:polymer.concat.js.map:polymer.min.js.map', 'audit']);
   grunt.registerTask('minify', ['uglify']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['karma:polymer']);
