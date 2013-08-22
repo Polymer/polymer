@@ -9,9 +9,11 @@
   var path = {
     addResolvePathApi: function() {
       var root = this.elementPath();
+      // let assetpath attribute modify the resolve path
+      var assetPath = this.getAttribute('assetpath') || '';
       this.prototype.resolvePath = function(inPath) {
-        return root + inPath;
-      }
+        return root + assetPath + inPath;
+      };
     },
     elementPath: function() {
       return this.urlToPath(HTMLImports.getDocumentUrl(this.ownerDocument));
