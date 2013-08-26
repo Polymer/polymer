@@ -1,5 +1,7 @@
 # Polymer
 
+[![Polymer build status](http://www.polymer-project.org/build/polymer/status.png "Polymer build status")](http://build.chromium.org/p/client.polymer/waterfall)
+
 Build Status: [http://build.chromium.org/p/client.polymer/waterfall](http://build.chromium.org/p/client.polymer/waterfall)
 
 ## Brief Overview
