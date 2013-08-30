@@ -26,6 +26,7 @@
      */
     installSheets: function() {
       this.cacheSheets();
+      this.cacheStyles();
       this.installLocalSheets();
       this.installGlobalStyles();
     },
@@ -35,6 +36,14 @@
     cacheSheets: function() {
       this.sheets = this.findNodes(SHEET_SELECTOR);
       this.sheets.forEach(function(s) {
+        if (s.parentNode) {
+          s.parentNode.removeChild(s);
+        }
+      });
+    },
+    cacheStyles: function() {
+      this.styles = this.findNodes(STYLE_SELECTOR + '[' + SCOPE_ATTR + ']');
+      this.styles.forEach(function(s) {
         if (s.parentNode) {
           s.parentNode.removeChild(s);
         }
@@ -101,11 +110,9 @@
       sheets.forEach(function(sheet) {
         cssText += cssTextFromSheet(sheet) + '\n\n';
       });
-      // handle style elements
-      var styles = this.findNodes(STYLE_SELECTOR, matcher);
+      // handle cached style elements
+      var styles = this.styles.filter(matcher);
       styles.forEach(function(style) {
-        // in case we're in document, remove from element
-        style.parentNode.removeChild(style);
         cssText += style.textContent + '\n\n';
       });
       return cssText;
