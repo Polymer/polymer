@@ -52,7 +52,7 @@
       * @param {Node} toNode Target node.
       */
     asyncFire: function(/*inType, inDetail*/) {
-      this.asyncMethod("fire", arguments);
+      this.async("fire", arguments);
     },
     /**
       * Remove class from old, add class to anew, if they exist
