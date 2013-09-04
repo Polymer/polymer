@@ -78,14 +78,16 @@
   // bind a property in A to a path in B by converting A[property] to a
   // getter/setter pair that accesses B[...path...]
   function bindProperties(inA, inProperty, inB, inPath) {
-    log.bind && console.log(LOG_BIND_PROPS, inB.localName || 'object', inPath, inA.localName, inProperty);
+    log.bind && console.log(LOG_BIND_PROPS, inB.localName || 'object',
+        inPath, inA.localName, inProperty);
     // capture A's value if B's value is null or undefined,
     // otherwise use B's value
-    var v = PathObserver.getValueAtPath(inB, inPath);
+    var path = Path.get(inPath);
+    var v = path.getValueFrom(inB);
     if (v === null || v === undefined) {
-      PathObserver.setValueAtPath(inB, inPath, inA[inProperty]);
+      path.setValueFrom(inB, inA[inProperty]);
     }
-    return PathObserver.defineProperty(inA, inProperty, 
+    return PathObserver.defineProperty(inA, inProperty,
         {object: inB, path: inPath});
   }
 
