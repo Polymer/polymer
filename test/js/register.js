@@ -20,6 +20,7 @@ suite('register', function() {
 
   test('register', function(done) {
     Polymer('x-register-foo', {
+      forceReady: true,
       ready: function() {
         this.message = 'foo';
       },

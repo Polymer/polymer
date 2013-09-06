@@ -16,27 +16,35 @@
     ready: function() {
 
     },
-    // TODO(sjmiles): temporary BC
-    readyCallback: function() {
-      this._createdCallback();
-    },
     createdCallback: function() {
-      this._createdCallback();
+      if (this.ownerDocument.defaultView || this.forceReady ||
+          Polymer.preparingElements) {
+        this.prepare();
+      }
     },
     // system entry point, do not override
-    _createdCallback: function() {
+    prepare: function() {
+      if (this._prepared) {
+        return;
+      }
+      this._prepared = true;
       //this.style.display = 'inline-block';
       // install property observers
-      // do this first so we can observe changes during initialization
-      this.observeProperties();
       // install boilerplate attributes
       this.copyInstanceAttributes();
       // process input attributes
       this.takeAttributes();
+      // do this first so we can observe changes during initialization
+      //this.observeProperties();
       // add event listeners
       this.addHostListeners();
+      // forces sub-elements to be prepared
+      Polymer.preparingElements = true;
       // process declarative resources
       this.parseElements(this.__proto__);
+      Polymer.preparingElements = false;
+      this.observeProperties();
+      //Platform.endOfMicrotask(this.initializeProperties.bind(this));
       // unless this element is inserted into the main document
       // (or the user otherwise specifically prevents it)
       // bindings will self destruct after a short time; this is 
@@ -45,38 +53,25 @@
       //this.asyncUnbindAll();
       // user initialization
       // TODO(sorvell): bc
+      //console.log('created', this);
       this.ready();
       this.created();
-    },
-    insertedCallback: function() {
-      this._enteredDocumentCallback();
+      // TODO(sorvell): refactor so this doesn't depend on properties already
+      // having been observed
+      this.initializeProperties();
     },
     enteredDocumentCallback: function() {
-      this._enteredDocumentCallback();
-    },
-    _enteredDocumentCallback: function() {
-      this.cancelUnbindAll(true);
-      // TODO(sorvell): bc
-      if (this.inserted) {
-        this.inserted();
+      if (!this.forceReady) {
+        this.prepare();
       }
+      this.cancelUnbindAll(true);
       // invoke user action
       if (this.enteredDocument) {
         this.enteredDocument();
       }
     },
-    removedCallback: function() {
-      this._leftDocumentCallback();
-    },
     leftDocumentCallback: function() {
-      this._leftDocumentCallback();
-    },
-    _leftDocumentCallback: function() {
       this.asyncUnbindAll();
-      // TODO(sorvell): bc
-      if (this.removed) {
-        this.removed();
-      }
       // invoke user action
       if (this.leftDocument) {
         this.leftDocument();
