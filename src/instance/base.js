@@ -145,6 +145,13 @@
       if (this.attributeChanged) {
         this.attributeChanged.apply(this, arguments);
       }
+    },
+    onMutation: function(node, listener) {
+      var observer = new MutationObserver(function() {
+        listener.call(this, observer);
+        observer.disconnect();
+      }.bind(this));
+      observer.observe(node, {childList: true, subtree: true});
     }
   };
 
