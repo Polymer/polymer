@@ -38,13 +38,18 @@
       }
     },
     addNodeListeners: function(node, events, listener) {
+      // note: conditional inside loop as optimization
+      // for empty 'events' object
       var fn;
       for (var n in events) {
         if (!fn) {
           fn = listener.bind(this);
         }
-        node.addEventListener(n, fn);
+        this.addNodeListener(node, n, fn);
       }
+    },
+    addNodeListener: function(node, event, listener) {
+      node.addEventListener(event, listener);
     },
     hostEventListener: function(event) {
       if (!event.cancelBubble) {
@@ -142,15 +147,6 @@
       node = node.parentNode;
     }
     return node.host;
-    /*
-    // find the shadow root with dispatching host that contains node
-    while (node) {
-      if (node.host && node.host.dispatchMethod) {
-        return node.host
-      }
-      node = node.parentNode;
-    }
-    */
   };
 
   function handleEvent(ctrlr, node, event) {
