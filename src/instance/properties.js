@@ -47,7 +47,7 @@
     // property should be observed if it has an observation callback
     // or if it is published
     shouldObserveProperty: function(name) {
-      return Boolean(this[name + OBSERVE_SUFFIX] || this[PUBLISHED][name]);
+      return Boolean(this[name + OBSERVE_SUFFIX] || this[PUBLISHED][name] !== undefined);
     },
     bindProperty: function(property, model, path) {
       // apply Polymer two-way reference binding
