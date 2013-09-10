@@ -31,8 +31,31 @@
       this.registerWhenReady();
     },
     registerWhenReady: function() {
-      var name = this.name;
-      // if we have no prototype
+      // if we have no prototype, wait
+      if (this.waitingForPrototype(this.name)) {
+        return;
+      }
+      // fetch our extendee name
+      var extendee = this.getAttribute('extends');
+      if (this.waitingForExtendee(extendee)) {
+        console.warn(this.name + ': waitingForExtendee:' + extendee);
+        return;
+      }
+      // TODO(sjmiles): HTMLImports polyfill awareness:
+      // elements in the main document are likely to parse
+      // in advance of elements in imports because the
+      // polyfill parser is simulated
+      // therefore, wait for imports loaded before
+      // finalizing elements in the main document
+      if (document.contains(this)) {
+        whenImportsLoaded(function() {
+          this.register(this.name, extendee);
+        }.bind(this));
+      } else {
+        this.register(this.name, extendee);
+      }
+    },
+    waitingForPrototype: function(name) {
       if (!getRegisteredPrototype(name)) {
         // then wait for a prototype
         waitPrototype[name] = this;
@@ -41,7 +64,7 @@
           // TODO(sorvell): CustomElements polyfill awareness:
           // noscript elements should upgrade in logical order
           // script injection ensures this under native custom elements;
-          // under imports + ce polyfill, scripts run before upgrades
+          // under imports + ce polyfills, scripts run before upgrades.
           // dependencies should be ready at upgrade time so register
           // prototype at this time.
           if (window.CustomElements && !CustomElements.useNative) {
@@ -52,30 +75,17 @@
             this.appendChild(script);
           }
         }
-        return;
+        return true;
       }
-      // fetch our extendee name
-      var extendee = this.getAttribute('extends');
+    },
+    waitingForExtendee: function(extendee) {
       // if extending a custom element...
       if (extendee && extendee.indexOf('-') >= 0) {
         // wait for the extendee to be registered first
         if (!isRegistered(extendee)) {
           (waitSuper[extendee] = (waitSuper[extendee] || [])).push(this);
-          return;
+          return true;
         }
-      }
-      // TODO(sjmiles): HTMLImports polyfill awareness:
-      // elements in the main document are likely to parse
-      // in advance of elements in imports because the
-      // polyfill parser is simulated
-      // therefore, wait for imports loaded before
-      // finalizing elements in the main document
-      if (document.contains(this)) {
-        whenImportsLoaded(function() {
-          this.register(name, extendee);
-        }.bind(this));
-      } else {
-        this.register(name, extendee);
       }
     },
     register: function(name, extendee) {
