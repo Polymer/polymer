@@ -44,6 +44,11 @@
         registerObserver(this, name, observer);
       }
     },
+    // property should be observed if it has an observation callback
+    // or if it is published
+    shouldObserveProperty: function(name) {
+      return Boolean(this[name + OBSERVE_SUFFIX] || this[PUBLISHED][name]);
+    },
     bindProperty: function(property, model, path) {
       // apply Polymer two-way reference binding
       return bindProperties(this, property, model, path);
@@ -53,12 +58,6 @@
     },
     unbindAllProperties: function() {
       unregisterObservers(this);
-    },
-    // property should be observed if it has an observation callback
-    // or if it is published
-    shouldObserveProperty: function(name) {
-      return Boolean(this[name + OBSERVE_SUFFIX] || 
-          Object.keys(this[PUBLISHED]).indexOf(name) >= 0);
     },
     dispatchPropertyChange: function(name, oldValue) {
       this.propertyToAttribute(name);

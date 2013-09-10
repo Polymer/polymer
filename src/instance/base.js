@@ -14,7 +14,6 @@
     },
     // TODO(sorvell): temporary BC
     ready: function() {
-
     },
     // TODO(sjmiles): temporary BC
     readyCallback: function() {
