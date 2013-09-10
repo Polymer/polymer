@@ -14,7 +14,6 @@
     },
     // TODO(sorvell): temporary BC
     ready: function() {
-
     },
     createdCallback: function() {
       if (this.ownerDocument.defaultView || this.forceReady ||

@@ -56,10 +56,6 @@
         }
       }
     },
-    scopeHasElementStyle: function(scope, descriptor) {
-      var rule = STYLE_SCOPE_ATTRIBUTE + '=' + this.localName + '-' + descriptor;
-      return scope.querySelector('style[' + rule + ']');
-    },
     findStyleController: function() {
       if (window.ShadowDOMPolyfill) {
         return wrap(document.head);
@@ -71,6 +67,10 @@
         }
         return n === document ? document.head : n;
       }
+    },
+    scopeHasElementStyle: function(scope, descriptor) {
+      var rule = STYLE_SCOPE_ATTRIBUTE + '=' + this.localName + '-' + descriptor;
+      return scope.querySelector('style[' + rule + ']');
     }
   };
   

@@ -7,6 +7,10 @@
   
   // imports
 
+  var attributes_api = scope.api.instance.attributes,
+      events_api = scope.api.instance.events
+      ;
+
   // magic words
 
   var OBSERVE_SUFFIX = 'Changed';
@@ -29,8 +33,10 @@
       while (p && !scope.isBase(p)) {
         var names = Object.getOwnPropertyNames(p);
         for (var i=0, l=names.length, n; (i<l) && (n=names[i]); i++) {
-          properties[n] = true;
-          some = true;
+          if (!custom_property_black_list[n]) {
+            properties[n] = true;
+            some = true;
+          }
         }
       // TODO(sjmiles): __proto__ is simulated on non-supporting platforms
         p = p.__proto__;
@@ -38,6 +44,11 @@
       return some ? Object.keys(properties) : empty;
     }
   };
+
+  var custom_property_black_list = {};
+  custom_property_black_list[attributes_api.PUBLISHED] = 1;
+  custom_property_black_list[attributes_api.INSTANCE_ATTRIBUTES] = 1;
+  custom_property_black_list[events_api.DELEGATES] = 1;
 
   // exports
 
