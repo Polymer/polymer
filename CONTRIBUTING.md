@@ -30,28 +30,28 @@ Here's an easy guide that should get you up and running:
 
         git clone git@github.com:{{ username }}/{{ repository }}.git --recursive
 
-    - Note the `--recursive`. This is necessary for submodules to initialize properly. If you don't do a recursive clone, you'll have to init them manually:
+    Note the `--recursive`. This is necessary for submodules to initialize properly. If you don't do a recursive clone, you'll have to init them manually:
 
         git submodule init
         git submodule update
 
-    - Download and run the `pull-all` script to install the sibling dependencies.
+    Download and run the `pull-all` script to install the sibling dependencies.
 
         git clone git://github.com/Polymer/tools.git && tools/bin/pull-all.sh
 
 1. Test your change
-    > in the changed repo, platform repo, and polymer repo
+   > in the changed repo, platform repo, and polymer repo
 
 
-    cd $REPO
-    npm install
-    grunt test
-    cd ../platform
-    npm install
-    grunt test
-    cd ../polymer
-    npm install
-    grunt test
+        cd $REPO
+        npm install
+        grunt test
+        cd ../platform
+        npm install
+        grunt test
+        cd ../polymer
+        npm install
+        grunt test
 
 1. Commit your code and make a pull request.
 
