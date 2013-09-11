@@ -22,15 +22,10 @@
   var properties = {
     // set up property observers 
     observeProperties: function() {
-      var names = this.getCustomPropertyNames();
+      var names = this.customPropertyNames;
       for (var i=0, l=names.length, n; (i<l) && (n=names[i]); i++) {
         this.observeProperty(n);
       }
-    },
-    // fetch an pre-constructor array of all property names in our prototype
-    // chain above PolymerBase
-    getCustomPropertyNames: function() {
-      return this.customPropertyNames;
     },
     // observe property if shouldObserveProperty 
     observeProperty: function(name) {
