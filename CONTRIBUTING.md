@@ -21,10 +21,7 @@ Other projects require a similar agreement: jQuery, Firefox, Apache, Node, and m
 
 Here's an easy guide that should get you up and running:
 
-1. Setup `grunt`
-
-    sudo npm install -g grunt-cli
-
+1. Setup Grunt: `sudo npm install -g grunt-cli`
 1. Fork the project on github and pull down your copy.
    > replace the {{ username }} with your username and {{ repository }} with the repository name
 
@@ -35,21 +32,14 @@ Here's an easy guide that should get you up and running:
         git submodule init
         git submodule update
 
-    Download and run the `pull-all` script to install the sibling dependencies.
+    Download and run the `pull-all.sh` script to install the sibling dependencies.
 
         git clone git://github.com/Polymer/tools.git && tools/bin/pull-all.sh
 
 1. Test your change
-   > in the changed repo, platform repo, and polymer repo
-
+   > in the repo you've made changes to, run the tests:
 
         cd $REPO
-        npm install
-        grunt test
-        cd ../platform
-        npm install
-        grunt test
-        cd ../polymer
         npm install
         grunt test
 
