@@ -63,14 +63,20 @@
       // get basal prototype
       var base = this.generateBasePrototype(extendee);
       // chain observe object
-      if (prototype.hasOwnProperty('observe') && base.hasOwnProperty('observe')) {
-        chainObject(prototype.observe, base.observe);
-        //console.log('observed:', prototype.observe);
+      if (prototype.hasOwnProperty('observe')) {
+        if (base.hasOwnProperty('observe')) {
+          chainObject(prototype.observe, base.observe);
+        }
+        // combine name list
+        prototype._observeNames = Object.keys(prototype.observe).concat(base._observeNames || []);
       }
       // chain publish object
-      if (prototype.hasOwnProperty('publish') && base.hasOwnProperty('publish')) {
-        chainObject(prototype.publish, base.publish);
-        //console.log('published:', prototype.publish);
+      if (prototype.hasOwnProperty('publish')) {
+        if (base.hasOwnProperty('publish')) {
+          chainObject(prototype.publish, base.publish);
+        }
+        // combine name list
+        prototype._publishNames = Object.keys(prototype.publish).concat(base._publishNames || []);
       }
       // chain custom api
       chainObject(prototype, base);

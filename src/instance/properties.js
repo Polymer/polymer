@@ -21,29 +21,32 @@
   var properties = {
     // set up property observers
     observeProperties: function() {
-      // TODO(sjmiles): 
+      // TODO(sjmiles):
       // we observe published properties so we can reflect them to attributes
       // ~100% of our team's applications would work without this:
       // perhaps we can make it optional somehow
-      //console.group('[%s]:observeProperties', this.localName);
-      // add observers as explicitly requested
-      for (var n in this.observe) {
-        //console.log('observable:', n);
-        var m = this.observe[n];
-        //if (this.publish && this.publish[n]) {
-          //this.observeBoth(n, m);
-        //} else {
-          this.observeProperty(n, m);
-        //}
+      //
+      // add user's observers
+      var n$ = this._observeNames;
+      if (n$) {
+        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+          var m = this.observe[n];
+          if (this.publish && (this.publish[n] !== undefined)) {
+            this.observeBoth(n, m);
+          } else {
+            this.observeProperty(n, m);
+          }
+        }
       }
-      // add observers for left-over published properties
-      for (var n in this.publish) {
-        //if (this.observe && !this.observe[n]) {
-          //console.log('attr-prop:', n);
-          this.observeAttributeProperty(n);
-        //}
+      // add observers for published properties
+      var n$ = this._publishNames;
+      if (n$) {
+        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+          if (!this.observe || (this.observe[n] === undefined)) {
+            this.observeAttributeProperty(n, this.publish[n]);
+          }
+        }
       }
-      //console.groupEnd();
     },
     _observe: function(name, cb) {
       log.watch && console.log(LOG_OBSERVE, this.localName, name);
@@ -62,7 +65,6 @@
         invoke.call(self, methodName, [old]);
       });
     },
-    /*
     observeBoth: function(name, methodName) {
       var self = this;
       this._observe(name, function(value, old) {
@@ -70,7 +72,6 @@
         invoke.call(self, methodName, [old]);
       });
     },
-    */
     bindProperty: function(property, model, path) {
       // apply Polymer two-way reference binding
       return bindProperties(this, property, model, path);
