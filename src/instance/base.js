@@ -47,6 +47,9 @@
       this.ready();
       this.created();
     },
+    enteredViewCallback: function() {
+      this._enteredDocumentCallback();
+    },
     insertedCallback: function() {
       this._enteredDocumentCallback();
     },
@@ -59,15 +62,21 @@
       if (this.inserted) {
         this.inserted();
       }
-      // invoke user action
       if (this.enteredDocument) {
         this.enteredDocument();
       }
+      // invoke user action
+      if (this.enteredView) {
+        this.enteredView();  
+      }
     },
-    removedCallback: function() {
+    leftViewCallback: function() {
       this._leftDocumentCallback();
     },
     leftDocumentCallback: function() {
+      this._leftDocumentCallback();
+    },
+    removedCallback: function() {
       this._leftDocumentCallback();
     },
     _leftDocumentCallback: function() {
@@ -76,9 +85,12 @@
       if (this.removed) {
         this.removed();
       }
-      // invoke user action
       if (this.leftDocument) {
         this.leftDocument();
+      }
+      // invoke user action
+      if (this.leftView) {
+        this.leftView();
       }
     },
     // recursive ancestral <element> initialization, oldest first
