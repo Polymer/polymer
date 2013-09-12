@@ -50,48 +50,4 @@ suite('oop', function() {
     subSub.say();
     assert.equal(subSub.msg, 'base sub subsub');
   });
-  
-  /*
-  test('class', function() {
-    var Base = $class({
-      constructor: function() {
-        this.value = 'foo';
-      },
-      sayHello: function() {
-        this.value = 'hello';
-      } 
-    });
-    var base = new Base();
-    assert(base.value, 'foo');
-    base.sayHello();
-    assert(base.value, 'hello');
-    //
-    var Sub = $class(Base, {
-      sayHi: function() {
-        this.value = 'hi';
-      }
-    });
-    var sub = new Sub();
-    assert(sub.value, 'foo');
-    sub.sayHello();
-    assert(sub.value, 'hello');
-    sub.sayHi();
-    assert(sub.value, 'hi');
-    //
-    var SubSub = $class(Sub, {
-      sayGoodbye: function() {
-        this.value = 'goodbye';
-      }
-    });
-    var subSub = new SubSub();
-    assert(subSub.value, 'foo');
-    subSub.sayHello();
-    assert(subSub.value, 'hello');
-    subSub.sayHi();
-    assert(subSub.value, 'hi');
-    subSub.sayGoodbye();
-    assert(subSub.value, 'goodbye');
-  });
-  */
-
 });
