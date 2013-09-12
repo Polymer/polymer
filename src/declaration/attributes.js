@@ -9,7 +9,7 @@
 
   var api = scope.api.instance.attributes;
 
-  var PUBLISHED = api.PUBLISHED;
+  //var PUBLISHED = api.PUBLISHED;
   var INSTANCE_ATTRIBUTES = api.INSTANCE_ATTRIBUTES;
 
   // magic words
@@ -19,61 +19,73 @@
 
   // attributes api
 
+  if (Object.__proto__) {
+    var chainObject = function(object, inherited) {
+      if (inherited && object !== inherited) {
+        object.__proto__ = inherited;
+      }
+    }
+  } else {
+    chainObject = function(object, inherited) {
+      throw "Fix chainObject for IE";
+    }
+  }
+
   var attributes = {
     inheritAttributesObjects: function(prototype) {
-      this.inheritObject(prototype, PUBLISHED);
-      this.inheritObject(prototype, INSTANCE_ATTRIBUTES);
+      // chain our LC property map to our inherited version
+      chainObject(prototype._publishLC, prototype.__proto__._publishLC);
+      prototype[INSTANCE_ATTRIBUTES] = {};
+      chainObject(prototype[INSTANCE_ATTRIBUTES], prototype.__proto__[INSTANCE_ATTRIBUTES]);
+      //this.inheritObject(prototype, PUBLISHED);
+      //this.inheritObject(prototype, INSTANCE_ATTRIBUTES);
     },
-    parseAttributes: function() {
-      this.publishAttributes(this.prototype);
-      this.publishProperties(this.prototype);
-      this.accumulateInstanceAttributes();
+    //
+    parsePublished: function(prototype) {
+      // transcribe `attributes` declarations onto own prototype's `publish`
+      var publish = this.publishAttributes(prototype);
+      // if we have any properties to publish
+      if (publish) {
+        // transcribe `publish` entries onto own prototype
+        this.publishProperties(publish, prototype);
+        // construct map of lower-cased property names
+        prototype._publishLC = this.lowerCaseMap(publish);
+      }
     },
     publishAttributes: function(prototype) {
-      // get published properties
-      var published = prototype[PUBLISHED];
-      // merge attribute names from 'attributes' attribute
+      // merge names from 'attributes' attribute
       var attributes = this.getAttribute(ATTRIBUTES);
       if (attributes) {
-        // attributes='a b c' or attributes='a,b,c'
+        // get properties to publish
+        var publish = prototype.publish || (prototype.publish = {});
+        // names='a b c' or names='a,b,c'
         var names = attributes.split(attributes.indexOf(',') >= 0 ? ',' : ' ');
         // record each name for publishing
-        names.forEach(function(p) {
-          p = p.trim();
-          if (p && !(p in published)) {
-            published[p] = null;
+        for (var i=0, l=names.length, n; i<l; i++) {
+          // remove excess ws
+          n = names[i].trim();
+          // do not override explicit entries
+          if (publish[n] === undefined) {
+            publish[n] = null;
           }
-        });
-      }
-      // install 'attributes' as properties on the prototype, 
-      // but don't override
-      Object.keys(published).forEach(function(p) {
-        if (!(p in prototype)) {
-          prototype[p] = published[p];
         }
-      });
-    },
-    publishProperties: function(prototype) {
-      this.publishPublish(prototype);
-    },
-    publishPublish: function(prototype) {
-      // process only the PUBLISH block on this prototype, not the chain
-      if (!prototype.hasOwnProperty(PUBLISH)) {
-        return;
       }
-      // acquire properties published imperatively
-      var imperative = prototype[PUBLISH];
-      if (imperative) {
-        // install imperative properties, overriding defaults
-        Object.keys(imperative).forEach(function(p) {
-          prototype[p] = imperative[p];
-        });
-        // combine with other published properties
-        Platform.mixin(
-          prototype[PUBLISHED],
-          imperative
-        );
+      return prototype.publish;
+    },
+    publishProperties: function(published, prototype) {
+      // ensure a prototype value for each one
+      for (var n in published) {
+        if (prototype[n] === undefined) {
+          prototype[n] = published[n];
+        }
       }
+    },
+    lowerCaseMap: function(published) {
+      var map = {};
+      for (var n in published) {
+        map[n.toLowerCase()] = n;
+      }
+      return map;
     },
     // record clonable attributes from <element>
     accumulateInstanceAttributes: function() {
@@ -99,5 +111,5 @@
   // exports
 
   scope.api.declaration.attributes = attributes;
-  
+
 })(Polymer);

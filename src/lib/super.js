@@ -29,18 +29,18 @@
       // memoized 'name of method' 
       var nom = caller.nom;
       // memoized next implementation prototype
-      if (!('_super' in caller)) {
+      var _super = caller._super;
+      if (!_super) {
         if (!nom) {
-          nom = nameInThis.call(this, caller);
+          nom = caller.nom = nameInThis.call(this, caller);
         }
         if (!nom) {
           console.warn('called super() on a method not installed declaratively (has no .nom property)');
         }
         // super prototype is either cached or we have to find it
         // by searching __proto__ (at the 'top')
-        memoizeSuper(caller, nom, getPrototypeOf(this));
+        _super = memoizeSuper(caller, nom, getPrototypeOf(this));
       }
-      var _super = caller._super;
       if (!_super) {
         // if _super is falsey, there is no super implementation
         //console.warn('called $super(' + nom + ') where there is no super implementation');
@@ -48,7 +48,7 @@
         // our super function
         var fn = _super[nom];
         // memoize information so 'fn' can call 'super'
-        if (!('_super' in fn)) {
+        if (!fn._super) {
           memoizeSuper(fn, nom, _super);
         }
         // invoke the inherited method
@@ -80,7 +80,7 @@
     };
 
     function nameInThis(value) {
-      console.warn('nameInThis called');
+      //console.warn('nameInThis called');
       var p = this;
       while (p && p !== HTMLElement.prototype) {
         var n$ = Object.getOwnPropertyNames(p);

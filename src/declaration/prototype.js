@@ -12,68 +12,119 @@
   var extend = scope.extend;
   
   // returns a prototype that chains to <tag> or HTMLElement
-  function generatePrototype(tag) {
-    return Object.create(HTMLElement.getPrototypeForTag(tag));
-  }
 
-  // On platforms that do not support __proto__ (IE10), the prototype chain
-  // of a custom element is simulated via installation of __proto__.
-  // Although custom elements manages this, we install it here so it's 
-  // available during desugaring.
-  function ensurePrototypeTraversal(prototype) {
-    if (!Object.__proto__) {
-      var ancestor = Object.getPrototypeOf(prototype);
-      prototype.__proto__ = ancestor;
-      if (isBase(ancestor)) {
-        ancestor.__proto__ = Object.getPrototypeOf(ancestor);
+  // TODO(sjmiles): duplicated in attributes.js
+  if (Object.__proto__) {
+    var chainObject = function(object, inherited) {
+      if (inherited && object !== inherited) {
+        object.__proto__ = inherited;
       }
+    }
+  } else {
+    chainObject = function(object, inherited) {
+      throw "Fix chainObject for IE";
     }
   }
 
-  // declarative implementation: <polymer-element>
-
-  var prototype = generatePrototype();
-  
   // prototype api
 
   var prototype = {
-    // prototype marshaling
-    // build prototype combining extendee, Polymer base, and named api
-    generateCustomPrototype: function (name, extnds) {
-      // basal prototype
-      var prototype = this.generateBasePrototype(extnds);
-      // mixin registered custom api
-      this.addNamedApi(prototype, name);
+    register: function(name, extendee) {
+      // build prototype combining extendee, Polymer base, and named api
+      this.prototype = this.buildPrototype(name, extendee);
+      //console.log(this.prototype);
+      // backref
+      this.prototype.element = this;
+      // TODO(sorvell): install a helper method this.resolvePath to aid in 
+      // setting resource paths. e.g.
+      // this.$.image.src = this.resolvePath('images/foo.png')
+      // Potentially remove when spec bug is addressed.
+      // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
+      this.addResolvePathApi();
+      // more declarative features
+      this.desugar();
+      // under ShadowDOMPolyfill, transforms to approximate missing CSS features
+      if (window.ShadowDOMPolyfill) {
+        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
+      }
+      // register our custom element with the platform
+      this.registerPrototype(name);
+      // reference constructor in a global named by 'constructor' attribute
+      this.publishConstructor();
+    },
+    buildPrototype: function(name, extendee) {
+      // get our custom prototype (before chaining)
+      var prototype = scope.getRegisteredPrototype(name);
+      // copy declared publish list to `publish` object
+      // ensure `publish` names are on prototype
+      this.parsePublished(prototype);
+      // infer observers for `observe` list based on method names
+      this.inferObservers(prototype);
+      // get basal prototype
+      var base = this.generateBasePrototype(extendee);
+      // chain observe object
+      if (prototype.hasOwnProperty('observe') && base.hasOwnProperty('observe')) {
+        chainObject(prototype.observe, base.observe);
+        //console.log('observed:', prototype.observe);
+      }
+      // chain publish object
+      if (prototype.hasOwnProperty('publish') && base.hasOwnProperty('publish')) {
+        chainObject(prototype.publish, base.publish);
+        //console.log('published:', prototype.publish);
+      }
+      // chain custom api
+      chainObject(prototype, base);
+      // inherit publishing meta-data
+      this.inheritAttributesObjects(prototype);
+      this.inheritDelegates(prototype);
       // x-platform fixups
       ensurePrototypeTraversal(prototype);
       return prototype;
     },
+    // implement various declarative features
+    desugar: function(prototype) {
+      // compile list of attributes to copy to instances
+      this.accumulateInstanceAttributes();
+      // parse on-* delegates declared on `this` element
+      this.parseHostEvents();
+      // parse on-* delegates declared in templates
+      this.parseLocalEvents();
+      // install external stylesheets as if they are inline
+      this.installSheets();
+      // allow custom element access to the declarative context
+      if (this.prototype.registerCallback) {
+        this.prototype.registerCallback(this);
+      }
+    },
+    // if a named constructor is requested in element, map a reference
+    // to the constructor to the given symbol
+    publishConstructor: function() {
+      var symbol = this.getAttribute('constructor');
+      if (symbol) {
+        window[symbol] = this.ctor;
+      }
+    },
     // build prototype combining extendee, Polymer base, and named api
     generateBasePrototype: function(extnds) {
       // create a prototype based on tag-name extension
-      var prototype = generatePrototype(extnds);
+      var prototype = HTMLElement.getPrototypeForTag(extnds);
       // insert base api in inheritance chain (if needed)
       return this.ensureBaseApi(prototype);
     },
     // install Polymer instance api into prototype chain, as needed 
     ensureBaseApi: function(prototype) { 
       if (!prototype.PolymerBase) {
-        Object.keys(api.instance).forEach(function(n) {
-          extend(prototype, api.instance[n]);
-        });
         prototype = Object.create(prototype);
+       // we need a unique copy of base api for each base prototype
+       // therefore we 'extend' here instead of simply chaining
+       // we could memoize instead, especially for the common cases,
+       // in particular, for base === HTMLElement.prototype
+       for (var n in api.instance) {
+         extend(prototype, api.instance[n]);
+       }
       }
-      // inherit publishing meta-data
-      this.inheritAttributesObjects(prototype);
-      // inherit event delegates
-      this.inheritDelegates(prototype);
       // return buffed-up prototype
       return prototype;
-    },
-    // mix api registered to 'name' into 'prototype' 
-    addNamedApi: function(prototype, name) { 
-      // combine custom api into prototype
-      return extend(prototype, scope.getRegisteredPrototype(name));
     },
     // make a fresh object that inherits from a prototype object
     inheritObject: function(prototype, name) {
@@ -92,9 +143,23 @@
       HTMLElement.register(name, this.prototype);
     }
   };
-  
+
+  // On platforms that do not support __proto__ (version of IE), the prototype
+  // chain of a custom element is simulated via installation of __proto__.
+  // Although custom elements manages this, we install it here so it's
+  // available during desugaring.
+  function ensurePrototypeTraversal(prototype) {
+    if (!Object.__proto__) {
+      var ancestor = Object.getPrototypeOf(prototype);
+      prototype.__proto__ = ancestor;
+      if (isBase(ancestor)) {
+        ancestor.__proto__ = Object.getPrototypeOf(ancestor);
+      }
+    }
+  }
+
   // exports
 
   api.declaration.prototype = prototype;
-  
+
 })(Polymer);

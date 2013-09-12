@@ -20,8 +20,8 @@
             // hint the 'super' engine
             prototype[n].nom = n;
           }
-          // TODO(sjmiles): sharing a function only works if the function 
-          // only ever has one name
+          // TODO(sjmiles): sharing a function only works if 
+          // the function only ever has one name
         }
       });
     }

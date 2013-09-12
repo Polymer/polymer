@@ -49,11 +49,18 @@
       // finalizing elements in the main document
       if (document.contains(this)) {
         whenImportsLoaded(function() {
-          this.register(this.name, extendee);
+          this._register(extendee);
         }.bind(this));
       } else {
-        this.register(this.name, extendee);
+        this._register(extendee);
       }
+    },
+    _register: function(extendee) {
+      //console.group('registering', this.name);
+      this.register(this.name, extendee);
+      //console.groupEnd();
+      // subclasses may now register themselves
+      notifySuper(this.name);
     },
     waitingForPrototype: function(name) {
       if (!getRegisteredPrototype(name)) {
@@ -87,60 +94,12 @@
           return true;
         }
       }
-    },
-    register: function(name, extendee) {
-      // build prototype combining extendee, Polymer base, and named api
-      this.prototype = this.generateCustomPrototype(name, extendee);
-      // backref
-      this.prototype.element = this;
-      // TODO(sorvell): install a helper method this.resolvePath to aid in 
-      // setting resource paths. e.g. 
-      // this.$.image.src = this.resolvePath('images/foo.png')
-      // Potentially remove when spec bug is addressed.
-      // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
-      this.addResolvePathApi();
-      // declarative features
-      this.desugar();
-      // under ShadowDOMPolyfill, transforms to approximate missing CSS features
-      if (window.ShadowDOMPolyfill) {
-        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
-      }
-      // register our custom element
-      this.registerPrototype(name);
-      // reference constructor in a global named by 'constructor' attribute
-      this.publishConstructor();
-      // subclasses may now register themselves
-      notifySuper(name);
-    },
-    // implement various declarative features
-    desugar: function(prototype) {
-      // parse `attribute` attribute and `publish` object
-      this.parseAttributes();
-      // parse on-* delegates declared on `this` element
-      this.parseHostEvents();
-      // parse on-* delegates declared in templates
-      this.parseLocalEvents();
-      // install external stylesheets as if they are inline
-      this.installSheets();
-      // allow custom element access to the declarative context
-      if (this.prototype.registerCallback) {
-        this.prototype.registerCallback(this);
-      }
-      // cache the list of custom prototype names for faster reflection
-      this.cacheProperties();
-    },
-    // if a named constructor is requested in element, map a reference
-    // to the constructor to the given symbol
-    publishConstructor: function() {
-      var symbol = this.getAttribute('constructor');
-      if (symbol) {
-        window[symbol] = this.ctor;
-      }
     }
   });
 
   // semi-pluggable APIs 
-  // TODO(sjmiles): should be fully pluggable
+  // TODO(sjmiles): should be fully pluggable (aka decoupled, currently
+  // the various plugins are allowed to depend on each other directly)
   Object.keys(apis).forEach(function(n) {
     extend(prototype, apis[n]);
   });
