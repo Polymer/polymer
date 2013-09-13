@@ -20,6 +20,18 @@
       return template.createInstance(this, mdv_syntax);
     },
     bind: function(name, model, path) {
+      // TODO(sorvell): elements that are created in templates (e.g. template
+      // repeat) are bound while not prepared. That can lead to properties
+      // changing before observers are registered and result in missing 
+      // side effects. There are 2 options for dealing with this:
+      // 1. ensure elements are prepared if bind is called on them
+      // 2. add an initialization step to preparation that ensures that 
+      // any properties that have changed from default values at prepare time
+      // call side effect methods.
+      if (!this._elementPrepared) {
+        this.prepareElement();
+        //console.warn('bind called when element is not prepared');
+      }
       var property = this.propertyForAttribute(name);
       if (property) {
         this.unbind(name);

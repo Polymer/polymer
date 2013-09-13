@@ -27,20 +27,16 @@
     },
     // system entry point, do not override
     prepareElement: function() {
-      if (this._elementPrepared) {
-        return;
-      }
       this._elementPrepared = true;
-      //this.style.display = 'inline-block';
       // install property observers
+      this.observeProperties();
       // install boilerplate attributes
       this.copyInstanceAttributes();
       // process input attributes
       this.takeAttributes();
       // add event listeners
       this.addHostListeners();
-      // TODO(sorvell); this is ugly but guarantees that while preparing,
-      // any sub-elements will also be prepared
+      // guarantees that while preparing, any sub-elements will also be prepared
       preparingElements++;
       // process declarative resources
       this.parseDeclarations(this.__proto__);
@@ -49,15 +45,20 @@
       this.ready();
       // TODO(sorvell): bc
       this.created();
+      // TODO(sorvell): alternate property intialization strategy
+      // alternative is to ensure preparation in bind.
+      //
       // initialize properties and observe
       // note that observing properties can set values that we need 
       // to initialize to must observe before initializing...
-      this.observeProperties();
+      //this.observeProperties();
       // TODO(sorvell): should we do this async?
-      this.initializeProperties();
+      //this.initializeProperties();
     },
     enteredViewCallback: function() {
-      this.prepareElement();
+      if (!this._elementPrepared) {
+        this.prepareElement();
+      }
       this.cancelUnbindAll(true);
       // invoke user action
       if (this.enteredView) {
