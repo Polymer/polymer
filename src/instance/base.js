@@ -45,15 +45,6 @@
       this.ready();
       // TODO(sorvell): bc
       this.created();
-      // TODO(sorvell): alternate property intialization strategy
-      // alternative is to ensure preparation in bind.
-      //
-      // initialize properties and observe
-      // note that observing properties can set values that we need 
-      // to initialize to must observe before initializing...
-      //this.observeProperties();
-      // TODO(sorvell): should we do this async?
-      //this.initializeProperties();
     },
     enteredViewCallback: function() {
       if (!this._elementPrepared) {

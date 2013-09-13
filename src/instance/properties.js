@@ -27,20 +27,6 @@
         this.observeProperty(n);
       }
     },
-    // TODO(sorvell): refactor so this doesn't depend on properties already
-    // having been observed
-    initializeProperties: function() {
-      var $o = Object.keys(getElementObservers(this));
-      for (var i=0; i < $o.length; i++) {
-        this.initializeProperty($o[i])
-      }
-    },
-    initializeProperty: function(name) {
-      var neo = this[name], old = this.__proto__[name]
-      if (neo !== old) {
-        this.dispatchPropertyChange(name, old);
-      }
-    },
     // fetch an pre-constructor array of all property names in our prototype
     // chain above PolymerBase
     getCustomPropertyNames: function() {
