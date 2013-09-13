@@ -5,18 +5,11 @@
  */
 (function(scope) {
 
-  // magic words
-
-  var INSTANCE_ATTRIBUTES = '__instance_attributes';
-  //var PUBLISHED = '__published';
-
   // instance api for attributes
 
   var attributes = {
-    //PUBLISHED: PUBLISHED,
-    INSTANCE_ATTRIBUTES: INSTANCE_ATTRIBUTES,
     copyInstanceAttributes: function () {
-      var a$ = this[INSTANCE_ATTRIBUTES];
+      var a$ = this._instanceAttributes;
       for (var k in a$) {
         this.setAttribute(k, a$[k]);
       }
@@ -93,9 +86,6 @@
       //}
     }
   };
-
-  var lowerCase = String.prototype.toLowerCase.call.bind(
-    String.prototype.toLowerCase);
 
   // exports
 

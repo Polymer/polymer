@@ -16,7 +16,7 @@
   // TODO(sjmiles): duplicated in attributes.js
   if (Object.__proto__) {
     var chainObject = function(object, inherited) {
-      if (inherited && object !== inherited) {
+      if (object && inherited && object !== inherited) {
         object.__proto__ = inherited;
       }
     }
@@ -32,17 +32,17 @@
     register: function(name, extendee) {
       // build prototype combining extendee, Polymer base, and named api
       this.prototype = this.buildPrototype(name, extendee);
-      //console.log(this.prototype);
-      // backref
+      // back reference declaration element
+      // TODO(sjmiles): replace `element` with `elementElement` or `declaration`
       this.prototype.element = this;
+      // more declarative features
+      this.desugar();
       // TODO(sorvell): install a helper method this.resolvePath to aid in 
       // setting resource paths. e.g.
       // this.$.image.src = this.resolvePath('images/foo.png')
       // Potentially remove when spec bug is addressed.
       // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
       this.addResolvePathApi();
-      // more declarative features
-      this.desugar();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
       if (window.ShadowDOMPolyfill) {
         Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
@@ -55,29 +55,20 @@
     buildPrototype: function(name, extendee) {
       // get our custom prototype (before chaining)
       var prototype = scope.getRegisteredPrototype(name);
-      // copy declared publish list to `publish` object
-      // ensure `publish` names are on prototype
-      this.parsePublished(prototype);
-      // infer observers for `observe` list based on method names
-      this.inferObservers(prototype);
       // get basal prototype
       var base = this.generateBasePrototype(extendee);
+      // transcribe `attributes` declarations onto own prototype's `publish`
+      this.publishAttributes(prototype, base);
+      // `publish` properties to the prototype and to attribute watch
+      this.publishProperties(prototype, base);
+      // infer observers for `observe` list based on method names
+      this.inferObservers(prototype);
       // chain observe object
-      if (prototype.hasOwnProperty('observe')) {
-        if (base.hasOwnProperty('observe')) {
-          chainObject(prototype.observe, base.observe);
-        }
-        // combine name list
-        prototype._observeNames = Object.keys(prototype.observe).concat(base._observeNames || []);
-      }
+      chainObject(prototype.observe, base.observe);
       // chain publish object
-      if (prototype.hasOwnProperty('publish')) {
-        if (base.hasOwnProperty('publish')) {
-          chainObject(prototype.publish, base.publish);
-        }
-        // combine name list
-        prototype._publishNames = Object.keys(prototype.publish).concat(base._publishNames || []);
-      }
+      chainObject(prototype.publish, base.publish);
+      // build side-chained lists to optimize iterations
+      this.optimizePropertyMaps(prototype, base);
       // chain custom api
       chainObject(prototype, base);
       // inherit publishing meta-data
@@ -112,15 +103,21 @@
     },
     // build prototype combining extendee, Polymer base, and named api
     generateBasePrototype: function(extnds) {
-      // create a prototype based on tag-name extension
-      var prototype = HTMLElement.getPrototypeForTag(extnds);
-      // insert base api in inheritance chain (if needed)
-      return this.ensureBaseApi(prototype);
+      var prototype = memoizedBases[extnds];
+      if (!prototype) {
+        // create a prototype based on tag-name extension
+        var prototype = HTMLElement.getPrototypeForTag(extnds);
+        // insert base api in inheritance chain (if needed)
+        prototype = this.ensureBaseApi(prototype);
+        // memoize this base
+        memoizedBases[extnds] = prototype;
+      }
+      return prototype;
     },
     // install Polymer instance api into prototype chain, as needed 
-    ensureBaseApi: function(prototype) { 
+    ensureBaseApi: function(prototype) {
       if (!prototype.PolymerBase) {
-        prototype = Object.create(prototype);
+       prototype = Object.create(prototype);
        // we need a unique copy of base api for each base prototype
        // therefore we 'extend' here instead of simply chaining
        // we could memoize instead, especially for the common cases,
@@ -149,6 +146,9 @@
       HTMLElement.register(name, this.prototype);
     }
   };
+
+  // memoize base prototypes
+  memoizedBases = {};
 
   // On platforms that do not support __proto__ (version of IE), the prototype
   // chain of a custom element is simulated via installation of __proto__.

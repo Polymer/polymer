@@ -27,29 +27,30 @@
       // perhaps we can make it optional somehow
       //
       // add user's observers
-      var n$ = this._observeNames;
+      var n$ = this._observeNames, v$ = this._observeValues;
       if (n$) {
-        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
-          var m = this.observe[n];
+        for (var i=0, l=n$.length, n; i<l; i++) {
+          n = n$[i];
           if (this.publish && (this.publish[n] !== undefined)) {
-            this.observeBoth(n, m);
+            this.observeBoth(n, v$[i]);
           } else {
-            this.observeProperty(n, m);
+            this.observeProperty(n, v$[i]);
           }
         }
       }
       // add observers for published properties
-      var n$ = this._publishNames;
+      var n$ = this._publishNames, v$ = this._publishValues;
       if (n$) {
-        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+        for (var i=0, l=n$.length, n; i<l; i++) {
+          n = n$[i];
           if (!this.observe || (this.observe[n] === undefined)) {
-            this.observeAttributeProperty(n, this.publish[n]);
+            this.observeAttributeProperty(n, v$[i]);
           }
         }
       }
     },
     _observe: function(name, cb) {
-      log.watch && console.log(LOG_OBSERVE, this.localName, name);
+      log.observe && console.log(LOG_OBSERVE, this.localName, name);
       registerObserver(this, name, 
         new PathObserver(this, name, cb));
     },
