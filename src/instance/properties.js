@@ -23,7 +23,7 @@
     observeProperties: function() {
       // TODO(sjmiles):
       // we observe published properties so we can reflect them to attributes
-      // ~100% of our team's applications would work without this:
+      // ~100% of our team's applications would work without this reflection,
       // perhaps we can make it optional somehow
       //
       // add user's observers
