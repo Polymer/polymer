@@ -38,7 +38,7 @@
       // fetch our extendee name
       var extendee = this.getAttribute('extends');
       if (this.waitingForExtendee(extendee)) {
-        console.warn(this.name + ': waitingForExtendee:' + extendee);
+        //console.warn(this.name + ': waitingForExtendee:' + extendee);
         return;
       }
       // TODO(sjmiles): HTMLImports polyfill awareness:
