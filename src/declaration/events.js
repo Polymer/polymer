@@ -42,13 +42,14 @@
     },
     parseLocalEvents: function() {
       // extract data from all templates into delegates
-      this.querySelectorAll('template').forEach(function(t) {
+      var t$ = this.querySelectorAll('template');
+      for (var i=0, l=t$.length, t; (i<l) && (t=t$[i]); i++) {
         // store delegate information directly on template
         t.delegates = {};
         // acquire delegates from entire subtree at t
         this.accumulateTemplatedEvents(t, t.delegates);
         log.events && console.log('[%s] parseLocalEvents:', this.attributes.name.value, t.delegates);
-      }, this);
+      };
     },
     accumulateTemplatedEvents: function(node, events) {
       if (node.localName === 'template') {
@@ -59,9 +60,10 @@
       }
     },
     accumulateChildEvents: function(node, events) {
-      node.childNodes.forEach(function(n) {
+      var n$ = node.childNodes;
+      for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
         this.accumulateEvents(n, events);
-      }, this);
+      }
     },
     accumulateEvents: function(node, events) {
       this.accumulateAttributeEvents(node, events);
@@ -70,12 +72,13 @@
       return events;
     },
     accumulateAttributeEvents: function(node, events) {
-      if (node.attributes) {
-        node.attributes.forEach(function(a) {
+      var a$ = node.attributes;
+      if (a$) {
+        for (var i=0, l=a$.length, a; (i<l) && (a=a$[i]); i++) {  
           if (hasEventPrefix(a.name)) {
             this.accumulateEvent(removeEventPrefix(a.name), events);
           }
-        }, this);
+        }
       }
     },
     accumulateEvent: function(name, events) {

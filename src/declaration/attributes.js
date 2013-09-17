@@ -42,11 +42,12 @@
       // inherit instance attributes
       var clonable = this.prototype._instanceAttributes;
       // merge attributes from element
-      this.attributes.forEach(function(a) {
+      var a$ = this.attributes;
+      for (var i=0, l=a$.length, a; (i<l) && (a=a$[i]); i++) {  
         if (this.isInstanceAttribute(a.name)) {
           clonable[a.name] = a.value;
         }
-      }, this);
+      }
     },
     isInstanceAttribute: function(name) {
       return !this.blackList[name] && name.slice(0,3) !== 'on-';
