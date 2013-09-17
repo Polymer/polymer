@@ -63,20 +63,30 @@
       this.publishProperties(prototype, base);
       // infer observers for `observe` list based on method names
       this.inferObservers(prototype);
-      // chain observe object
-      chainObject(prototype.observe, base.observe);
-      // chain publish object
-      chainObject(prototype.publish, base.publish);
+      // chain various meta-data objects to inherited versions
+      this.inheritMetaData(prototype, base);
+      // chain custom api to inherited
+      prototype = this.chainObject(prototype, base);
       // build side-chained lists to optimize iterations
       this.optimizePropertyMaps(prototype, base);
-      // chain custom api
-      chainObject(prototype, base);
       // inherit publishing meta-data
-      this.inheritAttributesObjects(prototype);
-      this.inheritDelegates(prototype);
+      //this.inheritAttributesObjects(prototype);
+      //this.inheritDelegates(prototype);
       // x-platform fixups
       ensurePrototypeTraversal(prototype);
       return prototype;
+    },
+    inheritMetaData: function(prototype, base) {
+      // chain observe object to inherited
+      this.inheritObject('observe', prototype, base);
+      // chain publish object to inherited
+      this.inheritObject('publish', prototype, base);
+      // chain our lower-cased publish map to the inherited version
+      this.inheritObject('_publishLC', prototype, base);
+      // chain our instance attributes map to the inherited version
+      this.inheritObject('_instanceAttributes', prototype, base);
+      // chain our event delegates map to the inherited version
+      this.inheritObject('eventDelegates', prototype, base);
     },
     // implement various declarative features
     desugar: function(prototype) {
@@ -129,10 +139,12 @@
       // return buffed-up prototype
       return prototype;
     },
-    // make a fresh object that inherits from a prototype object
-    inheritObject: function(prototype, name) {
-      // copy inherited properties onto a new object
-      prototype[name] = extend({}, Object.getPrototypeOf(prototype)[name]);
+    // ensure prototype[name] inherits from a prototype.prototype[name]
+    inheritObject: function(name, prototype, base) {
+      // require an object
+      var source = prototype[name] || {};
+      // chain inherited properties onto a new object
+      prototype[name] = this.chainObject(source, base[name]);
     },
     // register 'prototype' to custom element 'name', store constructor 
     registerPrototype: function(name) { 
@@ -146,6 +158,23 @@
       HTMLElement.register(name, this.prototype);
     }
   };
+
+  if (Object.__proto__) {
+    prototype.chainObject = function(object, inherited) {
+      if (object && inherited && object !== inherited) {
+        object.__proto__ = inherited;
+      }
+      return object;
+    }
+  } else {
+    prototype.chainObject = function(object, inherited) {
+      if (object && inherited && object !== inherited) {
+        var chained = Object.create(inherited);
+        object = extend(chained, object);
+      }
+      return object;
+    }
+  }
 
   // memoize base prototypes
   memoizedBases = {};

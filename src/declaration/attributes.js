@@ -5,32 +5,18 @@
  */
 (function(scope) {
 
-  // imports
-
   // magic words
 
   var ATTRIBUTES_ATTRIBUTE = 'attributes';
 
   // attributes api
 
-  if (Object.__proto__) {
-    var chainObject = function(object, inherited) {
-      if (inherited && object !== inherited) {
-        object.__proto__ = inherited;
-      }
-    }
-  } else {
-    chainObject = function(object, inherited) {
-      throw "Fix chainObject for IE";
-    }
-  }
-
   var attributes = {
     inheritAttributesObjects: function(prototype) {
-      // chain our LC property map to our inherited version
-      chainObject(prototype._publishLC, prototype.__proto__._publishLC);
-      prototype._instanceAttributes = {};
-      chainObject(prototype._instanceAttributes, prototype.__proto__._instanceAttributes);
+      // chain our lower-cased publish map to the inherited version
+      this.inheritObject(prototype, 'publishLC');
+      // chain our instance attributes map to the inherited version
+      this.inheritObject(prototype, '_instanceAttributes');
     },
     publishAttributes: function(prototype, base) {
       // merge names from 'attributes' attribute

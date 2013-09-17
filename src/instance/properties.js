@@ -12,7 +12,6 @@
   // magic words
 
   var OBSERVE_SUFFIX = 'Changed';
-  //var PUBLISHED = scope.api.instance.attributes.PUBLISHED;
 
   // element api
 
