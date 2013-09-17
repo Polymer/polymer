@@ -42,7 +42,8 @@ module.exports = function(grunt) {
     concat_sourcemap: {
       Polymer: {
         options: {
-          sourcesContent: true
+          sourcesContent: true,
+          nonull: true
         },
         files: {
           'polymer.concat.js': Polymer
