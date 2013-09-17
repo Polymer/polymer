@@ -52,7 +52,7 @@ var src = script.attributes.src.value;
 var basePath = src.slice(0, src.indexOf(thisFile));
 
 if (!window.PolymerLoader) {
-  var path = basePath + 'tools/loader/loader.js';
+  var path = basePath + '../tools/loader/loader.js';
   document.write('<script src="' + path + '"></script>');
 } 
 document.write('<script>PolymerLoader.load("' + scopeName + '")</script>');

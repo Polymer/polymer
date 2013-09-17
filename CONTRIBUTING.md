@@ -21,21 +21,29 @@ Other projects require a similar agreement: jQuery, Firefox, Apache, Node, and m
 
 Here's an easy guide that should get you up and running:
 
+1. Setup Grunt: `sudo npm install -g grunt-cli`
 1. Fork the project on github and pull down your copy.
    > replace the {{ username }} with your username and {{ repository }} with the repository name
 
-        git clone git@github.com:{{ username }}/{{ repository }}.git -b master --recursive
+        git clone git@github.com:{{ username }}/{{ repository }}.git --recursive
 
     Note the `--recursive`. This is necessary for submodules to initialize properly. If you don't do a recursive clone, you'll have to init them manually:
 
         git submodule init
         git submodule update
 
-    Adding `-b master` is a shorthand to checkout the `master` branch. If you include it, skip step 2.
+    Download and run the `pull-all.sh` script to install the sibling dependencies.
 
-2. Development happens on the `master` branch. Get yourself on it!
+        git clone git://github.com/Polymer/tools.git && tools/bin/pull-all.sh
 
-        git checkout master
+1. Test your change
+   > in the repo you've made changes to, run the tests:
+
+        cd $REPO
+        npm install
+        grunt test
+
+1. Commit your code and make a pull request.
 
 That's it for the one time setup. Now you're ready to make a change.
 

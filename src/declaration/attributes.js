@@ -5,80 +5,42 @@
  */
 (function(scope) {
 
-  // imports
-
-  var api = scope.api.instance.attributes;
-
-  var PUBLISHED = api.PUBLISHED;
-  var INSTANCE_ATTRIBUTES = api.INSTANCE_ATTRIBUTES;
-
   // magic words
 
-  var PUBLISH = 'publish';
-  var ATTRIBUTES = 'attributes';
+  var ATTRIBUTES_ATTRIBUTE = 'attributes';
 
   // attributes api
 
   var attributes = {
     inheritAttributesObjects: function(prototype) {
-      this.inheritObject(prototype, PUBLISHED);
-      this.inheritObject(prototype, INSTANCE_ATTRIBUTES);
+      // chain our lower-cased publish map to the inherited version
+      this.inheritObject(prototype, 'publishLC');
+      // chain our instance attributes map to the inherited version
+      this.inheritObject(prototype, '_instanceAttributes');
     },
-    parseAttributes: function() {
-      this.publishAttributes(this.prototype);
-      this.publishProperties(this.prototype);
-      this.accumulateInstanceAttributes();
-    },
-    publishAttributes: function(prototype) {
-      // get published properties
-      var published = prototype[PUBLISHED];
-      // merge attribute names from 'attributes' attribute
-      var attributes = this.getAttribute(ATTRIBUTES);
+    publishAttributes: function(prototype, base) {
+      // merge names from 'attributes' attribute
+      var attributes = this.getAttribute(ATTRIBUTES_ATTRIBUTE);
       if (attributes) {
-        // attributes='a b c' or attributes='a,b,c'
+        // get properties to publish
+        var publish = prototype.publish || (prototype.publish = {});
+        // names='a b c' or names='a,b,c'
         var names = attributes.split(attributes.indexOf(',') >= 0 ? ',' : ' ');
         // record each name for publishing
-        names.forEach(function(p) {
-          p = p.trim();
-          if (p && !(p in published)) {
-            published[p] = null;
+        for (var i=0, l=names.length, n; i<l; i++) {
+          // remove excess ws
+          n = names[i].trim();
+          // do not override explicit entries
+          if (publish[n] === undefined && base[n] === undefined) {
+            publish[n] = null;
           }
-        });
-      }
-      // install 'attributes' as properties on the prototype, 
-      // but don't override
-      Object.keys(published).forEach(function(p) {
-        if (!(p in prototype)) {
-          prototype[p] = published[p];
         }
-      });
-    },
-    publishProperties: function(prototype) {
-      this.publishPublish(prototype);
-    },
-    publishPublish: function(prototype) {
-      // process only the PUBLISH block on this prototype, not the chain
-      if (!prototype.hasOwnProperty(PUBLISH)) {
-        return;
-      }
-      // acquire properties published imperatively
-      var imperative = prototype[PUBLISH];
-      if (imperative) {
-        // install imperative properties, overriding defaults
-        Object.keys(imperative).forEach(function(p) {
-          prototype[p] = imperative[p];
-        });
-        // combine with other published properties
-        Platform.mixin(
-          prototype[PUBLISHED],
-          imperative
-        );
       }
     },
     // record clonable attributes from <element>
     accumulateInstanceAttributes: function() {
       // inherit instance attributes
-      var clonable = this.prototype[INSTANCE_ATTRIBUTES];
+      var clonable = this.prototype._instanceAttributes;
       // merge attributes from element
       this.attributes.forEach(function(a) {
         if (this.isInstanceAttribute(a.name)) {
@@ -93,11 +55,11 @@
     blackList: {name: 1, 'extends': 1, constructor: 1, noscript: 1}
   };
 
-  // add ATTRIBUTES symbol to blacklist
-  attributes.blackList[ATTRIBUTES] = 1;
+  // add ATTRIBUTES_ATTRIBUTE to the blacklist
+  attributes.blackList[ATTRIBUTES_ATTRIBUTE] = 1;
 
   // exports
 
   scope.api.declaration.attributes = attributes;
-  
+
 })(Polymer);

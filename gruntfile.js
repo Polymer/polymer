@@ -78,7 +78,7 @@ module.exports = function(grunt) {
           outdir: 'docs',
           linkNatives: 'true',
           tabtospace: 2,
-          themedir: 'tools/doc/themes/bootstrap'
+          themedir: '../tools/doc/themes/bootstrap'
         }
       }
     },

@@ -138,7 +138,10 @@
       }
     },
     attributeChangedCallback: function(name, oldValue) {
-      this.attributeToProperty(name, this.getAttribute(name));
+      // TODO(sjmiles): adhoc filter
+      if (name !== 'class' && name !== 'style') {
+        this.attributeToProperty(name, this.getAttribute(name));
+      }
       if (this.attributeChanged) {
         this.attributeChanged.apply(this, arguments);
       }

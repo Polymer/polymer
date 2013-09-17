@@ -4,54 +4,73 @@
  * license that can be found in the LICENSE file.
  */
 (function(scope) {
-  
-  // imports
-
-  var attributes_api = scope.api.instance.attributes,
-      events_api = scope.api.instance.events
-      ;
-
-  // magic words
-
-  var OBSERVE_SUFFIX = 'Changed';
 
   // element api
-  
-  var empty = [];
 
   var properties = {
-    cacheProperties: function() {
-      this.prototype.customPropertyNames = this.getCustomPropertyNames(this.prototype);
-    },
-    // fetch an array of all property names in our prototype chain 
-    // above PolymerBase
-    // TODO(sjmiles): perf: reflection is slow, relatively speaking
-    //  If an element may take 6us to create, getCustomPropertyNames might
-    //  cost 1.6us more.
-    getCustomPropertyNames: function(p) {
-      var properties = {}, some;
-      while (p && !scope.isBase(p)) {
-        var names = Object.getOwnPropertyNames(p);
-        for (var i=0, l=names.length, n; (i<l) && (n=names[i]); i++) {
-          if (!custom_property_black_list[n]) {
-            properties[n] = true;
-            some = true;
+    inferObservers: function(prototype) {
+      var observe = prototype.observe;
+      for (var n in prototype) {
+        if (n.slice(-7) === 'Changed') {
+          if (!observe) {
+            observe  = (prototype.observe = {});
           }
+          observe[n.slice(0, -7)] = n;
+          //console.log('inferring observe entry for', n);
         }
-      // TODO(sjmiles): __proto__ is simulated on non-supporting platforms
-        p = p.__proto__;
-      }  
-      return some ? Object.keys(properties) : empty;
+      }
+    },
+    optimizePropertyMaps: function(prototype, base) {
+      if (prototype.observe) {
+        // combine name list
+        prototype._observeNames = Object.keys(prototype.observe).concat(base._observeNames || []);
+        // build value list
+        prototype._observeValues = valuesForNames(prototype._observeNames, prototype.observe);
+      }
+      if (prototype.publish) {
+        // combine name list
+        prototype._publishNames = Object.keys(prototype.publish).concat(base._publishNames || []);
+        // build value list
+        prototype._publishValues = valuesForNames(prototype._publishNames, prototype.publish);
+      }
+    },
+    publishProperties: function(prototype, base) {
+      // if we have any properties to publish
+      var publish = prototype.publish;
+      if (publish) {
+        // transcribe `publish` entries onto own prototype
+        this.requireProperties(publish, prototype, base);
+        // construct map of lower-cased property names
+        prototype._publishLC = this.lowerCaseMap(publish);
+      }
+    },
+    requireProperties: function(properties, prototype, base) {
+      // ensure a prototype value for each one
+      for (var n in properties) {
+        if (prototype[n] === undefined && base[n] === undefined) {
+          prototype[n] = properties[n];
+        }
+      }
+    },
+    lowerCaseMap: function(properties) {
+      var map = {};
+      for (var n in properties) {
+        map[n.toLowerCase()] = n;
+      }
+      return map;
     }
   };
 
-  var custom_property_black_list = {};
-  custom_property_black_list[attributes_api.PUBLISHED] = 1;
-  custom_property_black_list[attributes_api.INSTANCE_ATTRIBUTES] = 1;
-  custom_property_black_list[events_api.DELEGATES] = 1;
+  function valuesForNames(names, map) {
+    var values = [];
+    for (var i=0, l=names.length; i<l; i++) {
+      values[i] = map[names[i]];
+    }
+    return values;
+  }
 
   // exports
 
   scope.api.declaration.properties = properties;
-  
+
 })(Polymer);

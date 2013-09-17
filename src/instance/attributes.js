@@ -5,26 +5,23 @@
  */
 (function(scope) {
 
-  // magic words
-
-  var PUBLISHED = '__published';
-  var INSTANCE_ATTRIBUTES = '__instance_attributes';
-
   // instance api for attributes
 
   var attributes = {
-    PUBLISHED: PUBLISHED,
-    INSTANCE_ATTRIBUTES: INSTANCE_ATTRIBUTES,
     copyInstanceAttributes: function () {
-      var a$ = this[INSTANCE_ATTRIBUTES];
+      var a$ = this._instanceAttributes;
       for (var k in a$) {
         this.setAttribute(k, a$[k]);
       }
     },
     // for each attribute on this, deserialize value to property as needed
     takeAttributes: function() {
-      for (var i=0, a$=this.attributes, l=a$.length, a; (a=a$[i]) && i<l; i++) {
-        this.attributeToProperty(a.name, a.value);
+      // if we have no publish lookup table, we have no attributes to take
+      // TODO(sjmiles): ad hoc
+      if (this._publishLC) {
+        for (var i=0, a$=this.attributes, l=a$.length, a; (a=a$[i]) && i<l; i++) {
+          this.attributeToProperty(a.name, a.value);
+        }
       }
     },
     // if attribute 'name' is mapped to a property, deserialize
@@ -53,10 +50,9 @@
     },
     // return the published property matching name, or undefined
     propertyForAttribute: function(name) {
-      // matchable properties must be published
-      var properties = Object.keys(this[PUBLISHED]);
-      // search for a matchable property
-      return properties[properties.map(lowerCase).indexOf(name.toLowerCase())];
+      var match = this._publishLC && this._publishLC[name];
+      //console.log('propertyForAttribute:', name, 'matches', match);
+      return match;
     },
     // convert representation of 'stringValue' based on type of 'defaultValue'
     deserializeValue: function(stringValue, defaultValue) {
@@ -70,28 +66,26 @@
         return value;
       }
     },
-    propertyToAttribute: function(name) {
-      if (Object.keys(this[PUBLISHED]).indexOf(name) >= 0) {
+    relectPropertyToAttribute: function(name) {
+      //if (Object.keys(this[PUBLISHED]).indexOf(name) >= 0) {
+        // TODO(sjmiles): consider memoizing this
         var inferredType = typeof this.__proto__[name];
+        // try to intelligently serialize property value
         var serializedValue = this.serializeValue(this[name], inferredType);
         // boolean properties must reflect as boolean attributes
         if (serializedValue !== undefined) {
           this.setAttribute(name, serializedValue);
-        // TODO(sorvell): we should remove attr for all properties 
-        // that have undefined serialization; however, we will need to 
-        // refine the attr reflection system to achieve this; pica, for example,
-        // relies on having inferredType object properties not removed as 
-        // attrs.
+          // TODO(sorvell): we should remove attr for all properties 
+          // that have undefined serialization; however, we will need to 
+          // refine the attr reflection system to achieve this; pica, for example,
+          // relies on having inferredType object properties not removed as 
+          // attrs.
         } else if (inferredType === 'boolean') {
           this.removeAttribute(name);
         }
-        
-      }
+      //}
     }
   };
-
-  var lowerCase = String.prototype.toLowerCase.call.bind(
-    String.prototype.toLowerCase);
 
   // exports
 

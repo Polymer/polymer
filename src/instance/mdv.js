@@ -35,7 +35,7 @@
         // reflect bound property to attribute when binding
         // to ensure binding is not left on attribute if property
         // does not update due to not changing.
-        this.propertyToAttribute(name);
+        this.relectPropertyToAttribute(name);
         return this.bindings[name] = observer;
       } else {
         return this.super(arguments);
