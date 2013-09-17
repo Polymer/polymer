@@ -16,7 +16,6 @@
             observe  = (prototype.observe = {});
           }
           observe[n.slice(0, -7)] = n;
-          //console.log('inferring observe entry for', n);
         }
       }
     },

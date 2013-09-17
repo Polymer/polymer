@@ -5,7 +5,7 @@
  */
  (function(scope) {
     // super
-    
+
     // `arrayOfArgs` is an optional array of args like one might pass
     // to `Function.apply`
 
@@ -55,7 +55,8 @@
         // if 'fn' is not function valued, this will throw
         return fn.apply(this, arrayOfArgs || []);
       }
-    };
+    }
+
     function nextSuper(proto, name, caller) {
       // look for an inherited prototype that implements name
       while (proto) {
@@ -64,8 +65,7 @@
         }
         proto = getPrototypeOf(proto);
       }
-    };
-
+    }
 
     function memoizeSuper(method, name, proto) {
       // find and cache next prototype containing `name`
@@ -78,23 +78,23 @@
         method._super[name].nom = name;
       }
       return method._super;
-    };
+    }
 
     function nameInThis(value) {
-      //console.warn('nameInThis called');
-      var p = this;
+      var p = this.__proto__;
       while (p && p !== HTMLElement.prototype) {
+        // TODO(sjmiles): getOwnPropertyNames is absurdly expensive
         var n$ = Object.getOwnPropertyNames(p);
         for (var i=0, l=n$.length, n; i<l && (n=n$[i]); i++) {
           var d = Object.getOwnPropertyDescriptor(p, n);
-          if (d.value == value) {
+          if (typeof d.value === 'function' && d.value === value) {
             return n;
           }
         }
         p = p.__proto__;
       }
     }
-    
+
     // NOTE: In some platforms (IE10) the prototype chain is faked via 
     // __proto__. Therefore, always get prototype via __proto__ instead of
     // the more standard Object.getPrototypeOf.
@@ -102,8 +102,21 @@
       return prototype.__proto__;
     }
 
+    // utility function to precompute name tags for functions
+    // in a (unchained) prototype
+    function hintSuper(prototype) {
+      // tag functions with their prototype name to optimize
+      // super call invocations
+      for (var n in prototype) {
+        var pd = Object.getOwnPropertyDescriptor(prototype, n);
+        if (pd && typeof pd.value === 'function') {
+          pd.value.nom = n;
+        }
+      }
+    }
+
     // exports
-    
+
     scope.super = $super;
-    
-  })(Polymer);
+
+})(Polymer);

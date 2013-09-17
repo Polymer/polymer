@@ -18,10 +18,8 @@
           // cache name-of-method for 'super' engine
           if (typeof pd.value == 'function') {
             // hint the 'super' engine
-            prototype[n].nom = n;
+            pd.value.nom = n;
           }
-          // TODO(sjmiles): sharing a function only works if 
-          // the function only ever has one name
         }
       });
     }
