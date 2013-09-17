@@ -48,7 +48,7 @@
         Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
       }
       // register our custom element with the platform
-      this.registerPrototype(name);
+      this.registerPrototype(name, extendee);
       // reference constructor in a global named by 'constructor' attribute
       this.publishConstructor();
     },
