@@ -8,25 +8,15 @@
 
   // imports
 
-  // instance api
-
-  var api = scope.api.instance.events;
-
-  var DELEGATES = api.DELEGATES;
-  var EVENT_PREFIX = api.EVENT_PREFIX;
-
-  // logging flags
+  var EVENT_PREFIX = scope.api.instance.events.EVENT_PREFIX;
   var log = window.logFlags || {};
 
-  // polymer-element event feature
+  // polymer-element declarative api: events feature
 
   var events = { 
-    inheritDelegates: function(prototype) {
-      this.inheritObject(prototype, DELEGATES);
-    },
     parseHostEvents: function() {
       // our delegates map
-      var delegates = this.prototype[DELEGATES];
+      var delegates = this.prototype.eventDelegates;
       // extract data from attributes into delegates
       this.addAttributeDelegates(delegates);
     },
@@ -82,29 +72,28 @@
       }
     },
     accumulateEvent: function(name, events) {
-      name = event_translations[name] || name;
+      name = this.event_translations[name] || name;
       events[name] = events[name] || 1;
+    },
+    event_translations: {
+      webkitanimationstart: 'webkitAnimationStart',
+      webkitanimationend: 'webkitAnimationEnd',
+      webkittransitionend: 'webkitTransitionEnd',
+      domfocusout: 'DOMFocusOut',
+      domfocusin: 'DOMFocusIn'
     }
   };
 
-  var event_translations = {
-    webkitanimationstart: 'webkitAnimationStart',
-    webkitanimationend: 'webkitAnimationEnd',
-    webkittransitionend: 'webkitTransitionEnd',
-    domfocusout: 'DOMFocusOut',
-    domfocusin: 'DOMFocusIn'
-  };
+  var prefixLength = EVENT_PREFIX.length;
 
   function hasEventPrefix(n) {
-    return n.slice(0, prefixLength) == EVENT_PREFIX;
+    return n.slice(0, prefixLength) === EVENT_PREFIX;
   }
 
   function removeEventPrefix(n) {
     return n.slice(prefixLength);
   }
 
-  var prefixLength = EVENT_PREFIX.length;
-  
   // TODO(sorvell): Currently in MDV, there is no way to get a template's
   // effective content. A template can have a ref property
   // that points to the template from which this one has been cloned.
@@ -113,8 +102,6 @@
   function getTemplateContent(template) {
     return template.ref ? template.ref.content : template.content;
   }
-
-  events.event_translations = event_translations;
 
   // exports
 

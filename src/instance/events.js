@@ -8,24 +8,20 @@
 
   // imports
 
-  // logging flags
-
   var log = window.logFlags || {};
 
   // magic words
 
   var EVENT_PREFIX = 'on-';
-  var DELEGATES = 'eventDelegates';
 
-  // instance api for events
+  // instance events api
 
   var events = {
     // magic words
     EVENT_PREFIX: EVENT_PREFIX,
-    DELEGATES: DELEGATES,
     // event listeners on host
     addHostListeners: function() {
-      var events = this[DELEGATES];
+      var events = this.eventDelegates;
       log.events && (Object.keys(events).length > 0) && console.log('[%s] addHostListeners:', this.localName, events);
       this.addNodeListeners(this, events, this.hostEventListener);
     },
@@ -64,7 +60,7 @@
     },  
     // find the method name in delegates mapped to event.type
     findEventDelegate: function(event) {
-      return this[DELEGATES][event.type];
+      return this.eventDelegates[event.type];
     },
     // call 'methodName' method on 'node' with 'args', if the method exists
     dispatchMethod: function(node, methodName, args) {
@@ -82,9 +78,8 @@
     }
   };
 
-  // TODO(sjmiles): much of the below privatized only because of the vague 
-  // notion that the below is too fiddly and we need to revisit the core
-  // feature
+  // TODO(sjmiles): much of the below privatized only because of the vague
+  // notion this code is too fiddly and we need to revisit the core feature
 
   function listenLocal(host, event) {
     if (!event.cancelBubble) {
