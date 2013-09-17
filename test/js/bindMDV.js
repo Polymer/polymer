@@ -51,7 +51,8 @@ suite('bindMDV', function() {
 });
 
 
-htmlSuite('unbind', function() {
+htmlSuite('bind', function() {
   htmlTest('html/template-distribute-dynamic.html');
+  htmlTest('html/bind.html');
   htmlTest('html/unbind.html');
 });
