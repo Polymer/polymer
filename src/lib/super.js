@@ -56,15 +56,16 @@
         return fn.apply(this, arrayOfArgs || []);
       }
     };
-
     function nextSuper(proto, name, caller) {
       // look for an inherited prototype that implements name
-      while (proto &&
-          (!proto.hasOwnProperty(name) || proto[name] === caller)) {
+      while (proto) {
+        if ((proto[name] !== caller) && proto[name]) {
+          return proto;
+        }
         proto = getPrototypeOf(proto);
       }
-      return proto;
     };
+
 
     function memoizeSuper(method, name, proto) {
       // find and cache next prototype containing `name`
