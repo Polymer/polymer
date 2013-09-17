@@ -135,11 +135,16 @@
       prototype[name] = extend({}, Object.getPrototypeOf(prototype)[name]);
     },
     // register 'prototype' to custom element 'name', store constructor 
-    registerPrototype: function(name) { 
-      // register the custom type
-      this.ctor = document.register(name, {
+    registerPrototype: function(name, extendee) { 
+      var info = {
         prototype: this.prototype
-      });
+      }
+      // native element must be specified in extends
+      if (extendee && extendee.indexOf('-') < 0) {
+        info.extends = extendee;
+      }
+      // register the custom type
+      this.ctor = document.register(name, info);
       // constructor shenanigans
       this.prototype.constructor = this.ctor;
       // register the prototype with HTMLElement for name lookup
