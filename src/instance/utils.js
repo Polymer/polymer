@@ -39,7 +39,7 @@
       //log.events && console.log('[%s]: sending [%s]', node.localName, inType);
       node.dispatchEvent(
         new CustomEvent(type, {
-          bubbles: (bubbles !== undefined ? false : true), 
+          bubbles: (bubbles !== undefined ? bubbles : true), 
           detail: detail
         }));
       return detail;
