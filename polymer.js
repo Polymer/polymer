@@ -32,8 +32,7 @@ var modules = [
   "declaration/properties.js",
   "declaration/attributes.js",
   "declaration/prototype.js",
-  "declaration/polymer-element.js",
-  "deprecated.js"
+  "declaration/polymer-element.js"
 ].map(function(n) {
   return "src/" + n;
 }));
