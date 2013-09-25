@@ -50,7 +50,7 @@
     },
     _observe: function(name, cb) {
       log.observe && console.log(LOG_OBSERVE, this.localName, name);
-      registerObserver(this, name, 
+      registerObserver(this, name,
         new PathObserver(this, name, cb));
     },
     observeAttributeProperty: function(name) {
@@ -76,8 +76,8 @@
       // apply Polymer two-way reference binding
       return bindProperties(this, property, model, path);
     },
-    unbindProperty: function(type, name) {
-      return unregisterObserver(this, type, name);
+    unbindProperty: function(name) {
+      return unregisterObserver(this, name);
     },
     unbindAllProperties: function() {
       unregisterObservers(this);
