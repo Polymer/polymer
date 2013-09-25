@@ -10,21 +10,6 @@
   var api = scope.api;
   var isBase = scope.isBase;
   var extend = scope.extend;
-  
-  // returns a prototype that chains to <tag> or HTMLElement
-
-  // TODO(sjmiles): duplicated in attributes.js
-  if (Object.__proto__) {
-    var chainObject = function(object, inherited) {
-      if (object && inherited && object !== inherited) {
-        object.__proto__ = inherited;
-      }
-    }
-  } else {
-    chainObject = function(object, inherited) {
-      throw "Fix chainObject for IE";
-    }
-  }
 
   // prototype api
 
