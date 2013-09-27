@@ -19,16 +19,22 @@
         }
       }
     },
-    optimizePropertyMaps: function(prototype, base) {
+    optimizePropertyMaps: function(prototype) {
       if (prototype.observe) {
-        // combine name list
-        prototype._observeNames = Object.keys(prototype.observe).concat(base._observeNames || []);
+        // construct name list
+        var a = prototype._observeNames = [];
+        for (var n in prototype.observe) {
+          a.push(n);
+        }
         // build value list
         prototype._observeValues = valuesForNames(prototype._observeNames, prototype.observe);
       }
       if (prototype.publish) {
-        // combine name list
-        prototype._publishNames = Object.keys(prototype.publish).concat(base._publishNames || []);
+        // construct name list
+        var a = prototype._publishNames = [];
+        for (var n in prototype.publish) {
+          a.push(n);
+        }
         // build value list
         prototype._publishValues = valuesForNames(prototype._publishNames, prototype.publish);
       }

@@ -53,11 +53,8 @@
       // chain custom api to inherited
       prototype = this.chainObject(prototype, base);
       // build side-chained lists to optimize iterations
-      this.optimizePropertyMaps(prototype, base);
-      // inherit publishing meta-data
-      //this.inheritAttributesObjects(prototype);
-      //this.inheritDelegates(prototype);
-      // x-platform fixups
+      this.optimizePropertyMaps(prototype);
+      // x-platform fixup
       ensurePrototypeTraversal(prototype);
       return prototype;
     },
