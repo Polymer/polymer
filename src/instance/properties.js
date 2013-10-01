@@ -19,6 +19,7 @@
 
   var properties = {
     // set up property observers
+    /*
     observeProperties: function() {
       // TODO(sjmiles):
       // we observe published properties so we can reflect them to attributes
@@ -48,6 +49,7 @@
         }
       }
     },
+    */
     _observe: function(name, cb) {
       log.observe && console.log(LOG_OBSERVE, this.localName, name);
       registerObserver(this, name,
@@ -81,7 +83,49 @@
     },
     unbindAllProperties: function() {
       unregisterObservers(this);
-    }
+      if (this._propertyObserver) {
+        this._propertyObserver.close();
+      }
+    },
+    
+    observeProperties: function() {
+      var n$ = this._observeNames, pn$ = this._publishNames;
+      if ((n$ && n$.length) || (pn$ && pn$.length)) {
+        var self = this;
+        var o = this._propertyObserver = new CompoundPathObserver(function(
+            newValues, oldValues, changedBits) {
+          self.notifyPropertyChanges(newValues, oldValues, changedBits);
+        }, this, undefined, undefined);
+        var p = this._propertyObserverNames = [];
+        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+          p.push(n);
+          o.addPath(this, n);
+        }
+        for (var i=0, l=pn$.length, n; (i<l) && (n=pn$[i]); i++) {
+          if (!this.observe || (this.observe[n] === undefined)) {
+            p.push(n);
+            o.addPath(this, n);
+          }
+        }
+        //console.log(p);
+        o.start();
+      }
+    },
+    
+    notifyPropertyChanges: function(newValues, oldValues, changedBits) {
+      for (var i=0, l=changedBits.length, n; i<l; i++) {
+        if (changedBits[i]) {
+          n = this._propertyObserverNames[i];
+          //console.log(n, this.publish[n], this.observe[n]);
+          if (this.publish[n] !== undefined) {
+            this.relectPropertyToAttribute(n);
+          }
+          if (this.observe[n]) {
+            invoke.call(this, this.observe[n], [oldValues[i]]);
+          }
+        }
+      }
+    },
   };
 
   function invoke(method, args) {
@@ -135,10 +179,16 @@
   }
 
   function getElementObservers(element) {
+    //window.timer && timer.time('getElementObservers');
+    var b$ = element._propertyBindingObservers ||
+        (element._propertyBindingObservers = {});
+    /*
     var b$ = observers.get(element);
     if (!b$) {
       observers.set(element, b$ = {});
     }
+    */
+    //window.timer && timer.timeEnd('getElementObservers');    
     return b$;
   }
 
