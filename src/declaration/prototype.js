@@ -21,17 +21,7 @@
       // TODO(sjmiles): replace `element` with `elementElement` or `declaration`
       this.prototype.element = this;
       // more declarative features
-      this.desugar();
-      // TODO(sorvell): install a helper method this.resolvePath to aid in 
-      // setting resource paths. e.g.
-      // this.$.image.src = this.resolvePath('images/foo.png')
-      // Potentially remove when spec bug is addressed.
-      // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
-      this.addResolvePathApi();
-      // under ShadowDOMPolyfill, transforms to approximate missing CSS features
-      if (window.ShadowDOMPolyfill) {
-        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
-      }
+      this.desugar(name, extendee);
       // register our custom element with the platform
       this.registerPrototype(name, extendee);
       // reference constructor in a global named by 'constructor' attribute
@@ -71,7 +61,7 @@
       this.inheritObject('eventDelegates', prototype, base);
     },
     // implement various declarative features
-    desugar: function(prototype) {
+    desugar: function(name, extendee) {
       // compile list of attributes to copy to instances
       this.accumulateInstanceAttributes();
       // parse on-* delegates declared on `this` element
@@ -80,6 +70,16 @@
       this.parseLocalEvents();
       // install external stylesheets as if they are inline
       this.installSheets();
+      // TODO(sorvell): install a helper method this.resolvePath to aid in 
+      // setting resource paths. e.g.
+      // this.$.image.src = this.resolvePath('images/foo.png')
+      // Potentially remove when spec bug is addressed.
+      // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
+      this.addResolvePathApi();
+      // under ShadowDOMPolyfill, transforms to approximate missing CSS features
+      if (window.ShadowDOMPolyfill) {
+        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
+      }
       // allow custom element access to the declarative context
       if (this.prototype.registerCallback) {
         this.prototype.registerCallback(this);
