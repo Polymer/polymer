@@ -18,76 +18,6 @@
   var empty = [];
 
   var properties = {
-    // set up property observers
-    /*
-    observeProperties: function() {
-      // TODO(sjmiles):
-      // we observe published properties so we can reflect them to attributes
-      // ~100% of our team's applications would work without this reflection,
-      // perhaps we can make it optional somehow
-      //
-      // add user's observers
-      var n$ = this._observeNames, v$ = this._observeValues;
-      if (n$) {
-        for (var i=0, l=n$.length, n; i<l; i++) {
-          n = n$[i];
-          if (this.publish && (this.publish[n] !== undefined)) {
-            this.observeBoth(n, v$[i]);
-          } else {
-            this.observeProperty(n, v$[i]);
-          }
-        }
-      }
-      // add observers for published properties
-      var n$ = this._publishNames, v$ = this._publishValues;
-      if (n$) {
-        for (var i=0, l=n$.length, n; i<l; i++) {
-          n = n$[i];
-          if (!this.observe || (this.observe[n] === undefined)) {
-            this.observeAttributeProperty(n, v$[i]);
-          }
-        }
-      }
-    },
-    */
-    _observe: function(name, cb) {
-      log.observe && console.log(LOG_OBSERVE, this.localName, name);
-      registerObserver(this, name,
-        new PathObserver(this, name, cb));
-    },
-    observeAttributeProperty: function(name) {
-      var self = this;
-      this._observe(name, function() {
-        self.relectPropertyToAttribute(name);
-      });
-    },
-    observeProperty: function(name, methodName) {
-      var self = this;
-      this._observe(name, function(value, old) {
-        invoke.call(self, methodName, [old]);
-      });
-    },
-    observeBoth: function(name, methodName) {
-      var self = this;
-      this._observe(name, function(value, old) {
-        self.relectPropertyToAttribute(name);
-        invoke.call(self, methodName, [old]);
-      });
-    },
-    bindProperty: function(property, model, path) {
-      // apply Polymer two-way reference binding
-      return bindProperties(this, property, model, path);
-    },
-    unbindProperty: function(name) {
-      return unregisterObserver(this, name);
-    },
-    unbindAllProperties: function() {
-      unregisterObservers(this);
-      if (this._propertyObserver) {
-        this._propertyObserver.close();
-      }
-    },
-    
     observeProperties: function() {
       var n$ = this._observeNames, pn$ = this._publishNames;
       if ((n$ && n$.length) || (pn$ && pn$.length)) {
@@ -96,6 +26,8 @@
             newValues, oldValues, changedBits) {
           self.notifyPropertyChanges(newValues, oldValues, changedBits);
         }, this, undefined, undefined);
+        // TODO(sorvell): remove _propertyObservedNames array when
+        // CompoundPathObserver provides this info.
         var p = this._propertyObserverNames = [];
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           p.push(n);
@@ -107,16 +39,13 @@
             o.addPath(this, n);
           }
         }
-        //console.log(p);
         o.start();
       }
     },
-    
     notifyPropertyChanges: function(newValues, oldValues, changedBits) {
       for (var i=0, l=changedBits.length, n; i<l; i++) {
         if (changedBits[i]) {
           n = this._propertyObserverNames[i];
-          //console.log(n, this.publish[n], this.observe[n]);
           if (this.publish[n] !== undefined) {
             this.relectPropertyToAttribute(n);
           }
@@ -126,6 +55,16 @@
         }
       }
     },
+    // set up property observers
+    bindProperty: function(property, model, path) {
+      // apply Polymer two-way reference binding
+      return bindProperties(this, property, model, path);
+    },
+    unbindAllProperties: function() {
+      if (this._propertyObserver) {
+        this._propertyObserver.close();
+      }
+    }
   };
 
   function invoke(method, args) {
@@ -152,48 +91,7 @@
       {object: inB, path: inPath});
   }
 
-  // bookkeeping observers for memory management
-
-  var observers = new SideTable();
-
-  function registerObserver(element, name, observer) {
-    var o$ = getElementObservers(element);
-    o$[name] = observer;
-  }
-
-  function unregisterObserver(element, name) {
-    var o$ = getElementObservers(element);
-    if (o$ && o$[name]) {
-      o$[name].close();
-      o$[name] = null;
-      return true;
-    }
-  }
-
-  function unregisterObservers(element) {
-    var $o = getElementObservers(element);
-    Object.keys($o).forEach(function(key) {
-      $o[key].close();
-      $o[key] = null;
-    });
-  }
-
-  function getElementObservers(element) {
-    //window.timer && timer.time('getElementObservers');
-    var b$ = element._propertyBindingObservers ||
-        (element._propertyBindingObservers = {});
-    /*
-    var b$ = observers.get(element);
-    if (!b$) {
-      observers.set(element, b$ = {});
-    }
-    */
-    //window.timer && timer.timeEnd('getElementObservers');    
-    return b$;
-  }
-
   // logging
-
   var LOG_OBSERVE = '[%s] watching [%s]';
   var LOG_OBSERVED = '[%s#%s] watch: [%s] now [%s] was [%s]';
   var LOG_CHANGED = '[%s#%s] propertyChanged: [%s] now [%s] was [%s]';
