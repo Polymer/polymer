@@ -44,12 +44,20 @@
 
   <script>
       var assert = chai.assert;
+      function oneMutation(node, options, cb) {
+        var o = new MutationObserver(function() {
+          cb();
+          o.disconnect();
+        });
+        o.observe(node, options);
+      }
+      
       document.addEventListener('WebComponentsReady', function() {
         var xcompose = document.querySelector('x-compose');
         var xfoo = document.querySelector('x-foo');
         xfoo.foo = 5;
         Platform.flush();
-        Platform.endOfMicrotask(function() {
+        oneMutation(xfoo, {attributes: true}, function() {
           assert.isFalse(xcompose.$.bar.hasAttribute('zim'), 'attribute bound to property updates when binding is made');
           
           assert.equal(String(xfoo.foo), xfoo.getAttribute('foo'), 'attribute reflects property as string');
@@ -58,7 +66,7 @@
           //
           xfoo.baz = 'Hello';
           Platform.flush();
-          Platform.endOfMicrotask(function() {
+          oneMutation(xfoo, {attributes: true}, function() {  
             assert.equal(xfoo.baz, xfoo.getAttribute('baz'), 'attribute reflects property');
             //
             var xbar = document.querySelector('x-bar');
@@ -69,7 +77,7 @@
             xbar.str = 'str!';
             xbar.obj = {hello: 'world'};
             Platform.flush();
-            Platform.endOfMicrotask(function() {
+            oneMutation(xbar, {attributes: true}, function() {  
               assert.equal(xbar.foo, xbar.getAttribute('foo'), 'inherited published property is reflected');
               assert.equal(String(xbar.zot), xbar.getAttribute('zot'), 'attribute reflects property as number');
               assert.equal(xbar.getAttribute('zim'), '', 'attribute reflects true valued boolean property as having attribute');
@@ -87,15 +95,17 @@
               assert.deepEqual(xbar.obj, {hello: 'world'}, 'property reflects attribute as object');
               xbar.zim = false;
               Platform.flush();
-              Platform.endOfMicrotask(function() {
+              oneMutation(xbar, {attributes: true}, function() {
                 assert.isFalse(xbar.hasAttribute('zim'), 'attribute reflects false valued boolean property as NOT having attribute');
                 var objAttr = xbar.getAttribute('obj');
-                xbar.obj = 'hi';
-                Platform.endOfMicrotask(function() {
+                oneMutation(xbar, {attributes: true}, function() {  
                   assert.equal(xbar.getAttribute('obj'), objAttr, 'do not reflect property with default type of object');
                   //assert.isFalse(xbar.hasAttribute('obj'), 'property with default type of object does not serialize');
                   done();
                 });
+                xbar.obj = 'hi';
+                // trigger a mutation to watch
+                xbar.setAttribute('dummy', 'dummy');
               });
             });  
           });

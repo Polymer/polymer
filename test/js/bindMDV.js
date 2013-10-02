@@ -6,13 +6,12 @@
 
 suite('bindMDV', function() {
   var assert = chai.assert;
-  
+
   function parseAndBindHTML(html, model) {
     var t = document.createElement('template');
     t.innerHTML = html;
     return t.createInstance(model);
   }
-  
   
   test('bindModel bindModel', function(done) {
     var test = document.createElement('div');
@@ -23,15 +22,18 @@ suite('bindMDV', function() {
     
     test.bar = 5;
     Platform.flush();
-    Platform.endOfMicrotask(function() {
-      assert.equal(a.getAttribute('foo'), 5);
-      test.bar = 8;
-      Platform.flush();
-      Platform.endOfMicrotask(function() {
+    var mutation = 0;
+    new MutationObserver(function() {
+      if (mutation == 0) {
+        mutation++;
+        assert.equal(a.getAttribute('foo'), 5);
+        test.bar = 8;
+        Platform.flush();
+      } else {
         assert.equal(a.getAttribute('foo'), 8);
         done();
-      });
-    });
+      }
+    }).observe(a, {attributes: true});
   });
   
   test('bindModel bind input', function(done) {
@@ -39,9 +41,10 @@ suite('bindMDV', function() {
     var fragment = parseAndBindHTML('<input value="{{bar}}" />', test);
     test.appendChild(fragment);
     var a = test.querySelector('input');
-    
     test.bar = 'hello';
     Platform.flush();
+    // TODO(sorvell): fix this when observe-js lets us explicitly listen for
+    // a change on input.value
     Platform.endOfMicrotask(function() {
       assert.equal(a.value, 'hello');
       done();
