@@ -23,29 +23,26 @@
       if ((n$ && n$.length) || (pn$ && pn$.length)) {
         var self = this;
         var o = this._propertyObserver = new CompoundPathObserver(function(
-            newValues, oldValues, changedBits) {
-          self.notifyPropertyChanges(newValues, oldValues, changedBits);
+            newValues, oldValues, changedBits, paths) {
+          self.notifyPropertyChanges(newValues, oldValues, changedBits, paths);
         }, this, undefined, undefined);
-        // TODO(sorvell): remove _propertyObservedNames array when
-        // CompoundPathObserver provides this info.
         var p = this._propertyObserverNames = [];
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
-          p.push(n);
           o.addPath(this, n);
         }
         for (var i=0, l=pn$.length, n; (i<l) && (n=pn$[i]); i++) {
           if (!this.observe || (this.observe[n] === undefined)) {
-            p.push(n);
             o.addPath(this, n);
           }
         }
         o.start();
       }
     },
-    notifyPropertyChanges: function(newValues, oldValues, changedBits) {
+    notifyPropertyChanges: function(newValues, oldValues, changedBits, paths) {
       for (var i=0, l=changedBits.length, n; i<l; i++) {
         if (changedBits[i]) {
-          n = this._propertyObserverNames[i];
+          // note: paths is of form [object, path, object, path]
+          n = paths[2 * i + 1];
           if (this.publish[n] !== undefined) {
             this.relectPropertyToAttribute(n);
           }
