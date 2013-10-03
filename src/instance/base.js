@@ -36,10 +36,12 @@
       this.takeAttributes();
       // add event listeners
       this.addHostListeners();
-      // guarantees that while preparing, any sub-elements will also be prepared
+      // guarantees that while preparing, any
+      // sub-elements are also prepared
       preparingElements++;
       // process declarative resources
       this.parseDeclarations(this.__proto__);
+      // decrement semaphore
       preparingElements--;
       // user entry point
       this.ready();
@@ -88,7 +90,14 @@
     },
     // parse input <element> as needed, override for custom behavior
     parseDeclaration: function(elementElement) {
-      this.shadowFromTemplate(this.fetchTemplate(elementElement));
+      var template = this.fetchTemplate(elementElement);
+      if (template) {
+        if (this.element.hasAttribute('lightdom')) {
+          this.lightFromTemplate(template);
+        } else {
+          this.shadowFromTemplate(template);
+        }
+      }
     },
     // return a shadow-root template (if desired), override for custom behavior
     fetchTemplate: function(elementElement) {
@@ -115,6 +124,22 @@
         this.shadowRootReady(root, template);
         // return the created shadow root
         return root;
+      }
+    },
+    // utility function that stamps a <template> into light-dom
+    lightFromTemplate: function(template) {
+      if (template) {
+        // stamp template
+        // which includes parsing and applying MDV bindings before being 
+        // inserted (to avoid {{}} in attribute values)
+        // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
+        var dom = this.instanceTemplate(template);
+        // append to shadow dom
+        this.appendChild(dom);
+        // perform post-construction initialization tasks on ahem, light root
+        this.shadowRootReady(this, template);
+        // return the created shadow root
+        return dom;
       }
     },
     shadowRootReady: function(root, template) {
