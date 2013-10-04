@@ -172,8 +172,8 @@
       }
     },
     onMutation: function(node, listener) {
-      var observer = new MutationObserver(function() {
-        listener.call(this, observer);
+      var observer = new MutationObserver(function(mutations) {
+        listener.call(this, observer, mutations);
         observer.disconnect();
       }.bind(this));
       observer.observe(node, {childList: true, subtree: true});
