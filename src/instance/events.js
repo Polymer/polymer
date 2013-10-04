@@ -71,6 +71,7 @@
           fn[args ? 'apply' : 'call'](this, args);
         }
         log.events && console.groupEnd();
+        Platform.flush();
       }
     },
     instanceEventListener: function(event) {
