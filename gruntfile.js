@@ -109,6 +109,7 @@ module.exports = function(grunt) {
     pkg: grunt.file.readJSON('package.json')
   });
 
+  grunt.loadTasks('../tools/tasks');
   // plugins
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
@@ -132,7 +133,7 @@ module.exports = function(grunt) {
   grunt.registerTask('default', ['concat_sourcemap', 'uglify', 'sourcemap_copy:polymer.concat.js.map:polymer.min.js.map', 'audit']);
   grunt.registerTask('minify', ['uglify']);
   grunt.registerTask('docs', ['yuidoc']);
-  grunt.registerTask('test', ['karma:polymer']);
-  grunt.registerTask('test-buildbot', ['karma:buildbot']);
+  grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
+  grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot']);
 };
 
