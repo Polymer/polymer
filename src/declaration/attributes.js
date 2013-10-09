@@ -31,7 +31,7 @@
           // remove excess ws
           n = names[i].trim();
           // do not override explicit entries
-          if (publish[n] === undefined && base[n] === undefined) {
+          if (n && publish[n] === undefined && base[n] === undefined) {
             publish[n] = null;
           }
         }
