@@ -4,7 +4,8 @@
  * license that can be found in the LICENSE file.
  */
 module.exports = function(grunt) {
-  var banner = [grunt.file.read('LICENSE'), '// @version ' + grunt.file.readJSON('package.json').version, ''].join(grunt.util.linefeed);
+  var temporary = require('temporary');
+  var tmp = new temporary.File();
 
   // recursive module builder
   var path = require('path');
@@ -24,7 +25,7 @@ module.exports = function(grunt) {
     return modules;
   }
 
-  Polymer = readManifest('build.json');
+  var Polymer = readManifest('build.json', [tmp.path]);
 
   grunt.initConfig({
     karma: {
@@ -52,8 +53,8 @@ module.exports = function(grunt) {
     },
     uglify: {
       options: {
-        banner: banner,
-        nonull: true
+        nonull: true,
+        preserveComments: 'some'
       },
       Polymer: {
         options: {
@@ -131,8 +132,24 @@ module.exports = function(grunt) {
     });
     grunt.file.write(dest, JSON.stringify(destMap));
   });
-  grunt.registerTask('default', ['concat_sourcemap', 'uglify', 'sourcemap_copy:polymer.concat.js.map:polymer.min.js.map', 'audit']);
-  grunt.registerTask('minify', ['uglify']);
+
+  // Workaround for banner + sourceMap + uglify: https://github.com/gruntjs/grunt-contrib-uglify/issues/22
+  grunt.registerTask('gen_license', function() {
+    var banner = [
+      '/* @license',
+      grunt.file.read('LICENSE'),
+      '@version ' + grunt.file.readJSON('package.json').version,
+      '*/'
+    ].join(grunt.util.linefeed);
+    grunt.file.write(tmp.path, banner);
+  });
+
+  grunt.registerTask('clean_license', function() {
+    tmp.unlinkSync();
+  });
+
+  grunt.registerTask('default', ['minify', 'audit']);
+  grunt.registerTask('minify', ['gen_license', 'concat_sourcemap', 'uglify', 'sourcemap_copy:polymer.concat.js.map:polymer.min.js.map', 'clean_license']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
   grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot']);
