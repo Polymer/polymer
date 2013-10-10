@@ -89,6 +89,7 @@ module.exports = function(grunt) {
           repos: [
             '.',
             '../platform',
+            '../WeakMap',
             '../ShadowDOM',
             '../HTMLImports',
             '../CustomElements',
