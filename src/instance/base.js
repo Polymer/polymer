@@ -67,7 +67,9 @@
       this.enteredViewCallback();
     },
     leftViewCallback: function() {
-      this.asyncUnbindAll();
+      if (!this.preventDispose) {
+        this.asyncUnbindAll();
+      }
       // invoke user action
       if (this.leftView) {
         this.leftView();

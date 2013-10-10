@@ -52,8 +52,11 @@
         this.unbindAllProperties();
         this.super(); 
         // unbind shadowRoot
-        unbindNodeTree(this.shadowRoot);
-        // TODO(sjmiles): must also unbind inherited shadow roots
+        var root = this.shadowRoot;
+        while (root) {
+          unbindNodeTree(root);
+          root = root.olderShadowRoot;
+        }
         this._unbound = true;
       }
     },
