@@ -84,12 +84,12 @@
       var callbackName = this.observe[name];
       if (callbackName) {
         // if we are observing the previous value, stop
-        if (isArray(old)) {
+        if (Array.isArray(old)) {
           log.observe && console.log('[%s] observeArrayValue: unregister observer [%s]', this.localName, name);
           unregisterObserver(this, name + '__array');
         }
         // if the new value is an array, being observing it
-        if (isArray(value)) {
+        if (Array.isArray(value)) {
           log.observe && console.log('[%s] observeArrayValue: register observer [%s]', this.localName, name, value);
           var self = this;
           var observer = new ArrayObserver(value, function(value, old) {
@@ -125,10 +125,6 @@
         fn.apply(this, args);
       }
     }
-  };
-
-  function isArray(obj) {
-    return toString.call(obj) === "[object Array]";
   };
 
   // property binding
