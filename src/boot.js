@@ -15,7 +15,7 @@
   var TRANSITION_TIME = 0.3;
   var style = document.createElement('style');
   style.textContent = '.' + VEILED_CLASS + ' { ' +
-      'visibility: hidden; opacity: 0; } \n' +
+      'opacity: 0; } \n' +
       '.' + UNVEIL_CLASS +  '{ ' +
       '-webkit-transition: opacity ' + TRANSITION_TIME + 's; ' +
       'transition: opacity ' + TRANSITION_TIME +'s; }\n';
