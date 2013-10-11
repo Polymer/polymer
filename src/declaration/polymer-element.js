@@ -104,10 +104,6 @@
     extend(prototype, apis[n]);
   });
 
-  // register polymer-element with document
-
-  document.register('polymer-element', {prototype: prototype});
-
   // utility and bookkeeping
   
   // maps tag names to prototypes
@@ -170,4 +166,6 @@
   // make window.Polymer reference `element()`
   window.Polymer = element;
 
+  // register polymer-element with document
+  document.register('polymer-element', {prototype: prototype});
 })(Polymer);
