@@ -20,6 +20,7 @@
   var properties = {
     // set up property observers
     observeProperties: function() {
+      //
       // TODO(sjmiles):
       // we observe published properties so we can reflect them to attributes
       // ~100% of our team's applications would work without this reflection,
@@ -48,29 +49,65 @@
         }
       }
     },
-    _observe: function(name, cb) {
-      log.observe && console.log(LOG_OBSERVE, this.localName, name);
-      registerObserver(this, name,
-        new PathObserver(this, name, cb));
-    },
     observeAttributeProperty: function(name) {
       var self = this;
+      // construct an observer on 'name' that ...
       this._observe(name, function() {
+        // reflects the value to an attribute
         self.relectPropertyToAttribute(name);
       });
     },
     observeProperty: function(name, methodName) {
       var self = this;
+      // construct an observer on 'name' that ...
       this._observe(name, function(value, old) {
-        invoke.call(self, methodName, [old]);
+        // observes the value if it is an array
+        self.observeArrayValue(name, value, old);
+        // invokes user's side-effect method
+        self.invokeMethod(methodName, [old]);
       });
     },
     observeBoth: function(name, methodName) {
       var self = this;
+      // construct an observer on 'name' that ...
       this._observe(name, function(value, old) {
+        // reflects the value to an attribute
         self.relectPropertyToAttribute(name);
-        invoke.call(self, methodName, [old]);
+        // observes the value if it is an array
+        self.observeArrayValue(name, value, old);
+        // invokes user's side-effect method
+        self.invokeMethod(methodName, [old]);
       });
+    },
+    observeArrayValue: function(name, value, old) {
+      // we only care if there are registered side-effects
+      var callbackName = this.observe[name];
+      if (callbackName) {
+        // if we are observing the previous value, stop
+        if (isArray(old)) {
+          log.observe && console.log('[%s] observeArrayValue: unregister observer [%s]', this.localName, name);
+          unregisterObserver(this, name + '__array');
+        }
+        // if the new value is an array, being observing it
+        if (isArray(value)) {
+          log.observe && console.log('[%s] observeArrayValue: register observer [%s]', this.localName, name, value);
+          var self = this;
+          var observer = new ArrayObserver(value, function(value, old) {
+            self.invokeMethod(callbackName, [old]);
+          });
+          registerObserver(this, name + '__array', observer);
+        }
+      }
+    },
+    _observe: function(name, cb) {
+      log.observe && console.log(LOG_OBSERVE, this.localName, name);
+      registerObserver(this, name, new PathObserver(this, name, cb));
+      // TODO(sjmiles): must use property descriptors otherwise we could
+      // be invoking a getter
+      var pd = Object.getOwnPropertyDescriptor(this.__proto__, name);
+      if (pd && pd.value) {
+        this.observeArrayValue(name, pd.value, null);
+      }
     },
     bindProperty: function(property, model, path) {
       // apply Polymer two-way reference binding
@@ -81,15 +118,18 @@
     },
     unbindAllProperties: function() {
       unregisterObservers(this);
+    },
+    invokeMethod: function(method, args) {
+      var fn = this[method] || method;
+      if (typeof fn === 'function') {
+        fn.apply(this, args);
+      }
     }
   };
 
-  function invoke(method, args) {
-    var fn = this[method] || method;
-    if (typeof fn === 'function') {
-      fn.apply(this, args);
-    }
-  }
+  function isArray(obj) {
+    return toString.call(obj) === "[object Array]";
+  };
 
   // property binding
 
