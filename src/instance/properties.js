@@ -54,7 +54,7 @@
       // construct an observer on 'name' that ...
       this._observe(name, function() {
         // reflects the value to an attribute
-        self.relectPropertyToAttribute(name);
+        self.reflectPropertyToAttribute(name);
       });
     },
     observeProperty: function(name, methodName) {
@@ -72,7 +72,7 @@
       // construct an observer on 'name' that ...
       this._observe(name, function(value, old) {
         // reflects the value to an attribute
-        self.relectPropertyToAttribute(name);
+        self.reflectPropertyToAttribute(name);
         // observes the value if it is an array
         self.observeArrayValue(name, value, old);
         // invokes user's side-effect method
@@ -150,7 +150,7 @@
     }
   };
 
-  
+
   // property binding
 
   // bind a property in A to a path in B by converting A[property] to a

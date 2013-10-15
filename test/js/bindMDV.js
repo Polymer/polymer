@@ -12,14 +12,14 @@ suite('bindMDV', function() {
     t.innerHTML = html;
     return t.createInstance(model);
   }
-  
+
   test('bindModel bindModel', function(done) {
     var test = document.createElement('div');
     var fragment = parseAndBindHTML('<div id="a" foo="{{bar}}"></div>',
       test);
     test.appendChild(fragment);
     var a = test.querySelector('#a');
-    
+
     test.bar = 5;
     Platform.flush();
     var mutation = 0;
@@ -35,7 +35,7 @@ suite('bindMDV', function() {
       }
     }).observe(a, {attributes: true});
   });
-  
+
   test('bindModel bind input', function(done) {
     var test = document.createElement('div');
     var fragment = parseAndBindHTML('<input value="{{bar}}" />', test);
@@ -50,7 +50,7 @@ suite('bindMDV', function() {
       done();
     });
   });
-  
+
 });
 
 
@@ -58,4 +58,5 @@ htmlSuite('bind', function() {
   htmlTest('html/template-distribute-dynamic.html');
   htmlTest('html/bind.html');
   htmlTest('html/unbind.html');
+  htmlTest('html/prop-attr-bind-reflection.html');
 });

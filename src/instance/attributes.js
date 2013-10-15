@@ -68,7 +68,7 @@
         return value;
       }
     },
-    relectPropertyToAttribute: function(name) {
+    reflectPropertyToAttribute: function(name) {
       //if (Object.keys(this[PUBLISHED]).indexOf(name) >= 0) {
         // TODO(sjmiles): consider memoizing this
         var inferredType = typeof this.__proto__[name];
@@ -77,10 +77,10 @@
         // boolean properties must reflect as boolean attributes
         if (serializedValue !== undefined) {
           this.setAttribute(name, serializedValue);
-          // TODO(sorvell): we should remove attr for all properties 
-          // that have undefined serialization; however, we will need to 
+          // TODO(sorvell): we should remove attr for all properties
+          // that have undefined serialization; however, we will need to
           // refine the attr reflection system to achieve this; pica, for example,
-          // relies on having inferredType object properties not removed as 
+          // relies on having inferredType object properties not removed as
           // attrs.
         } else if (inferredType === 'boolean') {
           this.removeAttribute(name);
@@ -92,5 +92,5 @@
   // exports
 
   scope.api.instance.attributes = attributes;
-  
+
 })(Polymer);
