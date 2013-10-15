@@ -86,7 +86,7 @@
         // if we are observing the previous value, stop
         if (Array.isArray(old)) {
           log.observe && console.log('[%s] observeArrayValue: unregister observer [%s]', this.localName, name);
-          unregisterObserver(this, name + '__array');
+          this.unregisterObserver(name + '__array');
         }
         // if the new value is an array, being observing it
         if (Array.isArray(value)) {
@@ -95,13 +95,13 @@
           var observer = new ArrayObserver(value, function(value, old) {
             self.invokeMethod(callbackName, [old]);
           });
-          registerObserver(this, name + '__array', observer);
+          this.registerObserver(name + '__array', observer);
         }
       }
     },
     _observe: function(name, cb) {
       log.observe && console.log(LOG_OBSERVE, this.localName, name);
-      registerObserver(this, name, new PathObserver(this, name, cb));
+      this.registerObserver(name, new PathObserver(this, name, cb));
       // TODO(sjmiles): must use property descriptors otherwise we could
       // be invoking a getter
       var pd = Object.getOwnPropertyDescriptor(this.__proto__, name);
@@ -114,19 +114,43 @@
       return bindProperties(this, property, model, path);
     },
     unbindProperty: function(name) {
-      return unregisterObserver(this, name);
+      return this.unregisterObserver(name);
     },
     unbindAllProperties: function() {
-      unregisterObservers(this);
+      this.unregisterObservers();
     },
     invokeMethod: function(method, args) {
       var fn = this[method] || method;
       if (typeof fn === 'function') {
         fn.apply(this, args);
       }
+    },
+    // bookkeeping observers for memory management
+    registerObserver: function(name, observer) {
+      var o$ = this._observers || (this._observers = {});
+      o$[name] = observer;
+    },
+    unregisterObserver: function(name) {
+      var o$ = this._observers;
+      if (o$ && o$[name]) {
+        o$[name].close();
+        o$[name] = null;
+        return true;
+      }
+    },
+    unregisterObservers: function() {
+      if (this._observers) {
+        var keys=Object.keys(this._observers);
+        for (var i=0, l=keys.length, k, o; (i < l) && (k=keys[i]); i++) {
+          o = this._observers[k];
+          o.close();
+        }
+        this._observers = {};
+      }
     }
   };
 
+  
   // property binding
 
   // bind a property in A to a path in B by converting A[property] to a
@@ -144,42 +168,7 @@
       {object: inB, path: inPath});
   }
 
-  // bookkeeping observers for memory management
-
-  var observers = new SideTable();
-
-  function registerObserver(element, name, observer) {
-    var o$ = getElementObservers(element);
-    o$[name] = observer;
-  }
-
-  function unregisterObserver(element, name) {
-    var o$ = getElementObservers(element);
-    if (o$ && o$[name]) {
-      o$[name].close();
-      o$[name] = null;
-      return true;
-    }
-  }
-
-  function unregisterObservers(element) {
-    var $o = getElementObservers(element);
-    Object.keys($o).forEach(function(key) {
-      $o[key].close();
-      $o[key] = null;
-    });
-  }
-
-  function getElementObservers(element) {
-    var b$ = observers.get(element);
-    if (!b$) {
-      observers.set(element, b$ = {});
-    }
-    return b$;
-  }
-
   // logging
-
   var LOG_OBSERVE = '[%s] watching [%s]';
   var LOG_OBSERVED = '[%s#%s] watch: [%s] now [%s] was [%s]';
   var LOG_CHANGED = '[%s#%s] propertyChanged: [%s] now [%s] was [%s]';
