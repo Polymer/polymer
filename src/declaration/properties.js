@@ -9,13 +9,14 @@
 
   var properties = {
     inferObservers: function(prototype) {
-      var observe = prototype.observe;
+      var observe = prototype.observe, property;
       for (var n in prototype) {
         if (n.slice(-7) === 'Changed') {
           if (!observe) {
             observe  = (prototype.observe = {});
           }
-          observe[n.slice(0, -7)] = n;
+          property = n.slice(0, -7)
+          observe[property] = observe[property] || n;
         }
       }
     },

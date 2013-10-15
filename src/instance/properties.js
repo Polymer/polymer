@@ -26,9 +26,13 @@
             newValues, oldValues, changedBits, paths) {
           self.notifyPropertyChanges(newValues, oldValues, changedBits, paths);
         }, this, undefined, undefined);
-        var p = this._propertyObserverNames = [];
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           o.addPath(this, n);
+          // observer array properties
+          var pd = Object.getOwnPropertyDescriptor(this.__proto__, name);
+          if (pd && pd.value) {
+            this.observeArrayValue(name, pd.value, null);
+          }
         }
         for (var i=0, l=pn$.length, n; (i<l) && (n=pn$[i]); i++) {
           if (!this.observe || (this.observe[n] === undefined)) {
@@ -39,20 +43,46 @@
       }
     },
     notifyPropertyChanges: function(newValues, oldValues, changedBits, paths) {
-      for (var i=0, l=changedBits.length, n; i<l; i++) {
+      var called = {};
+      for (var i=0, l=changedBits.length, name, method; i<l; i++) {
         if (changedBits[i]) {
           // note: paths is of form [object, path, object, path]
-          n = paths[2 * i + 1];
-          if (this.publish[n] !== undefined) {
-            this.relectPropertyToAttribute(n);
+          name = paths[2 * i + 1];
+          if (this.publish[name] !== undefined) {
+            this.relectPropertyToAttribute(name);
           }
-          if (this.observe[n]) {
-            invoke.call(this, this.observe[n], [oldValues[i]]);
+          method = this.observe[name];
+          if (method) {
+            this.observeArrayValue(name, newValues[i], oldValues[i]);
+            if (!called[method]) {
+              called[method] = true;
+              // observes the value if it is an array
+              this.invokeMethod(method, [oldValues[i], newValues[i]]);
+            }
           }
         }
       }
     },
-    // set up property observers
+    observeArrayValue: function(name, value, old) {
+      // we only care if there are registered side-effects
+      var callbackName = this.observe[name];
+      if (callbackName) {
+        // if we are observing the previous value, stop
+        if (Array.isArray(old)) {
+          log.observe && console.log('[%s] observeArrayValue: unregister observer [%s]', this.localName, name);
+          this.unregisterObserver(name + '__array');
+        }
+        // if the new value is an array, being observing it
+        if (Array.isArray(value)) {
+          log.observe && console.log('[%s] observeArrayValue: register observer [%s]', this.localName, name, value);
+          var self = this;
+          var observer = new ArrayObserver(value, function(value, old) {
+            self.invokeMethod(callbackName, [old]);
+          });
+          this.registerObserver(name + '__array', observer);
+        }
+      }
+    },
     bindProperty: function(property, model, path) {
       // apply Polymer two-way reference binding
       return bindProperties(this, property, model, path);
@@ -61,16 +91,43 @@
       if (this._propertyObserver) {
         this._propertyObserver.close();
       }
+      this.unregisterObservers();
+    },
+    unbindProperty: function(name) {
+      return this.unregisterObserver(name);
+    },
+    invokeMethod: function(method, args) {
+      var fn = this[method] || method;
+      if (typeof fn === 'function') {
+        fn.apply(this, args);
+      }
+    },
+    // bookkeeping observers for memory management
+    registerObserver: function(name, observer) {
+      var o$ = this._observers || (this._observers = {});
+      o$[name] = observer;
+    },
+    unregisterObserver: function(name) {
+      var o$ = this._observers;
+      if (o$ && o$[name]) {
+        o$[name].close();
+        o$[name] = null;
+        return true;
+      }
+    },
+    unregisterObservers: function() {
+      if (this._observers) {
+        var keys=Object.keys(this._observers);
+        for (var i=0, l=keys.length, k, o; (i < l) && (k=keys[i]); i++) {
+          o = this._observers[k];
+          o.close();
+        }
+        this._observers = {};
+      }
     }
   };
 
-  function invoke(method, args) {
-    var fn = this[method] || method;
-    if (typeof fn === 'function') {
-      fn.apply(this, args);
-    }
-  }
-
+  
   // property binding
 
   // bind a property in A to a path in B by converting A[property] to a

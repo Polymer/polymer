@@ -47,11 +47,8 @@
         if (cssText) {
           var style = this.element.cssTextToScopeStyle(cssText,
               STYLE_CONTROLLER_SCOPE);
-          // shim styling under ShadowDOMPolyfill
-          if (window.ShadowDOMPolyfill) {
-            Platform.ShadowCSS.shimPolyfillDirectives([style],
-                this.localName);
-          }
+          // TODO(sorvell): for now these styles are not shimmed
+          // but we may need to shim them
           Polymer.applyStyleToScope(style, scope);
         }
       }

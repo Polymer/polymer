@@ -11,7 +11,9 @@
     copyInstanceAttributes: function () {
       var a$ = this._instanceAttributes;
       for (var k in a$) {
-        this.setAttribute(k, a$[k]);
+        if (!this.hasAttribute(k)) {
+          this.setAttribute(k, a$[k]);
+        }
       }
     },
     // for each attribute on this, deserialize value to property as needed
