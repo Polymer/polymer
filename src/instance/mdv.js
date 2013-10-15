@@ -10,7 +10,7 @@
   var log = window.logFlags || 0;
 
   // use an MDV syntax
-    
+
   var mdv_syntax = new PolymerExpressions();
 
   // element api supporting mdv
@@ -35,7 +35,7 @@
         // reflect bound property to attribute when binding
         // to ensure binding is not left on attribute if property
         // does not update due to not changing.
-        this.relectPropertyToAttribute(name);
+        this.reflectPropertyToAttribute(property);
         return this.bindings[name] = observer;
       } else {
         return this.super(arguments);
@@ -50,7 +50,7 @@
     unbindAll: function() {
       if (!this._unbound) {
         this.unbindAllProperties();
-        this.super(); 
+        this.super();
         // unbind shadowRoot
         var root = this.shadowRoot;
         while (root) {
@@ -84,11 +84,11 @@
   function unbindNodeTree(node) {
     forNodeTree(node, _nodeUnbindAll);
   }
-  
+
   function _nodeUnbindAll(node) {
     node.unbindAll();
   }
-  
+
   function forNodeTree(node, callback) {
     if (node) {
       callback(node);
@@ -97,12 +97,12 @@
       }
     }
   }
-  
+
   var mustachePattern = /\{\{([^{}]*)}}/;
-   
+
   // exports
 
   scope.bindPattern = mustachePattern;
   scope.api.instance.mdv = mdv;
-  
+
 })(Polymer);
