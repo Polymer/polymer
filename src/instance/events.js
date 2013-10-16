@@ -158,7 +158,7 @@
   function handleIfNotHandled(node, event) {
     var list = event[HANDLED_LIST];
     if (!list) {
-      Object.defineProperty(event, HANDLED_LIST, {value: list = []});
+      list = event[HANDLED_LIST] = [];
     }
     if (list.indexOf(node) < 0) {
       list.push(node);
