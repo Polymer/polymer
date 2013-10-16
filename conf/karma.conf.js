@@ -11,7 +11,7 @@ module.exports = function(karma) {
       'polymer/node_modules/chai/chai.js',
       'polymer/polymer.js',
       'polymer/test/js/*.js',
-      {pattern: 'CustomElements/MutationObservers/*.js', included: false},
+      {pattern: 'MutationObservers/*.js', included: false},
       {pattern: 'CustomElements/custom-elements.js', included: false},
       {pattern: 'CustomElements/src/*.js', included: false},
       {pattern: 'HTMLImports/html-imports.js', included: false},
