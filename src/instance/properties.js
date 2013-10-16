@@ -49,7 +49,7 @@
           // note: paths is of form [object, path, object, path]
           name = paths[2 * i + 1];
           if (this.publish[name] !== undefined) {
-            this.relectPropertyToAttribute(name);
+            this.reflectPropertyToAttribute(name);
           }
           method = this.observe[name];
           if (method) {
@@ -127,7 +127,7 @@
     }
   };
 
-  
+
   // property binding
 
   // bind a property in A to a path in B by converting A[property] to a
