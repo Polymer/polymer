@@ -5,10 +5,5 @@
  */
 
 htmlSuite('MDV syntax', function() {
-  // TODO(sorvell): only test under native until the following 
-  // ShadowDOMPolyfill issue is addressed:
-  // https://github.com/Polymer/ShadowDOM/issues/189
-  if (!window.ShadowDOMPolyfill) {
-    htmlTest('html/mdv-syntax.html');
-  }
+  htmlTest('html/mdv-syntax.html');
 });
