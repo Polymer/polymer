@@ -13,6 +13,7 @@
   // magic words
 
   var EVENT_PREFIX = 'on-';
+  var HANDLED_LIST = '__eventHandledList__';
 
   // instance events api
 
@@ -155,17 +156,15 @@
   };
   
   function handleIfNotHandled(node, event) {
-    var list = eventHandledTable.get(event);
+    var list = event[HANDLED_LIST];
     if (!list) {
-      eventHandledTable.set(event, list = []);
+      Object.defineProperty(event, HANDLED_LIST, {value: list = []});
     }
     if (list.indexOf(node) < 0) {
       list.push(node);
       return true;
     }
   }
-
-  var eventHandledTable = new SideTable('handledList');
 
   // exports
 
