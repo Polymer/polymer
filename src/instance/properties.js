@@ -26,9 +26,9 @@
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           o.addPath(this, n);
           // observer array properties
-          var pd = Object.getOwnPropertyDescriptor(this.__proto__, name);
+          var pd = Object.getOwnPropertyDescriptor(this.__proto__, n);
           if (pd && pd.value) {
-            this.observeArrayValue(name, pd.value, null);
+            this.observeArrayValue(n, pd.value, null);
           }
         }
         for (var i=0, l=pn$.length, n; (i<l) && (n=pn$[i]); i++) {
