@@ -56,7 +56,7 @@
       //console.log('propertyForAttribute:', name, 'matches', match);
       return match;
     },
-    // convert representation of 'stringValue' based on type of 'defaultValue'
+    // convert representation of 'stringValue' based on type of 'currentValue'
     deserializeValue: function(stringValue, currentValue) {
       return scope.deserializeValue(stringValue, currentValue);
     },
