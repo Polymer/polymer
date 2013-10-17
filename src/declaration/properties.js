@@ -27,8 +27,6 @@
         for (var n in prototype.observe) {
           a.push(n);
         }
-        // build value list
-        prototype._observeValues = valuesForNames(prototype._observeNames, prototype.observe);
       }
       if (prototype.publish) {
         // construct name list
@@ -36,8 +34,6 @@
         for (var n in prototype.publish) {
           a.push(n);
         }
-        // build value list
-        prototype._publishValues = valuesForNames(prototype._publishNames, prototype.publish);
       }
     },
     publishProperties: function(prototype, base) {
@@ -66,14 +62,6 @@
       return map;
     }
   };
-
-  function valuesForNames(names, map) {
-    var values = [];
-    for (var i=0, l=names.length; i<l; i++) {
-      values[i] = map[names[i]];
-    }
-    return values;
-  }
 
   // exports
 
