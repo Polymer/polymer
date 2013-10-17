@@ -89,17 +89,18 @@ module.exports = function(grunt) {
         options: {
           repos: [
             '.',
-            '../platform',
-            '../WeakMap',
-            '../ShadowDOM',
-            '../HTMLImports',
             '../CustomElements',
+            '../HTMLImports',
+            '../MutationObservers',
+            '../NodeBind',
             '../PointerEvents',
             '../PointerGestures',
-            '../polymer-expressions',
+            '../ShadowDOM',
+            '../TemplateBinding',
+            '../WeakMap',
             '../observe-js',
-            '../NodeBind',
-            '../TemplateBinding'
+            '../platform',
+            '../polymer-expressions'
           ]
         },
         dest: 'build.log',
