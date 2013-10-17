@@ -23,8 +23,8 @@
       var floatVal = parseFloat(value);
       return (String(floatVal) === value) ? floatVal : value;
     },
-    object: function(value, defaultValue) {
-      if (defaultValue === null) {
+    object: function(value, currentValue) {
+      if (currentValue === null) {
         return value;
       }
       try {
@@ -39,15 +39,15 @@
     }
   };
 
-  function deserializeValue(value, defaultValue) {
+  function deserializeValue(value, currentValue) {
     // attempt to infer type from default value
-    var inferredType = typeof defaultValue;
+    var inferredType = typeof currentValue;
     // invent 'date' type value for Date
-    if (defaultValue instanceof Date) {
+    if (currentValue instanceof Date) {
       inferredType = 'date';
     }
     // delegate deserialization via type string
-    return typeHandlers[inferredType](value, defaultValue);
+    return typeHandlers[inferredType](value, currentValue);
   }
 
   // exports

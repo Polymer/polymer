@@ -40,11 +40,11 @@
           return;
         }
         // get original value
-        var defaultValue = this[name];
+        var currentValue = this[name];
         // deserialize Boolean or Number values from attribute
-        var value = this.deserializeValue(value, defaultValue);
+        var value = this.deserializeValue(value, currentValue);
         // only act if the value has changed
-        if (value !== defaultValue) {
+        if (value !== currentValue) {
           // install new value (has side-effects)
           this[name] = value;
         }
@@ -57,35 +57,31 @@
       return match;
     },
     // convert representation of 'stringValue' based on type of 'defaultValue'
-    deserializeValue: function(stringValue, defaultValue) {
-      return scope.deserializeValue(stringValue, defaultValue);
+    deserializeValue: function(stringValue, currentValue) {
+      return scope.deserializeValue(stringValue, currentValue);
     },
     serializeValue: function(value, inferredType) {
       if (inferredType === 'boolean') {
         return value ? '' : undefined;
-      } else if (inferredType !== 'object' && typeof value !== 'object' &&
-          value !== undefined) {
+      } else if (inferredType !== 'object' && value !== undefined) {
         return value;
       }
     },
     reflectPropertyToAttribute: function(name) {
-      //if (Object.keys(this[PUBLISHED]).indexOf(name) >= 0) {
-        // TODO(sjmiles): consider memoizing this
-        var inferredType = typeof this.__proto__[name];
-        // try to intelligently serialize property value
-        var serializedValue = this.serializeValue(this[name], inferredType);
-        // boolean properties must reflect as boolean attributes
-        if (serializedValue !== undefined) {
-          this.setAttribute(name, serializedValue);
-          // TODO(sorvell): we should remove attr for all properties
-          // that have undefined serialization; however, we will need to
-          // refine the attr reflection system to achieve this; pica, for example,
-          // relies on having inferredType object properties not removed as
-          // attrs.
-        } else if (inferredType === 'boolean') {
-          this.removeAttribute(name);
-        }
-      //}
+      var inferredType = typeof this[name];
+      // try to intelligently serialize property value
+      var serializedValue = this.serializeValue(this[name], inferredType);
+      // boolean properties must reflect as boolean attributes
+      if (serializedValue !== undefined) {
+        this.setAttribute(name, serializedValue);
+        // TODO(sorvell): we should remove attr for all properties
+        // that have undefined serialization; however, we will need to
+        // refine the attr reflection system to achieve this; pica, for example,
+        // relies on having inferredType object properties not removed as
+        // attrs.
+      } else if (inferredType === 'boolean') {
+        this.removeAttribute(name);
+      }
     }
   };
 
