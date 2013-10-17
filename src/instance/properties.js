@@ -22,10 +22,7 @@
       var n$ = this._observeNames, pn$ = this._publishNames;
       if ((n$ && n$.length) || (pn$ && pn$.length)) {
         var self = this;
-        var o = this._propertyObserver = new CompoundPathObserver(function(
-            newValues, oldValues, changedBits, paths) {
-          self.notifyPropertyChanges(newValues, oldValues, changedBits, paths);
-        }, this, undefined, undefined);
+        var o = this._propertyObserver = generateCompoundPathObserver(this);
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           o.addPath(this, n);
           // observer array properties
@@ -57,7 +54,7 @@
             if (!called[method]) {
               called[method] = true;
               // observes the value if it is an array
-              this.invokeMethod(method, [oldValues[i], newValues[i]]);
+              this.invokeMethod(method, [oldValues[i], newValues[i], arguments]);
             }
           }
         }
@@ -127,9 +124,16 @@
     }
   };
 
+  // compound path observer
+  function generateCompoundPathObserver(element) {
+    return new CompoundPathObserver(function(newValues, oldValues, 
+        changedBits, paths) {
+          element.notifyPropertyChanges(newValues, oldValues, changedBits, 
+              paths);
+        }, element, undefined, undefined);
+  }
 
   // property binding
-
   // bind a property in A to a path in B by converting A[property] to a
   // getter/setter pair that accesses B[...path...]
   function bindProperties(inA, inProperty, inB, inPath) {
