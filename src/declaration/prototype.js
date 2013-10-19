@@ -66,8 +66,6 @@
       this.accumulateInstanceAttributes();
       // parse on-* delegates declared on `this` element
       this.parseHostEvents();
-      // parse on-* delegates declared in templates
-      this.parseLocalEvents();
       // install external stylesheets as if they are inline
       this.installSheets();
       // TODO(sorvell): install a helper method this.resolvePath to aid in 

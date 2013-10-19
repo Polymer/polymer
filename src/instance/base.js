@@ -147,8 +147,6 @@
     shadowRootReady: function(root, template) {
       // locate nodes with id and store references to them in this.$ hash
       this.marshalNodeReferences(root);
-      // add local events of interest...
-      this.addInstanceListeners(root, template);
       // set up pointer gestures
       PointerGestures.register(root);
     },

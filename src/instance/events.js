@@ -18,21 +18,20 @@
   // instance events api
 
   var events = {
-    // magic words
+    // read-only
     EVENT_PREFIX: EVENT_PREFIX,
+    // event name utilities
+    hasEventPrefix: function (n) {
+      return n.slice(0, prefixLength) === EVENT_PREFIX;
+    },
+    removeEventPrefix: function(n) {
+      return n.slice(prefixLength);
+    },
     // event listeners on host
     addHostListeners: function() {
       var events = this.eventDelegates;
       log.events && (Object.keys(events).length > 0) && console.log('[%s] addHostListeners:', this.localName, events);
       this.addNodeListeners(this, events, this.hostEventListener);
-    },
-    // event listeners inside a shadow-root
-    addInstanceListeners: function(root, template) {
-      var events = template.delegates;
-      if (events) {
-        log.events && (Object.keys(events).length > 0) && console.log('[%s:root] addInstanceListeners:', this.localName, events);
-        this.addNodeListeners(root, events, this.instanceEventListener);
-      }
     },
     addNodeListeners: function(node, events, listener) {
       // note: conditional inside loop as optimization
@@ -75,69 +74,26 @@
         Platform.flush();
       }
     },
-    instanceEventListener: function(event) {
-      listenLocal(this, event);
+    prepareBinding: function(path, name, node) {
+      // if lhs an event prefix,
+      if (events.hasEventPrefix(name)) {
+        // provide an event-binding callback
+        return function(model, name, node) {
+          console.log('event: [%s].%s => [%s].%s()"', node.localName, name, model.localName, name);
+          node.addEventListener(events.removeEventPrefix(name), 
+            function(event) {
+              var ctrlr = findController(node);
+              if (ctrlr && ctrlr.dispatchMethod) {
+                ctrlr.dispatchMethod(ctrlr, path, [event, event.detail, node]);
+              }
+            }
+          );
+        };
+      }
     }
   };
 
-  // TODO(sjmiles): much of the below privatized only because of the vague
-  // notion this code is too fiddly and we need to revisit the core feature
-
-  function listenLocal(host, event) {
-    if (!event.cancelBubble) {
-      event.on = EVENT_PREFIX + event.type;
-      log.events && console.group("[%s]: listenLocal [%s]", host.localName, event.on);
-      if (!event.path) {
-        _listenLocalNoEventPath(host, event);
-      } else {
-        _listenLocal(host, event);
-      }
-      log.events && console.groupEnd();
-    }
-  }
-
-  function _listenLocal(host, event) {
-    var c = null;
-    // use `some` to stop iterating after the first matching target
-    Array.prototype.some.call(event.path, function(t) {
-      // if we hit host, stop
-      if (t === host) {
-        return true;
-      }
-      // find a controller for target `t`, unless we already found `host` 
-      // as a controller
-      c = (c === host) ? c : findController(t);
-      // if we have a controller, dispatch the event, return 'true' if 
-      // handler returns true
-      if (c && handleEvent(c, t, event)) {
-        return true;
-      }
-    }, this);
-  }
-  
-  // TODO(sorvell): remove when ShadowDOM polyfill supports event path.
-  // Note that findController will not return the expected 
-  // controller when when the event target is a distributed node.
-  // This because we cannot traverse from a composed node to a node 
-  // in shadowRoot.
-  // This will be addressed via an event path api 
-  // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21066
-  function _listenLocalNoEventPath(host, event) {
-    log.events && console.log('event.path() not supported for', event.type);
-    var t = event.target, c = null;
-   // if we hit dirt or host, stop
-    while (t && t != host) {
-      // find a controller for target `t`, unless we already found `host` 
-      // as a controller
-      c = (c === host) ? c : findController(t);
-      // if we have a controller, dispatch the event, return 'true' if 
-      // handler returns true
-      if (c && handleEvent(c, t, event)) {
-        return true;
-      }
-      t = t.parentNode;
-    }
-  }
+  var prefixLength = EVENT_PREFIX.length;
 
   function findController(node) {
     while (node.parentNode) {
@@ -145,26 +101,6 @@
     }
     return node.host;
   };
-
-  function handleEvent(ctrlr, node, event) {
-    var h = node.getAttribute && node.getAttribute(event.on);
-    if (h && handleIfNotHandled(node, event)) {
-      log.events && console.log('[%s] found handler name [%s]', ctrlr.localName, h);
-      ctrlr.dispatchMethod(node, h, [event, event.detail, node]);
-    }
-    return event.cancelBubble;
-  };
-  
-  function handleIfNotHandled(node, event) {
-    var list = event[HANDLED_LIST];
-    if (!list) {
-      list = event[HANDLED_LIST] = [];
-    }
-    if (list.indexOf(node) < 0) {
-      list.push(node);
-      return true;
-    }
-  }
 
   // exports
 
