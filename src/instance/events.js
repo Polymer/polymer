@@ -22,7 +22,7 @@
     EVENT_PREFIX: EVENT_PREFIX,
     // event name utilities
     hasEventPrefix: function (n) {
-      return n.slice(0, prefixLength) === EVENT_PREFIX;
+      return n && (n[0] === 'o') && (n[1] === 'n') && (n[2] === '-');
     },
     removeEventPrefix: function(n) {
       return n.slice(prefixLength);
