@@ -80,14 +80,12 @@
         // provide an event-binding callback
         return function(model, name, node) {
           console.log('event: [%s].%s => [%s].%s()"', node.localName, name, model.localName, name);
-          node.addEventListener(events.removeEventPrefix(name), 
-            function(event) {
-              var ctrlr = findController(node);
-              if (ctrlr && ctrlr.dispatchMethod) {
-                ctrlr.dispatchMethod(ctrlr, path, [event, event.detail, node]);
-              }
-            }
-          );
+          var ctrlr = findController(node);
+          if (ctrlr && ctrlr.dispatchMethod) {
+            node.addEventListener(events.removeEventPrefix(name), function(event) {
+              ctrlr.dispatchMethod(ctrlr, path, [event, event.detail, node]);
+            });
+          }
         };
       }
     }
