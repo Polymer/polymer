@@ -4,26 +4,9 @@
  * license that can be found in the LICENSE file.
  */
 module.exports = function(grunt) {
+  var readManifest = require('../tools/loader/readManifest.js');
   var temporary = require('temporary');
   var tmp = new temporary.File();
-
-  // recursive module builder
-  var path = require('path');
-  function readManifest(filename, modules) {
-    modules = modules || [];
-    var lines = grunt.file.readJSON(filename);
-    var dir = path.dirname(filename);
-    lines.forEach(function(line) {
-      var fullpath = path.join(dir, line);
-      if (line.slice(-5) == '.json') {
-        // recurse
-        readManifest(fullpath, modules);
-      } else {
-        modules.push(fullpath);
-      }
-    });
-    return modules;
-  }
 
   var Polymer = readManifest('build.json', [tmp.path]);
 
