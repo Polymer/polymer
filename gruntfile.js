@@ -103,20 +103,6 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-audit');
 
-  // tasks
-  grunt.registerTask('sourcemap_copy', 'Copy sourcesContent between sourcemaps', function(source, dest) {
-    var sourceMap = grunt.file.readJSON(source);
-    var destMap = grunt.file.readJSON(dest);
-    destMap.sourcesContent = [];
-    var ssources = sourceMap.sources;
-    // uglify may reorder sources, make sure sourcesContent matches new order
-    destMap.sources.forEach(function(source) {
-      var j = ssources.indexOf(source);
-      destMap.sourcesContent.push(sourceMap.sourcesContent[j]);
-    });
-    grunt.file.write(dest, JSON.stringify(destMap));
-  });
-
   // Workaround for banner + sourceMap + uglify: https://github.com/gruntjs/grunt-contrib-uglify/issues/22
   grunt.registerTask('gen_license', function() {
     var banner = [
