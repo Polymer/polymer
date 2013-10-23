@@ -10,9 +10,7 @@
     PolymerBase: true,
     job: Polymer.job,
     super: Polymer.super,
-    // TODO(sorvell): bc, created is currently a synonym for 'ready'.
-    // We should call this in createdCallback instead of at ready time or
-    // eliminate it.
+    // user entry point for element has had its createdCallback called
     created: function() {
     },
     // user entry point for element has shadowRoot and is ready for
@@ -20,6 +18,7 @@
     ready: function() {
     },
     createdCallback: function() {
+      this.created();
       if (this.ownerDocument.defaultView || this.alwaysPrepare ||
           preparingElements > 0) {
         this.prepareElement();
@@ -45,8 +44,6 @@
       preparingElements--;
       // user entry point
       this.ready();
-      // TODO(sorvell): bc
-      this.created();
     },
     enteredViewCallback: function() {
       if (!this._elementPrepared) {
@@ -57,14 +54,6 @@
       if (this.enteredView) {
         this.enteredView();
       }
-      // TODO(sorvell): bc
-      if (this.enteredDocument) {
-        this.enteredDocument();
-      }
-    },
-    // TODO(sorvell): bc
-    enteredDocumentCallback: function() {
-      this.enteredViewCallback();
     },
     leftViewCallback: function() {
       if (!this.preventDispose) {
@@ -74,14 +63,6 @@
       if (this.leftView) {
         this.leftView();
       }
-      // TODO(sorvell): bc
-      if (this.leftDocument) {
-        this.leftDocument();
-      }
-    },
-    // TODO(sorvell): bc
-    leftDocumentCallback: function() {
-      this.leftViewCallback();
     },
     // recursive ancestral <element> initialization, oldest first
     parseDeclarations: function(p) {
