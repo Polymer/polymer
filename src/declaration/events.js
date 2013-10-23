@@ -26,7 +26,8 @@
         // does it have magic marker identifying it as an event delegate?
         if (api.hasEventPrefix(a.name)) {
           // if so, add the info to delegates
-          delegates[api.removeEventPrefix(a.name)] = a.value;
+          delegates[api.removeEventPrefix(a.name)] = a.value.replace('{{', '')
+              .replace('}}', '').trim();
         }
       }
     },
