@@ -62,10 +62,10 @@
     findEventDelegate: function(event) {
       return this.eventDelegates[event.type];
     },
-    // call 'methodName' or function method on 'obj' with 'args', if the method exists
+    // call 'method' or function method on 'obj' with 'args', if the method exists
     dispatchMethod: function(obj, method, args) {
       if (obj) {
-        log.events && console.group('[%s] dispatch [%s]', obj.localName, methodName);
+        log.events && console.group('[%s] dispatch [%s]', obj.localName, method);
         var fn = typeof method === 'function' ? method : obj[method];
         if (fn) {
           fn[args ? 'apply' : 'call'](obj, args);
