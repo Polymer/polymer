@@ -14,19 +14,20 @@
 
   var syntax =  new PolymerExpressions();
 
-  var expressionista = {
-    // <[node] [name] = {{path}}>
-    prepareBinding: function(path, name, node) {
-      // if not an event, delegate to the standard syntax
-      return events.prepareBinding(path, name, node) 
-        || syntax.prepareBinding(path, name, node);
-    }
+  // TODO(sorvell): we're patching the syntax while evaluating
+  // event bindings. we'll move this to a better spot when that's done.
+  var _prepareBinding = syntax.prepareBinding;
+  // <[node] [name] = {{path}}>
+  syntax.prepareBinding = function(path, name, node) {
+    // if not an event, delegate to the standard syntax
+    return events.prepareBinding(path, name, node)
+        || _prepareBinding.call(this, path, name, node);
   };
 
   // element api supporting mdv
 
   var mdv = {
-    syntax: expressionista,
+    syntax: syntax,
     instanceTemplate: function(template) {
       return template.createInstance(this, this.syntax);
     },
