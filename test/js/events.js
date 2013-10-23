@@ -27,7 +27,7 @@ suite('events', function() {
       }
     });
     work.innerHTML += '<polymer-element name="' + inName + '"' + 
-        (inExtend ? ' extends="' + inExtend + '"' : '') + ' on-click="clickHandler">' +
+        (inExtend ? ' extends="' + inExtend + '"' : '') + ' on-click="{{clickHandler}}">' +
       '<template>' + (inTemplateContent || '') + '</template></polymer-element>';
   }
   
