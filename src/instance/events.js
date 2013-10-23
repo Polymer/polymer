@@ -62,29 +62,51 @@
     findEventDelegate: function(event) {
       return this.eventDelegates[event.type];
     },
-    // call 'methodName' method on 'node' with 'args', if the method exists
-    dispatchMethod: function(node, methodName, args) {
-      if (node) {
-        log.events && console.group('[%s] dispatch [%s]', node.localName, methodName);
-        var fn = this[methodName];
+    // call 'methodName' or function method on 'obj' with 'args', if the method exists
+    dispatchMethod: function(obj, method, args) {
+      if (obj) {
+        log.events && console.group('[%s] dispatch [%s]', obj.localName, methodName);
+        var fn = typeof method === 'function' ? method : obj[method];
         if (fn) {
-          fn[args ? 'apply' : 'call'](this, args);
+          fn[args ? 'apply' : 'call'](obj, args);
         }
         log.events && console.groupEnd();
         Platform.flush();
       }
     },
+    /*
+      Bind events via attributes of the form on-eventName.
+      This method hooks into the model syntax and does adds event listeners as
+      needed. By default, binding paths are always method names on the root
+      model, the custom element in which the node exists. Adding a '@' in the
+      path directs the event binding to use the model path as the event listener.
+      In both cases, the actual listener is attached to a generic method which
+      evaluates the bound path at event execution time. 
+    */
     prepareBinding: function(path, name, node) {
       // if lhs an event prefix,
       if (events.hasEventPrefix(name)) {
         // provide an event-binding callback
         return function(model, name, node) {
-          console.log('event: [%s].%s => [%s].%s()"', node.localName, name, model.localName, name);
-          var ctrlr = findController(node);
-          if (ctrlr && ctrlr.dispatchMethod) {
-            node.addEventListener(events.removeEventPrefix(name), function(event) {
-              ctrlr.dispatchMethod(ctrlr, path, [event, event.detail, node]);
-            });
+          log.events && console.log('event: [%s].%s => [%s].%s()"', node.localName, name, model.localName, path);
+          var listener = function(event) {
+            var ctrlr = findController(node);
+            if (ctrlr && ctrlr.dispatchMethod) {
+              var obj = ctrlr, method = path;
+              if (path[0] == '@') {
+                obj = model;
+                method = Path.get(path.slice(1)).getValueFrom(model);
+              }
+              ctrlr.dispatchMethod(obj, method, [event, event.detail, node]);
+            }
+          };
+          var eventName = events.removeEventPrefix(name);
+          node.addEventListener(eventName, listener, false);
+          return {
+            close: function() {
+              log.events && console.log('event.remove: [%s].%s => [%s].%s()"', node.localName, name, model.localName, path);
+              node.removeEventListener(eventName, listener, false);
+            }
           }
         };
       }
