@@ -18,21 +18,20 @@
   // instance events api
 
   var events = {
-    // magic words
+    // read-only
     EVENT_PREFIX: EVENT_PREFIX,
+    // event name utilities
+    hasEventPrefix: function (n) {
+      return n && (n[0] === 'o') && (n[1] === 'n') && (n[2] === '-');
+    },
+    removeEventPrefix: function(n) {
+      return n.slice(prefixLength);
+    },
     // event listeners on host
     addHostListeners: function() {
       var events = this.eventDelegates;
       log.events && (Object.keys(events).length > 0) && console.log('[%s] addHostListeners:', this.localName, events);
       this.addNodeListeners(this, events, this.hostEventListener);
-    },
-    // event listeners inside a shadow-root
-    addInstanceListeners: function(root, template) {
-      var events = template.delegates;
-      if (events) {
-        log.events && (Object.keys(events).length > 0) && console.log('[%s:root] addInstanceListeners:', this.localName, events);
-        this.addNodeListeners(root, events, this.instanceEventListener);
-      }
     },
     addNodeListeners: function(node, events, listener) {
       // note: conditional inside loop as optimization
@@ -63,81 +62,58 @@
     findEventDelegate: function(event) {
       return this.eventDelegates[event.type];
     },
-    // call 'methodName' method on 'node' with 'args', if the method exists
-    dispatchMethod: function(node, methodName, args) {
-      if (node) {
-        log.events && console.group('[%s] dispatch [%s]', node.localName, methodName);
-        var fn = this[methodName];
+    // call 'method' or function method on 'obj' with 'args', if the method exists
+    dispatchMethod: function(obj, method, args) {
+      if (obj) {
+        log.events && console.group('[%s] dispatch [%s]', obj.localName, method);
+        var fn = typeof method === 'function' ? method : obj[method];
         if (fn) {
-          fn[args ? 'apply' : 'call'](this, args);
+          fn[args ? 'apply' : 'call'](obj, args);
         }
         log.events && console.groupEnd();
         Platform.flush();
       }
     },
-    instanceEventListener: function(event) {
-      listenLocal(this, event);
+    /*
+      Bind events via attributes of the form on-eventName.
+      This method hooks into the model syntax and does adds event listeners as
+      needed. By default, binding paths are always method names on the root
+      model, the custom element in which the node exists. Adding a '@' in the
+      path directs the event binding to use the model path as the event listener.
+      In both cases, the actual listener is attached to a generic method which
+      evaluates the bound path at event execution time. 
+    */
+    prepareBinding: function(path, name, node) {
+      // if lhs an event prefix,
+      if (events.hasEventPrefix(name)) {
+        // provide an event-binding callback
+        return function(model, name, node) {
+          log.events && console.log('event: [%s].%s => [%s].%s()"', node.localName, name, model.localName, path);
+          var listener = function(event) {
+            var ctrlr = findController(node);
+            if (ctrlr && ctrlr.dispatchMethod) {
+              var obj = ctrlr, method = path;
+              if (path[0] == '@') {
+                obj = model;
+                method = Path.get(path.slice(1)).getValueFrom(model);
+              }
+              ctrlr.dispatchMethod(obj, method, [event, event.detail, node]);
+            }
+          };
+          var eventName = events.removeEventPrefix(name);
+          node.addEventListener(eventName, listener, false);
+          return {
+            close: function() {
+              log.events && console.log('event.remove: [%s].%s => [%s].%s()"', node.localName, name, model.localName, path);
+              node.removeEventListener(eventName, listener, false);
+            }
+          }
+        };
+      }
     }
   };
 
-  // TODO(sjmiles): much of the below privatized only because of the vague
-  // notion this code is too fiddly and we need to revisit the core feature
-
-  function listenLocal(host, event) {
-    if (!event.cancelBubble) {
-      event.on = EVENT_PREFIX + event.type;
-      log.events && console.group("[%s]: listenLocal [%s]", host.localName, event.on);
-      if (!event.path) {
-        _listenLocalNoEventPath(host, event);
-      } else {
-        _listenLocal(host, event);
-      }
-      log.events && console.groupEnd();
-    }
-  }
-
-  function _listenLocal(host, event) {
-    var c = null;
-    // use `some` to stop iterating after the first matching target
-    Array.prototype.some.call(event.path, function(t) {
-      // if we hit host, stop
-      if (t === host) {
-        return true;
-      }
-      // find a controller for target `t`, unless we already found `host` 
-      // as a controller
-      c = (c === host) ? c : findController(t);
-      // if we have a controller, dispatch the event, return 'true' if 
-      // handler returns true
-      if (c && handleEvent(c, t, event)) {
-        return true;
-      }
-    }, this);
-  }
-  
-  // TODO(sorvell): remove when ShadowDOM polyfill supports event path.
-  // Note that findController will not return the expected 
-  // controller when when the event target is a distributed node.
-  // This because we cannot traverse from a composed node to a node 
-  // in shadowRoot.
-  // This will be addressed via an event path api 
-  // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21066
-  function _listenLocalNoEventPath(host, event) {
-    log.events && console.log('event.path() not supported for', event.type);
-    var t = event.target, c = null;
-   // if we hit dirt or host, stop
-    while (t && t != host) {
-      // find a controller for target `t`, unless we already found `host` 
-      // as a controller
-      c = (c === host) ? c : findController(t);
-      // if we have a controller, dispatch the event, return 'true' if 
-      // handler returns true
-      if (c && handleEvent(c, t, event)) {
-        return true;
-      }
-      t = t.parentNode;
-    }
-  }
+  var prefixLength = EVENT_PREFIX.length;
 
   function findController(node) {
     while (node.parentNode) {
@@ -145,26 +121,6 @@
     }
     return node.host;
   };
-
-  function handleEvent(ctrlr, node, event) {
-    var h = node.getAttribute && node.getAttribute(event.on);
-    if (h && handleIfNotHandled(node, event)) {
-      log.events && console.log('[%s] found handler name [%s]', ctrlr.localName, h);
-      ctrlr.dispatchMethod(node, h, [event, event.detail, node]);
-    }
-    return event.cancelBubble;
-  };
-  
-  function handleIfNotHandled(node, event) {
-    var list = event[HANDLED_LIST];
-    if (!list) {
-      list = event[HANDLED_LIST] = [];
-    }
-    if (list.indexOf(node) < 0) {
-      list.push(node);
-      return true;
-    }
-  }
 
   // exports
 

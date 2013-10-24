@@ -8,16 +8,28 @@
   // imports
 
   var log = window.logFlags || 0;
+  var events = scope.api.instance.events;
 
-  // use an MDV syntax
+  // expressionista
 
-  var mdv_syntax = new PolymerExpressions();
+  var syntax =  new PolymerExpressions();
+
+  // TODO(sorvell): we're patching the syntax while evaluating
+  // event bindings. we'll move this to a better spot when that's done.
+  var _prepareBinding = syntax.prepareBinding;
+  // <[node] [name] = {{path}}>
+  syntax.prepareBinding = function(path, name, node) {
+    // if not an event, delegate to the standard syntax
+    return events.prepareBinding(path, name, node)
+        || _prepareBinding.call(this, path, name, node);
+  };
 
   // element api supporting mdv
 
   var mdv = {
+    syntax: syntax,
     instanceTemplate: function(template) {
-      return template.createInstance(this, mdv_syntax);
+      return template.createInstance(this, this.syntax);
     },
     bind: function(name, model, path) {
       // note: binding is a prepare signal. This allows us to be sure that any
@@ -26,7 +38,10 @@
         this.prepareElement();
       }
       var property = this.propertyForAttribute(name);
-      if (property) {
+      if (!property) {
+        return this.super(arguments);
+      } else {
+        // clean out the closets
         this.unbind(name);
         // use n-way Polymer binding
         var observer = this.bindProperty(property, model, path);
@@ -37,8 +52,6 @@
         // does not update due to not changing.
         this.reflectPropertyToAttribute(property);
         return this.bindings[name] = observer;
-      } else {
-        return this.super(arguments);
       }
     },
     asyncUnbindAll: function() {

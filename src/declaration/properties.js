@@ -47,7 +47,7 @@
       }
     },
     requireProperties: function(properties, prototype, base) {
-      // ensure a prototype value for each one
+      // ensure a prototype value for each property
       for (var n in properties) {
         if (prototype[n] === undefined && base[n] === undefined) {
           prototype[n] = properties[n];

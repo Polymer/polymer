@@ -27,7 +27,7 @@ suite('events', function() {
       }
     });
     work.innerHTML += '<polymer-element name="' + inName + '"' + 
-        (inExtend ? ' extends="' + inExtend + '"' : '') + ' on-click="clickHandler">' +
+        (inExtend ? ' extends="' + inExtend + '"' : '') + ' on-click="{{clickHandler}}">' +
       '<template>' + (inTemplateContent || '') + '</template></polymer-element>';
   }
   
@@ -43,30 +43,10 @@ suite('events', function() {
       done();
     }, 0);
   });
-  
-  /*test('host events order', function() {
-    createTestElement('x-foo');
-    createTestElement('x-bar', '<x-foo></x-foo>');
-    var bar = document.createElement('x-bar');
-    work.appendChild(bar);
-    // click on x-foo
-    bar.webkitShadowRoot.childNodes[0].click();
-    assert.equal(results.textContent, 'x-foox-bar');
-  });
-  
-  test('host events order more', function() {
-    createTestElement('x-foo');
-    createTestElement('x-bar', '<x-foo></x-foo>');
-    createTestElement('x-zot', '<x-bar></x-bar>');
-    var zot = document.createElement('x-zot');
-    work.appendChild(zot);
-    // click on x-foo
-    zot.webkitShadowRoot.childNodes[0].webkitShadowRoot.childNodes[0].click();
-    assert.equal(results.textContent, 'x-foox-barx-zot');
-  });*/
 });
 
 htmlSuite('events-declarative', function() {
+  htmlTest('html/event-handlers.html');
   htmlTest('html/event-path.html');
   htmlTest('html/event-path-declarative.html');
 });
