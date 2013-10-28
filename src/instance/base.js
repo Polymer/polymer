@@ -64,6 +64,14 @@
         this.leftView();
       }
     },
+    // TODO(sorvell): bc
+    enteredDocumentCallback: function() {
+      this.enteredViewCallback();
+    },
+    // TODO(sorvell): bc
+    leftDocumentCallback: function() {
+      this.leftViewCallback();
+    },
     // recursive ancestral <element> initialization, oldest first
     parseDeclarations: function(p) {
       if (p && p.element) {
