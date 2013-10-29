@@ -87,8 +87,8 @@
       // if lhs an event prefix,
       if (events.hasEventPrefix(name)) {
         // provide an event-binding callback
-        return function(model, name, node) {
-          log.events && console.log('event: [%s].%s => [%s].%s()"', node.localName, name, model.localName, path);
+        return function(model, node) {
+          log.events && console.log('event: [%s].%s => [%s].%s()"', node.localName, model.localName, path);
           var listener = function(event) {
             var ctrlr = findController(node);
             if (ctrlr && ctrlr.dispatchMethod) {
