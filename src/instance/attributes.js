@@ -63,7 +63,8 @@
     serializeValue: function(value, inferredType) {
       if (inferredType === 'boolean') {
         return value ? '' : undefined;
-      } else if (inferredType !== 'object' && value !== undefined) {
+      } else if (inferredType !== 'object' && inferredType !== 'function'
+          && value !== undefined) {
         return value;
       }
     },

@@ -36,6 +36,10 @@
         // The object isn't valid JSON, return the raw value
         return value;
       }
+    },
+    // avoid deserialization of functions
+    'function': function(value, currentValue) {
+      return currentValue;
     }
   };
 
