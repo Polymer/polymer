@@ -118,10 +118,28 @@ module.exports = function(grunt) {
     tmp.unlinkSync();
   });
 
+  grunt.registerTask('stash', 'prepare for testing build', function() {
+    grunt.option('force', true);
+    grunt.task.run('move:polymer.js:polymer.js.bak');
+    grunt.task.run('move:polymer.min.js:polymer.js');
+  });
+  grunt.registerTask('restore', function() {
+    grunt.task.run('move:polymer.js:polymer.min.js');
+    grunt.task.run('move:polymer.js.bak:polymer.js');
+    grunt.option('force', false);
+  });
+  // TODO(dfreedm): Move this to shared tasks in tools
+  grunt.registerTask('move', 'move a file', function(src, dest) {
+    grunt.log.write('moving %s to %s', src, dest);
+    require('fs').renameSync(src, dest);
+  });
+
+  grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
+
   grunt.registerTask('default', ['minify', 'audit']);
   grunt.registerTask('minify', ['gen_license', 'concat_sourcemap', 'uglify', 'sourcemap_copy:polymer.concat.js.map:polymer.min.js.map', 'clean_license']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
-  grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot']);
+  grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot', 'minify', 'stash', 'karma:buildbot', 'restore']);
 };
 
