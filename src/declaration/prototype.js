@@ -90,12 +90,16 @@
     // https://www.w3.org/Bugs/Public/show_bug.cgi?id=22460
     // make <shadow></shadow> be <shadow><content></content></shadow>
     adjustShadowElement: function() {
-      var content = this.templateContent();
-      if (content) {
-        var s$ = content.querySelectorAll('shadow');
-        for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
-          if (!s.children.length) {
-            s.appendChild(document.createElement('content'));
+      // TODO(sorvell): avoid under SD polyfill until this bug is addressed:
+      // https://github.com/Polymer/ShadowDOM/issues/297
+      if (!window.ShadowDOMPolyfill) {
+        var content = this.templateContent();
+        if (content) {
+          var s$ = content.querySelectorAll('shadow');
+          for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
+            if (!s.children.length) {
+              s.appendChild(document.createElement('content'));
+            }
           }
         }
       }
