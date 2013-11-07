@@ -128,11 +128,6 @@ module.exports = function(grunt) {
     grunt.task.run('move:polymer.js.bak:polymer.js');
     grunt.option('force', false);
   });
-  // TODO(dfreedm): Move this to shared tasks in tools
-  grunt.registerTask('move', 'move a file', function(src, dest) {
-    grunt.log.write('moving %s to %s', src, dest);
-    require('fs').renameSync(src, dest);
-  });
 
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
 
