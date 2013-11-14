@@ -5,10 +5,7 @@
  */
 module.exports = function(grunt) {
   var readManifest = require('../tools/loader/readManifest.js');
-  var temporary = require('temporary');
-  var tmp = new temporary.File();
-
-  var Polymer = readManifest('build.json', [tmp.path]);
+  var Polymer = readManifest('build.json');
 
   grunt.initConfig({
     karma: {
@@ -36,13 +33,13 @@ module.exports = function(grunt) {
     },
     uglify: {
       options: {
-        nonull: true,
-        preserveComments: 'some'
+        nonull: true
       },
       Polymer: {
         options: {
           sourceMap: 'polymer.min.js.map',
-          sourceMapIn: 'polymer.concat.js.map'
+          sourceMapIn: 'polymer.concat.js.map',
+          banner: grunt.file.read('LICENSE') + '// @version: <%= pkg.version %>'
           //mangle: false, beautify: true, compress: false
         },
         files: {
@@ -103,21 +100,6 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-audit');
 
-  // Workaround for banner + sourceMap + uglify: https://github.com/gruntjs/grunt-contrib-uglify/issues/22
-  grunt.registerTask('gen_license', function() {
-    var banner = [
-      '/* @license',
-      grunt.file.read('LICENSE'),
-      '@version ' + grunt.file.readJSON('package.json').version,
-      '*/'
-    ].join(grunt.util.linefeed);
-    grunt.file.write(tmp.path, banner);
-  });
-
-  grunt.registerTask('clean_license', function() {
-    tmp.unlinkSync();
-  });
-
   grunt.registerTask('stash', 'prepare for testing build', function() {
     grunt.option('force', true);
     grunt.task.run('move:polymer.js:polymer.js.bak');
@@ -132,7 +114,7 @@ module.exports = function(grunt) {
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
 
   grunt.registerTask('default', ['minify', 'audit']);
-  grunt.registerTask('minify', ['gen_license', 'concat_sourcemap', 'uglify', 'sourcemap_copy:polymer.concat.js.map:polymer.min.js.map', 'clean_license']);
+  grunt.registerTask('minify', ['concat_sourcemap', 'uglify', 'sourcemap_copy:polymer.concat.js.map:polymer.min.js.map']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
   grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot', 'minify', 'stash', 'karma:buildbot', 'restore']);
