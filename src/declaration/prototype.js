@@ -114,7 +114,7 @@
     },
     // build prototype combining extendee, Polymer base, and named api
     generateBasePrototype: function(extnds) {
-      var prototype = memoizedBases[extnds];
+      var prototype = this.findBasePrototype(extnds);
       if (!prototype) {
         // create a prototype based on tag-name extension
         var prototype = HTMLElement.getPrototypeForTag(extnds);
@@ -124,6 +124,9 @@
         memoizedBases[extnds] = prototype;
       }
       return prototype;
+    },
+    findBasePrototype: function(name) {
+      return memoizedBases[name];
     },
     // install Polymer instance api into prototype chain, as needed 
     ensureBaseApi: function(prototype) {
@@ -153,8 +156,9 @@
         prototype: this.prototype
       }
       // native element must be specified in extends
-      if (extendee && extendee.indexOf('-') < 0) {
-        info.extends = extendee;
+      var typeExtension = this.findTypeExtension(extendee);
+      if (typeExtension) {
+        info.extends = typeExtension;
       }
       // register the custom type
       this.ctor = document.register(name, info);
@@ -162,6 +166,16 @@
       this.prototype.constructor = this.ctor;
       // register the prototype with HTMLElement for name lookup
       HTMLElement.register(name, this.prototype);
+    }, 
+    findTypeExtension: function(name) {
+      if (name && name.indexOf('-') < 0) {
+        return name;
+      } else {
+        var p = this.findBasePrototype(name);
+        if (p.element) {
+          return this.findTypeExtension(p.element.extends);
+        }
+      }
     }
   };
 

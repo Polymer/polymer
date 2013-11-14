@@ -27,6 +27,8 @@
     createdCallback: function() {
       // fetch the element name
       this.name = this.getAttribute('name');
+      // fetch our extendee name
+      this.extends = this.getAttribute('extends');
       // install element definition, if ready
       this.registerWhenReady();
     },
@@ -35,8 +37,7 @@
       if (this.waitingForPrototype(this.name)) {
         return;
       }
-      // fetch our extendee name
-      var extendee = this.getAttribute('extends');
+      var extendee = this.extends;
       if (this.waitingForExtendee(extendee)) {
         //console.warn(this.name + ': waitingForExtendee:' + extendee);
         return;
