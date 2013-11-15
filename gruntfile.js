@@ -117,6 +117,6 @@ module.exports = function(grunt) {
   grunt.registerTask('minify', ['concat_sourcemap', 'uglify', 'sourcemap_copy:polymer.concat.js.map:polymer.min.js.map']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
-  grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot', 'minify', 'stash', 'karma:buildbot', 'restore']);
+  grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'kill-ie', 'karma:buildbot', 'minify', 'stash', 'karma:buildbot', 'restore']);
 };
 
