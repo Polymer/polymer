@@ -68,19 +68,7 @@ module.exports = function(grunt) {
       polymer: {
         options: {
           repos: [
-            '.',
-            '../CustomElements',
-            '../HTMLImports',
-            '../MutationObservers',
-            '../NodeBind',
-            '../PointerEvents',
-            '../PointerGestures',
-            '../ShadowDOM',
-            '../TemplateBinding',
-            '../WeakMap',
-            '../observe-js',
-            '../platform',
-            '../polymer-expressions'
+            '.'
           ]
         },
         dest: 'build.log',
