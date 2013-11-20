@@ -145,8 +145,7 @@
     if (v === null || v === undefined) {
       path.setValueFrom(inB, inA[inProperty]);
     }
-    return PathObserver.defineProperty(inA, inProperty,
-      {object: inB, path: inPath});
+    return PathObserver.defineProperty(inA, inProperty, inB, inPath);
   }
 
   // logging
