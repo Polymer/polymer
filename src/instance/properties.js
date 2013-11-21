@@ -126,11 +126,7 @@
 
   // compound path observer
   function generateCompoundPathObserver(element) {
-    return new CompoundPathObserver(function(newValues, oldValues, 
-        changedBits, paths) {
-          element.notifyPropertyChanges(newValues, oldValues, changedBits, 
-              paths);
-        }, element, undefined, undefined);
+    return new CompoundPathObserver(element.notifyPropertyChanges, element);
   }
 
   // property binding
