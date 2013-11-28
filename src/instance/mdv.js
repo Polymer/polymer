@@ -29,7 +29,8 @@
   var mdv = {
     syntax: syntax,
     instanceTemplate: function(template) {
-      return template.createInstance(this, this.syntax);
+      template.bindingDelegate = this.syntax;
+      return template.createInstance(this);
     },
     bind: function(name, model, path) {
       // note: binding is a prepare signal. This allows us to be sure that any
