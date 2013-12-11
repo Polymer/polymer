@@ -72,10 +72,9 @@ module.exports = function(grunt) {
             '.'
           ]
         },
-        dest: 'build/build.log',
-        src: [
-          'build/polymer.min.js',
-        ]
+        files: {
+          'build/build.log': 'build/polymer.js'
+        }
       }
     },
     pkg: grunt.file.readJSON('package.json')
