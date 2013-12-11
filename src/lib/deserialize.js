@@ -20,8 +20,15 @@
       return value === 'false' ? false : !!value;
     },
     number: function(value) {
-      var floatVal = parseFloat(value);
-      return (String(floatVal) === value) ? floatVal : value;
+      var n = parseFloat(value);
+      // hex values like "0xFFFF" parseFloat as 0
+      if (n === 0) {
+        n = parseInt(value);
+      }
+      return isNaN(n) ? value : n;
+      // this code disabled because encoded values (like "0xFFFF")
+      // do not round trip to their original format
+      //return (String(floatVal) === value) ? floatVal : value;
     },
     object: function(value, currentValue) {
       if (currentValue === null) {
