@@ -32,7 +32,7 @@
       template.bindingDelegate = this.syntax;
       return template.createInstance(this);
     },
-    bind: function(name, model, path) {
+    bind: function(name, observable) {
       // note: binding is a prepare signal. This allows us to be sure that any
       // property changes that occur as a result of binding will be observed.
       if (!this._elementPrepared) {
@@ -45,9 +45,9 @@
         // clean out the closets
         this.unbind(name);
         // use n-way Polymer binding
-        var observer = this.bindProperty(property, model, path);
+        var observer = this.bindProperty(property, observable);
         // stick path on observer so it's available via this.bindings
-        observer.path = path;
+        observer.path = observable.path_;
         // reflect bound property to attribute when binding
         // to ensure binding is not left on attribute if property
         // does not update due to not changing.

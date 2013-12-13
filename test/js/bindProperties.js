@@ -10,16 +10,18 @@ suite('bindProperties', function() {
   test('bind properties getter', function() {
     var a = {};
     var b = {bar: 1};
-    Polymer.api.instance.properties.bindProperty.call(a, 'foo', b, 'bar');
+    var observable = new PathObserver(b, 'bar');
+    Polymer.api.instance.properties.bindProperty.call(a, 'foo', observable);
     assert.equal(a.foo, 1);
     b.bar = 5;
     assert.equal(a.foo, 5);
   });
-  
+
   test('bind properties setter', function() {
     var a = {};
     var b = {bar: 1};
-    Polymer.api.instance.properties.bindProperty.call(a, 'foo', b, 'bar');
+    var observable = new PathObserver(b, 'bar');
+    Polymer.api.instance.properties.bindProperty.call(a, 'foo', observable);
     assert.equal(b.bar, 1);
     a.foo = 5;
     assert.equal(b.bar, 5);
@@ -28,7 +30,8 @@ suite('bindProperties', function() {
   test('bind properties paths', function() {
     var a = {};
     var b = {bar: {zot: 2}};
-    Polymer.api.instance.properties.bindProperty.call(a, 'foo', b, 'bar.zot');
+    var observable = new PathObserver(b, 'bar.zot');
+    Polymer.api.instance.properties.bindProperty.call(a, 'foo', observable);
     assert.equal(a.foo, 2);
     b.bar.zot = 9;
     assert.equal(a.foo, 9);

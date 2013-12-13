@@ -22,7 +22,7 @@
       var n$ = this._observeNames, pn$ = this._publishNames;
       if ((n$ && n$.length) || (pn$ && pn$.length)) {
         var self = this;
-        var o = this._propertyObserver = generateCompoundPathObserver(this);
+        var o = this._propertyObserver = new CompoundObserver();
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           o.addPath(this, n);
           // observer array properties
@@ -36,26 +36,24 @@
             o.addPath(this, n);
           }
         }
-        o.start();
+        o.open(this.notifyPropertyChanges, this);
       }
     },
-    notifyPropertyChanges: function(newValues, oldValues, changedBits, paths) {
-      var called = {};
-      for (var i=0, l=changedBits.length, name, method; i<l; i++) {
-        if (changedBits[i]) {
-          // note: paths is of form [object, path, object, path]
-          name = paths[2 * i + 1];
-          if (this.publish[name] !== undefined) {
-            this.reflectPropertyToAttribute(name);
-          }
-          method = this.observe[name];
-          if (method) {
-            this.observeArrayValue(name, newValues[i], oldValues[i]);
-            if (!called[method]) {
-              called[method] = true;
-              // observes the value if it is an array
-              this.invokeMethod(method, [oldValues[i], newValues[i], arguments]);
-            }
+    notifyPropertyChanges: function(newValues, oldValues, paths) {
+      var name, method, called = {};
+      for (var i in oldValues) {
+        // note: paths is of form [object, path, object, path]
+        name = paths[2 * i + 1];
+        if (this.publish[name] !== undefined) {
+          this.reflectPropertyToAttribute(name);
+        }
+        method = this.observe[name];
+        if (method) {
+          this.observeArrayValue(name, newValues[i], oldValues[i]);
+          if (!called[method]) {
+            called[method] = true;
+            // observes the value if it is an array
+            this.invokeMethod(method, [oldValues[i], newValues[i], arguments]);
           }
         }
       }
@@ -72,17 +70,17 @@
         // if the new value is an array, being observing it
         if (Array.isArray(value)) {
           log.observe && console.log('[%s] observeArrayValue: register observer [%s]', this.localName, name, value);
-          var self = this;
-          var observer = new ArrayObserver(value, function(value, old) {
-            self.invokeMethod(callbackName, [old]);
-          });
+          var observer = new ArrayObserver(value);
+          observer.open(function(value, old) {
+            this.invokeMethod(callbackName, [old]);
+          }, this);
           this.registerObserver(name + '__array', observer);
         }
       }
     },
-    bindProperty: function(property, model, path) {
+    bindProperty: function(property, observable) {
       // apply Polymer two-way reference binding
-      return bindProperties(this, property, model, path);
+      return bindProperties(this, property, observable);
     },
     unbindAllProperties: function() {
       if (this._propertyObserver) {
@@ -124,24 +122,18 @@
     }
   };
 
-  // compound path observer
-  function generateCompoundPathObserver(element) {
-    return new CompoundPathObserver(element.notifyPropertyChanges, element);
-  }
-
   // property binding
   // bind a property in A to a path in B by converting A[property] to a
   // getter/setter pair that accesses B[...path...]
-  function bindProperties(inA, inProperty, inB, inPath) {
+  function bindProperties(inA, inProperty, observable) {
     log.bind && console.log(LOG_BIND_PROPS, inB.localName || 'object', inPath, inA.localName, inProperty);
     // capture A's value if B's value is null or undefined,
     // otherwise use B's value
-    var path = Path.get(inPath);
-    var v = path.getValueFrom(inB);
+    var v = observable.getValue();
     if (v === null || v === undefined) {
-      path.setValueFrom(inB, inA[inProperty]);
+      observable.setValue(inA[inProperty]);
     }
-    return PathObserver.defineProperty(inA, inProperty, inB, inPath);
+    return Observer.defineProperty(inA, inProperty, observable);
   }
 
   // logging
