@@ -156,12 +156,13 @@
     },
     mixinMethod: function(extended, prototype, api, name) {
       var $super = function(args) {
-        prototype[name].apply(this, args);
+        return prototype[name].apply(this, args);
       };
       extended[name] = function() {
         this.super = $super;
-        api[name].apply(this, arguments);
+        var value = api[name].apply(this, arguments);
         this.super = extended.super;
+        return value;
       }
     },
     // ensure prototype[name] inherits from a prototype.prototype[name]
