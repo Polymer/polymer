@@ -130,18 +130,39 @@
     },
     // install Polymer instance api into prototype chain, as needed 
     ensureBaseApi: function(prototype) {
-      if (!prototype.PolymerBase) {
-       prototype = Object.create(prototype);
-       // we need a unique copy of base api for each base prototype
-       // therefore we 'extend' here instead of simply chaining
-       // we could memoize instead, especially for the common cases,
-       // in particular, for base === HTMLElement.prototype
-       for (var n in api.instance) {
-         extend(prototype, api.instance[n]);
-       }
+      if (prototype.PolymerBase) {
+        return prototype;
       }
+      var extended = Object.create(prototype);
+      // we need a unique copy of base api for each base prototype
+      // therefore we 'extend' here instead of simply chaining
+      // we could memoize instead, especially for the common cases,
+      // in particular, for base === HTMLElement.prototype
+      for (var n in api.instance) {
+        extend(extended, api.instance[n]);
+      }
+      // TODO(sjmiles): sharing methods across prototype chains is
+      // not supported by our 'super' implementation which optimizes
+      // by memoizing prototype relationships.
+      // Probably we should have a version of 'extend' that is 
+      // share-aware: it could study the text of each function,
+      // look for usage of 'super', and wrap those functions in
+      // closures.
+      // As of now, there is only one problematic method, so 
+      // we just patch it manually.
+      this.mixinMethod(extended, prototype, api.instance.mdv, 'bind');
       // return buffed-up prototype
-      return prototype;
+      return extended;
+    },
+    mixinMethod: function(extended, prototype, api, name) {
+      var $super = function(args) {
+        prototype[name].apply(this, args);
+      };
+      extended[name] = function() {
+        this.super = $super;
+        api[name].apply(this, arguments);
+        this.super = extended.super;
+      }
     },
     // ensure prototype[name] inherits from a prototype.prototype[name]
     inheritObject: function(name, prototype, base) {

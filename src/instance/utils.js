@@ -71,6 +71,11 @@
     }
   };
 
+  // no-operation function for handy stubs
+  var nop = function() {};
+  // null-object for handy stubs
+  var nob = {};
+
   // deprecated
 
   utils.asyncMethod = utils.async;
@@ -78,5 +83,7 @@
   // exports
 
   scope.api.instance.utils = utils;
+  scope.nop = nop;
+  scope.nob = nob;
 
 })(Polymer);

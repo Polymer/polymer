@@ -13,7 +13,7 @@
     //    $super must be installed on an instance or prototype chain
     //    as `super`, and invoked via `this`, e.g.
     //      `this.super();`
-     
+
     //    will not work if function objects are not unique, for example,
     //    when using mixins.
     //    The memoization strategy assumes each function exists on only one 
