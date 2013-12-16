@@ -101,8 +101,10 @@
             }
           };
           var eventName = events.removeEventPrefix(name);
-          node.addEventListener(eventName, listener, false);
           return {
+            open: function() {
+              node.addEventListener(eventName, listener, false);
+            },
             close: function() {
               log.events && console.log('event.remove: [%s].%s => [%s].%s()"', node.localName, name, model.localName, path);
               node.removeEventListener(eventName, listener, false);
