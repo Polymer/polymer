@@ -167,6 +167,16 @@
   // make window.Polymer reference `element()`
   window.Polymer = element;
 
+  // Under the HTMLImports polyfill, scripts in the main document
+  // do not block on imports; we want to allow calls to Polymer in the main
+  // document. We do so via coordination with Platform:
+  var declarations = Platform.deliverDeclarations();
+  if (declarations) {
+    for (var i=0, l=declarations.length, d; (i<l) && (d=declarations[i]); i++) {
+      element.apply(null, d);
+    }
+  }
+
   // register polymer-element with document
   document.register('polymer-element', {prototype: prototype});
 })(Polymer);
