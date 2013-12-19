@@ -36,7 +36,8 @@
       webkitanimationend: 'webkitAnimationEnd',
       webkittransitionend: 'webkitTransitionEnd',
       domfocusout: 'DOMFocusOut',
-      domfocusin: 'DOMFocusIn'
+      domfocusin: 'DOMFocusIn',
+      dommousescroll: 'DOMMouseScroll'
     }
   };
 
