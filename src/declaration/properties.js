@@ -9,6 +9,7 @@
 
   var properties = {
     inferObservers: function(prototype) {
+      // called before prototype.observe is chained to inherited object
       var observe = prototype.observe, property;
       for (var n in prototype) {
         if (n.slice(-7) === 'Changed') {
@@ -19,13 +20,32 @@
           observe[property] = observe[property] || n;
         }
       }
+      this.explodeObservers(prototype);
+    },
+    explodeObservers: function(prototype) {
+      // called before prototype.observe is chained to inherited object
+      var o = prototype.observe;
+      if (o) {
+        var exploded = {};
+        for (var n in o) {
+          var names = n.split(' ');
+          for (var i=0, ni; ni=names[i]; i++) {
+            exploded[ni] = o[n];
+          }
+        }
+        prototype.observe = exploded;
+      }
     },
     optimizePropertyMaps: function(prototype) {
       if (prototype.observe) {
         // construct name list
         var a = prototype._observeNames = [];
         for (var n in prototype.observe) {
-          a.push(n);
+          var names = n.split(' ');
+          for (var i=0, ni; ni=names[i]; i++) {
+            a.push(ni);
+          }
+          //a.push(n);
         }
       }
       if (prototype.publish) {

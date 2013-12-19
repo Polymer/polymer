@@ -201,6 +201,7 @@
     }
   };
 
+  // implementation of 'chainObject' depends on support for __proto__
   if (Object.__proto__) {
     prototype.chainObject = function(object, inherited) {
       if (object && inherited && object !== inherited) {
