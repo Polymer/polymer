@@ -90,12 +90,12 @@ module.exports = function(grunt) {
 
   grunt.registerTask('stash', 'prepare for testing build', function() {
     grunt.option('force', true);
-    grunt.task.run('move:polymer.js:polymer.js.bak');
-    grunt.task.run('move:build/polymer.js:polymer.js');
+    grunt.task.run('move:polymer.html:polymer.html.bak');
+    grunt.task.run('move:build/polymer.html:polymer.html');
   });
   grunt.registerTask('restore', function() {
-    grunt.task.run('move:polymer.js:build/polymer.js');
-    grunt.task.run('move:polymer.js.bak:polymer.js');
+    grunt.task.run('move:polymer.html:build/polymer.html');
+    grunt.task.run('move:polymer.html.bak:polymer.html');
     grunt.option('force', false);
   });
 
