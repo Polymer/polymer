@@ -20,7 +20,6 @@
           observe[property] = observe[property] || n;
         }
       }
-      this.explodeObservers(prototype);
     },
     explodeObservers: function(prototype) {
       // called before prototype.observe is chained to inherited object

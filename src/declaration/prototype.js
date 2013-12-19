@@ -38,6 +38,8 @@
       this.publishProperties(prototype, base);
       // infer observers for `observe` list based on method names
       this.inferObservers(prototype);
+      // desugar compound observer syntax, e.g. 'a b c' 
+      this.explodeObservers(prototype);
       // chain various meta-data objects to inherited versions
       this.inheritMetaData(prototype, base);
       // chain custom api to inherited
