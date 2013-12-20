@@ -129,11 +129,12 @@
     log.bind && console.log(LOG_BIND_PROPS, inB.localName || 'object', inPath, inA.localName, inProperty);
     // capture A's value if B's value is null or undefined,
     // otherwise use B's value
-    var v = observable.getValue();
+    // TODO(sorvell): need to review, can do with ObserverTransform
+    var v = observable.discardChanges();
     if (v === null || v === undefined) {
       observable.setValue(inA[inProperty]);
     }
-    return Observer.defineProperty(inA, inProperty, observable);
+    return Observer.defineComputedProperty(inA, inProperty, observable);
   }
 
   // logging
