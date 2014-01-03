@@ -1,6 +1,6 @@
 # Polymer
 
-[![Polymer build status](http://www.polymer-project.org/build/polymer/status.png "Polymer build status")](http://build.chromium.org/p/client.polymer/waterfall)
+[![Analytics](https://ga-beacon.appspot.com/UA-39334307-2/Polymer/polymer/README)](https://github.com/igrigorik/ga-beacon)
 
 Build Status: [http://build.chromium.org/p/client.polymer/waterfall](http://build.chromium.org/p/client.polymer/waterfall)
 
