@@ -178,5 +178,5 @@
   }
 
   // register polymer-element with document
-  document.register('polymer-element', {prototype: prototype});
+  document.registerElement('polymer-element', {prototype: prototype});
 })(Polymer);

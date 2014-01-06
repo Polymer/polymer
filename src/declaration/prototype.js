@@ -185,7 +185,7 @@
         info.extends = typeExtension;
       }
       // register the custom type
-      this.ctor = document.register(name, info);
+      this.ctor = document.registerElement(name, info);
       // constructor shenanigans
       this.prototype.constructor = this.ctor;
       // register the prototype with HTMLElement for name lookup
