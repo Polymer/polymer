@@ -45,32 +45,48 @@
       // user entry point
       this.ready();
     },
-    enteredViewCallback: function() {
+    attachedCallback: function() {
       if (!this._elementPrepared) {
         this.prepareElement();
       }
       this.cancelUnbindAll(true);
       // invoke user action
+      if (this.attached) {
+        this.attached();
+      }
+      // TODO(sorvell): bc
       if (this.enteredView) {
         this.enteredView();
       }
     },
-    leftViewCallback: function() {
+    detachedCallback: function() {
       if (!this.preventDispose) {
         this.asyncUnbindAll();
       }
       // invoke user action
+      if (this.detached) {
+        this.detached();
+      }
+      // TODO(sorvell): bc
       if (this.leftView) {
         this.leftView();
       }
     },
     // TODO(sorvell): bc
+    enteredViewCallback: function() {
+      this.attachedCallback();
+    },
+    // TODO(sorvell): bc
+    leftViewCallback: function() {
+      this.detachedCallback();
+    },
+    // TODO(sorvell): bc
     enteredDocumentCallback: function() {
-      this.enteredViewCallback();
+      this.attachedCallback();
     },
     // TODO(sorvell): bc
     leftDocumentCallback: function() {
-      this.leftViewCallback();
+      this.detachedCallback();
     },
     // recursive ancestral <element> initialization, oldest first
     parseDeclarations: function(p) {
