@@ -74,15 +74,15 @@
         Platform.flush();
       }
     },
-    /*
-      Bind events via attributes of the form on-eventName.
-      This method hooks into the model syntax and does adds event listeners as
-      needed. By default, binding paths are always method names on the root
-      model, the custom element in which the node exists. Adding a '@' in the
-      path directs the event binding to use the model path as the event listener.
-      In both cases, the actual listener is attached to a generic method which
-      evaluates the bound path at event execution time. 
-    */
+    //
+    //  Bind events via attributes of the form on-eventName.
+    //  This method hooks into the model syntax and does adds event listeners as
+    //  needed. By default, binding paths are always method names on the root
+    //  model, the custom element in which the node exists. Adding a '@' in the
+    //  path directs the event binding to use the model path as the event listener.
+    //  In both cases, the actual listener is attached to a generic method which
+    //  evaluates the bound path at event execution time. 
+    //
     prepareBinding: function(path, name, node) {
       // if lhs an event prefix,
       if (events.hasEventPrefix(name)) {

@@ -26,23 +26,25 @@
       }.bind(this);
       // execute `fn` sooner or later
       return timeout ? setTimeout(fn, timeout) : requestAnimationFrame(fn);
-    },    
+    },
     /**
       * Fire an event.
       * @method fire
+      * @returns {Object} event
       * @param {string} type An event name.
-      * @param detail
-      * @param {Node} toNode Target node.
+      * @param {any} detail
+      * @param {Node} onNode Target node.
       */
-    fire: function(type, detail, toNode, bubbles) {
-      var node = toNode || this;
-      //log.events && console.log('[%s]: sending [%s]', node.localName, inType);
-      node.dispatchEvent(
-        new CustomEvent(type, {
-          bubbles: (bubbles !== undefined ? bubbles : true), 
-          detail: detail
-        }));
-      return detail;
+    fire: function(type, detail, onNode, bubbles, cancelable) {
+      var node = onNode || this;
+      var detail = detail || {};
+      var event = new CustomEvent(type, {
+        bubbles: (bubbles !== undefined ? bubbles : true), 
+        cancelable: (cancelable !== undefined ? cancelable : true), 
+        detail: detail
+      });
+      node.dispatchEvent(event);
+      return event;
     },
     /**
       * Fire an event asynchronously.
