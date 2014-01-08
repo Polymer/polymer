@@ -101,7 +101,7 @@ module.exports = function(grunt) {
 
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
 
-  grunt.registerTask('default', ['minify', 'audit']);
+  grunt.registerTask('default', ['minify']);
   grunt.registerTask('minify', ['concat_sourcemap', 'version', 'uglify', 'sourcemap_copy:build/polymer.concat.js.map:build/polymer.js.map']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
