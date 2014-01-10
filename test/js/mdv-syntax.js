@@ -5,5 +5,6 @@
  */
 
 htmlSuite('MDV syntax', function() {
-  htmlTest('html/mdv-syntax.html');
+  // TODO(dfreedm): Disable this test until polymer-expressions#19 is resolved
+  // htmlTest('html/mdv-syntax.html');
 });
