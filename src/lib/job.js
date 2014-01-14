@@ -17,15 +17,27 @@
 
   var Job = function(inContext) {
     this.context = inContext;
+    this.boundComplete = this.complete.bind(this)
   };
   Job.prototype = {
     go: function(callback, wait) {
       this.callback = callback;
-      this.handle = setTimeout(this.complete.bind(this), wait);
+      var h;
+      if (!wait) {
+        h = requestAnimationFrame(this.boundComplete);
+        this.handle = function() {
+          cancelAnimationFrame(h);
+        }
+      } else {
+        h = setTimeout(this.boundComplete, wait);
+        this.handle = function() {
+          clearTimeout(h);
+        }
+      }
     },
     stop: function() {
       if (this.handle) {
-        clearTimeout(this.handle);
+        this.handle();
         this.handle = null;
       }
     },
