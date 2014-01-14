@@ -25,7 +25,10 @@
     originalStopPropagation.apply(this, arguments);
   };
   
+  // TODO(sorvell): remove when we're sure imports does not need
+  // to load stylesheets
+  /*
   HTMLImports.importer.preloadSelectors += 
       ', polymer-element link[rel=stylesheet]';
-
+  */
 })(Polymer);
