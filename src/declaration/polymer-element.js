@@ -147,7 +147,7 @@
   }
 
   function whenImportsLoaded(doThis) {
-    if (window.HTMLImports && !HTMLImports.readyTime) {
+    if (window.HTMLImports && !HTMLImports.ready) {
       addEventListener('HTMLImportsLoaded', doThis);
     } else {
       doThis();
