@@ -20,15 +20,23 @@
 
   var styles = {
     /**
-     * Install external stylesheets loaded in <element> elements into the 
+     * Install external stylesheets loaded in <polymer-element> elements into the 
      * element's template.
      * @param elementElement The <element> element to style.
      */
+    // TODO(sorvell): wip... caching and styles handling can probably be removed
+    // We need a scheme to ensure stylesheets are eagerly loaded without 
+    // the creation of an element instance. Here are 2 options for handling this:
+    // 1. create a dummy element with ShadowDOM in dom that includes ALL styles
+    // processed here.
+    // 2. place stylesheets outside the element template. This will allow 
+    // imports to naturally load the sheets. Then at load time, we can remove
+    // the stylesheet from dom.
     installSheets: function() {
       this.cacheSheets();
-      this.cacheStyles();
+      //this.cacheStyles();
       this.installLocalSheets();
-      this.installGlobalStyles();
+      //this.installGlobalStyles();
     },
     /**
      * Remove all sheets from element and store for later use.
@@ -66,15 +74,17 @@
       if (content) {
         var cssText = '';
         sheets.forEach(function(sheet) {
-          cssText += cssTextFromSheet(sheet) + '\n';
+          //cssText += cssTextFromSheet(sheet) + '\n';
+          cssText += importRuleForSheet(sheet) + '\n';
         });
         if (cssText) {
-          content.insertBefore(createStyleElement(cssText), content.firstChild);
+          content.insertBefore(createStyleElement(cssText, this.ownerDocument), content.firstChild);
         }
       }
     },
     findNodes: function(selector, matcher) {
-      var nodes = this.querySelectorAll(selector).array();
+      //var nodes = this.querySelectorAll(selector).array();
+      var nodes = [];
       var content = this.templateContent();
       if (content) {
         var templateNodes = content.querySelectorAll(selector).array();
@@ -109,12 +119,15 @@
       var sheets = this.sheets.filter(matcher);
       sheets.forEach(function(sheet) {
         cssText += cssTextFromSheet(sheet) + '\n\n';
+        cssText += importRuleForSheet(sheet) + '\n';
       });
       // handle cached style elements
+      /*
       var styles = this.styles.filter(matcher);
       styles.forEach(function(style) {
         cssText += style.textContent + '\n\n';
       });
+      */
       return cssText;
     },
     styleForScope: function(scopeDescriptor) {
@@ -130,6 +143,10 @@
       }
     }
   };
+
+  function importRuleForSheet(sheet) {
+    return '@import \'' + sheet.href + '\';';
+  }
 
   function applyStyleToScope(style, scope) {
     if (style) {
@@ -147,8 +164,10 @@
     }
   }
 
-  function createStyleElement(cssText) {
-    var style = document.createElement('style');
+  function createStyleElement(cssText, scope) {
+    scope = scope || document;
+    scope = scope.createElement ? scope : scope.ownerDocument;
+    var style = scope.createElement('style');
     style.textContent = cssText;
     return style;
   }
