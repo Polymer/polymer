@@ -64,12 +64,14 @@
     },
     // implement various declarative features
     desugar: function(name, extendee) {
+      // install external stylesheets as if they are inline
+      this.installSheets();
+      // adjust any paths in dom from imports
+      this.resolveElementPaths(this);
       // compile list of attributes to copy to instances
       this.accumulateInstanceAttributes();
       // parse on-* delegates declared on `this` element
       this.parseHostEvents();
-      // install external stylesheets as if they are inline
-      this.installSheets();
       //
       this.adjustShadowElement();
       //
