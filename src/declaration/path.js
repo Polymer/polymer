@@ -6,20 +6,29 @@
 
 (function(scope) {
 
+  // TODO(sorvell): ideally path resolution is factored out of
+  // HTMLImports polyfill
+  var resolver = HTMLImports.path;
+
   var path = {
+    resolveElementPaths: function(node) {
+      resolver.resolvePathsInHTML(node);
+    },
     addResolvePathApi: function() {
       var root = this.elementPath();
       // let assetpath attribute modify the resolve path
       var assetPath = this.getAttribute('assetpath') || '';
       var relPath = this.relPath;
-      this.prototype.resolvePath = function(inPath) {
+      this.prototype.resolvePath = function(inPath, base) {
+        if (base) {
+          return this.element.urlToPath(base) + inPath;
+        }
         var to = inPath;
         if (assetPath) {
           // assetPath is always a folder, drop the trailing '/'
           var from = assetPath.slice(0, -1);
           to = relPath(from, to);
         }
-
         return root + assetPath + to;
       };
     },
