@@ -45,7 +45,6 @@ suite('resolvePath', function() {
   test('relative path', function() {
     assert.equal(urlResolve(resolver, 'foo.js'), dirname() + '/foo.js');
     assert.equal(urlResolve(resolver, 'bar/baz'), dirname() + '/bar/baz');
-    assert.equal(urlResolve(resolver, '../test/foo'), dirname() + '/foo');
   });
 
   test.skip('absolute path', function() {
@@ -62,4 +61,8 @@ suite('resolvePath', function() {
     assert.equal(urlResolve(apResolver, 'http://example.com/bar'), 'http://example.com/bar');
   });
 
+});
+
+htmlSuite('resolvePath - imports', function() {
+  htmlTest('html/resolvePath.html');
 });
