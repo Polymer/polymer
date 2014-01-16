@@ -175,6 +175,9 @@
   var importQueue = [];
   var mainQueue = [];
 
+  scope.mainQueue = mainQueue;
+  scope.importQueue = importQueue;
+
   function queueForElement(element) {
     return document.contains(element) ? mainQueue : importQueue;
   }
@@ -195,7 +198,8 @@
   function queueIndex(element) {
     var i = queueForElement(element).indexOf(element);
     if (i >= 0 && document.contains(element)) {
-      i += HTMLImports.useNative ? importQueue.length : 1e9;
+      i += (HTMLImports.useNative || HTMLImports.ready) ? importQueue.length :
+          1e9;
     }
     return i;
   }
