@@ -29,7 +29,7 @@
       this.name = this.getAttribute('name');
       // fetch our extendee name
       this.extends = this.getAttribute('extends');
-      // install element definition, if ready
+      this.loadResources();
       this.registerWhenReady();
     },
     registerWhenReady: function() {
@@ -37,6 +37,19 @@
       if (this.waitingForPrototype(this.name)) {
         return;
       }
+      // TODO(sorvell): this establishes an element's place in line
+      // so it's critical that this be done in proper order.
+      // NOTE: polymer previously explicitly waited for extendee's to be
+      // ready before extendors. This has been removed and is the user's 
+      // responsibility.
+      if (waitingForQueue(this)) {
+        return;
+      }
+      if (this.waitingForResources()) {
+        return;
+      }
+      this._register();
+      /*
       var extendee = this.extends;
       if (this.waitingForExtendee(extendee)) {
         //console.warn(this.name + ': waitingForExtendee:' + extendee);
@@ -55,13 +68,15 @@
       } else {
         this._register(extendee);
       }
+      */
     },
-    _register: function(extendee) {
+    _register: function() {
       //console.group('registering', this.name);
-      this.register(this.name, extendee);
+      this.register(this.name, this.extends);
       //console.groupEnd();
       // subclasses may now register themselves
-      notifySuper(this.name);
+      //notifySuper(this.name);
+      notifyQueue(this);
     },
     waitingForPrototype: function(name) {
       if (!getRegisteredPrototype(name)) {
@@ -86,6 +101,16 @@
         return true;
       }
     },
+    waitingForResources: function() {
+      return this._needsResources;
+    }, 
+    loadResources: function() {
+      this._needsResources = this.preloadStyles(function() {
+        this._needsResources = false;
+        this.registerWhenReady();
+      }.bind(this));
+    }
+    /*,
     waitingForExtendee: function(extendee) {
       // if extending a custom element...
       if (extendee && extendee.indexOf('-') >= 0) {
@@ -95,7 +120,7 @@
           return true;
         }
       }
-    }
+    }*/
   });
 
   // semi-pluggable APIs 
@@ -106,7 +131,15 @@
   });
 
   // utility and bookkeeping
-  
+  /*
+  function whenImportsLoaded(doThis) {
+    if (window.HTMLImports && !HTMLImports.ready) {
+      addEventListener('HTMLImportsLoaded', doThis);
+    } else {
+      doThis();
+    }
+  }*/
+
   // maps tag names to prototypes
   var prototypesByName = {};
 
@@ -124,6 +157,7 @@
     }
   }
 
+  /*
   // elements waiting for super, by name
   var waitSuper = {};
 
@@ -137,21 +171,90 @@
       delete waitSuper[name];
     }
   }
+  */
+  var importQueue = [];
+  var mainQueue = [];
+
+  function queueForElement(element) {
+    return document.contains(element) ? mainQueue : importQueue;
+  }
+
+  function pushQueue(element) {
+    queueForElement(element).push(element);
+  }
+
+  function shiftQueue(element) {
+    var i = queueIndex(element);
+    if (i !== 0) {
+      console.warn('queue order wrong', i);
+      return;
+    }
+    queueForElement(element).shift();
+  }
+
+  function queueIndex(element) {
+    var i = queueForElement(element).indexOf(element);
+    if (i >= 0 && document.contains(element)) {
+      i += HTMLImports.useNative ? importQueue.length : 1e9;
+    }
+    return i;
+  }
+
+  function nextInQueue() {
+    return importQueue.length ? importQueue[0] : mainQueue[0];
+  }
+
+  function pokeQueue() {
+    // next
+    var element = nextInQueue();
+    if (element) {
+      element.registerWhenReady();
+    }
+  }
+
+  function isQueueEmpty() {
+    return !importQueue.length && !mainQueue.length;
+  }
+
+  function waitingForQueue(element) {
+    if (queueIndex(element) === -1) {
+      pushQueue(element);
+    }
+    var ready = (queueIndex(element) === 0);
+    return !ready;
+  }
+
+  function notifyQueue(element) {
+    shiftQueue(element);
+    pokeQueue();
+    notifyElements();
+  }
+
+
+  var canNotifyElements;
+  HTMLImports.whenImportsReady(function() {
+    pokeQueue();
+    canNotifyElements = true;
+  });
+
+  // TODO(sorvell): highly experimental replacement for WCR:
+  var registerCallback;
+  function notifyElements() {
+    if (isQueueEmpty() && canNotifyElements) {
+      requestAnimationFrame(function() {
+        document.dispatchEvent(
+          new CustomEvent('PolymerElementsReady', {bubbles: true})
+          //new CustomEvent('WebComponentsReady', {bubbles: true})
+        );
+      });
+    }
+  }
 
   // track document.register'ed tag names
-
   var registered = {};
 
   function isRegistered(name) {
     return registered[name];
-  }
-
-  function whenImportsLoaded(doThis) {
-    if (window.HTMLImports && !HTMLImports.ready) {
-      addEventListener('HTMLImportsLoaded', doThis);
-    } else {
-      doThis();
-    }
   }
 
   // exports

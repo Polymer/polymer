@@ -14,11 +14,54 @@
   // magic words
 
   var STYLE_SELECTOR = 'style';
-  var SHEET_SELECTOR = '[rel=stylesheet]';
+  var SHEET_SELECTOR = 'link[rel=stylesheet]';
   var STYLE_GLOBAL_SCOPE = 'global';
   var SCOPE_ATTR = 'polymer-scope';
+  var STYLE_LOADABLE_MATCH = '@import';
 
   var styles = {
+    // returns true if resources are loading
+    preloadStyles: function(callback) {
+      var styles = [];
+      var t$ = this.querySelectorAll('template');
+      for (var i=0, l=t$.length, t; (i<l) && (t=t$[i]); i++) {
+        this.convertSheetsToStyles(t.content);
+        styles = styles.concat(this.findLoadableStyles(t.content));
+      }
+      if (styles.length) {
+        if (window.ShadowDOMPolyfill) {
+          Platform.ShadowCSS.loadStyles(styles, callback);
+        } else {
+          var css = [];
+          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+            css.push(s.textContent);
+          }
+          preloadCssText(css.join('\n'), callback);
+        }
+        return true;
+      }
+    },
+    convertSheetsToStyles: function(root) {
+      var s$ = root.querySelectorAll(SHEET_SELECTOR);
+      for (var i=0, l=s$.length, s, c; (i<l) && (s=s$[i]); i++) {
+        c = createStyleElement(importRuleForSheet(s));
+        var scope = s.getAttribute(SCOPE_ATTR);
+        if (scope) {
+          c.setAttribute(SCOPE_ATTR, scope);
+        }
+        s.parentNode.replaceChild(c, s);
+      }
+    },
+    findLoadableStyles: function(root) {
+      var loadables = [];
+      var s$ = root.querySelectorAll(STYLE_SELECTOR);
+      for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
+        if (s.textContent.match(STYLE_LOADABLE_MATCH)) {
+          loadables.push(s);
+        }
+      }
+      return loadables;
+    },
     /**
      * Install external stylesheets loaded in <polymer-element> elements into the 
      * element's template.
@@ -34,7 +77,7 @@
     // the stylesheet from dom.
     installSheets: function() {
       this.cacheSheets();
-      //this.cacheStyles();
+      this.cacheStyles();
       this.installLocalSheets();
       //this.installGlobalStyles();
     },
@@ -74,17 +117,16 @@
       if (content) {
         var cssText = '';
         sheets.forEach(function(sheet) {
-          //cssText += cssTextFromSheet(sheet) + '\n';
-          cssText += importRuleForSheet(sheet) + '\n';
+          cssText += cssTextFromSheet(sheet) + '\n';
         });
         if (cssText) {
-          content.insertBefore(createStyleElement(cssText, this.ownerDocument), content.firstChild);
+          var style = createStyleElement(cssText, this.ownerDocument);
+          content.insertBefore(style, content.firstChild);
         }
       }
     },
     findNodes: function(selector, matcher) {
-      //var nodes = this.querySelectorAll(selector).array();
-      var nodes = [];
+      var nodes = this.querySelectorAll(selector).array();
       var content = this.templateContent();
       if (content) {
         var templateNodes = content.querySelectorAll(selector).array();
@@ -119,15 +161,12 @@
       var sheets = this.sheets.filter(matcher);
       sheets.forEach(function(sheet) {
         cssText += cssTextFromSheet(sheet) + '\n\n';
-        cssText += importRuleForSheet(sheet) + '\n';
       });
       // handle cached style elements
-      /*
       var styles = this.styles.filter(matcher);
       styles.forEach(function(style) {
         cssText += style.textContent + '\n\n';
       });
-      */
       return cssText;
     },
     styleForScope: function(scopeDescriptor) {
@@ -143,6 +182,19 @@
       }
     }
   };
+
+  var preloader = document.createElement('preloader');
+  preloader.style.display = 'none';
+  var preloaderRoot = preloader.createShadowRoot();
+  document.head.appendChild(preloader);
+
+  function preloadCssText(cssText, callback) {
+    var style = createStyleElement(cssText);
+    if (callback) {
+      style.addEventListener('load', callback);
+    }
+    preloaderRoot.appendChild(style);
+  }
 
   function importRuleForSheet(sheet) {
     return '@import \'' + sheet.href + '\';';
