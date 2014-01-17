@@ -8,6 +8,7 @@
   // magic words
 
   var ATTRIBUTES_ATTRIBUTE = 'attributes';
+  var ATTRIBUTES_REGEX = /\s|,/;
 
   // attributes api
 
@@ -25,7 +26,7 @@
         // get properties to publish
         var publish = prototype.publish || (prototype.publish = {});
         // names='a b c' or names='a,b,c'
-        var names = attributes.split(attributes.indexOf(',') >= 0 ? ',' : ' ');
+        var names = attributes.split(ATTRIBUTES_REGEX);
         // record each name for publishing
         for (var i=0, l=names.length, n; i<l; i++) {
           // remove excess ws
