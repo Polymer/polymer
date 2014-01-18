@@ -14,7 +14,7 @@
 
   // specify an 'own' prototype for tag `name`
   function element(name, prototype) {
-    //console.log('registering [' + name + ']');
+    //console.log('registering prototype [' + name + ']');
     // cache the prototype
     prototypesByName[name] = prototype || {};
     // notify the registrar waiting for 'name', if any
@@ -27,6 +27,7 @@
     createdCallback: function() {
       // fetch the element name
       this.name = this.getAttribute('name');
+      //console.log('createdCallback', this.name);
       // fetch our extendee name
       this.extends = this.getAttribute('extends');
       this.loadResources();
@@ -49,29 +50,10 @@
         return;
       }
       this._register();
-      /*
-      var extendee = this.extends;
-      if (this.waitingForExtendee(extendee)) {
-        //console.warn(this.name + ': waitingForExtendee:' + extendee);
-        return;
-      }
-      // TODO(sjmiles): HTMLImports polyfill awareness:
-      // elements in the main document are likely to parse
-      // in advance of elements in imports because the
-      // polyfill parser is simulated
-      // therefore, wait for imports loaded before
-      // finalizing elements in the main document
-      if (document.contains(this)) {
-        whenImportsLoaded(function() {
-          this._register(extendee);
-        }.bind(this));
-      } else {
-        this._register(extendee);
-      }
-      */
     },
     _register: function() {
       //console.group('registering', this.name);
+      //console.log('registering', this.name);
       this.register(this.name, this.extends);
       //console.groupEnd();
       // subclasses may now register themselves
@@ -110,17 +92,6 @@
         this.registerWhenReady();
       }.bind(this));
     }
-    /*,
-    waitingForExtendee: function(extendee) {
-      // if extending a custom element...
-      if (extendee && extendee.indexOf('-') >= 0) {
-        // wait for the extendee to be registered first
-        if (!isRegistered(extendee)) {
-          (waitSuper[extendee] = (waitSuper[extendee] || [])).push(this);
-          return true;
-        }
-      }
-    }*/
   });
 
   // semi-pluggable APIs 
@@ -131,14 +102,6 @@
   });
 
   // utility and bookkeeping
-  /*
-  function whenImportsLoaded(doThis) {
-    if (window.HTMLImports && !HTMLImports.ready) {
-      addEventListener('HTMLImportsLoaded', doThis);
-    } else {
-      doThis();
-    }
-  }*/
 
   // maps tag names to prototypes
   var prototypesByName = {};
@@ -157,32 +120,15 @@
     }
   }
 
-  /*
-  // elements waiting for super, by name
-  var waitSuper = {};
-
-  function notifySuper(name) {
-    registered[name] = true;
-    var waiting = waitSuper[name];
-    if (waiting) {
-      waiting.forEach(function(w) {
-        w.registerWhenReady();
-      });
-      delete waitSuper[name];
-    }
-  }
-  */
   var importQueue = [];
   var mainQueue = [];
-
-  scope.mainQueue = mainQueue;
-  scope.importQueue = importQueue;
 
   function queueForElement(element) {
     return document.contains(element) ? mainQueue : importQueue;
   }
 
   function pushQueue(element) {
+    //console.log('queueing', element.name);
     queueForElement(element).push(element);
   }
 
@@ -214,6 +160,7 @@
     if (element) {
       element.registerWhenReady();
     }
+    checkPolymerReady();
   }
 
   function isQueueEmpty() {
@@ -231,26 +178,27 @@
   function notifyQueue(element) {
     shiftQueue(element);
     pokeQueue();
-    notifyElements();
   }
+  scope.importQueue = importQueue;
+  scope.mainQueue = mainQueue;
+  scope.pokeQueue = pokeQueue;
 
 
-  var canNotifyElements;
+  var canReadyPolymer = false;
+  var polymerReadied = false; 
   HTMLImports.whenImportsReady(function() {
+    canReadyPolymer = true;
     pokeQueue();
-    canNotifyElements = true;
   });
 
-  // TODO(sorvell): highly experimental replacement for WCR:
-  var registerCallback;
-  function notifyElements() {
-    if (isQueueEmpty() && canNotifyElements) {
-      requestAnimationFrame(function() {
-        document.dispatchEvent(
-          new CustomEvent('PolymerElementsReady', {bubbles: true})
-          //new CustomEvent('WebComponentsReady', {bubbles: true})
-        );
-      });
+  // signal when polymer-elements are ready
+  function checkPolymerReady() {
+    if (canReadyPolymer && !polymerReadied && isQueueEmpty()) {
+      polymerReadied = true;
+      console.log('fire polymer ready');
+      document.dispatchEvent(
+        new CustomEvent('polymer-ready', {bubbles: true})
+      );
     }
   }
 
