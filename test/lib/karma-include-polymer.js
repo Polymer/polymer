@@ -1,6 +1,6 @@
 (function() {
   window.__karma__.loaded = function(){
-    window.addEventListener('WebComponentsReady', function() {
+    window.addEventListener('polymer-ready', function() {
       window.__karma__.start();
     });
   };
