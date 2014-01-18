@@ -20,12 +20,12 @@
 
   var styles = {
     // returns true if resources are loading
-    preloadStyles: function(callback) {
+    loadStyles: function(callback) {
       var content = this.templateContent();
       if (content) {
         this.convertSheetsToStyles(content);
-        return Platform.loader.loadStyles(content, callback);
       }
+      Platform.loader.loadStyles(content, callback);
     },
     convertSheetsToStyles: function(root) {
       var s$ = root.querySelectorAll(SHEET_SELECTOR);

@@ -34,6 +34,9 @@
       this.registerWhenReady();
     },
     registerWhenReady: function() {
+      if (this.registered) {
+        return;
+      }
       // if we have no prototype, wait
       if (this.waitingForPrototype(this.name)) {
         return;
@@ -53,11 +56,10 @@
     },
     _register: function() {
       //console.group('registering', this.name);
-      //console.log('registering', this.name);
       this.register(this.name, this.extends);
+      this.registered = true;
       //console.groupEnd();
-      // subclasses may now register themselves
-      //notifySuper(this.name);
+      // tell the queue this element has registered
       notifyQueue(this);
     },
     waitingForPrototype: function(name) {
@@ -87,7 +89,8 @@
       return this._needsResources;
     }, 
     loadResources: function() {
-      this._needsResources = this.preloadStyles(function() {
+      this._needsResources = true;
+      this.loadStyles(function() {
         this._needsResources = false;
         this.registerWhenReady();
       }.bind(this));
@@ -195,7 +198,7 @@
   function checkPolymerReady() {
     if (canReadyPolymer && !polymerReadied && isQueueEmpty()) {
       polymerReadied = true;
-      console.log('fire polymer ready');
+      //console.log('fire polymer ready');
       document.dispatchEvent(
         new CustomEvent('polymer-ready', {bubbles: true})
       );
