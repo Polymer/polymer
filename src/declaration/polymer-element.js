@@ -9,6 +9,8 @@
 
   var extend = scope.extend;
   var apis = scope.api.declaration;
+  var queue = scope.queue;
+  var whenPolymerReady = scope.whenPolymerReady;
 
   // imperative implementation: Polymer()
 
@@ -41,12 +43,7 @@
       if (this.waitingForPrototype(this.name)) {
         return;
       }
-      // TODO(sorvell): this establishes an element's place in line
-      // so it's critical that this be done in proper order.
-      // NOTE: polymer previously explicitly waited for extendee's to be
-      // ready before extendors. This has been removed and is the user's 
-      // responsibility.
-      if (waitingForQueue(this)) {
+      if (this.waitingForQueue()) {
         return;
       }
       if (this.waitingForResources()) {
@@ -60,7 +57,7 @@
       this.registered = true;
       //console.groupEnd();
       // tell the queue this element has registered
-      notifyQueue(this);
+      queue.notify(this);
     },
     waitingForPrototype: function(name) {
       if (!getRegisteredPrototype(name)) {
@@ -87,7 +84,13 @@
     },
     waitingForResources: function() {
       return this._needsResources;
-    }, 
+    },
+    // NOTE: Elements must be queued in proper order for inheritance/composition
+    // dependency resolution. Previously this was enforced for inheritance 
+    // and by rule for composition. It's now entirely by rule.
+    waitingForQueue: function() {
+      return queue.wait(this);
+    },
     loadResources: function() {
       this._needsResources = true;
       this.loadStyles(function() {
@@ -123,88 +126,6 @@
     }
   }
 
-  var importQueue = [];
-  var mainQueue = [];
-
-  function queueForElement(element) {
-    return document.contains(element) ? mainQueue : importQueue;
-  }
-
-  function pushQueue(element) {
-    //console.log('queueing', element.name);
-    queueForElement(element).push(element);
-  }
-
-  function shiftQueue(element) {
-    var i = queueIndex(element);
-    if (i !== 0) {
-      console.warn('queue order wrong', i);
-      return;
-    }
-    queueForElement(element).shift();
-  }
-
-  function queueIndex(element) {
-    var i = queueForElement(element).indexOf(element);
-    if (i >= 0 && document.contains(element)) {
-      i += (HTMLImports.useNative || HTMLImports.ready) ? importQueue.length :
-          1e9;
-    }
-    return i;
-  }
-
-  function nextInQueue() {
-    return importQueue.length ? importQueue[0] : mainQueue[0];
-  }
-
-  function pokeQueue() {
-    // next
-    var element = nextInQueue();
-    if (element) {
-      element.registerWhenReady();
-    }
-    checkPolymerReady();
-  }
-
-  function isQueueEmpty() {
-    return !importQueue.length && !mainQueue.length;
-  }
-
-  function waitingForQueue(element) {
-    if (queueIndex(element) === -1) {
-      pushQueue(element);
-    }
-    var ready = (queueIndex(element) === 0);
-    return !ready;
-  }
-
-  function notifyQueue(element) {
-    shiftQueue(element);
-    pokeQueue();
-  }
-  scope.importQueue = importQueue;
-  scope.mainQueue = mainQueue;
-  scope.pokeQueue = pokeQueue;
-
-
-  var canReadyPolymer = false;
-  var polymerReadied = false; 
-  HTMLImports.whenImportsReady(function() {
-    canReadyPolymer = true;
-    pokeQueue();
-  });
-
-  // signal when polymer-elements are ready
-  function checkPolymerReady() {
-    if (canReadyPolymer && !polymerReadied && isQueueEmpty()) {
-      polymerReadied = true;
-      //console.log('fire polymer ready');
-      document.dispatchEvent(
-        new CustomEvent('polymer-ready', {bubbles: true})
-      );
-    }
-  }
-
   // track document.register'ed tag names
   var registered = {};
 
@@ -213,7 +134,6 @@
   }
 
   // exports
-  
   scope.getRegisteredPrototype = getRegisteredPrototype;
   
   // namespace shenanigans so we can expose our scope on the registration 
@@ -234,6 +154,13 @@
       element.apply(null, d);
     }
   }
+
+  whenPolymerReady(function() {
+    console.log('fire polymer ready');
+    document.dispatchEvent(
+      new CustomEvent('polymer-ready', {bubbles: true})
+    );
+  });
 
   // register polymer-element with document
   document.registerElement('polymer-element', {prototype: prototype});
