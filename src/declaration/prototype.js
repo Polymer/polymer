@@ -152,6 +152,9 @@
       // closures.
       // As of now, there is only one problematic method, so 
       // we just patch it manually.
+      // To avoid re-entrancy problems, the special super method
+      // installed is called `mixinSuper` and the mixin method
+      // must use this method instead of the default `super`.
       this.mixinMethod(extended, prototype, api.instance.mdv, 'bind');
       // return buffed-up prototype
       return extended;
@@ -161,10 +164,8 @@
         return prototype[name].apply(this, args);
       };
       extended[name] = function() {
-        this.super = $super;
-        var value = api[name].apply(this, arguments);
-        this.super = extended.super;
-        return value;
+        this.mixinSuper = $super;
+        return api[name].apply(this, arguments);
       }
     },
     // ensure prototype[name] inherits from a prototype.prototype[name]

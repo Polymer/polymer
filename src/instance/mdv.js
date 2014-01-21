@@ -39,7 +39,9 @@
       }
       var property = this.propertyForAttribute(name);
       if (!property) {
-        return this.super(arguments);
+        // TODO(sjmiles): this mixin method must use the special form
+        // of `super` installed by `mixinMethod` in declaration/prototype.js
+        return this.mixinSuper(arguments);
       } else {
         // clean out the closets
         this.unbind(name);
