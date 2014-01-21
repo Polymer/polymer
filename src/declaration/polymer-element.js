@@ -156,7 +156,6 @@
   }
 
   whenPolymerReady(function() {
-    console.log('fire polymer ready');
     document.dispatchEvent(
       new CustomEvent('polymer-ready', {bubbles: true})
     );
