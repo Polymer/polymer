@@ -8,25 +8,7 @@ suite('resolvePath', function() {
   var assert = chai.assert;
 
   var work = document.createElement('div');
-  var a = document.createElement('a');
-  var resolver, apResolver;
-
-  function dirname(levels) {
-    levels = levels || 1;
-    var pp = location.href.split('/');
-    for (var i = 0; i < levels; i++) {
-      pp.pop();
-    }
-    return pp.join('/');
-  }
-
-  // resolvePath may not remove '../', pass through an anchor to clean
-  function urlResolve(resolver, path) {
-    var junkyPath = resolver.resolvePath(path);
-    a.href = junkyPath;
-    // magical url voodoo
-    return a.href;
-  }
+  var resolver, apResolver, dirname;
 
   suiteSetup(function() {
     wrap(document.body).appendChild(work);
@@ -36,6 +18,7 @@ suite('resolvePath', function() {
     CustomElements.takeRecords();
     resolver = document.createElement('x-resolve');
     apResolver = document.createElement('x-resolve-ap');
+    dirname = location.href.split('/').slice(0, -1).join('/') + '/';
   });
 
   suiteTeardown(function() {
@@ -43,22 +26,30 @@ suite('resolvePath', function() {
   });
 
   test('relative path', function() {
-    assert.equal(urlResolve(resolver, 'foo.js'), dirname() + '/foo.js');
-    assert.equal(urlResolve(resolver, 'bar/baz'), dirname() + '/bar/baz');
+    assert.equal(resolver.resolvePath('foo.js'), dirname + 'foo.js');
+    assert.equal(resolver.resolvePath('bar/baz'), dirname + 'bar/baz');
   });
 
   test('absolute path', function() {
     assert.equal(resolver.resolvePath('http://example.com/bar'), 'http://example.com/bar');
   });
 
+  test('supplied base', function() {
+    assert.equal(resolver.resolvePath('foo', 'http://example.com'), 'http://example.com/foo');
+  });
+
   test('assetpath relative path', function() {
-    assert.equal(urlResolve(apResolver, 'foo.js'), dirname() + '/foo/bar/baz/foo.js');
-    assert.equal(urlResolve(apResolver, 'bar/baz'), dirname() + '/foo/bar/baz/bar/baz');
-    assert.equal(urlResolve(apResolver, '../test/foo'), dirname() + '/foo/bar/test/foo');
+    assert.equal(apResolver.resolvePath('foo.js'), dirname + 'foo/bar/baz/foo.js');
+    assert.equal(apResolver.resolvePath('bar/baz'), dirname + 'foo/bar/baz/bar/baz');
+    assert.equal(apResolver.resolvePath('../test/foo'), dirname + 'foo/bar/test/foo');
   });
 
   test('assetpath absolute path', function() {
-    assert.equal(urlResolve(apResolver, 'http://example.com/bar'), 'http://example.com/bar');
+    assert.equal(apResolver.resolvePath('http://example.com/bar'), 'http://example.com/bar');
+  });
+
+  test('assetpah supplied base', function() {
+    assert.equal(apResolver.resolvePath('foo', 'http://example.com'), 'http://example.com/foo');
   });
 
 });
