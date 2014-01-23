@@ -155,7 +155,20 @@
     }
   }
 
+  // TODO(sorvell): Questionable optimization, it works but there is likely a 
+  // better way to do this. Under the SD and CE polyfill's, it's slow to upgrade
+  // elements in the entire document tree, including imports because SD
+  // polyfill is particularly slow at finding elements. Here we use
+  // the CE's ready property to toggle upgrading off while polymer elements
+  // are registered. When all polymer elements are ready, we do a full upgrade
+  // and set ready to true. This way we batch the work and do it 1x.
+  HTMLImports.whenImportsReady(function() {
+    CustomElements.ready = false;
+  });
+
   whenPolymerReady(function() {
+    CustomElements.upgradeDocumentTree(document);
+    CustomElements.ready = true;
     document.dispatchEvent(
       new CustomEvent('polymer-ready', {bubbles: true})
     );
