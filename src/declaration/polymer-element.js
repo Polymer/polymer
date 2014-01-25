@@ -27,6 +27,11 @@
 
   var prototype = extend(Object.create(HTMLElement.prototype), {
     createdCallback: function() {
+      if (this.getAttribute('name')) {
+        this.init();
+      }
+    },
+    init: function() {
       // fetch the element name
       this.name = this.getAttribute('name');
       //console.log('createdCallback', this.name);
