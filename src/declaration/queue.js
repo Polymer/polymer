@@ -6,17 +6,17 @@
 (function(scope) {
 
   var queue = {
+    // tell the queue to wait for an element to be ready
+    wait: function(element) {
+      if (this.indexOf(element) === -1 && 
+          (flushQueue.indexOf(element) === -1)) {
+        this.add(element);
+      }
+      return (this.indexOf(element) !== 0);
+    },
     add: function(element) {
       //console.log('queueing', element.name);
       queueForElement(element).push(element);
-    },
-    remove: function(element) {
-      var i = this.indexOf(element);
-      if (i !== 0) {
-        console.warn('queue order wrong', i);
-        return;
-      }
-      queueForElement(element).shift();  
     },
     indexOf: function(element) {
       var i = queueForElement(element).indexOf(element);
@@ -26,8 +26,21 @@
       }
       return i;  
     },
-    nextElement: function() {
-      return nextQueued();
+    // tell the queue an element is ready to be registered
+    register: function(element) {
+      var readied = this.remove(element);
+      if (readied) {
+        flushQueue.push(readied);
+        this.check();
+      }
+    },
+    remove: function(element) {
+      var i = this.indexOf(element);
+      if (i !== 0) {
+        //console.warn('queue order wrong', i);
+        return;
+      }
+      return queueForElement(element).shift();  
     },
     check: function() {
       // next
@@ -35,25 +48,56 @@
       if (element) {
         element.registerWhenReady();
       }
-      checkPolymerReady();  
+      if (this.canFlush()) {
+        this.flush();
+        return true;
+      }
+    },
+    nextElement: function() {
+      return nextQueued();
+    },
+    canFlush: function() {
+      return !this.waitToFlush && this.isEmpty();
     },
     isEmpty: function() {
       return !importQueue.length && !mainQueue.length;
     },
-    notify: function(element) {
-      this.remove(element);
-      this.check();
-    },
-    wait: function(element) {
-      if (this.indexOf(element) === -1) {
-        this.add(element);
+    flush: function() {
+      // TODO(sorvell): As an optimization, turn off CE polyfill upgrading
+      // while registering. This way we avoid having to upgrade each document
+      // piecemeal per registration and can instead register all elements
+      // and upgrade once in a batch. Without this optimization, upgrade time
+      // degrades significantly when SD polyfill is used. This is mainly because
+      // querying the document tree for elements is slow under the SD polyfill.
+      CustomElements.ready = false;
+      var element;
+      while (flushQueue.length) {
+        element = flushQueue.shift();
+        element._register();
       }
-      return (this.indexOf(element) !== 0);
-    }
-  }
+      CustomElements.upgradeDocumentTree(document);
+      CustomElements.ready = true;
+      this.flushReadyCallbacks();
+    },
+    flushReadyCallbacks: function() {
+      if (readyCallbacks) {
+        var fn;
+        while (readyCallbacks.length) {
+          fn = readyCallbacks.shift();
+          fn();
+        }
+      }
+    },
+    addReadyCallback: function(callback) {
+      readyCallbacks.push(callback);
+    },
+    waitToFlush: true
+  };
 
   var importQueue = [];
   var mainQueue = [];
+  var flushQueue = [];
+  var readyCallbacks = [];
 
   function queueForElement(element) {
     return document.contains(element) ? mainQueue : importQueue;
@@ -63,37 +107,18 @@
     return importQueue.length ? importQueue[0] : mainQueue[0];
   }
 
-  var canReadyPolymer = false;
   var polymerReadied = false; 
-
-  var readyCallbacks = [];
+  
   function whenPolymerReady(callback) {
-    canReadyPolymer = false;
+    queue.waitToFlush = true;
     HTMLImports.whenImportsReady(function() {
-      canReadyPolymer = true;
-      readyCallbacks.push(callback);
+      queue.addReadyCallback(callback);
+      queue.waitToFlush = false;
       queue.check();
     });
-  }
-
-  function checkPolymerReady() {
-    if (canReadyPolymer && queue.isEmpty()) {
-      flushReadyCallbacks();
-    }
-  }
-
-  function flushReadyCallbacks() {
-    if (readyCallbacks) {
-      var fn;
-      while (readyCallbacks.length) {
-        fn = readyCallbacks.shift();
-        fn();
-      }
-    }
   }
 
   // exports
   scope.queue = queue;
   scope.whenPolymerReady = whenPolymerReady;
-
 })(Polymer);

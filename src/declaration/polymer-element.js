@@ -49,22 +49,25 @@
       if (this.waitingForResources()) {
         return;
       }
-      this._register();
+      this.readyToRegister();
+    },
+    readyToRegister: function() {
+      queue.register(this);
     },
     _register: function() {
+      //console.log('registering', this.name);
       //console.group('registering', this.name);
       this.register(this.name, this.extends);
       this.registered = true;
       //console.groupEnd();
-      // tell the queue this element has registered
-      queue.notify(this);
     },
     waitingForPrototype: function(name) {
       if (!getRegisteredPrototype(name)) {
         // then wait for a prototype
         waitPrototype[name] = this;
         // if explicitly marked as 'noscript'
-        if (this.hasAttribute('noscript')) {
+        if (this.hasAttribute('noscript') && !this.noscript) {
+          this.noscript = true;
           // TODO(sorvell): CustomElements polyfill awareness:
           // noscript elements should upgrade in logical order
           // script injection ensures this under native custom elements;
@@ -155,20 +158,7 @@
     }
   }
 
-  // TODO(sorvell): Questionable optimization, it works but there is likely a 
-  // better way to do this. Under the SD and CE polyfill's, it's slow to upgrade
-  // elements in the entire document tree, including imports because SD
-  // polyfill is particularly slow at finding elements. Here we use
-  // the CE's ready property to toggle upgrading off while polymer elements
-  // are registered. When all polymer elements are ready, we do a full upgrade
-  // and set ready to true. This way we batch the work and do it 1x.
-  HTMLImports.whenImportsReady(function() {
-    CustomElements.ready = false;
-  });
-
   whenPolymerReady(function() {
-    CustomElements.upgradeDocumentTree(document);
-    CustomElements.ready = true;
     document.dispatchEvent(
       new CustomEvent('polymer-ready', {bubbles: true})
     );
