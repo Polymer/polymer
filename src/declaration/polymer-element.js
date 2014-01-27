@@ -17,6 +17,9 @@
   // specify an 'own' prototype for tag `name`
   function element(name, prototype) {
     //console.log('registering prototype [' + name + ']');
+    if (prototypesByName[name]) {
+      throw 'Already registered prototype for element ' + name;
+    }
     // cache the prototype
     prototypesByName[name] = prototype || {};
     // notify the registrar waiting for 'name', if any
