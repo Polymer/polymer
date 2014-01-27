@@ -14,6 +14,7 @@
   // magic words
 
   var STYLE_SELECTOR = 'style';
+  var STYLE_LOADABLE_MATCH = '@import';
   var SHEET_SELECTOR = 'link[rel=stylesheet]';
   var STYLE_GLOBAL_SCOPE = 'global';
   var SCOPE_ATTR = 'polymer-scope';
@@ -25,7 +26,20 @@
       if (content) {
         this.convertSheetsToStyles(content);
       }
-      Platform.loader.loadStyles(content, callback);
+      var styles = this.findLoadableStyles(content);
+      if (styles.length) {
+        // if SD polyfill or opt-in, use xhr for cssText, otherwise
+        // allow platform to cache styles.
+        // TODO(sorvell): experimental flag to force direct caching of cssTest
+        // rather than relying on platform to cache @import rules.
+        if (window.ShadowDOMPolyfill || this.hasAttribute('cache-csstext')) {
+          Platform.loader.xhrStyles(styles, callback);
+        } else {
+          Platform.loader.cacheStyles(styles, callback);
+        }
+      } else if (callback) {
+        callback();
+      }
     },
     convertSheetsToStyles: function(root) {
       var s$ = root.querySelectorAll(SHEET_SELECTOR);
@@ -37,6 +51,18 @@
         }
         s.parentNode.replaceChild(c, s);
       }
+    },
+    findLoadableStyles: function(root) {
+      var loadables = [];
+      if (root) {
+        var s$ = root.querySelectorAll(STYLE_SELECTOR);
+        for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
+          if (s.textContent.match(STYLE_LOADABLE_MATCH)) {
+            loadables.push(s);
+          }
+        }
+      }
+      return loadables;
     },
     /**
      * Install external stylesheets loaded in <polymer-element> elements into the 
