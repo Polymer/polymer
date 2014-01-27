@@ -118,7 +118,6 @@
         // make a shadow root
         var root = this.createShadowRoot();
         // migrate flag(s)
-        root.applyAuthorStyles = this.applyAuthorStyles;
         root.resetStyleInheritance = this.resetStyleInheritance;
         // stamp template
         // which includes parsing and applying MDV bindings before being 
