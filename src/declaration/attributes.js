@@ -54,7 +54,14 @@
       return !this.blackList[name] && name.slice(0,3) !== 'on-';
     },
     // do not clone these attributes onto instances
-    blackList: {name: 1, 'extends': 1, constructor: 1, noscript: 1}
+    blackList: {
+      name: 1,
+      'extends': 1,
+      constructor: 1,
+      noscript: 1,
+      assetpath: 1,
+      'cache-csstext': 1
+    }
   };
 
   // add ATTRIBUTES_ATTRIBUTE to the blacklist
