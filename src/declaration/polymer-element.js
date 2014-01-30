@@ -183,6 +183,7 @@
   }
 
   whenPolymerReady(function() {
+    document.body.removeAttribute('unresolved');
     document.dispatchEvent(
       new CustomEvent('polymer-ready', {bubbles: true})
     );
