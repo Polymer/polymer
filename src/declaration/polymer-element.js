@@ -65,8 +65,16 @@
     _register: function() {
       //console.log('registering', this.name);
       //console.group('registering', this.name);
+      // warn if extending from a custom element not registered via Polymer
+      if (isCustomTag(this.extends) && !isRegistered(this.extends)) {
+        console.warn('%s is attempting to extend %s, an unregistered element ' +
+            'or one that was not registered with Polymer.', this.name,
+            this.extends);
+      }
+
       this.register(this.name, this.extends);
       this.registered = true;
+      registerRegistered(this.name);
       //console.groupEnd();
     },
     waitingForPrototype: function(name) {
@@ -140,8 +148,16 @@
   // track document.register'ed tag names
   var registered = {};
 
+  function registerRegistered(name) {
+    registered[name] = true;
+  }
+
   function isRegistered(name) {
     return registered[name];
+  }
+
+  function isCustomTag(name) {
+    return (name && name.indexOf('-') >= 0);
   }
 
   // exports

@@ -89,7 +89,9 @@
       }
     },
     addReadyCallback: function(callback) {
-      readyCallbacks.push(callback);
+      if (callback) {
+        readyCallbacks.push(callback);
+      }
     },
     waitToFlush: true
   };
