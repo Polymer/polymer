@@ -20,31 +20,20 @@ module.exports = function(grunt) {
       polymer: {
       }
     },
-    concat_sourcemap: {
-      Polymer: {
-        options: {
-          sourcesContent: true,
-          nonull: true
-        },
-        files: {
-          'build/polymer.concat.js': Polymer
-        }
-      }
-    },
     uglify: {
       options: {
         nonull: true
       },
       Polymer: {
         options: {
-          sourceMap: 'build/polymer.js.map',
-          sourceMapIn: 'build/polymer.concat.js.map',
-          sourceMappingURL: 'polymer.js.map',
+          sourceMap: true,
+          sourceMapName: 'build/polymer.js.map',
+          sourceMapIncludeSources: true,
           banner: grunt.file.read('LICENSE') + '// @version: <%= buildversion %>'
           //mangle: false, beautify: true, compress: false
         },
         files: {
-          'build/polymer.js': 'build/polymer.concat.js'
+          'build/polymer.js': Polymer
         }
       }
     },
@@ -84,7 +73,6 @@ module.exports = function(grunt) {
   // plugins
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
-  grunt.loadNpmTasks('grunt-concat-sourcemap');
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-audit');
 
@@ -102,7 +90,7 @@ module.exports = function(grunt) {
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
 
   grunt.registerTask('default', ['minify']);
-  grunt.registerTask('minify', ['concat_sourcemap', 'version', 'uglify', 'sourcemap_copy:build/polymer.concat.js.map:build/polymer.js.map']);
+  grunt.registerTask('minify', ['version', 'uglify']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
   grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot', 'minify', 'stash', 'karma:buildbot', 'restore']);
