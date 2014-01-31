@@ -14,8 +14,8 @@ var path = {
     // let assetpath attribute modify the resolve path
     var assetPath = this.getAttribute('assetpath') || '';
     var root = new URL(assetPath, this.ownerDocument.baseURI);
-    this.prototype.resolvePath = function(path, base) {
-      var u = new URL(path, base || root);
+    this.prototype.resolvePath = function(urlPath, base) {
+      var u = new URL(urlPath, base || root);
       return u.href;
     };
   }

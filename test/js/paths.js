@@ -47,7 +47,7 @@ suite('resolvePath', function() {
     assert.equal(urlResolve(resolver, 'bar/baz'), dirname() + '/bar/baz');
   });
 
-  test.skip('absolute path', function() {
+  test('absolute path', function() {
     assert.equal(resolver.resolvePath('http://example.com/bar'), 'http://example.com/bar');
   });
 
@@ -57,7 +57,7 @@ suite('resolvePath', function() {
     assert.equal(urlResolve(apResolver, '../test/foo'), dirname() + '/foo/bar/test/foo');
   });
 
-  test.skip('assetpath absolute path', function() {
+  test('assetpath absolute path', function() {
     assert.equal(urlResolve(apResolver, 'http://example.com/bar'), 'http://example.com/bar');
   });
 
@@ -65,5 +65,4 @@ suite('resolvePath', function() {
 
 htmlSuite('resolvePath - imports', function() {
   htmlTest('html/resolvePath.html');
-  htmlTest('html/path-resolver.html');
 });
