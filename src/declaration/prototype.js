@@ -14,24 +14,36 @@
   // prototype api
 
   var prototype = {
-    register: function(name, extendee) {
+
+    register: function(name, extendeeName) {
       // build prototype combining extendee, Polymer base, and named api
-      this.prototype = this.buildPrototype(name, extendee);
-      // back reference declaration element
-      // TODO(sjmiles): replace `element` with `elementElement` or `declaration`
-      this.prototype.element = this;
-      // more declarative features
-      this.desugar(name, extendee);
+      this.buildPrototype(name, extendeeName);
       // register our custom element with the platform
-      this.registerPrototype(name, extendee);
+      this.registerPrototype(name, extendeeName);
       // reference constructor in a global named by 'constructor' attribute
       this.publishConstructor();
     },
-    buildPrototype: function(name, extendee) {
+
+    buildPrototype: function(name, extendeeName) {
       // get our custom prototype (before chaining)
-      var prototype = scope.getRegisteredPrototype(name);
+      var extension = scope.getRegisteredPrototype(name);
+      if (typeof extension === 'function') {
+        extension = withDependencies(extension, extension.dependencies);
+      }
       // get basal prototype
-      var base = this.generateBasePrototype(extendee);
+      var base = this.generateBasePrototype(extendeeName);
+      // implement declarative features
+      this.desugarBeforeChaining(extension, base);
+      // join prototypes
+      this.prototype = this.chainPrototypes(extension, base);
+      // more declarative features
+      this.desugarAfterChaining(name, extendeeName);
+    },
+
+    desugarBeforeChaining: function(prototype, base) {
+      // back reference declaration element
+      // TODO(sjmiles): replace `element` with `elementElement` or `declaration`
+      prototype.element = this;
       // transcribe `attributes` declarations onto own prototype's `publish`
       this.publishAttributes(prototype, base);
       // `publish` properties to the prototype and to attribute watch
@@ -40,16 +52,18 @@
       this.inferObservers(prototype);
       // desugar compound observer syntax, e.g. 'a b c' 
       this.explodeObservers(prototype);
+    },
+
+    chainPrototypes: function(prototype, base) {
       // chain various meta-data objects to inherited versions
       this.inheritMetaData(prototype, base);
       // chain custom api to inherited
-      prototype = this.chainObject(prototype, base);
-      // build side-chained lists to optimize iterations
-      this.optimizePropertyMaps(prototype);
+      var chained = this.chainObject(prototype, base);
       // x-platform fixup
-      ensurePrototypeTraversal(prototype);
-      return prototype;
+      ensurePrototypeTraversal(chained);
+      return chained;
     },
+
     inheritMetaData: function(prototype, base) {
       // chain observe object to inherited
       this.inheritObject('observe', prototype, base);
@@ -62,8 +76,11 @@
       // chain our event delegates map to the inherited version
       this.inheritObject('eventDelegates', prototype, base);
     },
+
     // implement various declarative features
-    desugar: function(name, extendee) {
+    desugarAfterChaining: function(name, extendee) {
+      // build side-chained lists to optimize iterations
+      this.optimizePropertyMaps(this.prototype);
       // install external stylesheets as if they are inline
       this.installSheets();
       // adjust any paths in dom from imports
@@ -86,6 +103,7 @@
         this.prototype.registerCallback(this);
       }
     },
+
     // if a named constructor is requested in element, map a reference
     // to the constructor to the given symbol
     publishConstructor: function() {
@@ -94,6 +112,7 @@
         window[symbol] = this.ctor;
       }
     },
+
     // build prototype combining extendee, Polymer base, and named api
     generateBasePrototype: function(extnds) {
       var prototype = this.findBasePrototype(extnds);
@@ -107,9 +126,11 @@
       }
       return prototype;
     },
+
     findBasePrototype: function(name) {
       return memoizedBases[name];
     },
+
     // install Polymer instance api into prototype chain, as needed 
     ensureBaseApi: function(prototype) {
       if (prototype.PolymerBase) {
@@ -118,13 +139,9 @@
       var extended = Object.create(prototype);
       // we need a unique copy of base api for each base prototype
       // therefore we 'extend' here instead of simply chaining
-      // we could memoize instead, especially for the common cases,
-      // in particular, for base === HTMLElement.prototype
-      for (var n in api.instance) {
-        extend(extended, api.instance[n]);
-      }
+      api.publish(api.instance, extended);
       // TODO(sjmiles): sharing methods across prototype chains is
-      // not supported by our 'super' implementation which optimizes
+      // not supported by 'super' implementation which optimizes
       // by memoizing prototype relationships.
       // Probably we should have a version of 'extend' that is 
       // share-aware: it could study the text of each function,
@@ -139,6 +156,7 @@
       // return buffed-up prototype
       return extended;
     },
+
     mixinMethod: function(extended, prototype, api, name) {
       var $super = function(args) {
         return prototype[name].apply(this, args);
@@ -148,6 +166,7 @@
         return api[name].apply(this, arguments);
       }
     },
+
     // ensure prototype[name] inherits from a prototype.prototype[name]
     inheritObject: function(name, prototype, base) {
       // require an object
@@ -155,6 +174,7 @@
       // chain inherited properties onto a new object
       prototype[name] = this.chainObject(source, base[name]);
     },
+
     // register 'prototype' to custom element 'name', store constructor 
     registerPrototype: function(name, extendee) { 
       var info = {
@@ -165,13 +185,14 @@
       if (typeExtension) {
         info.extends = typeExtension;
       }
+      // register the prototype with HTMLElement for name lookup
+      HTMLElement.register(name, this.prototype);
       // register the custom type
       this.ctor = document.registerElement(name, info);
       // constructor shenanigans
       this.prototype.constructor = this.ctor;
-      // register the prototype with HTMLElement for name lookup
-      HTMLElement.register(name, this.prototype);
-    }, 
+    },
+
     findTypeExtension: function(name) {
       if (name && name.indexOf('-') < 0) {
         return name;
@@ -182,7 +203,11 @@
         }
       }
     }
+
   };
+
+  // memoize base prototypes
+  var memoizedBases = {};
 
   // implementation of 'chainObject' depends on support for __proto__
   if (Object.__proto__) {
@@ -202,10 +227,7 @@
     }
   }
 
-  // memoize base prototypes
-  memoizedBases = {};
-
-  // On platforms that do not support __proto__ (version of IE), the prototype
+  // On platforms that do not support __proto__ (versions of IE), the prototype
   // chain of a custom element is simulated via installation of __proto__.
   // Although custom elements manages this, we install it here so it's
   // available during desugaring.
