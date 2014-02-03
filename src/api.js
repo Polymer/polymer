@@ -5,10 +5,22 @@
  */
 (function(scope) {
 
+  // imports
+
+  var extend = scope.extend;
+
+  // module
+
   var api = {};
 
   api.declaration = {};
   api.instance = {};
+
+  api.publish = function(apis, prototype) {
+    for (var n in apis) {
+      extend(prototype, apis[n]);
+    }
+  }
 
   // exports
 

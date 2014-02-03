@@ -75,6 +75,7 @@
 
   // no-operation function for handy stubs
   var nop = function() {};
+
   // null-object for handy stubs
   var nob = {};
 
