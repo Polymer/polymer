@@ -73,13 +73,9 @@
       // parse on-* delegates declared on `this` element
       this.parseHostEvents();
       //
-      this.adjustShadowElement();
-      //
-      // TODO(sorvell): install a helper method this.resolvePath to aid in 
-      // setting resource paths. e.g.
+      // install a helper method this.resolvePath to aid in 
+      // setting resource urls. e.g.
       // this.$.image.src = this.resolvePath('images/foo.png')
-      // Potentially remove when spec bug is addressed.
-      // https://www.w3.org/Bugs/Public/show_bug.cgi?id=21407
       this.addResolvePathApi();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
       if (window.ShadowDOMPolyfill) {
@@ -88,24 +84,6 @@
       // allow custom element access to the declarative context
       if (this.prototype.registerCallback) {
         this.prototype.registerCallback(this);
-      }
-    },
-    // TODO(sorvell): remove when spec addressed:
-    // https://www.w3.org/Bugs/Public/show_bug.cgi?id=22460
-    // make <shadow></shadow> be <shadow><content></content></shadow>
-    adjustShadowElement: function() {
-      // TODO(sorvell): avoid under SD polyfill until this bug is addressed:
-      // https://github.com/Polymer/ShadowDOM/issues/297
-      if (!window.ShadowDOMPolyfill) {
-        var content = this.templateContent();
-        if (content) {
-          var s$ = content.querySelectorAll('shadow');
-          for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
-            if (!s.children.length) {
-              s.appendChild(document.createElement('content'));
-            }
-          }
-        }
       }
     },
     // if a named constructor is requested in element, map a reference
