@@ -14,7 +14,6 @@
 
   // specify an 'own' prototype for tag `name`
   function element(name, prototype) {
-    //console.log('registering prototype [' + name + ']');
     if (getRegisteredPrototype[name]) {
       throw 'Already registered (Polymer) prototype for element ' + name;
     }
@@ -68,18 +67,12 @@
   // function
 
   // make window.Polymer reference `element()`
-  //window.Polymer = element;
-  window.Polymer = function(a, b, c) {
-    if (arguments.length == 3) {
-      c.dependencies = b;
-      element(a, c)
-    } else {
-      element(a, b);
-    }
-  }
+
+  window.Polymer = element;
 
   // TODO(sjmiles): find a way to do this that is less terrible
   // copy window.Polymer properties onto `element()`
+
   extend(Polymer, scope);
 
   // Under the HTMLImports polyfill, scripts in the main document

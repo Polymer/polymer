@@ -27,9 +27,6 @@
     buildPrototype: function(name, extendeeName) {
       // get our custom prototype (before chaining)
       var extension = scope.getRegisteredPrototype(name);
-      if (typeof extension === 'function') {
-        extension = withDependencies(extension, extension.dependencies);
-      }
       // get basal prototype
       var base = this.generateBasePrototype(extendeeName);
       // implement declarative features
