@@ -31,7 +31,7 @@
     instanceTemplate: function(template) {
       return template.createInstance(this, this.syntax);
     },
-    bind: function(name, observable) {
+    bind: function(name, observable, oneTime) {
       // note: binding is a prepare signal. This allows us to be sure that any
       // property changes that occur as a result of binding will be observed.
       if (!this._elementPrepared) {
