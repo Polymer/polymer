@@ -87,12 +87,12 @@ module.exports = function(grunt) {
     grunt.option('force', false);
   });
 
-  grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
 
   grunt.registerTask('default', ['minify']);
   grunt.registerTask('minify', ['version', 'uglify']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
+  grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
   grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot', 'minify', 'stash', 'karma:buildbot', 'restore']);
 };
 
