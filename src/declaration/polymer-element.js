@@ -44,6 +44,9 @@
       queue.register(this);
     },
 
+
+    // TODO(sorvell): refactor, this method is private-ish, but it's being
+    // called by the queue object.
     _register: function() {
       //console.log('registering', this.name);
       //console.group('registering', this.name);

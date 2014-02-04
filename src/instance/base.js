@@ -99,11 +99,7 @@
     parseDeclaration: function(elementElement) {
       var template = this.fetchTemplate(elementElement);
       if (template) {
-        if (this.element.hasAttribute('lightdom')) {
-          this.lightFromTemplate(template);
-        } else {
-          this.shadowFromTemplate(template);
-        }
+        this.shadowFromTemplate(template);
       }
     },
     // return a shadow-root template (if desired), override for custom behavior
