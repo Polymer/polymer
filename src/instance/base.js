@@ -42,6 +42,10 @@
       this.parseDeclarations(this.__proto__);
       // decrement semaphore
       preparingElements--;
+      // TODO(sorvell): CE polyfill uses unresolved attribute to simulate
+      // :unresolved; remove this attribute to be compatible with native
+      // CE.
+      this.removeAttribute('unresolved');
       // user entry point
       this.ready();
     },
