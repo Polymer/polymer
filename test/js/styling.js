@@ -8,5 +8,6 @@ htmlSuite('styling', function() {
   htmlTest('html/styling/sheet-scope.html');
   htmlTest('html/styling/sheet-main-doc.html');
   htmlTest('html/styling/apply-reset-styles.html');
+  htmlTest('html/styling/unresolved.html');
 });
 
