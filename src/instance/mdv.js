@@ -10,22 +10,9 @@
   var log = window.logFlags || 0;
   var events = scope.api.instance.events;
 
-  var expressions = function() {
-    PolymerExpressions.call(this);
-  }
-
-  expressions.prototype = Object.create(PolymerExpressions.prototype);
-
-  //var syntax = new PolymerExpressions();
-  expressions.prototype.resolveEventHandler = function(model, path, node) {
-    var ctlr = this.eventController;
-
-    var owner = findController(node);
-    if (owner !== ctlr) {
-      console.warn('not in tree', ctlr, owner);
-      // TODO(sorvell): context is wrong... sigh, fix it.
-      ctlr = owner;
-    }
+  var syntax = new PolymerExpressions();
+  syntax.resolveEventHandler = function(model, path, node) {
+    var ctlr = findEventController(node);
     if (ctlr) {
       var fn = path.getValueFrom(ctlr);
       if (fn) {
@@ -34,8 +21,14 @@
     }
   }
 
-  function findController(node) {
+  // An event controller is the host element for the shadowRoot in which 
+  // the node exists, or the first ancestor with a 'lightDomController'
+  // property.
+  function findEventController(node) {
     while (node.parentNode) {
+      if (node.lightDomController) {
+        return node;
+      }
       node = node.parentNode;
     }
     return node.host;
@@ -44,13 +37,8 @@
   // element api supporting mdv
 
   var mdv = {
-    //syntax: syntax,
+    syntax: syntax,
     instanceTemplate: function(template) {
-      if (!this.syntax) {
-        this.syntax = new expressions();
-        this.syntax.eventController = this;
-        //console.log(this.syntax.eventController)
-      }
       return template.createInstance(this, this.syntax);
     },
     bind: function(name, observable, oneTime) {
