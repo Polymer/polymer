@@ -25,7 +25,17 @@
         (this[method] || method).apply(this, args);
       }.bind(this);
       // execute `fn` sooner or later
-      return timeout ? setTimeout(fn, timeout) : requestAnimationFrame(fn);
+      var handle = timeout ? setTimeout(fn, timeout) :
+          requestAnimationFrame(fn);
+      // NOTE: switch on inverting handle to determine which time is used.
+      return timeout ? handle : 1 / handle;
+    },
+    cancelAsync: function(handle) {
+      if (handle < 1) {
+        cancelAnimationFrame(Math.round(1 / handle));
+      } else {
+        clearTimeout(handle);
+      }
     },
     /**
       * Fire an event.
