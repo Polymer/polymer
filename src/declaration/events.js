@@ -9,7 +9,8 @@
   // imports
 
   var log = window.logFlags || {};
-
+  var api = scope.api.instance.events;
+  var EVENT_PREFIX = api.EVENT_PREFIX;
   // polymer-element declarative api: events feature
 
   var events = { 
@@ -25,7 +26,7 @@
         // does it have magic marker identifying it as an event delegate?
         if (this.hasEventPrefix(a.name)) {
           // if so, add the info to delegates
-          delegates[a.name] = a.value.replace('{{', '')
+          delegates[this.removeEventPrefix(a.name)] = a.value.replace('{{', '')
               .replace('}}', '').trim();
         }
       }
@@ -33,8 +34,13 @@
     // starts with 'on-'
     hasEventPrefix: function (n) {
       return n && (n[0] === 'o') && (n[1] === 'n') && (n[2] === '-');
+    },
+    removeEventPrefix: function(n) {
+      return n.slice(prefixLength);
     }
   };
+
+  var prefixLength = EVENT_PREFIX.length;
 
   // exports
   scope.api.declaration.events = events;
