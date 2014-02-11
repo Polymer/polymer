@@ -47,6 +47,7 @@ suite('events', function() {
 
 htmlSuite('events-declarative', function() {
   htmlTest('html/event-handlers.html');
+  htmlTest('html/event-handlers-host.html');
   htmlTest('html/event-path.html');
   htmlTest('html/event-path-declarative.html');
 });

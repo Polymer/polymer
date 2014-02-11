@@ -8,7 +8,6 @@
 
   // imports
 
-  var api = scope.api.instance.events;
   var log = window.logFlags || {};
 
   // polymer-element declarative api: events feature
@@ -24,25 +23,20 @@
       // for each attribute
       for (var i=0, a; a=this.attributes[i]; i++) {
         // does it have magic marker identifying it as an event delegate?
-        if (api.hasEventPrefix(a.name)) {
+        if (this.hasEventPrefix(a.name)) {
           // if so, add the info to delegates
-          delegates[api.removeEventPrefix(a.name)] = a.value.replace('{{', '')
+          delegates[a.name] = a.value.replace('{{', '')
               .replace('}}', '').trim();
         }
       }
     },
-    event_translations: {
-      webkitanimationstart: 'webkitAnimationStart',
-      webkitanimationend: 'webkitAnimationEnd',
-      webkittransitionend: 'webkitTransitionEnd',
-      domfocusout: 'DOMFocusOut',
-      domfocusin: 'DOMFocusIn',
-      dommousescroll: 'DOMMouseScroll'
+    // starts with 'on-'
+    hasEventPrefix: function (n) {
+      return n && (n[0] === 'o') && (n[1] === 'n') && (n[2] === '-');
     }
   };
 
   // exports
-
   scope.api.declaration.events = events;
 
 })(Polymer);

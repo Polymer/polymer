@@ -10,25 +10,47 @@
   var log = window.logFlags || 0;
   var events = scope.api.instance.events;
 
-  // expressionista
+  var expressions = function() {
+    PolymerExpressions.call(this);
+  }
 
-  // TODO(sorvell): we're patching the syntax while evaluating
-  // event bindings. we'll move this to a better spot when that's done.
-  var _prepareBinding = PolymerExpressions.prototype.prepareBinding;
-  // <[node] [name] = {{path}}>
-  PolymerExpressions.prototype.prepareBinding = function(path, name, node) {
-    // if not an event, delegate to the standard syntax
-    return events.prepareBinding(path, name, node)
-        || _prepareBinding.call(this, path, name, node);
+  expressions.prototype = Object.create(PolymerExpressions.prototype);
+
+  //var syntax = new PolymerExpressions();
+  expressions.prototype.resolveEventHandler = function(model, path, node) {
+    var ctlr = this.eventController;
+
+    var owner = findController(node);
+    if (owner !== ctlr) {
+      console.warn('not in tree', ctlr, owner);
+      // TODO(sorvell): context is wrong... sigh, fix it.
+      ctlr = owner;
+    }
+    if (ctlr) {
+      var fn = path.getValueFrom(ctlr);
+      if (fn) {
+        return fn.bind(ctlr);
+      }
+    }
+  }
+
+  function findController(node) {
+    while (node.parentNode) {
+      node = node.parentNode;
+    }
+    return node.host;
   };
-
-  var syntax = new PolymerExpressions();
 
   // element api supporting mdv
 
   var mdv = {
-    syntax: syntax,
+    //syntax: syntax,
     instanceTemplate: function(template) {
+      if (!this.syntax) {
+        this.syntax = new expressions();
+        this.syntax.eventController = this;
+        //console.log(this.syntax.eventController)
+      }
       return template.createInstance(this, this.syntax);
     },
     bind: function(name, observable, oneTime) {
