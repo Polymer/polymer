@@ -51,4 +51,5 @@ htmlSuite('element registration', function() {
   htmlTest('html/element-script.html');
   htmlTest('html/element-registration.html');
   htmlTest('html/element-import.html');
+  htmlTest('html/polymer-body.html');
 });
