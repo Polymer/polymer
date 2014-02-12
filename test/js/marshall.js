@@ -24,3 +24,7 @@ suite('marshall', function() {
     assert.equal(foo.$.zot.textContent, 'zotContent');
   });
 });
+
+htmlSuite('shadowRoots', function() {
+  htmlTest('html/shadowroots.html');
+});

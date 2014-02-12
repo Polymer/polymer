@@ -27,6 +27,8 @@
     // system entry point, do not override
     prepareElement: function() {
       this._elementPrepared = true;
+      // install shadowRoots storage
+      this.shadowRoots = {};
       // install property observers
       this.observeProperties();
       // install boilerplate attributes
@@ -103,7 +105,8 @@
     parseDeclaration: function(elementElement) {
       var template = this.fetchTemplate(elementElement);
       if (template) {
-        this.shadowFromTemplate(template);
+        var root = this.shadowFromTemplate(template);
+        this.shadowRoots[elementElement.name] = root;        
       }
     },
     // return a shadow-root template (if desired), override for custom behavior
@@ -113,8 +116,6 @@
     // utility function that creates a shadow root from a <template>
     shadowFromTemplate: function(template) {
       if (template) {
-        // cache elder shadow root (if any)
-        var elderRoot = this.shadowRoot;
         // make a shadow root
         var root = this.createShadowRoot();
         // migrate flag(s)
