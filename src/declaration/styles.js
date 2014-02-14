@@ -44,7 +44,8 @@
     convertSheetsToStyles: function(root) {
       var s$ = root.querySelectorAll(SHEET_SELECTOR);
       for (var i=0, l=s$.length, s, c; (i<l) && (s=s$[i]); i++) {
-        c = createStyleElement(importRuleForSheet(s), s.ownerDocument);
+        c = createStyleElement(importRuleForSheet(s, this.ownerDocument.baseURI),
+            this.ownerDocument);
         var scope = s.getAttribute(SCOPE_ATTR);
         if (scope) {
           c.setAttribute(SCOPE_ATTR, scope);
@@ -185,8 +186,9 @@
     }
   };
 
-  function importRuleForSheet(sheet) {
-    return '@import \'' + sheet.href + '\';';
+  function importRuleForSheet(sheet, baseUrl) {
+    var href = new URL(sheet.getAttribute('href'), baseUrl);
+    return '@import \'' + href + '\';';
   }
 
   function applyStyleToScope(style, scope) {
