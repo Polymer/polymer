@@ -187,8 +187,8 @@
   };
 
   function importRuleForSheet(sheet, baseUrl) {
-    var href = new URL(sheet.getAttribute('href'), baseUrl);
-    return '@import \'' + href + '\';';
+    var href = new URL(sheet.getAttribute('href'), baseUrl).href;
+    return '@import \'' + href + '\';'
   }
 
   function applyStyleToScope(style, scope) {
