@@ -38,6 +38,7 @@ module.exports = function(karma) {
       {pattern: 'polymer-expressions/src/*.js', included: false},
       {pattern: 'polymer-expressions/third_party/**/*.js', included: false},
       {pattern: 'polymer-dev/polymer.html', included: false},
+      {pattern: 'polymer-dev/src/polymer-body.html', included: false},
       {pattern: 'polymer-dev/src/**/*.js', included: false},
       {pattern: 'polymer-dev/build/polymer.js', included: false},
       {pattern: 'polymer-dev/test/**/*.css', included: false},
