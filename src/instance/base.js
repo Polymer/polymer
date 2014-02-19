@@ -64,6 +64,16 @@
       if (this.enteredView) {
         this.enteredView();
       }
+      // NOTE: domReady can be used to access elements in dom (descendants, 
+      // ancestors, siblings) such that the developer is enured to upgrade
+      // ordering. If the element definitions have loaded, domReady
+      // can be used to access upgraded elements.
+      if (!this.hasBeenAttached) {
+        this.hasBeenAttached = true;
+        if (this.domReady) {
+          this.async('domReady');
+        }
+      }
     },
     detachedCallback: function() {
       if (!this.preventDispose) {
