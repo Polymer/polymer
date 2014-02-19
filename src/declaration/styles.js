@@ -28,15 +28,7 @@
       }
       var styles = this.findLoadableStyles(content);
       if (styles.length) {
-        // if SD polyfill or opt-in, use xhr for cssText, otherwise
-        // allow platform to cache styles.
-        // TODO(sorvell): experimental flag to force direct caching of cssTest
-        // rather than relying on platform to cache @import rules.
-        if (window.ShadowDOMPolyfill || this.hasAttribute('cache-csstext')) {
-          Platform.loader.xhrStyles(styles, callback);
-        } else {
-          Platform.loader.cacheStyles(styles, callback);
-        }
+        Platform.styleResolver.loadStyles(styles, callback);
       } else if (callback) {
         callback();
       }
