@@ -9,11 +9,6 @@
 
   function importElements(elementOrFragment, callback) {
     if (elementOrFragment) {
-      var ports = elementOrFragment.querySelectorAll('link[rel=import]');
-      // normalize url...
-      for (var i=0, l=ports.length, p; (i<l) && (p=ports[i]); i++) {
-        p.href = p.href;
-      }
       document.head.appendChild(elementOrFragment);
       whenPolymerReady(callback);
     } else if (callback) {
