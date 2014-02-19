@@ -186,8 +186,6 @@
       HTMLElement.register(name, this.prototype);
       // register the custom type
       this.ctor = document.registerElement(name, info);
-      // constructor shenanigans
-      this.prototype.constructor = this.ctor;
     },
 
     findTypeExtension: function(name) {
