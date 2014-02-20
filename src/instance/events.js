@@ -28,15 +28,18 @@
       var self = this, bindable, eventName;
       for (var n in events) {
         eventName = EVENT_PREFIX + n;
-        bindable = PolymerExpressions.prepareEventBinding(Path.get(events[n]),
-            eventName, {
-          resolveEventHandler: function(model, path, node) {
-            var fn = path.getValueFrom(self);
-            if (fn) {
-              return fn.bind(self);
+        bindable = PolymerExpressions.prepareEventBinding(
+          Path.get(events[n]),
+          eventName, 
+          {
+            resolveEventHandler: function(model, path, node) {
+              var fn = path.getValueFrom(self);
+              if (fn) {
+                return fn.bind(self);
+              }
             }
           }
-        });
+        );
         bindable(this, this, false);
       }
     },
