@@ -7,10 +7,11 @@
 
   var queue = {
     // tell the queue to wait for an element to be ready
-    wait: function(element) {
-      if (this.indexOf(element) === -1 && 
-          (flushQueue.indexOf(element) === -1)) {
+    wait: function(element, check, go) {
+      if (this.indexOf(element) === -1) {
         this.add(element);
+        element.__check = check;
+        element.__go = go;
       }
       return (this.indexOf(element) !== 0);
     },
@@ -27,10 +28,11 @@
       return i;  
     },
     // tell the queue an element is ready to be registered
-    register: function(element) {
+    go: function(element) {
       var readied = this.remove(element);
       if (readied) {
-        flushQueue.push(readied);
+        readied.__go.call(readied);
+        readied.__check = readied.__go = null;
         this.check();
       }
     },
@@ -46,40 +48,33 @@
       // next
       var element = this.nextElement();
       if (element) {
-        element.registerWhenReady();
+        element.__check.call(element);
       }
-      if (this.canFlush()) {
-        this.flush();
+      if (this.canReady()) {
+        this.ready();
         return true;
       }
     },
     nextElement: function() {
       return nextQueued();
     },
-    canFlush: function() {
-      return !this.waitToFlush && this.isEmpty();
+    canReady: function() {
+      return !this.waitToReady && this.isEmpty();
     },
     isEmpty: function() {
       return !importQueue.length && !mainQueue.length;
     },
-    flush: function() {
+    ready: function() {
       // TODO(sorvell): As an optimization, turn off CE polyfill upgrading
       // while registering. This way we avoid having to upgrade each document
       // piecemeal per registration and can instead register all elements
       // and upgrade once in a batch. Without this optimization, upgrade time
       // degrades significantly when SD polyfill is used. This is mainly because
       // querying the document tree for elements is slow under the SD polyfill.
-      CustomElements.ready = false;
-      var element;
-      while (flushQueue.length) {
-        element = flushQueue.shift();
-        element._register();
+      if (CustomElements.ready === false) {
+        CustomElements.upgradeDocumentTree(document);
+        CustomElements.ready = true;
       }
-      CustomElements.upgradeDocumentTree(document);
-      CustomElements.ready = true;
-      this.flushReadyCallbacks();
-    },
-    flushReadyCallbacks: function() {
       if (readyCallbacks) {
         var fn;
         while (readyCallbacks.length) {
@@ -93,12 +88,11 @@
         readyCallbacks.push(callback);
       }
     },
-    waitToFlush: true
+    waitToReady: true
   };
 
   var importQueue = [];
   var mainQueue = [];
-  var flushQueue = [];
   var readyCallbacks = [];
 
   function queueForElement(element) {
@@ -110,12 +104,17 @@
   }
 
   var polymerReadied = false; 
+
+  document.addEventListener('WebComponentsReady', function() {
+    CustomElements.ready = false;
+  });
   
   function whenPolymerReady(callback) {
-    queue.waitToFlush = true;
+    queue.waitToReady = true;
+    CustomElements.ready = false;
     HTMLImports.whenImportsReady(function() {
       queue.addReadyCallback(callback);
-      queue.waitToFlush = false;
+      queue.waitToReady = false;
       queue.check();
     });
   }

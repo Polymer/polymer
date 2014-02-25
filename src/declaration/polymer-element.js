@@ -41,7 +41,7 @@
        || this.waitingForResources()) {
           return;
       }
-      queue.register(this);
+      queue.go(this);
     },
 
 
@@ -100,7 +100,7 @@
     // dependency resolution. Previously this was enforced for inheritance,
     // and by rule for composition. It's now entirely by rule.
     waitingForQueue: function() {
-      return queue.wait(this);
+      return queue.wait(this, this.registerWhenReady, this._register);
     },
 
     loadResources: function() {
