@@ -38,11 +38,15 @@
       for (var i=0, l=s$.length, s, c; (i<l) && (s=s$[i]); i++) {
         c = createStyleElement(importRuleForSheet(s, this.ownerDocument.baseURI),
             this.ownerDocument);
-        var scope = s.getAttribute(SCOPE_ATTR);
-        if (scope) {
-          c.setAttribute(SCOPE_ATTR, scope);
-        }
+        this.copySheetAttributes(c, s);
         s.parentNode.replaceChild(c, s);
+      }
+    },
+    copySheetAttributes: function(style, link) {
+      for (var i=0, a$=link.attributes, l=a$.length, a; (a=a$[i]) && i<l; i++) {
+        if (a.name !== 'rel' && a.name !== 'src') {
+          style.setAttribute(a.name, a.value);
+        }
       }
     },
     findLoadableStyles: function(root) {
