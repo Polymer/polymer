@@ -19,25 +19,12 @@
     /**
      * Installs external stylesheets and <style> elements with the attribute 
      * polymer-scope='controller' into the scope of element. This is intended
-     * to be a called during custom element construction. Note, this incurs a 
-     * per instance cost and should be used sparingly.
-     *
-     * The need for this type of styling should go away when the shadowDOM spec
-     * addresses these issues:
-     * 
-     * https://www.w3.org/Bugs/Public/show_bug.cgi?id=21391
-     * https://www.w3.org/Bugs/Public/show_bug.cgi?id=21390
-     * https://www.w3.org/Bugs/Public/show_bug.cgi?id=21389
-     * 
-     * @param element The custom element instance into whose controller (parent)
-     * scope styles will be installed.
-     * @param elementElement The <element> containing controller styles.
+     * to be a called during custom element construction.
     */
-    // TODO(sorvell): remove when spec issues are addressed
     installControllerStyles: function() {
       // apply controller styles, but only if they are not yet applied
-      var scope = this.findStyleController();
-      if (scope && !this.scopeHasElementStyle(scope, STYLE_CONTROLLER_SCOPE)) {
+      var scope = this.findStyleScope();
+      if (scope && !this.scopeHasNamedStyle(scope, this.localName)) {
         // allow inherited controller styles
         var proto = getPrototypeOf(this), cssText = '';
         while (proto && proto.element) {
@@ -45,15 +32,40 @@
           proto = getPrototypeOf(proto);
         }
         if (cssText) {
-          var style = this.element.cssTextToScopeStyle(cssText,
-              STYLE_CONTROLLER_SCOPE);
-          // TODO(sorvell): for now these styles are not shimmed
-          // but we may need to shim them
-          Polymer.applyStyleToScope(style, scope);
+          this.installScopeCssText(cssText, scope);
         }
       }
     },
-    findStyleController: function() {
+    installScopeStyle: function(style, name) {
+      var scope = this.findStyleScope(), name = name || '';
+      if (scope && !this.scopeHasNamedStyle(scope, this.localName + name)) {
+        var cssText = '';
+        if (style instanceof Array) {
+          for (var i=0, l=style.length, s; (i<l) && (s=style[i]); i++) {
+            cssText += s.textContent + '\n\n';
+          }
+        } else {
+          cssText = style.textContent;
+        }
+        this.installScopeCssText(cssText, scope, name);
+      }
+    },
+    installScopeCssText: function(cssText, scope, name) {
+      scope = scope || this.findStyleScope();
+      name = name || '';
+      if (!scope) {
+        return;
+      }
+      if (window.ShadowDOMPolyfill) {
+        cssText = shimCssText(cssText, scope);
+      }
+      var style = this.element.cssTextToScopeStyle(cssText,
+          STYLE_CONTROLLER_SCOPE);
+      Polymer.applyStyleToScope(style, scope);
+      // cache that this style has been applied
+      scope._scopeStyles[this.localName + name] = true;
+    },
+    findStyleScope: function() {
       if (window.ShadowDOMPolyfill) {
         return wrap(document.head);
       } else {
@@ -65,9 +77,9 @@
         return n === document ? document.head : n;
       }
     },
-    scopeHasElementStyle: function(scope, descriptor) {
-      var rule = STYLE_SCOPE_ATTRIBUTE + '=' + this.localName + '-' + descriptor;
-      return scope.querySelector('style[' + rule + ']');
+    scopeHasNamedStyle: function(scope, name) {
+      scope._scopeStyles = scope._scopeStyles || {};
+      return scope._scopeStyles[name];
     }
   };
   
@@ -75,6 +87,15 @@
   // on platforms where the protoype chain is simulated via __proto__ (IE10)
   function getPrototypeOf(prototype) {
     return prototype.__proto__;
+  }
+
+  function shimCssText(cssText, scope) {
+    if (scope === document.head) {
+      return cssText;
+    }
+    var selector = Platform.ShadowCSS.makeScopeSelector(scope.localName, 
+        scope.hasAttribute('is'));
+    return Platform.ShadowCSS.shimCssText(cssText, selector);
   }
 
   // exports

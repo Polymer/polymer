@@ -44,7 +44,7 @@
     },
     copySheetAttributes: function(style, link) {
       for (var i=0, a$=link.attributes, l=a$.length, a; (a=a$[i]) && i<l; i++) {
-        if (a.name !== 'rel' && a.name !== 'src') {
+        if (a.name !== 'rel' && a.name !== 'href') {
           style.setAttribute(a.name, a.value);
         }
       }
@@ -66,14 +66,6 @@
      * element's template.
      * @param elementElement The <element> element to style.
      */
-    // TODO(sorvell): wip... caching and styles handling can probably be removed
-    // We need a scheme to ensure stylesheets are eagerly loaded without 
-    // the creation of an element instance. Here are 2 options for handling this:
-    // 1. create a dummy element with ShadowDOM in dom that includes ALL styles
-    // processed here.
-    // 2. place stylesheets outside the element template. This will allow 
-    // imports to naturally load the sheets. Then at load time, we can remove
-    // the stylesheet from dom.
     installSheets: function() {
       this.cacheSheets();
       this.cacheStyles();
