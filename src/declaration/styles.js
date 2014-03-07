@@ -181,6 +181,9 @@
 
   function applyStyleToScope(style, scope) {
     if (style) {
+      if (window.ShadowDOMPolyfill) {
+        scope = document.head;
+      }
       // TODO(sorvell): necessary for IE
       // see https://connect.microsoft.com/IE/feedback/details/790212/
       // cloning-a-style-element-and-adding-to-document-produces

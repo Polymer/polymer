@@ -57,7 +57,7 @@
         return;
       }
       if (window.ShadowDOMPolyfill) {
-        cssText = shimCssText(cssText, scope);
+        cssText = shimCssText(cssText, scope.host);
       }
       var style = this.element.cssTextToScopeStyle(cssText,
           STYLE_CONTROLLER_SCOPE);
@@ -66,16 +66,12 @@
       scope._scopeStyles[this.localName + name] = true;
     },
     findStyleScope: function() {
-      if (window.ShadowDOMPolyfill) {
-        return wrap(document.head);
-      } else {
-        // find the shadow root that contains this element
-        var n = this;
-        while (n.parentNode) {
-          n = n.parentNode;
-        }
-        return n === document ? document.head : n;
+      // find the shadow root that contains this element
+      var n = this;
+      while (n.parentNode) {
+        n = n.parentNode;
       }
+      return n;
     },
     scopeHasNamedStyle: function(scope, name) {
       scope._scopeStyles = scope._scopeStyles || {};
@@ -89,12 +85,13 @@
     return prototype.__proto__;
   }
 
-  function shimCssText(cssText, scope) {
-    if (scope === document.head) {
-      return cssText;
+  function shimCssText(cssText, host) {
+    var name = '', is = false;
+    if (host) {
+      name = host.localName;
+      is = host.hasAttribute('is');
     }
-    var selector = Platform.ShadowCSS.makeScopeSelector(scope.localName, 
-        scope.hasAttribute('is'));
+    var selector = Platform.ShadowCSS.makeScopeSelector(name, is);
     return Platform.ShadowCSS.shimCssText(cssText, selector);
   }
 
