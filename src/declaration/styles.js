@@ -176,11 +176,14 @@
 
   function importRuleForSheet(sheet, baseUrl) {
     var href = new URL(sheet.getAttribute('href'), baseUrl).href;
-    return '@import \'' + href + '\';'
+    return '@import \'' + href + '\';';
   }
 
   function applyStyleToScope(style, scope) {
     if (style) {
+      if (scope === document) {
+        scope = document.head;
+      }
       if (window.ShadowDOMPolyfill) {
         scope = document.head;
       }
