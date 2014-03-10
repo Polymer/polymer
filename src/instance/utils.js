@@ -28,11 +28,11 @@
       var handle = timeout ? setTimeout(fn, timeout) :
           requestAnimationFrame(fn);
       // NOTE: switch on inverting handle to determine which time is used.
-      return timeout ? handle : 1 / handle;
+      return timeout ? handle : ~handle;
     },
     cancelAsync: function(handle) {
-      if (handle < 1) {
-        cancelAnimationFrame(Math.round(1 / handle));
+      if (handle < 0) {
+        cancelAnimationFrame(~handle);
       } else {
         clearTimeout(handle);
       }
