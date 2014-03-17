@@ -29,6 +29,8 @@
       this._elementPrepared = true;
       // install shadowRoots storage
       this.shadowRoots = {};
+      // storage for closeable observers.
+      this._observers = [];
       // install property observers
       this.observeProperties();
       // install boilerplate attributes

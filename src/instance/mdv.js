@@ -39,7 +39,9 @@
   var mdv = {
     syntax: syntax,
     instanceTemplate: function(template) {
-      return template.createInstance(this, this.syntax);
+      var dom = template.createInstance(this, this.syntax);
+      this.registerObservers(dom.bindings_);
+      return dom;
     },
     bind: function(name, observable, oneTime) {
       // note: binding is a prepare signal. This allows us to be sure that any
@@ -53,19 +55,15 @@
         // of `super` installed by `mixinMethod` in declaration/prototype.js
         return this.mixinSuper(arguments);
       } else {
-        // clean out the closets
-        this.unbind(name);
         // use n-way Polymer binding
         var observer = this.bindProperty(property, observable);
-        // stick path on observer so it's available via this.bindings
-        observer.path = observable.path_;
-        // reflect bound property to attribute when binding
-        // to ensure binding is not left on attribute if property
-        // does not update due to not changing.
         this.reflectPropertyToAttribute(property);
-        return this.bindings[name] = observer;
+        return observer;
       }
     },
+    // TODO(sorvell): unbind/unbindAll has been removed, as public api, from
+    // TemplateBinding. We still need to close/dispose of observers but perhaps
+    // we should choose a more explicit name.
     asyncUnbindAll: function() {
       if (!this._unbound) {
         log.unbind && console.log('[%s] asyncUnbindAll', this.localName);
@@ -74,14 +72,8 @@
     },
     unbindAll: function() {
       if (!this._unbound) {
-        this.unbindAllProperties();
-        this.super();
-        // unbind shadowRoot
-        var root = this.shadowRoot;
-        while (root) {
-          unbindNodeTree(root);
-          root = root.olderShadowRoot;
-        }
+        this.closeObservers();
+        this.closeNamedObservers();
         this._unbound = true;
       }
     },
@@ -93,15 +85,6 @@
       log.unbind && console.log('[%s] cancelUnbindAll', this.localName);
       if (this._unbindAllJob) {
         this._unbindAllJob = this._unbindAllJob.stop();
-      }
-      // cancel unbinding our shadow tree iff we're not in the process of
-      // cascading our tree (as we do, for example, when the element is inserted).
-      if (!preventCascade) {
-        forNodeTree(this.shadowRoot, function(n) {
-          if (n.cancelUnbindAll) {
-            n.cancelUnbindAll();
-          }
-        });
       }
     }
   };

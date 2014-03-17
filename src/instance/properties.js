@@ -23,6 +23,8 @@
       if ((n$ && n$.length) || (pn$ && pn$.length)) {
         var self = this;
         var o = this._propertyObserver = new CompoundObserver();
+        // keep track of property observer so we can shut it down
+        this.registerObservers([o]);
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           o.addPath(this, n);
           // observer array properties
@@ -65,7 +67,7 @@
         // if we are observing the previous value, stop
         if (Array.isArray(old)) {
           log.observe && console.log('[%s] observeArrayValue: unregister observer [%s]', this.localName, name);
-          this.unregisterObserver(name + '__array');
+          this.closeNamedObserver(name + '__array');
         }
         // if the new value is an array, being observing it
         if (Array.isArray(value)) {
@@ -74,7 +76,7 @@
           observer.open(function(value, old) {
             this.invokeMethod(callbackName, [old]);
           }, this);
-          this.registerObserver(name + '__array', observer);
+          this.registerNamedObserver(name + '__array', observer);
         }
       }
     },
@@ -82,42 +84,51 @@
       // apply Polymer two-way reference binding
       return bindProperties(this, property, observable);
     },
-    unbindAllProperties: function() {
-      if (this._propertyObserver) {
-        this._propertyObserver.close();
-      }
-      this.unregisterObservers();
-    },
-    unbindProperty: function(name) {
-      return this.unregisterObserver(name);
-    },
     invokeMethod: function(method, args) {
       var fn = this[method] || method;
       if (typeof fn === 'function') {
         fn.apply(this, args);
       }
     },
+    registerObservers: function(observers) {
+      this._observers.push(observers);
+    },
+    // observer array items are arrays of observers.
+    closeObservers: function() {
+      for (var i=0, l=this._observers.length; i<l; i++) {
+        this.closeObserverArray(this._observers[i]);
+      }
+      this._observers = [];
+    },
+    closeObserverArray: function(observerArray) {
+      for (var i=0, l=observerArray.length, o; i<l; i++) {
+        o = observerArray[i];
+        if (o && o.close) {
+          o.close();
+        }
+      }
+    },
     // bookkeeping observers for memory management
-    registerObserver: function(name, observer) {
-      var o$ = this._observers || (this._observers = {});
+    registerNamedObserver: function(name, observer) {
+      var o$ = this._namedObservers || (this._namedObservers = {});
       o$[name] = observer;
     },
-    unregisterObserver: function(name) {
-      var o$ = this._observers;
+    closeNamedObserver: function(name) {
+      var o$ = this._namedObservers;
       if (o$ && o$[name]) {
         o$[name].close();
         o$[name] = null;
         return true;
       }
     },
-    unregisterObservers: function() {
-      if (this._observers) {
-        var keys=Object.keys(this._observers);
+    closeNamedObservers: function() {
+      if (this._namedObservers) {
+        var keys=Object.keys(this._namedObservers);
         for (var i=0, l=keys.length, k, o; (i < l) && (k=keys[i]); i++) {
-          o = this._observers[k];
+          o = this._namedObservers[k];
           o.close();
         }
-        this._observers = {};
+        this._namedObservers = {};
       }
     }
   };
