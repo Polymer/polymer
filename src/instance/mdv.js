@@ -58,6 +58,13 @@
         // use n-way Polymer binding
         var observer = this.bindProperty(property, observable);
         this.reflectPropertyToAttribute(property);
+        // NOTE: reflecting binding information is typically required only for
+        // tooling. It has a performance cost so it's opt-in in Node.bind.
+        if (Platform.enableBindingsReflection) {
+          observer.path = observable.path_;
+          this.bindings_ = this.bindings_ || {};
+          this.bindings_[name] = observer;
+        }
         return observer;
       }
     },
