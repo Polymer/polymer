@@ -36,8 +36,8 @@
         }
       }
     },
-    installScopeStyle: function(style, name) {
-      var scope = this.findStyleScope(), name = name || '';
+    installScopeStyle: function(style, name, scope) {
+      var scope = this.findStyleScope(scope), name = name || '';
       if (scope && !this.scopeHasNamedStyle(scope, this.localName + name)) {
         var cssText = '';
         if (style instanceof Array) {
@@ -65,9 +65,9 @@
       // cache that this style has been applied
       scope._scopeStyles[this.localName + name] = true;
     },
-    findStyleScope: function() {
+    findStyleScope: function(node) {
       // find the shadow root that contains this element
-      var n = this;
+      var n = node || this;
       while (n.parentNode) {
         n = n.parentNode;
       }
