@@ -4,7 +4,6 @@
  * license that can be found in the LICENSE file.
  */
 (function(scope) {
-  var preparingElements = 0;
 
   var base = {
     PolymerBase: true,
@@ -19,10 +18,7 @@
     },
     createdCallback: function() {
       this.created();
-      if (this.ownerDocument.defaultView || this.alwaysPrepare ||
-          preparingElements > 0) {
-        this.prepareElement();
-      }
+      this.prepareElement();
     },
     // system entry point, do not override
     prepareElement: function() {
@@ -39,13 +35,8 @@
       this.takeAttributes();
       // add event listeners
       this.addHostListeners();
-      // guarantees that while preparing, any
-      // sub-elements are also prepared
-      preparingElements++;
       // process declarative resources
       this.parseDeclarations(this.__proto__);
-      // decrement semaphore
-      preparingElements--;
       // TODO(sorvell): CE polyfill uses unresolved attribute to simulate
       // :unresolved; remove this attribute to be compatible with native
       // CE.
@@ -54,10 +45,7 @@
       this.ready();
     },
     attachedCallback: function() {
-      if (!this._elementPrepared) {
-        this.prepareElement();
-      }
-      this.cancelUnbindAll(true);
+      this.cancelUnbindAll();
       // invoke user action
       if (this.attached) {
         this.attached();

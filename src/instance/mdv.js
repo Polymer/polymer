@@ -44,11 +44,6 @@
       return dom;
     },
     bind: function(name, observable, oneTime) {
-      // note: binding is a prepare signal. This allows us to be sure that any
-      // property changes that occur as a result of binding will be observed.
-      if (!this._elementPrepared) {
-        this.prepareElement();
-      }
       var property = this.propertyForAttribute(name);
       if (!property) {
         // TODO(sjmiles): this mixin method must use the special form
@@ -84,7 +79,7 @@
         this._unbound = true;
       }
     },
-    cancelUnbindAll: function(preventCascade) {
+    cancelUnbindAll: function() {
       if (this._unbound) {
         log.unbind && console.warn('[%s] already unbound, cannot cancel unbindAll', this.localName);
         return;
