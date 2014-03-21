@@ -130,8 +130,6 @@
       if (template) {
         // make a shadow root
         var root = this.createShadowRoot();
-        // migrate flag(s)
-        root.resetStyleInheritance = this.resetStyleInheritance;
         // stamp template
         // which includes parsing and applying MDV bindings before being 
         // inserted (to avoid {{}} in attribute values)
