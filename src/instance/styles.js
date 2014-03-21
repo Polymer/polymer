@@ -37,7 +37,7 @@
       }
     },
     installScopeStyle: function(style, name, scope) {
-      var scope = this.findStyleScope(scope), name = name || '';
+      var scope = scope || this.findStyleScope(), name = name || '';
       if (scope && !this.scopeHasNamedStyle(scope, this.localName + name)) {
         var cssText = '';
         if (style instanceof Array) {

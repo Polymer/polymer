@@ -197,7 +197,17 @@
       if (attr) {
         clone.setAttribute(STYLE_SCOPE_ATTRIBUTE, attr);
       }
-      scope.appendChild(clone);
+      // TODO(sorvell): probably too brittle; try to figure out 
+      // where to put the element.
+      var refNode = scope.firstElementChild;
+      if (scope === document.head) {
+        var selector = 'style[' + STYLE_SCOPE_ATTRIBUTE + ']';
+        var s$ = document.head.querySelectorAll(selector);
+        if (s$.length) {
+          refNode = s$[s$.length-1].nextElementSibling;
+        }
+      }
+      scope.insertBefore(clone, refNode);
     }
   }
 
