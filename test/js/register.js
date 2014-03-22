@@ -54,4 +54,5 @@ htmlSuite('element registration', function() {
   htmlTest('html/polymer-body.html');
   htmlTest('html/ctor.html');
   htmlTest('html/domready.html');
+  htmlTest('html/infer-name.html');
 });

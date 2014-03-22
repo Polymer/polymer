@@ -14,6 +14,15 @@
 
   // specify an 'own' prototype for tag `name`
   function element(name, prototype) {
+    if (arguments.length === 1 && typeof arguments[0] !== 'string') {
+      prototype = name;
+      var script = document._currentScript;
+      name = script && script.parentNode && script.parentNode.getAttribute ?
+          script.parentNode.getAttribute('name') : '';
+      if (!name) {
+        throw 'Element name could not be inferred.';
+      }
+    }
     if (getRegisteredPrototype[name]) {
       throw 'Already registered (Polymer) prototype for element ' + name;
     }
