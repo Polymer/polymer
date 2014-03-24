@@ -41,9 +41,10 @@
        || this.waitingForResources()) {
           return;
       }
+      // TODO(sorvell): ends up calling '_register' by virtue
+      // of `waitingForQueue` (see below)
       queue.go(this);
     },
-
 
     // TODO(sorvell): refactor, this method is private-ish, but it's being
     // called by the queue object.
