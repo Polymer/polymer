@@ -22,8 +22,8 @@
     indexOf: function(element) {
       var i = queueForElement(element).indexOf(element);
       if (i >= 0 && document.contains(element)) {
-        i += (HTMLImports.useNative || HTMLImports.ready) ? importQueue.length :
-            1e9;
+        i += (HTMLImports.useNative || HTMLImports.ready) ? 
+          importQueue.length : 1e9;
       }
       return i;  
     },
@@ -42,7 +42,7 @@
         //console.warn('queue order wrong', i);
         return;
       }
-      return queueForElement(element).shift();  
+      return queueForElement(element).shift();
     },
     check: function() {
       // next
