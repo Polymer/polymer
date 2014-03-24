@@ -139,7 +139,7 @@
       }
     },
     // utility function that stamps a <template> into light-dom
-    lightFromTemplate: function(template) {
+    lightFromTemplate: function(template, refNode) {
       if (template) {
         // TODO(sorvell): mark this element as a lightDOMController so that
         // event listeners on bound nodes inside it will be called on it.
@@ -152,14 +152,18 @@
         // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
         var dom = this.instanceTemplate(template);
         // append to shadow dom
-        this.appendChild(dom);
+        if (refNode) {
+          this.insertBefore(dom, refNode);          
+        } else {
+          this.appendChild(dom);
+        }
         // perform post-construction initialization tasks on ahem, light root
-        this.shadowRootReady(this, template);
+        this.shadowRootReady(this);
         // return the created shadow root
         return dom;
       }
     },
-    shadowRootReady: function(root, template) {
+    shadowRootReady: function(root) {
       // locate nodes with id and store references to them in this.$ hash
       this.marshalNodeReferences(root);
       // set up pointer gestures
