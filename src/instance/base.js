@@ -7,7 +7,14 @@
 
   var base = {
     PolymerBase: true,
-    job: Polymer.job,
+    job: function(job, callback, wait) {
+      if (typeof job === 'string') {
+        var n = '___' + job;
+        this[n] = Polymer.job.call(this, this[n], callback, wait);
+      } else {
+        return Polymer.job.call(this, job, callback, wait);
+      }
+    },
     super: Polymer.super,
     // user entry point for element has had its createdCallback called
     created: function() {
