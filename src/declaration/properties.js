@@ -44,7 +44,6 @@
           for (var i=0, ni; ni=names[i]; i++) {
             a.push(ni);
           }
-          //a.push(n);
         }
       }
       if (prototype.publish) {
