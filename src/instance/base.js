@@ -24,6 +24,10 @@
     ready: function() {
     },
     createdCallback: function() {
+      if (this.templateInstance) {
+        console.warn(this.localName, 'was bound prior to upgrade and may ' +
+            'have incorrect bindings.');
+      }
       this.created();
       this.prepareElement();
     },
