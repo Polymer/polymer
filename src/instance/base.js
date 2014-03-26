@@ -25,8 +25,9 @@
     },
     createdCallback: function() {
       if (this.templateInstance) {
-        console.warn(this.localName, 'was bound prior to upgrade and may ' +
-            'have incorrect bindings.');
+        console.warn('Attributes on ' + this.localName + ' were data bound ' +
+            'prior to Polymer upgrading the element. This may result in ' +
+            'incorrect binding types.');
       }
       this.created();
       this.prepareElement();
