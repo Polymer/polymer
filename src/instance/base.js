@@ -118,7 +118,7 @@
       var template = this.fetchTemplate(elementElement);
       if (template) {
         var root = this.shadowFromTemplate(template);
-        this.shadowRoots[elementElement.name] = root;        
+        this.shadowRoots[elementElement.name] = root;
       }
     },
     // return a shadow-root template (if desired), override for custom behavior
