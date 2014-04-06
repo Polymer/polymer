@@ -130,10 +130,6 @@
     return (name && name.indexOf('-') >= 0);
   }
 
-  // exports
-
-  scope.getRegisteredPrototype = getRegisteredPrototype;
-  
   // boot tasks
 
   whenPolymerReady(function() {
