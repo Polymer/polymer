@@ -58,7 +58,7 @@
         if (Platform.enableBindingsReflection) {
           observer.path = observable.path_;
           this.bindings_ = this.bindings_ || {};
-          this.bindings_[name] = observer;
+          this.bindings_[property] = observer;
         }
         return observer;
       }
