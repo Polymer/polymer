@@ -17,7 +17,7 @@ suite('marshall', function() {
 
   test('node references shadow root', function() {
     var foo = document.createElement('x-foo');
-    var sr = foo.webkitCreateShadowRoot();
+    var sr = foo.createShadowRoot();
     sr.innerHTML = '<div id="bar">barContent</div><div id="zot">zotContent</div>';
     Polymer.api.instance.base.marshalNodeReferences.call(foo, sr);
     assert.equal(foo.$.bar.textContent, 'barContent');
