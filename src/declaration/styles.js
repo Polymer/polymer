@@ -125,10 +125,6 @@
       }
       return matcher ? nodes.filter(matcher) : nodes;
     },
-    templateContent: function() {
-      var template = this.querySelector('template');
-      return template && templateContent(template);
-    },
     /**
      * Promotes external stylesheets and <style> elements with the attribute 
      * polymer-scope='global' into global scope.

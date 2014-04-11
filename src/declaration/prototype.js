@@ -79,6 +79,8 @@
       // build side-chained lists to optimize iterations
       this.optimizePropertyMaps(this.prototype);
       this.createPropertyAccessors(this.prototype);
+      // install mdv delegate on template
+      this.installBindingDelegate(this.fetchTemplate());
       // install external stylesheets as if they are inline
       this.installSheets();
       // adjust any paths in dom from imports
