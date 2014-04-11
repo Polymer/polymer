@@ -78,6 +78,7 @@
     desugarAfterChaining: function(name, extendee) {
       // build side-chained lists to optimize iterations
       this.optimizePropertyMaps(this.prototype);
+      this.createPropertyAccessors(this.prototype);
       // install external stylesheets as if they are inline
       this.installSheets();
       // adjust any paths in dom from imports

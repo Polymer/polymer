@@ -78,7 +78,21 @@
         map[n.toLowerCase()] = n;
       }
       return map;
+    },
+    createPropertyAccessors: function(prototype) {
+      var n$ = prototype._observeNames, pn$ = prototype._publishNames;
+      if ((n$ && n$.length) || (pn$ && pn$.length)) {
+        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+          Observer.createBindablePrototypeAccessor(prototype, n);
+        }
+        for (var i=0, l=pn$.length, n; (i<l) && (n=pn$[i]); i++) {
+          if (!prototype.observe || (prototype.observe[n] === undefined)) {
+            Observer.createBindablePrototypeAccessor(prototype, n);
+          }
+        }
+      }
     }
+
   };
 
   // exports

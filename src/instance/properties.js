@@ -81,7 +81,6 @@
       }
     },
     bindProperty: function(property, observable) {
-      // apply Polymer two-way reference binding
       return bindProperties(this, property, observable);
     },
     invokeMethod: function(method, args) {
@@ -145,7 +144,8 @@
     if (v === null || v === undefined) {
       observable.setValue(inA[inProperty]);
     }
-    return Observer.defineComputedProperty(inA, inProperty, observable);
+    // apply Polymer two-way reference binding
+    return Observer.bindToInstance(inA, inProperty, observable);
   }
 
   // logging
