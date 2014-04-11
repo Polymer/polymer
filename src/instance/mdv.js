@@ -11,9 +11,11 @@
 
   // element api supporting mdv
   var mdv = {
-    //syntax: syntax,
     instanceTemplate: function(template) {
-      var dom = template.createInstance(this, this.syntax);
+      // ensure a default bindingDelegate
+      var syntax = this.syntax || (!template.bindingDelegate &&
+          this.element.syntax);
+      var dom = template.createInstance(this, syntax);
       this.registerObservers(dom.bindings_);
       return dom;
     },
