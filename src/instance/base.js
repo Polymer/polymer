@@ -171,8 +171,8 @@
     shadowRootReady: function(root) {
       // locate nodes with id and store references to them in this.$ hash
       this.marshalNodeReferences(root);
-      // set up pointer gestures
-      PointerGestures.register(root);
+      // set up polymer gestures
+      PolymerGestures.register(root);
     },
     // locate nodes with id and store references to them in this.$ hash
     marshalNodeReferences: function(root) {
