@@ -97,9 +97,7 @@
       var n$ = prototype._publishNames;
       if (n$ && n$.length) {
         for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
-          fn = prototype.reflect[n] ? prototype.reflectPropertyToAttribute :
-              null;
-          Observer.createBindablePrototypeAccessor(prototype, n, fn);
+          Observer.createBindablePrototypeAccessor(prototype, n);
         }
       }
     }

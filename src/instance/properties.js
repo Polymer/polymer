@@ -58,6 +58,11 @@
         }
       }
     },
+    propertyChanged_: function(name, value, oldValue) {
+      if (this.reflect[name]) {
+        this.reflectPropertyToAttribute(name);
+      }
+    },
     observeArrayValue: function(name, value, old) {
       // we only care if there are registered side-effects
       var callbackName = this.observe[name];
