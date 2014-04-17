@@ -18,11 +18,11 @@
   var empty = [];
 
   var properties = {
-    observeProperties: function() {
+    createPropertyObserver: function() {
       var n$ = this._observeNames, pn$ = this._publishNames;
       if ((n$ && n$.length) || (pn$ && pn$.length)) {
         var self = this;
-        var o = this._propertyObserver = new CompoundObserver();
+        var o = this._propertyObserver = new CompoundObserver(true);
         // keep track of property observer so we can shut it down
         this.registerObservers([o]);
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
@@ -38,7 +38,11 @@
             o.addPath(this, n);
           }
         }
-        o.open(this.notifyPropertyChanges, this);
+      }
+    },
+    openPropertyObserver: function() {
+      if (this._propertyObserver) {
+        this._propertyObserver.open(this.notifyPropertyChanges, this);
       }
     },
     notifyPropertyChanges: function(newValues, oldValues, paths) {
@@ -90,6 +94,7 @@
       }
     },
     registerObservers: function(observers) {
+      this._observers = this._observers || [];
       this._observers.push(observers);
     },
     // observer array items are arrays of observers.

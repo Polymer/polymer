@@ -39,6 +39,9 @@
         return observer;
       }
     },
+    bindFinished: function() {
+      this.makeElementReady();
+    },
     // TODO(sorvell): unbind/unbindAll has been removed, as public api, from
     // TemplateBinding. We still need to close/dispose of observers but perhaps
     // we should choose a more explicit name.

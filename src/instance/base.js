@@ -31,22 +31,31 @@
       }
       this.created();
       this.prepareElement();
+      if (!this.ownerDocument.isStagingDocument) {
+        this.makeElementReady();
+      }
     },
     // system entry point, do not override
     prepareElement: function() {
+      if (this._elementPrepared) {
+        console.warn('Element already prepared', this.localName);
+        return;
+      }
       this._elementPrepared = true;
-      // install shadowRoots storage
+      // storage for shadowRoots info
       this.shadowRoots = {};
-      // storage for closeable observers.
-      this._observers = [];
       // install property observers
-      this.observeProperties();
+      this.createPropertyObserver();
       // install boilerplate attributes
       this.copyInstanceAttributes();
       // process input attributes
       this.takeAttributes();
       // add event listeners
       this.addHostListeners();
+    },
+    makeElementReady: function() {
+      // TODO(sorvell): We could create an entry point here
+      // for the user to compute property values.
       // process declarative resources
       this.parseDeclarations(this.__proto__);
       // TODO(sorvell): CE polyfill uses unresolved attribute to simulate
@@ -55,6 +64,8 @@
       this.removeAttribute('unresolved');
       // user entry point
       this.ready();
+      // turn on property observation and take any initial changes
+      this.openPropertyObserver();
     },
     attachedCallback: function() {
       this.cancelUnbindAll();
