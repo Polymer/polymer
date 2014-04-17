@@ -7,4 +7,6 @@
 htmlSuite('MDV syntax', function() {
   // TODO(dfreedm): Disable this test until polymer-expressions#19 is resolved
   // htmlTest('html/mdv-syntax.html');
+  htmlTest('html/template-repeat-wrappers.html');
+  htmlTest('html/mdv-shadow.html');
 });
