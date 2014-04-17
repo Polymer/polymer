@@ -65,12 +65,26 @@
       }
     },
     requireProperties: function(properties, prototype, base) {
+      // reflected properties
+      prototype.reflect = prototype.reflect || {};
       // ensure a prototype value for each property
       for (var n in properties) {
+        if (this.valueReflects(properties[n])) {
+          prototype.reflect[n] = true;
+        }
         if (prototype[n] === undefined && base[n] === undefined) {
-          prototype[n] = properties[n];
+          prototype[n] =  this.valueForProperty(properties[n]); 
         }
       }
+    },
+    valueForProperty: function(propertyValue) {
+      return (typeof propertyValue === 'object' && propertyValue !== null) ? 
+          (propertyValue.value !== undefined ? propertyValue.value : null) :
+          propertyValue;
+    },
+    valueReflects: function(propertyValue) {
+      return (typeof propertyValue === 'object' && propertyValue !== null && 
+        propertyValue.reflect);
     },
     lowerCaseMap: function(properties) {
       var map = {};
@@ -80,19 +94,15 @@
       return map;
     },
     createPropertyAccessors: function(prototype) {
-      var n$ = prototype._observeNames, pn$ = prototype._publishNames;
-      if ((n$ && n$.length) || (pn$ && pn$.length)) {
-        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
-          Observer.createBindablePrototypeAccessor(prototype, n);
-        }
-        for (var i=0, l=pn$.length, n; (i<l) && (n=pn$[i]); i++) {
-          if (!prototype.observe || (prototype.observe[n] === undefined)) {
-            Observer.createBindablePrototypeAccessor(prototype, n);
-          }
+      var n$ = prototype._publishNames;
+      if (n$ && n$.length) {
+        for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
+          fn = prototype.reflect[n] ? prototype.reflectPropertyToAttribute :
+              null;
+          Observer.createBindablePrototypeAccessor(prototype, n, fn);
         }
       }
     }
-
   };
 
   // exports

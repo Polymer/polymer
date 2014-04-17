@@ -27,14 +27,16 @@
         return this.mixinSuper(arguments);
       } else {
         // use n-way Polymer binding
-        var observer = this.bindProperty(property, observable);
-        this.reflectPropertyToAttribute(property);
+        var observer = this.bindProperty(property, observable, oneTime);
         // NOTE: reflecting binding information is typically required only for
         // tooling. It has a performance cost so it's opt-in in Node.bind.
-        if (Platform.enableBindingsReflection) {
+        if (Platform.enableBindingsReflection && observer) {
           observer.path = observable.path_;
           this.bindings_ = this.bindings_ || {};
           this.bindings_[property] = observer;
+        }
+        if (this.reflect[property]) {
+          this.reflectPropertyToAttribute(property);
         }
         return observer;
       }

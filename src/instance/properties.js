@@ -19,24 +19,17 @@
 
   var properties = {
     createPropertyObserver: function() {
-      var n$ = this._observeNames, pn$ = this._publishNames;
-      if ((n$ && n$.length) || (pn$ && pn$.length)) {
-        var self = this;
+      var n$ = this._observeNames;
+      if (n$ && n$.length) {
         var o = this._propertyObserver = new CompoundObserver(true);
-        // keep track of property observer so we can shut it down
         this.registerObservers([o]);
+        // TODO(sorvell): may not be kosher to access the value here (this[n]);
+        // previously we looked at the descriptor on the prototype
+        // this doesn't work for inheritance and not for accessors without 
+        // a value property
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           o.addPath(this, n);
-          // observer array properties
-          var pd = Object.getOwnPropertyDescriptor(this.__proto__, n);
-          if (pd && pd.value) {
-            this.observeArrayValue(n, pd.value, null);
-          }
-        }
-        for (var i=0, l=pn$.length, n; (i<l) && (n=pn$[i]); i++) {
-          if (!this.observe || (this.observe[n] === undefined)) {
-            o.addPath(this, n);
-          }
+          this.observeArrayValue(n, this[n], null);
         }
       }
     },
@@ -50,15 +43,16 @@
       for (var i in oldValues) {
         // note: paths is of form [object, path, object, path]
         name = paths[2 * i + 1];
-        if (this.publish[name] !== undefined) {
-          this.reflectPropertyToAttribute(name);
-        }
         method = this.observe[name];
         if (method) {
           this.observeArrayValue(name, newValues[i], oldValues[i]);
           if (!called[method]) {
             called[method] = true;
             // observes the value if it is an array
+            // TODO(sorvell): call method with the set of values it's expecting;
+            // e.g. 'foo bar': 'invalidate' expects the new and old values for
+            // foo and bar. Currently we give only one of these and then
+            // deliver all the arguments.
             this.invokeMethod(method, [oldValues[i], newValues[i], arguments]);
           }
         }
@@ -84,7 +78,11 @@
         }
       }
     },
-    bindProperty: function(property, observable) {
+    bindProperty: function(property, observable, oneTime) {
+      if (oneTime) {
+        this[property] = observable;
+        return;
+      }
       return bindProperties(this, property, observable);
     },
     invokeMethod: function(method, args) {

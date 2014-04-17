@@ -66,6 +66,8 @@
       this.inheritObject('observe', prototype, base);
       // chain publish object to inherited
       this.inheritObject('publish', prototype, base);
+      // chain reflect object to inherited
+      this.inheritObject('reflect', prototype, base);
       // chain our lower-cased publish map to the inherited version
       this.inheritObject('_publishLC', prototype, base);
       // chain our instance attributes map to the inherited version
