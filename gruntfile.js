@@ -29,7 +29,7 @@ module.exports = function(grunt) {
           sourceMap: true,
           sourceMapName: 'build/polymer.js.map',
           sourceMapIncludeSources: true,
-          banner: grunt.file.read('LICENSE') + '// @version: <%= buildversion %>'
+          banner: grunt.file.read('banner.txt') + '// @version: <%= buildversion %>'
           //mangle: false, beautify: true, compress: false
         },
         files: {
