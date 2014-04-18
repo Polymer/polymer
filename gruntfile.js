@@ -58,7 +58,9 @@ module.exports = function(grunt) {
       polymer: {
         options: {
           repos: [
-            '.'
+            '../polymer-expressions',
+            '../polymer-gestures',
+            '../polymer-dev'
           ]
         },
         files: {
