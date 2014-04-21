@@ -102,6 +102,9 @@
     },
     // observer array items are arrays of observers.
     closeObservers: function() {
+      if (!this._observers) {
+        return;
+      }
       for (var i=0, l=this._observers.length; i<l; i++) {
         this.closeObserverArray(this._observers[i]);
       }
