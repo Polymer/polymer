@@ -39,45 +39,24 @@
         }
         // super prototype is either cached or we have to find it
         // by searching __proto__ (at the 'top')
+        // invariant: because we cache _super on fn below, we never reach 
+        // here from inside a series of calls to super(), so it's ok to 
+        // start searching from the prototype of 'this' (at the 'top')
+        // we must never memoize a null super for this reason
         _super = memoizeSuper(caller, nom, getPrototypeOf(this));
       }
-      if (!_super) {
-        // if _super is falsey, there is no super implementation
-        //console.warn('called $super(' + nom + ') where there is no super implementation');
-      } else {
-        // our super function
-        var fn = _super[nom];
+      // our super function
+      var fn = _super[nom];
+      if (fn) {
         // memoize information so 'fn' can call 'super'
         if (!fn._super) {
+          // must not memoize null, or we lose our invariant above
           memoizeSuper(fn, nom, _super);
         }
         // invoke the inherited method
         // if 'fn' is not function valued, this will throw
         return fn.apply(this, arrayOfArgs || []);
       }
-    }
-
-    function nextSuper(proto, name, caller) {
-      // look for an inherited prototype that implements name
-      while (proto) {
-        if ((proto[name] !== caller) && proto[name]) {
-          return proto;
-        }
-        proto = getPrototypeOf(proto);
-      }
-    }
-
-    function memoizeSuper(method, name, proto) {
-      // find and cache next prototype containing `name`
-      // we need the prototype so we can do another lookup
-      // from here
-      method._super = nextSuper(proto, name, method);
-      if (method._super) {
-        // _super is a prototype, the actual method is _super[name]
-        // tag super method with it's name for further lookups
-        method._super[name].nom = name;
-      }
-      return method._super;
     }
 
     function nameInThis(value) {
@@ -93,6 +72,34 @@
         }
         p = p.__proto__;
       }
+    }
+
+    function memoizeSuper(method, name, proto) {
+      // find and cache next prototype containing `name`
+      // we need the prototype so we can do another lookup
+      // from here
+      var s = nextSuper(proto, name, method);
+      if (s[name]) {
+        // `s` is a prototype, the actual method is `s[name]`
+        // tag super method with it's name for quicker lookups
+        s[name].nom = name;
+      }
+      return method._super = s;
+    }
+
+    function nextSuper(proto, name, caller) {
+      // look for an inherited prototype that implements name
+      while (proto) {
+        if ((proto[name] !== caller) && proto[name]) {
+          return proto;
+        }
+        proto = getPrototypeOf(proto);
+      }
+      // must not return null, or we lose our invariant above
+      // in this case, a super() call was invoked where no superclass
+      // method exists
+      // TODO(sjmiles): thow an exception?
+      return Object;
     }
 
     // NOTE: In some platforms (IE10) the prototype chain is faked via 
