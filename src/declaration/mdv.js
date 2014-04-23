@@ -39,7 +39,7 @@
     },
     templateContent: function() {
       var template = this.fetchTemplate();
-      return template && templateContent(template);
+      return template && Platform.templateContent(template);
     },
     installBindingDelegate: function(template) {
       if (template) {
