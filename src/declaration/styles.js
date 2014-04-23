@@ -22,14 +22,17 @@
   var styles = {
     // returns true if resources are loading
     loadStyles: function(callback) {
-      var content = this.templateContent();
+      var template = this.fetchTemplate();
+      var content = template && this.templateContent();
       if (content) {
         this.convertSheetsToStyles(content);
+        var styles = this.findLoadableStyles(content);
+        if (styles.length) {
+          var templateUrl = template.ownerDocument.baseURI;
+          return Platform.styleResolver.loadStyles(styles, templateUrl, callback);
+        }
       }
-      var styles = this.findLoadableStyles(content);
-      if (styles.length) {
-        Platform.styleResolver.loadStyles(styles, callback);
-      } else if (callback) {
+      if (callback) {
         callback();
       }
     },
