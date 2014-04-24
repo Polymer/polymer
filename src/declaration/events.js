@@ -13,7 +13,19 @@
   var EVENT_PREFIX = api.EVENT_PREFIX;
   // polymer-element declarative api: events feature
 
-  var events = { 
+  var mixedCaseEventTypes = {};
+  [
+    'webkitAnimationStart',
+    'webkitAnimationEnd',
+    'webkitTransitionEnd',
+    'DOMFocusOut',
+    'DOMFocusIn',
+    'DOMMouseScroll'
+  ].forEach(function(e) {
+    mixedCaseEventTypes[e.toLowerCase()] = e;
+  });
+
+  var events = {
     parseHostEvents: function() {
       // our delegates map
       var delegates = this.prototype.eventDelegates;
@@ -37,6 +49,60 @@
     },
     removeEventPrefix: function(n) {
       return n.slice(prefixLength);
+    },
+    findController: function(node) {
+      while (node.parentNode) {
+        if (node.lightDomController) {
+          return node;
+        }
+        node = node.parentNode;
+      }
+      return node.host;
+    },
+    getEventHandler: function(controller, target, method) {
+      var events = this;
+      return function(e) {
+        if (!controller || !controller.PolymerBase) {
+          controller = events.findController(target);
+        }
+
+        var args = [e, e.detail, e.currentTarget];
+        controller.dispatchMethod(controller, method, args);
+      };
+    },
+    prepareEventBinding: function(path, name, node) {
+      if (!this.hasEventPrefix(name))
+        return;
+
+      var eventType = this.removeEventPrefix(name);
+      eventType = mixedCaseEventTypes[eventType] || eventType;
+
+      var events = this;
+
+      return function(model, node, oneTime) {
+        var fn = path.getValueFrom(model);
+        var handler = events.getEventHandler(undefined, node, fn);
+        node.addEventListener(eventType, handler);
+
+        if (oneTime)
+          return;
+
+        // TODO(rafaelw): This is really pointless work. Aside from the cost
+        // of these allocations, NodeBind is going to setAttribute back to its
+        // current value. Fixing this would mean changing the TemplateBinding
+        // binding delegate API.
+        function bindingValue() {
+          return '{{ ' + path + ' }}';
+        }
+
+        return {
+          open: bindingValue,
+          discardChanges: bindingValue,
+          close: function() {
+            node.removeEventListener(eventType, handler);
+          }
+        };
+      };
     }
   };
 

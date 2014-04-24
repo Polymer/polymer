@@ -23,24 +23,10 @@
       // (1) we don't want the attribute to be set and (2) we want to support
       // multiple event listeners ('host' and 'instance') and Node.bind
       // by default supports 1 thing being bound.
-      // We do, however, leverage the event hookup code in PolymerExpressions
-      // so that we have a common code path for handling declarative events.
-      var self = this, bindable, eventName;
-      for (var n in events) {
-        eventName = EVENT_PREFIX + n;
-        bindable = PolymerExpressions.prepareEventBinding(
-          Path.get(events[n]),
-          eventName, 
-          {
-            resolveEventHandler: function(model, path, node) {
-              var fn = path.getValueFrom(self);
-              if (fn) {
-                return fn.bind(self);
-              }
-            }
-          }
-        );
-        bindable(this, this, false);
+      for (var type in events) {
+        var methodName = events[type];
+        this.addEventListener(type, this.element.getEventHandler(this, this,
+                                                                 methodName));
       }
     },
     // call 'method' or function method on 'obj' with 'args', if the method exists

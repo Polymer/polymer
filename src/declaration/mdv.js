@@ -6,30 +6,19 @@
 (function(scope) {
 
   // imports
+  var events = scope.api.declaration.events;
 
   var syntax = new PolymerExpressions();
-  syntax.resolveEventHandler = function(model, path, node) {
-    var ctlr = findEventController(node);
-    if (ctlr) {
-      var fn = path.getValueFrom(ctlr);
-      if (fn) {
-        return fn.bind(ctlr);
-      }
-    }
-  };
+  var prepareBinding = syntax.prepareBinding;
 
-  // An event controller is the host element for the shadowRoot in which 
-  // the node exists, or the first ancestor with a 'lightDomController'
-  // property.
-  function findEventController(node) {
-    while (node.parentNode) {
-      if (node.lightDomController) {
-        return node;
-      }
-      node = node.parentNode;
-    }
-    return node.host;
-  }
+  // Polymer takes a first crack at the binding to see if it's a declarative
+  // event handler.
+  syntax.prepareBinding = function(pathString, name, node) {
+    var path = Path.get(pathString);
+
+    return events.prepareEventBinding(path, name, node) ||
+           prepareBinding.call(syntax, path, name, node);
+  };
 
   // declaration api supporting mdv
   var mdv = {
