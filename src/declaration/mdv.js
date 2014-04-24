@@ -17,7 +17,7 @@
     var path = Path.get(pathString);
 
     return events.prepareEventBinding(path, name, node) ||
-           prepareBinding.call(syntax, path, name, node);
+           prepareBinding.call(syntax, pathString, name, node);
   };
 
   // declaration api supporting mdv
