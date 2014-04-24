@@ -64,27 +64,39 @@
         prototype._publishLC = this.lowerCaseMap(publish);
       }
     },
-    requireProperties: function(properties, prototype, base) {
+    // sync prototype to property descriptors; 
+    // desriptor format contains default value and optionally a 
+    // hint for reflecting the property to an attribute.
+    // e.g. {foo: 5, bar: {value: true, reflect: true}}
+    // reflect: {foo: true} is also supported
+    // 
+    requireProperties: function(propertyDescriptors, prototype, base) {
       // reflected properties
       prototype.reflect = prototype.reflect || {};
       // ensure a prototype value for each property
-      for (var n in properties) {
-        if (this.valueReflects(properties[n])) {
-          prototype.reflect[n] = true;
+      // and update the property's reflect to attribute status 
+      for (var n in propertyDescriptors) {
+        var propertyDescriptor = propertyDescriptors[n];
+        var reflects = this.reflectHintForDescriptor(propertyDescriptor);
+        if (prototype.reflect[n] === undefined && reflects !== undefined) {
+          prototype.reflect[n] = reflects;
         }
-        if (prototype[n] === undefined && base[n] === undefined) {
-          prototype[n] =  this.valueForProperty(properties[n]); 
+        if (prototype[n] === undefined) {
+          prototype[n] = this.valueForDescriptor(propertyDescriptor); 
         }
       }
     },
-    valueForProperty: function(propertyValue) {
-      return (typeof propertyValue === 'object' && propertyValue !== null) ? 
-          (propertyValue.value !== undefined ? propertyValue.value : null) :
-          propertyValue;
+    valueForDescriptor: function(propertyDescriptor) {
+      var value = typeof propertyDescriptor === 'object' && 
+          propertyDescriptor ? propertyDescriptor.value : propertyDescriptor;
+      return value !== undefined ? value : null;
     },
-    valueReflects: function(propertyValue) {
-      return (typeof propertyValue === 'object' && propertyValue !== null && 
-        propertyValue.reflect);
+    // returns the value of the descriptor's 'reflect' property or undefined
+    reflectHintForDescriptor: function(propertyDescriptor) {
+      if (typeof propertyDescriptor === 'object' &&
+          propertyDescriptor && propertyDescriptor.reflect !== undefined) {
+        return propertyDescriptor.reflect;
+      }
     },
     lowerCaseMap: function(properties) {
       var map = {};
