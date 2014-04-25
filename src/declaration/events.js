@@ -70,7 +70,7 @@
         controller.dispatchMethod(controller, method, args);
       };
     },
-    prepareEventBinding: function(path, name, node) {
+    prepareEventBinding: function(pathString, name, node) {
       if (!this.hasEventPrefix(name))
         return;
 
@@ -80,8 +80,7 @@
       var events = this;
 
       return function(model, node, oneTime) {
-        var fn = path.getValueFrom(model);
-        var handler = events.getEventHandler(undefined, node, fn);
+        var handler = events.getEventHandler(undefined, node, pathString);
         node.addEventListener(eventType, handler);
 
         if (oneTime)
@@ -92,7 +91,7 @@
         // current value. Fixing this would mean changing the TemplateBinding
         // binding delegate API.
         function bindingValue() {
-          return '{{ ' + path + ' }}';
+          return '{{ ' + pathString + ' }}';
         }
 
         return {

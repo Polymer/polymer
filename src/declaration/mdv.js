@@ -14,9 +14,7 @@
   // Polymer takes a first crack at the binding to see if it's a declarative
   // event handler.
   syntax.prepareBinding = function(pathString, name, node) {
-    var path = Path.get(pathString);
-
-    return events.prepareEventBinding(path, name, node) ||
+    return events.prepareEventBinding(pathString, name, node) ||
            prepareBinding.call(syntax, pathString, name, node);
   };
 
