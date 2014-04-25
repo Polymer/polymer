@@ -32,8 +32,7 @@
         // tooling. It has a performance cost so it's opt-in in Node.bind.
         if (Platform.enableBindingsReflection && observer) {
           observer.path = observable.path_;
-          this.bindings_ = this.bindings_ || {};
-          this.bindings_[property] = observer;
+          this._recordBinding(property, observer);
         }
         if (this.reflect[property]) {
           this.reflectPropertyToAttribute(property);
@@ -43,6 +42,10 @@
     },
     bindFinished: function() {
       this.makeElementReady();
+    },
+    _recordBinding: function(name, observer) {
+      this.bindings_ = this.bindings_ || {};
+      this.bindings_[name] = observer;
     },
     // TODO(sorvell): unbind/unbindAll has been removed, as public api, from
     // TemplateBinding. We still need to close/dispose of observers but perhaps
