@@ -133,10 +133,8 @@
     },
     closeNamedObservers: function() {
       if (this._namedObservers) {
-        var keys=Object.keys(this._namedObservers);
-        for (var i=0, l=keys.length, k, o; (i < l) && (k=keys[i]); i++) {
-          o = this._namedObservers[k];
-          o.close();
+        for (var i in this._namedObservers) {
+          this.closeNamedObserver(i);
         }
         this._namedObservers = {};
       }
