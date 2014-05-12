@@ -26,6 +26,9 @@ module.exports = function(grunt) {
       },
       Polymer: {
         options: {
+          beautify: {
+            ascii_only: true,
+          },
           sourceMap: true,
           sourceMapName: 'build/polymer.js.map',
           sourceMapIncludeSources: true,
