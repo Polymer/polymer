@@ -99,5 +99,10 @@ module.exports = function(grunt) {
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
   grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot', 'minify', 'stash', 'karma:buildbot', 'restore']);
+  grunt.registerTask('release', function() {
+    grunt.option('release', true);
+    grunt.task.run('minify');
+    grunt.task.run('audit');
+  });
 };
 
