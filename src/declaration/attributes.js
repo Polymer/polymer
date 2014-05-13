@@ -13,12 +13,14 @@
   // attributes api
 
   var attributes = {
+    
     inheritAttributesObjects: function(prototype) {
       // chain our lower-cased publish map to the inherited version
       this.inheritObject(prototype, 'publishLC');
       // chain our instance attributes map to the inherited version
       this.inheritObject(prototype, '_instanceAttributes');
     },
+
     publishAttributes: function(prototype, base) {
       // merge names from 'attributes' attribute
       var attributes = this.getAttribute(ATTRIBUTES_ATTRIBUTE);
@@ -33,11 +35,14 @@
           n = names[i].trim();
           // do not override explicit entries
           if (n && publish[n] === undefined && base[n] === undefined) {
-            publish[n] = null;
+            // supply an empty 'descriptor' object and let the publishProperties
+            // code determine a default
+            publish[n] = Polymer.nob;
           }
         }
       }
     },
+
     // record clonable attributes from <element>
     accumulateInstanceAttributes: function() {
       // inherit instance attributes
@@ -50,9 +55,11 @@
         }
       }
     },
+
     isInstanceAttribute: function(name) {
       return !this.blackList[name] && name.slice(0,3) !== 'on-';
     },
+
     // do not clone these attributes onto instances
     blackList: {
       name: 1,
@@ -62,6 +69,7 @@
       assetpath: 1,
       'cache-csstext': 1
     }
+    
   };
 
   // add ATTRIBUTES_ATTRIBUTE to the blacklist
