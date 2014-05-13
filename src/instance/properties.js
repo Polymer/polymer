@@ -45,15 +45,19 @@
         name = paths[2 * i + 1];
         method = this.observe[name];
         if (method) {
-          this.observeArrayValue(name, newValues[i], oldValues[i]);
+          var ov = oldValues[i], nv = newValues[i];
+          // observes the value if it is an array
+          this.observeArrayValue(name, nv, ov);
           if (!called[method]) {
-            called[method] = true;
-            // observes the value if it is an array
-            // TODO(sorvell): call method with the set of values it's expecting;
-            // e.g. 'foo bar': 'invalidate' expects the new and old values for
-            // foo and bar. Currently we give only one of these and then
-            // deliver all the arguments.
-            this.invokeMethod(method, [oldValues[i], newValues[i], arguments]);
+            // only invoke change method if one of ov or nv is not (undefined | null)
+            if ((ov !== undefined && ov !== null) || (nv !== undefined && nv !== null)) {
+              called[method] = true;
+              // TODO(sorvell): call method with the set of values it's expecting;
+              // e.g. 'foo bar': 'invalidate' expects the new and old values for
+              // foo and bar. Currently we give only one of these and then
+              // deliver all the arguments.
+              this.invokeMethod(method, [ov, nv, arguments]);
+            }
           }
         }
       }
@@ -144,15 +148,17 @@
   // property binding
   // bind a property in A to a path in B by converting A[property] to a
   // getter/setter pair that accesses B[...path...]
-  function bindProperties(inA, inProperty, observable) {
-    log.bind && console.log(LOG_BIND_PROPS, observable.path_, inPath, inA.localName, inProperty);
+  function bindProperties(a, property, observable) {
     // apply Polymer two-way reference binding
-    return Observer.bindToInstance(inA, inProperty, observable, resolveBindingValue);
+    return Observer.bindToInstance(a, property, observable, resolveBindingValue);
   }
 
   // capture A's value if B's value is null or undefined,
   // otherwise use B's value
   function resolveBindingValue(oldValue, value) {
+    if (value === undefined && oldValue === null) {
+      return value;
+    }
     return (value === null || value === undefined) ? oldValue : value;
   }
 
@@ -160,7 +166,6 @@
   var LOG_OBSERVE = '[%s] watching [%s]';
   var LOG_OBSERVED = '[%s#%s] watch: [%s] now [%s] was [%s]';
   var LOG_CHANGED = '[%s#%s] propertyChanged: [%s] now [%s] was [%s]';
-  var LOG_BIND_PROPS = "[%s]: bindProperties: [%s] to [%s].[%s]";
 
   // exports
 
