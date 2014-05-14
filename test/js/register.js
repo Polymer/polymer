@@ -51,7 +51,7 @@ htmlSuite('element registration', function() {
   htmlTest('html/element-script.html');
   htmlTest('html/element-registration.html');
   htmlTest('html/element-import.html');
-  htmlTest('html/polymer-body.html');
+  htmlTest('html/auto-binding.html');
   htmlTest('html/ctor.html');
   htmlTest('html/domready.html');
   htmlTest('html/infer-name.html');
