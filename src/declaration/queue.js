@@ -109,17 +109,20 @@
         CustomElements.upgradeDocumentTree(document);
         CustomElements.ready = true;
       }
+      requestAnimationFrame(this.flushReadyCallbacks);
+    },
+    addReadyCallback: function(callback) {
+      if (callback) {
+        readyCallbacks.push(callback);
+      }
+    },
+    flushReadyCallbacks: function() {
       if (readyCallbacks) {
         var fn;
         while (readyCallbacks.length) {
           fn = readyCallbacks.shift();
           fn();
         }
-      }
-    },
-    addReadyCallback: function(callback) {
-      if (callback) {
-        readyCallbacks.push(callback);
       }
     },
     waitToReady: true
