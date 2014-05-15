@@ -5,10 +5,33 @@
  */
 (function(scope) {
 
+  /*
+
+    Elements are added to a registration queue so that they register in 
+    the proper order at the appropriate time. We do this for a few reasons:
+
+    * to enable elements to load resources (like stylesheets) 
+    asynchronously. We need to do this until the platform provides an efficient
+    alternative. One issue is that remote @import stylesheets are 
+    re-fetched whenever stamped into a shadowRoot.
+
+    * to ensure elements loaded 'at the same time' (e.g. via some set of
+    imports) are registered as a batch. This allows elements to be enured from
+    upgrade ordering as long as they query the dom tree 1 task after
+    upgrade (aka domReady). This is a performance tradeoff. On the one hand,
+    elements that could register while imports are loading are prevented from 
+    doing so. On the other, grouping upgrades into a single task means less
+    incremental work (for example style recalcs),  Also, we can ensure the 
+    document is in a known state at the single quantum of time when 
+    elements upgrade.
+
+  */
   var queue = {
     // tell the queue to wait for an element to be ready
     wait: function(element, check, go) {
-      if (this.indexOf(element) === -1) {
+      var shouldAdd = (this.indexOf(element) === -1 && 
+          flushQueue.indexOf(element) === -1);
+      if (shouldAdd) {
         this.add(element);
         element.__check = check;
         element.__go = go;
@@ -31,8 +54,7 @@
     go: function(element) {
       var readied = this.remove(element);
       if (readied) {
-        readied.__go.call(readied);
-        readied.__check = readied.__go = null;
+        this.addToFlushQueue(readied);
         this.check();
       }
     },
@@ -64,7 +86,19 @@
     isEmpty: function() {
       return !importQueue.length && !mainQueue.length;
     },
+    addToFlushQueue: function(element) {
+      flushQueue.push(element);  
+    },
+    flush: function() {
+      var element;
+      while (flushQueue.length) {
+        element = flushQueue.shift();
+        element.__go.call(element);
+        element.__check = element.__go = null;
+      }
+    },
     ready: function() {
+      this.flush();
       // TODO(sorvell): As an optimization, turn off CE polyfill upgrading
       // while registering. This way we avoid having to upgrade each document
       // piecemeal per registration and can instead register all elements
@@ -90,6 +124,8 @@
     },
     waitToReady: true
   };
+
+  var flushQueue = [];
 
   var importQueue = [];
   var mainQueue = [];
