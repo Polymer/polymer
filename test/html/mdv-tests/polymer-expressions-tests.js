@@ -1671,8 +1671,8 @@ suite('PolymerExpressions', function() {
   test('Dynamic deps path expressions', function() {
     assert.isFalse(getExpression_('a + b').dynamicDeps);
     assert.isFalse(getExpression_('a + b > 3 + hello["kitty"]').dynamicDeps);
-    assert.isFalse(getExpression_('a[a.b]').dynamicDeps);
-    assert.isFalse(getExpression_('a[a.b] + d[e]').dynamicDeps);
+    assert.isTrue(getExpression_('a[a.b]').dynamicDeps);
+    assert.isTrue(getExpression_('a[a.b] + d[e]').dynamicDeps);
     assert.isFalse(getExpression_('a[0].c').dynamicDeps);
     assert.isFalse(getExpression_('a[1][0]').dynamicDeps);
 
