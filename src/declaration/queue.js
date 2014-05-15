@@ -109,6 +109,7 @@
         CustomElements.upgradeDocumentTree(document);
         CustomElements.ready = true;
       }
+      Platform.flush();
       requestAnimationFrame(this.flushReadyCallbacks);
     },
     addReadyCallback: function(callback) {
