@@ -52,8 +52,8 @@
     },
     findController: function(node) {
       while (node.parentNode) {
-        if (node.lightDomController) {
-          return node;
+        if (node.eventController) {
+          return node.eventController;
         }
         node = node.parentNode;
       }

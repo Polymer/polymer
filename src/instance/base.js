@@ -166,11 +166,11 @@
     // utility function that stamps a <template> into light-dom
     lightFromTemplate: function(template, refNode) {
       if (template) {
-        // TODO(sorvell): mark this element as a lightDOMController so that
+        // TODO(sorvell): mark this element as an eventController so that
         // event listeners on bound nodes inside it will be called on it.
         // Note, the expectation here is that events on all descendants 
         // should be handled by this element.
-        this.lightDomController = true;
+        this.eventController = this;
         // stamp template
         // which includes parsing and applying MDV bindings before being 
         // inserted (to avoid {{}} in attribute values)
