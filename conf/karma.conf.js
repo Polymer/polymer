@@ -43,7 +43,7 @@ module.exports = function(karma) {
       {pattern: 'polymer-expressions/tests/*.js', included: false},
       {pattern: 'TemplateBinding/tests/*.js', included: false},
       {pattern: 'polymer-dev/polymer.html', included: false},
-      {pattern: 'polymer-dev/src/polymer-body.html', included: false},
+      {pattern: 'polymer-dev/layout.html', included: false},
       {pattern: 'polymer-dev/src/**/*.js', included: false},
       {pattern: 'polymer-dev/build/polymer.js', included: false},
       {pattern: 'polymer-dev/test/**/*.css', included: false},
