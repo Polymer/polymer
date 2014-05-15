@@ -62,6 +62,11 @@
         }
       }
     },
+    deliverChanges: function() {
+      if (this._propertyObserver) {
+        this._propertyObserver.deliver();
+      }
+    },
     propertyChanged_: function(name, value, oldValue) {
       if (this.reflect[name]) {
         this.reflectPropertyToAttribute(name);
