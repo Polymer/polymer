@@ -74,6 +74,21 @@ module.exports = function(grunt) {
         }
       }
     },
+    'string-replace': {
+      polymer: {
+        files: {
+          'build/polymer-versioned.js': 'src/polymer.js'
+        },
+        options: {
+          replacements: [
+            {
+              pattern: 'master',
+              replacement: '<%= buildversion %>'
+            }
+          ]
+        }
+      }
+    },
     pkg: grunt.file.readJSON('package.json')
   });
 
@@ -83,6 +98,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
   grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-audit');
+  grunt.loadNpmTasks('grunt-string-replace');
 
   grunt.registerTask('stash', 'prepare for testing build', function() {
     grunt.option('force', true);
@@ -97,7 +113,7 @@ module.exports = function(grunt) {
 
 
   grunt.registerTask('default', ['minify']);
-  grunt.registerTask('minify', ['version', 'uglify']);
+  grunt.registerTask('minify', ['version', 'string-replace', 'uglify']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
