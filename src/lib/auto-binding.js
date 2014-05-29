@@ -49,7 +49,7 @@
       this.syntax = this.bindingDelegate = this.makeSyntax();
       // delay stamping until polymer-ready so that auto-binding is not
       // required to load last.
-      addEventListener('polymer-ready', function() {
+      Polymer.whenPolymerReady(function() {
         this.model = this;
         this.setAttribute('bind', '');
         // we don't bother with an explicit signal here, we could ust a MO
