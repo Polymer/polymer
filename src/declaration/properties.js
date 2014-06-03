@@ -57,6 +57,13 @@
           a.push(n);
         }
       }
+      if (prototype.computed) {
+        // construct name list
+        var a = prototype._computedNames = [];
+        for (var n in prototype.computed) {
+          a.push(n);
+        }
+      }
     },
     publishProperties: function(prototype, base) {
       // if we have any properties to publish
@@ -68,17 +75,17 @@
         prototype._publishLC = this.lowerCaseMap(publish);
       }
     },
-    // sync prototype to property descriptors; 
-    // desriptor format contains default value and optionally a 
+    // sync prototype to property descriptors;
+    // desriptor format contains default value and optionally a
     // hint for reflecting the property to an attribute.
     // e.g. {foo: 5, bar: {value: true, reflect: true}}
     // reflect: {foo: true} is also supported
-    // 
+    //
     requireProperties: function(propertyDescriptors, prototype, base) {
       // reflected properties
       prototype.reflect = prototype.reflect || {};
       // ensure a prototype value for each property
-      // and update the property's reflect to attribute status 
+      // and update the property's reflect to attribute status
       for (var n in propertyDescriptors) {
         var propertyDescriptor = propertyDescriptors[n];
         var reflects = this.reflectHintForDescriptor(propertyDescriptor);
@@ -86,12 +93,12 @@
           prototype.reflect[n] = reflects;
         }
         if (prototype[n] === undefined) {
-          prototype[n] = this.valueForDescriptor(propertyDescriptor); 
+          prototype[n] = this.valueForDescriptor(propertyDescriptor);
         }
       }
     },
     valueForDescriptor: function(propertyDescriptor) {
-      var value = typeof propertyDescriptor === 'object' && 
+      var value = typeof propertyDescriptor === 'object' &&
           propertyDescriptor ? propertyDescriptor.value : propertyDescriptor;
       return value !== undefined ? value : null;
     },
@@ -116,6 +123,14 @@
           Observer.createBindablePrototypeAccessor(prototype, n);
         }
       }
+
+      var n$ = prototype._computedNames;
+      if (n$ && n$.length) {
+        for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
+          Observer.createBindablePrototypeAccessor(prototype, n);
+        }
+      }
+
     }
   };
 

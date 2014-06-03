@@ -66,6 +66,7 @@
         return;
       }
       this._readied = true;
+      this.createComputedProperties();
       // TODO(sorvell): We could create an entry point here
       // for the user to compute property values.
       // process declarative resources
@@ -90,7 +91,7 @@
       if (this.enteredView) {
         this.enteredView();
       }
-      // NOTE: domReady can be used to access elements in dom (descendants, 
+      // NOTE: domReady can be used to access elements in dom (descendants,
       // ancestors, siblings) such that the developer is enured to upgrade
       // ordering. If the element definitions have loaded, domReady
       // can be used to access upgraded elements.
@@ -155,7 +156,7 @@
         // make a shadow root
         var root = this.createShadowRoot();
         // stamp template
-        // which includes parsing and applying MDV bindings before being 
+        // which includes parsing and applying MDV bindings before being
         // inserted (to avoid {{}} in attribute values)
         // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
         var dom = this.instanceTemplate(template);
@@ -172,17 +173,17 @@
       if (template) {
         // TODO(sorvell): mark this element as an eventController so that
         // event listeners on bound nodes inside it will be called on it.
-        // Note, the expectation here is that events on all descendants 
+        // Note, the expectation here is that events on all descendants
         // should be handled by this element.
         this.eventController = this;
         // stamp template
-        // which includes parsing and applying MDV bindings before being 
+        // which includes parsing and applying MDV bindings before being
         // inserted (to avoid {{}} in attribute values)
         // e.g. to prevent <img src="images/{{icon}}"> from generating a 404.
         var dom = this.instanceTemplate(template);
         // append to shadow dom
         if (refNode) {
-          this.insertBefore(dom, refNode);          
+          this.insertBefore(dom, refNode);
         } else {
           this.appendChild(dom);
         }
@@ -230,7 +231,7 @@
 
   // true if object has own PolymerBase api
   function isBase(object) {
-    return object.hasOwnProperty('PolymerBase') 
+    return object.hasOwnProperty('PolymerBase')
   }
 
   // name a base constructor for dev tools
@@ -238,11 +239,11 @@
   function PolymerBase() {};
   PolymerBase.prototype = base;
   base.constructor = PolymerBase;
-  
+
   // exports
 
   scope.Base = PolymerBase;
   scope.isBase = isBase;
   scope.api.instance.base = base;
-  
+
 })(Polymer);

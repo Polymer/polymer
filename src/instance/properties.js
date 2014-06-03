@@ -29,7 +29,7 @@
         this.registerObservers([o]);
         // TODO(sorvell): may not be kosher to access the value here (this[n]);
         // previously we looked at the descriptor on the prototype
-        // this doesn't work for inheritance and not for accessors without 
+        // this doesn't work for inheritance and not for accessors without
         // a value property
         for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
           o.addPath(this, n);
@@ -93,6 +93,21 @@
             this.invokeMethod(callbackName, [old]);
           }, this);
           this.registerNamedObserver(name + '__array', observer);
+        }
+      }
+    },
+    createComputedProperties: function() {
+      if (!this._computedNames) {
+        return;
+      }
+
+      for (var i = 0; i < this._computedNames.length; i++) {
+        var name = this._computedNames[i];
+        var expressionText = this.computed[name];
+        var expression = PolymerExpressions.getExpression(expressionText);
+        if (expression) {
+          var observable = expression.getBinding(this, this.element.syntax);
+          Observer.bindToInstance(this, name, observable);
         }
       }
     },
