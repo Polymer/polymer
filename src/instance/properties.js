@@ -104,10 +104,12 @@
       for (var i = 0; i < this._computedNames.length; i++) {
         var name = this._computedNames[i];
         var expressionText = this.computed[name];
-        var expression = PolymerExpressions.getExpression(expressionText);
-        if (expression) {
+        try {
+          var expression = PolymerExpressions.getExpression(expressionText);
           var observable = expression.getBinding(this, this.element.syntax);
           Observer.bindToInstance(this, name, observable);
+        } catch (ex) {
+          console.error('Failed to create computed property', ex);
         }
       }
     },
