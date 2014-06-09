@@ -116,11 +116,42 @@
       }
       return map;
     },
+    createPropertyAccessor: function(name) {
+      var proto = this.prototype;
+
+      var privateName = name + '_';
+      var privateObservable  = name + 'Observable_';
+      proto[privateName] = proto[name];
+
+      Object.defineProperty(proto, name, {
+        get: function() {
+          var observable = this[privateObservable];
+          if (observable)
+            observable.deliver();
+
+          return this[privateName];
+        },
+        set: function(value) {
+          var observable = this[privateObservable];
+          if (observable) {
+            observable.setValue(value);
+            return;
+          }
+
+          var oldValue = this[privateName];
+          this[privateName] = value;
+          this.notify(name, value, oldValue);
+
+          return value;
+        },
+        configurable: true
+      });
+    },
     createPropertyAccessors: function(prototype) {
       var n$ = prototype._publishNames;
       if (n$ && n$.length) {
         for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
-          Observer.createBindablePrototypeAccessor(prototype, n);
+          this.createPropertyAccessor(n);
         }
       }
 

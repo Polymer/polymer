@@ -21,6 +21,35 @@
 
   var empty = [];
 
+  var updateRecord = {
+    object: undefined,
+    type: 'update',
+    name: undefined,
+    oldValue: undefined
+  };
+
+  var numberIsNaN = Number.isNaN || function isNaN(value) {
+    return typeof value === 'number' && isNaN(value);
+  }
+
+  function areSameValue(left, right) {
+    if (left === right)
+      return left !== 0 || 1 / left === 1 / right;
+    if (numberIsNaN(left) && numberIsNaN(right))
+      return true;
+
+    return left !== left && right !== right;
+  }
+
+  // capture A's value if B's value is null or undefined,
+  // otherwise use B's value
+  function resolveBindingValue(oldValue, value) {
+    if (value === undefined && oldValue === null) {
+      return value;
+    }
+    return (value === null || value === undefined) ? oldValue : value;
+  }
+
   var properties = {
     createPropertyObserver: function() {
       var n$ = this._observeNames;
@@ -96,6 +125,58 @@
         }
       }
     },
+    notify: function(name, value, oldValue) {
+      var object = this;
+      if (areSameValue(value, oldValue))
+        return;
+
+      this.propertyChanged_(name, value, oldValue);
+
+      if (!Observer.hasObjectObserve)
+        return;
+
+      var notifier = this.notifier_;
+      if (!notifier)
+        notifier = this.notifier_ = Object.getNotifier(this);
+
+      updateRecord.object = this;
+      updateRecord.name = name;
+      updateRecord.oldValue = oldValue;
+
+      notifier.notify(updateRecord);
+    },
+    bindToAccessor: function(name, observable, resolveFn) {
+      var privateName = name + '_';
+      var privateObservable  = name + 'Observable_';
+
+      this[privateObservable] = observable;
+      var oldValue = this[privateName];
+
+      var self = this;
+      var value = observable.open(function(value, oldValue) {
+        self[privateName] = value;
+        self.notify(name, value, oldValue);
+      });
+
+      if (resolveFn && !areSameValue(oldValue, value)) {
+        var resolvedValue = resolveFn(oldValue, value);
+        if (!areSameValue(value, resolvedValue)) {
+          value = resolvedValue;
+          if (observable.setValue)
+            observable.setValue(value);
+        }
+      }
+
+      this[privateName] = value;
+      this.notify(name, value, oldValue);
+
+      this.registerObservers([{
+        close: function() {
+          observable.close();
+          self[privateObservable] = undefined;
+        }
+      }]);
+    },
     createComputedProperties: function() {
       if (!this._computedNames) {
         return;
@@ -107,7 +188,7 @@
         try {
           var expression = PolymerExpressions.getExpression(expressionText);
           var observable = expression.getBinding(this, this.element.syntax);
-          Observer.bindToInstance(this, name, observable);
+          this.bindToAccessor(name, observable);
         } catch (ex) {
           console.error('Failed to create computed property', ex);
         }
@@ -118,7 +199,7 @@
         this[property] = observable;
         return;
       }
-      return bindProperties(this, property, observable);
+      this.bindToAccessor(property, observable, resolveBindingValue);
     },
     invokeMethod: function(method, args) {
       var fn = this[method] || method;
@@ -170,23 +251,6 @@
       }
     }
   };
-
-  // property binding
-  // bind a property in A to a path in B by converting A[property] to a
-  // getter/setter pair that accesses B[...path...]
-  function bindProperties(a, property, observable) {
-    // apply Polymer two-way reference binding
-    return Observer.bindToInstance(a, property, observable, resolveBindingValue);
-  }
-
-  // capture A's value if B's value is null or undefined,
-  // otherwise use B's value
-  function resolveBindingValue(oldValue, value) {
-    if (value === undefined && oldValue === null) {
-      return value;
-    }
-    return (value === null || value === undefined) ? oldValue : value;
-  }
 
   // logging
   var LOG_OBSERVE = '[%s] watching [%s]';
