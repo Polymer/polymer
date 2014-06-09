@@ -1467,7 +1467,6 @@ suite('Template Instantiation', function() {
     //   -both before and after the reference
     // The following asserts ensure that all referenced templates content is
     // found.
-    var id = 't' + Math.random();
     var div = createTestHtml(
       '<template bind>' +
         '<template bind ref=doc></template>' +
