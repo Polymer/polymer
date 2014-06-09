@@ -28,7 +28,7 @@
     oldValue: undefined
   };
 
-  var numberIsNaN = Number.isNaN || function isNaN(value) {
+  var numberIsNaN = Number.isNaN || function(value) {
     return typeof value === 'number' && isNaN(value);
   }
 
