@@ -158,7 +158,7 @@
       var n$ = prototype._computedNames;
       if (n$ && n$.length) {
         for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
-          Observer.createBindablePrototypeAccessor(prototype, n);
+          this.createPropertyAccessor(n);
         }
       }
 
