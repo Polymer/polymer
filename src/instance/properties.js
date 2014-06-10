@@ -55,7 +55,7 @@
       var n$ = this._observeNames;
       if (n$ && n$.length) {
         var o = this._propertyObserver = new CompoundObserver(true);
-        this.registerObservers([o]);
+        this.registerObserver(o);
         // TODO(sorvell): may not be kosher to access the value here (this[n]);
         // previously we looked at the descriptor on the prototype
         // this doesn't work for inheritance and not for accessors without
@@ -170,12 +170,12 @@
       this[privateName] = value;
       this.notify(name, value, oldValue);
 
-      this.registerObservers([{
+      this.registerObserver({
         close: function() {
           observable.close();
           self[privateObservable] = undefined;
         }
-      }]);
+      });
     },
     createComputedProperties: function() {
       if (!this._computedNames) {
@@ -207,27 +207,29 @@
         fn.apply(this, args);
       }
     },
-    registerObservers: function(observers) {
-      this._observers = this._observers || [];
-      this._observers.push(observers);
+    registerObserver: function(observer) {
+      if (!this._observers) {
+        this._observers = [observer];
+        return;
+      }
+
+      this._observers.push(observer);
     },
     // observer array items are arrays of observers.
     closeObservers: function() {
       if (!this._observers) {
         return;
       }
-      for (var i=0, l=this._observers.length; i<l; i++) {
-        this.closeObserverArray(this._observers[i]);
-      }
-      this._observers = [];
-    },
-    closeObserverArray: function(observerArray) {
-      for (var i=0, l=observerArray.length, o; i<l; i++) {
-        o = observerArray[i];
-        if (o && o.close) {
-          o.close();
+
+      var observers = this._observers;
+      for (var i = 0; i < observers.length; i++) {
+        var observer = observers[i];
+        if (observer && typeof observer.close == 'function') {
+          observer.close();
         }
       }
+
+      this._observers = [];
     },
     // bookkeeping observers for memory management
     registerNamedObserver: function(name, observer) {

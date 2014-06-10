@@ -20,7 +20,10 @@
       var syntax = this.syntax || (!template.bindingDelegate &&
           this.element.syntax);
       var dom = template.createInstance(this, syntax);
-      this.registerObservers(dom.bindings_);
+      var observers = dom.bindings_;
+      for (var i = 0; i < observers.length; i++) {
+        this.registerObserver(observers[i]);
+      }
       return dom;
     },
     bind: function(name, observable, oneTime) {
