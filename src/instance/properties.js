@@ -170,12 +170,14 @@
       this[privateName] = value;
       this.notify(name, value, oldValue);
 
-      this.registerObserver({
+      var observer = {
         close: function() {
           observable.close();
           self[privateObservable] = undefined;
         }
-      });
+      };
+      this.registerObserver(observer);
+      return observer;
     },
     createComputedProperties: function() {
       if (!this._computedNames) {
@@ -199,7 +201,7 @@
         this[property] = observable;
         return;
       }
-      this.bindToAccessor(property, observable, resolveBindingValue);
+      return this.bindToAccessor(property, observable, resolveBindingValue);
     },
     invokeMethod: function(method, args) {
       var fn = this[method] || method;
