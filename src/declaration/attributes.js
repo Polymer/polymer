@@ -36,11 +36,24 @@
         for (var i=0, l=names.length, n; i<l; i++) {
           // remove excess ws
           n = names[i].trim();
-          // do not override explicit entries
-          if (n && publish[n] === undefined && base[n] === undefined) {
+          // if the user hasn't specified a value, we want to use the
+          // default, unless a superclass has already chosen one
+          if (n && publish[n] === undefined) {
+            // TODO(sjmiles): querying native properties on IE11 (and possibly
+            // on other browsers) throws an exception because there is no actual
+            // instance.
+            // In fact, trying to publish native properties is known bad for this
+            // and other reasons, and we need to solve this problem writ large.
+            try {
+              var hasValue = (base[n] !== undefined);
+            } catch(x) {
+              hasValue = false;
+            }
             // supply an empty 'descriptor' object and let the publishProperties
             // code determine a default
-            publish[n] = Polymer.nob;
+            if (!hasValue) {
+              publish[n] = Polymer.nob;
+            }
           }
         }
       }
