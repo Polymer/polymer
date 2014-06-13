@@ -125,7 +125,7 @@
         }
       }
     },
-    notify: function(name, value, oldValue) {
+    emitPropertyChangeRecord: function(name, value, oldValue) {
       var object = this;
       if (areSameValue(value, oldValue))
         return;
@@ -155,7 +155,7 @@
       var self = this;
       var value = observable.open(function(value, oldValue) {
         self[privateName] = value;
-        self.notify(name, value, oldValue);
+        self.emitPropertyChangeRecord(name, value, oldValue);
       });
 
       if (resolveFn && !areSameValue(oldValue, value)) {
@@ -168,7 +168,7 @@
       }
 
       this[privateName] = value;
-      this.notify(name, value, oldValue);
+      this.emitPropertyChangeRecord(name, value, oldValue);
 
       var observer = {
         close: function() {

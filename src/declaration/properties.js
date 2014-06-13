@@ -140,7 +140,7 @@
 
           var oldValue = this[privateName];
           this[privateName] = value;
-          this.notify(name, value, oldValue);
+          this.emitPropertyChangeRecord(name, value, oldValue);
 
           return value;
         },
