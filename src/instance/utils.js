@@ -71,7 +71,7 @@
       this.async("fire", arguments);
     },
     /**
-      * Remove class from old, add class to anew, if they exist
+      * Remove class from old, add class to anew, if they exist.
       * @param classFollows
       * @param anew A node.
       * @param old A node
@@ -84,6 +84,22 @@
       if (anew) {
         anew.classList.add(className);
       }
+    },
+    /**
+      * Inject HTML which contains markup bound to this element into
+      * a target element (replacing target element content).
+      * @param String html to inject
+      * @param Element target element
+      */
+    injectBoundHTML: function(html, element) {
+      var template = document.createElement('template');
+      template.innerHTML = html;
+      var fragment = this.instanceTemplate(template);
+      if (element) {
+        element.textContent = '';
+        element.appendChild(fragment);
+      }
+      return fragment;
     }
   };
 
