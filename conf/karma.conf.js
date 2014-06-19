@@ -49,7 +49,8 @@ module.exports = function(karma) {
       {pattern: 'polymer-dev/test/**/*.css', included: false},
       {pattern: 'polymer-dev/test/**/*.html', included: false},
       {pattern: 'polymer-dev/test/**/*.js', included: false},
-      {pattern: 'tools/**/*.js', included: false}
+      {pattern: 'tools/**/*.js', included: false},
+      {pattern: 'tools/test/*', included: false}
     ]
   }));
 };
