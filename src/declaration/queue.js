@@ -165,5 +165,5 @@
 
   // exports
   scope.queue = queue;
-  scope.whenPolymerReady = whenPolymerReady;
+  scope.whenReady = scope.whenPolymerReady = whenPolymerReady;
 })(Polymer);
