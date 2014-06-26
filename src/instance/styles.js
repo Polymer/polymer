@@ -67,7 +67,7 @@
           STYLE_CONTROLLER_SCOPE);
       Polymer.applyStyleToScope(style, scope);
       // cache that this style has been applied
-      scope._scopeStyles[this.localName + name] = true;
+      this.styleCacheForScope(scope)[this.localName + name] = true;
     },
     findStyleScope: function(node) {
       // find the shadow root that contains this element
@@ -78,10 +78,20 @@
       return n;
     },
     scopeHasNamedStyle: function(scope, name) {
-      scope._scopeStyles = scope._scopeStyles || {};
-      return scope._scopeStyles[name];
+      var cache = this.styleCacheForScope(scope);
+      return cache[name];
+    },
+    styleCacheForScope: function(scope) {
+      if (window.ShadowDOMPolyfill) {
+        var scopeName = scope.host ? scope.host.localName : scope.localName;
+        return polyfillScopeStyleCache[scopeName] || (polyfillScopeStyleCache[scopeName] = {});
+      } else {
+        return scope._scopeStyles = (scope._scopeStyles || {});
+      }
     }
   };
+
+  var polyfillScopeStyleCache = {};
   
   // NOTE: use raw prototype traversal so that we ensure correct traversal
   // on platforms where the protoype chain is simulated via __proto__ (IE10)
