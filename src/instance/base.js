@@ -52,7 +52,6 @@
       this.shadowRoots = {};
       // install property observers
       this.createPropertyObserver();
-      // TODO (sorvell): temporarily open observer when created
       this.openPropertyObserver();
       // install boilerplate attributes
       this.copyInstanceAttributes();
@@ -77,9 +76,6 @@
       this.removeAttribute('unresolved');
       // user entry point
       this.ready();
-      // TODO (sorvell): temporarily open observer when created
-      // turn on property observation and take any initial changes
-      //this.openPropertyObserver();
     },
     attachedCallback: function() {
       this.cancelUnbindAll();
