@@ -35,9 +35,7 @@
       }
       this.created();
       this.prepareElement();
-      // TODO(sorvell): replace when ShadowDOMPolyfill issue is corrected
-      // https://github.com/Polymer/ShadowDOM/issues/420
-      if (!this.ownerDocument.isStagingDocument || window.ShadowDOMPolyfill) {
+      if (!this.ownerDocument.isStagingDocument) {
         this.makeElementReady();
       }
     },
