@@ -48,13 +48,15 @@
       * @param {string} type An event name.
       * @param {any} detail
       * @param {Node} onNode Target node.
+      * @param {Boolean} bubbles Set false to prevent bubbling, defaults to true
+      * @param {Boolean} cancelable Set false to prevent cancellation, defaults to true
       */
     fire: function(type, detail, onNode, bubbles, cancelable) {
       var node = onNode || this;
-      var detail = detail || {};
+      var detail = detail === null || detail === undefined ? {} : detail;
       var event = new CustomEvent(type, {
-        bubbles: (bubbles !== undefined ? bubbles : true), 
-        cancelable: (cancelable !== undefined ? cancelable : true), 
+        bubbles: bubbles !== undefined ? bubbles : true,
+        cancelable: cancelable !== undefined ? cancelable : true,
         detail: detail
       });
       node.dispatchEvent(event);
