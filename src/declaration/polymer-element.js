@@ -32,12 +32,17 @@
       // fetch declared values
       this.name = this.getAttribute('name');
       this.extends = this.getAttribute('extends');
+      queue.wait(this);
       // initiate any async resource fetches
       this.loadResources();
       // register when all constraints are met
       this.registerWhenReady();
     },
 
+    // TODO(sorvell): we currently queue in the order the prototypes are 
+    // registered, but we should queue in the order that polymer-elements
+    // are registered. We are currently blocked from doing this based on 
+    // crbug.com/395686.
     registerWhenReady: function() {
      if (this.registered
        || this.waitingForPrototype(this.name)
@@ -45,16 +50,11 @@
        || this.waitingForResources()) {
           return;
       }
-      // TODO(sorvell): ends up calling '_register' by virtue
-      // of `waitingForQueue` (see below)
       queue.go(this);
     },
 
-    // TODO(sorvell): refactor, this method is private-ish, but it's being
-    // called by the queue object.
     _register: function() {
       //console.log('registering', this.name);
-      //console.group('registering', this.name);
       // warn if extending from a custom element not registered via Polymer
       if (isCustomTag(this.extends) && !isRegistered(this.extends)) {
         console.warn('%s is attempting to extend %s, an unregistered element ' +
@@ -63,7 +63,6 @@
       }
       this.register(this.name, this.extends);
       this.registered = true;
-      //console.groupEnd();
     },
 
     waitingForPrototype: function(name) {
@@ -81,19 +80,8 @@
       // if explicitly marked as 'noscript'
       if (this.hasAttribute('noscript') && !this.noscript) {
         this.noscript = true;
-        // TODO(sorvell): CustomElements polyfill awareness:
-        // noscript elements should upgrade in logical order
-        // script injection ensures this under native custom elements;
-        // under imports + ce polyfills, scripts run before upgrades.
-        // dependencies should be ready at upgrade time so register
-        // prototype at this time.
-        if (window.CustomElements && !CustomElements.useNative) {
-          Polymer(name);
-        } else {
-          var script = document.createElement('script');
-          script.textContent = 'Polymer(\'' + name + '\');';
-          this.appendChild(script);
-        }
+        // imperative element registration
+        Polymer(name);
       }
     },
 
@@ -105,7 +93,7 @@
     // dependency resolution. Previously this was enforced for inheritance,
     // and by rule for composition. It's now entirely by rule.
     waitingForQueue: function() {
-      return queue.wait(this, this.registerWhenReady, this._register);
+      return queue.enqueue(this, this.registerWhenReady, this._register);
     },
 
     loadResources: function() {

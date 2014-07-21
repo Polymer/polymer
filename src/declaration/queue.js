@@ -31,21 +31,26 @@
 
   */
   var queue = {
+
     // tell the queue to wait for an element to be ready
-    wait: function(element, check, go) {
-      var shouldAdd = (this.indexOf(element) === -1 && 
-          flushQueue.indexOf(element) === -1);
+    wait: function(element) {
+      if (!element.__queue) {
+        element.__queue = {};
+        elements.push(element);
+      }
+    },
+
+    // enqueue an element to the next spot in the queue.
+    enqueue: function(element, check, go) {
+      var shouldAdd = element.__queue && !element.__queue.check;
       if (shouldAdd) {
-        this.add(element);
-        element.__check = check;
-        element.__go = go;
+        queueForElement(element).push(element);
+        element.__queue.check = check;
+        element.__queue.go = go;
       }
       return (this.indexOf(element) !== 0);
     },
-    add: function(element) {
-      //console.log('queueing', element.name);
-      queueForElement(element).push(element);
-    },
+
     indexOf: function(element) {
       var i = queueForElement(element).indexOf(element);
       if (i >= 0 && document.contains(element)) {
@@ -54,14 +59,17 @@
       }
       return i;  
     },
+
     // tell the queue an element is ready to be registered
     go: function(element) {
       var readied = this.remove(element);
       if (readied) {
+        element.__queue.flushable = true;
         this.addToFlushQueue(readied);
         this.check();
       }
     },
+
     remove: function(element) {
       var i = this.indexOf(element);
       if (i !== 0) {
@@ -70,37 +78,59 @@
       }
       return queueForElement(element).shift();
     },
+
     check: function() {
       // next
       var element = this.nextElement();
       if (element) {
-        element.__check.call(element);
+        element.__queue.check.call(element);
       }
       if (this.canReady()) {
         this.ready();
         return true;
       }
     },
+
     nextElement: function() {
       return nextQueued();
     },
+
     canReady: function() {
       return !this.waitToReady && this.isEmpty();
     },
+
     isEmpty: function() {
-      return !importQueue.length && !mainQueue.length;
+      for (var i=0, l=elements.length, e; (i<l) && 
+          (e=elements[i]); i++) {
+        if (e.__queue && !e.__queue.flushable) {
+          return;
+        }
+      }
+      return true;
     },
+
     addToFlushQueue: function(element) {
       flushQueue.push(element);  
     },
+
     flush: function() {
+      // prevent re-entrance
+      if (this.flushing) {
+        return;
+      }
+      if (flushQueue.length) {
+        console.warn('flushing %s elements', flushQueue.length);
+      }
+      this.flushing = true;
       var element;
       while (flushQueue.length) {
         element = flushQueue.shift();
-        element.__go.call(element);
-        element.__check = element.__go = null;
+        element.__queue.go.call(element);
+        element.__queue = null;
       }
+      this.flushing = false;
     },
+
     ready: function() {
       this.flush();
       // TODO(sorvell): As an optimization, turn off CE polyfill upgrading
@@ -116,11 +146,13 @@
       Platform.flush();
       requestAnimationFrame(this.flushReadyCallbacks);
     },
+
     addReadyCallback: function(callback) {
       if (callback) {
         readyCallbacks.push(callback);
       }
     },
+
     flushReadyCallbacks: function() {
       if (readyCallbacks) {
         var fn;
@@ -130,11 +162,13 @@
         }
       }
     },
+
     waitToReady: true
+
   };
 
+  var elements = [];
   var flushQueue = [];
-
   var importQueue = [];
   var mainQueue = [];
   var readyCallbacks = [];
@@ -164,6 +198,7 @@
   }
 
   // exports
+  scope.elements = elements;
   scope.queue = queue;
   scope.whenReady = scope.whenPolymerReady = whenPolymerReady;
 })(Polymer);
