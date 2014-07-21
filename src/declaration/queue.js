@@ -118,9 +118,6 @@
       if (this.flushing) {
         return;
       }
-      if (flushQueue.length) {
-        console.warn('flushing %s elements', flushQueue.length);
-      }
       this.flushing = true;
       var element;
       while (flushQueue.length) {
