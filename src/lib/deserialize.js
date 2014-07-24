@@ -9,10 +9,13 @@
 
 (function(scope) {
 
+  function noopHandler(value) {
+    return value;
+  }
+
   var typeHandlers = {
-    string: function(value) {
-      return value;
-    },
+    string: noopHandler,
+    'undefined': noopHandler,
     date: function(value) {
       return new Date(Date.parse(value) || Date.now());
     },
