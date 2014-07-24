@@ -25,35 +25,27 @@
     },
 
     publishAttributes: function(prototype, base) {
-      // merge names from 'attributes' attribute
+      // merge names from 'attributes' attribute into the 'publish' object
       var attributes = this.getAttribute(ATTRIBUTES_ATTRIBUTE);
       if (attributes) {
-        // get properties to publish
-        var publish = prototype.publish || (prototype.publish = {});
+        // create a `publish` object if needed.
+        // the `publish` object is only relevant to this prototype, the 
+        // publishing logic in `declaration/properties.js` is responsible for
+        // managing property values on the prototype chain.
+        // TODO(sjmiles): the `publish` object is later chained to it's 
+        //                ancestor object, presumably this is only for 
+        //                reflection or other non-library uses. 
+        var publish = prototype.publish || (prototype.publish = {}); 
         // names='a b c' or names='a,b,c'
         var names = attributes.split(ATTRIBUTES_REGEX);
         // record each name for publishing
         for (var i=0, l=names.length, n; i<l; i++) {
           // remove excess ws
           n = names[i].trim();
-          // if the user hasn't specified a value, we want to use the
-          // default, unless a superclass has already chosen one
+          // looks weird, but causes n to exist on `publish` if it does not;
+          // a more careful test would need expensive `in` operator
           if (n && publish[n] === undefined) {
-            // TODO(sjmiles): querying native properties on IE11 (and possibly
-            // on other browsers) throws an exception because there is no actual
-            // instance.
-            // In fact, trying to publish native properties is known bad for this
-            // and other reasons, and we need to solve this problem writ large.
-            try {
-              var hasValue = (base[n] !== undefined);
-            } catch(x) {
-              hasValue = false;
-            }
-            // supply an empty 'descriptor' object and let the publishProperties
-            // code determine a default
-            if (!hasValue) {
-              publish[n] = Polymer.nob;
-            }
+            publish[n] = undefined;
           }
         }
       }
