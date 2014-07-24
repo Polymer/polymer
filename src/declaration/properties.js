@@ -75,38 +75,51 @@
         prototype._publishLC = this.lowerCaseMap(publish);
       }
     },
-    // sync prototype to property descriptors;
-    // desriptor format contains default value and optionally a
-    // hint for reflecting the property to an attribute.
-    // e.g. {foo: 5, bar: {value: true, reflect: true}}
-    // reflect: {foo: true} is also supported
     //
-    requireProperties: function(propertyDescriptors, prototype, base) {
-      // reflected properties
+    // `name: value` entries in the `publish` object may need to generate 
+    // matching properties on the prototype.
+    //
+    // Values that are objects may have a `reflect` property, which
+    // signals that the value describes property control metadata.
+    // In metadata objects, the prototype default value (if any)
+    // is encoded in the `value` property.
+    //
+    // publish: {
+    //   foo: 5, 
+    //   bar: {value: true, reflect: true},
+    //   zot: {}
+    // }
+    //
+    // `reflect` metadata property controls whether changes to the property
+    // are reflected back to the attribute (default false). 
+    //
+    // A value is stored on the prototype unless it's === `undefined`,
+    // in which case the base chain is checked for a value.
+    // If the basal value is also undefined, `null` is stored on the prototype.
+    //
+    // The reflection data is stored on another prototype object, `reflect`
+    // which also can be specified directly.
+    //
+    // reflect: {
+    //   foo: true
+    // }
+    //
+    requireProperties: function(propertyInfos, prototype, base) {
+      // per-prototype storage for reflected properties
       prototype.reflect = prototype.reflect || {};
       // ensure a prototype value for each property
       // and update the property's reflect to attribute status
-      for (var n in propertyDescriptors) {
-        var propertyDescriptor = propertyDescriptors[n];
-        var reflects = this.reflectHintForDescriptor(propertyDescriptor);
-        if (prototype.reflect[n] === undefined && reflects !== undefined) {
-          prototype.reflect[n] = reflects;
+      for (var n in propertyInfos) {
+        var value = propertyInfos[n];
+        // value has metadata if it has a `reflect` property
+        if (value && value.reflect !== undefined) {
+          prototype.reflect[n] = Boolean(value.reflect);
+          value = value.value;
         }
-        if (prototype[n] === undefined) {
-          prototype[n] = this.valueForDescriptor(propertyDescriptor);
+        // only set a value if one is specified
+        if (value !== undefined) {
+          prototype[n] = value;
         }
-      }
-    },
-    valueForDescriptor: function(propertyDescriptor) {
-      var value = typeof propertyDescriptor === 'object' &&
-          propertyDescriptor ? propertyDescriptor.value : propertyDescriptor;
-      return value !== undefined ? value : null;
-    },
-    // returns the value of the descriptor's 'reflect' property or undefined
-    reflectHintForDescriptor: function(propertyDescriptor) {
-      if (typeof propertyDescriptor === 'object' &&
-          propertyDescriptor && propertyDescriptor.reflect !== undefined) {
-        return propertyDescriptor.reflect;
       }
     },
     lowerCaseMap: function(properties) {
@@ -154,14 +167,12 @@
           this.createPropertyAccessor(n);
         }
       }
-
       var n$ = prototype._computedNames;
       if (n$ && n$.length) {
         for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
           this.createPropertyAccessor(n);
         }
       }
-
     }
   };
 
