@@ -84,7 +84,7 @@
 
       return function(model, node, oneTime) {
         var handler = events.getEventHandler(undefined, node, pathString);
-        PolymerGestures.addGesture(node, eventType);
+        PolymerGestures.activateGesture(node, eventType);
         node.addEventListener(eventType, handler);
 
         if (oneTime)
@@ -102,7 +102,7 @@
           open: bindingValue,
           discardChanges: bindingValue,
           close: function() {
-            PolymerGestures.removeGesture(node, eventType);
+            PolymerGestures.deactivateGesture(node, eventType);
             node.removeEventListener(eventType, handler);
           }
         };
