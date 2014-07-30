@@ -15,6 +15,8 @@
   var api = scope.api.instance.styles;
   var STYLE_SCOPE_ATTRIBUTE = api.STYLE_SCOPE_ATTRIBUTE;
 
+  var hasShadowDOMPolyfill = window.ShadowDOMPolyfill;
+
   // magic words
 
   var STYLE_SELECTOR = 'style';
@@ -187,7 +189,7 @@
       if (scope === document) {
         scope = document.head;
       }
-      if (window.ShadowDOMPolyfill) {
+      if (hasShadowDOMPolyfill) {
         scope = document.head;
       }
       // TODO(sorvell): necessary for IE
