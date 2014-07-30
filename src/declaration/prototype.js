@@ -15,6 +15,8 @@
   var isBase = scope.isBase;
   var extend = scope.extend;
 
+  var hasShadowDOMPolyfill = window.ShadowDOMPolyfill;
+
   // prototype api
 
   var prototype = {
@@ -101,7 +103,7 @@
       // this.$.image.src = this.resolvePath('images/foo.png')
       this.addResolvePathApi();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
-      if (window.ShadowDOMPolyfill) {
+      if (hasShadowDOMPolyfill) {
         Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
       }
       // allow custom element access to the declarative context

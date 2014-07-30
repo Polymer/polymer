@@ -12,7 +12,8 @@
   // imports
 
   var log = window.logFlags || {};
-  
+  var hasShadowDOMPolyfill = window.ShadowDOMPolyfill;
+
   // magic words
   
   var STYLE_SCOPE_ATTRIBUTE = 'element';
@@ -60,7 +61,7 @@
       if (!scope) {
         return;
       }
-      if (window.ShadowDOMPolyfill) {
+      if (hasShadowDOMPolyfill) {
         cssText = shimCssText(cssText, scope.host);
       }
       var style = this.element.cssTextToScopeStyle(cssText,
@@ -82,7 +83,7 @@
       return cache[name];
     },
     styleCacheForScope: function(scope) {
-      if (window.ShadowDOMPolyfill) {
+      if (hasShadowDOMPolyfill) {
         var scopeName = scope.host ? scope.host.localName : scope.localName;
         return polyfillScopeStyleCache[scopeName] || (polyfillScopeStyleCache[scopeName] = {});
       } else {
