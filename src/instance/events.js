@@ -49,4 +49,8 @@
 
   scope.api.instance.events = events;
 
+  // alias PolymerGestures event listener logic
+  scope.addEventListener = PolymerGestures.addEventListener;
+  scope.removeEventListener = PolymerGestures.removeEventListener;
+
 })(Polymer);
