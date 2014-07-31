@@ -28,9 +28,7 @@
       // by default supports 1 thing being bound.
       for (var type in events) {
         var methodName = events[type];
-        PolymerGestures.activateGesture(this, type);
-        this.addEventListener(type, this.element.getEventHandler(this, this,
-                                                                 methodName));
+        PolymerGestures.addEventListener(this, type, this.element.getEventHandler(this, this, methodName));
       }
     },
     // call 'method' or function method on 'obj' with 'args', if the method exists
