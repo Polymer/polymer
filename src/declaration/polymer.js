@@ -93,10 +93,13 @@
   // document. Platform collects those calls until we can process them, which
   // we do here.
 
-  var declarations = Platform.deliverDeclarations();
-  if (declarations) {
-    for (var i=0, l=declarations.length, d; (i<l) && (d=declarations[i]); i++) {
-      element.apply(null, d);
+  if (Platform.deliverDeclarations) {
+
+    var declarations = Platform.deliverDeclarations();
+    if (declarations) {
+      for (var i=0, l=declarations.length, d; (i<l) && (d=declarations[i]); i++) {
+        element.apply(null, d);
+      }
     }
   }
 

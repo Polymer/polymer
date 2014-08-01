@@ -29,10 +29,63 @@
     originalStopPropagation.apply(this, arguments);
   };
   
-  // TODO(sorvell): remove when we're sure imports does not need
-  // to load stylesheets
-  /*
-  HTMLImports.importer.preloadSelectors += 
-      ', polymer-element link[rel=stylesheet]';
-  */
+  
+  // polyfill DOMTokenList
+  // * add/remove: allow these methods to take multiple classNames
+  // * toggle: add a 2nd argument which forces the given state rather
+  //  than toggling.
+
+  var add = DOMTokenList.prototype.add;
+  var remove = DOMTokenList.prototype.remove;
+  DOMTokenList.prototype.add = function() {
+    for (var i = 0; i < arguments.length; i++) {
+      add.call(this, arguments[i]);
+    }
+  };
+  DOMTokenList.prototype.remove = function() {
+    for (var i = 0; i < arguments.length; i++) {
+      remove.call(this, arguments[i]);
+    }
+  };
+  DOMTokenList.prototype.toggle = function(name, bool) {
+    if (arguments.length == 1) {
+      bool = !this.contains(name);
+    }
+    bool ? this.add(name) : this.remove(name);
+  };
+  DOMTokenList.prototype.switch = function(oldName, newName) {
+    oldName && this.remove(oldName);
+    newName && this.add(newName);
+  };
+
+  // add array() to NodeList, NamedNodeMap, HTMLCollection
+
+  var ArraySlice = function() {
+    return Array.prototype.slice.call(this);
+  };
+
+  var namedNodeMap = (window.NamedNodeMap || window.MozNamedAttrMap || {});
+
+  NodeList.prototype.array = ArraySlice;
+  namedNodeMap.prototype.array = ArraySlice;
+  HTMLCollection.prototype.array = ArraySlice;
+
+  // utility
+
+  function createDOM(inTagOrNode, inHTML, inAttrs) {
+    var dom = typeof inTagOrNode == 'string' ?
+        document.createElement(inTagOrNode) : inTagOrNode.cloneNode(true);
+    dom.innerHTML = inHTML;
+    if (inAttrs) {
+      for (var n in inAttrs) {
+        dom.setAttribute(n, inAttrs[n]);
+      }
+    }
+    return dom;
+  }
+
+  // exports
+
+  scope.createDOM = createDOM;
+
 })(Polymer);
