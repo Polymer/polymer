@@ -15,7 +15,6 @@
   // It would make sense to put inside some HTMLImport but 
   // the HTMLImports polyfill does not allow loading of stylesheets 
   // that block rendering. Therefore this injection is tolerated here.
-
   var style = document.createElement('style');
   style.textContent = ''
       + 'body {'

@@ -12,6 +12,8 @@
 	with the polyfills, we stub out minimal functionality.
  */
 if (!window.Platfrom) {
+  logFlags = window.logFlags || {};
+
 
   Platform = {
   	flush: function() {}
