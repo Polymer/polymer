@@ -23,6 +23,17 @@ module.exports = function(grunt) {
       polymer: {
       }
     },
+    concat_sourcemap: {
+      Polymer: {
+        options: {
+          sourcesContent: true,
+          nonull: true
+        },
+        files: {
+          'build/polymer.concat.js': readManifest('build.json')
+        }
+      }
+    },
     uglify: {
       options: {
         nonull: true
@@ -38,8 +49,11 @@ module.exports = function(grunt) {
           banner: grunt.file.read('banner.txt') + '// @version: <%= buildversion %>'
           //mangle: false, beautify: true, compress: false
         },
-        files: {
+        /*files: {
           'build/polymer.js': Polymer
+        }*/
+        files: {
+          'build/polymer.js': 'build/polymer.concat.js'
         }
       }
     },
@@ -94,9 +108,11 @@ module.exports = function(grunt) {
 
   grunt.loadTasks('../tools/tasks');
   // plugins
+  grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-contrib-yuidoc');
   grunt.loadNpmTasks('grunt-karma');
+  grunt.loadNpmTasks('grunt-concat-sourcemap');
   grunt.loadNpmTasks('grunt-audit');
   grunt.loadNpmTasks('grunt-string-replace');
 
@@ -113,7 +129,7 @@ module.exports = function(grunt) {
 
 
   grunt.registerTask('default', ['minify']);
-  grunt.registerTask('minify', ['version', 'string-replace', 'uglify']);
+  grunt.registerTask('minify', ['concat_sourcemap', 'version', 'string-replace', 'uglify']);
   grunt.registerTask('docs', ['yuidoc']);
   grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
