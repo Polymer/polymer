@@ -11,7 +11,7 @@
 	On supported platforms, platform.js is not needed. To retain compatibility
 	with the polyfills, we stub out minimal functionality.
  */
-if (!window.Platfrom) {
+if (!window.Platform) {
   logFlags = window.logFlags || {};
 
 
@@ -21,6 +21,7 @@ if (!window.Platfrom) {
 
   CustomElements = {
   	useNative: true,
+    ready: true,
     takeRecords: function() {},
     instanceof: function(obj, base) {
       return obj instanceof base;
@@ -30,6 +31,14 @@ if (!window.Platfrom) {
   HTMLImports = {
   	useNative: true
   };
+
+  
+  addEventListener('HTMLImportsLoaded', function() {
+    document.dispatchEvent(
+      new CustomEvent('WebComponentsReady', {bubbles: true})
+    );
+  });
+
 
   // ShadowDOM
   ShadowDOMPolyfill = null;

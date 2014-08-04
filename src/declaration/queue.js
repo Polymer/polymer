@@ -131,6 +131,7 @@
     ready: function() {
       this.flush();
       readyPolyfill();
+      Platform.flush();
       requestAnimationFrame(this.flushReadyCallbacks);
     },
 
@@ -189,7 +190,6 @@
       CustomElements.upgradeDocumentTree(document);
       CustomElements.ready = true;
     }
-    Platform.flush();
   }
   
   function whenPolymerReady(callback) {
