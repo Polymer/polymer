@@ -172,7 +172,7 @@
 
   var customElementsPolyfill = !CustomElements.useNative;
 
-  if (!customElementsPolyfill) {
+  if (customElementsPolyfill) {
     document.addEventListener('WebComponentsReady', function() {
       CustomElements.ready = false;
     });
