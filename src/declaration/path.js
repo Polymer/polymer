@@ -11,7 +11,7 @@
 
 var path = {
   resolveElementPaths: function(node) {
-    Platform.urlResolver.resolveDom(node);
+    Polymer.urlResolver.resolveDom(node);
   },
   addResolvePathApi: function() {
     // let assetpath attribute modify the resolve path

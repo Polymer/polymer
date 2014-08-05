@@ -35,7 +35,7 @@
         var styles = this.findLoadableStyles(content);
         if (styles.length) {
           var templateUrl = template.ownerDocument.baseURI;
-          return Platform.styleResolver.loadStyles(styles, templateUrl, callback);
+          return Polymer.styleResolver.loadStyles(styles, templateUrl, callback);
         }
       }
       if (callback) {

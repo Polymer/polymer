@@ -8,7 +8,7 @@
  */
 
 (function(scope) {
-  var endOfMicrotask = scope.endOfMicrotask;
+  var endOfMicrotask = Platform.endOfMicrotask;
 
   // Generic url loader
   function Loader(regex) {
@@ -111,4 +111,4 @@
   };
 
   scope.Loader = Loader;
-})(window.Platform);
+})(Polymer);

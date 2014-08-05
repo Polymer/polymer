@@ -9,5 +9,7 @@
 
 htmlSuite('utils', function() {
   htmlTest('html/async.html');
+  htmlTest('html/url.html');
+  htmlTest('html/loader-deduplicate.html');
 });
 

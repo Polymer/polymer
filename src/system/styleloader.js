@@ -68,4 +68,4 @@ var styleResolver = new StyleResolver();
 // exports
 scope.styleResolver = styleResolver;
 
-})(window.Platform);
+})(Polymer);

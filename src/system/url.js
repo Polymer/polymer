@@ -126,4 +126,4 @@ function makeRelPath(sourceUrl, targetUrl) {
 // exports
 scope.urlResolver = urlResolver;
 
-})(Platform);
+})(Polymer);
