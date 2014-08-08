@@ -129,17 +129,17 @@
     },
 
     ready: function() {
-      this.flush();
       // TODO(sorvell): As an optimization, turn off CE polyfill upgrading
       // while registering. This way we avoid having to upgrade each document
       // piecemeal per registration and can instead register all elements
       // and upgrade once in a batch. Without this optimization, upgrade time
       // degrades significantly when SD polyfill is used. This is mainly because
       // querying the document tree for elements is slow under the SD polyfill.
-      if (CustomElements.ready === false) {
-        CustomElements.upgradeDocumentTree(document);
-        CustomElements.ready = true;
-      }
+      var polyfillWasReady = CustomElements.ready;
+      CustomElements.ready = false;
+      this.flush();
+      CustomElements.upgradeDocumentTree(document);
+      CustomElements.ready = polyfillWasReady;
       Platform.flush();
       requestAnimationFrame(this.flushReadyCallbacks);
     },
@@ -178,15 +178,8 @@
     return importQueue.length ? importQueue[0] : mainQueue[0];
   }
 
-  var polymerReadied = false; 
-
-  document.addEventListener('WebComponentsReady', function() {
-    CustomElements.ready = false;
-  });
-  
   function whenPolymerReady(callback) {
     queue.waitToReady = true;
-    CustomElements.ready = false;
     HTMLImports.whenImportsReady(function() {
       queue.addReadyCallback(callback);
       queue.waitToReady = false;
