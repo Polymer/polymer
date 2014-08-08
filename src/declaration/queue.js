@@ -138,7 +138,9 @@
       var polyfillWasReady = CustomElements.ready;
       CustomElements.ready = false;
       this.flush();
-      CustomElements.upgradeDocumentTree(document);
+      if (!CustomElements.useNative) {
+        CustomElements.upgradeDocumentTree(document);
+      }
       CustomElements.ready = polyfillWasReady;
       Platform.flush();
       requestAnimationFrame(this.flushReadyCallbacks);

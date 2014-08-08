@@ -68,4 +68,7 @@
   scope.extend = extend;
   scope.mixin = mixin;
 
+  // for bc
+  Platform.mixin = mixin;
+
 })(Polymer);
