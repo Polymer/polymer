@@ -14,7 +14,7 @@
   var extend = scope.extend;
   var api = scope.api;
   var queue = scope.queue;
-  var whenPolymerReady = scope.whenPolymerReady;
+  var whenReady = scope.whenReady;
   var getRegisteredPrototype = scope.getRegisteredPrototype;
   var waitingForPrototype = scope.waitingForPrototype;
 
@@ -124,7 +124,7 @@
 
   // boot tasks
 
-  whenPolymerReady(function() {
+  whenReady(function() {
     document.body.removeAttribute('unresolved');
     document.dispatchEvent(
       new CustomEvent('polymer-ready', {bubbles: true})

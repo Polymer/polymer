@@ -129,8 +129,17 @@
     },
 
     ready: function() {
+      // TODO(sorvell): As an optimization, turn off CE polyfill upgrading
+      // while registering. This way we avoid having to upgrade each document
+      // piecemeal per registration and can instead register all elements
+      // and upgrade once in a batch. Without this optimization, upgrade time
+      // degrades significantly when SD polyfill is used. This is mainly because
+      // querying the document tree for elements is slow under the SD polyfill.
+      var polyfillWasReady = CustomElements.ready;
+      CustomElements.ready = false;
       this.flush();
-      readyPolyfill();
+      CustomElements.upgradeDocumentTree(document);
+      CustomElements.ready = polyfillWasReady;
       Platform.flush();
       requestAnimationFrame(this.flushReadyCallbacks);
     },
@@ -169,35 +178,9 @@
     return importQueue.length ? importQueue[0] : mainQueue[0];
   }
 
-  var polymerReadied = false; 
-
-  var customElementsPolyfill = !CustomElements.useNative;
-
-  if (customElementsPolyfill) {
-    document.addEventListener('WebComponentsReady', function() {
-      CustomElements.ready = false;
-    });
-  }
-
-  function readyPolyfill() {
-    // TODO(sorvell): As an optimization, turn off CE polyfill upgrading
-    // while registering. This way we avoid having to upgrade each document
-    // piecemeal per registration and can instead register all elements
-    // and upgrade once in a batch. Without this optimization, upgrade time
-    // degrades significantly when SD polyfill is used. This is mainly because
-    // querying the document tree for elements is slow under the SD polyfill.
-    if (customElementsPolyfill && CustomElements.ready === false) {
-      CustomElements.upgradeDocumentTree(document);
-      CustomElements.ready = true;
-    }
-  }
-  
-  function whenPolymerReady(callback) {
+  function whenReady(callback) {
     queue.waitToReady = true;
-    if (customElementsPolyfill) {
-      CustomElements.ready = false;
-    }
-    HTMLImports.whenReady(function() {
+    HTMLImports.whenImportsReady(function() {
       queue.addReadyCallback(callback);
       queue.waitToReady = false;
       queue.check();
@@ -207,5 +190,5 @@
   // exports
   scope.elements = elements;
   scope.queue = queue;
-  scope.whenReady = scope.whenPolymerReady = whenPolymerReady;
+  scope.whenReady = scope.whenPolymerReady = whenReady;
 })(Polymer);
