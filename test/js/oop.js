@@ -8,16 +8,24 @@
  */
 
 function inherit(fn, prototype) {
-    var obj = Object.create(prototype);
-    // NOTE: On some platforms (IE10) __proto__ does not exist.
-    // In this case, we install it.
-    if (!Object.__proto__) {
-      obj.__proto__ = prototype;
-    }
-    obj.constructor = fn;
-    fn.prototype = obj;
-    return fn;
+  var obj = Object.create(prototype);
+  // NOTE: On some platforms (IE10) __proto__ does not exist.
+  // In this case, we install it.
+  if (!Object.__proto__) {
+    obj.__proto__ = prototype;
   }
+  obj.constructor = fn;
+  fn.prototype = obj;
+  return fn;
+}
+
+function instance(fn) {
+  var obj = new fn();
+  if (!Object.__proto__) {
+    obj.__proto__ = fn.prototype;
+  }
+  return obj;
+}
 
 suite('oop', function() {
   var assert = chai.assert;
@@ -49,7 +57,7 @@ suite('oop', function() {
       this.log(' subsub');
     };
     //
-    var subSub = new SubSub();
+    var subSub = instance(SubSub);
     subSub.say();
     assert.equal(subSub.msg, 'sub subsub');
   });
