@@ -118,8 +118,8 @@
         if (Array.isArray(value)) {
           log.observe && console.log('[%s] observeArrayValue: register observer [%s]', this.localName, name, value);
           var observer = new ArrayObserver(value);
-          observer.open(function(value, old) {
-            this.invokeMethod(callbackName, [old]);
+          observer.open(function(splices) {
+            this.invokeMethod(callbackName, [splices]);
           }, this);
           this.registerNamedObserver(name + '__array', observer);
         }
