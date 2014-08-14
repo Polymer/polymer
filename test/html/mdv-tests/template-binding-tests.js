@@ -7,8 +7,6 @@
 
 var testDiv;
 
-var wrap = ShadowDOMPolyfill && ShadowDOMPolyfill.wrapIfNeeded || function(a){ return a; };
-
 function clearAllTemplates(node) {
   if (node instanceof HTMLTemplateElement || node.iterator_)
     node.clear();
@@ -430,6 +428,77 @@ suite('Template Instantiation', function() {
 
       done();
     });
+  });
+
+  test('Bind If minimal discardChanges', function(done) {
+
+    var div = createTestHtml(
+        '<template bind="{{ bound }}" if="{{ predicate }}">' +
+          'value:{{ value }}' +
+        '</template>');
+    var m = { bound: null, predicate: 0 };
+    var template = div.firstChild;
+
+    var discardChangesCalled = { bound: 0, predicate: 0 };
+    template.bindingDelegate = {
+      prepareBinding: function(path, name, node) {
+        return function(model, node, oneTime) {
+          var result = new PathObserver(model, path); 
+          result.discardChanges = function() {
+            discardChangesCalled[path]++;
+            return PathObserver.prototype.discardChanges.call(this);
+          }
+          return result;
+        }
+      }
+    };
+
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(0, discardChangesCalled.bound);
+      assert.strictEqual(0, discardChangesCalled.predicate);
+
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      assert.strictEqual(1, discardChangesCalled.bound);
+      assert.strictEqual(0, discardChangesCalled.predicate);
+
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('value:', div.lastChild.textContent);
+
+      m.bound = { value: 2 };
+
+    }).then(function() {
+      assert.strictEqual(1, discardChangesCalled.bound);
+      assert.strictEqual(1, discardChangesCalled.predicate);
+
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('value:2', div.lastChild.textContent);
+
+      m.bound.value = 3;
+
+    }).then(function() {
+      assert.strictEqual(1, discardChangesCalled.bound);
+      assert.strictEqual(1, discardChangesCalled.predicate);
+
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('value:3', div.lastChild.textContent);
+
+      template.model = undefined;
+
+    }).then(function() {
+      assert.strictEqual(1, discardChangesCalled.bound);
+      assert.strictEqual(1, discardChangesCalled.predicate);
+
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+
   });
 
   test('Empty If', function(done) {
@@ -1513,15 +1582,19 @@ suite('Template Instantiation', function() {
       assert.strictEqual(4, div.childNodes.length);
       assert.strictEqual('Hi, Fry', div.childNodes[3].textContent);
 
-      div.childNodes[2].setAttribute('ref', 'B');
+      // In IE 11, MutationObservers do not fire before setTimeout.
+      // So rather than using "then" to queue up the next test, we use a
+      // MutationObserver here to detect the change to "ref".
+      new MutationObserver(function() {
+        assert.strictEqual(5, div.childNodes.length);
+        assert.strictEqual('Hola, Fry', div.childNodes[3].textContent);
+        assert.strictEqual('Hola, Leela', div.childNodes[4].textContent);
+
+        done();
+      }).observe(template, { attributes: true, attributeFilter: ['ref'] });
+
+      template.setAttribute('ref', 'B');
       model.push('Leela');
-
-    }).then(function() {
-      assert.strictEqual(5, div.childNodes.length);
-      assert.strictEqual('Hola, Fry', div.childNodes[3].textContent);
-      assert.strictEqual('Hola, Leela', div.childNodes[4].textContent);
-
-      done();
     });
   });
 
