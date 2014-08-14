@@ -16,6 +16,8 @@
   // element api supporting mdv
   var mdv = {
     instanceTemplate: function(template) {
+      // ensure template is decorated (lets' things like <tr template ...> work)
+      HTMLTemplateElement.decorate(template);
       // ensure a default bindingDelegate
       var syntax = this.syntax || (!template.bindingDelegate &&
           this.element.syntax);
