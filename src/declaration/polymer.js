@@ -18,9 +18,9 @@
 
   // specify an 'own' prototype for tag `name`
   function element(name, prototype) {
-    if (arguments.length === 1 && typeof arguments[0] !== 'string') {
+    if (typeof name !== 'string') {
+      var script = prototype || document._currentScript;
       prototype = name;
-      var script = document._currentScript;
       name = script && script.parentNode && script.parentNode.getAttribute ?
           script.parentNode.getAttribute('name') : '';
       if (!name) {
@@ -93,14 +93,14 @@
   // document. Platform collects those calls until we can process them, which
   // we do here.
 
-  if (Platform.deliverDeclarations) {
-
-    var declarations = Platform.deliverDeclarations();
-    if (declarations) {
-      for (var i=0, l=declarations.length, d; (i<l) && (d=declarations[i]); i++) {
-        element.apply(null, d);
+  if (Platform.consumeDeclarations) {
+    Platform.consumeDeclarations(function(declarations) {;
+      if (declarations) {
+        for (var i=0, l=declarations.length, d; (i<l) && (d=declarations[i]); i++) {
+          element.apply(null, d);
+        }
       }
-    }
+    });
   }
 
 })(Polymer);
