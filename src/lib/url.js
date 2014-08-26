@@ -78,6 +78,7 @@ var CSS_IMPORT_REGEXP = /(@import[\s]+(?!url\())([^;]*)(;)/g;
 var URL_ATTRS = ['href', 'src', 'action', 'style', 'url'];
 var URL_ATTRS_SELECTOR = '[' + URL_ATTRS.join('],[') + ']';
 var URL_TEMPLATE_SEARCH = '{{.*}}';
+var URL_HASH = '#';
 
 function replaceUrlsInCssText(cssText, baseUrl, keepAbsolute, regexp) {
   return cssText.replace(regexp, function(m, pre, url, post) {
@@ -120,7 +121,9 @@ function makeRelPath(sourceUrl, targetUrl) {
   for (var i = 0, l = s.length - 1; i < l; i++) {
     t.unshift('..');
   }
-  return t.join('/') + targetUrl.search + targetUrl.hash;
+  // empty '#' is discarded but we need to preserve it.
+  var hash = (targetUrl.href.slice(-1) === URL_HASH) ? URL_HASH : targetUrl.hash;
+  return t.join('/') + targetUrl.search + hash;
 }
 
 // exports
