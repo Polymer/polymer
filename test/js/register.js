@@ -58,4 +58,5 @@ htmlSuite('element registration', function() {
   htmlTest('html/ctor.html');
   htmlTest('html/domready.html');
   htmlTest('html/infer-name.html');
+  htmlTest('html/platform-less.html');
 });
