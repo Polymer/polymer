@@ -129,7 +129,7 @@
       }
       return map;
     },
-    createPropertyAccessor: function(name) {
+    createPropertyAccessor: function(name, ignoreWrites) {
       var proto = this.prototype;
 
       var privateName = name + '_';
@@ -145,6 +145,10 @@
           return this[privateName];
         },
         set: function(value) {
+          if (ignoreWrites) {
+            return this[privateName];
+          }
+
           var observable = this[privateObservable];
           if (observable) {
             observable.setValue(value);
@@ -161,16 +165,20 @@
       });
     },
     createPropertyAccessors: function(prototype) {
-      var n$ = prototype._publishNames;
-      if (n$ && n$.length) {
-        for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
-          this.createPropertyAccessor(n);
-        }
-      }
       var n$ = prototype._computedNames;
       if (n$ && n$.length) {
         for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
-          this.createPropertyAccessor(n);
+          this.createPropertyAccessor(n, true);
+        }
+      }
+      var n$ = prototype._publishNames;
+      if (n$ && n$.length) {
+        for (var i=0, l=n$.length, n, fn; (i<l) && (n=n$[i]); i++) {
+          // If the property is computed and published, the accessor is created
+          // above.
+          if (!prototype.computed || !prototype.computed[n]) {
+            this.createPropertyAccessor(n);
+          }
         }
       }
     }

@@ -148,15 +148,27 @@
     bindToAccessor: function(name, observable, resolveFn) {
       var privateName = name + '_';
       var privateObservable  = name + 'Observable_';
+      // Present for properties which are computed and published and have a
+      // bound value.
+      var privateComputedBoundValue = name + 'ComputedBoundObservable_';
 
       this[privateObservable] = observable;
+
       var oldValue = this[privateName];
 
       var self = this;
-      var value = observable.open(function(value, oldValue) {
+      function updateValue(value, oldValue) {
         self[privateName] = value;
+
+        var setObserveable = self[privateComputedBoundValue];
+        if (setObserveable && typeof setObserveable.setValue == 'function') {
+          setObserveable.setValue(value);
+        }
+ 
         self.emitPropertyChangeRecord(name, value, oldValue);
-      });
+      }
+ 
+      var value = observable.open(updateValue);
 
       if (resolveFn && !areSameValue(oldValue, value)) {
         var resolvedValue = resolveFn(oldValue, value);
@@ -167,13 +179,13 @@
         }
       }
 
-      this[privateName] = value;
-      this.emitPropertyChangeRecord(name, value, oldValue);
+      updateValue(value, oldValue);
 
       var observer = {
         close: function() {
           observable.close();
           self[privateObservable] = undefined;
+          self[privateComputedBoundValue] = undefined;
         }
       };
       this.registerObserver(observer);
@@ -201,6 +213,17 @@
         this[property] = observable;
         return;
       }
+      var computed = this.element.prototype.computed;
+
+      // Binding an "out-only" value to a computed property. Note that
+      // since this observer isn't opened, it doesn't need to be closed on
+      // cleanup.
+      if (computed && computed[property]) {
+        var privateComputedBoundValue = property + 'ComputedBoundObservable_';
+        this[privateComputedBoundValue] = observable;
+        return;
+      }
+
       return this.bindToAccessor(property, observable, resolveBindingValue);
     },
     invokeMethod: function(method, args) {
