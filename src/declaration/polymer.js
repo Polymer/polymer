@@ -71,10 +71,26 @@
     return prototypesByName[name];
   }
 
+  function instanceOfType(element, type) {
+    if (typeof type !== 'string') {
+      return false;
+    }
+    var proto = HTMLElement.getPrototypeForTag(type);
+    var ctor = proto && proto.constructor;
+    if (!ctor) {
+      return false;
+    }
+    if (CustomElements.instanceof) {
+      return CustomElements.instanceof(element, ctor);
+    }
+    return element instanceof ctor;
+  }
+
   // exports
 
   scope.getRegisteredPrototype = getRegisteredPrototype;
   scope.waitingForPrototype = waitingForPrototype;
+  scope.instanceOfType = instanceOfType;
 
   // namespace shenanigans so we can expose our scope on the registration 
   // function
