@@ -161,6 +161,21 @@
         }
       }
     },
+  
+    /**
+    Returns a list of elements that have had polymer-elements created but 
+    are not yet ready to register. The list is an array of element definitions.
+    */
+    waitingFor: function() {
+      var e$ = [];
+      for (var i=0, l=elements.length, e; (i<l) && 
+          (e=elements[i]); i++) {
+        if (e.__queue && !e.__queue.flushable) {
+          e$.push(e);
+        }
+      }
+      return e$;
+    },
 
     waitToReady: true
 
@@ -182,15 +197,37 @@
 
   function whenReady(callback) {
     queue.waitToReady = true;
-    HTMLImports.whenImportsReady(function() {
-      queue.addReadyCallback(callback);
-      queue.waitToReady = false;
-      queue.check();
+    Platform.endOfMicrotask(function() {
+      HTMLImports.whenImportsReady(function() {
+        queue.addReadyCallback(callback);
+        queue.waitToReady = false;
+        queue.check();
+    });
+    });
+  }
+
+  /**
+    Forces polymer to register any pending elements. Can be used to abort
+    waiting for elements that are partially defined.
+    @param timeout {Integer} Optional timeout in milliseconds
+  */
+  function forceReady(timeout) {
+    if (timeout === undefined) {
+      queue.ready();
+      return;
+    }
+    var handle = setTimeout(function() {
+      queue.ready();
+    }, timeout);
+    Polymer.whenReady(function() {
+      clearTimeout(handle);
     });
   }
 
   // exports
   scope.elements = elements;
+  scope.waitingFor = queue.waitingFor.bind(queue);
+  scope.forceReady = forceReady;
   scope.queue = queue;
   scope.whenReady = scope.whenPolymerReady = whenReady;
 })(Polymer);

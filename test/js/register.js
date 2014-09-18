@@ -61,4 +61,5 @@ htmlSuite('element registration', function() {
   htmlTest('html/infer-name.html');
   htmlTest('html/platform-less.html');
   htmlTest('html/import-warning.html');
+  htmlTest('html/forceReady.html');
 });
