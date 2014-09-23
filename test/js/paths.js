@@ -56,7 +56,3 @@ suite('resolvePath', function() {
   });
 
 });
-
-htmlSuite('resolvePath - imports', function() {
-  htmlTest('html/resolvePath.html');
-});

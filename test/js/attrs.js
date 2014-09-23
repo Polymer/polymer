@@ -7,13 +7,6 @@
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
 
-htmlSuite('attributes-declarative', function() {
-  htmlTest('html/publish-attributes.html');
-  htmlTest('html/take-attributes.html');
-  htmlTest('html/attr-mustache.html');
-  htmlTest('html/prop-attr-reflection.html');
-});
-
 suite('attributes', function() {
   var assert = chai.assert;
 
@@ -26,7 +19,7 @@ suite('attributes', function() {
     // Because Chrome and Safari are busted...
     // https://code.google.com/p/chromium/issues/detail?id=43394
     // https://bugs.webkit.org/show_bug.cgi?id=49739
-    // 
+    //
     // ... Polymer doesn't currently support accessor names used by the DOM.
     var t = document.createElement('test-override-dom-accessor');
     t.title = 123;
@@ -34,4 +27,5 @@ suite('attributes', function() {
     // The 'title' property was not recorded as published.
     assert.deepEqual(p.prototype.publish, {});
   });
+
 });

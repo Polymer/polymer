@@ -45,21 +45,3 @@ suite('register', function() {
     }, 0);
   });
 });
-
-htmlSuite('element callbacks', function() {
-  htmlTest('html/callbacks.html');
-});
-
-htmlSuite('element registration', function() {
-  htmlTest('html/element-script.html');
-  htmlTest('html/element-registration.html');
-  htmlTest('html/element-instanceOfType.html');
-  htmlTest('html/element-import.html');
-  htmlTest('html/auto-binding.html');
-  htmlTest('html/ctor.html');
-  htmlTest('html/domready.html');
-  htmlTest('html/infer-name.html');
-  htmlTest('html/platform-less.html');
-  htmlTest('html/import-warning.html');
-  htmlTest('html/forceReady.html');
-});
