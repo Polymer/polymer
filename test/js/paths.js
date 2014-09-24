@@ -18,7 +18,7 @@ suite('resolvePath', function() {
     Polymer('x-resolve');
     Polymer('x-resolve-ap');
     work.innerHTML = '<polymer-element name="x-resolve"></polymer-element><polymer-element name="x-resolve-ap" assetpath="foo/bar/baz/"></polymer-element>';
-    CustomElements.takeRecords();
+    CustomElements.takeRecords(work);
     resolver = document.createElement('x-resolve');
     apResolver = document.createElement('x-resolve-ap');
     dirname = location.href.split('/').slice(0, -1).join('/') + '/';
