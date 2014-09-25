@@ -27,7 +27,7 @@
         throw 'Element name could not be inferred.';
       }
     }
-    if (getRegisteredPrototype[name]) {
+    if (getRegisteredPrototype(name)) {
       throw 'Already registered (Polymer) prototype for element ' + name;
     }
     // cache the prototype
