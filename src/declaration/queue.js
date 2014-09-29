@@ -198,7 +198,7 @@
   function whenReady(callback) {
     queue.waitToReady = true;
     Platform.endOfMicrotask(function() {
-      HTMLImports.whenImportsReady(function() {
+      HTMLImports.whenReady(function() {
         queue.addReadyCallback(callback);
         queue.waitToReady = false;
         queue.check();
