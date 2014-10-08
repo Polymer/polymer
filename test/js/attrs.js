@@ -13,3 +13,25 @@ htmlSuite('attributes-declarative', function() {
   htmlTest('html/attr-mustache.html');
   htmlTest('html/prop-attr-reflection.html');
 });
+
+suite('attributes', function() {
+  var assert = chai.assert;
+
+  test('override dom accessor', function() {
+    var p = document.createElement('polymer-element');
+    p.setAttribute('name', 'test-override-dom-accessor');
+    p.setAttribute('attributes', 'title');
+    p.setAttribute('noscript', '');
+    p.init();
+    // Because Chrome and Safari are busted...
+    // https://code.google.com/p/chromium/issues/detail?id=43394
+    // https://bugs.webkit.org/show_bug.cgi?id=49739
+    // 
+    // ... Polymer doesn't currently support accessor names used by the DOM.
+    var t = document.createElement('test-override-dom-accessor');
+    t.title = 123;
+    assert.strictEqual(t.title, '123');
+    // The 'title' property was not recorded as published.
+    assert.deepEqual(p.prototype.publish, {});
+  });
+});

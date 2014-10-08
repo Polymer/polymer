@@ -71,8 +71,36 @@
       if (publish) {
         // transcribe `publish` entries onto own prototype
         this.requireProperties(publish, prototype, base);
+        // warn and remove accessor names that are broken on some browsers
+        this.filterInvalidAccessorNames(publish);
         // construct map of lower-cased property names
         prototype._publishLC = this.lowerCaseMap(publish);
+      }
+      var computed = prototype.computed;
+      if (computed) {
+        // warn and remove accessor names that are broken on some browsers
+        this.filterInvalidAccessorNames(computed);
+      }
+    },
+    // Publishing/computing a property where the name might conflict with a
+    // browser property is not currently supported to help users of Polymer
+    // avoid browser bugs:
+    //
+    // https://code.google.com/p/chromium/issues/detail?id=43394
+    // https://bugs.webkit.org/show_bug.cgi?id=49739
+    //
+    // We can lift this restriction when those bugs are fixed.
+    filterInvalidAccessorNames: function(propertyNames) {
+      for (var name in propertyNames) {
+        // Check if the name is in our blacklist.
+        if (this.propertyNameBlacklist[name]) {
+          console.warn('Cannot define property "' + name + '" for element "' +
+            this.name + '" because it has the same name as an HTMLElement ' +
+            'property, and not all browsers support overriding that. ' +
+            'Consider giving it a different name.');
+          // Remove the invalid accessor from the list.
+          delete propertyNames[name];
+        }
       }
     },
     //
@@ -181,6 +209,19 @@
           }
         }
       }
+    },
+    // This list contains some property names that people commonly want to use,
+    // but won't work because of Chrome/Safari bugs. It isn't an exhaustive
+    // list. In particular it doesn't contain any property names found on
+    // subtypes of HTMLElement (e.g. name, value). Rather it attempts to catch
+    // some common cases.
+    propertyNameBlacklist: {
+      children: 1,
+      'class': 1,
+      id: 1,
+      hidden: 1,
+      style: 1,
+      title: 1,
     }
   };
 
