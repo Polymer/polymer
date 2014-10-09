@@ -6,7 +6,7 @@ Build Status: [http://build.chromium.org/p/client.polymer/waterfall](http://buil
 
 ## Brief Overview
 
-For more detailed info goto [http://polymer-project.org/](http://polymer-project.org/).
+For more detailed info go to [http://polymer-project.org/](http://polymer-project.org/).
 
 Polymer is a new type of library for the web, designed to leverage the existing browser infrastructure to provide the encapsulation and extendability currently only available in JS libraries.
 
