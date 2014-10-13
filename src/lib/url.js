@@ -117,9 +117,6 @@ function makeDocumentRelPath(url) {
 
 // make a relative path from source to target
 function makeRelPath(sourceUrl, targetUrl) {
-  if (targetUrl.href.slice(-1) === '#') {
-    debugger;
-  }
   var source = sourceUrl.pathname;
   var target = targetUrl.pathname;
   var s = source.split('/');
