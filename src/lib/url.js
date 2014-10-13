@@ -11,7 +11,7 @@
 
 var urlResolver = {
   resolveDom: function(root, url) {
-    url = url || root.ownerDocument.baseURI;
+    url = url || baseUrl(root);
     this.resolveAttributes(root, url);
     this.resolveStyles(root, url);
     // handle template.content
@@ -25,7 +25,7 @@ var urlResolver = {
     }
   },
   resolveTemplate: function(template) {
-    this.resolveDom(template.content, template.ownerDocument.baseURI);
+    this.resolveDom(template.content, baseUrl(template));
   },
   resolveStyles: function(root, url) {
     var styles = root.querySelectorAll('style');
@@ -36,7 +36,7 @@ var urlResolver = {
     }
   },
   resolveStyle: function(style, url) {
-    url = url || style.ownerDocument.baseURI;
+    url = url || baseUrl(style);
     style.textContent = this.resolveCssText(style.textContent, url);
   },
   resolveCssText: function(cssText, baseUrl, keepAbsolute) {
@@ -56,7 +56,7 @@ var urlResolver = {
     }
   },
   resolveElementAttributes: function(node, url) {
-    url = url || node.ownerDocument.baseURI;
+    url = url || baseUrl(node);
     URL_ATTRS.forEach(function(v) {
       var attr = node.attributes[v];
       var value = attr && attr.value;
@@ -80,6 +80,13 @@ var URL_ATTRS_SELECTOR = '[' + URL_ATTRS.join('],[') + ']';
 var URL_TEMPLATE_SEARCH = '{{.*}}';
 var URL_HASH = '#';
 
+function baseUrl(node) {
+  var u = new URL(node.ownerDocument.baseURI);
+  u.search = '';
+  u.hash = '';
+  return u;
+}
+
 function replaceUrlsInCssText(cssText, baseUrl, keepAbsolute, regexp) {
   return cssText.replace(regexp, function(m, pre, url, post) {
     var urlPath = url.replace(/["']/g, '');
@@ -98,7 +105,7 @@ function resolveRelativeUrl(baseUrl, url, keepAbsolute) {
 }
 
 function makeDocumentRelPath(url) {
-  var root = new URL(document.baseURI);
+  var root = baseUrl(document.documentElement);
   var u = new URL(url, root);
   if (u.host === root.host && u.port === root.port &&
       u.protocol === root.protocol) {
@@ -110,6 +117,9 @@ function makeDocumentRelPath(url) {
 
 // make a relative path from source to target
 function makeRelPath(sourceUrl, targetUrl) {
+  if (targetUrl.href.slice(-1) === '#') {
+    debugger;
+  }
   var source = sourceUrl.pathname;
   var target = targetUrl.pathname;
   var s = source.split('/');
