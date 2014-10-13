@@ -8,7 +8,6 @@
  */
 
 suite('attributes', function() {
-  var assert = chai.assert;
 
   test('override dom accessor', function() {
     var p = document.createElement('polymer-element');

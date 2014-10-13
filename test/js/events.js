@@ -8,8 +8,6 @@
  */
 
 suite('events', function() {
-  var assert = chai.assert;
-
   var work;
 
   setup(function() {
@@ -46,4 +44,5 @@ suite('events', function() {
       done();
     }, 0);
   });
+
 });

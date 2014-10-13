@@ -28,8 +28,7 @@ function instance(fn) {
 }
 
 suite('oop', function() {
-  var assert = chai.assert;
-  
+
   test('super', function() {
     var Base = function() {};
     Base.prototype = {
@@ -61,4 +60,5 @@ suite('oop', function() {
     subSub.say();
     assert.equal(subSub.msg, 'sub subsub');
   });
+
 });

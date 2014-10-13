@@ -8,7 +8,6 @@
  */
 
 suite('bindMDV', function() {
-  var assert = chai.assert;
 
   function parseAndBindHTML(html, model) {
     var t = document.createElement('template');

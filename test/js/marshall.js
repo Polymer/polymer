@@ -8,7 +8,6 @@
  */
 
 suite('marshall', function() {
-  var assert = chai.assert;
 
   test('node references self', function() {
     var foo = document.createElement('x-foo');
@@ -26,4 +25,5 @@ suite('marshall', function() {
     assert.equal(foo.$.bar.textContent, 'barContent');
     assert.equal(foo.$.zot.textContent, 'zotContent');
   });
+
 });

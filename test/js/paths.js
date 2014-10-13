@@ -8,8 +8,6 @@
  */
 
 suite('resolvePath', function() {
-  var assert = chai.assert;
-
   var work = document.createElement('div');
   var resolver, apResolver, dirname;
 
