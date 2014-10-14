@@ -1,3 +1,5 @@
+/** @externs @fileoverview Externs for the Polymer library. */
+
 /**
  * @param {string} name The name of the declared Polymer element.
  * @param {PolymerElement} prototype The prototype of the element.
@@ -24,3 +26,37 @@ PolymerElement.prototype.attached = function() {};
 PolymerElement.prototype.domReady = function() {};
 /** On detached from the DOM callback. */
 PolymerElement.prototype.detached = function() {};
+
+/**
+ * Fire a callback when the light DOM children of an element changes.
+ * `callback` is called at most once, and should re-register with onMutation
+ * if it cares about further changes to the light DOM.
+ *
+ * @param {HTMLElement} domElement The element to observe for changes. Often
+ *     the polymerElement itself.
+ * @param {Function} callback The function to call when changes happen.
+ */
+PolymerElement.prototype.onMutation = function(domElement, callback) {};
+
+/**
+ * Call the callback after a given timeout.
+ *
+ * @param {Function} callback The function to call after the delay. Called with
+ *     `this` bound to the polymerElement.
+ * @param {Array=} opt_args Arguments to pass to callback.
+ * @param {number=} opt_timeoutMillis Minimum delay in milliseconds before
+ *     calling the callback.
+ */
+PolymerElement.prototype.async = function(
+      callback, opt_args, opt_timeoutMillis) {};
+
+/**
+ * Call the callback after a timeout. Calling job again with the same name
+ * resets the timer but will not result in additional calls to callback.
+ *
+ * @param {string} name
+ * @param {Function} callback
+ * @param {number} timeoutMillis The minimum delay in milliseconds before
+ *     calling the callback.
+ */
+PolymerElement.prototype.job = function(name, callback, timeoutMillis) {};
