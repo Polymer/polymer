@@ -40,7 +40,7 @@
           fn[args ? 'apply' : 'call'](obj, args);
         }
         log.events && console.groupEnd();
-        Platform.flush();
+        Polymer.flush();
       }
     }
   };

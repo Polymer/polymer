@@ -21,7 +21,7 @@
     async: function(method, args, timeout) {
       // when polyfilling Object.observe, ensure changes 
       // propagate before executing the async method
-      Platform.flush();
+      Polymer.flush();
       // second argument to `apply` must be an array
       args = (args && args.length) ? args : [args];
       // function to invoke

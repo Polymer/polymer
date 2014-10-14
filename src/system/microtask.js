@@ -29,8 +29,9 @@ new (window.MutationObserver || JsMutationObserver)(atEndOfMicrotask)
   ;
 
 // exports
-
 scope.endOfMicrotask = endOfMicrotask;
+// bc 
+Platform.endOfMicrotask = endOfMicrotask;
 
-})(Platform);
+})(Polymer);
 

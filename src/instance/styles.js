@@ -106,8 +106,8 @@
       name = host.localName;
       is = host.hasAttribute('is');
     }
-    var selector = Platform.ShadowCSS.makeScopeSelector(name, is);
-    return Platform.ShadowCSS.shimCssText(cssText, selector);
+    var selector = WebComponents.ShadowCSS.makeScopeSelector(name, is);
+    return WebComponents.ShadowCSS.shimCssText(cssText, selector);
   }
 
   // exports

@@ -104,7 +104,8 @@
       this.addResolvePathApi();
       // under ShadowDOMPolyfill, transforms to approximate missing CSS features
       if (hasShadowDOMPolyfill) {
-        Platform.ShadowCSS.shimStyling(this.templateContent(), name, extendee);
+        WebComponents.ShadowCSS.shimStyling(this.templateContent(), name,
+          extendee);
       }
       // allow custom element access to the declarative context
       if (this.prototype.registerCallback) {

@@ -8,7 +8,7 @@
  */
 
 (function(scope) {
-  var endOfMicrotask = Platform.endOfMicrotask;
+  var endOfMicrotask = Polymer.endOfMicrotask;
 
   // Generic url loader
   function Loader(regex) {

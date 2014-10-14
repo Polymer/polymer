@@ -106,11 +106,11 @@
 
   // Under the HTMLImports polyfill, scripts in the main document
   // do not block on imports; we want to allow calls to Polymer in the main
-  // document. Platform collects those calls until we can process them, which
+  // document. WebComponents collects those calls until we can process them, which
   // we do here.
 
-  if (Platform.consumeDeclarations) {
-    Platform.consumeDeclarations(function(declarations) {;
+  if (WebComponents.consumeDeclarations) {
+    WebComponents.consumeDeclarations(function(declarations) {;
       if (declarations) {
         for (var i=0, l=declarations.length, d; (i<l) && (d=declarations[i]); i++) {
           element.apply(null, d);

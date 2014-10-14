@@ -142,7 +142,7 @@
         CustomElements.upgradeDocumentTree(document);
       }
       CustomElements.ready = polyfillWasReady;
-      Platform.flush();
+      Polymer.flush();
       requestAnimationFrame(this.flushReadyCallbacks);
     },
 
@@ -197,7 +197,7 @@
 
   function whenReady(callback) {
     queue.waitToReady = true;
-    Platform.endOfMicrotask(function() {
+    Polymer.endOfMicrotask(function() {
       HTMLImports.whenReady(function() {
         queue.addReadyCallback(callback);
         queue.waitToReady = false;
