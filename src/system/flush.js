@@ -9,6 +9,9 @@
 
 (function(scope) {
 
+// imports
+var endOfMicrotask = scope.endOfMicrotask;
+
 // logging
 var log = window.WebComponents ? WebComponents.flags.log : {};
 
@@ -23,10 +26,10 @@ var flushing;
 function flush() {
   if (!flushing) {
     flushing = true;
-    scope.endOfMicrotask(function() {
+    endOfMicrotask(function() {
       flushing = false;
-      log.data && console.group('Platform.flush()');
-      scope.performMicrotaskCheckpoint();
+      log.data && console.group('flush');
+      Platform.performMicrotaskCheckpoint();
       log.data && console.groupEnd();
     });
   }
@@ -56,6 +59,8 @@ if (window.CustomElements && !CustomElements.useNative) {
 
 // exports
 scope.flush = flush;
+// bc
+Platform.flush = flush;
 
-})(window.Platform);
+})(window.Polymer);
 
