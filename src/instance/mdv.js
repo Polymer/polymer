@@ -11,7 +11,7 @@
 
   // imports
 
-  var log = window.logFlags || 0;
+  var log = window.WebComponents ? WebComponents.flags.log : {};
 
   // element api supporting mdv
   var mdv = {

@@ -9,6 +9,9 @@
 
 (function(scope) {
 
+// logging
+var log = window.WebComponents ? WebComponents.flags.log : {};
+
 // inject style sheet
 var style = document.createElement('style');
 style.textContent = 'template {display: none !important;} /* injected by platform.js */';
@@ -22,9 +25,9 @@ function flush() {
     flushing = true;
     scope.endOfMicrotask(function() {
       flushing = false;
-      logFlags.data && console.group('Platform.flush()');
+      log.data && console.group('Platform.flush()');
       scope.performMicrotaskCheckpoint();
-      logFlags.data && console.groupEnd();
+      log.data && console.groupEnd();
     });
   }
 };

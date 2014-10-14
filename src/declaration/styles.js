@@ -11,7 +11,7 @@
 
   // imports
 
-  var log = window.logFlags || {};
+  var log = window.WebComponents ? WebComponents.flags.log : {};
   var api = scope.api.instance.styles;
   var STYLE_SCOPE_ATTRIBUTE = api.STYLE_SCOPE_ATTRIBUTE;
 

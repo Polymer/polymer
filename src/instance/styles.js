@@ -11,7 +11,7 @@
 
   // imports
 
-  var log = window.logFlags || {};
+  var log = window.WebComponents ? WebComponents.flags.log : {};
   var hasShadowDOMPolyfill = window.ShadowDOMPolyfill;
 
   // magic words

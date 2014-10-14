@@ -11,7 +11,7 @@
 
   // imports
 
-  var log = window.logFlags || {};
+  var log = window.WebComponents ? WebComponents.flags.log : {};
   var EVENT_PREFIX = 'on-';
 
   // instance events api
