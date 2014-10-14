@@ -9,24 +9,109 @@
 
 (function(scope) {
 
+  /**
+   * Common prototype for all Polymer Elements.
+   * 
+   * @class polymer-base
+   * @homepage polymer.github.io
+   */
   var base = {
+    /**
+     * Tags this object as the canonical Base prototype.
+     *
+     * @property PolymerBase
+     * @type boolean
+     * @default true
+     */
     PolymerBase: true,
+
+    /**
+     * Debounce signals. 
+     * 
+     * Call `job` to defer a named signal, and all subsequent matching signals, 
+     * until a wait time has elapsed with no new signal.
+     * 
+     *     debouncedClickAction: function(e) {
+     *       // processClick only when it's been 100ms since the last click
+     *       this.job('click', function() {
+     *        this.processClick;
+     *       }, 100);
+     *     }
+     *
+     * @method job
+     * @param String {String} job A string identifier for the job to debounce.
+     * @param Function {Function} callback A function that is called (with `this` context) when the wait time elapses.
+     * @param Number {Number} wait Time in milliseconds (ms) after the last signal that must elapse before invoking `callback`
+     * @type Handle
+     */
     job: function(job, callback, wait) {
       if (typeof job === 'string') {
         var n = '___' + job;
         this[n] = Polymer.job.call(this, this[n], callback, wait);
       } else {
+        // TODO(sjmiles): suggest we deprecate this call signature
         return Polymer.job.call(this, job, callback, wait);
       }
     },
+
+    /**
+     * Invoke a superclass method. 
+     * 
+     * Use `super()` to invoke the most recently overridden call to the 
+     * currently executing function. 
+     * 
+     * To pass arguments through, use the literal `arguments` as the parameter 
+     * to `super()`.
+     *
+     *     nextPageAction: function(e) {
+     *       // invoke the superclass version of `nextPageAction`
+     *       this.super(arguments); 
+     *     }
+     *
+     * To pass custom arguments, arrange them in an array.
+     *
+     *     appendSerialNo: function(value, serial) {
+     *       // prefix the superclass serial number with our lot # before
+     *       // invoking the superlcass
+     *       return this.super([value, this.lotNo + serial])
+     *     }
+     *
+     * @method super
+     * @type Any
+     * @param {args) An array of arguments to use when calling the superclass method, or null.
+     */
     super: Polymer.super,
-    // user entry point for element has had its createdCallback called
+
+    /**
+     * Lifecycle method called when the element is instantiated.
+     * 
+     * Override `created` to perform custom create-time tasks. No need to call 
+     * super-class `created` unless you are extending another Polymer element.
+     * 
+     * @method created
+     * @type void
+     */
     created: function() {
     },
-    // user entry point for element has shadowRoot and is ready for
-    // api interaction
+
+    /**
+     * Lifecycle method called when the element has populated it's `shadowRoot`,
+     * prepared data-observation, and made itself ready for API interaction.
+     * 
+     * @method ready
+     * @type void
+     */
     ready: function() {
     },
+
+    /**
+     * Low-level lifecycle method called as part of standard Custom Elements
+     * operation. Polymer implements this method to provide basic default 
+     * functionality. For custom create-time tasks, implement `created` 
+     * instead, which is called immediately after `createdCallback`. 
+     * 
+     * @method createdCallback
+     */
     createdCallback: function() {
       if (this.templateInstance && this.templateInstance.model) {
         console.warn('Attributes on ' + this.localName + ' were data bound ' +
@@ -39,6 +124,7 @@
         this.makeElementReady();
       }
     },
+
     // system entry point, do not override
     prepareElement: function() {
       if (this._elementPrepared) {
@@ -58,6 +144,7 @@
       // add event listeners
       this.addHostListeners();
     },
+
     makeElementReady: function() {
       if (this._readied) {
         return;
@@ -75,7 +162,34 @@
       // user entry point
       this.ready();
     },
-    attachedCallback: function() {
+
+    /**
+     * Low-level lifecycle method called as part of standard Custom Elements
+     * operation. Polymer implements this method to provide basic default 
+     * functionality. For custom tasks in your element, implement `attributeChanged` 
+     * instead, which is called immediately after `attributeChangedCallback`. 
+     * 
+     * @method attachedCallback
+     */
+    attributeChangedCallback: function(name, oldValue) {
+      // TODO(sjmiles): adhoc filter
+      if (name !== 'class' && name !== 'style') {
+        this.attributeToProperty(name, this.getAttribute(name));
+      }
+      if (this.attributeChanged) {
+        this.attributeChanged.apply(this, arguments);
+      }
+    },
+
+    /**
+     * Low-level lifecycle method called as part of standard Custom Elements
+     * operation. Polymer implements this method to provide basic default 
+     * functionality. For custom create-time tasks, implement `attached` 
+     * instead, which is called immediately after `attachedCallback`. 
+     * 
+     * @method attachedCallback
+     */
+     attachedCallback: function() {
       this.cancelUnbindAll();
       // invoke user action
       if (this.attached) {
@@ -96,6 +210,15 @@
         }
       }
     },
+
+    /**
+     * Low-level lifecycle method called as part of standard Custom Elements
+     * operation. Polymer implements this method to provide basic default 
+     * functionality. For custom create-time tasks, implement `detached` 
+     * instead, which is called immediately after `detachedCallback`. 
+     * 
+     * @method detachedCallback
+     */
     detachedCallback: function() {
       if (!this.preventDispose) {
         this.asyncUnbindAll();
@@ -109,6 +232,7 @@
         this.leftView();
       }
     },
+
     // TODO(sorvell): bc
     enteredViewCallback: function() {
       this.attachedCallback();
@@ -125,14 +249,42 @@
     leftDocumentCallback: function() {
       this.detachedCallback();
     },
-    // recursive ancestral <element> initialization, oldest first
+
+    /**
+     * Walks the prototype-chain of this element and allows specific
+     * classes a chance to process to static declarations.
+     * 
+     * In particular, each polymer-element has it's own `template`.
+     * `parseDeclarations` is used to accumulate all element `template`s
+     * from an inheritance chain.
+     *
+     * `parseDeclaration` static methods implemented in the chain are called
+     * recursively, oldest first, with the `<polymer-element>` associated
+     * with the current prototype passed as an argument.
+     * 
+     * An element may override this method to customize shadow-root generation. 
+     * 
+     * @method parseDeclarations
+     */
     parseDeclarations: function(p) {
       if (p && p.element) {
         this.parseDeclarations(p.__proto__);
         p.parseDeclaration.call(this, p.element);
       }
     },
-    // parse input <element> as needed, override for custom behavior
+
+    /**
+     * Perform init-time actions based on static information in the
+     * `<polymer-element>` instance argument.
+     *
+     * For example, the standard implementation locates the template associated
+     * with the given `<polymer-element>` and stamps it into a shadow-root to
+     * implement shadow inheritance.
+     *  
+     * An element may override this method for custom behavior. 
+     * 
+     * @method parseDeclaration
+     */
     parseDeclaration: function(elementElement) {
       var template = this.fetchTemplate(elementElement);
       if (template) {
@@ -140,11 +292,27 @@
         this.shadowRoots[elementElement.name] = root;
       }
     },
-    // return a shadow-root template (if desired), override for custom behavior
+
+    /**
+     * Given a `<polymer-element>`, find an associated template (if any) to be
+     * used for shadow-root generation.
+     *
+     * An element may override this method for custom behavior. 
+     * 
+     * @method fetchTemplate
+     */
     fetchTemplate: function(elementElement) {
       return elementElement.querySelector('template');
     },
-    // utility function that creates a shadow root from a <template>
+
+    /**
+     * Create a shadow-root in this host and stamp `template` as it's 
+     * content. 
+     *
+     * An element may override this method for custom behavior. 
+     * 
+     * @method shadowFromTemplate
+     */
     shadowFromTemplate: function(template) {
       if (template) {
         // make a shadow root
@@ -162,6 +330,7 @@
         return root;
       }
     },
+
     // utility function that stamps a <template> into light-dom
     lightFromTemplate: function(template, refNode) {
       if (template) {
@@ -187,10 +356,12 @@
         return dom;
       }
     },
+
     shadowRootReady: function(root) {
       // locate nodes with id and store references to them in this.$ hash
       this.marshalNodeReferences(root);
     },
+
     // locate nodes with id and store references to them in this.$ hash
     marshalNodeReferences: function(root) {
       // establish $ instance variable
@@ -203,15 +374,17 @@
         };
       }
     },
-    attributeChangedCallback: function(name, oldValue) {
-      // TODO(sjmiles): adhoc filter
-      if (name !== 'class' && name !== 'style') {
-        this.attributeToProperty(name, this.getAttribute(name));
-      }
-      if (this.attributeChanged) {
-        this.attributeChanged.apply(this, arguments);
-      }
-    },
+
+    /**
+     * Register a one-time callback when a child-list or sub-tree mutation
+     * occurs on node. 
+     *
+     * For persistent callbacks, call onMutation from your listener. 
+     * 
+     * @method onMutation
+     * @param Node {Node} node Node to watch for mutations.
+     * @param Function {Function} listener Function to call on mutation. The function is invoked as `listener.call(this, observer, mutations);` where `observer` is the MutationObserver that triggered the notification, and `mutations` is the native mutation list.
+     */
     onMutation: function(node, listener) {
       var observer = new MutationObserver(function(mutations) {
         listener.call(this, observer, mutations);
@@ -221,13 +394,29 @@
     }
   };
 
-  // true if object has own PolymerBase api
+  /**
+   * @class Polymer
+   */
+  
+  /**
+   * Returns true if the object includes <a href="#polymer-base">polymer-base</a> in it's prototype chain.
+   * 
+   * @method isBase
+   * @param Object {Object} object Object to test.
+   * @type Boolean
+   */
   function isBase(object) {
     return object.hasOwnProperty('PolymerBase')
   }
 
   // name a base constructor for dev tools
 
+  /**
+   * The Polymer base-class constructor.
+   * 
+   * @property Base
+   * @type Function
+   */
   function PolymerBase() {};
   PolymerBase.prototype = base;
   base.constructor = PolymerBase;
