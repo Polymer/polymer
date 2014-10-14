@@ -11,17 +11,16 @@ module.exports = function(grunt) {
   var Polymer = readManifest('build.json');
 
   grunt.initConfig({
-    karma: {
-      options: {
-        configFile: 'conf/karma.conf.js',
-        keepalive: true
+    'wct-test': {
+      local: {
+        options: {remote: false},
       },
-      buildbot: {
-        reporters: ['crbot'],
-        logLevel: 'OFF'
+      remote: {
+        options: {remote: true},
       },
-      polymer: {
-      }
+    },
+    'wct-sauce-tunnel': {
+      default: {},
     },
     concat_sourcemap: {
       Polymer: {
@@ -93,10 +92,10 @@ module.exports = function(grunt) {
   // plugins
   grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-uglify');
-  grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-concat-sourcemap');
   grunt.loadNpmTasks('grunt-audit');
   grunt.loadNpmTasks('grunt-string-replace');
+  grunt.loadNpmTasks('web-component-tester');
 
   grunt.registerTask('stash', 'prepare for testing build', function() {
     grunt.option('force', true);
@@ -109,12 +108,12 @@ module.exports = function(grunt) {
     grunt.option('force', false);
   });
 
-
   grunt.registerTask('default', ['minify']);
   grunt.registerTask('minify', ['concat_sourcemap', 'version', 'string-replace', 'uglify']);
-  grunt.registerTask('test', ['override-chrome-launcher', 'karma:polymer']);
+  grunt.registerTask('test', ['wct-test:local']);
+  grunt.registerTask('test-remote', ['wct-test:remote']);
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
-  grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot', 'minify', 'stash', 'karma:buildbot', 'restore']);
+  grunt.registerTask('test-buildbot', ['test-build']);
   grunt.registerTask('release', function() {
     grunt.option('release', true);
     grunt.task.run('minify');

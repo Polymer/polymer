@@ -8,10 +8,8 @@
  */
 
 suite('events', function() {
-  var assert = chai.assert;
-  
   var work;
-  
+
   setup(function() {
     work = document.createElement('div');
     document.body.appendChild(work);
@@ -22,18 +20,18 @@ suite('events', function() {
   teardown(function() {
     wrap(document.body).removeChild(work);
   });
-  
+
   function createTestElement(inName, inTemplateContent, inExtend) {
     Polymer(inName, {
       clickHandler: function() {
         results.textContent += this.localName;
       }
     });
-    work.innerHTML += '<polymer-element name="' + inName + '"' + 
+    work.innerHTML += '<polymer-element name="' + inName + '"' +
         (inExtend ? ' extends="' + inExtend + '"' : '') + ' on-click="{{clickHandler}}">' +
       '<template>' + (inTemplateContent || '') + '</template></polymer-element>';
   }
-  
+
   test('host event', function(done) {
     createTestElement('x-events-foo');
     // Ensure IE goes...
@@ -46,12 +44,5 @@ suite('events', function() {
       done();
     }, 0);
   });
-});
 
-htmlSuite('events-declarative', function() {
-  htmlTest('html/event-handlers.html');
-  htmlTest('html/event-handlers-host.html');
-  htmlTest('html/event-handlers-light.html');
-  htmlTest('html/event-path.html');
-  htmlTest('html/event-path-declarative.html');
 });

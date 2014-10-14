@@ -8,7 +8,6 @@
  */
 
 suite('bindMDV', function() {
-  var assert = chai.assert;
 
   function parseAndBindHTML(html, model) {
     var t = document.createElement('template');
@@ -54,13 +53,4 @@ suite('bindMDV', function() {
     });
   });
 
-});
-
-
-htmlSuite('bind', function() {
-  htmlTest('html/template-distribute-dynamic.html');
-  htmlTest('html/template-attr-template.html');
-  htmlTest('html/bind.html');
-  htmlTest('html/unbind.html');
-  htmlTest('html/prop-attr-bind-reflection.html');
 });

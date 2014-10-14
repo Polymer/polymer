@@ -8,8 +8,7 @@
  */
 
 suite('marshall', function() {
-  var assert = chai.assert;
-  
+
   test('node references self', function() {
     var foo = document.createElement('x-foo');
     foo.innerHTML = '<div id="bar">barContent</div><div id="zot">zotContent</div>';
@@ -26,8 +25,5 @@ suite('marshall', function() {
     assert.equal(foo.$.bar.textContent, 'barContent');
     assert.equal(foo.$.zot.textContent, 'zotContent');
   });
-});
 
-htmlSuite('shadowRoots', function() {
-  htmlTest('html/shadowroots.html');
 });

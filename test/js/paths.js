@@ -8,8 +8,6 @@
  */
 
 suite('resolvePath', function() {
-  var assert = chai.assert;
-
   var work = document.createElement('div');
   var resolver, apResolver, dirname;
 
@@ -55,8 +53,4 @@ suite('resolvePath', function() {
     assert.equal(apResolver.resolvePath('foo', 'http://example.com'), 'http://example.com/foo');
   });
 
-});
-
-htmlSuite('resolvePath - imports', function() {
-  htmlTest('html/resolvePath.html');
 });
