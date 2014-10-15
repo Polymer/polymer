@@ -9,6 +9,28 @@
 
 (function(scope) {
 
+/**
+ * @class polymer-base
+ */
+
+ /**
+  * Resolve a url path to be relative to a `base` url. If unspecified, `base`
+  * defaults to the element's ownerDocument url. Can be used to resolve
+  * paths from element's in templates loaded in HTMLImports to be relative
+  * to the document containing the element. Polymer automatically does this for
+  * url attributes in element templates; however, if a url, for
+  * example, contains a binding, then `resolvePath` can be used to ensure it is 
+  * relative to the element document. For example, in an element's template,
+  *
+  *     <a href="{{resolvePath(path)}}">Resolved</a>
+  * 
+  * @method resolvePath
+  * @param {String} url Url path to resolve.
+  * @param {String} base Optional base url against which to resolve, defaults
+  * to the element's ownerDocument url.
+  * returns {String} resolved url.
+  */
+
 var path = {
   resolveElementPaths: function(node) {
     Polymer.urlResolver.resolveDom(node);

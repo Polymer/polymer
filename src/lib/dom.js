@@ -9,11 +9,13 @@
 
 (function(scope) {
 
+  // dom polyfill, additions, and utility methods
+
   var registry = {};
 
   HTMLElement.register = function(tag, prototype) {
     registry[tag] = prototype;
-  }
+  };
 
   // get prototype mapped to node <tag>
   HTMLElement.getPrototypeForTag = function(tag) {

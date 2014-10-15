@@ -9,6 +9,10 @@
 
 (function(scope) {
 
+/**
+ * @class Polymer
+ */
+
 // imports
 var endOfMicrotask = scope.endOfMicrotask;
 
@@ -21,6 +25,19 @@ style.textContent = 'template {display: none !important;} /* injected by platfor
 var head = document.querySelector('head');
 head.insertBefore(style, head.firstChild);
 
+
+/**
+ * Force any pending data changes to be observed before 
+ * the next task. Data changes are processed asynchronously but are guaranteed
+ * to be processed, for example, before paintin. This method should rarely be 
+ * needed. It does nothing when Object.observe is available; 
+ * when Object.observe is not available, Polymer automatically flushes data 
+ * changes approximately every 1/10 second. 
+ * Therefore, `flush` should only be used when a data mutation should be 
+ * observed sooner than this.
+ * 
+ * @method flush
+ */
 // flush (with logging)
 var flushing;
 function flush() {
@@ -54,7 +71,7 @@ if (window.CustomElements && !CustomElements.useNative) {
     var imported = originalImportNode.call(this, node, deep);
     CustomElements.upgradeAll(imported);
     return imported;
-  }
+  };
 }
 
 // exports

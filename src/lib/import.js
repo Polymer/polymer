@@ -9,34 +9,71 @@
 
 (function(scope) {
 
-  var whenPolymerReady = scope.whenPolymerReady;
+/**
+ * @class Polymer
+ */
 
-  function importElements(elementOrFragment, callback) {
-    if (elementOrFragment) {
-      document.head.appendChild(elementOrFragment);
-      whenPolymerReady(callback);
-    } else if (callback) {
-      callback();
-    }
+var whenReady = scope.whenReady;
+
+/**
+ * Loads the set of HTMLImports contained in `node`. Notifies when all
+ * the imports have loaded by calling the `callback` function argument.
+ * This method can be used to lazily load imports. For example, given a 
+ * template:
+ *     
+ *     <template>
+ *       <link rel="import" href="my-import1.html">
+ *       <link rel="import" href="my-import2.html">
+ *     </template>
+ *
+ *     Polymer.importElements(template.content, function() {
+ *       console.log('imports lazily loaded'); 
+ *     });
+ * 
+ * @method importElements
+ * @param {Node} node Node containing the HTMLImports to load.
+ * @param {Function} callback Callback called when all imports have loaded.
+ */
+function importElements(node, callback) {
+  if (dom) {
+    document.head.appendChild(node);
+    whenReady(callback);
+  } else if (callback) {
+    callback();
   }
+}
 
-  function importUrls(urls, callback) {
-    if (urls && urls.length) {
-        var frag = document.createDocumentFragment();
-        for (var i=0, l=urls.length, url, link; (i<l) && (url=urls[i]); i++) {
-          link = document.createElement('link');
-          link.rel = 'import';
-          link.href = url;
-          frag.appendChild(link);
-        }
-        importElements(frag, callback);
-    } else if (callback) {
-      callback();
-    }
+/**
+ * Loads an HTMLImport for each url specified in the `urls` array.
+ * Notifies when all the imports have loaded by calling the `callback` 
+ * function argument. This method can be used to lazily load imports. 
+ * For example,
+ *
+ *     Polymer.import(['my-import1.html', 'my-import2.html'], function() {
+ *       console.log('imports lazily loaded'); 
+ *     });
+ * 
+ * @method import
+ * @param {Array} urls Array of urls to load as HTMLImports.
+ * @param {Function} callback Callback called when all imports have loaded.
+ */
+function _import(urls, callback) {
+  if (urls && urls.length) {
+      var frag = document.createDocumentFragment();
+      for (var i=0, l=urls.length, url, link; (i<l) && (url=urls[i]); i++) {
+        link = document.createElement('link');
+        link.rel = 'import';
+        link.href = url;
+        frag.appendChild(link);
+      }
+      importElements(frag, callback);
+  } else if (callback) {
+    callback();
   }
+}
 
-  // exports
-  scope.import = importUrls;
-  scope.importElements = importElements;
+// exports
+scope.import = _import;
+scope.importElements = importElements;
 
 })(Polymer);

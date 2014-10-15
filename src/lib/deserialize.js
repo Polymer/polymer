@@ -13,6 +13,7 @@
     return value;
   }
 
+  // helper for deserializing properties of various types to strings
   var typeHandlers = {
     string: noopHandler,
     'undefined': noopHandler,

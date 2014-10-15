@@ -14,7 +14,6 @@
   var log = window.WebComponents ? WebComponents.flags.log : {};
   var api = scope.api.instance.events;
   var EVENT_PREFIX = api.EVENT_PREFIX;
-  // polymer-element declarative api: events feature
 
   var mixedCaseEventTypes = {};
   [
@@ -28,6 +27,7 @@
     mixedCaseEventTypes[e.toLowerCase()] = e;
   });
 
+  // polymer-element declarative api: events feature
   var events = {
     parseHostEvents: function() {
       // our delegates map
