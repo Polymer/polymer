@@ -9,6 +9,10 @@
 
 (function(scope) {
 
+  /**
+   * @class polymer-base
+   */
+
   // imports
 
   var log = window.WebComponents ? WebComponents.flags.log : {};
@@ -30,14 +34,13 @@
 
   var numberIsNaN = Number.isNaN || function(value) {
     return typeof value === 'number' && isNaN(value);
-  }
+  };
 
   function areSameValue(left, right) {
     if (left === right)
       return left !== 0 || 1 / left === 1 / right;
     if (numberIsNaN(left) && numberIsNaN(right))
       return true;
-
     return left !== left && right !== right;
   }
 
@@ -51,6 +54,9 @@
   }
 
   var properties = {
+
+    // creates a CompoundObserver to observe property changes
+    // NOTE, this is only done there are any properties in the `observe` object
     createPropertyObserver: function() {
       var n$ = this._observeNames;
       if (n$ && n$.length) {
@@ -66,11 +72,16 @@
         }
       }
     },
+
+    // start observing property changes
     openPropertyObserver: function() {
       if (this._propertyObserver) {
         this._propertyObserver.open(this.notifyPropertyChanges, this);
       }
     },
+
+    // handler for property changes; routes changes to observing methods
+    // note: array valued properties are observed for array splices
     notifyPropertyChanges: function(newValues, oldValues, paths) {
       var name, method, called = {};
       for (var i in oldValues) {
@@ -95,16 +106,28 @@
         }
       }
     },
+
+    // call method iff it exists.
+    invokeMethod: function(method, args) {
+      var fn = this[method] || method;
+      if (typeof fn === 'function') {
+        fn.apply(this, args);
+      }
+    },
+
+    /**
+     * Force any pending property changes to synchronously deliver to
+     * handlers specified in the `observe` object.
+     * Note, normally changes are processed at microtask time.
+     *
+     * @method deliverChanges
+     */
     deliverChanges: function() {
       if (this._propertyObserver) {
         this._propertyObserver.deliver();
       }
     },
-    propertyChanged_: function(name, value, oldValue) {
-      if (this.reflect[name]) {
-        this.reflectPropertyToAttribute(name);
-      }
-    },
+
     observeArrayValue: function(name, value, old) {
       // we only care if there are registered side-effects
       var callbackName = this.observe[name];
@@ -125,62 +148,84 @@
         }
       }
     },
+
     emitPropertyChangeRecord: function(name, value, oldValue) {
       var object = this;
-      if (areSameValue(value, oldValue))
+      if (areSameValue(value, oldValue)) {
         return;
-
-      this.propertyChanged_(name, value, oldValue);
-
-      if (!Observer.hasObjectObserve)
+      }
+      // invoke property change side effects
+      this._propertyChanged(name, value, oldValue);
+      // emit change record
+      if (!Observer.hasObjectObserve) {
         return;
-
-      var notifier = this.notifier_;
-      if (!notifier)
-        notifier = this.notifier_ = Object.getNotifier(this);
-
+      }
+      var notifier = this._objectNotifier;
+      if (!notifier) {
+        notifier = this._objectNotifier = Object.getNotifier(this);
+      }
       updateRecord.object = this;
       updateRecord.name = name;
       updateRecord.oldValue = oldValue;
-
       notifier.notify(updateRecord);
     },
+
+    _propertyChanged: function(name, value, oldValue) {
+      if (this.reflect[name]) {
+        this.reflectPropertyToAttribute(name);
+      }
+    },
+
+    // creates a property binding (called via bind) to a published property.
+    bindProperty: function(property, observable, oneTime) {
+      if (oneTime) {
+        this[property] = observable;
+        return;
+      }
+      var computed = this.element.prototype.computed;
+      // Binding an "out-only" value to a computed property. Note that
+      // since this observer isn't opened, it doesn't need to be closed on
+      // cleanup.
+      if (computed && computed[property]) {
+        var privateComputedBoundValue = property + 'ComputedBoundObservable_';
+        this[privateComputedBoundValue] = observable;
+        return;
+      }
+      return this.bindToAccessor(property, observable, resolveBindingValue);
+    },
+
+    // NOTE property `name` must be published. This makes it an accessor.
     bindToAccessor: function(name, observable, resolveFn) {
       var privateName = name + '_';
       var privateObservable  = name + 'Observable_';
       // Present for properties which are computed and published and have a
       // bound value.
       var privateComputedBoundValue = name + 'ComputedBoundObservable_';
-
       this[privateObservable] = observable;
-
       var oldValue = this[privateName];
-
+      // observable callback
       var self = this;
       function updateValue(value, oldValue) {
         self[privateName] = value;
-
         var setObserveable = self[privateComputedBoundValue];
         if (setObserveable && typeof setObserveable.setValue == 'function') {
           setObserveable.setValue(value);
         }
- 
         self.emitPropertyChangeRecord(name, value, oldValue);
       }
- 
+      // resolve initial value
       var value = observable.open(updateValue);
-
       if (resolveFn && !areSameValue(oldValue, value)) {
         var resolvedValue = resolveFn(oldValue, value);
         if (!areSameValue(value, resolvedValue)) {
           value = resolvedValue;
-          if (observable.setValue)
+          if (observable.setValue) {
             observable.setValue(value);
+          }
         }
       }
-
       updateValue(value, oldValue);
-
+      // register and return observable
       var observer = {
         close: function() {
           observable.close();
@@ -191,11 +236,11 @@
       this.registerObserver(observer);
       return observer;
     },
+
     createComputedProperties: function() {
       if (!this._computedNames) {
         return;
       }
-
       for (var i = 0; i < this._computedNames.length; i++) {
         var name = this._computedNames[i];
         var expressionText = this.computed[name];
@@ -208,44 +253,21 @@
         }
       }
     },
-    bindProperty: function(property, observable, oneTime) {
-      if (oneTime) {
-        this[property] = observable;
-        return;
-      }
-      var computed = this.element.prototype.computed;
 
-      // Binding an "out-only" value to a computed property. Note that
-      // since this observer isn't opened, it doesn't need to be closed on
-      // cleanup.
-      if (computed && computed[property]) {
-        var privateComputedBoundValue = property + 'ComputedBoundObservable_';
-        this[privateComputedBoundValue] = observable;
-        return;
-      }
-
-      return this.bindToAccessor(property, observable, resolveBindingValue);
-    },
-    invokeMethod: function(method, args) {
-      var fn = this[method] || method;
-      if (typeof fn === 'function') {
-        fn.apply(this, args);
-      }
-    },
+    // property bookkeeping
     registerObserver: function(observer) {
       if (!this._observers) {
         this._observers = [observer];
         return;
       }
-
       this._observers.push(observer);
     },
-    // observer array items are arrays of observers.
+
     closeObservers: function() {
       if (!this._observers) {
         return;
       }
-
+      // observer array items are arrays of observers.
       var observers = this._observers;
       for (var i = 0; i < observers.length; i++) {
         var observer = observers[i];
@@ -253,14 +275,15 @@
           observer.close();
         }
       }
-
       this._observers = [];
     },
+
     // bookkeeping observers for memory management
     registerNamedObserver: function(name, observer) {
       var o$ = this._namedObservers || (this._namedObservers = {});
       o$[name] = observer;
     },
+
     closeNamedObserver: function(name) {
       var o$ = this._namedObservers;
       if (o$ && o$[name]) {
@@ -269,6 +292,7 @@
         return true;
       }
     },
+
     closeNamedObservers: function() {
       if (this._namedObservers) {
         for (var i in this._namedObservers) {
@@ -277,6 +301,7 @@
         this._namedObservers = {};
       }
     }
+
   };
 
   // logging

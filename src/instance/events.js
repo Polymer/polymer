@@ -40,6 +40,10 @@
           fn[args ? 'apply' : 'call'](obj, args);
         }
         log.events && console.groupEnd();
+        // NOTE: dirty check right after calling method to ensure 
+        // changes apply quickly; in a very complicated app using high 
+        // frequency events, this can be a perf concern; in this case,
+        // imperative handlers can be used to avoid flushing.
         Polymer.flush();
       }
     }
@@ -49,10 +53,40 @@
 
   scope.api.instance.events = events;
 
+  /**
+   * @class Polymer
+   */
+
+  /**
+   * Add a gesture aware event handler to the given `node`. Can be used 
+   * in place of `element.addEventListener` and ensures gestures will function
+   * as expected on mobile platforms. Please note that Polymer's declarative
+   * event handlers include this functionality by default.
+   * 
+   * @method addEventListener
+   * @param {Node} node node on which to listen
+   * @param {String} eventType name of the event
+   * @param {Function} handlerFn event handler function
+   * @param {Boolean} capture set to true to invoke event capturing
+   * @type Function
+   */
   // alias PolymerGestures event listener logic
   scope.addEventListener = function(node, eventType, handlerFn, capture) {
     PolymerGestures.addEventListener(wrap(node), eventType, handlerFn, capture);
   };
+
+  /**
+   * Remove a gesture aware event handler on the given `node`. To remove an
+   * event listener, the exact same arguments are required that were passed
+   * to `Polymer.addEventListener`.
+   * 
+   * @method removeEventListener
+   * @param {Node} node node on which to listen
+   * @param {String} eventType name of the event
+   * @param {Function} handlerFn event handler function
+   * @param {Boolean} capture set to true to invoke event capturing
+   * @type Function
+   */
   scope.removeEventListener = function(node, eventType, handlerFn, capture) {
     PolymerGestures.removeEventListener(wrap(node), eventType, handlerFn, capture);
   };

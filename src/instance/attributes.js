@@ -12,6 +12,9 @@
   // instance api for attributes
 
   var attributes = {
+    // copy attributes defined in the element declaration to the instance
+    // e.g. <polymer-element name="x-foo" tabIndex="0"> tabIndex is copied
+    // to the element instance here.
     copyInstanceAttributes: function () {
       var a$ = this._instanceAttributes;
       for (var k in a$) {
@@ -57,13 +60,13 @@
     // return the published property matching name, or undefined
     propertyForAttribute: function(name) {
       var match = this._publishLC && this._publishLC[name];
-      //console.log('propertyForAttribute:', name, 'matches', match);
       return match;
     },
-    // convert representation of 'stringValue' based on type of 'currentValue'
+    // convert representation of `stringValue` based on type of `currentValue`
     deserializeValue: function(stringValue, currentValue) {
       return scope.deserializeValue(stringValue, currentValue);
     },
+    // convert to a string value based on the type of `inferredType`
     serializeValue: function(value, inferredType) {
       if (inferredType === 'boolean') {
         return value ? '' : undefined;
@@ -72,6 +75,8 @@
         return value;
       }
     },
+    // serializes `name` property value and updates the corresponding attribute
+    // note that reflection is opt-in.
     reflectPropertyToAttribute: function(name) {
       var inferredType = typeof this[name];
       // try to intelligently serialize property value

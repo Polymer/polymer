@@ -9,10 +9,18 @@
 
 (function(scope) {
 
+  /**
+   * @class polymer-base
+   */
+
   var utils = {
+
     /**
       * Invokes a function asynchronously. The context of the callback
-      * function is bound to 'this' automatically.
+      * function is bound to 'this' automatically. Returns a handle which may 
+      * be passed to <a href="#cancelAsync">cancelAsync</a> to cancel the 
+      * asynchronous call.
+      *
       * @method async
       * @param {Function|String} method
       * @param {any|Array} args
@@ -34,6 +42,14 @@
       // NOTE: switch on inverting handle to determine which time is used.
       return timeout ? handle : ~handle;
     },
+
+    /**
+      * Cancels a pending callback that was scheduled via 
+      * <a href="#async">async</a>. 
+      *
+      * @method cancelAsync
+      * @param {handle} handle Handle of the `async` to cancel.
+      */
     cancelAsync: function(handle) {
       if (handle < 0) {
         cancelAnimationFrame(~handle);
@@ -41,8 +57,10 @@
         clearTimeout(handle);
       }
     },
+
     /**
       * Fire an event.
+      *
       * @method fire
       * @returns {Object} event
       * @param {string} type An event name.
@@ -62,8 +80,10 @@
       node.dispatchEvent(event);
       return event;
     },
+
     /**
       * Fire an event asynchronously.
+      *
       * @method asyncFire
       * @param {string} type An event name.
       * @param detail
@@ -72,8 +92,10 @@
     asyncFire: function(/*inType, inDetail*/) {
       this.async("fire", arguments);
     },
+
     /**
       * Remove class from old, add class to anew, if they exist.
+      *
       * @param classFollows
       * @param anew A node.
       * @param old A node
@@ -87,9 +109,11 @@
         anew.classList.add(className);
       }
     },
+
     /**
       * Inject HTML which contains markup bound to this element into
       * a target element (replacing target element content).
+      *
       * @param String html to inject
       * @param Element target element
       */

@@ -87,6 +87,8 @@
      * 
      * Override `created` to perform custom create-time tasks. No need to call 
      * super-class `created` unless you are extending another Polymer element.
+     * Created is called before the element creates `shadowRoot` or prepares
+     * data-observation.
      * 
      * @method created
      * @type void
@@ -145,19 +147,16 @@
       this.addHostListeners();
     },
 
+    // system entry point, do not override
     makeElementReady: function() {
       if (this._readied) {
         return;
       }
       this._readied = true;
       this.createComputedProperties();
-      // TODO(sorvell): We could create an entry point here
-      // for the user to compute property values.
-      // process declarative resources
       this.parseDeclarations(this.__proto__);
-      // TODO(sorvell): CE polyfill uses unresolved attribute to simulate
-      // :unresolved; remove this attribute to be compatible with native
-      // CE.
+      // NOTE: Support use of the `unresolved` attribute to help polyfill
+      // custom elements' `:unresolved` feature.
       this.removeAttribute('unresolved');
       // user entry point
       this.ready();
@@ -190,19 +189,12 @@
      * @method attachedCallback
      */
      attachedCallback: function() {
+      // when the element is attached, prevent it from unbinding.
       this.cancelUnbindAll();
       // invoke user action
       if (this.attached) {
         this.attached();
       }
-      // TODO(sorvell): bc
-      if (this.enteredView) {
-        this.enteredView();
-      }
-      // NOTE: domReady can be used to access elements in dom (descendants,
-      // ancestors, siblings) such that the developer is enured to upgrade
-      // ordering. If the element definitions have loaded, domReady
-      // can be used to access upgraded elements.
       if (!this.hasBeenAttached) {
         this.hasBeenAttached = true;
         if (this.domReady) {
@@ -210,6 +202,16 @@
         }
       }
     },
+
+     /**
+     * Implement to access custom elements in dom descendants, ancestors, 
+     * or siblings. Because custom elements upgrade in document order, 
+     * elements accessed in `ready` or `attached` may not be upgraded. When
+     * `domReady` is called, all registered custom elements are guaranteed
+     * to have been upgraded.
+     * 
+     * @method domReady
+     */
 
     /**
      * Low-level lifecycle method called as part of standard Custom Elements
@@ -233,26 +235,9 @@
       }
     },
 
-    // TODO(sorvell): bc
-    enteredViewCallback: function() {
-      this.attachedCallback();
-    },
-    // TODO(sorvell): bc
-    leftViewCallback: function() {
-      this.detachedCallback();
-    },
-    // TODO(sorvell): bc
-    enteredDocumentCallback: function() {
-      this.attachedCallback();
-    },
-    // TODO(sorvell): bc
-    leftDocumentCallback: function() {
-      this.detachedCallback();
-    },
-
     /**
      * Walks the prototype-chain of this element and allows specific
-     * classes a chance to process to static declarations.
+     * classes a chance to process static declarations.
      * 
      * In particular, each polymer-element has it's own `template`.
      * `parseDeclarations` is used to accumulate all element `template`s
