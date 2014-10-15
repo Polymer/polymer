@@ -11,11 +11,14 @@
 	On supported platforms, platform.js is not needed. To retain compatibility
 	with the polyfills, we stub out minimal functionality.
  */
-if (!window.Platform) {
+if (!window.WebComponents) {
 
-  Platform = {
-  	flush: function() {}
+  WebComponents = {
+  	flush: function() {},
+    flags: {log: {}}
   };
+
+  Platform = WebComponents;
 
   CustomElements = {
   	useNative: true,
