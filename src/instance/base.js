@@ -168,7 +168,7 @@
      * functionality. For custom tasks in your element, implement `attributeChanged` 
      * instead, which is called immediately after `attributeChangedCallback`. 
      * 
-     * @method attachedCallback
+     * @method attributeChangedCallback
      */
     attributeChangedCallback: function(name, oldValue) {
       // TODO(sjmiles): adhoc filter
