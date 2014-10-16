@@ -35,7 +35,7 @@ var whenReady = scope.whenReady;
  * @param {Function} callback Callback called when all imports have loaded.
  */
 function importElements(node, callback) {
-  if (dom) {
+  if (node) {
     document.head.appendChild(node);
     whenReady(callback);
   } else if (callback) {
