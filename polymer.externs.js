@@ -21,7 +21,7 @@ var Polymer = function(name, prototype) {};
 
 /** @constructor @extends {HTMLElement} */
 var PolymerElement = function() {
-  /** @type {Object.<string, HTMLElement>} */
+  /** @type {Object.<string, !HTMLElement>} */
   this.$;
 };
 
@@ -39,17 +39,26 @@ PolymerElement.prototype.domReady = function() {};
 /** On detached from the DOM callback. */
 PolymerElement.prototype.detached = function() {};
 
+/**
+ * Callback fired when an attribute on the element has been added, changed, or removed.
+ *
+ * @param {string} name The name of the attribute that changed.
+ * @param {*} oldValue The previous value of the attribute, or null if it was added.
+ * @param {*} newValue The new value of the attribute, or null if it was removed.
+ * @param {string} namespace The namespace of the attribute.
+ */
+PolymerElement.prototype.attributeChanged = function(name, oldValue, newValue, namespace) {};
 
 /**
  * Fire a callback when the light DOM children of an element changes.
  * `callback` is called at most once, and should re-register with onMutation
  * if it cares about further changes to the light DOM.
  *
- * @param {HTMLElement} domElement The element to observe for changes. Often
+ * @param {!Node} domNode The node to observe for changes. Often
  *     the polymerElement itself.
  * @param {Function} callback The function to call when changes happen.
  */
-PolymerElement.prototype.onMutation = function(domElement, callback) {};
+PolymerElement.prototype.onMutation = function(domNode, callback) {};
 
 
 /**
