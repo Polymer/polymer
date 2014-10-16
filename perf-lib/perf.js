@@ -1,21 +1,16 @@
 console.perf = function() {
   console.timeline();
   console.profile();
-  console.perf.time = Date.now();  
-}
+  console.perf.time = performance.now();  
+};
 
 console.perfEnd = function() {
-  requestAnimationFrame(function() {
-    requestAnimationFrame(function() {
-      requestAnimationFrame(function() {
-        var time = (Date.now() - console.perf.time) + 'ms';
-        console.profileEnd();
-        document.title += ' (' + time + ')';
-        if (window.top !== window) {
-          window.top.postMessage(time, '*');
-        }
-        //console.log('From start to after first paint (?): ' + time);
-      });
-    });
-  });
-}
+  // force layout
+  document.body.offsetWidth;
+  var time = performance.now() - console.perf.time;
+  console.profileEnd();
+  document.title += ' (' + time.toFixed(1) + 'ms)';
+  if (window.top !== window) {
+    window.top.postMessage(time + 'ms', '*');
+  }
+};
