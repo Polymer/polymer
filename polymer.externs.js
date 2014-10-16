@@ -71,7 +71,7 @@ PolymerElement.prototype.onMutation = function(domNode, callback) {};
  *     calling the callback.
  */
 PolymerElement.prototype.async = function(
-      callback, opt_args, opt_timeoutMillis) {};
+    callback, opt_args, opt_timeoutMillis) {};
 
 
 /**
