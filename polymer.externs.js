@@ -57,7 +57,8 @@ PolymerElement.prototype.attributeChanged = function(
  *
  * @param {!Node} domNode The node to observe for changes. Often
  *     the polymerElement itself.
- * @param {Function} callback The function to call when changes happen.
+ * @param {function(!MutationObserver, !Array.<!MutationRecord>)} callback
+ *     The function to call when changes happen.
  */
 PolymerElement.prototype.onMutation = function(domNode, callback) {};
 
@@ -65,12 +66,12 @@ PolymerElement.prototype.onMutation = function(domNode, callback) {};
 /**
  * Call the callback after a given timeout.
  *
- * @param {(Function|string)} callback The function to call after the delay. 
+ * @param {(Function|string)} callback The function to call after the delay.
  *     Called with `this` bound to the polymerElement.
  * @param {Array=} opt_args Arguments to pass to callback.
  * @param {number=} opt_timeoutMillis Minimum delay in milliseconds before
  *     calling the callback.
- * @return {number} A handle for `#cancelAsync()` 
+ * @return {number} A handle for `#cancelAsync()`
  */
 PolymerElement.prototype.async = function(
     callback, opt_args, opt_timeoutMillis) {};
