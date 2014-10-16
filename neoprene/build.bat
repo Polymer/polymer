@@ -1,0 +1,1 @@
+vulcanize polymer.html --inline -output dist/polymer.html

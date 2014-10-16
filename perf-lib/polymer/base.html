@@ -1,0 +1,82 @@
+<script>
+
+  var attributes = function(node, attr$) {
+    attr$.split(' ').forEach(function(a) {
+      node.setAttribute(a, '');
+    });
+  };
+  
+  Base = {
+    // (semi-)pluggable features for Base
+    features: [],
+    installFeatures: function() {
+      // simple engine to modularize features
+      Base.features.forEach(function(f) {
+        extend(Base, f);  
+      });
+      delete Base.init;
+      delete Base.installFeatures;
+    },
+    registerCallback: function() {
+      // context is a prototype, not an instance
+      var prototype = this;
+      prototype._template = window.import.querySelector('template');
+      if (prototype._template) {
+        // requires annotations feature
+        prototype.parseTemplateAnnotations(prototype._template);
+      }
+      // make a list of names that have properties of the form <name>Changed.
+      // DataClient can use this list to efficiently associate *Changed 
+      // methods with published properties.
+      // TODO(sjmiles): maybe remove this feature completely in favor of 
+      // explicit annotations in the prototype.  
+      //prototype.precomputeNotifierCandidates();
+    },
+    createdCallback: function() {
+      this.initFeatures();
+      this.createRoot();
+      //if (!this.deferStamp) {
+        this.stampTemplate();
+      //}
+      this.installAttributes();
+      this.created();
+      // requires bindings feature
+      this.updateBindings();
+    },
+    created: function() {
+    },
+    initFeatures: function() {
+      Base.features.forEach(function(f) {
+        f.init && f.init.call(this);
+      }, this);
+    },
+    //
+    // TODO(sjmiles): all the following should be 'features'?
+    //
+    createRoot: function(){
+      // TODO(sjmiles): ad hoc to switch on _template existence here
+      this.root = this._template ? this.createShadowRoot() : this;
+    },
+    stampTemplate: function() {
+      if (this._template && !this._stamped) {
+        this.root.appendChild(this.instanceTemplate(this._template));
+        this._stamped = true;
+        // requires bindings feature
+        this.marshalBindings();
+        // TODO(sjmiles): we don't necessarily want to do this here
+        //if (this.deferBindings) {
+        //  this.updateBindings();
+        //}
+      }
+    },
+    installAttributes: function() {
+      if (this._attributes) {
+        attributes(this, this._attributes);
+      }
+    },
+    instanceTemplate: function(template) {
+      return document.importNode(template.content, true);
+    }
+  };
+  
+</script>

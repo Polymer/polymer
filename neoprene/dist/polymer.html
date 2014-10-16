@@ -1,0 +1,429 @@
+<script>
+
+  // a tiny bit of sugar for `document.currentScript.ownerDocument`
+  // sadly `import` is reserved, so we need another name or
+  // you have to refer to this value `window.import`
+  Object.defineProperty(window, 'import', {
+    enumerable: true,
+    configurable: true,
+    get: function() {
+      return (document._currentScript || document.currentScript).ownerDocument;
+    }
+  });
+  
+  // copy own properties from 'api' to 'prototype, with name hinting for 'super'
+  function extend(prototype, api) {
+    if (prototype && api) {
+      // use only own properties of 'api'
+      Object.getOwnPropertyNames(api).forEach(function(n) {
+        // acquire property descriptor
+        var pd = Object.getOwnPropertyDescriptor(api, n);
+        if (pd) {
+          // clone property via descriptor
+          Object.defineProperty(prototype, n, pd);
+          // cache name-of-method for 'super' engine
+          /*
+          if (typeof pd.value == 'function') {
+            // hint the 'super' engine
+            pd.value.nom = n;
+          }
+          */
+        }
+      });
+    }
+    return prototype;
+  };
+
+  Event.prototype.keys = {
+    ESC_KEY: 27,
+    ENTER_KEY: 13
+  };
+  
+  Base = {
+
+    // (semi-)pluggable features for Base
+    _features: [],
+
+    addFeature: function(feature) {
+      this._features.push(feature);
+      extend(Base, feature);
+      delete Base.init;
+      delete Base.register;
+    },
+
+    registerCallback: function() {
+      // `this` context is a prototype, not an instance
+      var prototype = this;
+      prototype._template = 
+        document.currentScript.ownerDocument.querySelector('template');
+      this.registerFeatures(prototype);
+      this.registered(prototype);
+    },
+
+    registered: function(prototype) {
+      // for overriding
+    },
+
+    registerFeatures: function(prototype) {
+      Base._features.forEach(function(f) {
+        f.register && f.register(prototype);
+      }, this);
+    },
+
+    createdCallback: function() {
+      this.root = this;
+      this.beforeCreated();
+      this.initFeatures();
+      this.created();
+      this.afterCreated();
+    },
+
+    beforeCreated: function() {
+      // for overriding
+    },
+
+    initFeatures: function() {
+      Base._features.forEach(function(f) {
+        f.init && f.init.call(this);
+      }, this);
+    },
+
+    created: function() {
+      // for overriding
+    },
+
+    afterCreated: function() {
+      // for overriding
+    },
+
+    attachedCallback: function() {
+      // reserved for canonical behavior
+      this.attached();
+    },
+
+    attached: function() {
+      // for overriding
+    },
+
+    dettachedCallback: function() {
+      // reserved for canonical behavior
+      this.dettached();
+    },
+
+    dettached: function() {
+      // for overriding
+    },
+
+    attributeChangedCallback: function() {
+      // reserved for canonical behavior
+      this.attributeChanged.apply(this, arguments);
+    },
+
+    attributeChanged: function() {
+      // for overriding
+    }
+    
+  };
+
+  Base.__proto__ = HTMLElement.prototype;
+  
+  var Polymer = function(prototype) {
+    prototype.__proto__ = Base;
+    prototype.registerCallback();
+    document.registerElement(prototype.name, {prototype: prototype});
+  };
+
+  Polymer.log = {
+  };
+
+  Base.addFeature({
+    log: function() {
+      var args = Array.prototype.slice.call(arguments, 0); 
+      args[0] = '[%s]: ' + args[0];
+      args.splice(1, 0, this.localName);
+      console.log.apply(console, args);
+    }
+  });
+
+  Base.addFeature({
+    register: function(prototype) {
+      var prev = (document._currentScript || document.currentScript).previousElementSibling;
+      if (prev && prev.localName === 'template') {
+        prototype._template = prev;
+      }
+    },
+    stampTemplate: function(template) {
+      this._stampTemplate(template || this._template, this.root);
+      if (window.CustomElements) {
+        CustomElements.upgradeSubtree(this.root);
+      }
+    },
+    _stampTemplate: function(template, target) {
+      target.insertBefore(this.instanceTemplate(template), 
+        target.firstElementChild);
+    },
+    instanceTemplate: function(template) {
+      return document.importNode(template.content, true);
+    }
+  });
+  
+  Base.addFeature({
+    $$: function(slctr) {
+      return this.root.querySelector(slctr);
+    },
+    marshalNodeReferences: function() {
+      // populate $ with id->node properties from the this.root subtree
+      this.$ = {};
+      var n$ = this.root.querySelectorAll("[id]");
+      for (var i=0, n; (n=n$[i]); i++) {
+        // TODO(sjmiles): this node could come from another host 
+        this.$[n.id] = n;
+      }
+    }
+  });
+  
+  Base.addFeature({
+    listeners: {},
+    init: function() {
+    },
+    // TODO(sjmiles): support for '.' notation requires 'nodes' feature
+    listenListeners: function() {
+      for (var key in this.listeners) {
+        var node = this, name = key;
+        if (name.indexOf('.') >= 0) {
+          name = name.split('.');
+          node = this.$[name[0]];
+          name = name[1];
+        }
+        this.listen(node, name, this.listeners[key]);
+      }
+    },
+    listen: function(node, eventName, methodName) {
+      node.addEventListener(eventName, function(e) {
+        this[methodName](e, e.detail);
+      }.bind(this));
+    },
+    fire: function(type, detail, onNode, bubbles, cancelable) {
+      var node = onNode || this;
+      var detail = (detail === null || detail === undefined) ? {} : detail;
+      var event = new CustomEvent(type, {
+        bubbles: bubbles !== undefined ? bubbles : true,
+        cancelable: cancelable !== undefined ? cancelable : true,
+        detail: detail
+      });
+      node.dispatchEvent(event);
+      return event;
+    }
+  });
+  
+  Base.addFeature({
+    keyPresses: {},
+    listenKeyPresses: function() {
+      // for..in here to gate empty keyPresses object (iterates once or never)
+      for (var n in this.keyPresses) {
+        // only get here if there is something in keyPresses
+        this.addEventListener('keypress', this.keyPressesFeatureHandler);
+        // map string keys to numeric codes
+        for (n in this.keyPresses) {
+          if (typeof n === 'string') {
+            this.keyPresses[Event.prototype.keys[n]] = this.keyPresses[n];
+          }
+        }
+        break;
+      }
+    },
+    keyPressesFeatureHandler: function(e) {
+      var method = this.keyPresses[e.keyCode];
+      if (method && this[method]) {
+        return this[method](e.keyCode, e);
+      }
+    }
+  });
+  
+  Base.addFeature({
+
+    register: function(prototype) {
+      var t = prototype._template;
+      prototype._useContent = Boolean(t && t.content.querySelector('content'));
+    },
+    
+    poolContent: function() {
+      // pool the light dom
+      var pool = document.createDocumentFragment();
+      while (this.firstChild) {
+        pool.appendChild(this.firstChild);
+      }
+      this.contentPool = pool;
+    },
+    
+    distributeContent: function() {
+      var pool = this.contentPool;
+      //
+      // replace <content> with nodes teleported from pool
+      var content; 
+      while (content = this.querySelector('content')) {
+        var select = content.getAttribute('select');
+        var frag = pool;
+        if (select) {
+          frag = document.createDocumentFragment();
+          var nodes = pool.querySelectorAll(select);
+          for (var i=0, l=nodes.length; i<l; i++) {
+            frag.appendChild(nodes[i]);
+          }
+        }
+        // content self-destructs
+        content.parentNode.replaceChild(frag, content);
+      }
+    }
+          
+  });
+    
+  Base.addFeature({
+    init: function() {
+      if (this.hostAttributes) {
+        this.cloneAttributes(this, this.hostAttributes);
+      }
+    },
+    cloneAttributes: function(node, attr$) {
+      attr$.split(' ').forEach(function(a) {
+        node.setAttribute(a, '');
+      });
+    }
+  });
+
+  Base.addFeature({
+
+    init: function() {
+      this._boundData = {};
+    },
+
+    register: function(prototype) {
+      prototype.setupBindings();
+    },
+
+    setupBindings: function() {
+      for (var n in this.bind) {
+        this.setupBinding(n, this.bind[n]);
+      }
+    },
+
+    setupBinding: function(property, path) {
+      var paths = path.split('.');
+      //
+      if (paths.length === 1) {
+        if (typeof this[path] === 'function') {
+          this.bindMethod(property, paths);
+          return;
+        }
+        //paths.push('textContent');
+        path += '.textContent';
+      }
+      //
+      this.bindProperty(property, 'this.$.' + path);
+    },
+
+    bindMethod: function(property, path) {
+      Object.defineProperty(this, property, {
+        set: function(value) {
+          //if (this[path] !== value) {
+            this._boundData[path] = value;
+            this[path](value);
+          //}
+        },
+        get: function() {
+          return this._boundData[path];
+        }
+      });
+    },
+
+    bindProperty: function(property, path) {
+      Object.defineProperty(this, property, {
+        set: new Function('value', path + ' = value;'),
+        get: new Function('return ' + path + ';')
+      });
+    }
+
+  });
+
+  Base.addFeature({
+
+    register: function(prototype) {
+      prototype._nodes = [];
+      // use feature to parse annotations out of template
+      prototype.parseTemplateAnnotations(prototype._template);
+      prototype._template.map.forEach(function(annotation) {
+        var index = this._nodes.push(annotation) - 1;
+        // TODO(sjmiles): we need to multiplex the bind method
+        // to handle multiple binding targets, right now you
+        // only get one
+        var binding = annotation.bindings[0];
+        this.bindAnnotation(binding.value, function(value) {
+          this._nodes[index].textContent = value;
+        });
+      }, prototype);
+    },
+
+    bindAnnotation: function(property, method) {
+      Object.defineProperty(this, property, {
+        set: function(value) {
+          this._boundData[property] = value;
+          method.call(this, value);
+        },
+        get: function() {
+          return this._boundData[property];
+        }
+      });
+    },
+
+    marshalBoundNodes: function() {
+      this._nodes = this._nodes.map(function(a) {
+        return this.findAnnotatedNode(this.root, a);
+      }, this);
+    }
+    
+  });
+
+  Base.addFeature({
+    async: function(method) {
+      var handled = false;
+      var handle = function() {
+        if (!handled) {
+          handled = true;
+          method.call(this);
+        }
+      }.bind(this);
+      // minimize latency by racing requests
+      setTimeout(handle);
+      requestAnimationFrame(handle);
+    }
+  });
+    
+  Base.addFeature({
+
+    init: function() {
+      this.features();
+    },
+
+    features: function() {
+      this.defaultFeatures();
+    },
+    
+    defaultFeatures: function() {
+      if (this._useContent) {
+        this.poolContent();
+      }
+      if (this._template) {
+        this.stampTemplate();
+      }
+      this.marshalNodeReferences();
+      this.listenListeners();
+      this.listenKeyPresses();
+      if (this._useContent) {
+        this.distributeContent();
+      }
+    }
+
+  });
+ 
+</script>
+

@@ -1,0 +1,215 @@
+<link rel="import" href="polymer/polymer.html">
+
+<template>
+
+  <style>
+    :host {
+      display: block;
+      font-family: sans-serif;
+      font-size: 1.5em;
+    }
+    iframe {
+      position: absolute;
+      border: 0;
+      width: 1920px;
+      height: 1080px;
+      visibility: hidden;
+      xdisplay: none;
+    }  
+    o {
+      color: rgba(255, 0, 0, 0.5);
+      margin: 1px;
+    }
+    n {
+      color: green;
+      font-weight: bold;
+      margin: 2px;
+    }
+  </style>
+
+  <div></div>
+  
+  <iframe id="frame" on-load="load"></iframe> 
+
+</template><script>
+
+  Polymer({
+    name: 'frame-tester',
+    base: '',
+    runs: 25,
+    published: [
+      'tests'
+    ],
+    created: function() {
+      this.frame = this.$('#frame');
+      this.attributeChangedCallback('runs');
+      this.attributeChangedCallback('base');
+      addEventListener('message', this.scoreMessage.bind(this));
+    },
+    attributeChangedCallback: function(name) {
+      var value = this.getAttribute(name);
+      switch(name) {
+        case 'runs':
+          this.runs = value || this.runs;
+          break;
+        case 'base':
+          this.base = value || this.base;
+          break;
+      }
+    },
+    testsChanged: function() {
+      this.go();
+    },
+    shuffle: function(tests) {
+      var shuffled = [];
+      var ordered = tests.slice(0);
+      var count = ordered.length;
+      for (var i=0, j; i<count; i++) {
+        j = Math.floor(Math.random()*count);
+        // TODO(sjmiles): this is an easy but poorly randomized distribution
+        for (; !ordered[j]; j = (j + 1) % count);
+        shuffled.push(j);
+        ordered[j] = null;
+      }
+      return shuffled;
+    },
+    go: function() {
+      this.count = 0;
+      this.total = [];
+      this.times = [];
+      for (var i=0; i<this.tests.length; i++) {
+        this.total[i] = 0;
+        this.times[i] = [];
+      }
+      this.startRun();
+    },
+    startRun: function() {
+      this.shuffled = this.shuffle(this.tests);
+      this.index = -1;
+      //console.group('run', this.count);
+      this.nextTest();
+    },
+    nextTest: function() {
+      // last test in this run?
+      if (++this.index === this.tests.length) {
+        //console.groupEnd();
+        // report results
+        ++this.count;
+        this.report();
+        // more runs?
+        if (this.count < this.runs) {
+          this.startRun();
+        } else {
+          // all done!
+          this.fire('done');
+        }
+        return;
+      }
+      // test order is randomized
+      this.test = this.shuffled[this.index];
+      this.frame.src = this.base + this.tests[this.test];
+      // go async until load event fires
+    },
+    load: function() {
+      // frame is loaded, measure the time, then proceed
+      this.measure(function(time) {
+        this.record(time);
+        this.nextTest();
+      });
+    },
+    measure: function(next) {
+      this.afterScore = next;
+    },
+    scoreMessage: function(e) {
+      if (this.afterScore) {
+        var time = e.data;
+        if (time.slice(-2) === 'ms') {
+          time = Number(time.slice(0, -2));
+          this.afterScore(time);
+          this.afterScore = null;
+        }        
+      }
+    },
+    record: function(time) {
+      //console.log('index [%d], test [%d] time [%d]', this.index, this.test, time);
+      this.times[this.test].push(time);
+      this.total[this.test] += time;
+    },
+    report: function() {
+      var info = '<br>Runs: ' + this.count + '/' + this.runs 
+        + '<br><br><br>';
+      //
+      for (var i=0; i<this.tests.length; i++) {
+        var url = this.tests[i],
+            total = this.total[i], 
+            times = this.times[i], 
+            stats = this.stats(times);
+        //
+        var time = this.score(times, stats);
+        //
+        info += '' 
+          + ' <b>' + (time).toFixed(1) + 'ms' + '</b>'
+          //+ ' [stddev: ' + stats.deviation.toFixed(2) + ']' 
+          + ' &nbsp;&nbsp;&nbsp;<a href="' + this.base + url + '" target="_blank">' + url + '</a>'
+          + '<br>'
+          ;
+        info += '<hr>';
+        //
+        info += '<span style="font-size: 0.7em">';
+        for (var j=0, v; v=times[j]; j++) {
+          var o = stats.outlier(v);
+          info += (o ? '<o>' : '<n>') + v + (o ? '</o>' : '</n>') + '|';
+        }
+        info += '</span>';
+        info += '<br><br>'
+      }
+      //
+      this.$('div').innerHTML = info;
+    },
+    //
+    // pluggable scoring
+    //
+    // These functions select the minimum timing for score.
+    //
+    score: function(times, stats) {
+      var min = Number.MAX_VALUE;
+      for (var j=0, v; v=times[j]; j++) {
+        min = Math.min(v, min);
+      }
+      stats.score = min;
+      return min;
+    },
+    // called in stats context
+    outlier: function(value) {
+      return value > this.score;
+    },
+    //
+    // These functions select the mean of all times not more than one stddev 
+    // above the total sampling mean.
+    //
+    /*
+    score: function(times, stats) {
+      var cleaned = [];
+      for (var j=0, v; v=times[j]; j++) {
+        if (!stats.outlier(v)) {
+          cleaned.push(v);
+        }
+      }
+      return this.stats(cleaned).mean;
+    },
+    // called in stats context
+    outlier: function(value) {
+      return value - this.mean > (1 * this.deviation);
+    },
+    */
+    //
+    stats: function(a) {
+      var r = {mean: 0, variance: 0, deviation: 0}, t = a.length;
+      for (var m, s = 0, l = t; l--; s += a[l]);
+      for (m = r.mean = s / t, l = t, s = 0; l--; s += Math.pow(a[l] - m, 2));
+      r.outlier = this.outlier;
+      return r.deviation = Math.sqrt(r.variance = s / t), r;
+    }
+  });
+
+</script>
