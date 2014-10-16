@@ -47,7 +47,8 @@ PolymerElement.prototype.detached = function() {};
  * @param {*} newValue The new value of the attribute, or null if it was removed.
  * @param {string} namespace The namespace of the attribute.
  */
-PolymerElement.prototype.attributeChanged = function(name, oldValue, newValue, namespace) {};
+PolymerElement.prototype.attributeChanged = function(
+    name, oldValue, newValue, namespace) {};
 
 /**
  * Fire a callback when the light DOM children of an element changes.
@@ -64,14 +65,23 @@ PolymerElement.prototype.onMutation = function(domNode, callback) {};
 /**
  * Call the callback after a given timeout.
  *
- * @param {Function} callback The function to call after the delay. Called with
- *     `this` bound to the polymerElement.
+ * @param {(Function|string)} callback The function to call after the delay. 
+ *     Called with `this` bound to the polymerElement.
  * @param {Array=} opt_args Arguments to pass to callback.
  * @param {number=} opt_timeoutMillis Minimum delay in milliseconds before
  *     calling the callback.
+ * @return {number} A handle for `#cancelAsync()` 
  */
 PolymerElement.prototype.async = function(
     callback, opt_args, opt_timeoutMillis) {};
+
+/**
+ * Cancels the async operation with the given handle from executing if
+ * it hasn't yet run. See `#async()`.
+ *
+ * @param {number} handle The handle for the async operation to cancel.
+ */
+PolymerElement.prototype.cancelAsync = function(handle) {};
 
 
 /**
