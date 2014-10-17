@@ -1,3 +1,10 @@
+// x-browser compat.
+if (!window.performance) {
+  var start = Date.now();
+  // only at millisecond precision
+  window.performance = {now: function(){ return Date.now() - start }};
+}
+
 console.perf = function() {
   if (console.timeline) {
     console.timeline();
