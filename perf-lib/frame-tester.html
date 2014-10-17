@@ -3,11 +3,13 @@
 <template>
 
   <style>
+
     :host {
       display: block;
       font-family: sans-serif;
       font-size: 1.4em;
     }
+
     iframe {
       position: absolute;
       border: 0;
@@ -16,6 +18,7 @@
       visibility: hidden;
       xdisplay: none;
     }  
+
     o, n {
       display: inline-block;
       xwidth: 24px;
@@ -23,14 +26,17 @@
       text-align: right;
       font-family: monospace;
     }
+
     o {
       color: rgba(255, 0, 0, 0.5);
     }
+
     n {
       display: inline-block;
       color: green;
       font-weight: bold;
     }
+
   </style>
 
   <div></div>
@@ -40,18 +46,23 @@
 </template><script>
 
   Polymer({
+
     name: 'frame-tester',
     base: '',
     runs: 25,
+
     published: [
       'tests'
     ],
+
     created: function() {
       this.frame = this.$('#frame');
+      this.strategy = this.strategies.minimum;
       this.attributeChangedCallback('runs');
       this.attributeChangedCallback('base');
       addEventListener('message', this.scoreMessage.bind(this));
     },
+
     attributeChangedCallback: function(name) {
       var value = this.getAttribute(name);
       switch(name) {
@@ -61,11 +72,16 @@
         case 'base':
           this.base = value || this.base;
           break;
+        case 'strategy': 
+          this.strategy = this.strategies[strategy] || this.strategy;
+          break;
       }
     },
+
     testsChanged: function() {
       this.go();
     },
+
     shuffle: function(tests) {
       var shuffled = [];
       var ordered = tests.slice(0);
@@ -79,6 +95,7 @@
       }
       return shuffled;
     },
+
     go: function() {
       this.count = 0;
       this.total = [];
@@ -89,12 +106,14 @@
       }
       this.startRun();
     },
+
     startRun: function() {
       this.shuffled = this.shuffle(this.tests);
       this.index = -1;
       //console.group('run', this.count);
       this.nextTest();
     },
+
     nextTest: function() {
       // last test in this run?
       if (++this.index === this.tests.length) {
@@ -112,7 +131,6 @@
         return;
       }
       // test order is randomized
-
       this.test = this.shuffled[this.index];
       this.frame.src = this.base + this.tests[this.test];
       // it's possible for a test to end before the load event fires,
@@ -120,6 +138,7 @@
       // for a result.
       this.load();
     },
+
     load: function() {
       // frame is loaded, measure the time, then proceed
       this.measure(function(time) {
@@ -127,9 +146,11 @@
         this.nextTest();
       });
     },
+
     measure: function(next) {
       this.afterScore = next;
     },
+
     scoreMessage: function(e) {
       if (this.afterScore) {
         var time = e.data;
@@ -139,11 +160,13 @@
         }        
       }
     },
+
     record: function(time) {
       //console.log('index [%d], test [%d] time [%d]', this.index, this.test, time);
       this.times[this.test].push(time);
       this.total[this.test] += time;
     },
+
     report: function() {
       var info = '<br>Runs: ' + this.count + '/' + this.runs 
         + '<br><br>';
@@ -154,7 +177,7 @@
             times = this.times[i], 
             stats = this.stats(times);
         //
-        var time = this.score(times, stats);
+        var time = this.strategy.score(times, stats);
         //
         info += '' 
           + ' <b>' + (time).toFixed(1) + 'ms' + '</b>'
@@ -174,49 +197,55 @@
       //
       this.$('div').innerHTML = info;
     },
-    //
-    // pluggable scoring
-    //
-    // These functions select the minimum timing for score.
-    //
-    score: function(times, stats) {
-      var min = Number.MAX_VALUE;
-      for (var j=0, v; v=times[j]; j++) {
-        min = Math.min(v, min);
-      }
-      stats.score = min;
-      return min;
-    },
-    // called in stats context
-    outlier: function(value) {
-      return value > this.score;
-    },
-    //
-    // These functions select the mean of all times not more than one stddev 
-    // above the total sampling mean.
-    //
-    /*
-    score: function(times, stats) {
-      var cleaned = [];
-      for (var j=0, v; v=times[j]; j++) {
-        if (!stats.outlier(v)) {
-          cleaned.push(v);
-        }
-      }
-      return this.stats(cleaned).mean;
-    },
-    // called in stats context
-    outlier: function(value) {
-      return value - this.mean > (1 * this.deviation);
-    },
-    */
-    //
+
     stats: function(a) {
       var r = {mean: 0, variance: 0, deviation: 0}, t = a.length;
       for (var m, s = 0, l = t; l--; s += a[l]);
       for (m = r.mean = s / t, l = t, s = 0; l--; s += Math.pow(a[l] - m, 2));
-      r.outlier = this.outlier;
+      r.outlier = this.strategy.outlier;
       return r.deviation = Math.sqrt(r.variance = s / t), r;
+    },
+
+    //
+    // selectable statical strategies
+    //
+    
+    strategies: {
+
+      // This strategy selects the minimum timing for score.
+      minimum: {
+        score: function(times, stats) {
+          var min = Number.MAX_VALUE;
+          for (var j=0, v; v=times[j]; j++) {
+            min = Math.min(v, min);
+          }
+          stats.score = min;
+          return min;
+        },
+        // called in stats context
+        outlier: function(value) {
+          return value > this.score;
+        }        
+      },
+
+      // This strategy selects the mean of all times not more than one stddev 
+      // away from the total sampling mean.
+      onedev: {
+        score: function(times, stats) {
+          var cleaned = [];
+          for (var j=0, v; v=times[j]; j++) {
+            if (!stats.outlier(v)) {
+              cleaned.push(v);
+            }
+          }
+          return this.stats(cleaned).mean;
+        },
+        // called in stats context
+        outlier: function(value) {
+          return Math.abs(value - this.mean) > (1 * this.deviation);
+        }
+      }
+
     }
   });
 
