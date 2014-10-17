@@ -1,5 +1,7 @@
 console.perf = function() {
-  console.timeline();
+  if (console.timeline) {
+    console.timeline();
+  }
   console.profile();
   console.perf.time = performance.now();  
 };
