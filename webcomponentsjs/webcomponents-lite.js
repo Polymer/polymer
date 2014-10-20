@@ -1649,13 +1649,15 @@ CustomElements.addModule(function(scope) {
       };
     }
     CustomElements.ready = true;
-    CustomElements.readyTime = Date.now();
-    if (window.HTMLImports) {
-      CustomElements.elapsed = CustomElements.readyTime - HTMLImports.readyTime;
-    }
-    document.dispatchEvent(new CustomEvent("WebComponentsReady", {
-      bubbles: true
-    }));
+    setTimeout(function() {
+      CustomElements.readyTime = Date.now();
+      if (window.HTMLImports) {
+        CustomElements.elapsed = CustomElements.readyTime - HTMLImports.readyTime;
+      }
+      document.dispatchEvent(new CustomEvent("WebComponentsReady", {
+        bubbles: true
+      }));
+    });
   }
   if (typeof window.CustomEvent !== "function") {
     window.CustomEvent = function(inType, params) {
@@ -1677,86 +1679,8 @@ CustomElements.addModule(function(scope) {
 })(window.CustomElements);
 
 (function(scope) {
-  if (!Function.prototype.bind) {
-    Function.prototype.bind = function(scope) {
-      var self = this;
-      var args = Array.prototype.slice.call(arguments, 1);
-      return function() {
-        var args2 = args.slice();
-        args2.push.apply(args2, arguments);
-        return self.apply(scope, args2);
-      };
-    };
-  }
-})(window.WebComponents);
-
-(function(scope) {
-  "use strict";
-  if (!window.performance) {
-    var start = Date.now();
-    window.performance = {
-      now: function() {
-        return Date.now() - start;
-      }
-    };
-  }
-  if (!window.requestAnimationFrame) {
-    window.requestAnimationFrame = function() {
-      var nativeRaf = window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
-      return nativeRaf ? function(callback) {
-        return nativeRaf(function() {
-          callback(performance.now());
-        });
-      } : function(callback) {
-        return window.setTimeout(callback, 1e3 / 60);
-      };
-    }();
-  }
-  if (!window.cancelAnimationFrame) {
-    window.cancelAnimationFrame = function() {
-      return window.webkitCancelAnimationFrame || window.mozCancelAnimationFrame || function(id) {
-        clearTimeout(id);
-      };
-    }();
-  }
-  var elementDeclarations = [];
-  var polymerStub = function(name, dictionary) {
-    if (typeof name !== "string" && arguments.length === 1) {
-      Array.prototype.push.call(arguments, document._currentScript);
-    }
-    elementDeclarations.push(arguments);
-  };
-  window.Polymer = polymerStub;
-  scope.consumeDeclarations = function(callback) {
-    scope.consumeDeclarations = function() {
-      throw "Possible attempt to load Polymer twice";
-    };
-    if (callback) {
-      callback(elementDeclarations);
-    }
-    elementDeclarations = null;
-  };
-  function installPolymerWarning() {
-    if (window.Polymer === polymerStub) {
-      window.Polymer = function() {
-        throw new Error("You tried to use polymer without loading it first. To " + 'load polymer, <link rel="import" href="' + 'components/polymer/polymer.html">');
-      };
-    }
-  }
-  if (HTMLImports.useNative) {
-    installPolymerWarning();
-  } else {
-    addEventListener("DOMContentLoaded", installPolymerWarning);
-  }
-})(window.WebComponents);
-
-(function(scope) {
   var style = document.createElement("style");
   style.textContent = "" + "body {" + "transition: opacity ease-in 0.2s;" + " } \n" + "body[unresolved] {" + "opacity: 0; display: block; overflow: hidden; position: relative;" + " } \n";
   var head = document.querySelector("head");
   head.insertBefore(style, head.firstChild);
-})(window.WebComponents);
-
-(function(scope) {
-  window.Platform = scope;
 })(window.WebComponents);
