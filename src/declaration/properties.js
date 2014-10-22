@@ -11,19 +11,26 @@
 
   // element api
 
+  var observationBlacklist = ['attribute'];
+
   var properties = {
     inferObservers: function(prototype) {
       // called before prototype.observe is chained to inherited object
       var observe = prototype.observe, property;
       for (var n in prototype) {
         if (n.slice(-7) === 'Changed') {
-          if (!observe) {
-            observe  = (prototype.observe = {});
+          property = n.slice(0, -7);
+          if (this.canObserveProperty(property)) {
+            if (!observe) {
+              observe  = (prototype.observe = {});
+            }
+            observe[property] = observe[property] || n;
           }
-          property = n.slice(0, -7)
-          observe[property] = observe[property] || n;
         }
       }
+    },
+    canObserveProperty: function(property) {
+      return (observationBlacklist.indexOf(property) < 0);
     },
     explodeObservers: function(prototype) {
       // called before prototype.observe is chained to inherited object
