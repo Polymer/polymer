@@ -1649,7 +1649,7 @@ CustomElements.addModule(function(scope) {
       };
     }
     CustomElements.ready = true;
-    setTimeout(function() {
+    //setTimeout(function() {
       CustomElements.readyTime = Date.now();
       if (window.HTMLImports) {
         CustomElements.elapsed = CustomElements.readyTime - HTMLImports.readyTime;
@@ -1657,7 +1657,7 @@ CustomElements.addModule(function(scope) {
       document.dispatchEvent(new CustomEvent("WebComponentsReady", {
         bubbles: true
       }));
-    });
+    //});
   }
   if (typeof window.CustomEvent !== "function") {
     window.CustomEvent = function(inType, params) {
