@@ -15,3 +15,7 @@ Polymer is based on a set of future technologies, including [Shadow DOM](https:/
 ## Tools & Testing
 
 For running tests or building minified files, consult the [tooling information](http://www.polymer-project.org/resources/tooling-strategy.html).
+
+## Development Mode
+
+This repository contains the concatenated and minified form of the Polymer core libraries. The original source is located at [Polymer/polymer-dev](https://github.com/Polymer/polymer-dev).
