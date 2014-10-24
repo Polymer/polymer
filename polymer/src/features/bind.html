@@ -1,5 +1,36 @@
 <script>
 
+  /*
+   * Needs new name.
+   * 
+   * Provides a simple data-binding API, by which a getter/setter pair
+   * can be constructed in one of two modes:
+   * 
+   * bindMethod: constructs a getter/setter pair and a backing store 
+   * from the given property, calls the bound method whenever the setter
+   * is invoked.
+   * 
+   * bindProperty: constructs a getter/setter pair that forwards data
+   * access to a property on another object.
+   * 
+   * This features also supports a `bind` object, which contains expressions
+   * that are deconstructed into `bindMethod` or `bindProperty` calls.
+   * 
+   * bind {
+   *   // if `method` is the name of a method on the current object, a
+   *   // `bindMethod` call is made to define `property` as described above.
+   *   property: 'method'
+   *   // if the value is not the name of a method, it's assumed to be the
+   *   // name in the `$` hash that maps to an element.
+   *   // If no target property is specified, `textContent` is assumed to 
+   *   // be the backing-store for `property2` accessors.
+   *   property2: 'elementId'
+   *   // If a path is provided, that element is dereferenced from $ as before, 
+   *   // but the full path is used for the backing-store.
+   *   // This declaration binds property3 to $.elementId.value  
+   *   property3: 'elementId.value'
+   * } 
+   */
   Base.addFeature({
 
     init: function() {
@@ -24,7 +55,6 @@
           this.bindMethod(property, paths);
           return;
         }
-        //paths.push('textContent');
         path += '.textContent';
       }
       //
@@ -34,10 +64,10 @@
     bindMethod: function(property, path) {
       Object.defineProperty(this, property, {
         set: function(value) {
-          //if (this[path] !== value) {
-            this._boundData[path] = value;
-            this[path](value);
-          //}
+          var old = this._boundData[path];
+          this._boundData[path] = value;
+          // TODO(sjmiles): NOTE: no dirty-check 
+          this[path](value, old);
         },
         get: function() {
           return this._boundData[path];
@@ -46,6 +76,8 @@
     },
 
     bindProperty: function(property, path) {
+      // TODO(sjmiles): using `new Function` for expediency and performance.
+      // Will need an alternative algorithm for platforms without eval.
       Object.defineProperty(this, property, {
         set: new Function('value', path + ' = value;'),
         get: new Function('return ' + path + ';')

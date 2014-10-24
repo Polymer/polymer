@@ -2,46 +2,72 @@
 
 <script>
 
+  /*
+   * Parses the annotations map created by `annotations` features to perform
+   * declarative desugaring.
+   * 
+   * Depends on `annotations` feature and `bind` feature.
+   * 
+   * Two tasks are supported:
+   * 
+   * - nodes with 'id' are described in a virtual annotation map at 
+   *   registration time. This map is then concretized per instance.
+   * 
+   * - Simple mustache expressions consisting of a single property name
+   *   in a `textContent` context are bound using `bind` features
+   *   `bindMethod`. In this mode, the bound method is constructed at
+   *   registration time, so marshaling is done done via the concretized 
+   *   `_nodes` at every access.
+   *    
+   *   TODO(sjmiles): ph3ar general confusion between registration and 
+   *   instance time tasks. Is there a cleaner way to disambiguate? 
+   */
   Base.addFeature({
 
     register: function(prototype) {
-      if (prototype._template) {
-        // process annotations that have been parsed from template
-        var map = prototype._template.map;
-        if (map) {
-          prototype._nodes = [];
-          map.forEach(function(annotation) {
-            var index = this._nodes.push(annotation) - 1;
-            // TODO(sjmiles): we probably need to multiplex the bind method
-            // to handle multiple binding targets, right now you
-            // only get one
-            var binding = annotation.bindings[0];
-            // TODO(sjmiles): this is property binding only, but 
-            // bind-annotations produces other kinds of annotations,
-            // impedence mismatch borne of mutating the project from earlier
-            // versions. 
-            if (binding.kind === 'text') {
-              this.bindAnnotation(binding.value, function(value) {
-                this._nodes[index].textContent = value;
-              });
-            }
-          }, prototype);
-        }
+      if (prototype._template && prototype._template.map) {
+        this.preprocessBindAnnotations(prototype, prototype._template.map);
       }
     },
 
-    bindAnnotation: function(property, method) {
+    // construct binding meta-data at *registration* time
+    preprocessBindAnnotations: function(prototype, map) {
+      // create a virtual annotation map, must be concretized at instance time 
+      prototype._nodes = [];
+      // process annotations that have been parsed from template
+      map.forEach(function(annotation) {
+        // where to find the node in the concretized map 
+        var index = this._nodes.push(annotation) - 1;
+        // TODO(sjmiles): we probably need to multiplex the bind method
+        // to handle multiple binding targets, right now you
+        // only get one
+        var binding = annotation.bindings[0];
+        // TODO(sjmiles): this is property binding only, but 
+        // bind-annotations produces other kinds of annotations,
+        // impedence mismatch borne of mutating the project from earlier
+        // versions. 
+        if (binding.kind === 'text') {
+          // TODO(sjmiles): not using `bind` feature code because this is 
+          // a slightly different use case. IOW, we want a combination of 
+          // `bindProperty` and `bindMethod`. Consider how to unify.
+          this.bindAnnotation(binding.value, index);
+        }
+      }, prototype);
+    },
+
+    // TODO(sjmiles): this method is absurdly specialized
+    bindAnnotation: function(property, index) {
       Object.defineProperty(this, property, {
         set: function(value) {
-          this._boundData[property] = value;
-          method.call(this, value);
+          this._nodes[index].textContent = value;
         },
         get: function() {
-          return this._boundData[property];
+          return this._nodes[index].textContent;
         }
       });
     },
 
+    // concretize `_nodes` map at *instance* time
     marshalBoundNodes: function() {
       if (this._nodes) {
         this._nodes = this._nodes.map(function(a) {
@@ -51,5 +77,5 @@
     }
 
   });
-  
+
 </script>
