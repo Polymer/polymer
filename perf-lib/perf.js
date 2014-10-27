@@ -18,7 +18,7 @@ console.perfEnd = function() {
   document.body.offsetWidth;
   var time = performance.now() - console.perf.time;
   console.profileEnd();
-  document.title += ' (' + time.toFixed(1) + 'ms)';
+  document.title = time.toFixed(1) + 'ms: ' + document.title;
   if (window.top !== window) {
     window.top.postMessage(time + 'ms', '*');
   }
