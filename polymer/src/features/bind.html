@@ -6,12 +6,12 @@
    * Provides a simple data-binding API, by which a getter/setter pair
    * can be constructed in one of two modes:
    * 
-   * bindMethod: constructs a getter/setter pair and a backing store 
-   * from the given property, calls the bound method whenever the setter
-   * is invoked.
+   * bindMethod(property, methodName): constructs a getter/setter pair and a 
+   * backing store for the given property; calls the method when the setter
+   * is invoked and the value has changed from what is in the backing store.
    * 
-   * bindProperty: constructs a getter/setter pair that forwards data
-   * access to a property on another object.
+   * bindProperty(property, path): constructs a getter/setter pair that 
+   * forwards data access to a property on another object.
    * 
    * This features also supports a `bind` object, which contains expressions
    * that are deconstructed into `bindMethod` or `bindProperty` calls.
@@ -33,42 +33,162 @@
    */
   Base.addFeature({
 
+    // per instance
+    
+    init: function() {
+      this._privateData = Object.create(null);
+    },
+
+    _setupMultiBindListeners: function() {
+      for (var n in this._multiData) {
+        var data = this._multiData[n];
+        data.targets.forEach(function(t) {
+          this._setupMultiBindListener(n, t.id, t.property);
+        }, this);
+      }
+    },
+
+    _setupMultiBindListener: function(property, id, source) {
+      var host = this;
+      //console.log('[bind]: [%s][%s] listening for [%s][%s-changed]', this.localName, property, id, source);
+      this.$[id].addEventListener(source + '-changed', function(e) {
+        //console.log('[bind]:[%s] heard [%s-changed] this.[%s] = [%s]', host.localName, source, property, e.detail);
+        host[property] = e.detail;
+      });
+    },
+
+    // per prototype
+    
     register: function(prototype) {
-      // TODO(sjmiles): ad hoc
+      // TODO(sjmiles): `_bound` is ad hoc name tracking for custom telemetry
       prototype._bound = [];
+      prototype._multiData = Object.create(null);
       prototype.setupBindings();
     },
 
     setupBindings: function() {
       for (var n in this.bind) {
+        this._bound.push(n);
         this.setupBinding(n, this.bind[n]);
       }
     },
 
-    setupBinding: function(property, path) {
-      // TODO(sjmiles): ad hoc
-      this._bound.push(property);
-      //
-      var paths = path.split('.');
-      //
-      if (paths.length === 1) {
-        if (typeof this[path] === 'function') {
-          this.bindMethod(property, paths);
+    setupBinding: function(property, data) {
+      // TODO(sjmiles): ad hoc integration with `attributes:publish` feature
+      if (typeof data === 'object' || this.published[property]) {
+        this._bindMulti(property, data);
+      } else {
+        var path = data, paths = path.split('.');
+        if (paths.length === 1) {
+          if (typeof this[path] === 'function') {
+            this.bindMethod(property, path);
+            return;
+          }
+          path += '.textContent';
+        }
+        this.bindProperty(property, 'this.$.' + path);
+      }
+    },
+
+    // TODO(sjmiles): currently there is a fourth type of accessor pair
+    // that is constructed via bind-annotations feature, unify.
+
+    _bindMulti: function(property, data) {
+      var callback, targets = [];
+      // parse bind object
+      if (typeof data === 'string') {
+        callback = data;
+      } else if (typeof data === 'object') {
+        for (var i=0, a; a=data[i]; i++) {
+          // TODO(sjmiles): ad-hoc support exactly one 'callback'
+          if (typeof this[a] === 'function') {
+            callback = a;
+          } else {
+            targets.push(this._createMultiBindTarget(a));
+          }
+        }
+      }
+      // create function for other side-effects
+      var sideEffectFn = null;
+      if (targets.length) {
+        var block = '';
+        for (var i=0, t; t=targets[i]; i++) {
+          block += t.fn;
+        }
+        sideEffectFn = new Function('value', block);
+      }
+      // store processed data
+      var data = {
+        callback: callback,
+        targets: targets,
+        sideEffectFn: sideEffectFn,
+        published: Boolean(this.published[property])
+      };
+      this._multiData[property] = data;
+      // create accessors
+      Object.defineProperty(this, property, {
+        set: function(value) {
+          var old = this._setPrivateData(property, value);
+          // TODO(sjmiles): dirty-check ftw! 
+          if (old !== value) {
+            this._multiBindPropertyChanged(property, data, value, old);
+          }
+        },
+        get: function() {
+          return this._privateData[property];
+        }
+      });
+    },
+
+    _createMultiBindTarget: function(path) {
+      path = path.split('.');
+      var id = path.shift();
+      var property = path.join('.') || 'textContent';
+      return {
+        id: id,
+        property: property,
+        fn: 'this.$.' + id + '.' + property + '=value;\n'
+      };      
+    },
+
+    _multiBindPropertyChanged: function(property, data, value, old) {
+      //console.log('[bind._multiBindPropertyChanged]:', property, data, value, old);
+      // to have validation ability, `callback` must be distinguished
+      // from other side-effects
+      if (data.callback) {
+        var validated = this[data.callback](value, old);
+        if (validated !== undefined) {
+          // recurse
+          this[property] = validated;
           return;
         }
-        path += '.textContent';
       }
-      //
-      this.bindProperty(property, 'this.$.' + path);
+      // process other side-effects
+      if (data.sideEffectFn) {
+        data.sideEffectFn.call(this, value);
+      }
+      // if published, notify
+      if (data.published) {
+        this._notifyChange(property);
+      }
+    },
+
+    _notifyChange: function(property) {
+      this.fire(property + '-changed', this[property], null, false);
+    },
+
+    _setPrivateData: function(property, value) {
+      var old = this._privateData[property];
+      this._privateData[property] = value;
+      return old;
     },
 
     bindMethod: function(property, path) {
       Object.defineProperty(this, property, {
         set: function(value) {
-          var old = this._privateData[path];
-          // TODO(sjmiles): to dirty-check or not to dirty-check, that is the Q 
+          var old = this._setPrivateData(property, value);
+          // TODO(sjmiles): dirty-check ftw! 
           if (old !== value) {
-            this._privateData[path] = value;
             this[path](value, old);
           }
         },
@@ -85,10 +205,6 @@
         set: new Function('value', path + ' = value;'),
         get: new Function('return ' + path + ';')
       });
-    },
-
-    init: function() {
-      this._privateData = {};
     }
 
   });
