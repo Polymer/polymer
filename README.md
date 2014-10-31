@@ -16,4 +16,4 @@ Polymer is based on a set of future technologies, including [Shadow DOM](https:/
 
 For running tests or building minified files, consult the [tooling information](http://polymer-project.org/resources/tooling-strategy.html).
 
-[![Analytics](https://ga-beacon.appspot.com/UA-39334307-2/Polymer/polymer-dev/README)](https://github.com/igrigorik/ga-beacon)
+[![Analytics](https://ga-beacon.appspot.com/UA-39334307-2/Polymer/polymer/README)](https://github.com/igrigorik/ga-beacon)
