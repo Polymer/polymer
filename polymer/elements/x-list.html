@@ -1,0 +1,241 @@
+
+<style>
+
+  x-list {
+    display: block;
+    overflow: auto;
+    will-change: transform;
+  }
+
+  x-list #items > * {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+</style>
+<template>
+  <div id="items" relative></div>
+</template>
+<script>
+
+(function() {
+
+  var IOS = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
+  var IOS_TOUCH_SCROLLING = IOS && IOS[1] >= 8;
+
+  Polymer({
+
+    name: 'x-list',
+
+    published: {
+      data: null
+    },
+
+    bind: {
+      data: 'dataChanged'
+    },
+
+    scrollPosition: 0,
+    physicalCount: 20,
+    physicalStart: 0,
+    physicalEnd: 0,
+    physicalSize: 0,
+    physicalAverage: 0,
+    physicalAverageCount: 0,
+    virtualCount: 0,
+    virtualStart: 0,
+
+    created: function() {
+      this.kind = this.getAttribute('kind');
+      if (IOS_TOUCH_SCROLLING) {
+        this.style.webkitOverflowScrolling = 'touch';
+        this.addEventListener('scroll', function() {
+          requestAnimationFrame(function() { this.scrollHandler(); }.bind(this)); 
+        }.bind(this));      
+      } else {
+        this.addEventListener('scroll', this.scrollHandler.bind(this));
+      }
+    },
+
+    dataChanged: function() {
+      this.virtualCount = this.data ? this.data.length : 0;
+      this.virtualStart = 0;
+      this.physicalOffset = 0;
+      this.physicalItems = new Array(this.physicalCount);
+      this.physicalSizes = new Array(this.physicalCount);
+      this.movingUp = [];
+      this.$.items.textContent = '';
+      for (var i=0; i<this.physicalCount; i++) {
+        var item = this.physicalItems[i] = document.createElement(this.kind);
+        this.$.items.appendChild(item);
+      }
+      this.refresh();
+    },
+
+    scrollHandler: function() {
+      this.refresh();
+    },
+
+    refresh: function() {
+
+      if (this.virtualCount) {
+        // Determine scroll delta
+        var lastScrollPos = this.scrollPosition;
+        this.scrollPosition = this.scrollTop;
+        var delta = this.scrollPosition - lastScrollPos;
+
+        // Adjust starting index & offset by flipping items from bottom<->top
+        if (Math.abs(delta) > Math.max(this.physicalSize, this.physicalAverage * this.physicalCount)) {
+          var deltaCount = Math.round(delta / this.physicalAverage);
+          this.virtualStart += deltaCount;
+          this.virtualStart = Math.min(Math.max(this.virtualStart, 0), this.virtualCount-1);
+          this.physicalOffset += delta;
+        } else {
+          var flipBoundary, flipSize;
+          var dir = delta < 0 ? -1 : (delta > 0 ? 1 : 0);
+          if (dir > 0) {
+            flipBoundary = this.physicalSizes[this.physicalStart];
+            flipSize = Math.max(this.scrollPosition - this.physicalOffset - flipBoundary, 0);
+            idx = this.physicalStart + this.physicalCount;
+          } else if (dir < 0) {
+            flipBoundary = this.physicalSize - this.viewportSize - this.physicalSizes[this.physicalEnd];
+            flipSize = Math.max(this.physicalOffset + flipBoundary - this.scrollPosition, 0);
+            idx = this.physicalEnd + this.physicalCount;
+          }
+          flipSize = Math.max(flipSize, this.viewportSize - this.physicalSize);
+          for (var i=0; i<this.physicalCount-1 && flipSize > 0 && 
+            (dir > 0 || this.virtualStart > 0) && 
+            (dir < 0 || this.virtualStart < (this.virtualCount - this.physicalCount)); i++) {
+            var pidx = idx % this.physicalCount;
+            var size = this.physicalSizes[pidx] || this.physicalAverage;
+            flipSize -= size;
+            if (dir > 0) {
+              this.physicalOffset += size;
+            } else {
+              // When moving up, offset adjusted after measuring
+              this.movingUp.push(pidx);
+            }
+            idx += dir;
+            this.virtualStart += dir;
+          }
+        }
+      }
+
+      // Note where the physical items start & stop based on virtual index
+      this.physicalStart = this.virtualStart % this.physicalCount;
+      this.physicalEnd = (this.physicalStart + this.physicalCount - 1) % this.physicalCount;
+
+      // Update
+      this.assignModels();
+      this.updateMetrics();
+      this.positionItems();
+      this.updateScrollerSize();
+    },
+
+    iterateItems: function(fn) {
+      var pidx, vidx, rtn;
+      for (pidx = this.physicalStart, vidx = this.virtualStart; pidx < this.physicalCount; pidx++, vidx++) {
+        if ((rtn = fn.call(this, pidx, vidx)) != null) {
+          return rtn;
+        }
+      }
+      for (pidx = 0; pidx < this.physicalStart; pidx++, vidx++) {                
+        if ((rtn = fn.call(this, pidx, vidx)) != null) {
+          return rtn;
+        }
+      }
+    },
+
+    assignModels: function() {
+      this.iterateItems(function(pidx, vidx) {
+        var item = this.physicalItems[pidx];
+        if (item.model = this.data && this.data[vidx]) {
+          item.removeAttribute('hidden');
+        } else {
+          item.setAttribute('hidden', '');
+        }
+      });
+    },
+
+    updateMetrics: function() {
+      var total = 0;
+      var cnt = 0;
+      for (var i=0; i<this.physicalCount; i++) {
+        var size = this.physicalSizes[i] = this.physicalItems[i].offsetHeight;
+        total += size;
+        cnt += size ? 1 : 0;
+      }
+      this.physicalSize = total;
+      this.viewportSize = this.offsetHeight;
+      this.physicalAverage = Math.round(
+        ((this.physicalAverage * this.physicalAverageCount) + total) / 
+        (this.physicalAverageCount += cnt));
+    },
+
+    positionItems: function() {
+      while (this.movingUp.length) {
+        var idx = this.movingUp.pop()
+        this.physicalOffset -= this.physicalSizes[idx];
+      }
+      this.adjustScrollPosition();
+      var y = this.physicalOffset;
+      this.iterateItems(function(pidx) {
+        var item = this.physicalItems[pidx];
+        item.style.transform = item.style.webkitTransform = 
+          'translate3d(0,' + y + 'px,0)';
+        item._translateX = 0;
+        item._translateY = y;
+        y += this.physicalSizes[pidx];
+      });
+    },
+
+    adjustScrollPosition: function() {
+      if (this.virtualStart === 0 && this.physicalOffset) {
+        this.physicalOffset = 0;
+        // Juking scroll position during interial scrolling on iOS is no bueno
+        if (!IOS_TOUCH_SCROLLING) {
+          this.resetScrollPosition(this.scrollPosition + this.physicalOffset);
+        }
+      }
+    },
+
+    resetScrollPosition: function(pos) {
+      this.scrollTop = pos;
+      this.scrollPosition = this.scrollTop;
+    },
+
+    updateScrollerSize: function() {
+      this.scrollSize = (this.physicalOffset + this.physicalSize +
+        Math.max(this.virtualCount - this.physicalCount - this.virtualStart, 0) * this.physicalAverage);
+      this.$.items.style.height = this.scrollSize + 'px';
+    },
+
+    getFirstVisibleIndex: function() {
+      return this.iterateItems(function(pidx, vidx) {
+        var item = this.physicalItems[pidx];
+        if (item._translateY >= this.scrollPosition) {
+          return vidx;
+        }
+      });
+    },
+
+    scrollToIndex: function(idx) {
+      idx = Math.min(Math.max(idx, 0), this.virtualCount-1);
+      var firstVis = this.getFirstVisibleIndex();
+      if (idx < firstVis || this.scrollPosition < (this.scrollSize - this.viewportSize)) {
+        var deltaCount = idx - firstVis;
+        var deltaPos = deltaCount * this.physicalAverage;
+        this.virtualStart = idx;
+        this.resetScrollPosition(this.scrollPosition + deltaPos);
+        this.physicalOffset = this.scrollPosition;
+        this.refresh();
+      }
+    }
+
+  });
+
+})();
+
+</script>
