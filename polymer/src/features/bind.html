@@ -3,8 +3,8 @@
   /*
    * Needs new name.
    * 
-   * Provides a simple data-binding API, by which a getter/setter pair
-   * can be constructed in one of two modes:
+   * Provides a data-binding API, by which a getter/setter pair
+   * can be constructed in one of two imperative modes:
    * 
    * bindMethod(property, methodName): constructs a getter/setter pair and a 
    * backing store for the given property; calls the method when the setter
@@ -13,9 +13,11 @@
    * bindProperty(property, path): constructs a getter/setter pair that 
    * forwards data access to a property on another object.
    * 
-   * This features also supports a `bind` object, which contains expressions
-   * that are deconstructed into `bindMethod` or `bindProperty` calls.
-   * 
+   * This feature also supports a `bind` object, which contains expressions
+   * that are deconstructed into `bindMethod` or `bindProperty` calls, or
+   * into a `multiBinding` construct. `multiBinding` constructs support 
+   * multiple side-effects.
+   *
    * bind {
    *   // if `method` is the name of a method on the current object, a
    *   // `bindMethod` call is made to define `property` as described above.
@@ -29,7 +31,26 @@
    *   // but the full path is used for the backing-store.
    *   // This declaration binds property3 to $.elementId.value  
    *   property3: 'elementId.value'
+   *   // If the specified property is also `published`, a multi-binding 
+   *   // construct is created which sends a change notification in addition
+   *   // to whatever user side-effect is specified. 
+   *   publishedProperty: <method name or element property>
+   *   // Specify multiple side-effects directly as an array. Only one
+   *   // callback method is allowed.
+   *   property4: [
+   *     'nameOfMethod',
+   *     'elementId',
+   *     'elementId.property',
+   *     ...
+   *   ] 
    * } 
+   * 
+   * Methods bound into multi-bind contexts support a validation feature. If
+   * the method returns a value that does not === undefined side-effects are
+   * prevented, and the triggering property is set to the returned value, and
+   * a new round of side-effects is initiated.
+   * 
+   *
    */
   Base.addFeature({
 
@@ -96,35 +117,36 @@
     _bindMulti: function(property, data) {
       var callback, targets = [];
       // parse bind object
+      // shove single string into an array for convenience
       if (typeof data === 'string') {
-        callback = data;
-      } else if (typeof data === 'object') {
-        for (var i=0, a; a=data[i]; i++) {
-          // TODO(sjmiles): ad-hoc support exactly one 'callback'
-          if (typeof this[a] === 'function') {
-            callback = a;
-          } else {
-            targets.push(this._createMultiBindTarget(a));
-          }
+        data = [data];
+      }
+      // accumulate any side-effects (beyond nominal callback)
+      var sideEffects = [];
+      // targets are either sub-element properties or a highlander method-name
+      for (var i=0, a; a=data[i]; i++) {
+        // TODO(sjmiles): ad-hoc: support exactly one callback method
+        if (a === null || typeof this[a] === 'function') {
+          callback = a;
+        } else {
+          // otherwise parse target data
+          var t = this._createMultiBindTarget(property, a);
+          // store target data
+          targets.push(t);
+          // accumulate effects
+          sideEffects.push(t.effect);
         }
       }
-      // create function for other side-effects
-      var sideEffectFn = null;
-      if (targets.length) {
-        var block = '';
-        for (var i=0, t; t=targets[i]; i++) {
-          block += t.fn;
-        }
-        sideEffectFn = new Function('value', block);
-      }
-      // store processed data
+      // create side-effect executor
+      var sideEffectFn = sideEffects.length ? 
+        new Function('value', sideEffects.join('\n')) : null;
+      // desugared bind data
       var data = {
         callback: callback,
         targets: targets,
         sideEffectFn: sideEffectFn,
         published: Boolean(this.published[property])
       };
-      this._multiData[property] = data;
       // create accessors
       Object.defineProperty(this, property, {
         set: function(value) {
@@ -138,16 +160,18 @@
           return this._privateData[property];
         }
       });
+      // store bind data
+      this._multiData[property] = data;
     },
 
-    _createMultiBindTarget: function(path) {
-      path = path.split('.');
-      var id = path.shift();
-      var property = path.join('.') || 'textContent';
+    _createMultiBindTarget: function(source, path) {
+      var paths = path.split('.');
+      var id = paths.shift();
+      var property = paths.join('.') || 'textContent';
       return {
         id: id,
         property: property,
-        fn: 'this.$.' + id + '.' + property + '=value;\n'
+        effect: 'this.$.' + id + '.' + property + '=this.' + source + ';'
       };      
     },
 
@@ -179,7 +203,9 @@
 
     _setPrivateData: function(property, value) {
       var old = this._privateData[property];
-      this._privateData[property] = value;
+      if (old !== value) {
+        this._privateData[property] = value;
+      }
       return old;
     },
 
@@ -199,8 +225,6 @@
     },
 
     bindProperty: function(property, path) {
-      // TODO(sjmiles): using `new Function` for expediency and performance.
-      // Will need an alternative algorithm for platforms without eval.
       Object.defineProperty(this, property, {
         set: new Function('value', path + ' = value;'),
         get: new Function('return ' + path + ';')
