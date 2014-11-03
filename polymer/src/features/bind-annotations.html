@@ -38,33 +38,35 @@
       map.forEach(function(annotation) {
         // where to find the node in the concretized map 
         var index = this._nodes.push(annotation) - 1;
-        // TODO(sjmiles): we probably need to multiplex the bind method
-        // to handle multiple binding targets, right now you
-        // only get one
-        var binding = annotation.bindings[0];
-        // TODO(sjmiles): this is property binding only, but 
-        // bind-annotations produces other kinds of annotations,
-        // impedence mismatch borne of mutating the project from earlier
-        // versions. 
-        if (binding.kind === 'text') {
-          // TODO(sjmiles): not using `bind` feature code because this is 
-          // a slightly different use case. IOW, we want a combination of 
-          // `bindProperty` and `bindMethod`. Consider how to unify.
-          this.bindAnnotation(binding.value, index);
-        }
+        // TODO(sjmiles): we need to support multi-bind, right now you only get 
+        // one (not including kind === `id`)
+        annotation.bindings.forEach(function(binding) {
+          this.bindAnnotationBinding(binding, index);
+        }, prototype);
       }, prototype);
     },
 
-    // TODO(sjmiles): this method is absurdly specialized
-    bindAnnotation: function(property, index) {
+    bindAnnotationBinding: function(binding, index) {
+      if (binding.kind === 'text') {
+        // {{<property>}}
+        this.bindAnnotationProperty(binding.value, 'textContent', index);
+      } else if (binding.kind === 'attribute') {
+        // <target>="{{<property>}}"
+        this.bindAnnotationProperty(binding.value, binding.name, index);
+      }     
+    },
+
+    // TODO(sjmiles): a special flavor of accessor separate from those
+    // created by `bind` feature
+    bindAnnotationProperty: function(property, target, index) {
       // TODO(sjmiles): _bound is ad hoc
       this._bound.push(property);
       Object.defineProperty(this, property, {
         set: function(value) {
-          this._nodes[index].textContent = value;
+          this._nodes[index][target] = value;
         },
         get: function() {
-          return this._nodes[index].textContent;
+          return this._nodes[index][target];
         }
       });
     },
