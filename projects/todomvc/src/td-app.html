@@ -1,0 +1,189 @@
+<link rel="import" href="../../../polymer/polymer.html">
+<link rel="import" href="td-list.html">
+<link rel="import" href="td-radio.html">
+
+<template>
+
+  <header id="header">
+
+    <h1>todos</h1>
+
+    <input id="newTodo" placeholder="What needs to be done?">
+
+  </header>
+
+  <div id="main" hidden="{{noItems}}">
+
+    <input id="toggleAll" type="checkbox" checked="{{toggleAllOn}}">
+
+    <td-list id="list"  class="todo-list" items="{{filtered}}"></td-list>
+
+    <footer id="footer">
+
+      <span class="todo-count">{{leftText}}</span>
+
+      <radiogroup id="filterNames">
+        <td-radio id="all" checked>All</td-radio>
+        <td-radio id="active">Active</td-radio>
+        <td-radio id="completed">Completed</td-radio>
+      </radiogroup>
+
+      <button id="clearButton" hidden="{{clearHidden}}">Clear completed (<span>{{clearCount}}</span>)</button>
+
+    </footer>
+
+  </div>
+
+</template>
+
+<script>
+
+  Polymer({
+
+    name: 'td-app',
+
+    hostAttributes: 'block',
+    filterName: 'all',
+
+    listeners: {
+      'item-change': 'itemChange',
+      'item-remove': 'removeItem',
+      'filterNames.change': 'changeFilterName',
+      'clearButton.click': 'clearCompleted',
+      'toggleAll.click': 'toggleAllCompleted'
+    },
+
+    keyPresses: {
+      ENTER_KEY: 'addItem'
+    },
+
+    bind: {
+      items: 'itemsChanged',
+      completed: 'completedChanged',
+      left: 'leftChanged',
+      filterName: 'itemsChanged'
+    },
+
+    created: function() {
+      this.items = [
+        {value: 'Extend the web', completed: true},
+        {value: 'Dethrone native apps'}, 
+        {value: 'Party'}
+      ];
+    },
+
+    // event handlers
+
+    removeItem: function(e) {
+      var index = this.items.indexOf(e.target.item);
+      if (index >= 0) {
+        this.items.splice(index, 1);
+      }  
+    },
+
+    addItem: function(e) {
+      var value = this.$.newTodo.value;
+      if (value) {
+        this.$.newTodo.value = '';
+        this.items.push({value: value});
+      }
+    },
+
+    toggleAllCompleted: function(e) {
+      var complete = !e.target.checked;
+      this.items.forEach(function(item) {
+        item.completed = complete;
+      });
+      this.items.changed();
+    },
+
+    changeFilterName: function(e) {
+      this.filterName = e.target.id;
+    },
+
+    itemChange: function(e) {
+      this.items.changed();
+    },
+
+    clearCompleted: function(e) {
+      this.items = this.items.filter(this.filters.active);
+    },
+
+    // state changes
+
+    itemsChanged: function(items) {
+      // fancy ad-hoc array observation
+      this.observeArray(items, this.itemsElementsChanged);
+      this.itemsElementsChanged(items);
+    },
+
+    itemsElementsChanged: function(items) {
+      this.filtered = this.computeFilteredItems(items, this.filterName);
+      this.noItems = (items.length === 0);
+      this.completed = this.computeCompleted(items);
+    },
+
+    completedChanged: function(completed) {
+      this.clearCount = completed;
+      this.clearHidden = (completed === 0);
+      this.left = this.computeLeft(this.items, completed);
+    },
+
+    leftChanged: function(left) {
+      this.leftText = this.computeLeftText(left); 
+      this.toggleAllOn = (left !== 0);
+    },
+
+    // stateless computations
+
+    computeCompleted: function(items) {
+      var completed = 0;
+      items.forEach(function(i) {
+        completed += i.completed ? 1 : 0;
+      }, this);
+      return completed;
+    },
+
+    computeFilteredItems: function(items, filterName) {
+      var filter = this.filters[filterName];
+      return items.filter(function(i) {
+        completed += i.completed ? 1 : 0;
+        return !filter || filter(i);
+      }, this);
+    },
+
+    computeLeft: function(items, completed) {
+      return items.length - completed;
+    },
+
+    computeLeftText: function(left) {
+      return (left === 1 ? '1 item' : left + ' items') + ' left';
+    },
+
+    filters: {
+      active: function(item) {
+        return !item.completed;
+      },
+      completed: function(item) {
+        return item.completed;
+      }
+    },
+
+    // TODO(sjmiles): ad-hoc array observation
+
+    observeArray: function(array, callback) {
+      var host = this;
+      ['push', 'pop', 'splice'].forEach(function(m) {
+        array[m] = function() {
+          Array.prototype[m].apply(array, arguments);
+          callback.call(host, array);
+        };
+      });
+      array.changed = function() {
+        callback.call(host, array);
+      }
+    }
+
+  });
+
+</script>
