@@ -14,6 +14,18 @@ console.perf = function() {
 };
 
 console.perfEnd = function() {
+  if (window.WebComponents) {
+    // TODO(sjmiles): we need some kind of 'whenReady' or other signal
+    // that will work if this function is called after the event has fired
+    addEventListener('WebComponentsReady', function() {
+      console._perfEnd();
+    });    
+  } else {
+    console._perfEnd();
+  }
+};
+
+console._perfEnd = function() {
   // force layout
   document.body.offsetWidth;
   var time = performance.now() - console.perf.time;
