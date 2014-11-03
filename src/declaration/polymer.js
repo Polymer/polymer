@@ -64,7 +64,7 @@
   var prototypesByName = {};
 
   function registerPrototype(name, prototype) {
-    return prototypesByName[name] = prototype || {};
+    return (prototypesByName[name] = prototype || {});
   }
 
   function getRegisteredPrototype(name) {
@@ -110,7 +110,7 @@
   // we do here.
 
   if (WebComponents.consumeDeclarations) {
-    WebComponents.consumeDeclarations(function(declarations) {;
+    WebComponents.consumeDeclarations(function(declarations) {
       if (declarations) {
         for (var i=0, l=declarations.length, d; (i<l) && (d=declarations[i]); i++) {
           element.apply(null, d);

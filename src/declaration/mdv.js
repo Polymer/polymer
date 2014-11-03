@@ -8,7 +8,8 @@
  */
 
 (function(scope) {
-
+  'use strict';
+  
   // imports
   var events = scope.api.declaration.events;
 

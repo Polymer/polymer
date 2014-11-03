@@ -8,7 +8,8 @@
  */
 
 (function(scope) {
-
+  'use strict';
+  
   // imports
 
   var extend = scope.extend;
@@ -44,10 +45,10 @@
     // are registered. We are currently blocked from doing this based on 
     // crbug.com/395686.
     registerWhenReady: function() {
-     if (this.registered
-       || this.waitingForPrototype(this.name)
-       || this.waitingForQueue()
-       || this.waitingForResources()) {
+     if (this.registered ||
+        this.waitingForPrototype(this.name) ||
+        this.waitingForQueue() ||
+        this.waitingForResources()) {
           return;
       }
       queue.go(this);

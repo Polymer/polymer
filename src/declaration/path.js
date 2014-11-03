@@ -8,7 +8,8 @@
  */
 
 (function(scope) {
-
+  'use strict';
+  
 /**
  * @class polymer-base
  */
