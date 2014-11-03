@@ -1,0 +1,111 @@
+<!--
+/*
+ * Copyright 2013 The Polymer Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style
+ * license that can be found in the LICENSE file.
+ */
+-->
+<link rel="import" href="google-jsapi.html">
+
+<script>
+  (function() {
+    // TODO(ffu): integrate the ability to load a specific api like feeds
+    // into google-jsapi.
+    var feedsCallbacks = [];
+    var feedsApiLoading = false;
+
+    function feedsApiLoaded() {
+      while(feedsCallbacks.length) {
+        var fn = feedsCallbacks.shift();
+        fn();
+      }
+    }
+
+    function isApiLoaded() {
+      return window.google && google.feeds && google.feeds.Feed;
+    }
+
+    function withFeedsApi(callback) {
+      if (isApiLoaded() && callback) {
+        callback();
+      } else {
+        if (!feedsApiLoading) {
+          var loader = document.createElement('google-jsapi');
+          loader.addEventListener('api-load', function() {
+            google.load('feeds', '1', {callback: feedsApiLoaded});  
+          });
+          feedsApiLoading = true;
+        }
+        if (callback) {
+          feedsCallbacks.push(callback);
+        }
+      } 
+    }
+
+    Polymer({
+      name: "google-feeds",
+      published: [
+        'feed',
+        'query',
+        'results',
+        'loading',
+        'count'
+      ],
+      created: function() {
+        this.count = 27;
+        this.pendingFeeds = [];
+        this.feed = '';
+        this.attributeChangedCallback('feed');
+      },
+      attributeChangedCallback: function(name) {
+        if (name === 'feed') {
+          this.feed = this.getAttribute('feed');
+        }
+      },
+      feedChanged: function() {
+        if (this.feed) {
+          this.loading = true;
+          // call fetchFeeds async to make sure any binding to count property 
+          // is resolved before fetchFeeds is called
+          withFeedsApi(this.fetchFeeds.bind(this));
+        } else {
+          this.results = null;
+        }
+      },
+      fetchFeeds: function() {
+        var feed = new google.feeds.Feed(this.feed);
+        feed.includeHistoricalEntries(); // tell the API we want to have old entries too
+        feed.setNumEntries(this.count); // we want this maximum number of entries, if they exist
+        feed.load(this.fetchFeedsDone.bind(this));
+      },
+      fetchFeedsDone: function(results) {
+        this.loading = false;
+        if (results.error) {
+          this.results = {};
+          this.fire('error', {status: results.status});
+        } else {
+          this.results = results.feed;
+          this.fire('response', {feed: results.feed});
+        }
+      },
+      queryChanged: function() {
+        if (this.query) {
+          this.loading = true;
+          this.findFeeds();
+        }
+      },
+      findFeeds: function() {
+        google.feeds.findFeeds(this.query, this.findFeedsDone.bind(this));
+      },
+      findFeedsDone: function(results) {
+        this.loading = false;
+        if (results.error) {
+          this.fire('queryerror', {status: results.status});
+        } else {
+          this.fire('queryresponse', {entries: results.entries});
+        }
+      }
+    });
+
+})();
+</script>
