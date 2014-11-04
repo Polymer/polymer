@@ -1,0 +1,104 @@
+<style>
+
+  x-template-proxy {
+    display: none;
+  }
+
+</style>
+<script>
+
+  Polymer({
+    name: 'x-template-proxy'
+  });
+</script>
+
+<script>
+
+(function() {
+  var proto = Object.create(HTMLTemplateElement.prototype);
+  var proxy;
+
+  extend(proto, {
+
+    createdCallback: function() {
+      if (!proxy) {
+        proxy = document.createElement('x-template-proxy');
+      }
+      this.proxy = proxy;
+      // TODO(sorvell): omg!
+    },
+    attachedCallback: function() {
+      var ref = this.parentNode._ref;
+      if (ref) {
+        while (ref.firstChild) {
+          this.content.appendChild(ref.firstChild);
+        }
+      }
+      
+      proxy.parseTemplateAnnotations(this);
+    },
+
+    set model(model) {
+      this._model = model;
+      this.stamp(model);
+      // TODO(sorvell): IJFM!! simple mode.
+      Object.observe(model, this.stamp.bind(this));
+    },
+
+    get model() {
+      return this._model;
+    },
+
+    stamp: function(model) {
+      this.clear();
+      var content = this.content;
+      var dom = document.importNode(content, true);
+      this._stampedCount = dom.childNodes.length;
+      this.map.forEach(function(a) {
+        var node = this.proxy.findAnnotatedNode(dom, a);
+        this.bindNode(node, a);
+      }, this);
+      this.parentNode.insertBefore(dom, this.nextElementSibling);
+    },
+
+    // TODO(sorvell): note: any user modification of stamped dom will mess this up.
+    clear: function() {
+      while (this._stampedCount--) {
+        this.nextSibling.remove();
+      }
+    },
+
+    // TODO(sorvell): one time is all joo get!
+    bindNode: function(node, binding) {
+      binding.bindings.forEach(function(b) {
+        var name = b.name;
+        var value = this.model[b.value];
+        switch (b.kind) {
+          case 'text':
+            node.textContent = value || '';
+            break;
+          case 'attribute':
+            
+            // two-way!
+            node.addEventListener(name + '-changed', function(e) {
+              this.model[name] = e.target[name];
+              // this.stamp();
+            }.bind(this));
+            node[name] = value;
+            break;
+          case 'event':
+            if (typeof value === 'function') {
+              node.addEventListener(name, value.bind(this.model));
+            }
+            break;
+        }
+      }, this);
+    }
+
+  });
+
+  document.registerElement('x-template', {prototype: proto, extends: 'template'});
+
+})();
+</script>
+

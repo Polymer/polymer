@@ -1,0 +1,111 @@
+#!/usr/bin/env node
+/**
+ * @license
+ * Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+ * This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+ * The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+ * The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+ * Code distributed by Google as part of the polymer project is also
+ * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+ */
+
+var path = require('path');
+var fs = require('fs');
+var nopt = require('nopt');
+var vulcan = require('../lib/vulcan.js');
+
+var pkg = require('../package.json');
+
+var help = [
+  'vulcanize: Concatenate a set of Web Components into one file',
+  '',
+  'Usage:',
+  '  vulcanize [OPTIONS] <html file>*',
+  '',
+  'Options:',
+  '  --output, -o: Output file name (defaults to vulcanized.html)',
+  '  --verbose, -v: More verbose logging',
+  '  --help, -h, -?: Print this message',
+  '  --config: Read the given config file',
+  '  --strip, -s: Remove comments and empty text nodes',
+  '  --abspath, -p: Specify site root. Resolve paths to absolute paths based on site root',
+  '  --csp: Extract inline scripts to a separate file (uses <output file name>.js)',
+  '  --inline: The opposite of CSP mode, inline all assets (script and css) into the document',
+  '  --csp --inline: Bundle all javascript (inline and external) into <output file name>.js',
+  '  --version, -V: print version information',
+  '  --no-strip-excludes: Keep imports excluded from inlining',
+  '  --no-update-notifier: disable "update vulcanize" checks',
+  '',
+  'Config:',
+  '  JSON file for additional options',
+  '',
+  '  {',
+  '    "excludes": {',
+  '      "imports": [ "regex-to-exclude" ],',
+  '      "styles": [ "regex-to-exclude" ],',
+  '      "scripts": [ "regex-to-exclude" ],',
+  '    }',
+  '  }'
+];
+
+function printHelp() {
+  console.log(help.join('\n'));
+  process.exit(0);
+}
+
+var options = nopt(
+  {
+    'config': path,
+    'csp': Boolean,
+    'help': Boolean,
+    'inline': Boolean,
+    'output': path,
+    'abspath': path,
+    'strip': Boolean,
+    'verbose': Boolean,
+    'version': Boolean
+  },
+  {
+    '?': ['--help'],
+    'h': ['--help'],
+    'o': ['--output'],
+    'p': ['--abspath'],
+    's': ['--strip'],
+    'v': ['--verbose'],
+    'V': ['--version']
+  }
+);
+
+if (options.help || process.argv.length === 2) {
+  printHelp();
+}
+
+if (options.version) {
+  console.log('vulcanize %s', pkg.version);
+  process.exit(0);
+}
+
+if (options['update-notifier'] !== false) {
+  (function() {
+    try {
+      require('update-notifier')({
+        packageName: pkg.name,
+        packageVersion: pkg.version
+      }).notify();
+    } catch(_) {}
+  })();
+}
+
+var argv = options.argv.remain;
+
+if (argv[0]) {
+  options.input = path.resolve(argv[0]);
+}
+
+vulcan.setOptions(options, function(err) {
+  if (err) {
+    console.error(err);
+    process.exit(1);
+  }
+  vulcan.processDocument();
+});
