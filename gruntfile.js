@@ -144,7 +144,7 @@ module.exports = function(grunt) {
   });
 
   grunt.registerTask('default', ['minify']);
-  grunt.registerTask('minify', ['jshint', 'concat_sourcemap', 'version', 'string-replace', 'uglify']);
+  grunt.registerTask('minify', ['jshint:server', 'concat_sourcemap', 'version', 'string-replace', 'uglify']);
   grunt.registerTask('test', ['wct-test:local']);
   grunt.registerTask('test-remote', ['wct-test:remote']);
   grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
