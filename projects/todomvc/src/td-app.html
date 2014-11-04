@@ -2,6 +2,12 @@
 <link rel="import" href="td-list.html">
 <link rel="import" href="td-radio.html">
 
+<style>
+  td-app {
+    display: block;
+  }
+</style>
+
 <template>
 
   <header id="header">
@@ -14,21 +20,23 @@
 
   <div id="main" hidden="{{noItems}}">
 
-    <input id="toggleAll" type="checkbox" checked="{{toggleAllOn}}">
+    <input id="toggleAll" type="checkbox" checked="{{toggleAllOn}}" on-click="toggleAllCompleted">
 
-    <td-list id="list"  class="todo-list" items="{{filtered}}"></td-list>
+    <td-list id="todo-list" items="{{filtered}}"></td-list>
 
     <footer id="footer">
 
       <span class="todo-count">{{leftText}}</span>
 
-      <radiogroup id="filterNames">
+      <radiogroup id="filters">
         <td-radio id="all" checked>All</td-radio>
         <td-radio id="active">Active</td-radio>
         <td-radio id="completed">Completed</td-radio>
       </radiogroup>
 
-      <button id="clearButton" hidden="{{clearHidden}}">Clear completed (<span>{{clearCount}}</span>)</button>
+      <button id="clearButton" hidden="{{clearHidden}}" on-click="clearCompleted">
+        Clear completed (<span>{{clearCount}}</span>)
+      </button>
 
     </footer>
 
@@ -42,15 +50,12 @@
 
     name: 'td-app',
 
-    hostAttributes: 'block',
     filterName: 'all',
 
     listeners: {
-      'item-change': 'itemChange',
-      'item-remove': 'removeItem',
-      'filterNames.change': 'changeFilterName',
-      'clearButton.click': 'clearCompleted',
-      'toggleAll.click': 'toggleAllCompleted'
+      'item-property-changed': 'commitItemChange',
+      'remove-item': 'removeItem',
+      'filters.change': 'changeFilterName'
     },
 
     keyPresses: {
@@ -61,7 +66,7 @@
       items: 'itemsChanged',
       completed: 'completedChanged',
       left: 'leftChanged',
-      filterName: 'itemsChanged'
+      filterName: 'filterChanged'
     },
 
     created: function() {
@@ -97,12 +102,12 @@
       this.items.changed();
     },
 
-    changeFilterName: function(e) {
-      this.filterName = e.target.id;
+    commitItemChange: function(e) {
+      this.items.changed();
     },
 
-    itemChange: function(e) {
-      this.items.changed();
+    changeFilterName: function(e) {
+      this.filterName = e.target.id;
     },
 
     clearCompleted: function(e) {
@@ -111,6 +116,10 @@
 
     // state changes
 
+    filterChanged: function() {
+      this.itemsChanged(this.items);  
+    },
+    
     itemsChanged: function(items) {
       // fancy ad-hoc array observation
       this.observeArray(items, this.itemsElementsChanged);
@@ -126,7 +135,7 @@
     completedChanged: function(completed) {
       this.clearCount = completed;
       this.clearHidden = (completed === 0);
-      this.left = this.computeLeft(this.items, completed);
+      this.left = (this.items.length - completed);
     },
 
     leftChanged: function(left) {
@@ -150,10 +159,6 @@
         completed += i.completed ? 1 : 0;
         return !filter || filter(i);
       }, this);
-    },
-
-    computeLeft: function(items, completed) {
-      return items.length - completed;
     },
 
     computeLeftText: function(left) {
