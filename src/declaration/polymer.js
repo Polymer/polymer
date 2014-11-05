@@ -110,7 +110,7 @@
   // we do here.
 
   if (WebComponents.consumeDeclarations) {
-    WebComponents.consumeDeclarations(function(declarations) {;
+    WebComponents.consumeDeclarations(function(declarations) {
       if (declarations) {
         for (var i=0, l=declarations.length, d; (i<l) && (d=declarations[i]); i++) {
           element.apply(null, d);
