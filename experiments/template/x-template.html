@@ -3,8 +3,17 @@
 <script>
 
 /*
-  Provides basic template stamping support. Stamps with bound mustaches and
-  events when the template's `model` is set.
+  Provides basic template stamping support.
+
+  When `model` is set, the template stamps below itself in dom. If a previous
+  stamping exists, it is removed first. Neoprene style bindings are created 
+  for stamped elements. (NOTE: Binding paths is suppported.)
+
+  If `model` is an Array, then the template is iterated
+  for each member of the Array.
+
+  When any bound property notifies, a `modelchanged` event is fired on the
+  template.
 
 */
 
@@ -45,6 +54,18 @@
       return this._model;
     },
 
+    /**
+     * Update template stamping, this will update the template if a model
+     * exists. When the optional `model` argument is set and the model is 
+     * an Array, only the template iteration corresponding to `model` will
+     * be updated.
+     *
+     * NOTE: this method should simply update bound properties on an existing
+     * stamping, but it currently restamps the template.
+     *
+     * TODO(sorvell): implement in place update; requires better integration
+     * with node annotations.
+    */
     update: function(model) {
       if (this.model) {
         var i = Array.isArray(this.model) ? this.model.indexOf(model) : -1;
@@ -129,7 +150,6 @@
             break;
         }
       }, this);
-      //
       if (binding.events) {
         binding.events.forEach(function(b) {
           var name = b.name;
@@ -141,6 +161,15 @@
       }
     },
 
+
+    /**
+     * Two way binding change handler; when a bound property notifies 
+     * the bound `model` property is set.
+     * 
+     * In addition a `modelchanged` event is fired on the template element.
+     * This event contains detail information about the model, path, and value
+     * that are changing.
+    */
     incomingDataHandler: function(binding, model, e) {
       setPath(model, binding.value, e.detail);
       this.proxy.fire('modelchanged', {
@@ -150,7 +179,11 @@
       }, this);
     },
 
-    // returns this model for a node that was produced by this template.
+    /** 
+     * Returns the model for a node that was produced via template stamping.
+     * Useful for determining which iteration of a model Array a given
+     * node to which a node corresponds.
+     */
     // note: model is memoized on node.
     getNodeModel: function(node) {
       if (node.templateModel) {
