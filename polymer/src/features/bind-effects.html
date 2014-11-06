@@ -5,11 +5,44 @@
     // per instance
     
     init: function() {
+      this._data = Object.create(null);
+    },
+
+    _setupBindListeners: function() {
+      var bl = this._bindListeners;
+      for (var n in bl) {
+        bl[n].targets.forEach(function(target) {
+          this._setupBindListener(n, target);
+        }, this);
+      }
+    },
+
+    _setupBindListener: function(property, target) {
+      //console.log('[bind]: [%s][%s] listening for [%s][%s-changed]', this.localName, property, target.id || target.index, target.property);
+      var host = this, property;
+      var node = target.id ? this.$[target.id] : this._nodes[target.index];
+      node.addEventListener(target.property + '-changed', function(e) {
+        //console.log('[bind]:[%s] heard [%s-changed] this.[%s] = [%s]', host.localName, source, property, e.detail);
+        host[property] = e.detail;
+      });
+    },
+
+    _notifyChange: function(property) {
+      this.fire(property + '-changed', this[property], null, false);
+    },
+
+    _setData: function(property, value) {
+      var old = this._data[property];
+      if (old !== value) {
+        this._data[property] = value;
+      }
+      return old;
     },
 
     // per prototype
     
     register: function(prototype) {
+      prototype._bindListeners = {};
       prototype._createBindings();
     },
 
@@ -18,15 +51,18 @@
       var fx = this._propertyEffects;
       for (var n in fx) {
         //console.group(n);
-        var fxt = [];
-        fx[n].forEach(function(x) {
-          fxt.push(this['_' + x.kind + 'EffectBuilder'](n, x.effect));
+        var compiledEffects = fx[n].map(function(x) {
+          return this._buildEffect(n, x);
         }, this);
-        this._bindPropertyEffects(n, fxt);
+        this._bindPropertyEffects(n, compiledEffects);
         //console.log(fxt.join('\n'));
         //console.groupEnd();
       }
       //console.groupEnd();
+    },
+
+    _buildEffect: function(property, fx) {
+      return this['_' + fx.kind + 'EffectBuilder'](property, fx.effect);
     },
 
     _bindEffectBuilder: function(source, effect) {
@@ -125,8 +161,32 @@
     _bindAnnotationProperty: function(source, target, index) {
       return 'this._nodes[' + index + '].' + target 
           + ' = this._data.' + source + ';';
+    },
+
+    _addBindListener: function(source, id, property) {
+      var bl = this._requireBindListeners(source);
+      bl.targets.push({
+        id: id,
+        property: property
+      });
+    },
+
+    _addAnnotatedListener: function(source, index, property) {
+      var bl = this._requireBindListeners(source);
+      bl.targets.push({
+        index: index,
+        property: property
+      });
+    },
+
+    _requireBindListeners: function(source) {
+      var bl = this._bindListeners[source];
+      if (!bl) {
+        bl = this._bindListeners[source] = {targets: []};
+      }
+      return bl;
     }
 
-  });
+});
 
 </script>
