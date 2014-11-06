@@ -24,8 +24,8 @@ module.exports = function(grunt) {
     },
     copy: {
       Polymer: {
-        src: 'layout.html',
-        dest: 'dist/layout.html'
+        src: ['layout.html', 'bower.json'],
+        dest: 'dist/'
       }
     },
     concat: {
