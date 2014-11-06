@@ -1,0 +1,132 @@
+<script>
+
+  Base.addFeature({
+
+    // per instance
+    
+    init: function() {
+    },
+
+    // per prototype
+    
+    register: function(prototype) {
+      prototype._createBindings();
+    },
+
+    _createBindings: function() {
+      //console.group(this.name);
+      var fx = this._propertyEffects;
+      for (var n in fx) {
+        //console.group(n);
+        var fxt = [];
+        fx[n].forEach(function(x) {
+          fxt.push(this['_' + x.kind + 'EffectBuilder'](n, x.effect));
+        }, this);
+        this._bindPropertyEffects(n, fxt);
+        //console.log(fxt.join('\n'));
+        //console.groupEnd();
+      }
+      //console.groupEnd();
+    },
+
+    _bindEffectBuilder: function(source, effect) {
+      // TODO(sjmiles): validation system requires a blessed
+      // validator effect which needs to be processed first.
+      /*
+      if (typeof this[effect] === 'function') {
+        return [
+          'var validated = this.' + effect + '(value, old)',
+          'if (validated !== undefined) {',
+          '  // recurse',
+          '  this[property] = validated;',
+          '  return;',
+          '}'
+        ].join('\n');
+      }
+      */
+      //
+      // TODO(sjmiles): try/catch is temporary
+      //try {
+        if (typeof this[effect] === 'function') {
+          return 'this.' + effect + '(this._data.' + source + ', old);'
+        }
+      //} catch(x) {}
+      //
+      var paths = effect.split('.');
+      var id = paths.shift();
+      var property = paths.join('.');
+      //
+      if (property) {
+        // TODO(sjmiles): awkward: store data for instance-time listeners.
+        // _addBindListener is in bind.html, if we did the path processing
+        // in that module we could contain all the listener logic there too.
+        this._addBindListener(source, id, property);
+      } else {
+        property = 'textContent';
+      }
+      //
+      return 'this.$.' + id + '.' + property + ' = ' 
+        + 'this._data.' + source + ';'
+    },
+
+    _bindPropertyEffects: function(property, effects) {
+      var defun = {
+        get: function() {
+          return this._data[property];
+        }
+      }
+      if (effects.length) {
+        // combine effects
+        effects = effects.join('\n\t\t');
+        // construct effector
+        var effector = '_' + property + 'Effector';
+        this[effector] = new Function('old', effects);
+        // construct setter body
+        var body  = '\tvar old = this._setData(\'' + property + '\', value);\n'
+          + '\tif (value !== old) {\n'
+            + '\t\tthis.' + effector + '(old);\n' 
+          + '\t}';
+        var setter = new Function('value', body);
+        // ReadOnly properties have a private setter only
+        if (this.isReadOnlyProperty(property)) {
+          this['_set_' + property] = setter;
+        }
+        // other properties have a proper setter 
+        else {
+          defun.set = setter;
+        }
+      }
+      Object.defineProperty(this, property, defun);
+      //var prop = Object.getOwnPropertyDescriptor(this, property);
+      //console.log(prop.set ? prop.set.toString() : '(read-only)');
+    },
+
+    _notifyEffectBuilder: function(source) {
+      return 'this._notifyChange(\'' + source + '\')';
+    },
+
+    _computeEffectBuilder: function(source, effect) {
+      return 'this.' + effect.property 
+        + ' = this.' + effect.method + '(this._data.' + source + ');';
+    },
+
+    _annotationEffectBuilder: function(source, binding) {
+      var target = binding.name || 'textContent';
+      if (binding.kind !== 'text' && binding.kind !== 'attribute') {
+        console.warn(binding.kind);
+        return;
+      }
+      if (target !== 'textContent') {
+        this._addAnnotatedListener(source, binding.index, target);
+      }
+      return this._bindAnnotationProperty(source, target, binding.index);
+    },
+
+    _bindAnnotationProperty: function(source, target, index) {
+      return 'this._nodes[' + index + '].' + target 
+          + ' = this._data.' + source + ';';
+    }
+
+  });
+
+</script>

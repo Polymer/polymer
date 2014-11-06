@@ -50,29 +50,39 @@
    * prevented, and the triggering property is set to the returned value, and
    * a new round of side-effects is initiated.
    * 
-   *
+   * Multi-bind = multiple side-effects for one signal.
+   * Note: `signal` today is `set-trap`, should we generalize?
+   * Side-effects can be registered by multiple subsystems:
+   *   - bind feature
+   *   - bind-annotations feature
+   *   - computed feature
+   *   - published feature
+   * We need to accumulate all side-effects for a particular property 
+   * before constructing the handler.
+   * 
    */
   Base.addFeature({
 
     // per instance
     
     init: function() {
-      this._privateData = Object.create(null);
+      this._data = Object.create(null);
     },
 
-    _setupMultiBindListeners: function() {
-      for (var n in this._multiData) {
-        var data = this._multiData[n];
-        data.targets.forEach(function(t) {
-          this._setupMultiBindListener(n, t.id, t.property);
+    _setupBindListeners: function() {
+      var bl = this._bindListeners;
+      for (var n in bl) {
+        bl[n].targets.forEach(function(target) {
+          this._setupBindListener(n, target);
         }, this);
       }
     },
 
-    _setupMultiBindListener: function(property, id, source) {
-      var host = this;
-      //console.log('[bind]: [%s][%s] listening for [%s][%s-changed]', this.localName, property, id, source);
-      this.$[id].addEventListener(source + '-changed', function(e) {
+    _setupBindListener: function(property, target) {
+      //console.log('[bind]: [%s][%s] listening for [%s][%s-changed]', this.localName, property, target.id || target.index, target.property);
+      var host = this, property;
+      var node = target.id ? this.$[target.id] : this._nodes[target.index];
+      node.addEventListener(target.property + '-changed', function(e) {
         //console.log('[bind]:[%s] heard [%s-changed] this.[%s] = [%s]', host.localName, source, property, e.detail);
         host[property] = e.detail;
       });
@@ -81,158 +91,84 @@
     // per prototype
     
     register: function(prototype) {
-      // TODO(sjmiles): `_bound` is ad hoc name tracking for custom telemetry
-      prototype._bound = [];
-      prototype._multiData = Object.create(null);
-      prototype._setupBindings();
-    },
-
-    _setupBindings: function() {
-      for (var n in this.bind) {
-        this._bound.push(n);
-        this._setupBinding(n, this.bind[n]);
-      }
-    },
-
-    _setupBinding: function(property, data) {
-      // TODO(sjmiles): ad hoc integration with `attributes:publish` feature
-      if (typeof data === 'object' || this.published[property]) {
-        this._bindMulti(property, data);
-      } else {
-        var path = data, paths = path.split('.');
-        if (paths.length === 1) {
-          if (typeof this[path] === 'function') {
-            this.bindMethod(property, path);
-            return;
-          }
-          path += '.textContent';
-        }
-        this.bindProperty(property, 'this.$.' + path);
-      }
-    },
-
-    // TODO(sjmiles): currently there is a fourth type of accessor pair
-    // that is constructed via bind-annotations feature, unify.
-
-    _bindMulti: function(property, data) {
-      var callback, targets = [];
-      // parse bind object
-      // shove single string into an array for convenience
-      if (typeof data === 'string') {
-        data = [data];
-      }
-      // accumulate any side-effects (beyond nominal callback)
-      var sideEffects = [];
-      // targets are either sub-element properties or a highlander method-name
-      for (var i=0, a; a=data[i]; i++) {
-        // TODO(sjmiles): ad-hoc: support exactly one callback method
-        if (a === null || typeof this[a] === 'function') {
-          callback = a;
-        } else {
-          // otherwise parse target data
-          var t = this._createMultiBindTarget(property, a);
-          // store target data
-          targets.push(t);
-          // accumulate effects
-          sideEffects.push(t.effect);
-        }
-      }
-      // create side-effect executor
-      var sideEffectFn = sideEffects.length ? 
-        new Function('value', sideEffects.join('\n')) : null;
-      // desugared bind data
-      var data = {
-        callback: callback,
-        targets: targets,
-        sideEffectFn: sideEffectFn,
-        published: Boolean(this.published[property])
-      };
-      // create accessors
-      Object.defineProperty(this, property, {
-        set: function(value) {
-          var old = this._setPrivateData(property, value);
-          // TODO(sjmiles): dirty-check ftw! 
-          if (old !== value) {
-            this._multiBindPropertyChanged(property, data, value, old);
-          }
-        },
-        get: function() {
-          return this._privateData[property];
-        }
-      });
-      // store bind data
-      this._multiData[property] = data;
-    },
-
-    _createMultiBindTarget: function(source, path) {
-      var paths = path.split('.');
-      var id = paths.shift();
-      var property = paths.join('.') || 'textContent';
-      return {
-        id: id,
-        property: property,
-        effect: 'this.$.' + id + '.' + property + '=this._privateData.' 
-          + source + ';'
-      };      
-    },
-
-    _multiBindPropertyChanged: function(property, data, value, old) {
-      //console.log('[bind._multiBindPropertyChanged]:', property, data, value, old);
-      // to have validation ability, `callback` must be distinguished
-      // from other side-effects
-      if (data.callback) {
-        var validated = this[data.callback](value, old);
-        if (validated !== undefined) {
-          // recurse
-          this[property] = validated;
-          return;
-        }
-      }
-      // process other side-effects
-      if (data.sideEffectFn) {
-        data.sideEffectFn.call(this, value);
-      }
-      // if published, notify
-      if (data.published) {
-        this._notifyChange(property);
-      }
+      prototype._prepareBindData();
+      prototype._addPropertyBindEffects();
     },
 
     _notifyChange: function(property) {
       this.fire(property + '-changed', this[property], null, false);
     },
 
-    _setPrivateData: function(property, value) {
-      var old = this._privateData[property];
+    _setData: function(property, value) {
+      var old = this._data[property];
       if (old !== value) {
-        this._privateData[property] = value;
+        this._data[property] = value;
       }
       return old;
     },
 
-    bindMethod: function(property, path) {
-      Object.defineProperty(this, property, {
-        set: function(value) {
-          var old = this._setPrivateData(property, value);
-          // TODO(sjmiles): dirty-checking ftw!
-          // A large (?) amount of useless setting is short-circuited here.
-          // KISS suggested we choose this blunt modus for circularity defense 
-          // as opposed to constructing a true orchestrator. 
-          if (old !== value) {
-            this[path](value, old);
-          }
-        },
-        get: function() {
-          return this._privateData[property];
-        }
+    _prepareBindData: function() {
+      // TODO(sjmiles): `_bound` is ad hoc name tracking for custom telemetry
+      this._bound = [];
+      // TODO(sjmiles): legacy structure for adding notify listeners: improve
+      this._bindListeners = {};
+      // property effect accumulator
+      this._propertyEffects = {};
+    },
+
+    addPropertyEffect: function(property, kind, effect) {
+      var fx = this._propertyEffects[property];
+      if (!fx) {
+        fx = this._propertyEffects[property] = [];
+      }
+      fx.push({
+        kind: kind,
+        effect: effect
       });
     },
 
-    bindProperty: function(property, path) {
-      Object.defineProperty(this, property, {
-        set: new Function('value', path + ' = value;'),
-        get: new Function('return ' + path + ';')
+    // TODO(sjmiles): called from bind-effects, should be untangled
+    _addBindListener: function(source, id, property) {
+      var bl = this._requireBindListeners(source);
+      bl.targets.push({
+        id: id,
+        property: property
       });
+    },
+
+    _addAnnotatedListener: function(source, index, property) {
+      var bl = this._requireBindListeners(source);
+      bl.targets.push({
+        index: index,
+        property: property
+      });
+    },
+
+    _requireBindListeners: function(source) {
+      var bl = this._bindListeners[source];
+      if (!bl) {
+        bl = this._bindListeners[source] = {targets: []};
+      }
+      return bl;
+    },
+
+    _addPropertyBindEffects: function() {
+      for (var n in this.bind) {
+        var bind = this.bind[n];
+        if (typeof bind === 'object') {
+          // multiplexed definition
+          for (var nn in bind) {
+            this._addPropertyBindEffect(n, bind[nn]);
+          }
+        } else {
+          // single definition
+          this._addPropertyBindEffect(n, bind);
+        }
+      }
+    },
+
+    _addPropertyBindEffect: function(property, bindEffect) {
+      this.addPropertyEffect(property, 'bind', bindEffect);
     }
 
   });

@@ -30,6 +30,9 @@ console._perfEnd = function() {
   document.body.offsetWidth;
   var time = performance.now() - console.perf.time;
   console.profileEnd();
+  if (console.timeline) {
+    console.timelineEnd();
+  }
   document.title = time.toFixed(1) + 'ms: ' + document.title;
   if (window.top !== window) {
     window.top.postMessage(time + 'ms', '*');
