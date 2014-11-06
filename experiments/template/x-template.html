@@ -1,66 +1,37 @@
-<style>
-
-  x-template-proxy {
-    display: none;
-  }
-
-</style>
-<script>
-
-  Polymer({
-    name: 'x-template-proxy'
-  });
-</script>
+<link rel="import" href="x-template-proxy.html">
 
 <script>
-
-// TODO(sorvell): we're using a proxy element to get Polymer api just until
-// there's support for extending <template>.
 
 /*
   Provides basic template stamping support. Stamps with bound mustaches and
   events when the template's `model` is set.
 
-  NOTE: ntested templates are not currently supported at all. Instead, a `ref`
-  system is provided when `x-template` needs to be in another template.
-
-  See https://code.google.com/p/chromium/issues/detail?id=430578.
-
 */
 
 (function() {
   var proto = Object.create(HTMLTemplateElement.prototype);
-  var proxy;
-
-  var refMap = {};
-
+  
   extend(proto, {
 
     createdCallback: function() {
-      if (this.id) {
-        refMap[this.id] = this;
+      if (this.id && !this.getAttribute('ref')) {
+        XTemplate.refMap[this.id] = this;
       }
-      // make static proxy iff needed.
-      if (!proxy) {
-        proxy = document.createElement('x-template-proxy');
-      }
-      this.proxy = proxy;
+      this.proxy = XTemplate.getProxy();
       // collect annotations for use in binding.
-      proxy.parseAnnotations(this);
+      this.proxy.parseAnnotations(this);
       this.attributeChangedCallback('ref');
     },
 
     attributeChangedCallback: function(name) {
       if (name === 'ref') {
         this.ref = this.getAttribute('ref');
-        if (this.model) {
-          this.stamp();
-        }
+        this.update();
       }
     },
 
     get refTemplate() {
-      return this.ref ? refMap[this.ref] : this;
+      return this.ref ? XTemplate.refMap[this.ref] : this;
     },
 
     set model(model) {
@@ -74,17 +45,56 @@
       return this._model;
     },
 
+    update: function(model) {
+      if (this.model) {
+        var i = Array.isArray(this.model) ? this.model.indexOf(model) : -1;
+        if (i >= 0) {
+          this.updateInstance(i);
+        } else {
+          this.stamp();
+        }
+      }
+    },
+
     stamp: function() {
       this.clear();
-      var ref = this.refTemplate;
-      var content = ref.content;
+      this._controller = this.controller || this.model;
+      this._refMap = this.refTemplate.map;
+      this._refContent = this.refTemplate.content;
+      this.contentLength = this._refContent.childNodes.length;
+      var refNode = this.nextElementSibling;
+      if (Array.isArray(this.model)) {
+        for (var i=0, l=this.model.length, m; (i<l) && (m=this.model[i]); i++) {
+          this.stampInstance(m, refNode);
+        }
+      } else {
+        this.stampInstance(this.model, refNode);
+      }
+    },
+
+    stampInstance: function(model, refNode) {
       // create the dom!
-      var dom = document.importNode(content, true);
-      this.applyBindings(dom, ref.map);
+      var dom = document.importNode(this._refContent, true);
+      this.applyBindings(dom, model);
       // track number of stamped nodes so we can easily remove the stamping.
-      this._stampedCount = dom.childNodes.length;
+      var count = dom.childNodes.length;
+      this._stampedCount += count;
       // add to parent next to us.
-      this.parentNode.insertBefore(dom, this.nextElementSibling);
+      this.parentNode.insertBefore(dom, refNode);
+    },
+
+    // TODO(sorvell): this should actually update the template instance in 
+    // place, but this requires some additional annotation information to find
+    // the nodes to update.
+    updateInstance: function(index) {
+      // clear instance
+      var n = this.nodeAtIndex(this.contentLength * index-1);
+      for (var i =0; i < this.contentLength; i++) {
+        n.nextSibling.remove();
+      }
+      var model = this.model[index];
+      // stamp
+      this.stampInstance(model, n.nextSibling);
     },
 
     // TODO(sorvell): note: any user modification of stamped dom will mess this up.
@@ -92,19 +102,21 @@
       while (this._stampedCount--) {
         this.nextSibling.remove();
       }
+      this._stampedCount = 0;
     },
 
-    applyBindings: function(dom, bindingMap) {
-      bindingMap.forEach(function(a) {
+    applyBindings: function(dom, model) {
+      this._refMap.forEach(function(a) {
         var node = this.proxy.findAnnotatedNode(dom, a);
-        this.bindNode(node, a);
+        this.bindNode(node, model, a);
       }, this);
     },
 
-    bindNode: function(node, binding) {
+    bindNode: function(node, model, binding) {
+      node.templateModel = model;
       binding.bindings.forEach(function(b) {
         var name = b.name;
-        var value = this.model[b.value];
+        var value = getPath(model, b.value);
         switch (b.kind) {
           case 'text':
             node.textContent = value || '';
@@ -113,7 +125,7 @@
             // two-way!
             node[name] = value;
             node.addEventListener(name + '-changed', 
-              this.incomingDataHandler.bind(this, name));
+              this.incomingDataHandler.bind(this, b, model));
             break;
         }
       }, this);
@@ -121,20 +133,73 @@
       if (binding.events) {
         binding.events.forEach(function(b) {
           var name = b.name;
-          var value = this.model[b.value];
+          var value = this._controller[b.value];
           if (typeof value === 'function') {
-            node.addEventListener(name, value.bind(this.model));
+            node.addEventListener(name, value.bind(this._controller));
           }
         }, this);
       }
     },
 
-    incomingDataHandler: function(name, e) {
-      this.model[name] = e.target[name];
-      this.stamp();
+    incomingDataHandler: function(binding, model, e) {
+      setPath(model, binding.value, e.detail);
+      this.proxy.fire('modelchanged', {
+        model: model,
+        path: binding.value,
+        value: e.detail
+      }, this);
+    },
+
+    // returns this model for a node that was produced by this template.
+    // note: model is memoized on node.
+    getNodeModel: function(node) {
+      if (node.templateModel) {
+        return node.templateModel;
+      }
+      var model;
+      if (Array.isArray(this.model)) {
+        while (node.parentNode != this.parentNode) {
+          node = node.parentNode;
+        }
+        var o = this.nodeOffset(node) - this.nodeOffset(this) - 1;
+        var i = Math.floor(o / this.contentLength);
+        model = this.model[i];
+      } else {
+        model = this.model;
+      }
+      return (node.templateModel = model);
+    },
+
+    nodeOffset: function(node) {
+      var nodes = this.parentNode.childNodes;
+      return Array.prototype.indexOf.call(nodes, node);
+    },
+
+    nodeAtIndex: function(index) {
+      var i = index + this.nodeOffset(this) + 1;
+      return this.parentNode.childNodes[i];
     }
 
   });
+
+  // TODO(sorvell): these path getter/setters are slow.
+  getPath = function(obj, path) {
+    var parts = path.split('.');
+    var v = obj;
+    while (parts.length) {
+      v = v[parts.shift()];
+    }
+    return v;
+  };
+
+  setPath = function(obj, path, value) {
+    var parts = path.split('.');
+    var prop = parts.pop();
+    var o = parts.length ? getPath(obj, parts.join('.')) : obj;
+    if (o) {
+      o[prop] = value;
+    }
+  };
 
   document.registerElement('x-template', {prototype: proto, extends: 'template'});
 
