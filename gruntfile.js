@@ -24,14 +24,19 @@ module.exports = function(grunt) {
     'wct-sauce-tunnel': {
       default: {},
     },
-    concat_sourcemap: {
+    copy: {
+      Polymer: {
+        src: ['layout.html', 'bower.json'],
+        dest: 'dist/'
+      }
+    },
+    concat: {
       Polymer: {
         options: {
-          sourcesContent: true,
           nonull: true
         },
         files: {
-          'build/polymer.concat.js': readManifest('build.json')
+          'dist/polymer.js': readManifest('build.json')
         }
       }
     },
@@ -44,17 +49,10 @@ module.exports = function(grunt) {
           beautify: {
             ascii_only: true,
           },
-          sourceMap: true,
-          sourceMapName: 'build/polymer.js.map',
-          sourceMapIncludeSources: true,
           banner: grunt.file.read('banner.txt') + '// @version: <%= buildversion %>'
-          //mangle: false, beautify: true, compress: false
         },
-        /*files: {
-          'build/polymer.js': Polymer
-        }*/
         files: {
-          'build/polymer.js': 'build/polymer.concat.js'
+          'dist/polymer.min.js': 'dist/polymer.js'
         }
       }
     },
@@ -64,18 +62,18 @@ module.exports = function(grunt) {
           repos: [
             '../polymer-expressions',
             '../polymer-gestures',
-            '../polymer-dev'
+            '../polymer'
           ]
         },
         files: {
-          'build/build.log': 'build/polymer.js'
+          'dist/build.log': ['dist/polymer.js', 'dist/polymer.min.js', 'dist/layout.html']
         }
       }
     },
     'string-replace': {
       polymer: {
         files: {
-          'build/polymer-versioned.js': 'src/polymer.js'
+          'dist/polymer-versioned.js': 'src/polymer.js'
         },
         options: {
           replacements: [
@@ -124,35 +122,22 @@ module.exports = function(grunt) {
 
   grunt.loadTasks('../tools/tasks');
   // plugins
+  grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-uglify');
-  grunt.loadNpmTasks('grunt-concat-sourcemap');
   grunt.loadNpmTasks('grunt-audit');
   grunt.loadNpmTasks('grunt-string-replace');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('web-component-tester');
 
-  grunt.registerTask('stash', 'prepare for testing build', function() {
-    grunt.option('force', true);
-    grunt.task.run('move:polymer.html:polymer.html.bak');
-    grunt.task.run('move:build/polymer.html:polymer.html');
-  });
-  grunt.registerTask('restore', function() {
-    grunt.task.run('move:polymer.html:build/polymer.html');
-    grunt.task.run('move:polymer.html.bak:polymer.html');
-    grunt.option('force', false);
-  });
-
   grunt.registerTask('default', ['minify']);
-  grunt.registerTask('minify', ['jshint:server', 'concat_sourcemap', 'version', 'string-replace', 'uglify']);
+  grunt.registerTask('minify', ['jshint:server', 'version', 'string-replace', 'concat', 'uglify', 'copy', 'audit']);
   grunt.registerTask('test', ['wct-test:local']);
   grunt.registerTask('test-remote', ['wct-test:remote']);
-  grunt.registerTask('test-build', ['minify', 'stash', 'test', 'restore']);
-  grunt.registerTask('test-buildbot', ['test-build']);
+  grunt.registerTask('test-buildbot', ['test']);
   grunt.registerTask('release', function() {
     grunt.option('release', true);
     grunt.task.run('minify');
     grunt.task.run('audit');
   });
 };
-
