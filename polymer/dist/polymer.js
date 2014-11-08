@@ -1,3 +1,4 @@
+
   // a tiny bit of sugar for `document.currentScript.ownerDocument`
   // sadly `import` is reserved, so we need another name or
   // you have to refer to this value `window.import`
@@ -36,7 +37,7 @@
     ESC_KEY: 27,
     ENTER_KEY: 13
   };
-  
+
   Base = {
 
     // (semi-)pluggable features for Base
@@ -103,12 +104,12 @@
       // for overriding
     },
 
-    dettachedCallback: function() {
+    detachedCallback: function() {
       // reserved for canonical behavior
-      this.dettached();
+      this.detached();
     },
 
-    dettached: function() {
+    detached: function() {
       // for overriding
     },
 
@@ -184,7 +185,7 @@
 
   });
 
-  // TODO(sjmiles): now depends on `annotations` and `bind-annotations` features
+  // depends on `annotations` feature
 
   Base.addFeature({
 
@@ -192,42 +193,28 @@
       return this.root.querySelector(slctr);
     },
 
-    marshalNodeReferences: function() {
+    _marshalNodeReferences: function() {
       this.$ = {};
       var map = this._template && this._template.map;
       if (map) {
         map.forEach(function(annotation) {
-          var binding = annotation.bindings[0];
-          if (binding.kind === 'id') {
-            this.$[binding.value] = 
-              this.findAnnotatedNode(this.root, annotation);
+          var id = annotation.id;
+          if (id) {
+            this.$[id] = this.findAnnotatedNode(this.root, annotation);
           }
         }, this);
       }
-      /*
-      for (var n in this.$) {
-        this.$[n] = this._nodes[index];
-      }
-      */
-      /*
-      var n$ = this.root.querySelectorAll("[id]");
-      if (n$.length) {
-        // populate $ with id->node properties from the this.root subtree
-        this.$ = {};
-        for (var i=0, n; (n=n$[i]); i++) {
-          // TODO(sjmiles): this node could come from another host 
-          this.$[n.id] = n;
-        }
-      }
-      */
     }
 
   });
-  
+
   Base.addFeature({
+
     listeners: {},
+
     init: function() {
     },
+
     // TODO(sjmiles): support for '.' notation requires 'nodes' feature
     listenListeners: function() {
       for (var key in this.listeners) {
@@ -240,11 +227,14 @@
         this.listen(node, name, this.listeners[key]);
       }
     },
+
     listen: function(node, eventName, methodName) {
       node.addEventListener(eventName, function(e) {
         this[methodName](e, e.detail);
       }.bind(this));
     },
+
+    // TODO(sjmiles): use a dictionary for options after `detail`
     fire: function(type, detail, onNode, bubbles, cancelable) {
       var node = onNode || this;
       var detail = (detail === null || detail === undefined) ? {} : detail;
@@ -256,6 +246,7 @@
       node.dispatchEvent(event);
       return event;
     }
+
   });
   
   Base.addFeature({
@@ -336,7 +327,7 @@
     }
           
   });
-    
+
   /*
    * Support for `hostAttributes` property.
    * 
@@ -350,37 +341,123 @@
    * 
    */
   Base.addFeature({
-    
+
     init: function() {
       if (this.hostAttributes) {
         this.cloneAttributes(this, this.hostAttributes);
       }
     },
-    
+
     cloneAttributes: function(node, attr$) {
       attr$.split(' ').forEach(function(a) {
         node.setAttribute(a, '');
       });
     }
-    
+
+  });
+
+  /*
+   * Support for `published` property.
+   * 
+   * `published` object maps the names of attributes that the user
+   * wants mapped as inputs to properties to the data-type of that property.
+   * 
+   * This feature overwrites `attributeChanged` to support automatic
+   * propagation of attribute values at run-time.
+   * 
+   * Static values in attributes at creation time can be captured by 
+   * `takeAttributes`.
+   *
+   * Example:
+   * 
+   * published: {
+   *   // values set to index attribute are converted to Number and propagated
+   *   // to index property
+   *   index: Number,
+   *   // values set to label attribute are propagated to index property
+   *   label: String
+   * } 
+   * 
+   * Supported types:
+   * 
+   * - Number
+   * - Boolean
+   * - String
+   * - Object (JSON)
+   * - Array (JSON)
+   * - Date
+   * 
+   */
+  Base.addFeature({
+
+    /* attribute publishing feature, requires `published` feature */
+
+    takeAttributes: function() {
+      for (var n in this.published) {
+        this.attributeChanged(n);
+      }
+    },
+
+    attributeChanged: function(name) {
+      var type = this.getPublishedPropertyType(name);
+      if (type) {
+        this.deserialize(name, type);
+      }
+    },
+
+    deserialize: function(name, type) {
+      var value = this.getAttribute(name);
+      switch(type) {
+        
+        case Number: 
+          value = Number(value) || this[name];
+          break;
+          
+        case Boolean: 
+          value = this.hasAttribute(name);
+          break;
+          
+        case Object: 
+        case Array: 
+          try {
+            value = JSON.parse(value);
+          } catch(x) {
+            return;
+          }
+          break;
+        
+        case Date: 
+          value = Date.parse(value);
+          break;
+          
+        case String:
+        default:
+          break;
+          
+      }
+      this[name] = value;
+    }
+
   });
 
   /*
    * Needs new name.
    * 
-   * Provides a simple data-binding API, by which a getter/setter pair
-   * can be constructed in one of two modes:
+   * Provides a data-binding API, by which a getter/setter pair
+   * can be constructed in one of two imperative modes:
    * 
-   * bindMethod: constructs a getter/setter pair and a backing store 
-   * from the given property, calls the bound method whenever the setter
-   * is invoked.
+   * bindMethod(property, methodName): constructs a getter/setter pair and a 
+   * backing store for the given property; calls the method when the setter
+   * is invoked and the value has changed from what is in the backing store.
    * 
-   * bindProperty: constructs a getter/setter pair that forwards data
-   * access to a property on another object.
+   * bindProperty(property, path): constructs a getter/setter pair that 
+   * forwards data access to a property on another object.
    * 
-   * This features also supports a `bind` object, which contains expressions
-   * that are deconstructed into `bindMethod` or `bindProperty` calls.
-   * 
+   * This feature also supports a `bind` object, which contains expressions
+   * that are deconstructed into `bindMethod` or `bindProperty` calls, or
+   * into a `multiBinding` construct. `multiBinding` constructs support 
+   * multiple side-effects.
+   *
    * bind {
    *   // if `method` is the name of a method on the current object, a
    *   // `bindMethod` call is made to define `property` as described above.
@@ -394,69 +471,151 @@
    *   // but the full path is used for the backing-store.
    *   // This declaration binds property3 to $.elementId.value  
    *   property3: 'elementId.value'
+   *   // If the specified property is also `published`, a multi-binding 
+   *   // construct is created which sends a change notification in addition
+   *   // to whatever user side-effect is specified. 
+   *   publishedProperty: <method name or element property>
+   *   // Specify multiple side-effects directly as an array. Only one
+   *   // callback method is allowed.
+   *   property4: [
+   *     'nameOfMethod',
+   *     'elementId',
+   *     'elementId.property',
+   *     ...
+   *   ] 
    * } 
+   * 
+   * Methods bound into multi-bind contexts support a validation feature. If
+   * the method returns a value that does not === undefined side-effects are
+   * prevented, and the triggering property is set to the returned value, and
+   * a new round of side-effects is initiated.
+   * 
+   * Multi-bind = multiple side-effects for one signal.
+   * Note: `signal` today is `set-trap`, should we generalize?
+   * Side-effects can be registered by multiple subsystems:
+   *   - bind feature
+   *   - bind-annotations feature
+   *   - computed feature
+   *   - published feature
+   * We need to accumulate all side-effects for a particular property 
+   * before constructing the handler.
+   * 
    */
   Base.addFeature({
 
-    init: function() {
-      this._boundData = {};
+    // per prototype
+    
+    // TODO(sjmiles): initialization of `_propertyEffects` and the
+    // `addPropertyEffect` itself are really the domain of bind-effects
+    // but these things needs to happen before bind-effects itself initializes.
+    // We need to factor bind-effects into before and after features instead
+    // and let this feature be for dealing with `bind` object.
+    
+    register: function(prototype) {
+      prototype._propertyEffects = {};
+      prototype._addPropertyBindEffects();
     },
+
+    addPropertyEffect: function(property, kind, effect) {
+      var fx = this._propertyEffects[property];
+      if (!fx) {
+        fx = this._propertyEffects[property] = [];
+      }
+      fx.push({
+        kind: kind,
+        effect: effect
+      });
+    },
+
+    _addPropertyBindEffects: function() {
+      for (var n in this.bind) {
+        var bind = this.bind[n];
+        if (typeof bind === 'object') {
+          // multiplexed definition
+          for (var nn in bind) {
+            this._addPropertyBindEffect(n, bind[nn]);
+          }
+        } else {
+          // single definition
+          this._addPropertyBindEffect(n, bind);
+        }
+      }
+    },
+
+    _addPropertyBindEffect: function(property, bindEffect) {
+      this.addPropertyEffect(property, 'bind', bindEffect);
+    }
+
+  });
+
+  /*
+   * Define public property API. 
+   *
+   * published: {
+   *   <property>: <Type || Object>,
+   *   ...
+   * 
+   *   // `foo` property can be assigned via attribute, will be deserialized to 
+   *   // the specified data-type. All `published` properties have this behavior.  
+   *   foo: String,
+   *
+   *   // `bar` property has additional behavior specifiers.
+   *   //   type: type for (de-)serialization
+   *   //   notify: true to send a signal when a value is set to this property
+   *   //   reflect: true to serialize the property to an attribute 
+   *   //   readOnly: if true, the property has no setter
+   *   bar: {
+   *     type: Boolean,
+   *     notify: true 
+   *   }
+   * }
+   * 
+   */
+  Base.addFeature({
+
+    published: {
+    },
+
+    nob: Object.create(null),
 
     register: function(prototype) {
-      prototype.setupBindings();
-    },
-
-    setupBindings: function() {
-      for (var n in this.bind) {
-        this.setupBinding(n, this.bind[n]);
+      for (var n in prototype.published) {
+        if (prototype.isNotifyProperty(n)) {
+          prototype.addPropertyEffect(n, 'notify');
+        }
       }
     },
-
-    setupBinding: function(property, path) {
-      var paths = path.split('.');
-      //
-      if (paths.length === 1) {
-        if (typeof this[path] === 'function') {
-          this.bindMethod(property, paths);
-          return;
-        }
-        path += '.textContent';
+    
+    getPublishInfo: function(property) {
+      var p = this.published[property];
+      if (typeof(p) === 'function') {
+        p = this.published[property] = {
+          type: p 
+        };
       }
-      //
-      this.bindProperty(property, 'this.$.' + path);
+      return p || Base.nob;
     },
 
-    bindMethod: function(property, path) {
-      Object.defineProperty(this, property, {
-        set: function(value) {
-          var old = this._boundData[path];
-          this._boundData[path] = value;
-          // TODO(sjmiles): NOTE: no dirty-check 
-          this[path](value, old);
-        },
-        get: function() {
-          return this._boundData[path];
-        }
-      });
+    getPublishedPropertyType: function(property) {
+      return this.getPublishInfo(property).type;
     },
 
-    bindProperty: function(property, path) {
-      // TODO(sjmiles): using `new Function` for expediency and performance.
-      // Will need an alternative algorithm for platforms without eval.
-      Object.defineProperty(this, property, {
-        set: new Function('value', path + ' = value;'),
-        get: new Function('return ' + path + ';')
-      });
+    isReadOnlyProperty: function(property) {
+      return this.getPublishInfo(property).readOnly;
+    },
+
+    isNotifyProperty: function(property) {
+      return this.getPublishInfo(property).notify;
+    },
+
+    isReflectedProperty: function(property) {
+      return this.getPublishInfo(property).reflect;
     }
 
   });
 
 // TODO(sjmiles): this code was ported from an earlier mutation and needs
 // a cleanup to cleave closer to neoprene MO
-// - events should be in a separate list
-// - ids should be in a separate list
-// - reduce variety of binding types
-// - mutliple delegate needs to be supported (this was true before too, fwiw)
 
 /* 
 
@@ -481,13 +640,21 @@ Generated data-structure:
 
   [
     {
-      bindings: [
+      id: '<id>',
+      events: [
         {
-          kind: ['event'|'text'|'attribute'|'property'],
           mode: ['auto'|''], 
           name: '<name>'
           value: '<expression>'
-        }
+        }, ...
+      ],
+      bindings: [
+        {
+          kind: ['text'|'attribute'|'property'],
+          mode: ['auto'|''], 
+          name: '<name>'
+          value: '<expression>'
+        }, ...
       ],
       // TODO(sjmiles): confusingly, this is annotation-parent, not node-parent
       parent: <reference to parent annotation>,
@@ -504,23 +671,8 @@ TODO(sjmiles): this module should produce either syntactic metadata
 
   Base.addFeature({
 
-    register: function(prototype) {
-      if (prototype._template) {
-        prototype.parseTemplateAnnotations(prototype._template)
-      }
-    },
-    
-    parseTemplateAnnotations: function(template) {
-      // TODO(sjmiles): it's not a map, per se
-      var map = [];
-      this._parseTemplateNode(template.content, map);
-      if (map.length) {
-        template.map = map;
-      }
-      return template.map;
-    },
+    // instance-time
 
-    // instance-time method
     findAnnotatedNode: function(root, annote) {
       if (!annote.parent) {
         return root;
@@ -532,13 +684,31 @@ TODO(sjmiles): this module should produce either syntactic metadata
       return nodes[annote.index];
     },
 
-    _parseTemplateNode: function(node, map) {
-      return node.nodeType === Node.TEXT_NODE ? 
-        this._parseTemplateTextNode(node, map) : 
-          this._parseTemplateElement(node, map);
+    // registration-time
+
+    register: function(prototype) {
+      if (prototype._template) {
+        prototype.parseAnnotations(prototype._template)
+      }
     },
 
-    _parseTemplateTextNode: function(node, map) {
+    parseAnnotations: function(template) {
+      // TODO(sjmiles): it's not a map, per se
+      var map = [];
+      this._parseNodeAnnotations(template.content, map);
+      if (map.length) {
+        template.map = map;
+      }
+      return template.map;
+    },
+
+    _parseNodeAnnotations: function(node, map) {
+      return node.nodeType === Node.TEXT_NODE ? 
+        this._parseTextNodeAnnotation(node, map) : 
+          this._parseElementAnnotations(node, map);
+    },
+
+    _parseTextNodeAnnotation: function(node, map) {
       var v = node.textContent, escape = v.slice(0, 2);
       if (escape === '{{' || escape === '[[') {
         var annotation = {
@@ -553,76 +723,86 @@ TODO(sjmiles): this module should produce either syntactic metadata
       }
     },
 
-    _parseTemplateElement: function(node, map) {
-      var annotations = {
-        bindings: []
+    _parseElementAnnotations: function(node, map) {
+      var annote = {
+        bindings: [],
+        events: []
       };
-      this._parseTemplateNodeAnnotations(node, annotations, map);
-      this._parseTemplateChildNodes(node, annotations, map);
-      if (annotations.bindings.length) {
-        map.push(annotations);
-      }
-      return annotations;
-    },
-
-    _parseTemplateNodeAnnotations: function(node, annotation) {
+      this._parseChildNodesAnnotations(node, annote, map);
       if (node.attributes) {
-        for (var i=0, a; (a=node.attributes[i]); i++) {
-          var n = a.name, v = a.value;
-          if (n === 'id') {
-            annotation.bindings.push({
-              kind: 'id',
-              value: v
-            });
-            continue;
-          }
-          var escape = v.slice(0, 2), lastChar = n[n.length-1];
-          var kind = 'attribute', mode = '';
-          if (lastChar === '*' || lastChar === ':') {
-              n = n.slice(0, -1);
-              kind = 'property';
-              mode = 'auto';
-          }
-          if (escape === '{{') {
-            mode = 'auto';
-            v = v.slice(2, -2);
-          }
-          if (escape === '[[') {
-            mode = 'manual';
-            v = v.slice(2, -2);
-          }
-          if (mode) {
-            if (n === 'style') {
-              kind = 'style';
-            }
-            annotation.bindings.push({
-              kind: kind,
-              mode: mode,
-              name: n,
-              value: v
-            });
-          } else if (n.slice(0, 3) === 'on-') {
-            annotation.bindings.push({
-              kind: 'event',
-              name: n.slice(3),
-              value: v 
-            });
-          }
-        }
+        this._parseNodeAttributeAnnotations(node, annote, map);
       }
+      if (annote.bindings.length || annote.events.length || annote.id) {
+        map.push(annote);
+      }
+      return annote;
     },
 
-    _parseTemplateChildNodes: function(root, annotations, map) {
+    _parseChildNodesAnnotations: function(root, annotation, map) {
       if (root.firstChild) {
         for (var i=0, node=root.firstChild; node; node=node.nextSibling, i++) {
-          var annotation = this._parseTemplateNode(node, map);
-          if (annotation) {
-            annotation.parent = annotations;
-            annotation.index = i;
+          var childAnnotation = this._parseNodeAnnotations(node, map);
+          if (childAnnotation) {
+            childAnnotation.parent = annotation;
+            childAnnotation.index = i;
           }
         }
       }
+    },
+
+    _parseNodeAttributeAnnotations: function(node, annotation) {
+      for (var i=0, a; (a=node.attributes[i]); i++) {
+        var n = a.name, v = a.value;
+        // id
+        if (n === 'id') {
+          annotation.id = v;
+        } 
+        // on-* (event)
+        else if (n.slice(0, 3) === 'on-') {
+          annotation.events.push({
+            name: n.slice(3),
+            value: v 
+          });
+        } 
+        // other attribute
+        else {
+          var b = this._parseNodeAttributeAnnotation(node, n, v);
+          if (b) {
+            annotation.bindings.push(b);
+          }
+        }
+      }
+    },
+
+    _parseNodeAttributeAnnotation: function(node, n, v) {
+      var escape = v.slice(0, 2), lastChar = n[n.length-1];
+      var kind = 'attribute', mode = '';
+      if (lastChar === '*' || lastChar === ':') {
+          n = n.slice(0, -1);
+          kind = 'property';
+          mode = 'auto';
+      }
+      if (escape === '{{') {
+        mode = 'auto';
+        v = v.slice(2, -2);
+      }
+      if (escape === '[[') {
+        mode = 'manual';
+        v = v.slice(2, -2);
+      }
+      if (mode) {
+        if (n === 'style') {
+          kind = 'style';
+        }
+        return {
+          kind: kind,
+          mode: mode,
+          name: n,
+          value: v
+        };
+      }
     }
+
   });
 
   /*
@@ -647,54 +827,72 @@ TODO(sjmiles): this module should produce either syntactic metadata
    */
   Base.addFeature({
 
+    // registration-time
+
     register: function(prototype) {
       if (prototype._template && prototype._template.map) {
-        this.preprocessBindAnnotations(prototype, prototype._template.map);
+        this._preprocessBindAnnotations(prototype, prototype._template.map);
       }
     },
 
     // construct binding meta-data at *registration* time
-    preprocessBindAnnotations: function(prototype, map) {
+    _preprocessBindAnnotations: function(prototype, map) {
       // create a virtual annotation map, must be concretized at instance time 
       prototype._nodes = [];
       // process annotations that have been parsed from template
       map.forEach(function(annotation) {
         // where to find the node in the concretized map 
-        var index = this._nodes.push(annotation) - 1;
-        // TODO(sjmiles): we probably need to multiplex the bind method
-        // to handle multiple binding targets, right now you
-        // only get one
-        var binding = annotation.bindings[0];
-        // TODO(sjmiles): this is property binding only, but 
-        // bind-annotations produces other kinds of annotations,
-        // impedence mismatch borne of mutating the project from earlier
-        // versions. 
-        if (binding.kind === 'text') {
-          // TODO(sjmiles): not using `bind` feature code because this is 
-          // a slightly different use case. IOW, we want a combination of 
-          // `bindProperty` and `bindMethod`. Consider how to unify.
-          this.bindAnnotation(binding.value, index);
-        }
-      }, prototype);
-    },
-
-    // TODO(sjmiles): this method is absurdly specialized
-    bindAnnotation: function(property, index) {
-      Object.defineProperty(this, property, {
-        set: function(value) {
-          this._nodes[index].textContent = value;
-        },
-        get: function() {
-          return this._nodes[index].textContent;
-        }
+        var index = prototype._nodes.push(annotation) - 1;
+        // TODO(sjmiles): we need to support multi-bind, right now you only get 
+        // one (not including kind === `id`)
+        annotation.bindings.forEach(function(binding) {
+          prototype._bindAnnotationBinding(binding, index);
+        });
       });
     },
 
-    // concretize `_nodes` map at *instance* time
-    marshalBoundNodes: function() {
+    _bindAnnotationBinding: function(binding, index) {
+      // add to the list of property side-effects
+      binding.index = index;
+      this.addPropertyEffect(binding.value, 'annotation', binding);
+    },
+
+    // instance-time
+
+    // concretize `_nodes` map
+    _marshalAnnotatedNodes: function() {
       if (this._nodes) {
         this._nodes = this._nodes.map(function(a) {
           return this.findAnnotatedNode(this.root, a);
+        }, this);
+      }
+    }
+
+  });
+
+  /*
+   * Parses the annotations map created by `annotations` features to support
+   * declarative events.
+   * 
+   * Depends on `annotations` and `events` features.
+   * 
+   */
+  Base.addFeature({
+
+    // instance-time
+    
+    _setupAnnotatedListeners: function() {
+      var map = this._template.map;
+      if (map) {
+        map.forEach(function(annotation) {
+          var events = annotation.events;
+          if (events && events.length) {
+            var node = this.findAnnotatedNode(this.root, annotation);
+            events.forEach(function(e) {
+              //console.log('[%s] listening for [%s] on [%s]', e.value, e.name, node.localName);
+              this.listen(node, e.name, e.value);
+            }, this)
+          }
         }, this);
       }
     }
@@ -714,9 +912,247 @@ TODO(sjmiles): this module should produce either syntactic metadata
       // minimize latency by racing requests
       setTimeout(handle);
       requestAnimationFrame(handle);
+    },
+
+    toggleAttribute: function(name, value) {
+      this[value ? 'setAttribute' : 'removeAttribute'](name, '');
+    },
+
+    attributeFollows: function(name, neo, old) {
+      if (old) {
+        old.removeAttribute(name);
+      } 
+      if (neo) {
+        neo.setAttribute(name, '');
+      }
     }
 
   });
+
+  Base.addFeature({
+
+    /* computed property feature */
+
+    computed: {
+    },
+
+    register: function(prototype) {
+      prototype.defineComputedProperties(prototype.computed);
+    },
+
+    defineComputedProperties: function(computed) {
+      for (var n in computed) {
+        this.defineComputedProperty(n, computed[n]);
+      }
+    },
+
+    defineComputedProperty: function(name, expression) {
+      var index = expression.indexOf('(');
+      var method = expression.slice(0, index);
+      var args = expression.slice(index + 1, -1).replace(/ /g, '').split(',');
+      console.log('%c on [%s] compute [%s] via [%s]', 'color: green', args[0], name, method);
+      this.addPropertyEffect(args[0], 'compute', {
+        property: name,
+        method: method
+      });
+      /*
+      this.compoundWatch(args, function() {
+        Polymer.log.watches && console.log('[compute] [%s]', name, arguments);
+        this[name] = method.apply(this, arguments);
+      });
+      */
+    }
+
+  });
+
+  Base.addFeature({
+
+    // per instance
+    
+    init: function() {
+      this._data = Object.create(null);
+    },
+
+    _setupBindListeners: function() {
+      var bl = this._bindListeners;
+      for (var n in bl) {
+        bl[n].targets.forEach(function(target) {
+          this._setupBindListener(n, target);
+        }, this);
+      }
+    },
+
+    _setupBindListener: function(property, target) {
+      //console.log('[bind]: [%s][%s] listening for [%s][%s-changed]', this.localName, property, target.id || target.index, target.property);
+      var host = this, property;
+      var node = target.id ? this.$[target.id] : this._nodes[target.index];
+      node.addEventListener(target.property + '-changed', function(e) {
+        //console.log('[bind]:[%s] heard [%s-changed] this.[%s] = [%s]', host.localName, source, property, e.detail);
+        host[property] = e.detail;
+      });
+    },
+
+    _notifyChange: function(property) {
+      this.fire(property + '-changed', this[property], null, false);
+    },
+
+    _setData: function(property, value) {
+      var old = this._data[property];
+      if (old !== value) {
+        this._data[property] = value;
+      }
+      return old;
+    },
+
+    // per prototype
+    
+    register: function(prototype) {
+      prototype._bindListeners = {};
+      prototype._createBindings();
+    },
+
+    _createBindings: function() {
+      //console.group(this.name);
+      var fx = this._propertyEffects;
+      for (var n in fx) {
+        //console.group(n);
+        var compiledEffects = fx[n].map(function(x) {
+          return this._buildEffect(n, x);
+        }, this);
+        this._bindPropertyEffects(n, compiledEffects);
+        //console.log(fxt.join('\n'));
+        //console.groupEnd();
+      }
+      //console.groupEnd();
+    },
+
+    _buildEffect: function(property, fx) {
+      return this['_' + fx.kind + 'EffectBuilder'](property, fx.effect);
+    },
+
+    _bindEffectBuilder: function(source, effect) {
+      // TODO(sjmiles): validation system requires a blessed
+      // validator effect which needs to be processed first.
+      /*
+      if (typeof this[effect] === 'function') {
+        return [
+          'var validated = this.' + effect + '(value, old)',
+          'if (validated !== undefined) {',
+          '  // recurse',
+          '  this[property] = validated;',
+          '  return;',
+          '}'
+        ].join('\n');
+      }
+      */
+      //
+      // TODO(sjmiles): try/catch is temporary
+      //try {
+        if (typeof this[effect] === 'function') {
+          return 'this.' + effect + '(this._data.' + source + ', old);'
+        }
+      //} catch(x) {}
+      //
+      var paths = effect.split('.');
+      var id = paths.shift();
+      var property = paths.join('.');
+      //
+      if (property) {
+        // TODO(sjmiles): awkward: store data for instance-time listeners.
+        // _addBindListener is in bind.html, if we did the path processing
+        // in that module we could contain all the listener logic there too.
+        this._addBindListener(source, id, property);
+      } else {
+        property = 'textContent';
+      }
+      //
+      return 'this.$.' + id + '.' + property + ' = ' 
+        + 'this._data.' + source + ';'
+    },
+
+    _bindPropertyEffects: function(property, effects) {
+      var defun = {
+        get: function() {
+          return this._data[property];
+        }
+      }
+      if (effects.length) {
+        // combine effects
+        effects = effects.join('\n\t\t');
+        // construct effector
+        var effector = '_' + property + 'Effector';
+        this[effector] = new Function('old', effects);
+        // construct setter body
+        var body  = '\tvar old = this._setData(\'' + property + '\', value);\n'
+          + '\tif (value !== old) {\n'
+            + '\t\tthis.' + effector + '(old);\n' 
+          + '\t}';
+        var setter = new Function('value', body);
+        // ReadOnly properties have a private setter only
+        if (this.isReadOnlyProperty(property)) {
+          this['_set_' + property] = setter;
+        }
+        // other properties have a proper setter 
+        else {
+          defun.set = setter;
+        }
+      }
+      Object.defineProperty(this, property, defun);
+      //var prop = Object.getOwnPropertyDescriptor(this, property);
+      //console.log(prop.set ? prop.set.toString() : '(read-only)');
+    },
+
+    _notifyEffectBuilder: function(source) {
+      return 'this._notifyChange(\'' + source + '\')';
+    },
+
+    _computeEffectBuilder: function(source, effect) {
+      return 'this.' + effect.property 
+        + ' = this.' + effect.method + '(this._data.' + source + ');';
+    },
+
+    _annotationEffectBuilder: function(source, binding) {
+      var target = binding.name || 'textContent';
+      if (binding.kind !== 'text' && binding.kind !== 'attribute') {
+        console.warn(binding.kind);
+        return;
+      }
+      if (target !== 'textContent') {
+        this._addAnnotatedListener(source, binding.index, target);
+      }
+      return this._bindAnnotationProperty(source, target, binding.index);
+    },
+
+    _bindAnnotationProperty: function(source, target, index) {
+      return 'this._nodes[' + index + '].' + target 
+          + ' = this._data.' + source + ';';
+    },
+
+    _addBindListener: function(source, id, property) {
+      var bl = this._requireBindListeners(source);
+      bl.targets.push({
+        id: id,
+        property: property
+      });
+    },
+
+    _addAnnotatedListener: function(source, index, property) {
+      var bl = this._requireBindListeners(source);
+      bl.targets.push({
+        index: index,
+        property: property
+      });
+    },
+
+    _requireBindListeners: function(source) {
+      var bl = this._bindListeners[source];
+      if (!bl) {
+        bl = this._bindListeners[source] = {targets: []};
+      }
+      return bl;
+    }
+
+});
 
   Base.addFeature({
 
@@ -727,21 +1163,24 @@ TODO(sjmiles): this module should produce either syntactic metadata
     features: function() {
       this.defaultFeatures();
     },
-    
+
     defaultFeatures: function() {
       if (this._useContent) {
         this.poolContent();
       }
       if (this._template) {
         this.stampTemplate();
-        this.marshalNodeReferences();
-        this.marshalBoundNodes();
+        this._marshalNodeReferences();
+        this._marshalAnnotatedNodes();
+        this._setupAnnotatedListeners();
+        this._setupBindListeners();
       }
       this.listenListeners();
       this.listenKeyPresses();
       if (this._useContent) {
         this.distributeContent();
       }
+      this.takeAttributes();
     }
 
   });
