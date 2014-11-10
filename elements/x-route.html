@@ -1,25 +1,150 @@
 <script>
 
-  Polymer({
+  (function() {
 
-    name: 'x-route',
+    var route;
 
-    created: function() {
-      this.parseLocation();
-      addEventListener('popstate', this.parseLocation.bind(this));
-    },
+    var requireRouting = function() {
+      addEventListener('popstate', popStateHandler);
+      requireRouting = function() {};
+      parseLocation();
+    };
 
-    parseLocation: function() {
-      this.route = location.hash.slice(1);
-    },
+    var popStateHandler = function() {
+      parseLocation();
+      Base.fire('route-change', route, window, false);
+    };
 
-    routeChanged: function(route) {
-      if (route !== null) {
+    var parseLocation = function() {
+      route = location.hash.slice(1);
+    };
+
+    var getRoute = function() {
+      return route;
+    };
+
+    var setRoute = function(value) {
+      if (value !== route) {
+        route = value;
         history.replaceState(null, '', '#' + route);
+        popStateHandler();
       }
-      this.fire('route-change');
-    }
+    };
 
-  });
+    Polymer({
+
+      name: 'x-route',
+
+      published: {
+        route: {
+          type: String,
+          notify: true
+        },
+        match: String
+      },
+
+      created: function() {
+        requireRouting();
+        // must memoize this method for removeListener
+        this.retrieveRoute = this.retrieveRoute.bind(this);
+      },
+
+      locateAncestorRoute: function() {
+        var ancestor, n = this.parentNode;
+        // find our host
+        while (n && !n.isHost) {
+          n = n.parentNode;
+        }
+        n = n.parentNode;
+        // find ancestor host that contains an x-route
+        while (!ancestor && n) {
+          while (n && !n.isHost) {
+            n = n.parentNode;
+          }
+          if (n) {
+            ancestor = n.querySelector(':scope > x-route');
+            n = n.parentNode;
+          }
+        }
+        // return whatever we found
+        return ancestor;
+      },
+
+      locateAncestorRoute: function() {
+        var ancestor, n = this.parentNode;
+        // find grandparent
+       // n = n.parentNode;
+        // find ancestor node that contains an x-route
+        while (!ancestor && n) {
+          //while (n /*&& !n.isHost*/) {
+            n = n.parentNode;
+          //}
+          if (n) {
+            ancestor = n.querySelector(':scope > x-route');
+            if (ancestor == this) {
+              ancestor = null;
+            }
+            //n = n.parentNode;
+          }
+        }
+        // return whatever we found
+        return ancestor;
+      },
+
+      retrieveRoute: function() {
+        var ancestor = this.locateAncestorRoute();
+        this.parseRoute(ancestor ? ancestor.querySubRoute() : getRoute());
+      },
+
+      parseRoute: function(route) {
+        var host = this.queryHost();
+        var routes = route.split('/');
+        if (this.match) {
+          var matches = this.match.split('/');
+          var parts = matches.length;
+          this.route = routes.slice(0, parts).join('/');
+        } else {
+          this.route = routes.shift();
+        }
+        // TODO(sjmiles): ad hoc
+        if (matches) {
+          matches.forEach(function(m) {
+            var n = m.slice(1);
+            host[n] = routes.shift();
+          }, this);
+        } 
+        this.subroute = routes.join('/');
+        console.log('[%s]: [%s]/[%s]', this.id, this.route, this.subroute);
+      },
+
+      querySubRoute: function() {
+        return this.subroute || '';
+      },
+
+      attached: function() {
+        addEventListener('route-change', this.retrieveRoute);
+        //this.retrieveRoute();
+      },
+
+      dettached: function() {
+        removeEventListener('route-change', this.retrieveRoute);
+      },
+
+      setRoute: function(route) {
+        var ancestor = this.locateAncestorRoute();
+        if (ancestor) {
+          ancestor.setSubRoute(route);
+        } else {
+          setRoute(route);
+        }
+      },
+
+      setSubRoute: function(route) {
+        this.setRoute(this.route + '/' + route);
+      }
+
+    });
+
+  })();
 
 </script>
