@@ -9,6 +9,7 @@
 module.exports = function(grunt) {
   var readManifest = require('../tools/loader/readManifest.js');
   var Polymer = readManifest('build.json');
+  var banner = grunt.file.read('banner.txt') + '// @version <%= buildversion %>\n';
 
   grunt.initConfig({
     'wct-test': {
@@ -31,7 +32,9 @@ module.exports = function(grunt) {
     concat: {
       Polymer: {
         options: {
-          nonull: true
+          nonull: true,
+          banner: banner,
+          stripBanners: true
         },
         files: {
           'dist/polymer.js': readManifest('build.json')
@@ -47,7 +50,7 @@ module.exports = function(grunt) {
           beautify: {
             ascii_only: true,
           },
-          banner: grunt.file.read('banner.txt') + '// @version: <%= buildversion %>'
+          banner: banner
         },
         files: {
           'dist/polymer.min.js': 'dist/polymer.js'
@@ -96,13 +99,20 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('web-component-tester');
 
   grunt.registerTask('default', ['minify']);
-  grunt.registerTask('minify', ['version', 'string-replace', 'concat', 'uglify', 'copy', 'audit']);
+  grunt.registerTask('minify', ['version', 'string-replace', 'concat', 'uglify', 'copy', 'clean-bower', 'audit']);
   grunt.registerTask('test', ['wct-test:local']);
   grunt.registerTask('test-remote', ['wct-test:remote']);
   grunt.registerTask('test-buildbot', ['test']);
   grunt.registerTask('release', function() {
     grunt.option('release', true);
     grunt.task.run('minify');
-    grunt.task.run('audit');
+  });
+
+  grunt.registerTask('clean-bower', function() {
+    var config = grunt.file.readJSON('./dist/bower.json');
+    delete config.dependencies['polymer-expressions'];
+    delete config.dependencies['polymer-gestures'];
+    delete config.dependencies.URL;
+    grunt.file.write('./dist/bower.json', JSON.stringify(config, null, 2));
   });
 };
