@@ -1,0 +1,126 @@
+<script>
+
+/* 
+
+Scans a template to produce an annotation map that stores expression metadata 
+and information that can be used to associate that metadata with the 
+corresponding nodes in a template instance.
+
+Supported annotations are:
+
+  * binding annotations in text nodes
+    * double-mustache expressions: {{expression}}
+    * double-bracket expressions: [[expression]]
+  * binding annotations in attributes
+    * attribute-bind expressions: name={{expression}} || [[expression]]
+    * property-bind expressions: name*={{expression}} || [[expression]]
+  * event annotations
+    * event delegation directives: on-<eventName>="expression"
+
+Generated data-structure:
+
+  [
+    {
+      bindings: [
+        {
+          kind: ['event'|'text'|'attribute'|'property'],
+          mode: ['auto'|''], 
+          name: '<name>'
+          value: '<expression>'
+        }
+      ],
+      // TODO(sjmiles): confusingly, this is annotation-parent, not node-parent
+      parent: <reference to parent annotation>,
+      index: <integer index in parent's childNodes collection>
+    },
+    ...  
+  ]
+
+TODO(sjmiles): this module should produce either syntactic metadata 
+(e.g. double-mustache, double-bracket, star-attr), or semantic metadata
+(e.g. manual-bind, auto-bind, property-bind). Right now it's half and half.
+   
+*/
+
+  Base.features.push({
+    findAnnotatedNode: function(root, annote) {
+      return !annote.parent ? root : 
+        this.findAnnotatedNode(root, annote.parent).childNodes[annote.index];
+    },
+    parseTemplateAnnotations: function(template) {
+      // TODO(sjmiles): it's not a map, per se
+      var map = [];
+      this._parseTemplateNode(template.content, map);
+      if (map.length) {
+        template.map = map;
+      }
+    },
+    _parseTemplateNode: function(node, map) {
+      return node.nodeType === Node.TEXT_NODE ? 
+        this._parseTemplateTextNode(node, map) : 
+          this._parseTemplateElement(node, map);
+    },
+    _parseTemplateTextNode: function(node, map) {
+      var v = node.textContent, escape = v.slice(0, 2);
+      if (escape === '{{' || escape === '[[') {
+        var annotation = {
+          bindings: [{
+            kind: 'text',
+            mode: escape === '{{' ? 'auto' : '',
+            value: v.slice(2, -2)
+          }]
+        };
+        map.push(annotation);
+        return annotation;
+      }
+    },
+    _parseTemplateElement: function(node, map) {
+      var annotations = {
+        bindings: []
+      };
+      this._parseTemplateNodeAnnotations(node, annotations, map);
+      this._parseTemplateChildNodes(node, annotations, map);
+      if (annotations.bindings.length) {
+        map.push(annotations);
+      }
+      return annotations;
+    },
+    _parseTemplateNodeAnnotations: function(node, annotation) {
+      if (node.attributes) {
+        for (var i=0, a; (a=node.attributes[i]); i++) {
+          var n = a.name, v = a.value, escape = v.slice(0, 2);
+          if (escape === '{{' || escape === '[[') {
+            var kind = (n[n.length-1]) === '*' ? 'property' : 'attribute';
+            if (kind === 'property') {
+              n = n.slice(0, -1);
+            }
+            annotation.bindings.push({
+              kind: kind,
+              mode: escape === '{{' ? 'auto' : '',
+              name: n,
+              value: v.slice(2, -2)
+            });
+          } else if (n.slice(0, 3) === 'on-') {
+            annotation.bindings.push({
+              kind: 'event',
+              name: n.slice(3),
+              value: v 
+            });
+          }
+        }
+      }
+    },
+    _parseTemplateChildNodes: function(root, annotations, map) {
+      if (root.firstChild) {
+        for (var i=0, node=root.firstChild; node; node=node.nextSibling, i++) {
+          var annotation = this._parseTemplateNode(node, map);
+          if (annotation) {
+            annotation.parent = annotations;
+            annotation.index = i;
+          }
+        }
+      }
+    }
+  });
+
+</script>
