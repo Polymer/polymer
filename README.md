@@ -1,8 +1,6 @@
 # Polymer
 
-[![Analytics](https://ga-beacon.appspot.com/UA-39334307-2/Polymer/polymer/README)](https://github.com/igrigorik/ga-beacon)
-
-Build Status: [http://build.chromium.org/p/client.polymer/waterfall](http://build.chromium.org/p/client.polymer/waterfall)
+[![Polymer build status](http://www.polymer-project.org/build/polymer-dev/status.png "Polymer build status")](http://build.chromium.org/p/client.polymer/waterfall)
 
 ## Brief Overview
 
@@ -14,4 +12,10 @@ Polymer is based on a set of future technologies, including [Shadow DOM](https:/
 
 ## Tools & Testing
 
-For running tests or building minified files, consult the [tooling information](http://www.polymer-project.org/resources/tooling-strategy.html).
+For running tests or building minified files, consult the [tooling information](http://polymer-project.org/resources/tooling-strategy.html).
+
+## Releases
+
+[Release (tagged) versions](https://github.com/Polymer/polymer/releases) of Polymer include concatenated and minified sources for your convenience.
+
+[![Analytics](https://ga-beacon.appspot.com/UA-39334307-2/Polymer/polymer/README)](https://github.com/igrigorik/ga-beacon)
