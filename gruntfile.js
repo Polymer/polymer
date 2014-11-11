@@ -9,7 +9,7 @@
 module.exports = function(grunt) {
   'use strict';
   var readManifest = require('../tools/loader/readManifest.js');
-  var Polymer = readManifest('build.json');
+  // var Polymer = readManifest('build.json');
   var banner = grunt.file.read('banner.txt') + '// @version <%= buildversion %>\n';
 
   grunt.initConfig({
