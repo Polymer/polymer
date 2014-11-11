@@ -58,7 +58,21 @@ if (!Observer.hasObjectObserve) {
   var FLUSH_POLL_INTERVAL = 125;
   window.addEventListener('WebComponentsReady', function() {
     flush();
-    scope.flushPoll = setInterval(flush, FLUSH_POLL_INTERVAL);
+    // watch document visiblity to toggle dirty-checking
+    var visibilityHandler = function() {
+      // only flush if the page is visibile
+      if (document.visibilityState === 'hidden') {
+        if (scope.flushPoll) {
+          clearInterval(scope.flushPoll);
+        }
+      } else {
+        scope.flushPoll = setInterval(flush, FLUSH_POLL_INTERVAL);
+      }
+    };
+    if (typeof document.visibilityState === 'string') {
+      document.addEventListener('visibilitychange', visibilityHandler);
+    }
+    visibilityHandler();
   });
 } else {
   // make flush a no-op when we have Object.observe
