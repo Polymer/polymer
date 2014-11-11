@@ -47,25 +47,41 @@
     },
 
     _createBindings: function() {
-      //console.group(this.name);
-      var fx = this._propertyEffects;
-      for (var n in fx) {
-        //console.group(n);
-        var compiledEffects = fx[n].map(function(x) {
-          return this._buildEffect(n, x);
-        }, this);
-        this._bindPropertyEffects(n, compiledEffects);
-        //console.log(fxt.join('\n'));
+      var fx$ = this._propertyEffects;
+      if (fx$) {
+        //console.group(this.name);
+        for (var n in fx$) {
+          //console.group(n);
+          var fx = fx$[n];
+          fx.sort(this._sortPropertyEffects);
+          //console.log(fx);
+          var compiledEffects = fx.map(function(x) {
+            return this._buildEffect(n, x);
+          }, this);
+          this._bindPropertyEffects(n, compiledEffects);
+          //console.log(fxt.join('\n'));
+          //console.groupEnd();
+        }
         //console.groupEnd();
       }
-      //console.groupEnd();
+    },
+
+    _sortPropertyEffects: function(a, b) {
+      switch (a.kind) {
+        case 'compute':
+          return -1;
+        case 'notify':
+          return 1;
+         default:
+          return 0;
+      }
     },
 
     _buildEffect: function(property, fx) {
       return this['_' + fx.kind + 'EffectBuilder'](property, fx.effect);
     },
 
-    _bindEffectBuilder: function(source, effect) {
+    _methodEffectBuilder: function(source, effect) {
       // TODO(sjmiles): validation system requires a blessed
       // validator effect which needs to be processed first.
       /*
@@ -81,26 +97,18 @@
       }
       */
       //
-      // TODO(sjmiles): try/catch is temporary
-      //try {
-        if (typeof this[effect] === 'function') {
-          return 'this.' + effect + '(this._data.' + source + ', old);'
-        }
-      //} catch(x) {}
-      //
+      return 'this.' + effect + '(this._data.' + source + ', old);'
+    },
+
+    _bindEffectBuilder: function(source, effect) {
       var paths = effect.split('.');
       var id = paths.shift();
       var property = paths.join('.');
-      //
       if (property) {
-        // TODO(sjmiles): awkward: store data for instance-time listeners.
-        // _addBindListener is in bind.html, if we did the path processing
-        // in that module we could contain all the listener logic there too.
         this._addBindListener(source, id, property);
       } else {
         property = 'textContent';
       }
-      //
       return 'this.$.' + id + '.' + property + ' = ' 
         + 'this._data.' + source + ';'
     },
