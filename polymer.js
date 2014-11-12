@@ -7,7 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-// @version 0.5.0
+// @version 0.5.1
 window.PolymerGestures = {};
 
 (function(scope) {
@@ -1370,9 +1370,15 @@ window.PolymerGestures = {};
     };
     // if click coordinates are close to touch coordinates, assume the click came from a touch
     var wasTouched = scope.mouseEvents.lastTouches.some(closeTo);
-    // if the click came from touch, and the click target is not the same as the touchstart target, then the touchstart
-    // target was probably removed, and the click should be "busted"
-    if (wasTouched && (ev.target !== touchEvents.firstTarget)) {
+    // if the click came from touch, and the touchstart target is not in the path of the click event,
+    // then the touchstart target was probably removed, and the click should be "busted"
+    var path = scope.targetFinding.path(ev);
+    if (wasTouched) {
+      for (var i = 0; i < path.length; i++) {
+        if (path[i] === touchEvents.firstTarget) {
+          return;
+        }
+      }
       ev.preventDefault();
       STOP_PROP_FN.call(ev);
     }
@@ -3785,7 +3791,7 @@ window.PolymerGestures = {};
 })(this);
 
 Polymer = {
-  version: '0.5.0'
+  version: '0.5.1'
 };
 
 // TODO(sorvell): this ensures Polymer is an object and not a function
@@ -8155,7 +8161,21 @@ if (!Observer.hasObjectObserve) {
   var FLUSH_POLL_INTERVAL = 125;
   window.addEventListener('WebComponentsReady', function() {
     flush();
-    scope.flushPoll = setInterval(flush, FLUSH_POLL_INTERVAL);
+    // watch document visiblity to toggle dirty-checking
+    var visibilityHandler = function() {
+      // only flush if the page is visibile
+      if (document.visibilityState === 'hidden') {
+        if (scope.flushPoll) {
+          clearInterval(scope.flushPoll);
+        }
+      } else {
+        scope.flushPoll = setInterval(flush, FLUSH_POLL_INTERVAL);
+      }
+    };
+    if (typeof document.visibilityState === 'string') {
+      document.addEventListener('visibilitychange', visibilityHandler);
+    }
+    visibilityHandler();
   });
 } else {
   // make flush a no-op when we have Object.observe
