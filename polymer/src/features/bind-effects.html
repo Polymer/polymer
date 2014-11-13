@@ -9,22 +9,15 @@
     },
 
     _setupBindListeners: function() {
-      var bl = this._bindListeners;
-      for (var n in bl) {
-        bl[n].targets.forEach(function(target) {
-          this._setupBindListener(n, target);
-        }, this);
-      }
+      this._bindListeners.forEach(this._setupBindListener, this);
     },
 
-    _setupBindListener: function(property, target) {
-      //console.log('[bind]: [%s][%s] listening for [%s][%s-changed]', this.localName, property, target.id || target.index, target.property);
-      var host = this, property;
-      var node = target.id ? this.$[target.id] : this._nodes[target.index];
-      node.addEventListener(target.property + '-changed', function(e) {
-        //console.log('[bind]:[%s] heard [%s-changed] this.[%s] = [%s]', host.localName, source, property, e.detail);
-        host[property] = e.detail;
-      });
+    _setupBindListener: function(info) {
+      // <node>.on.<property>-changed: <path]> = e.detail
+      //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
+      var node = info.id ? this.$[info.id] : this._nodes[info.index];
+      var fn = new Function('e', 'this.' + info.path + ' = e.detail;');
+      node.addEventListener(info.property + '-changed', fn.bind(this));
     },
 
     _notifyChange: function(property) {
@@ -42,7 +35,7 @@
     // per prototype
     
     register: function(prototype) {
-      prototype._bindListeners = {};
+      prototype._bindListeners = [];
       prototype._createBindings();
     },
 
@@ -69,9 +62,9 @@
     _sortPropertyEffects: function(a, b) {
       switch (a.kind) {
         case 'compute':
-          return -1;
+          return b.kind === 'compute' ? 0 : -1;
         case 'notify':
-          return 1;
+          return b.kind === 'notify' ? 0 : 1;
          default:
           return 0;
       }
@@ -100,19 +93,91 @@
       return 'this.' + effect + '(this._data.' + source + ', old);'
     },
 
-    _bindEffectBuilder: function(source, effect) {
-      var paths = effect.split('.');
-      var id = paths.shift();
-      var property = paths.join('.');
-      if (property) {
-        this._addBindListener(source, id, property);
-      } else {
+    // basic modus operandi
+    //
+    // <hostPath> %=% <targetPath>
+    // (node = <$.id | nodes[index]>)
+    // <model[.path]> %=% node.<property>
+    //
+    // flow-up:
+    // set(model): node.<property> = <model[.path]>
+    //
+    // flow-down:
+    // node.on.<property>-changed: <model[.path]> = e.detail
+
+    _bindEffectBuilder: function(hostProperty, targetPath) {
+      var parts = targetPath.split('.');
+      var id = parts[0], property = parts[1];
+      if (!property) {
         property = 'textContent';
+        // textContent never flows-up
+      } else {
+        // flow-up
+        this._bindListeners.push({
+          id: id,
+          property: property,
+          path: hostProperty
+        });
       }
+      //
+      // flow-down
+      //
+      //console.log('[_bindEffectBuilder]: [%s] %=% [%s].[%s]', hostPath, id, property);
       return 'this.$.' + id + '.' + property + ' = ' 
-        + 'this._data.' + source + ';'
+        + 'this._data.' + hostPath + ';'
     },
 
+    _notifyEffectBuilder: function(source) {
+      return 'this._notifyChange(\'' + source + '\')';
+    },
+
+    _computeEffectBuilder: function(source, effect) {
+      return 'this.' + effect.property 
+        + ' = this.' + effect.method + '(this._data.' + source + ');';
+    },
+
+    // implement effect directives from template annotations
+    // _nodes[info.index][info.name] = {{info.value}}
+    _annotationEffectBuilder: function(hostProperty, info) {
+      var property = info.name || 'textContent';
+      if (property !== 'textContent') {
+      // <node>.on.<property>-changed: <path> = e.detail
+        this._addAnnotatedListener(info.index, property, info.value);
+      }
+      //
+      // flow-down
+      //
+      // construct the effect to occur when [property] changes:
+      // set nodes[index][name] to this[value]  
+      //
+      //console.log('[_annotationEffectBuilder]: [%s] %=% [%s].[%s]', info.value, info.index, property);
+      return 'this._nodes[' + info.index + '].' + property 
+          + ' = this._data.' + info.value + ';';
+    },
+
+    _addAnnotatedListener: function(index, property, path) {
+      // <node>.on.<property>-changed: <path> = e.detail
+      this._bindListeners.push({
+        index: index,
+        property: property,
+        path: path
+      });
+    },
+
+    _bindAnnotationProperty: function(name, path, index) {
+      return 'this._nodes[' + index + '].' + name 
+          + ' = this._data.' + path + ';';
+    },
+
+    _addBindListener: function(property, path, id) {
+      var bl = this._requireBindListeners(property);
+      bl.targets.push({
+        id: id,
+        path: path
+      });
+    },
+
+    // create accessors that implement effects
     _bindPropertyEffects: function(property, effects) {
       var defun = {
         get: function() {
@@ -141,58 +206,7 @@
         }
       }
       Object.defineProperty(this, property, defun);
-      //var prop = Object.getOwnPropertyDescriptor(this, property);
       //console.log(prop.set ? prop.set.toString() : '(read-only)');
-    },
-
-    _notifyEffectBuilder: function(source) {
-      return 'this._notifyChange(\'' + source + '\')';
-    },
-
-    _computeEffectBuilder: function(source, effect) {
-      return 'this.' + effect.property 
-        + ' = this.' + effect.method + '(this._data.' + source + ');';
-    },
-
-    _annotationEffectBuilder: function(source, binding) {
-      var target = binding.name || 'textContent';
-      if (binding.kind !== 'text' && binding.kind !== 'attribute') {
-        console.warn(binding.kind);
-        return;
-      }
-      if (target !== 'textContent') {
-        this._addAnnotatedListener(source, binding.index, target);
-      }
-      return this._bindAnnotationProperty(source, target, binding.index);
-    },
-
-    _bindAnnotationProperty: function(source, target, index) {
-      return 'this._nodes[' + index + '].' + target 
-          + ' = this._data.' + source + ';';
-    },
-
-    _addBindListener: function(source, id, property) {
-      var bl = this._requireBindListeners(source);
-      bl.targets.push({
-        id: id,
-        property: property
-      });
-    },
-
-    _addAnnotatedListener: function(source, index, property) {
-      var bl = this._requireBindListeners(source);
-      bl.targets.push({
-        index: index,
-        property: property
-      });
-    },
-
-    _requireBindListeners: function(source) {
-      var bl = this._bindListeners[source];
-      if (!bl) {
-        bl = this._bindListeners[source] = {targets: []};
-      }
-      return bl;
     }
 
 });
