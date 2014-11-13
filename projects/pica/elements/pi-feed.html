@@ -1,49 +1,94 @@
 <script>
 
-Polymer({
-  name: 'pi-feed',
-  bind: {
-    topic: 'topicChanged'
-  },
-  topicChanged: function() {
-    if (this.topic) {
-      this.populateFeed(this.topic);
+(function() {
+  
+  Polymer({
+    name: 'pi-feed',
+    bind: {
+      topic: 'topicChanged'
+    },
+    topicChanged: function() {
+      if (this.topic) {
+        this.populateFeed(this.topic);
+      }
+    },
+    populateFeed: function(topic) {
+      var googleFeeds = document.createElement('google-feeds');
+      googleFeeds.addEventListener('google-feeds-response', function(e) {
+        var feed = e.detail.feed;
+        var items = feed && feed.entries || [];
+        topic.items = items;
+        // favicon
+        var icon = GET_FAVICON_URL + feed.link;
+        //
+        items.forEach(function(item) {
+          // scrape image url
+          var m$ = item.content.match(/<img[^>]+src="([^">]+)"/);
+          item.thumb = m$ && m$[1];
+          // time since
+          if (item.publishedDate) {
+            var d = item._date || new Date(item.publishedDate);
+            item._date = d;
+            item.since = timeSince(d);
+          }
+          //
+          item.label = feed.title;
+          item.icon = icon;
+          item.blurb = item.contentSnippet;
+        });
+        this.fire('feed-load');
+        this.findTopicThumbnail();
+      }.bind(this));
+      googleFeeds.feed = topic.feed;
+    },
+    findTopicThumbnail: function(index) {
+      index = index || 0;
+      var item = this.topic.items[index];
+      if (!this.topic.thumb && item) {
+        var image = new Image();
+        image.src = item.thumb;
+        image.onload = this.thumbnailLoaded.bind(this, index);
+      }
+    },
+    thumbnailLoaded: function(index, e) {
+      var img = e.currentTarget;
+      // use the image if the size > 10 x 10px
+      if (img.width > 10 && img.height > 10) {
+        this.topic.thumb = img.src;
+        this.fire('topic-thumb-change');
+      } else {
+        this.findTopicThumbnail(++index);
+      }
     }
-  },
-  populateFeed: function(topic) {
-    var googleFeeds = document.createElement('google-feeds');
-    googleFeeds.addEventListener('google-feeds-response', function(e) {
-      var items = e.detail.feed && e.detail.feed.entries || [];
-      topic.items = items;
-      items.forEach(function(item) {
-        var m$ = item.content.match(/<img[^>]+src="([^">]+)"/);
-        item.thumb = m$ && m$[1];
-        item.blurb = item.contentSnippet;
-      });
-      this.fire('feed-load');
-      this.findTopicThumbnail();
-    }.bind(this));
-    googleFeeds.feed = topic.feed;
-  },
-  findTopicThumbnail: function(index) {
-    index = index || 0;
-    var item = this.topic.items[index];
-    if (!this.topic.thumb && item) {
-      var image = new Image();
-      image.src = item.thumb;
-      image.onload = this.thumbnailLoaded.bind(this, index);
+  });
+  
+  var GET_FAVICON_URL = 'http://s2.googleusercontent.com/s2/favicons?alt=feed&domain_url=';
+  
+  function timeSince(date) {
+    var s = Math.floor(((new Date()) - date) / 1000);
+    var t = Math.floor(s / 31536000);
+    if (t > 1) {
+      return t + 'y';
     }
-  },
-  thumbnailLoaded: function(index, e) {
-    var img = e.currentTarget;
-    // use the image if the size > 10 x 10px
-    if (img.width > 10 && img.height > 10) {
-      this.topic.thumb = img.src;
-      this.fire('topic-thumb-change');
-    } else {
-      this.findTopicThumbnail(++index);
+    t = Math.floor(s / 2592000);
+    if (t > 1) {
+      return t + 'M';
     }
-  }
-});
+    t = Math.floor(s / 86400);
+    if (t >= 1) {
+      return t + 'd';
+    }
+    t = Math.floor(s / 3600);
+    if (t >= 1) {
+      return t + 'h';
+    }
+    t = Math.floor(s / 60);
+    if (t > 1) {
+      return t + 'm';
+    }
+    return Math.floor(s) + 's';
+  };
+
+})();
 
 </script>
