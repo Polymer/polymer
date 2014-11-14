@@ -1,0 +1,104 @@
+<script>
+
+(function() {
+
+  var originalSetupBindListeners = Base._setupBindListeners;
+
+  Base.addFeature({
+
+    // TODO(sorvell): hax to automate path listener setup; figure out how to 
+    // integrate this better.
+    _setupBindListeners: function() {
+      originalSetupBindListeners.call(this);
+      this._setupPathListeners();
+    },
+
+    /*
+      Enables structured data flow. Looks at bindings and adds an event listener
+      in two cases:
+
+      1. the binding path is compound (contains a `.`).
+      2. the binding property is an object valued published property.
+    */
+    _setupPathListeners: function() {
+      var $b = this._bindListeners;
+      for (var i=0, l=$b.length, info; (i<l) && (info=$b[i]); i++) {
+        var node = this._nodeForBinding(info);
+        var model = modelForPath(info.path);
+        if (model !== info.path) {
+          this._setupPathListener(node, 
+            info.property + EVENT_CHANGED, info, model);
+        } else if (node._isPublishedObject && 
+          node._isPublishedObject(info.property)) {
+          this._setupPathListener(node, 
+            model + EVENT_PROP_CHANGED, info, model);
+        }
+      }
+    },
+
+    // TODO(sorvell): at one point the listener had to be async to propagate
+    // changes correctly; this no longer seems to be necessary but need
+    // to keep an eye on it until it's understood fully.
+    _setupPathListener: function(node, event, binding, model) {
+      var self = this;
+      node.addEventListener(event, function(e) {
+        self.forcePropertyEffect(model);
+        self._firePropertyChange(model, binding.path);
+      });
+    },
+
+    // Force property side effects.
+    // 1. calls the _propertyEffector 
+    // 2. for Object valued properties, changes that will effect properties on
+    // bound Objects that are themselves Object valued need to cascade 
+    // recursively through dirty check prevention 
+    // (e.g. if foo.item = this.item is dirty checked away, we ensure 
+    // foo.item's side effects run)
+    forcePropertyEffect: function(property) {
+      this['_' + property + 'Effector']();
+      // if the property is Object valued and is bound to other Object valued
+      // properties, force those properties to update.
+      if (this._isPublishedObject(property)) {
+        var $b = this._bindListeners;
+        for (var i=0, l=$b.length, info; (i<l) && (info=$b[i]); i++) {
+          this._forceBoundPropertyEffect(property, info);
+        }
+      }
+    },
+
+    _forceBoundPropertyEffect: function(property, binding) {
+      var node = this._nodeForBinding(binding);
+      var model = modelForPath(binding.path);
+      if ((model === property) && node._isPublishedObject(binding.property)) {
+        node.forcePropertyEffect(binding.property);
+      }
+    },
+
+    _firePropertyChange: function(modelProperty, path) {
+      var detail = {
+        property: this[modelProperty],
+        path: path
+      };
+      this.fire(modelProperty + '-property-changed', detail, null, false);
+    },
+
+    _nodeForBinding: function(info) {
+      return info.id ? this.$[info.id] : this._nodes[info.index];
+    },
+
+    _isPublishedObject: function(property) {
+      return (this.published[property].type === Object);
+    }
+
+  });
+
+  function modelForPath(path) {
+    return path.split('.').shift();
+  }
+
+  var EVENT_CHANGED = '-changed';
+  var EVENT_PROP_CHANGED = '-property' + EVENT_CHANGED;
+
+})();
+
+</script>
