@@ -61,8 +61,20 @@
         removeEventListener('route-change', this.retrieveRoute);
       },
 
-      locateAncestorRouter: function() {
-        var ancestor, n = this.parentNode;
+      locateContextNode: function() {
+        // find ancestor node that contains a `route` attribute
+        var n = this.parentNode;
+        while (n && n.hasAttribute) {
+          if (n.hasAttribute('route')) {
+            return n;
+          }
+          n = n.parentNode;
+        }
+      },
+
+      locateContextRouter: function(context) {
+        var ancestor, n = context || this;
+        n = n.parentNode;
         // find ancestor node that contains an x-route
         while (!ancestor && n) {
           n = n.parentNode;
@@ -78,43 +90,32 @@
       },
 
       retrieveRoute: function() {
-        //console.log('[%s.retrieveRoute]', this.localName + (this.id ? '#' + this.id : ''));
-        var ancestor = this.locateAncestorRouter();
-        if (!ancestor|| ancestor.active) {
-          this.parseRoute(ancestor ? (ancestor.subroute || '') : getRoute());
-        }
-      },
-
-      locateRequiredRoute: function() {
-        // find ancestor node that contains an `route` attribute
-        var n = this.parentNode;
-        while (n && n.getAttribute) {
-          var route = n.getAttribute('route');
-          if (route) {
-            return route;
+        var context = this.locateContextNode();
+        var router = this.locateContextRouter(context);
+        if (!router) {
+          this.parseRoute(getRoute());
+        } else {
+          if (router.active) {
+            context = context && context.getAttribute('route');
+            if (context && context === router.match) {
+              this.parseRoute(router.subroute);
+            }
           }
-          n = n.parentNode;
         }
-        return '';
       },
 
       parseRoute: function(route) {
+        this.active = true;
+        //
         var routes = route.split('/');
         var segment = routes[0] || '';
-        var route = this.locateRequiredRoute();
-        if (route) {
-          if (route !== segment) {
-            return;
-          }
-          routes.shift();
-          segment = routes[0] || '';
-        }
-        this.active = true;
         this.match = segment;
+        //
         if (!this.peek) {
           routes.shift();
         }
         this.subroute = routes.join('/');
+        //
         console.log('[parseRoute]: [%s]: [%s] [%s]/[%s]', this.localName + (this.id ? '#' + this.id : ''), route, this.match, this.subroute);
       },
 
