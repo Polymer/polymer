@@ -1,0 +1,120 @@
+<script>
+
+(function() {
+
+  /**
+
+    Provides `ready` lifecycle callback which is called parent to child.
+
+    Allows initial property values to be set on the prototype and applied
+    iff no other input value is given via attribute literal or binding.
+
+  */
+
+  // TODO(sorvell): monkey path for now.
+  var originalAttachedCallback = Base.attachedCallback;
+  var originalCreateBindings = Base._createBindings;
+
+  Base.addFeature({
+
+    attachedCallback: function() {
+      this._checkReady();
+      originalAttachedCallback.call(this);
+    },
+
+    // Checks if this element is inside another "readyable" element. If so, 
+    // then pushes this element into an array of `_needsReady` elements; if 
+    // not, starts the ready cascade.
+    _checkReady: function() {
+      if (!this._readied) {
+        var host = this._findHostParent();
+        if (host) {
+          host._registerForReady(this);
+        } else {
+          this._cascadeReady();
+        }
+      }
+    },
+
+    _registerForReady: function(element) {
+      if (!this._needsReady) {
+        this._needsReady = [];
+      }
+      this._needsReady.push(element);
+    },
+
+    _findHostParent: function() {
+      var n = this;
+      while (n = n.parentNode) {
+        if (n.isHost) {
+          return n;
+        }
+      }
+    },
+
+    _cascadeReady: function() {
+      //console.group('[' + this.name + '#' + this.id + ']', 'ready');
+      this._readyCallback();
+      var n$ = this._needsReady;
+      if (n$) {
+        for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+          if (n._cascadeReady) {
+            n._cascadeReady();
+          }
+        }
+      }
+      this._needsReady = null;
+      //console.groupEnd('[' + this.name + '#' + this.id + ']', 'ready');
+    },
+
+    _readyCallback: function() {
+      this.ready();
+      this._applyInitialValues();
+      this._readied = true;
+    },
+
+    // user extension point.
+    ready: function() {},
+    
+    // overridden to allow recording of initial values
+    _createBindings: function() {
+      this._recordInitialValues();
+      originalCreateBindings.call(this);
+    },
+
+    _recordInitialValues: function() {
+      this._initialValues = {};
+      var fx$ = this._propertyEffects;
+      if (fx$) {
+        for (var n in fx$) {
+          var v = this[n];
+          if (v !== undefined) {
+            this._initialValues[n] = v;
+          }
+        }
+      }
+    },
+
+    // TODO(sorvell): preferrably we would squelch method side effects here
+    _applyInitialValues: function() {
+      for (var i in this._initialValues) {
+        this.setDefaultValue(i, this._initialValues[i]);
+      }
+      this._initialValues = null;
+    },
+
+    /**
+      Ensures `property` has a value. If it does not, then the property is 
+      set to `defaultValue`.
+    */
+    setDefaultValue: function(property, defaultValue) {
+      if (this[property] === undefined) {
+        this[property] = defaultValue;
+      }
+    }
+
+  });
+
+})();
+
+</script>
