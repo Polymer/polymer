@@ -1,0 +1,631 @@
+<script>
+
+  Object.defineProperty(window, 'import', {
+    enumerable: true,
+    configurable: true,
+    get: function() {
+      return (document._currentScript || document.currentScript).ownerDocument;
+    }
+  });
+  
+  function extend(prototype, api) {
+    if (prototype && api) {
+      Object.getOwnPropertyNames(api).forEach(function(n) {
+        var pd = Object.getOwnPropertyDescriptor(api, n);
+        if (pd) {
+          Object.defineProperty(prototype, n, pd);
+          
+        }
+      });
+    }
+    return prototype;
+  };
+
+  Event.prototype.keys = {
+    ESC_KEY: 27,
+    ENTER_KEY: 13
+  };
+  
+  Base = {
+
+    _features: [],
+
+    addFeature: function(feature) {
+      this._features.push(feature);
+      extend(Base, feature);
+      delete Base.init;
+      delete Base.register;
+    },
+
+    registerCallback: function() {
+      var prototype = this;
+      this.registerFeatures(prototype);
+      this.registered(prototype);
+    },
+
+    registered: function(prototype) {
+    },
+
+    registerFeatures: function(prototype) {
+      var f$ = this._features;
+      for (var i=0, n=f$.length; i<n && (f=f$[i]); i++) {
+        f.register && f.register(prototype);
+      }
+    },
+
+    createdCallback: function() {
+      this.root = this;
+      this.beforeCreated();
+      this.initFeatures();
+      this.created();
+      this.afterCreated();
+    },
+
+    beforeCreated: function() {
+    },
+
+    initFeatures: function() {
+      var f$ = this._features;
+      for (var i=0, n=f$.length; i<n && (f=f$[i]); i++) {
+        f.init && f.init.call(this);
+      }
+    },
+
+    created: function() {
+    },
+
+    afterCreated: function() {
+    },
+
+    attachedCallback: function() {
+      this.attached();
+    },
+
+    attached: function() {
+    },
+
+    detachedCallback: function() {
+      this.detached();
+    },
+
+    detached: function() {
+    },
+
+    attributeChangedCallback: function() {
+      this.attributeChanged.apply(this, arguments);
+    },
+
+    attributeChanged: function() {
+    }
+
+  };
+
+  Base.__proto__ = HTMLElement.prototype;
+
+  Polymer = function(prototype) {
+    prototype.__proto__ = Base;
+    prototype.registerCallback();
+    document.registerElement(prototype.name, {prototype: prototype});
+  };
+
+  Polymer.log = {
+  };
+
+  Base.addFeature({
+    log: function() {
+      var args = Array.prototype.slice.call(arguments, 0); 
+      args[0] = '[%s]: ' + args[0];
+      args.splice(1, 0, this.localName);
+      console.log.apply(console, args);
+    }
+  });
+
+  
+  Base.addFeature({
+
+    published: {
+    },
+
+    nob: Object.create(null),
+
+    register: function(prototype) {
+      if (prototype.addPropertyEffect) {
+        for (var n in prototype.published) {
+          if (prototype.isNotifyProperty(n)) {
+            prototype.addPropertyEffect(n, 'notify');
+          }
+        }
+      }
+    },
+    
+    getPublishInfo: function(property) {
+      var p = this.published[property];
+      if (typeof(p) === 'function') {
+        p = this.published[property] = {
+          type: p 
+        };
+      }
+      return p || Base.nob;
+    },
+
+    getPublishedPropertyType: function(property) {
+      return this.getPublishInfo(property).type;
+    },
+
+    isReadOnlyProperty: function(property) {
+      return this.getPublishInfo(property).readOnly;
+    },
+
+    isNotifyProperty: function(property) {
+      return this.getPublishInfo(property).notify;
+    },
+
+    isReflectedProperty: function(property) {
+      return this.getPublishInfo(property).reflect;
+    }
+
+  });
+
+  
+  Base.addFeature({
+
+    init: function() {
+      if (this.hostAttributes) {
+        this.cloneAttributes(this, this.hostAttributes);
+      }
+    },
+
+    cloneAttributes: function(node, attr$) {
+      attr$.split(' ').forEach(function(a) {
+        node.setAttribute(a, '');
+      });
+    }
+
+  });
+
+  
+  Base.addFeature({
+
+    
+
+    takeAttributes: function() {
+      for (var n in this.published) {
+        this.attributeChanged(n);
+      }
+    },
+
+    attributeChanged: function(name) {
+      var type = this.getPublishedPropertyType(name);
+      if (type) {
+        this.deserialize(name, type);
+      }
+    },
+
+    deserialize: function(name, type) {
+      var value = this.getAttribute(name);
+      switch(type) {
+        
+        case Number: 
+          value = Number(value) || this[name];
+          break;
+          
+        case Boolean: 
+          value = this.hasAttribute(name);
+          break;
+          
+        case Object: 
+        case Array: 
+          try {
+            value = JSON.parse(value);
+          } catch(x) {
+            return;
+          }
+          break;
+        
+        case Date: 
+          value = Date.parse(value);
+          break;
+          
+        case String:
+        default:
+          break;
+          
+      }
+      this[name] = value;
+    }
+
+  });
+
+  Base.addFeature({
+
+    register: function(prototype) {
+      var script = (document._currentScript || document.currentScript);
+      var prev = script.previousElementSibling;
+      if (prev && prev.localName === 'template') {
+        prototype._template = prev;
+      }
+    },
+
+    
+
+    stampTemplate: function(template) {
+      this._stampTemplate(template || this._template, this.root);
+      if (window.CustomElements && CustomElements.upgradeSubtree) {
+        CustomElements.upgradeSubtree(this.root);
+      }
+    },
+
+    _stampTemplate: function(template, target) {
+      target.insertBefore(this.instanceTemplate(template), 
+        target.firstElementChild);
+    },
+
+    instanceTemplate: function(template) {
+      return document.importNode(template.content, true);
+    }
+
+  });
+
+  Base.addFeature({
+
+    isHost: true,
+
+    register: function(prototype) {
+      var t = prototype._template;
+      prototype._useContent = Boolean(t && t.content.querySelector('content'));
+    },
+    
+    poolContent: function() {
+      var pool = document.createDocumentFragment();
+      while (this.firstChild) {
+        pool.appendChild(this.firstChild);
+      }
+      this.contentPool = pool;
+      this.lightChildren = 
+        Array.prototype.slice.call(this.contentPool.childNodes, 0);
+    },
+    
+    distributeContent: function() {
+      var content, pool = this.contentPool;
+      while (content = this.querySelector('content')) {
+        var select = content.getAttribute('select');
+        var frag = pool;
+        if (select) {
+          frag = document.createDocumentFragment();
+          var nodes = pool.querySelectorAll(select);
+          for (var i=0, l=nodes.length; i<l; i++) {
+            frag.appendChild(nodes[i]);
+          }
+        }
+        content.parentNode.replaceChild(frag, content);
+      }
+    }
+          
+  });
+    
+
+
+  Base.addFeature({
+
+    
+
+    findAnnotatedNode: function(root, annote) {
+      if (!annote.parent) {
+        return root;
+      }
+      var parent = this.findAnnotatedNode(root, annote.parent);
+      
+      var nodes = (parent === this) ? parent.childNodes : 
+        (parent.lightChildren || parent.childNodes);
+      return nodes[annote.index];
+    },
+
+    
+
+    register: function(prototype) {
+      if (prototype._template) {
+        prototype.parseAnnotations(prototype._template)
+      }
+    },
+
+    parseAnnotations: function(template) {
+      
+      var map = [];
+      this._parseNodeAnnotations(template.content, map);
+      if (map.length) {
+        template.map = map;
+      }
+      return template.map;
+    },
+
+    _parseNodeAnnotations: function(node, map) {
+      return node.nodeType === Node.TEXT_NODE ? 
+        this._parseTextNodeAnnotation(node, map) : 
+          this._parseElementAnnotations(node, map);
+    },
+
+    _parseTextNodeAnnotation: function(node, map) {
+      var v = node.textContent, escape = v.slice(0, 2);
+      if (escape === '{{' || escape === '[[') {
+        var annotation = {
+          bindings: [{
+            kind: 'text',
+            mode: escape === '{{' ? 'auto' : '',
+            value: v.slice(2, -2)
+          }]
+        };
+        map.push(annotation);
+        return annotation;
+      }
+    },
+
+    _parseElementAnnotations: function(node, map) {
+      var annote = {
+        bindings: [],
+        events: []
+      };
+      this._parseChildNodesAnnotations(node, annote, map);
+      if (node.attributes) {
+        this._parseNodeAttributeAnnotations(node, annote, map);
+      }
+      if (annote.bindings.length || annote.events.length || annote.id) {
+        map.push(annote);
+      }
+      return annote;
+    },
+
+    _parseChildNodesAnnotations: function(root, annotation, map) {
+      if (root.firstChild) {
+        for (var i=0, node=root.firstChild; node; node=node.nextSibling, i++) {
+          var childAnnotation = this._parseNodeAnnotations(node, map);
+          if (childAnnotation) {
+            childAnnotation.parent = annotation;
+            childAnnotation.index = i;
+          }
+        }
+      }
+    },
+
+    _parseNodeAttributeAnnotations: function(node, annotation) {
+      for (var i=0, a; (a=node.attributes[i]); i++) {
+        var n = a.name, v = a.value;
+        
+        if (n === 'id') {
+          annotation.id = v;
+        } 
+        
+        else if (n.slice(0, 3) === 'on-') {
+          annotation.events.push({
+            name: n.slice(3),
+            value: v 
+          });
+        } 
+        
+        else {
+          var b = this._parseNodeAttributeAnnotation(node, n, v);
+          if (b) {
+            annotation.bindings.push(b);
+          }
+        }
+      }
+    },
+
+    _parseNodeAttributeAnnotation: function(node, n, v) {
+      var escape = v.slice(0, 2), lastChar = n[n.length-1];
+      var kind = 'attribute', mode = '';
+      if (lastChar === '*' || lastChar === ':') {
+          n = n.slice(0, -1);
+          kind = 'property';
+          mode = 'auto';
+      }
+      if (escape === '{{') {
+        mode = 'auto';
+        v = v.slice(2, -2);
+      }
+      if (escape === '[[') {
+        mode = 'manual';
+        v = v.slice(2, -2);
+      }
+      if (mode) {
+        if (n === 'style') {
+          kind = 'style';
+        }
+        return {
+          kind: kind,
+          mode: mode,
+          name: n,
+          value: v
+        };
+      }
+    }
+
+  });
+
+  
+
+  Base.addFeature({
+
+    $$: function(slctr) {
+      return this.root.querySelector(slctr);
+    },
+
+    
+    _marshalNodeReferences: function() {
+      this.$ = {};
+      var map = this._template && this._template.map;
+      if (map) {
+        map.forEach(function(annotation) {
+          var id = annotation.id;
+          if (id) {
+            this.$[id] = this.findAnnotatedNode(this.root, annotation);
+          }
+        }, this);
+      }
+    },
+
+    _marshalAnnotatedNodes: function() {
+      if (this._nodes) {
+        this._nodes = this._nodes.map(function(a) {
+          return this.findAnnotatedNode(this.root, a);
+        }, this);
+      }
+    }
+
+  });
+
+  Base.addFeature({
+
+    listeners: {},
+
+    init: function() {
+    },
+
+    listenListeners: function() {
+      for (var key in this.listeners) {
+        var node = this, name = key;
+        if (name.indexOf('.') >= 0) {
+          name = name.split('.');
+          node = this.$[name[0]];
+          name = name[1];
+        }
+        this.listen(node, name, this.listeners[key]);
+      }
+    },
+
+    listen: function(node, eventName, methodName) {
+      node.addEventListener(eventName, function(e) {
+        this[methodName](e, e.detail);
+      }.bind(this));
+    },
+
+    fire: function(type, detail, onNode, bubbles, cancelable) {
+      var node = onNode || this;
+      var detail = (detail === null || detail === undefined) ? {} : detail;
+      var event = new CustomEvent(type, {
+        bubbles: bubbles !== undefined ? bubbles : true,
+        cancelable: cancelable !== undefined ? cancelable : true,
+        detail: detail
+      });
+      node.dispatchEvent(event);
+      return event;
+    }
+
+  });
+  
+  Base.addFeature({
+
+    keyPresses: {},
+
+    listenKeyPresses: function() {
+      for (var n in this.keyPresses) {
+        this.addEventListener('keypress', this.keyPressesFeatureHandler);
+        for (n in this.keyPresses) {
+          if (typeof n === 'string') {
+            this.keyPresses[Event.prototype.keys[n]] = this.keyPresses[n];
+          }
+        }
+        break;
+      }
+    },
+
+    keyPressesFeatureHandler: function(e) {
+      var method = this.keyPresses[e.keyCode];
+      if (method && this[method]) {
+        return this[method](e.keyCode, e);
+      }
+    }
+
+  });
+  
+  
+  Base.addFeature({
+
+    
+    _setupAnnotatedListeners: function() {
+      var map = this._template.map;
+      if (map) {
+        map.forEach(function(annotation) {
+          var events = annotation.events;
+          if (events && events.length) {
+            var node = this.findAnnotatedNode(this.root, annotation);
+            events.forEach(function(e) {
+              this.listen(node, e.name, e.value);
+            }, this)
+          }
+        }, this);
+      }
+    }
+
+  });
+
+  Base.addFeature({
+
+    async: function(method) {
+      var handled = false;
+      var handle = function() {
+        if (!handled) {
+          handled = true;
+          method.call(this);
+        }
+      }.bind(this);
+      setTimeout(handle);
+      requestAnimationFrame(handle);
+    },
+
+    toggleAttribute: function(name, value) {
+      this[value ? 'setAttribute' : 'removeAttribute'](name, '');
+    },
+
+    attributeFollows: function(name, neo, old) {
+      if (old) {
+        old.removeAttribute(name);
+      } 
+      if (neo) {
+        neo.setAttribute(name, '');
+      }
+    }
+
+  });
+
+  Base.originalInitFeatures = Base.initFeatures;
+  
+  Base.addFeature({
+
+    initFeatures: function() {
+      this.originalInitFeatures(this);
+      this.features();
+    },
+
+    features: function() {
+      this.defaultFeatures();
+    },
+
+    defaultFeatures: function() {
+      if (this._useContent) {
+        this.poolContent();
+      }
+      if (this._template) {
+        this.stampTemplate();
+        this._marshalNodeReferences();
+        this._marshalAnnotatedNodes();
+        this._setupAnnotatedListeners();
+        if (this._setupBindListeners) {
+          this._setupBindListeners();
+        }
+      }
+      this.listenListeners();
+      this.listenKeyPresses();
+      if (this._useContent) {
+        this.distributeContent();
+      }
+      this.takeAttributes();
+    }
+
+  });
+
+  Polymer.noFeatures = function() {
+  };
+
+  Polymer.defaultFeatures = Base.defaultFeatures;
+
+</script>

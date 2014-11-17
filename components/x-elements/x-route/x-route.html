@@ -1,0 +1,158 @@
+<link rel="import" href="../../polymer/polymer.html">
+<link rel="import" href="../../polymer/data.html">
+
+<script>
+
+  (function() {
+
+    var route;
+
+    var requireRouting = function() {
+      addEventListener('popstate', popStateHandler);
+      requireRouting = function() {};
+      parseLocation();
+    };
+
+    var popStateHandler = function() {
+      parseLocation();
+      Base.fire('route-change', route, window, false);
+    };
+
+    var parseLocation = function() {
+      route = location.hash.slice(1);
+    };
+
+    var getRoute = function() {
+      return route;
+    };
+
+    var setRoute = function(value) {
+      if (value !== route) {
+        route = value;
+        history.replaceState(null, '', '#' + route);
+        popStateHandler();
+      }
+    };
+
+    addEventListener('load', function() {
+      Base.fire('route-change', null, document);
+    });
+
+    Polymer({
+
+      name: 'x-route',
+
+      published: {
+        peek: Boolean,
+        match: {
+          type: String,
+          notify: true
+        }
+      },
+
+      bind: {
+        match: 'matchChanged'
+      },
+
+      created: function() {
+        requireRouting();
+        // must memoize this method for removeListener
+        this.retrieveRoute = this.retrieveRoute.bind(this);
+      },
+
+      attached: function() {
+        addEventListener('route-change', this.retrieveRoute);
+        //this.retrieveRoute();
+      },
+
+      dettached: function() {
+        removeEventListener('route-change', this.retrieveRoute);
+      },
+
+      locateContextNode: function() {
+        // find ancestor node that contains a `route` attribute
+        var n = this.parentNode;
+        while (n && n.hasAttribute) {
+          if (n.hasAttribute('route')) {
+            return n;
+          }
+          n = n.parentNode;
+        }
+      },
+
+      locateContextRouter: function(context) {
+        var ancestor, n = context || this;
+        n = n.parentNode;
+        // find ancestor node that contains an x-route
+        while (!ancestor && n) {
+          n = n.parentNode;
+          if (n) {
+            ancestor = n.querySelector(':scope > x-route');
+            if (ancestor == this) {
+              ancestor = null;
+            }
+          }
+        }
+        // return whatever we found
+        return ancestor;
+      },
+
+      queryContextRoute: function(context) {
+        return context && context.getAttribute('route');
+      },
+
+      retrieveRoute: function() {
+        var contextNode = this.locateContextNode();
+        var router = this.locateContextRouter(contextNode);
+        if (!router) {
+          this.parseRoute(getRoute());
+        } else {
+          if (router.active) {
+            var context = this.queryContextRoute(contextNode);
+            if (context === router.match) {
+              this.parseRoute(router.subroute);
+            }
+          }
+        }
+      },
+
+      parseRoute: function(route) {
+        this.active = true;
+        //
+        var routes = route.split('/');
+        var segment = routes[0] || '';
+        //
+        this.match = segment;
+        //
+        if (!this.peek) {
+          routes.shift();
+        }
+        this.subroute = routes.join('/');
+        //
+        console.log('[parseRoute]: [%s]: [%s] [%s]/[%s]', this.localName + (this.id ? '#' + this.id : ''), route, this.match, this.subroute);
+      },
+
+      matchChanged: function(match) {
+        this.setRoute(match);
+      },
+
+      setRoute: function(route) {
+        var router = this.locateContextRouter(this.locateContextNode());
+        if (!router || this.active) {
+          if (router) {
+            router.setSubRoute(route);
+          } else {
+            setRoute(route);
+          }
+        }
+      },
+
+      setSubRoute: function(route) {
+        this.setRoute(this.match + '/' + route);
+      }
+
+    });
+
+  })();
+
+</script>
