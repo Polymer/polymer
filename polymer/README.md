@@ -1,1 +1,0 @@
-Mutation-2: 01: As with 00, but eschew normative ShadowDOM.
