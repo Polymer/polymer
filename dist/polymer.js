@@ -8,7 +8,7 @@
       return (document._currentScript || document.currentScript).ownerDocument;
     }
   });
-  
+
   // copy own properties from 'api' to 'prototype, with name hinting for 'super'
   function extend(prototype, api) {
     if (prototype && api) {
@@ -36,7 +36,7 @@
     ESC_KEY: 27,
     ENTER_KEY: 13
   };
-  
+
   Base = {
 
     // (semi-)pluggable features for Base
@@ -136,7 +136,7 @@
 
   Base.addFeature({
     log: function() {
-      var args = Array.prototype.slice.call(arguments, 0); 
+      var args = Array.prototype.slice.call(arguments, 0);
       args[0] = '[%s]: ' + args[0];
       args.splice(1, 0, this.localName);
       console.log.apply(console, args);
@@ -144,27 +144,27 @@
   });
 
   /*
-   * Define public property API. 
+   * Define public property API.
    *
    * published: {
    *   <property>: <Type || Object>,
    *   ...
-   * 
-   *   // `foo` property can be assigned via attribute, will be deserialized to 
-   *   // the specified data-type. All `published` properties have this behavior.  
+   *
+   *   // `foo` property can be assigned via attribute, will be deserialized to
+   *   // the specified data-type. All `published` properties have this behavior.
    *   foo: String,
    *
    *   // `bar` property has additional behavior specifiers.
    *   //   type: type for (de-)serialization
    *   //   notify: true to send a signal when a value is set to this property
-   *   //   reflect: true to serialize the property to an attribute 
+   *   //   reflect: true to serialize the property to an attribute
    *   //   readOnly: if true, the property has no setter
    *   bar: {
    *     type: Boolean,
-   *     notify: true 
+   *     notify: true
    *   }
    * }
-   * 
+   *
    */
   Base.addFeature({
 
@@ -183,12 +183,12 @@
         }
       }
     },
-    
+
     getPublishInfo: function(property) {
       var p = this.published[property];
       if (typeof(p) === 'function') {
         p = this.published[property] = {
-          type: p 
+          type: p
         };
       }
       return p || Base.nob;
@@ -214,15 +214,15 @@
 
   /*
    * Support for `hostAttributes` property.
-   * 
-   * `hostAttributes` is a space separated string of attributes to 
+   *
+   * `hostAttributes` is a space separated string of attributes to
    * install on every instance.
-   * 
+   *
    * There is room for addition `attributes` features, namely:
-   * 
+   *
    * - potentially automatic handling of attributeChanged
    * - capturing initial configuration values from attributes
-   * 
+   *
    */
   Base.addFeature({
 
@@ -242,35 +242,35 @@
 
   /*
    * Support for `published` property.
-   * 
+   *
    * `published` object maps the names of attributes that the user
    * wants mapped as inputs to properties to the data-type of that property.
-   * 
+   *
    * This feature overwrites `attributeChanged` to support automatic
    * propagation of attribute values at run-time.
-   * 
-   * Static values in attributes at creation time can be captured by 
+   *
+   * Static values in attributes at creation time can be captured by
    * `takeAttributes`.
    *
    * Example:
-   * 
+   *
    * published: {
    *   // values set to index attribute are converted to Number and propagated
    *   // to index property
    *   index: Number,
    *   // values set to label attribute are propagated to index property
    *   label: String
-   * } 
-   * 
+   * }
+   *
    * Supported types:
-   * 
+   *
    * - Number
    * - Boolean
    * - String
    * - Object (JSON)
    * - Array (JSON)
    * - Date
-   * 
+   *
    */
   Base.addFeature({
 
@@ -292,32 +292,32 @@
     deserialize: function(name, type) {
       var value = this.getAttribute(name);
       switch(type) {
-        
-        case Number: 
+
+        case Number:
           value = Number(value) || this[name];
           break;
-          
-        case Boolean: 
+
+        case Boolean:
           value = this.hasAttribute(name);
           break;
-          
-        case Object: 
-        case Array: 
+
+        case Object:
+        case Array:
           try {
             value = JSON.parse(value);
           } catch(x) {
             return;
           }
           break;
-        
-        case Date: 
+
+        case Date:
           value = Date.parse(value);
           break;
-          
+
         case String:
         default:
           break;
-          
+
       }
       this[name] = value;
     }
@@ -332,13 +332,13 @@
       if (prev && prev.localName === 'template') {
         prototype._template = prev;
         // TODO(sjmiles): probably should be it's own feature
-        //this.decorateTemplateNodes(prototype._template.content, 
+        //this.decorateTemplateNodes(prototype._template.content,
           //prototype.name);
       }
     },
 
     /*decorateTemplateNodes: function(root, name) {
-      for (var node = root.firstElementChild; node; 
+      for (var node = root.firstElementChild; node;
         node = node.nextElementSibling) {
         node.setAttribute(name, '');
         this.decorateTemplateNodes(node, name);
@@ -355,7 +355,7 @@
 
     _stampTemplate: function(template, target) {
       // TODO(sorvell): light dom children will invalidate annotations.
-      target.insertBefore(this.instanceTemplate(template), 
+      target.insertBefore(this.instanceTemplate(template),
         target.firstElementChild);
     },
 
@@ -367,20 +367,20 @@
 
   Base.addFeature({
 
-    // TODO(sjmiles): ad-hoc signal for `ShadowDOM-lite-enhanced` nodes 
+    // TODO(sjmiles): ad-hoc signal for `ShadowDOM-lite-enhanced` nodes
     isHost: true,
 
     register: function(prototype) {
       var t = prototype._template;
       // TODO(sorvell): is qsa is wrong here due to distribution?
-      // TODO(sjmiles): No element should ever actually stamp a <content> node 
+      // TODO(sjmiles): No element should ever actually stamp a <content> node
       // into it's composed tree, so I believe this is actually correct.
-      // However, I wonder if it's more efficient to capture during annotation 
+      // However, I wonder if it's more efficient to capture during annotation
       // parsing, since the parse step does a tree walk in any case, and the
       // tree is smaller before element expansion.
       prototype._useContent = Boolean(t && t.content.querySelector('content'));
     },
-    
+
     poolContent: function() {
       // pool the light dom
       var pool = document.createDocumentFragment();
@@ -389,10 +389,10 @@
       }
       this.contentPool = pool;
       // capture lightChildren to help reify dom scoping
-      this.lightChildren = 
+      this.lightChildren =
         Array.prototype.slice.call(this.contentPool.childNodes, 0);
     },
-    
+
     distributeContent: function() {
       var content, pool = this.contentPool;
       // replace <content> with nodes teleported from pool
@@ -401,8 +401,8 @@
         var frag = pool;
         if (select) {
           frag = document.createDocumentFragment();
-          // TODO(sjmiles): diverges from ShadowDOM spec behavior: ShadowDOM 
-          // only selects top level nodes from pool. Iterate children and match 
+          // TODO(sjmiles): diverges from ShadowDOM spec behavior: ShadowDOM
+          // only selects top level nodes from pool. Iterate children and match
           // manually instead.
           var nodes = pool.querySelectorAll(select);
           for (var i=0, l=nodes.length; i<l; i++) {
@@ -413,16 +413,16 @@
         content.parentNode.replaceChild(frag, content);
       }
     }
-          
+
   });
-    
+
 // TODO(sjmiles): this code was ported from an earlier mutation and needs
-// a cleanup to cleave closer to neoprene MO
+// a cleanup to cleave closer to polymer MO
 
-/* 
+/*
 
-Scans a template to produce an annotation map that stores expression metadata 
-and information that can be used to associate that metadata with the 
+Scans a template to produce an annotation map that stores expression metadata
+and information that can be used to associate that metadata with the
 corresponding nodes in a template instance.
 
 Supported annotations are:
@@ -445,7 +445,7 @@ Generated data-structure:
       id: '<id>',
       events: [
         {
-          mode: ['auto'|''], 
+          mode: ['auto'|''],
           name: '<name>'
           value: '<expression>'
         }, ...
@@ -453,7 +453,7 @@ Generated data-structure:
       bindings: [
         {
           kind: ['text'|'attribute'|'property'],
-          mode: ['auto'|''], 
+          mode: ['auto'|''],
           name: '<name>'
           value: '<expression>'
         }, ...
@@ -462,13 +462,13 @@ Generated data-structure:
       parent: <reference to parent annotation>,
       index: <integer index in parent's childNodes collection>
     },
-    ...  
+    ...
   ]
 
-TODO(sjmiles): this module should produce either syntactic metadata 
+TODO(sjmiles): this module should produce either syntactic metadata
 (e.g. double-mustache, double-bracket, star-attr), or semantic metadata
 (e.g. manual-bind, auto-bind, property-bind). Right now it's half and half.
-   
+
 */
 
   Base.addFeature({
@@ -481,7 +481,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
       }
       var parent = this.findAnnotatedNode(root, annote.parent);
       // enforce locality.
-      var nodes = (parent === this) ? parent.childNodes : 
+      var nodes = (parent === this) ? parent.childNodes :
         (parent.lightChildren || parent.childNodes);
       return nodes[annote.index];
     },
@@ -505,8 +505,8 @@ TODO(sjmiles): this module should produce either syntactic metadata
     },
 
     _parseNodeAnnotations: function(node, map) {
-      return node.nodeType === Node.TEXT_NODE ? 
-        this._parseTextNodeAnnotation(node, map) : 
+      return node.nodeType === Node.TEXT_NODE ?
+        this._parseTextNodeAnnotation(node, map) :
           this._parseElementAnnotations(node, map);
     },
 
@@ -558,14 +558,14 @@ TODO(sjmiles): this module should produce either syntactic metadata
         // id
         if (n === 'id') {
           annotation.id = v;
-        } 
+        }
         // on-* (event)
         else if (n.slice(0, 3) === 'on-') {
           annotation.events.push({
             name: n.slice(3),
-            value: v 
+            value: v
           });
-        } 
+        }
         // other attribute
         else {
           var b = this._parseNodeAttributeAnnotation(node, n, v);
@@ -680,7 +680,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
     }
 
   });
-  
+
   Base.addFeature({
 
     keyPresses: {},
@@ -708,18 +708,18 @@ TODO(sjmiles): this module should produce either syntactic metadata
     }
 
   });
-  
+
   /*
    * Parses the annotations map created by `annotations` features to support
    * declarative events.
-   * 
+   *
    * Depends on `annotations` and `events` features.
-   * 
+   *
    */
   Base.addFeature({
 
     // instance-time
-    
+
     _setupAnnotatedListeners: function() {
       var map = this._template.map;
       if (map) {
@@ -760,7 +760,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
     attributeFollows: function(name, neo, old) {
       if (old) {
         old.removeAttribute(name);
-      } 
+      }
       if (neo) {
         neo.setAttribute(name, '');
       }
@@ -770,7 +770,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
 
   // TODO(sjmiles): hack
   Base.originalInitFeatures = Base.initFeatures;
-  
+
   Base.addFeature({
 
     initFeatures: function() {

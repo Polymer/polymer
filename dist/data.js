@@ -1,20 +1,20 @@
 
   /*
    * Needs new name.
-   * 
+   *
    * Provides a data-binding API, by which a getter/setter pair
    * can be constructed in one of two imperative modes:
-   * 
-   * bindMethod(property, methodName): constructs a getter/setter pair and a 
+   *
+   * bindMethod(property, methodName): constructs a getter/setter pair and a
    * backing store for the given property; calls the method when the setter
    * is invoked and the value has changed from what is in the backing store.
-   * 
-   * bindProperty(property, path): constructs a getter/setter pair that 
+   *
+   * bindProperty(property, path): constructs a getter/setter pair that
    * forwards data access to a property on another object.
-   * 
+   *
    * This feature also supports a `bind` object, which contains expressions
    * that are deconstructed into `bindMethod` or `bindProperty` calls, or
-   * into a `multiBinding` construct. `multiBinding` constructs support 
+   * into a `multiBinding` construct. `multiBinding` constructs support
    * multiple side-effects.
    *
    * bind {
@@ -23,16 +23,16 @@
    *   property: 'method'
    *   // if the value is not the name of a method, it's assumed to be the
    *   // name in the `$` hash that maps to an element.
-   *   // If no target property is specified, `textContent` is assumed to 
+   *   // If no target property is specified, `textContent` is assumed to
    *   // be the backing-store for `property2` accessors.
    *   property2: 'elementId'
-   *   // If a path is provided, that element is dereferenced from $ as before, 
+   *   // If a path is provided, that element is dereferenced from $ as before,
    *   // but the full path is used for the backing-store.
-   *   // This declaration binds property3 to $.elementId.value  
+   *   // This declaration binds property3 to $.elementId.value
    *   property3: 'elementId.value'
-   *   // If the specified property is also `published`, a multi-binding 
+   *   // If the specified property is also `published`, a multi-binding
    *   // construct is created which sends a change notification in addition
-   *   // to whatever user side-effect is specified. 
+   *   // to whatever user side-effect is specified.
    *   publishedProperty: <method name or element property>
    *   // Specify multiple side-effects directly as an array. Only one
    *   // callback method is allowed.
@@ -41,14 +41,14 @@
    *     'elementId',
    *     'elementId.property',
    *     ...
-   *   ] 
-   * } 
-   * 
+   *   ]
+   * }
+   *
    * Methods bound into multi-bind contexts support a validation feature. If
    * the method returns a value that does not === undefined side-effects are
    * prevented, and the triggering property is set to the returned value, and
    * a new round of side-effects is initiated.
-   * 
+   *
    * Multi-bind = multiple side-effects for one signal.
    * Note: `signal` today is `set-trap`, should we generalize?
    * Side-effects can be registered by multiple subsystems:
@@ -56,34 +56,34 @@
    *   - bind-annotations feature
    *   - computed feature
    *   - published feature
-   * We need to accumulate all side-effects for a particular property 
+   * We need to accumulate all side-effects for a particular property
    * before constructing the handler.
-   * 
+   *
    */
   Base.addFeature({
 
     // per prototype
-    
+
     // TODO(sjmiles): initialization of `_propertyEffects` and the
     // `addPropertyEffect` itself are really the domain of bind-effects
     // but these things needs to happen before bind-effects itself initializes.
     // We need to factor bind-effects into before and after features instead
     // and let this feature be for dealing with `bind` object.
-    
+
     register: function(prototype) {
       prototype._addPropertyBindEffects();
     },
 
     // TODO(sjmiles): really ad hoc self-modifying code
     // to resolve initialization ordering around optional
-    // module 
+    // module
     addPropertyEffect: function(property, kind, effect) {
       // prepare storage on first invocation
       this._propertyEffects = {};
       // add the effect
       this._addPropertyEffect(property, kind, effect);
       // subsequent invocations skip preparation step implementation
-      this.addPropertyEffect = this._addPropertyEffect; 
+      this.addPropertyEffect = this._addPropertyEffect;
     },
 
     _addPropertyEffect: function(property, kind, effect) {
@@ -119,12 +119,12 @@
   });
 
 // TODO(sjmiles): this code was ported from an earlier mutation and needs
-// a cleanup to cleave closer to neoprene MO
+// a cleanup to cleave closer to polymer MO
 
-/* 
+/*
 
-Scans a template to produce an annotation map that stores expression metadata 
-and information that can be used to associate that metadata with the 
+Scans a template to produce an annotation map that stores expression metadata
+and information that can be used to associate that metadata with the
 corresponding nodes in a template instance.
 
 Supported annotations are:
@@ -147,7 +147,7 @@ Generated data-structure:
       id: '<id>',
       events: [
         {
-          mode: ['auto'|''], 
+          mode: ['auto'|''],
           name: '<name>'
           value: '<expression>'
         }, ...
@@ -155,7 +155,7 @@ Generated data-structure:
       bindings: [
         {
           kind: ['text'|'attribute'|'property'],
-          mode: ['auto'|''], 
+          mode: ['auto'|''],
           name: '<name>'
           value: '<expression>'
         }, ...
@@ -164,13 +164,13 @@ Generated data-structure:
       parent: <reference to parent annotation>,
       index: <integer index in parent's childNodes collection>
     },
-    ...  
+    ...
   ]
 
-TODO(sjmiles): this module should produce either syntactic metadata 
+TODO(sjmiles): this module should produce either syntactic metadata
 (e.g. double-mustache, double-bracket, star-attr), or semantic metadata
 (e.g. manual-bind, auto-bind, property-bind). Right now it's half and half.
-   
+
 */
 
   Base.addFeature({
@@ -183,7 +183,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
       }
       var parent = this.findAnnotatedNode(root, annote.parent);
       // enforce locality.
-      var nodes = (parent === this) ? parent.childNodes : 
+      var nodes = (parent === this) ? parent.childNodes :
         (parent.lightChildren || parent.childNodes);
       return nodes[annote.index];
     },
@@ -207,8 +207,8 @@ TODO(sjmiles): this module should produce either syntactic metadata
     },
 
     _parseNodeAnnotations: function(node, map) {
-      return node.nodeType === Node.TEXT_NODE ? 
-        this._parseTextNodeAnnotation(node, map) : 
+      return node.nodeType === Node.TEXT_NODE ?
+        this._parseTextNodeAnnotation(node, map) :
           this._parseElementAnnotations(node, map);
     },
 
@@ -260,14 +260,14 @@ TODO(sjmiles): this module should produce either syntactic metadata
         // id
         if (n === 'id') {
           annotation.id = v;
-        } 
+        }
         // on-* (event)
         else if (n.slice(0, 3) === 'on-') {
           annotation.events.push({
             name: n.slice(3),
-            value: v 
+            value: v
           });
-        } 
+        }
         // other attribute
         else {
           var b = this._parseNodeAttributeAnnotation(node, n, v);
@@ -312,22 +312,22 @@ TODO(sjmiles): this module should produce either syntactic metadata
   /*
    * Parses the annotations map created by `annotations` features to perform
    * declarative desugaring.
-   * 
+   *
    * Depends on `annotations` feature and `bind` feature.
-   * 
+   *
    * Two tasks are supported:
-   * 
-   * - nodes with 'id' are described in a virtual annotation map at 
+   *
+   * - nodes with 'id' are described in a virtual annotation map at
    *   registration time. This map is then concretized per instance.
-   * 
+   *
    * - Simple mustache expressions consisting of a single property name
    *   in a `textContent` context are bound using `bind` features
    *   `bindMethod`. In this mode, the bound method is constructed at
-   *   registration time, so marshaling is done done via the concretized 
+   *   registration time, so marshaling is done done via the concretized
    *   `_nodes` at every access.
-   *    
-   *   TODO(sjmiles): ph3ar general confusion between registration and 
-   *   instance time tasks. Is there a cleaner way to disambiguate? 
+   *
+   *   TODO(sjmiles): ph3ar general confusion between registration and
+   *   instance time tasks. Is there a cleaner way to disambiguate?
    */
   Base.addFeature({
 
@@ -341,13 +341,13 @@ TODO(sjmiles): this module should produce either syntactic metadata
 
     // construct binding meta-data at *registration* time
     _preprocessBindAnnotations: function(prototype, map) {
-      // create a virtual annotation map, must be concretized at instance time 
+      // create a virtual annotation map, must be concretized at instance time
       prototype._nodes = [];
       // process annotations that have been parsed from template
       map.forEach(function(annotation) {
-        // where to find the node in the concretized map 
+        // where to find the node in the concretized map
         var index = prototype._nodes.push(annotation) - 1;
-        // TODO(sjmiles): we need to support multi-bind, right now you only get 
+        // TODO(sjmiles): we need to support multi-bind, right now you only get
         // one (not including kind === `id`)
         annotation.bindings.forEach(function(binding) {
           prototype._bindAnnotationBinding(binding, index);
@@ -402,7 +402,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
   Base.addFeature({
 
     // per instance
-    
+
     init: function() {
       this._data = Object.create(null);
     },
@@ -439,7 +439,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
     },
 
     // per prototype
-    
+
     register: function(prototype) {
       prototype._bindListeners = {};
       prototype._createBindings();
@@ -500,7 +500,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
         property = 'textContent';
       }
       //
-      return 'this.$.' + id + '.' + property + ' = ' 
+      return 'this.$.' + id + '.' + property + ' = '
         + 'this._data.' + source + ';'
     },
 
@@ -519,14 +519,14 @@ TODO(sjmiles): this module should produce either syntactic metadata
         // construct setter body
         var body  = '\tvar old = this._setData(\'' + property + '\', value);\n'
           + '\tif (value !== old) {\n'
-            + '\t\tthis.' + effector + '(old);\n' 
+            + '\t\tthis.' + effector + '(old);\n'
           + '\t}';
         var setter = new Function('value', body);
         // ReadOnly properties have a private setter only
         if (this.isReadOnlyProperty(property)) {
           this['_set_' + property] = setter;
         }
-        // other properties have a proper setter 
+        // other properties have a proper setter
         else {
           defun.set = setter;
         }
@@ -541,7 +541,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
     },
 
     _computeEffectBuilder: function(source, effect) {
-      return 'this.' + effect.property 
+      return 'this.' + effect.property
         + ' = this.' + effect.method + '(this._data.' + source + ');';
     },
 
@@ -558,7 +558,7 @@ TODO(sjmiles): this module should produce either syntactic metadata
     },
 
     _bindAnnotationProperty: function(source, target, index) {
-      return 'this._nodes[' + index + '].' + target 
+      return 'this._nodes[' + index + '].' + target
           + ' = this._data.' + source + ';';
     },
 
