@@ -1,0 +1,320 @@
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../x-selector.html">
+<link rel="import" href="paper-tab.html">
+
+<!--
+`paper-tabs` is a `core-selector` styled to look like tabs. Tabs make it easy to 
+explore and switch between different views or functional aspects of an app, or 
+to browse categorized data sets.
+
+Use `selected` property to get or set the selected tab.
+
+Example:
+
+    <paper-tabs selected="0">
+      <paper-tab>TAB 1</paper-tab>
+      <paper-tab>TAB 2</paper-tab>
+      <paper-tab>TAB 3</paper-tab>
+    </paper-tabs>
+
+See <a href="#paper-tab">paper-tab</a> for more information about 
+`paper-tab`.
+
+A common usage for `paper-tabs` is to use it along with `core-pages` to switch
+between different views.
+
+    <paper-tabs selected="{{selected}}">
+      <paper-tab>Tab 1</paper-tab>
+      <paper-tab>Tab 2</paper-tab>
+      <paper-tab>Tab 3</paper-tab>
+    </paper-tabs>
+  
+    <core-pages selected="{{selected}}>
+      <div>Page 1</div>
+      <div>Page 2</div>
+      <div>Page 3</div>
+    </core-pages>
+    
+`paper-tabs` adapt to mobile/narrow layout when there is a `core-narrow` class set
+on itself or any of its ancestors.
+
+To use links in tabs, add `link` attribute to `paper-tabs` and put an `<a>`
+element in `paper-tab`.
+
+Example:
+
+    <paper-tabs selected="0" link>
+      <paper-tab>
+        <a href="#link1" horizontal center-center layout>TAB ONE</a>
+      </paper-tab>
+      <paper-tab>
+        <a href="#link2" horizontal center-center layout>TAB TWO</a>
+      </paper-tab>
+      <paper-tab>
+        <a href="#link3" horizontal center-center layout>TAB THREE</a>
+      </paper-tab>
+    </paper-tabs>
+
+Styling tabs:
+
+To change the sliding bar color:
+
+    paper-tabs.pink::shadow #selectionBar {
+      background-color: #ff4081;
+    }
+    
+To change the ink ripple color:
+
+    paper-tabs.pink paper-tab::shadow #ink {
+      color: #ff4081;
+    }
+
+@group Paper Elements
+@element paper-tabs
+@extends core-selector
+@homepage github.io
+-->
+
+<style>
+
+  paper-tabs {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    height: 48px;
+    overflow: hidden;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+  }
+
+  paper-tabs #tabsContainer {
+    position: relative;
+    height: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  paper-tabs #tabsContent {
+    height: 100%;
+  }
+
+  paper-tabs #tabsContainer.scrollable > #tabsContent {
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  paper-tabs .scroll-button {
+    width: 40px;
+    padding: 0 12px;
+  }
+
+  paper-tabs .scroll-button > paper-icon-button {
+    transition: opacity 0.18s;
+  }
+
+  paper-tabs .scroll-button > .hidden {
+    opacity: 0;
+  }
+
+  paper-tabs #selectionBar {
+    position: absolute;
+    height: 2px;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    background-color: #ffff8d;
+    transition: width, left;
+  }
+
+  paper-tabs #selectionBar.expand {
+    transition-duration: 0.15s;
+    transition-timing-function: cubic-bezier(0.4, 0.0, 1, 1);
+  }
+
+  paper-tabs #selectionBar.contract {
+    transition-duration: 0.18s;
+    transition-timing-function: cubic-bezier(0.0, 0.0, 0.2, 1);
+  }
+
+  paper-tabs #tabsContent > *:not(#selectionBar) {
+    height: 100%;
+  }
+
+</style>
+
+<template>
+
+  <x-selector id="tabsContainer" flex selected="{{selectedItem}}" index="{{index}}" selectable="paper-tab" class="scrollable" on-scroll="scroll">
+
+    <div id="tabsContent" horizontal layout>
+
+      <content></content>
+      <div id="selectionBar" hidden="{{nobar}}" on-transitionend="barTransitionEnd"></div>
+
+    </div>
+
+  </x-selector>
+
+</template>
+
+<script>
+
+  Polymer({
+
+    name: 'paper-tabs',
+
+    hostAttributes: 'vertical layout',
+
+    published: {
+
+      index: {
+        type: Number,
+        notify: true
+      }
+
+    },
+
+    /**
+     * If true, ink ripple effect is disabled.
+     *
+     * @attribute noink
+     * @type boolean
+     * @default false
+     */
+    noink: false,
+
+    /**
+     * If true, the bottom bar to indicate the selected tab will not be shown.
+     *
+     * @attribute nobar
+     * @type boolean
+     * @default false
+     */
+    nobar: false,
+
+    /**
+     * If true, the slide effect for the bottom bar is disabled.
+     *
+     * @attribute noslide
+     * @type boolean
+     * @default false
+     */
+    noslide: false,
+
+    /**
+     * If true, tabs are scrollable and the tab width is based on the label width.
+     *
+     * @attribute scrollable
+     * @type boolean
+     * @default false
+     */
+    scrollable: false,
+
+    bind: {
+      selectedItem: 'selectedItemChanged',
+      barColor: 'barColorChanged'
+    },
+
+    /**
+     * Invoke this to update the size and position of the bottom bar.  Usually
+     * you only need to call this if the `paper-tabs` is initially hidden and
+     * later becomes visible.
+     *
+     * @method updateBar
+     */
+    updateBar: function() {
+      this.async('selectedItemChanged');
+    },
+    
+    selectedItemChanged: function(item, old) {
+      var s = this.$.selectionBar.style;
+
+      if (!item) {
+        s.width = 0;
+        s.left = 0;
+        return;
+      } 
+
+      var r = this.$.tabsContent.getBoundingClientRect();
+      w = r.width;
+      l = r.left;
+
+      r = item.getBoundingClientRect();
+      sw = r.width;
+      sl = r.left;
+      sOffsetLeft = sl - l; 
+
+      this._pos = {
+        width: this.calcPercent(sw, w) + '%',
+        left: this.calcPercent(sOffsetLeft, w) + '%'
+      };
+
+      if (this.noslide || old == null) {
+        this.positionBarForSelected();
+        return;
+      }
+
+      this.$.selectionBar.classList.add('expand');
+
+      var oldRect = old.getBoundingClientRect();
+      var oldIndex = this.$.tabsContainer.indexOfItem(old);
+      var newIndex = this.$.tabsContainer.index;
+      
+      var m = 5;
+      
+      if (oldIndex < newIndex) {
+        s.width = this.calcPercent(sl + sw - oldRect.left, w) - m + '%';
+        this._transitionCounter = 1;
+      } else {
+        s.width = this.calcPercent(oldRect.left + oldRect.width - sl, w) - m + '%';
+        s.left = this.calcPercent(sOffsetLeft, w) + m + '%';
+        this._transitionCounter = 2;
+      }
+
+      if (this.scrollable) {
+        this.scrollToSelectedIfNeeded();
+      }
+    },
+
+    calcPercent: function(w, w0) {
+      return 100 * w / w0;
+    },
+
+    positionBarForSelected: function() {
+      var s = this.$.selectionBar.style;
+      s.width = this._pos.width;
+      s.left = this._pos.left;
+    },
+
+    barTransitionEnd: function(e) {
+      var cl = this.$.selectionBar.classList;
+      if (cl.contains('expand')) {
+        if (--this._transitionCounter === 0) {
+          cl.remove('expand');
+          cl.add('contract');
+          this.positionBarForSelected();
+        }
+      } else if (cl.contains('contract')) {
+        cl.remove('contract');
+      }
+    },
+
+    barColorChanged: function(color) {
+      this.$.selectionBar.style.backgroundColor = color;
+    }
+
+  });
+
+</script>
+</polymer-element>
