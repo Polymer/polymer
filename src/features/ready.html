@@ -15,7 +15,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     Provides `ready` lifecycle callback which is called parent to child.
 
+    This can be useful in a number of cases. Here are some examples:
+
+    Setting a default property value that should have a side effect: To ensure
+    the side effect, an element must set a default value no sooner than
+    `created`; however, since `created` flows child to host, this is before the 
+    host has had a chance to set a property value on the child. The `ready`
+    method solves this problem since it's called host to child.
+
+    Dom distribution: To support reprojection efficiently, it's important to 
+    distribute from host to child in one shot. The `attachedCallback` mostly
+    goes in the desired order except for elements that are in dom to start; in
+    this case, all children are attached before the host element. Ready also
+    addresses this case since it's guaranteed to be called host to child.
+
   */
+
+  // TODO(sorvell): simply loading this feature incurs a small cost since it 
+  // hooks attachedCallback. A feature hook at this lifecycle method would 
+  // allow users to opt out.
 
   // TODO(sorvell): monkey patch for now.
   var originalAttachedCallback = Base.attachedCallback;
@@ -26,6 +44,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // then pushes this element into an array of `_readyListeners`; if
     // not, starts the notify cascade.
     attachedCallback: function() {
+      originalAttachedCallback.call(this);
+      this._checkReady();
+    },
+
+    _checkReady: function() {
       if (!this._readied) {
         var host = this.queryHost();
         if (host && !host._readied) {
@@ -34,7 +57,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._notifyReady();
         }
       }
-      originalAttachedCallback.call(this);
     },
 
     _listenReady: function(element) {
