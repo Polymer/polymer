@@ -44,7 +44,7 @@
   var modules = {};
 
   function using(depends, task) {
-    HTMLImports.whenImportsReady(function() {
+    HTMLImports.whenReady(function() {
       withDependencies(task, depends);
     });
   };
