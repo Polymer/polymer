@@ -9,6 +9,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <script>
 
+/* NOTE: This is a temporary implementation that proves the basic approach.
+
+The next step is to integrate paths into the property system as real properties
+
+*/ 
+
 (function() {
 
   var originalSetupBindListeners = Base._setupBindListeners;
@@ -38,74 +44,95 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // determine if and what event we need to listen on
         if (node._isPublishedObject &&
           node._isPublishedObject(info.property)) {
-          event = info.property + EVENT_PROP_CHANGED;
+          event = info.property + EVENT_PATH_CHANGED;
         } else if (model !== info.path) {
           event = info.property + EVENT_CHANGED;
         }
         // listen iff we need to
         if (event) {
-          this._setupPathListener(node, event, model, info.path);
+          this._setupPathListener(node, event, model, info);
         }
       }
     },
 
-    // TODO(sorvell): at one point the listener had to be async to propagate
-    // changes correctly; this no longer seems to be necessary but need
-    // to keep an eye on it until it's understood fully.
-    _setupPathListener: function(node, event, model, path) {
+    _setupPathListener: function(node, event, model, binding) {
       var self = this;
       node.addEventListener(event, function(e) {
-        self.notifyPropertyChange(model, path);
+        // re-jigger path
+        // binding.path == item
+        // binding.property == zizz
+        // if no e.detail.path, path === binding.path
+        // else replace binding.name with binding.path in e.detail.path
+        var path = e.detail.path ? 
+          this._fixPath(binding.path, binding.property, e.detail.path) :
+          binding.path;
+        // TODO(sorvell): async here should not be necessary when we use real
+        // properties for paths.
+        setTimeout(function() {
+          self.notifyPath(path, e.detail.value);
+        });
       });
     },
 
     /**
-      Notify that a property has changed. This method can be used to
-      flow data through the system when a path in an Object valued property
-      changes. For example:
+      Notify that a path has changed. For example:
 
           this.item.user.name = 'Bob';
-          this.notifyPropertyChange('item', 'user.name');
+          this.notifyPath('item.user.name', this.item.user.name);
     */
-    notifyPropertyChange: function(property, path)  {
-      this._forcePropertyEffect(property);
-      this._firePropertyChange(property, path);
-    },
-
-    // Force property side effects.
-    // 1. calls the _propertyEffector
-    // 2. for bindings to Object valued properties, we need to cascade
-    // recursively through dirty check prevention
-    // (e.g. if foo.item = this.item is dirty checked away, we ensure
-    // foo.item's side effects run)
-    _forcePropertyEffect: function(property) {
-      if (this._data[property] === undefined) {
-        console.warn('skipping notification for undefined', this, property);
-        return;
-      }
-      this['_' + property + 'Effector'](this._data[property]);
-      // if the property is bound to other Object valued properties,
-      // force those properties to effect changes.
-      var $b = this._bindListeners;
-      for (var i=0, l=$b.length, b; (i<l) && (b=$b[i]); i++) {
-        this._forceBoundPropertyEffect(property, b);
+    notifyPath: function(path, value) {
+      // TODO(sorvell): paths should be real properties. When that is the case
+      // we can do this:
+      /*
+        this[path] = value;
+      */
+      // The following is a temporary stand in for updating the property
+      // system to support paths.
+      var old = this._setPath(path, value);
+      // manual dirty checking for now...
+      if (old !== value) {
+        this._pathEffector(path, value);
+        // TODO(sorvell): should only notify if notify: true.
+        this._notifyPath(path, value);
       }
     },
 
-    _forceBoundPropertyEffect: function(property, binding) {
-      var node = this._nodeForBinding(binding);
-      var model = modelForPath(binding.path);
-      if ((model === property) && node._isPublishedObject(binding.property)) {
-        node._forcePropertyEffect(binding.property);
-      }
+    _setPath: function(path, value) {
+      var old = this._data[path];
+      this._data[path] = value;
+      return old;
     },
 
-    _firePropertyChange: function(modelProperty, path) {
-      var detail = {
-        property: this[modelProperty],
-        path: path
-      };
-      this.fire(modelProperty + '-property-changed', detail, null, false);
+    _pathEffector: function(path, value) {
+      var model = modelForPath(path);
+      var fx$ = this._propertyEffects[model];
+      fx$.forEach(function(x) {
+        if (x.kind === 'annotation') {
+          var effect = x.effect;
+          var n = this._nodeForBinding(effect);
+          if (n) {
+            if (effect.value === path) {
+              n[effect.name || 'textContent'] = value;
+            // path == item.stuff.count
+            // value == item.stuff 
+            // name == zizz
+            // calls effect n.notifyPath for zizz.count
+            } else if ((path.indexOf(effect.value) === 0) && n.notifyPath) {
+              var p = this._fixPath(effect.name , effect.value, path);
+              n.notifyPath(p, value);
+            }
+          }
+        }
+      }, this);
+    },
+
+    _fixPath: function(property, root, path) {
+      return property + path.slice(root.length);
+    },
+
+    _notifyPath: function(path, value) {
+      var event = modelForPath(path) + EVENT_PATH_CHANGED;
+      this.fire(event, { path: path, value: value }, null, false);
     },
 
     _nodeForBinding: function(info) {
@@ -124,7 +151,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   var EVENT_CHANGED = '-changed';
-  var EVENT_PROP_CHANGED = '-property' + EVENT_CHANGED;
+  var EVENT_PATH_CHANGED = '-path' + EVENT_CHANGED;
 
 })();
 
