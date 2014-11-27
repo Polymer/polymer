@@ -128,7 +128,7 @@ Although it's relatively simple, having to write this code becomes annoying when
 
 Instead, Polymer's `attributes` feature handles this work for you (using the `published` feature data). If an attribute is set that matches a property listed in the `published` object, the value is captured into the matching property. Strings are automatically converted to the published type.
 
-The type system includes support for Object values expressed as JSON, or Date objects expressed as any Date-parsable string representation. Boolean properties are mapped to Boolean attributes, in other words, if the attribute exists at all, it's value is true, regardless of it's string-value (and the value is only false if the attribute does not exist).
+The type system includes support for Object values expressed as JSON, or Date objects expressed as any Date-parsable string representation. Boolean properties are mapped to Boolean attributes, in other words, if the attribute exists at all, its value is true, regardless of its string-value (and the value is only false if the attribute does not exist).
 
 Here is the equivalent of the above code, taking advantage of the `attributes` feature.
 
