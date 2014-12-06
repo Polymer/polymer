@@ -29,7 +29,7 @@ head.insertBefore(style, head.firstChild);
 /**
  * Force any pending data changes to be observed before 
  * the next task. Data changes are processed asynchronously but are guaranteed
- * to be processed, for example, before paintin. This method should rarely be 
+ * to be processed, for example, before painting. This method should rarely be 
  * needed. It does nothing when Object.observe is available; 
  * when Object.observe is not available, Polymer automatically flushes data 
  * changes approximately every 1/10 second. 
