@@ -1,0 +1,175 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<!--
+TODO(nevir): After https://github.com/Polymer/polymer/pull/987
+<link rel="import"../base.html">
+-->
+<link rel="import" href="../../../web-animations-js/web-animations.html">
+
+<script>
+
+(function() {
+
+  /**
+   * A map of globally defined animations by name. Referenced via the
+   * `animation` property on descriptions within an element's `animations`.
+   *
+   * The `effect`s defined on a global animation description will be used
+   * directly. Any properties defined via `timing` are used as defaults, and may
+   * be overridden on a per-element basis.
+   *
+   * @type {String, Object}
+   */
+  Base.Animations = {};
+
+  /**
+   * Animation descriptions support the following options:
+   *
+   * target:
+   *   A selector to the node(s) that the animation should be performed upon.
+   *   Note that this is evaluated immediately after `created`; Any nodes that
+   *   you dynamically add later will not be handled.
+   *
+   * animation:
+   *   The name of the globally defined animation that effects and timing should
+   *   be inherited from. See `Base.Animations`.
+   *
+   * effect:
+   *   The effect of the animation (typically key frames). This is passed
+   *   directly as the second argument to `new Animation()`.
+   *
+   * timing:
+   *   Timing configuration. This is passed directly as the third argument to
+   *   `new Animation()`.
+   *
+   * autoplay:
+   *   Whether the animation should begin playing immediately.
+   *
+   * @typedef {{
+   *   target:    String,
+   *   animation: ?String,
+   *   effect:    Array|Object,
+   *   timing:    Object,
+   *   autoplay:  Boolean,
+   * }}
+   */
+  var AnimationDescription;
+
+  /**
+   * Adds sugaring for named web animations via the `animations` property on
+   * elements.
+   *
+   * Each animation is described by a configuration object keyed by name on the
+   * `animations` property. For example:
+   *
+   *   animations: {
+   *     pulse: {
+   *       autoplay: true,
+   *       target: '#notice',
+   *       effect: [
+   *         {transform: "scale(0.85)"},
+   *         {transform: "scale(1)"},
+   *       ],
+   *       timing: {
+   *         direction: 'alternate',
+   *         duration: 500,
+   *         iterations: Infinity,
+   *       },
+   *     },
+   *   }
+   */
+  Base.addFeature({
+
+    /** @type {String, AnimationDescription} Animations declared per element. */
+    animations: {},
+
+    /** @override */
+    init: function() {
+      // Animation targets are evaluated at creation time for simplicity's sake.
+      //
+      // We have to defer until after the template has been stamped, and "more"
+      // features can't hook into the load order (i.e. `afterCreated`), so async
+      // we go.
+      //
+      // TODO(nevir): This should be an `endOfMicrotask` call.
+      this.async(function() {
+        this.$animations = {};
+
+        Object.keys(this.animations).forEach(function(name) {
+          this.$animations[name] = buildAnimation(this, name, this.animations[name]);
+          if (this.animations[name].autoplay) {
+            this.play(name);
+          }
+        }.bind(this));
+      });
+    },
+
+    /** @param {String} name The animation to play. */
+    play: function(name) {
+      if (!this.$animations) {
+        throw new Error('Calling play() inside created() is not supported. Try calling it after an async()');
+      }
+      if (!this.$animations[name]) {
+        throw new ReferenceError('Animation "' + name + '" has not been registered');
+      }
+
+      if (!this.ownerDocument || !this.ownerDocument.timeline) {
+        throw new Error('Unable to play animation "' + name + '". Element\'s document lacks an animation timeline');
+      }
+
+      this.ownerDocument.timeline.play(this.$animations[name]);
+    },
+
+  });
+
+  function buildAnimation(root, name, description) {
+    mergeGlobalAnimation(description);
+
+    if (!description.target) {
+      throw new TypeError('target is a required property of an animation description');
+    }
+    if (!description.effect) {
+      throw new TypeError('effect is a required property of an animation description');
+    }
+    if (!description.timing) {
+      throw new TypeError('timing is a required property of an animation description');
+    }
+
+    var animations = [];
+    // TODO(nevir): Support more than one element.
+    var nodes = root.querySelectorAll(description.target);
+    for (var i = 0, node; node = nodes[i]; i++) {
+      animations.push(new Animation(node, description.effect, description.timing));
+    }
+
+    return new AnimationGroup(animations, {iterations: 1});
+  }
+
+  function mergeGlobalAnimation(description, globalName) {
+    if (!description.animation) return;
+
+    var globalDescription = Base.Animations[description.animation];
+    if (!globalDescription) {
+      throw new TypeError('The global animation "' + description.animation + '" is not defined');
+    }
+
+    description.effect = globalDescription.effect;
+    description.timing = description.timing || {};
+    if (globalDescription.timing) {
+      Object.keys(globalDescription.timing).forEach(function(key) {
+        if (key in description.timing) return;
+        description.timing[key] = globalDescription.timing[key];
+      });
+    }
+  }
+
+})();
+
+</script>
