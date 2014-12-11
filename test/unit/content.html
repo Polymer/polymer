@@ -1,0 +1,383 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../src/polymer.html">
+  <link rel="import" href="../../src/features/content.html">
+</head>
+<body>
+<script>
+
+var registered = false;
+function registerTestElement() {
+  if (registered) return;
+  Polymer({name: 'x-content-test'});
+  registered = true;
+}
+
+/**
+ * Test the `<content>` element distribution algorithm by verifying the
+ * resulting composed tree structure.
+ */
+function testRender(descr, hostInnerHtml, shadowRootHtml, expectedHtml) {
+  test(descr, function() {
+    registerTestElement();
+    // Create an instance of the test element.
+    var host = document.createElement('x-content-test');
+    // Populate the initial pool of light DOM children.
+    host.innerHTML = hostInnerHtml;
+    host.poolContent();
+    // Pretend we're stamping the template contents.
+    setInnerHTML(host.root, shadowRootHtml);
+    // Invoke distribution and verify the resulting tree.
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, expectedHtml);
+  });
+}
+
+testRender('Empty shadow', 'abc', '', '');
+testRender('Simple shadow', 'abc', 'def', 'def');
+testRender('Fallback shadow', 'abc',
+           '<content select="xxx">fallback</content>', 'fallback');
+testRender('Content', 'abc',
+           '<content>fallback</content>', 'abc');
+testRender('Content before', 'abc',
+           'before<content>fallback</content>', 'beforeabc');
+testRender('Content after', 'abc',
+           '<content>fallback</content>after', 'abcafter');
+
+suite('render content', function() {
+  testRender('no select', '<a href="">Link</a> <b>bold</b>',
+             '<content></content>',
+             '<a href="">Link</a> <b>bold</b>');
+  testRender('select ""', '<a href="">Link</a> <b>bold</b>',
+             '<content select=""></content>',
+             '<a href="">Link</a> <b>bold</b>');
+  testRender('select *', '<a href="">Link</a> <b>bold</b>',
+             '<content select="*"></content>',
+             '<a href="">Link</a><b>bold</b>');
+
+  testRender('select .a',
+             '<a class="a">a</a> <a class="b">b</a>',
+             '<content select=".a"></content>',
+             '<a class="a">a</a>');
+
+  testRender('select .b .a',
+             '<a class="a">a</a> <a class="b">b</a>',
+             '<content select=".b"></content><content select=".a"></content>',
+             '<a class="b">b</a><a class="a">a</a>');
+});
+
+
+test('Reproject', function() {
+  var host = document.createElement('x-content-test');
+  host.innerHTML = '<a></a>';
+  var a = host.firstChild;
+  host.poolContent();
+  setInnerHTML(host.root, '<x-content-test id="p">' +
+      '<b></b><content></content></x-content-test>');
+
+  var p = host.root.firstChild;
+  var b = p.firstChild;
+  var content = p.lastChild;
+
+  // force upgrade on polyfilled browsers
+  CustomElements.upgrade(p);
+
+  p.poolContent();
+  setInnerHTML(p.root,
+      'a: <content select=a></content>b: <content select=b></content>');
+  var textNodeA = p.root.firstChild;
+  var contentA = p.root.childNodes[1];
+  var textNodeB = p.root.childNodes[2]
+  var contentB = p.root.childNodes[3];
+
+  function testRender() {
+    // Simulate the correct ordering as "ready" would fire.
+    host.distributeContent();
+    p.distributeContent();
+
+    assert.strictEqual(host.innerHTML,
+        '<x-content-test id="p">a: <a></a>b: <b></b></x-content-test>');
+
+    assertArrayEqual(host.lightChildren, [a]);
+    assert.strictEqual(a.lightParent, host);
+    assertArrayEqual(host.root.lightChildren, [p]);
+    assert.strictEqual(p.lightParent, host.root);
+    assertArrayEqual(p.lightChildren, [b, content]);
+    assert.strictEqual(b.lightParent, p);
+    assert.strictEqual(content.lightParent, p);
+    assertArrayEqual(p.root.lightChildren,
+        [textNodeA, contentA, textNodeB, contentB]);
+  }
+
+  testRender();
+  testRender();
+});
+
+
+suite('Mutate light DOM', function() {
+  test('removeAllChildNodes - mutate host', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content>fallback</content>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    host.firstChild.textContent = '';
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a></a>');
+
+    host.lightChildren = [];
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, 'fallback');
+  });
+
+
+  test('removeAllChildNodes - mutate shadow', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content></content><b>after</b>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a><b>after</b>');
+
+    host.root.lightChildren[1].textContent = '';
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
+
+    host.root.lightChildren = [];
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '');
+  });
+
+  test('removeAllChildNodes - mutate shadow fallback', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content select="xxx"><b>fallback</b></content>');
+    var b = host.root.firstChild.firstChild;
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<b>fallback</b>');
+
+    b.textContent = '';
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<b></b>');
+
+    host.root.firstChild.lightChildren = [];
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '');
+
+    host.root.lightChildren = [];
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '');
+  });
+
+  test('removeChild - mutate host', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content>fallback</content>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    host.firstChild.removeChild(host.firstChild.firstChild);
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a></a>');
+
+    host.lightChildren = [];
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, 'fallback');
+  });
+
+  test('removeChild - mutate host 2', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a></a><b></b>';
+    var a = host.firstChild;
+    var b = a.nextSibling;
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content>fallback</content>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a></a><b></b>');
+
+    host.removeLightChild(b);
+    assert.strictEqual(host.innerHTML, '<a></a>');
+
+    host.removeLightChild(a);
+    assert.strictEqual(host.innerHTML, 'fallback');
+  });
+
+  test('removeChild - mutate shadow', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content></content><b>after</b>');
+    var b = host.root.lastChild;
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a><b>after</b>');
+
+    b.removeChild(b.firstChild);
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
+
+    host.root.lightChildren.splice(1, 1); // remove b
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    host.root.lightChildren = []; // remove a
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '');
+  });
+
+  test('setAttribute select', function() {
+    // TODO(arv): DOM bindings for select.
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a><b>World</b>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content select="b">fallback b</content>' +
+                            '<content select="a">fallback a</content>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<b>World</b><a>Hello</a>');
+
+    host.root.firstChild.setAttribute('select', 'xxx');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, 'fallback b<a>Hello</a>');
+
+    host.root.firstChild.setAttribute('select', '');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a><b>World</b>fallback a');
+  });
+
+  test('appendChild - mutate host', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content></content>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.addLightChild(b);
+    assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
+  });
+
+  test('appendChild - mutate shadow', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content></content>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.root.appendChild(b);
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
+  });
+
+  test('insertBefore - mutate host', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+    var a = host.firstChild;
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content></content>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.addLightChild(b, 0);
+    assert.strictEqual(host.innerHTML, '<b></b><a>Hello</a>');
+  });
+
+  test('insertBefore - mutate shadow', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content></content>');
+    var content = host.root.firstChild;
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.root.insertBefore(b, content);
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<b></b><a>Hello</a>');
+  });
+
+  test('replaceChild - mutate host', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+    var a = host.firstChild;
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content></content>');
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.lightChildren[0] = b;
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<b></b>');
+  });
+
+  test('replaceChild - mutate shadow', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<a>Hello</a>';
+
+    host.poolContent();
+    setInnerHTML(host.root, '<content></content>');
+    var content = host.root.firstChild;
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.root.replaceChild(b, content);
+    host.distributeContent();
+    assert.strictEqual(host.innerHTML, '<b></b>');
+  });
+
+});
+
+function setInnerHTML(node, value) {
+  node.textContent = '';
+  var temp = node.ownerDocument.createElement('div');
+  temp.innerHTML = value;
+  var firstChild;
+  while (firstChild = temp.firstChild) {
+    node.appendChild(firstChild);
+  }
+}
+
+function assertArrayEqual(a, b, msg) {
+  assert.equal(a.length, b.length, msg);
+  for (var i = 0; i < a.length; i++) {
+    assert.equal(a[i], b[i], msg);
+  }
+}
+
+</script>
+</body>
+</html>

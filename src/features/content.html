@@ -7,7 +7,16 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="ready.html">
 <script>
+(function() {
+
+  /**
+
+    Implements a pared down version of ShadowDOM's scoping, which is easy to
+    polyfill across browsers.
+
+  */
 
   Base.addFeature({
 
@@ -27,38 +36,285 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     poolContent: function() {
-      // pool the light dom
-      var pool = document.createDocumentFragment();
-      while (this.firstChild) {
-        pool.appendChild(this.firstChild);
-      }
-      this.contentPool = pool;
       // capture lightChildren to help reify dom scoping
-      this.lightChildren =
-        Array.prototype.slice.call(this.contentPool.childNodes, 0);
+      saveLightChildrenIfNeeded(this);
+      // create our lite ShadowRoot document fragment
+      // this is where the <template> contents will be stamped
+      var root = document.createDocumentFragment();
+      // add a pointer back from the lite ShadowRoot to this node.
+      root.host = this;
+      // initialize the `root` pointers: `root` is guarenteed to always be
+      // available, and be either `this` or `this.contentRoot`. By contrast,
+      // `contentRoot` is only set if _useContent is true. 
+      this.contentRoot = root;
+      this.root = root;
+      // TODO(jmesserly): ad-hoc signal for `ShadowDOM-lite-enhanced` root
+      root.isShadowRoot = true;
     },
 
     distributeContent: function() {
-      var content, pool = this.contentPool;
-      // replace <content> with nodes teleported from pool
-      while (content = this.querySelector('content')) {
-        var select = content.getAttribute('select');
-        var frag = pool;
-        if (select) {
-          frag = document.createDocumentFragment();
-          // TODO(sjmiles): diverges from ShadowDOM spec behavior: ShadowDOM
-          // only selects top level nodes from pool. Iterate children and match
-          // manually instead.
-          var nodes = pool.querySelectorAll(select);
-          for (var i=0, l=nodes.length; i<l; i++) {
-            frag.appendChild(nodes[i]);
+      // sanity check to guard against uninitialized state
+      if (!this.contentRoot) {
+        throw Error('poolContent() must be called before distributeContent()');
+      }
+      // reset distributions
+      this._resetLightTree(this.contentRoot);
+      // compute which nodes should be distributed where
+      // TODO(jmesserly): this is simplified because we assume a single
+      // ShadowRoot per host and no `<shadow>`.
+      this._poolDistribution(this.contentRoot, this._poolPopulation());
+      // update the real DOM to be the composed tree
+      this._composeTree(this);
+    },
+
+    // TODO(jmesserly): these methods will perform in O(N^2) where N is the
+    // number of times they are called. That is because each call does
+    // `distibuteContent` and the work it needs to do increases with each
+    // subsequent call. An alternative approach would be to schedule the work,
+    // and do it asynchronously, which would give us O(N) performance because
+    // we'd do it once per frame in the worst case.
+    addLightChild: function(node, opt_index) {
+      saveLightChildrenIfNeeded(this);
+      if (opt_index === undefined) {
+        this.lightChildren.push(node);
+      } else {
+        this.lightChildren.splice(opt_index, 0, node);
+      }
+      this.distributeContent();
+    },
+
+    removeLightChild: function(node) {
+      saveLightChildrenIfNeeded(this);
+      var index = this.lightChildren.indexOf(node);
+      if (index < 0) {
+        throw Error('The node to be removed is not a light child of this node');
+      }
+      this.lightChildren.splice(index, 1);
+      this.distributeContent();
+    },
+
+    // This is a polyfill for Element.prototype.matches, which is sometimes
+    // still prefixed. Alternatively we could just polyfill it somewhere.
+    // Note that the arguments are reversed from what you might expect.
+    elementMatches: function(selector, node) {
+      if (node === undefined) node = this;
+      return matchesSelector.call(node, selector);
+    },
+
+    _poolPopulation: function() {
+      // Gather the pool of nodes that should be distributed. We will combine
+      // these with the "content root" to arrive at the composed tree.
+      var pool = [];
+      var children = getLightChildren(this);
+      for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        if (isInsertionPoint(child)) {
+          pool.push.apply(pool, child._distributedNodes);
+        } else {
+          pool.push(child);
+        }
+      }
+      return pool;
+    },
+
+    // Many of the following methods are all conceptually static, but they are
+    // included here as "protected" methods to allow overriding.
+
+    _resetLightTree: function(node) {
+      var children = getLightChildren(node);
+      for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        if (isInsertionPoint(child)) {
+          child._distributedNodes = [];
+        } else if (child._destinationInsertionPoints) {
+          child._destinationInsertionPoints = undefined;
+        }
+        this._resetLightTree(child);
+      }
+    },
+
+    _poolDistribution: function(node, pool) {
+      if (node.localName == 'content') {
+        // distribute nodes from the pool that this selector matches
+        var content = node;
+        var anyDistributed = false;
+        for (var i = 0; i < pool.length; i++) {
+          var node = pool[i];
+          // skip nodes that were already used
+          if (!node) continue;
+          // distribute this node if it matches
+          if (this._matchesContentSelect(node, content)) {
+            distributeNodeInto(node, content);
+            // remove this node from the pool
+            pool[i] = undefined;
+            // since at least one node matched, we won't need fallback content
+            anyDistributed = true;
           }
         }
-        // content self-destructs
-        content.parentNode.replaceChild(frag, content);
+        // Fallback content if nothing was distributed here
+        if (!anyDistributed) {
+          var children = getLightChildren(content);
+          for (var i = 0; i < children.length; i++) {
+            distributeNodeInto(children[i], content);
+          }
+        }
+        return;
       }
-    }
+      // recursively distribute.
+      var children = getLightChildren(node);
+      for (var i = 0; i < children.length; i++) {
+        this._poolDistribution(children[i], pool);
+      }
+    },
 
+    _composeTree: function(node) {
+      var children = this._composeNode(node);
+      for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        // If the child has a content root, let it compose itself.
+        if (!child.contentRoot) {
+          this._composeTree(child);
+        }
+      }
+      this._updateChildNodes(node, children);
+    },
+
+    _composeNode: function(node) {
+      var children = [];
+      var lightChildren = getLightChildren(node.contentRoot || node);
+      for (var i = 0; i < lightChildren.length; i++) {
+        var child = lightChildren[i];
+        if (isInsertionPoint(child)) {
+          var distributedNodes = child._distributedNodes;
+          for (var j = 0; j < distributedNodes.length; j++) {
+            var distributedNode = distributedNodes[j];
+            if (isFinalDestination(child, distributedNode)) {
+              children.push(distributedNode);
+            }
+          }
+        } else {
+          children.push(child);
+        }
+      }
+      return children;
+    },
+
+    _updateChildNodes: function(node, children) {
+      // Add the children that need to be added. Walk the list backwards so we can
+      // use insertBefore easily.
+      for (var i = children.length - 1, nextNode = null; i >= 0; i--) {
+        var child = children[i];
+        // if the node is in the wrong place, move it.
+        if (child.parentNode != node || child.nextSibling != nextNode) {
+          insertBefore(node, child, nextNode);
+        }
+        nextNode = child;
+      }
+      // We just added nodes in order, starting from the end, so anything before
+      // the first node is gone and should be removed.
+      var first = children[0];
+      var child = node.firstChild;
+      while (child && child != first) {
+        var nextNode = child.nextSibling;
+        node.removeChild(child);
+        child = nextNode;
+      }
+    },
+
+    _matchesContentSelect: function(node, contentElement) {
+      var select = contentElement.getAttribute('select');
+      // no selector matches all nodes (including text)
+      if (!select) return true;
+      select = select.trim();
+      // same thing if it had only whitespace
+      if (!select) return true;
+      // selectors can only match Elements
+      if (!(node instanceof Element)) return false;
+      // only valid selectors can match:
+      //   TypeSelector
+      //   *
+      //   ClassSelector
+      //   IDSelector
+      //   AttributeSelector
+      //   negation
+      var validSelectors = /^(:not\()?[*.#[a-zA-Z_|]/;
+      if (!validSelectors.test(select)) return false;
+      try {
+        return this.elementMatches(select, node);
+      } catch (ex) {
+        // Invalid selector.
+        return false;
+      }
+    },
   });
 
+  function distributeNodeInto(child, insertionPoint) {
+    insertionPoint._distributedNodes.push(child);
+    var points = child._destinationInsertionPoints;
+    if (!points) {
+      child._destinationInsertionPoints = [insertionPoint];
+    } else {
+      points.push(insertionPoint);
+    }
+  }
+
+  function isFinalDestination(insertionPoint, node) {
+    var points = node._destinationInsertionPoints;
+    return points && points[points.length - 1] === insertionPoint;
+  }
+
+  function isInsertionPoint(node) {
+    // TODO(jmesserly): we could add back 'shadow' support here.
+    return node.localName == 'content';
+  }
+
+  function getLightChildren(node) {
+    var children = node.lightChildren;
+    return children ? children : node.childNodes;
+  }
+
+  function insertBefore(parentNode, newChild, refChild) {
+    // remove child from its old parent first
+    remove(newChild);
+    // make sure we never lose logical DOM information:
+    // if the parentNode doesn't have lightChildren, save that information now.
+    saveLightChildrenIfNeeded(parentNode);
+    // insert it into the real DOM
+    parentNode.insertBefore(newChild, refChild);
+  }
+
+  function remove(node) {
+    var parentNode = node.parentNode;
+    if (!parentNode) return;
+    // make sure we never lose logical DOM information:
+    // if the parentNode doesn't have lightChildren, save that information now.
+    saveLightChildrenIfNeeded(parentNode);
+    // remove it from the real DOM
+    parentNode.removeChild(node);
+  }
+
+  function saveLightChildrenIfNeeded(node) {
+    // Capture the list of light children. It's important to do this before we
+    // start transforming the DOM into "rendered" state.
+    // 
+    // Children may be added to this list dynamically. It will be treated as the
+    // source of truth for the light children of the element. This element's
+    // actual children will be treated as the rendered state once lightChildren
+    // is populated.
+    if (!node.lightChildren) {
+      var children = [];
+      for (var child = node.firstChild; child; child = child.nextSibling) {
+        children.push(child);
+        child.lightParent = node;
+      }
+      node.lightChildren = children;
+    }
+  }
+
+  var proto = Element.prototype;
+  var matchesSelector = proto.matches || proto.matchesSelector ||
+      proto.mozMatchesSelector || proto.msMatchesSelector ||
+      proto.oMatchesSelector || proto.webkitMatchesSelector;
+
+})();
 </script>
