@@ -9,267 +9,177 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <script>
 
-  /**
-   */
-  Bind = {
+  modulate('bind', function() {
+    var Bind = {
 
-    // for instances
+      // for instances
 
-    prepareInstance: function(inst) {
-      inst._data = Object.create(null);
-    },
+      prepareInstance: function(inst) {
+        inst._data = Object.create(null);
+      },
 
-    setupBindListeners: function(inst) {
-      inst._bindListeners.forEach(this._setupBindListener, this);
-    },
+      setupBindListeners: function(inst) {
+        inst._bindListeners.forEach(function(info) {
+          // <node>.on.<property>-changed: <path]> = e.detail.value
+          //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
+          var fn = new Function('e', 'this.' + info.path + ' = e.detail.value;');
+          var node = info.id ? inst.$[info.id] : inst._nodes[info.index];
+          node.addEventListener(info.property + '-changed', fn.bind(this));
+        });
+      },
 
-    _setupBindListener: function(info) {
-      // <node>.on.<property>-changed: <path]> = e.detail.value
-      //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
-      var fn = new Function('e', 'this.' + info.path + ' = e.detail.value;');
-      var node = info.id ? this.$[info.id] : this._nodes[info.index];
-      node.addEventListener(info.property + '-changed', fn.bind(this));
-    },
+      // for prototypes
 
-    // for prototypes
+      _builders: {},
+      
+      addBuilder: function(kind, builder) {
+        this._builders[kind] = builder;
+      },
 
-    // TODO(sjmiles): ad-hoc telemetry
-    _telemetry: {
-      _setDataCalls: 0
-    },
-
-    prepareModel: function(model) {
-      model._propertyEffects = {};
-      model._bindListeners = {};
-      model._setData = this._setData;
-      model._notifyChange = this._notifyChange;
-    },
-
-    _notifyChange: function(property) {
-      this.fire(property + '-changed', {value: this[property]}, null, false);
-    },
-
-    _setData: function(property, value) {
-      // TODO(sjmiles): ad-hoc telemetry
-      //Base._telemetry._setDataCalls++;
-      var old = this._data[property];
-      if (old !== value) {
-        this._data[property] = value;
-      }
-      return old;
-    },
-
-    addPropertyEffect: function(model, property, kind, effect) {
-      var fx = model._propertyEffects[property];
-      if (!fx) {
-        fx = model._propertyEffects[property] = [];
-      }
-      fx.push({
-        kind: kind,
-        effect: effect
-      });
-    },
-
-    addPropertyEffects: function(model, bind) {
-      for (var n in bind) {
-        var bind = bind[n];
-        if (typeof bind === 'object') {
-          // multiplexed definition
-          for (var nn in bind) {
-            this._addBindEffect(model, n, bind[nn]);
-          }
-        } else {
-          // single definition
-          this._addBindEffect(model, n, bind);
+      addBuilders: function(builders) {
+        for (var n in builders) {
+          this._builders[n] = builders[n];
         }
-      }
-    },
+      },
 
-    _addBindEffect: function(model, property, effect) {
-      var kind = 'bind';
-      if (typeof this[effect] === 'function') {
-        kind = 'method';
-      }
-      this.addPropertyEffect(property, kind, effect);
-    },
+      prepareModel: function(model) {
+        model._propertyEffects = {};
+        model._bindListeners = [];
+        model._setData = this._setData;
+      },
 
-    createBindings: function(model) {
-      var fx$ = model._propertyEffects;
-      if (fx$) {
-        //console.group(this.name);
-        for (var n in fx$) {
-          //console.group(n);
-          var fx = fx$[n];
-          fx.sort(this._sortPropertyEffects);
-          //console.log(fx);
-          //
-          var compiledEffects = fx.map(function(x) {
-            return this._buildEffect(model, n, x);
-          }, this);
-          //
-          this._bindPropertyEffects(model, n, compiledEffects);
-          //console.log(fxt.join('\n'));
+      // TODO(sjmiles): ad-hoc telemetry
+      _telemetry: {
+        _setDataCalls: 0
+      },
+
+      _setData: function(property, value) {
+        // TODO(sjmiles): ad-hoc telemetry
+        //Base._telemetry._setDataCalls++;
+        var old = this._data[property];
+        if (old !== value) {
+          this._data[property] = value;
+        }
+        return old;
+      },
+
+      addPropertyEffect: function(model, property, kind, effect) {
+        var fx = model._propertyEffects[property];
+        if (!fx) {
+          fx = model._propertyEffects[property] = [];
+        }
+        fx.push({
+          kind: kind,
+          effect: effect
+        });
+      },
+
+      createBindings: function(model) {
+        var fx$ = model._propertyEffects;
+        if (fx$) {
+          //console.group(this.name);
+          for (var n in fx$) {
+            //console.group(n);
+            var fx = fx$[n];
+            fx.sort(this._sortPropertyEffects);
+            //console.log(fx);
+            //
+            var compiledEffects = fx.map(function(x) {
+              return this._buildEffect(model, n, x);
+            }, this);
+            //
+            this._bindPropertyEffects(model, n, compiledEffects);
+            //console.log(fxt.join('\n'));
+            //console.groupEnd();
+          }
           //console.groupEnd();
         }
-        //console.groupEnd();
-      }
-    },
+      },
 
-    _sortPropertyEffects: function(a, b) {
-      if (a.kind === 'compute' || b.kind === 'notify') {
-        return -1;
-      }
-      if (a.kind === 'notify' || b.kind === 'compute') {
-        return 1;
-      }
-      return 0;
-    },
-
-    _buildEffect: function(model, property, fx) {
-      return this['_' + fx.kind + 'EffectBuilder'](model, property, fx.effect);
-    },
-
-    // create accessors that implement effects
-    _bindPropertyEffects: function(model, property, effects) {
-      var defun = {
-        get: function() {
-          return this._data[property];
+      _sortPropertyEffects: function(a, b) {
+        if (a.kind === 'compute' || b.kind === 'notify') {
+          return -1;
         }
-      }
-      if (effects.length) {
-        // combine effects
-        // var group = '\'' + this.name + ':' + property + '\'';
-        // effects.unshift('console.group(' + group + ');');
-        // effects.push('console.groupEnd(' + group + ');');
-        effects = effects.join('\n\t\t');
-        // construct effector
-        var effector = '_' + property + 'Effector';
-        model[effector] = new Function('old', effects);
-        // construct setter body
-        var body  = 
-            'var old = this._setData(\'' + property + '\', value);\n'
-          + 'if (value !== old) {\n'
-            + '  this.' + effector + '(old);\n'
-          + '}';
-        var setter = new Function('value', body);
-        // ReadOnly properties have a private setter only
-        //if (this.isReadOnlyProperty(property)) {
-        //  this['_set_' + property] = setter;
-        //}
-        // other properties have a proper setter
-        //else {
-          defun.set = setter;
-        //}
-      }
-      Object.defineProperty(model, property, defun);
-      //console.log(prop.set ? prop.set.toString() : '(read-only)');
-    },
+        if (a.kind === 'notify' || b.kind === 'compute') {
+          return 1;
+        }
+        return 0;
+      },
 
-    _methodEffectBuilder: function(model, source, effect) {
-      // TODO(sjmiles): validation system requires a blessed
-      // validator effect which needs to be processed first.
-      /*
-      if (typeof this[effect] === 'function') {
-        return [
-          'var validated = this.' + effect + '(value, old)',
-          'if (validated !== undefined) {',
-          '  // recurse',
-          '  this[property] = validated;',
-          '  return;',
-          '}'
-        ].join('\n');
-      }
-      */
-      //
-      return 'this.' + effect + '(this._data.' + source + ', old);'
-    },
+      _buildEffect: function(model, property, fx) {
+        var b = this._builders[fx.kind];
+        if (b) {
+          return b(model, property, fx.effect);
+        } else {
+          throw('bind._buildEffect: missing builder kind [' + fx.kind + ']');
+        }
+      },
 
-    // basic modus operandi
-    //
-    // <hostPath> %=% <targetPath>
-    // (node = <$.id | nodes[index]>)
-    // <model[.path]> %=% node.<property>
-    //
-    // flow-up:
-    // set(model): node.<property> = <model[.path]>
-    //
-    // flow-down:
-    // node.on.<property>-changed: <model[.path]> = e.detail.value
+      // create accessors that implement effects
+      _bindPropertyEffects: function(model, property, effects) {
+        var defun = {
+          get: function() {
+            return this._data[property];
+          }
+        }
+        if (effects.length) {
+          // combine effects
+          // var group = '\'' + this.name + ':' + property + '\'';
+          // effects.unshift('console.group(' + group + ');');
+          // effects.push('console.groupEnd(' + group + ');');
+          effects = effects.join('\n\t\t');
+          // construct effector
+          var effector = '_' + property + 'Effector';
+          model[effector] = new Function('old', effects);
+          // construct setter body
+          var body  = [ 
+            'var old = this._setData(\'' + property + '\', value);',
+            'if (value !== old) {',
+            '  this.' + effector + '(old);',
+            '}'
+          ].join('\n');
+          var setter = new Function('value', body);
+          // ReadOnly properties have a private setter only
+          //if (this.isReadOnlyProperty(property)) {
+          //  this['_set_' + property] = setter;
+          //}
+          // other properties have a proper setter
+          //else {
+            defun.set = setter;
+          //}
+        }
+        Object.defineProperty(model, property, defun);
+        //console.log(prop.set ? prop.set.toString() : '(read-only)');
+      },
 
-    _bindEffectBuilder: function(model, hostProperty, targetPath) {
-      var parts = targetPath.split('.');
-      var id = parts[0], property = parts[1];
-      if (!property) {
-        property = 'textContent';
-        // textContent never flows-up
-      } else {
-        // flow-up
-        this._bindListeners.push({
-          id: id,
+      // end of builders
+
+      _addAnnotatedListener: function(model, index, property, path) {
+        // <node>.on.<property>-changed: <path> = e.detail.value
+        model._bindListeners.push({
+          index: index,
           property: property,
-          path: hostProperty
+          path: path
+        });
+      },
+
+      _bindAnnotationProperty: function(name, path, index) {
+        return 'this._nodes[' + index + '].' + name
+            + ' = this._data.' + path + ';';
+      },
+
+      _addBindListener: function(property, path, id) {
+        var bl = this._requireBindListeners(property);
+        bl.targets.push({
+          id: id,
+          path: path
         });
       }
-      //
-      // flow-down
-      //
-      //console.log('[_bindEffectBuilder]: [%s] %=% [%s].[%s]', hostProperty, id, property);
-      return 'this.$.' + id + '.' + property + ' = '
-        + 'this._data.' + hostProperty + ';'
-    },
 
-    _notifyEffectBuilder: function(model, source) {
-      return 'this._notifyChange(\'' + source + '\')';
-    },
+    };
 
-    _computeEffectBuilder: function(model, source, effect) {
-      return 'this.' + effect.property
-          + ' = this.' + effect.method + '(this._data.' + source + ');';
-    },
+    return Bind;
 
-    // implement effect directives from template annotations
-    // _nodes[info.index][info.name] = {{info.value}}
-    _annotationEffectBuilder: function(model, hostProperty, info) {
-      var property = info.name || 'textContent';
-      if (property !== 'textContent') {
-      // <node>.on.<property>-changed: <path> = e.detail.value
-        this._addAnnotatedListener(model, info.index, property, info.value);
-      }
-      //
-      // flow-down
-      //
-      // construct the effect to occur when [property] changes:
-      // set nodes[index][name] to this[value]
-      //
-      //console.log('[_annotationEffectBuilder]: [%s] %=% [%s].[%s]', info.value, info.index, property);
-      return 'this._nodes[' + info.index + '].' + property
-          + ' = this._data.' + info.value + ';';
-    },
-
-    // end of builders
-
-    _addAnnotatedListener: function(model, index, property, path) {
-      // <node>.on.<property>-changed: <path> = e.detail.value
-      model._bindListeners.push({
-        index: index,
-        property: property,
-        path: path
-      });
-    },
-
-    _bindAnnotationProperty: function(name, path, index) {
-      return 'this._nodes[' + index + '].' + name
-          + ' = this._data.' + path + ';';
-    },
-
-    _addBindListener: function(property, path, id) {
-      var bl = this._requireBindListeners(property);
-      bl.targets.push({
-        id: id,
-        path: path
-      });
-    }
-
-  };
+  });
 
 </script>

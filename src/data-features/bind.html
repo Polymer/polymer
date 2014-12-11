@@ -7,6 +7,11 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+
+<link rel="import" href="../data/bind.html">
+<link rel="import" href="../data/bind-effects.html">
+<link rel="import" href="../data/bind-annotations.html">
+
 <script>
 
   /**
@@ -59,65 +64,73 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @class feature: bind
    */
-  Base.addFeature({
 
-    // per prototype
+  using(['bind', 'annotations-bind'], function(Bind, Annotations) {
 
-    // TODO(sjmiles): initialization of `_propertyEffects` and the
-    // `addPropertyEffect` itself are really the domain of bind-effects
-    // but these things needs to happen before bind-effects itself initializes.
-    // We need to factor bind-effects into before and after features instead
-    // and let this feature be for dealing with `bind` object.
+    // TODO(sjmiles): note 'true' argument at the bottom causing this feature
+    // to be inserted at the top of the features list. This was a quick-fix.
 
-    register: function(prototype) {
-      prototype._addPropertyBindEffects();
-    },
+    Base.addFeature({
 
-    // TODO(sjmiles): really ad hoc self-modifying code
-    // to resolve initialization ordering around optional
-    // module
-    addPropertyEffect: function(property, kind, effect) {
-      // prepare storage on first invocation
-      this._propertyEffects = {};
-      // add the effect
-      this._addPropertyEffect(property, kind, effect);
-      // subsequent invocations skip preparation step implementation
-      this.addPropertyEffect = this._addPropertyEffect;
-    },
+      // prototyping
 
-    _addPropertyEffect: function(property, kind, effect) {
-      var fx = this._propertyEffects[property];
-      if (!fx) {
-        fx = this._propertyEffects[property] = [];
-      }
-      fx.push({
-        kind: kind,
-        effect: effect
-      });
-    },
+      register: function(prototype) {
+        Bind.prepareModel(prototype);
+        prototype._addPropertyBindEffects(prototype.bind);
+      },
 
-    _addPropertyBindEffects: function() {
-      for (var n in this.bind) {
-        var bind = this.bind[n];
-        if (typeof bind === 'object') {
-          // multiplexed definition
-          for (var nn in bind) {
-            this._addPropertyBindEffect(n, bind[nn]);
-          }
-        } else {
-          // single definition
-          this._addPropertyBindEffect(n, bind);
+      finishBindRegistration: function() {
+        var annotes = this._template && this._template.map;
+        if (annotes) {
+          Annotations.preprocessBindAnnotations(this, annotes);
         }
-      }
-    },
+        Bind.createBindings(this);
+      },
 
-    _addPropertyBindEffect: function(property, bindEffect) {
-      var kind = 'bind';
-      if (typeof this[bindEffect] === 'function') {
-        kind = 'method';
+      addPropertyEffect: function(property, kind, effect) {
+        return Bind.addPropertyEffect(this, property, kind, effect);
+      },
+
+      _addPropertyBindEffects: function(effects) {
+        for (var n in effects) {
+          var effect = effects[n];
+          if (typeof effect === 'object') {
+            // multiplexed definition
+            for (var nn in effect) {
+              this._addPropertyBindEffect(n, effect[nn]);
+            }
+          } else {
+            // single definition
+            this._addPropertyBindEffect(n, effect);
+          }
+        }
+      },
+
+      _addPropertyBindEffect: function(property, effect) {
+        var kind = 'bind';
+        if (typeof this[effect] === 'function') {
+          kind = 'method';
+        }
+        this.addPropertyEffect(property, kind, effect);
+      },
+
+      // instancing
+
+      init: function() {
+        Bind.prepareInstance(this);
+      },
+
+      // Bind module facade
+
+      _createBindings: function() {
+        Bind.createBindings(this);
+      },
+
+      _setupBindListeners: function() {
+        Bind.setupBindListeners(this);
       }
-      this.addPropertyEffect(property, kind, bindEffect);
-    }
+
+    }, true);
 
   });
 
