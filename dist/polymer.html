@@ -1,631 +1,1349 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
 <script>
 
-  Object.defineProperty(window, 'import', {
-    enumerable: true,
-    configurable: true,
-    get: function() {
-      return (document._currentScript || document.currentScript).ownerDocument;
-    }
-  });
-  
-  function extend(prototype, api) {
-    if (prototype && api) {
-      Object.getOwnPropertyNames(api).forEach(function(n) {
-        var pd = Object.getOwnPropertyDescriptor(api, n);
-        if (pd) {
-          Object.defineProperty(prototype, n, pd);
-          
-        }
-      });
-    }
-    return prototype;
-  };
-
-  Event.prototype.keys = {
-    ESC_KEY: 27,
-    ENTER_KEY: 13
-  };
-  
-  Base = {
-
-    _features: [],
-
-    addFeature: function(feature) {
-      this._features.push(feature);
-      extend(Base, feature);
-      delete Base.init;
-      delete Base.register;
-    },
-
-    registerCallback: function() {
-      var prototype = this;
-      this.registerFeatures(prototype);
-      this.registered(prototype);
-    },
-
-    registered: function(prototype) {
-    },
-
-    registerFeatures: function(prototype) {
-      var f$ = this._features;
-      for (var i=0, n=f$.length; i<n && (f=f$[i]); i++) {
-        f.register && f.register(prototype);
+  (function(scope) {
+    function withDependencies(task, depends) {
+      depends = depends || [];
+      if (!depends.map) {
+        depends = [depends]
       }
-    },
-
-    createdCallback: function() {
-      this.root = this;
-      this.beforeCreated();
-      this.initFeatures();
-      this.created();
-      this.afterCreated();
-    },
-
-    beforeCreated: function() {
-    },
-
-    initFeatures: function() {
-      var f$ = this._features;
-      for (var i=0, n=f$.length; i<n && (f=f$[i]); i++) {
-        f.init && f.init.call(this);
-      }
-    },
-
-    created: function() {
-    },
-
-    afterCreated: function() {
-    },
-
-    attachedCallback: function() {
-      this.attached();
-    },
-
-    attached: function() {
-    },
-
-    detachedCallback: function() {
-      this.detached();
-    },
-
-    detached: function() {
-    },
-
-    attributeChangedCallback: function() {
-      this.attributeChanged.apply(this, arguments);
-    },
-
-    attributeChanged: function() {
+      return task.apply(this, depends.map(marshal))
     }
 
-  };
-
-  Base.__proto__ = HTMLElement.prototype;
-
-  Polymer = function(prototype) {
-    prototype.__proto__ = Base;
-    prototype.registerCallback();
-    document.registerElement(prototype.name, {prototype: prototype});
-  };
-
-  Polymer.log = {
-  };
-
-  Base.addFeature({
-    log: function() {
-      var args = Array.prototype.slice.call(arguments, 0); 
-      args[0] = '[%s]: ' + args[0];
-      args.splice(1, 0, this.localName);
-      console.log.apply(console, args);
-    }
-  });
-
-  
-  Base.addFeature({
-
-    published: {
-    },
-
-    nob: Object.create(null),
-
-    register: function(prototype) {
-      if (prototype.addPropertyEffect) {
-        for (var n in prototype.published) {
-          if (prototype.isNotifyProperty(n)) {
-            prototype.addPropertyEffect(n, 'notify');
-          }
-        }
-      }
-    },
-    
-    getPublishInfo: function(property) {
-      var p = this.published[property];
-      if (typeof(p) === 'function') {
-        p = this.published[property] = {
-          type: p 
-        };
-      }
-      return p || Base.nob;
-    },
-
-    getPublishedPropertyType: function(property) {
-      return this.getPublishInfo(property).type;
-    },
-
-    isReadOnlyProperty: function(property) {
-      return this.getPublishInfo(property).readOnly;
-    },
-
-    isNotifyProperty: function(property) {
-      return this.getPublishInfo(property).notify;
-    },
-
-    isReflectedProperty: function(property) {
-      return this.getPublishInfo(property).reflect;
-    }
-
-  });
-
-  
-  Base.addFeature({
-
-    init: function() {
-      if (this.hostAttributes) {
-        this.cloneAttributes(this, this.hostAttributes);
-      }
-    },
-
-    cloneAttributes: function(node, attr$) {
-      attr$.split(' ').forEach(function(a) {
-        node.setAttribute(a, '');
-      });
-    }
-
-  });
-
-  
-  Base.addFeature({
-
-    
-
-    takeAttributes: function() {
-      for (var n in this.published) {
-        this.attributeChanged(n);
-      }
-    },
-
-    attributeChanged: function(name) {
-      var type = this.getPublishedPropertyType(name);
-      if (type) {
-        this.deserialize(name, type);
-      }
-    },
-
-    deserialize: function(name, type) {
-      var value = this.getAttribute(name);
-      switch(type) {
-        
-        case Number: 
-          value = Number(value) || this[name];
+    function module(name, dependsOrFactory, moduleFactory) {
+      var module = null;
+      switch(arguments.length) {
+        case 0:
+          return;
+        case 2:
+          module = dependsOrFactory.apply(this);
           break;
-          
-        case Boolean: 
-          value = this.hasAttribute(name);
-          break;
-          
-        case Object: 
-        case Array: 
-          try {
-            value = JSON.parse(value);
-          } catch(x) {
-            return;
-          }
-          break;
-        
-        case Date: 
-          value = Date.parse(value);
-          break;
-          
-        case String:
         default:
-          break;
-          
+          module = withDependencies(moduleFactory, dependsOrFactory);
+          break
       }
-      this[name] = value;
+      modules[name] = module
     }
 
-  });
-
-  Base.addFeature({
-
-    register: function(prototype) {
-      var script = (document._currentScript || document.currentScript);
-      var prev = script.previousElementSibling;
-      if (prev && prev.localName === 'template') {
-        prototype._template = prev;
-      }
-    },
-
-    
-
-    stampTemplate: function(template) {
-      this._stampTemplate(template || this._template, this.root);
-      if (window.CustomElements && CustomElements.upgradeSubtree) {
-        CustomElements.upgradeSubtree(this.root);
-      }
-    },
-
-    _stampTemplate: function(template, target) {
-      target.insertBefore(this.instanceTemplate(template), 
-        target.firstElementChild);
-    },
-
-    instanceTemplate: function(template) {
-      return document.importNode(template.content, true);
+    function marshal(name) {
+      return modules[name]
     }
 
-  });
-
-  Base.addFeature({
-
-    isHost: true,
-
-    register: function(prototype) {
-      var t = prototype._template;
-      prototype._useContent = Boolean(t && t.content.querySelector('content'));
-    },
-    
-    poolContent: function() {
-      var pool = document.createDocumentFragment();
-      while (this.firstChild) {
-        pool.appendChild(this.firstChild);
+    var modules = {};
+    if (window.HTMLImports) {
+      var using = function(depends, task) {
+        HTMLImports.whenImportsReady(function() {
+          withDependencies(task, depends)
+        })
       }
-      this.contentPool = pool;
-      this.lightChildren = 
-        Array.prototype.slice.call(this.contentPool.childNodes, 0);
-    },
-    
-    distributeContent: function() {
-      var content, pool = this.contentPool;
-      while (content = this.querySelector('content')) {
-        var select = content.getAttribute('select');
-        var frag = pool;
-        if (select) {
-          frag = document.createDocumentFragment();
-          var nodes = pool.querySelectorAll(select);
-          for (var i=0, l=nodes.length; i<l; i++) {
-            frag.appendChild(nodes[i]);
-          }
-        }
-        content.parentNode.replaceChild(frag, content);
+    } else {
+      var using = function(depends, task) {
+        withDependencies(task, depends)
       }
     }
-          
+    scope.marshal = marshal;
+    scope.modulate = module;
+    scope.using = using
+  })(this);
+
+  Object.defineProperty(window, "currentImport", {
+    enumerable : true,
+    configurable : true,
+    get : function() {
+      return (document._currentScript || document.currentScript).ownerDocument
+    }
   });
-    
 
-
-  Base.addFeature({
-
-    
-
-    findAnnotatedNode: function(root, annote) {
-      if (!annote.parent) {
-        return root;
+  modulate("Base", function() {
+    var Base = {
+      addFeature : function(feature, shouldPrepend) {
+        this.extend(this, feature)
+      },
+      registerCallback : function() {
+        this.registerFeatures();
+        this.registered()
+      },
+      registered : function() {
+      },
+      createdCallback : function() {
+        this.root = this;
+        this.beforeCreated();
+        this.initFeatures();
+        this.created();
+        this.afterCreated()
+      },
+      beforeCreated : function() {
+      },
+      created : function() {
+      },
+      afterCreated : function() {
+      },
+      attachedCallback : function() {
+        this.isAttached = true;
+        this.attached()
+      },
+      attached : function() {
+      },
+      detachedCallback : function() {
+        this.isAttached = false;
+        this.detached()
+      },
+      detached : function() {
+      },
+      attributeChangedCallback : function() {
+        this.attributeChanged.apply(this, arguments)
+      },
+      attributeChanged : function() {
+      },
+      extend : function(prototype, api) {
+        if (prototype && api) {
+          Object.getOwnPropertyNames(api).forEach(function(n) {
+            var pd = Object.getOwnPropertyDescriptor(api, n);
+            if (pd) {
+              Object.defineProperty(prototype, n, pd)
+            }
+          })
+        }
+        return prototype || api
       }
-      var parent = this.findAnnotatedNode(root, annote.parent);
-      
-      var nodes = (parent === this) ? parent.childNodes : 
-        (parent.lightChildren || parent.childNodes);
-      return nodes[annote.index];
-    },
+    };
+    return Base
+  });
 
-    
-
-    register: function(prototype) {
-      if (prototype._template) {
-        prototype.parseAnnotations(prototype._template)
-      }
-    },
-
-    parseAnnotations: function(template) {
-      
-      var map = [];
-      this._parseNodeAnnotations(template.content, map);
-      if (map.length) {
-        template.map = map;
-      }
-      return template.map;
-    },
-
-    _parseNodeAnnotations: function(node, map) {
-      return node.nodeType === Node.TEXT_NODE ? 
-        this._parseTextNodeAnnotation(node, map) : 
-          this._parseElementAnnotations(node, map);
-    },
-
-    _parseTextNodeAnnotation: function(node, map) {
-      var v = node.textContent, escape = v.slice(0, 2);
-      if (escape === '{{' || escape === '[[') {
-        var annotation = {
-          bindings: [{
-            kind: 'text',
-            mode: escape === '{{' ? 'auto' : '',
-            value: v.slice(2, -2)
-          }]
-        };
-        map.push(annotation);
-        return annotation;
-      }
-    },
-
-    _parseElementAnnotations: function(node, map) {
-      var annote = {
-        bindings: [],
-        events: []
+  modulate("Polymer", ["Base"], function(Base) {
+    Base.__proto__ = HTMLElement.prototype;
+    window.Polymer = function(prototype) {
+      prototype.__proto__ = Base;
+      prototype.registerCallback();
+      var options = {
+        prototype : prototype
       };
-      this._parseChildNodesAnnotations(node, annote, map);
-      if (node.attributes) {
-        this._parseNodeAttributeAnnotations(node, annote, map);
+      if (prototype.extends) {
+        options.extends = prototype.extends
       }
-      if (annote.bindings.length || annote.events.length || annote.id) {
-        map.push(annote);
-      }
-      return annote;
-    },
+      document.registerElement(prototype.tag || prototype.name, options);
+      return prototype.constructor
+    };
+    return Polymer
+  });
 
-    _parseChildNodesAnnotations: function(root, annotation, map) {
-      if (root.firstChild) {
-        for (var i=0, node=root.firstChild; node; node=node.nextSibling, i++) {
-          var childAnnotation = this._parseNodeAnnotations(node, map);
-          if (childAnnotation) {
-            childAnnotation.parent = annotation;
-            childAnnotation.index = i;
+  using("Base", function(Base) {
+    Base.addFeature({
+
+      _bootMixins : function() {
+        if (this.mixins) {
+          this.mixins.forEach(function(m) {
+            if ( typeof m === "string") {
+              using(m, function(m) {
+                Base.extend(prototype, m)
+              })
+            } else {
+              Base.extend(prototype, m)
+            }
+          })
+        }
+      },
+
+      _bootExtends : function() {
+        if (this.extends) {
+          this.__proto__ = this.getExtendedPrototype(this.extends)
+        }
+      },
+      getExtendedPrototype : function(tag) {
+        return this.getExtendedNativePrototype(tag)
+      },
+      nativePrototypes : {},
+      getExtendedNativePrototype : function(tag) {
+        var p = this.nativePrototypes[tag];
+        if (!p) {
+          var np = this.getNativePrototype(tag);
+          p = this.extend(Object.create(np), Base);
+          this.nativePrototypes[tag] = p
+        }
+        return p
+      },
+      getNativePrototype : function(tag) {
+        return Object.getPrototypeOf(document.createElement(tag))
+      },
+
+      ready : function() {
+      },
+      _bootReady : function() {
+        this._readyListeners = []
+      },
+      originalAttachedCallback : Base.attachedCallback,
+      attachedCallback : function() {
+        this.originalAttachedCallback();
+        this._checkReady()
+      },
+      _checkReady : function() {
+        if (!this._readied) {
+          var host = this.queryHost();
+          if (host && !host._readied) {
+            host._listenReady(this)
+          } else {
+            this._notifyReady()
           }
         }
-      }
-    },
-
-    _parseNodeAttributeAnnotations: function(node, annotation) {
-      for (var i=0, a; (a=node.attributes[i]); i++) {
-        var n = a.name, v = a.value;
-        
-        if (n === 'id') {
-          annotation.id = v;
-        } 
-        
-        else if (n.slice(0, 3) === 'on-') {
-          annotation.events.push({
-            name: n.slice(3),
-            value: v 
-          });
-        } 
-        
-        else {
-          var b = this._parseNodeAttributeAnnotation(node, n, v);
-          if (b) {
-            annotation.bindings.push(b);
+      },
+      queryHost : function(node) {
+        return this.host || this._queryHost(this)
+      },
+      _queryHost : function(node) {
+        return node && (node.host || (node.host = this._queryHost(node.parentNode)))
+      },
+      _listenReady : function(element) {
+        this._readyListeners.push(element)
+      },
+      _notifyReady : function() {
+        this._ready();
+        var n$ = this._readyListeners;
+        if (n$) {
+          for (var i = 0, l = n$.length, n; i < l && ( n = n$[i]); i++) {
+            n._notifyReady()
           }
         }
-      }
-    },
-
-    _parseNodeAttributeAnnotation: function(node, n, v) {
-      var escape = v.slice(0, 2), lastChar = n[n.length-1];
-      var kind = 'attribute', mode = '';
-      if (lastChar === '*' || lastChar === ':') {
-          n = n.slice(0, -1);
-          kind = 'property';
-          mode = 'auto';
-      }
-      if (escape === '{{') {
-        mode = 'auto';
-        v = v.slice(2, -2);
-      }
-      if (escape === '[[') {
-        mode = 'manual';
-        v = v.slice(2, -2);
-      }
-      if (mode) {
-        if (n === 'style') {
-          kind = 'style';
+        this._readyListeners = null
+      },
+      _ready : function() {
+        this._readied = true;
+        if (this._useContent) {
+          this.distributeContent()
         }
-        return {
-          kind: kind,
-          mode: mode,
-          name: n,
-          value: v
+        this.ready()
+      },
+
+      _bootTemplate : function() {
+        var script = document._currentScript || document.currentScript;
+        var prev = script && script.previousElementSibling;
+        if (prev && prev.localName === "template") {
+          this._template = prev
+        }
+      },
+      stampTemplate : function() {
+        if (this._template) {
+          this._stampTemplate(this._template, this.root);
+          if (window.CustomElements && CustomElements.upgradeSubtree) {
+            CustomElements.upgradeSubtree(this.root)
+          }
+        }
+      },
+      _stampTemplate : function(template, target) {
+        var instance = this.instanceTemplate(template);
+        for (var e = instance.firstChild; e; e = e.nextSibling) {
+          e.host = this
+        }
+        target.insertBefore(instance, target.firstChild)
+      },
+      instanceTemplate : function(template) {
+        return document.importNode(template.content, true)
+      },
+
+      isHost : true,
+      _bootContent : function() {
+        this._useContent = this._useContent || this._template && this._template.content.querySelector("content")
+      },
+      poolContent : function() {
+        if (this._useContent) {
+          saveLightChildrenIfNeeded(this);
+          var root = document.createDocumentFragment();
+          root.host = this;
+          this.contentRoot = root;
+          this.root = root;
+          root.isShadowRoot = true
+        }
+      },
+      distributeContent : function() {
+        if (!this.contentRoot) {
+          throw Error("poolContent() must be called before distributeContent()")
+        }
+        this._resetLightTree(this.contentRoot);
+        this._poolDistribution(this.contentRoot, this._poolPopulation());
+        this._composeTree(this)
+      },
+      addLightChild : function(node, opt_index) {
+        saveLightChildrenIfNeeded(this);
+        if (opt_index === undefined) {
+          this.lightChildren.push(node)
+        } else {
+          this.lightChildren.splice(opt_index, 0, node)
+        }
+        this.distributeContent()
+      },
+      removeLightChild : function(node) {
+        saveLightChildrenIfNeeded(this);
+        var index = this.lightChildren.indexOf(node);
+        if (index < 0) {
+          throw Error("The node to be removed is not a light child of this node")
+        }
+        this.lightChildren.splice(index, 1);
+        this.distributeContent()
+      },
+      elementMatches : function(selector, node) {
+        if (node === undefined)
+          node = this;
+        return matchesSelector.call(node, selector)
+      },
+      _poolPopulation : function() {
+        var pool = [];
+        var children = getLightChildren(this);
+        for (var i = 0; i < children.length; i++) {
+          var child = children[i];
+          if (isInsertionPoint(child)) {
+            pool.push.apply(pool, child._distributedNodes)
+          } else {
+            pool.push(child)
+          }
+        }
+        return pool
+      },
+      _resetLightTree : function(node) {
+        var children = getLightChildren(node);
+        for (var i = 0; i < children.length; i++) {
+          var child = children[i];
+          if (isInsertionPoint(child)) {
+            child._distributedNodes = []
+          } else if (child._destinationInsertionPoints) {
+            child._destinationInsertionPoints = undefined
+          }
+          this._resetLightTree(child)
+        }
+      },
+      _poolDistribution : function(node, pool) {
+        if (node.localName == "content") {
+          var content = node;
+          var anyDistributed = false;
+          for (var i = 0; i < pool.length; i++) {
+            var node = pool[i];
+            if (!node)
+              continue;
+            if (this._matchesContentSelect(node, content)) {
+              distributeNodeInto(node, content);
+              pool[i] = undefined;
+              anyDistributed = true
+            }
+          }
+          if (!anyDistributed) {
+            var children = getLightChildren(content);
+            for (var i = 0; i < children.length; i++) {
+              distributeNodeInto(children[i], content)
+            }
+          }
+          return
+        }
+        var children = getLightChildren(node);
+        for (var i = 0; i < children.length; i++) {
+          this._poolDistribution(children[i], pool)
+        }
+      },
+      _composeTree : function(node) {
+        var children = this._composeNode(node);
+        for (var i = 0; i < children.length; i++) {
+          var child = children[i];
+          if (!child.contentRoot) {
+            this._composeTree(child)
+          }
+        }
+        this._updateChildNodes(node, children)
+      },
+      _composeNode : function(node) {
+        var children = [];
+        var lightChildren = getLightChildren(node.contentRoot || node);
+        for (var i = 0; i < lightChildren.length; i++) {
+          var child = lightChildren[i];
+          if (isInsertionPoint(child)) {
+            var distributedNodes = child._distributedNodes;
+            for (var j = 0; j < distributedNodes.length; j++) {
+              var distributedNode = distributedNodes[j];
+              if (isFinalDestination(child, distributedNode)) {
+                children.push(distributedNode)
+              }
+            }
+          } else {
+            children.push(child)
+          }
+        }
+        return children
+      },
+      _updateChildNodes : function(node, children) {
+        for (var i = children.length - 1, nextNode = null; i >= 0; i--) {
+          var child = children[i];
+          if (child.parentNode != node || child.nextSibling != nextNode) {
+            insertBefore(node, child, nextNode)
+          }
+          nextNode = child
+        }
+        var first = children[0];
+        var child = node.firstChild;
+        while (child && child != first) {
+          var nextNode = child.nextSibling;
+          node.removeChild(child);
+          child = nextNode
+        }
+      },
+      _matchesContentSelect : function(node, contentElement) {
+        var select = contentElement.getAttribute("select");
+        if (!select)
+          return true;
+        select = select.trim();
+        if (!select)
+          return true;
+        if (!( node instanceof Element))
+          return false;
+        var validSelectors = /^(:not\()?[*.#[a-zA-Z_|]/;
+        if (!validSelectors.test(select))
+          return false;
+        try {
+          return this.elementMatches(select, node)
+        } catch(ex) {
+          return false
+        }
+      }
+    });
+
+    function distributeNodeInto(child, insertionPoint) {
+      insertionPoint._distributedNodes.push(child);
+      var points = child._destinationInsertionPoints;
+      if (!points) {
+        child._destinationInsertionPoints = [insertionPoint]
+      } else {
+        points.push(insertionPoint)
+      }
+    }
+
+    function isFinalDestination(insertionPoint, node) {
+      var points = node._destinationInsertionPoints;
+      return points && points[points.length - 1] === insertionPoint
+    }
+
+    function isInsertionPoint(node) {
+      return node.localName == "content"
+    }
+
+    function getLightChildren(node) {
+      var children = node.lightChildren;
+      return children ? children : node.childNodes
+    }
+
+    function insertBefore(parentNode, newChild, refChild) {
+      remove(newChild);
+      saveLightChildrenIfNeeded(parentNode);
+      parentNode.insertBefore(newChild, refChild)
+    }
+
+    function remove(node) {
+      var parentNode = node.parentNode;
+      if (!parentNode)
+        return;
+      saveLightChildrenIfNeeded(parentNode);
+      parentNode.removeChild(node)
+    }
+
+    function saveLightChildrenIfNeeded(node) {
+      if (!node.lightChildren) {
+        var children = [];
+        for (var child = node.firstChild; child; child = child.nextSibling) {
+          children.push(child);
+          child.lightParent = node
+        }
+        node.lightChildren = children
+      }
+    }
+
+    var p = Element.prototype;
+    var matchesSelector = p.matches || p.matchesSelector || p.mozMatchesSelector || p.msMatchesSelector || p.oMatchesSelector || p.webkitMatchesSelector
+
+    Base.addFeature({
+      registerFeatures : function() {
+        this._simplexRegister()
+      },
+      _simplexRegister : function() {
+        this._bootMixins();
+        this._bootExtends();
+        this._bootTemplate();
+        this._bootReady();
+        this._bootContent()
+      },
+      initFeatures : function() {
+        this._simplexInit()
+      },
+      _simplexInit : function() {
+        this.poolContent();
+        this.stampTemplate()
+      }
+    })
+  });
+
+  modulate("Annotations", function() {
+    var Annotations = {
+      parseAnnotations : function(template) {
+        var list = [];
+        this._parseNodeAnnotations(template.content, list);
+        return list
+      },
+      _parseNodeAnnotations : function(node, list) {
+        return node.nodeType === Node.TEXT_NODE ? this._parseTextNodeAnnotation(node, list) : this._parseElementAnnotations(node, list)
+      },
+      _parseTextNodeAnnotation : function(node, list) {
+        var v = node.textContent, escape = v.slice(0, 2);
+        if (escape === "{{" || escape === "[[") {
+          node.textContent = " ";
+          var annote = {
+            bindings : [{
+              kind : "text",
+              mode : escape[0],
+              value : v.slice(2, -2)
+            }]
+          };
+          list.push(annote);
+          return annote
+        }
+      },
+      _parseElementAnnotations : function(node, list) {
+        var annote = {
+          bindings : [],
+          events : []
         };
-      }
-    }
-
-  });
-
-  
-
-  Base.addFeature({
-
-    $$: function(slctr) {
-      return this.root.querySelector(slctr);
-    },
-
-    
-    _marshalNodeReferences: function() {
-      this.$ = {};
-      var map = this._template && this._template.map;
-      if (map) {
-        map.forEach(function(annotation) {
-          var id = annotation.id;
-          if (id) {
-            this.$[id] = this.findAnnotatedNode(this.root, annotation);
-          }
-        }, this);
-      }
-    },
-
-    _marshalAnnotatedNodes: function() {
-      if (this._nodes) {
-        this._nodes = this._nodes.map(function(a) {
-          return this.findAnnotatedNode(this.root, a);
-        }, this);
-      }
-    }
-
-  });
-
-  Base.addFeature({
-
-    listeners: {},
-
-    init: function() {
-    },
-
-    listenListeners: function() {
-      for (var key in this.listeners) {
-        var node = this, name = key;
-        if (name.indexOf('.') >= 0) {
-          name = name.split('.');
-          node = this.$[name[0]];
-          name = name[1];
+        this._parseChildNodesAnnotations(node, annote, list);
+        if (node.attributes) {
+          this._parseNodeAttributeAnnotations(node, annote, list)
         }
-        this.listen(node, name, this.listeners[key]);
-      }
-    },
-
-    listen: function(node, eventName, methodName) {
-      node.addEventListener(eventName, function(e) {
-        this[methodName](e, e.detail);
-      }.bind(this));
-    },
-
-    fire: function(type, detail, onNode, bubbles, cancelable) {
-      var node = onNode || this;
-      var detail = (detail === null || detail === undefined) ? {} : detail;
-      var event = new CustomEvent(type, {
-        bubbles: bubbles !== undefined ? bubbles : true,
-        cancelable: cancelable !== undefined ? cancelable : true,
-        detail: detail
-      });
-      node.dispatchEvent(event);
-      return event;
-    }
-
-  });
-  
-  Base.addFeature({
-
-    keyPresses: {},
-
-    listenKeyPresses: function() {
-      for (var n in this.keyPresses) {
-        this.addEventListener('keypress', this.keyPressesFeatureHandler);
-        for (n in this.keyPresses) {
-          if (typeof n === 'string') {
-            this.keyPresses[Event.prototype.keys[n]] = this.keyPresses[n];
+        if (annote.bindings.length || annote.events.length || annote.id) {
+          list.push(annote)
+        }
+        return annote
+      },
+      _parseChildNodesAnnotations : function(root, annote, list) {
+        if (root.firstChild) {
+          for (var i = 0, node = root.firstChild; node; node = node.nextSibling, i++) {
+            var childAnnotation = this._parseNodeAnnotations(node, list);
+            if (childAnnotation) {
+              childAnnotation.parent = annote;
+              childAnnotation.index = i
+            }
           }
         }
-        break;
+      },
+      _parseNodeAttributeAnnotations : function(node, annotation) {
+        for (var i = 0, a; a = node.attributes[i]; i++) {
+          var n = a.name, v = a.value;
+          if (n === "id") {
+            annotation.id = v
+          } else if (n.slice(0, 3) === "on-") {
+            i--;
+            node.removeAttribute(n);
+            annotation.events.push({
+              name : n.slice(3),
+              value : v
+            })
+          } else {
+            var b = this._parseNodeAttributeAnnotation(node, n, v);
+            if (b) {
+              i--;
+              annotation.bindings.push(b)
+            }
+          }
+        }
+      },
+      _parseNodeAttributeAnnotation : function(node, n, v) {
+        var mode = "", escape = v.slice(0, 2);
+        if (escape === "{{" || escape === "[[") {
+          mode = escape[0];
+          v = v.slice(2, -2)
+        }
+        if (mode) {
+          node.removeAttribute(n);
+          return {
+            kind : "attribute",
+            mode : mode,
+            name : n,
+            value : v
+          }
+        }
+      },
+      instanceTemplate : function(template) {
+        return document.importNode(template.content, true)
+      },
+      findAnnotatedNode : function(root, annote) {
+        if (!annote.parent) {
+          return root
+        }
+        var parent = Annotations.findAnnotatedNode(root, annote.parent);
+        var nodes = parent === root ? parent.childNodes : parent.lightChildren || parent.childNodes;
+        return nodes[annote.index]
       }
-    },
-
-    keyPressesFeatureHandler: function(e) {
-      var method = this.keyPresses[e.keyCode];
-      if (method && this[method]) {
-        return this[method](e.keyCode, e);
-      }
-    }
-
+    };
+    return Annotations
   });
-  
-  
-  Base.addFeature({
-
-    
-    _setupAnnotatedListeners: function() {
-      var map = this._template.map;
-      if (map) {
-        map.forEach(function(annotation) {
-          var events = annotation.events;
-          if (events && events.length) {
-            var node = this.findAnnotatedNode(this.root, annotation);
-            events.forEach(function(e) {
-              this.listen(node, e.name, e.value);
+
+  using(["Base", "Annotations"], function(Base, Annotations) {
+    Base.addFeature({
+      _bootAnnotations : function() {
+        this._annotes = !this._template ? [] : Annotations.parseAnnotations(this._template)
+      },
+      findAnnotatedNode : Annotations.findAnnotatedNode,
+      _marshalIdNodes : function() {
+        this.$ = {};
+        this._annotes.forEach(function(a) {
+          if (a.id) {
+            this.$[a.id] = Annotations.findAnnotatedNode(this.root, a)
+          }
+        }, this)
+      },
+      _marshalAnnotatedNodes : function() {
+        if (this._nodes) {
+          this._nodes = this._nodes.map(function(a) {
+            return Annotations.findAnnotatedNode(this.root, a)
+          }, this)
+        }
+      },
+      _setupAnnotatedListeners : function() {
+        this._annotes.forEach(function(a) {
+          if (a.events && a.events.length) {
+            var node = Annotations.findAnnotatedNode(this.root, a);
+            a.events.forEach(function(e) {
+              this.listen(node, e.name, e.value)
             }, this)
           }
-        }, this);
+        }, this)
       }
-    }
-
+    })
   });
 
-  Base.addFeature({
-
-    async: function(method) {
-      var handled = false;
-      var handle = function() {
-        if (!handled) {
-          handled = true;
-          method.call(this);
+  using(["Base"], function(Base) {
+    Base.addFeature({
+      published : {},
+      nob : Object.create(null),
+      _bootPublished : function() {
+        if (this.addPropertyEffect) {
+          for (var n in this.published) {
+            if (this.isNotifyProperty(n)) {
+              this.addPropertyEffect(n, "notify")
+            }
+          }
         }
-      }.bind(this);
-      setTimeout(handle);
-      requestAnimationFrame(handle);
-    },
-
-    toggleAttribute: function(name, value) {
-      this[value ? 'setAttribute' : 'removeAttribute'](name, '');
-    },
-
-    attributeFollows: function(name, neo, old) {
-      if (old) {
-        old.removeAttribute(name);
-      } 
-      if (neo) {
-        neo.setAttribute(name, '');
-      }
-    }
-
-  });
-
-  Base.originalInitFeatures = Base.initFeatures;
-  
-  Base.addFeature({
-
-    initFeatures: function() {
-      this.originalInitFeatures(this);
-      this.features();
-    },
-
-    features: function() {
-      this.defaultFeatures();
-    },
-
-    defaultFeatures: function() {
-      if (this._useContent) {
-        this.poolContent();
-      }
-      if (this._template) {
-        this.stampTemplate();
-        this._marshalNodeReferences();
-        this._marshalAnnotatedNodes();
-        this._setupAnnotatedListeners();
-        if (this._setupBindListeners) {
-          this._setupBindListeners();
+      },
+      getPublishInfo : function(property) {
+        var p = this.published[property];
+        if ( typeof p === "function") {
+          p = this.published[property] = {
+            type : p
+          }
         }
+        return p || Base.nob
+      },
+      getPublishedPropertyType : function(property) {
+        return this.getPublishInfo(property).type
+      },
+      isReadOnlyProperty : function(property) {
+        return this.getPublishInfo(property).readOnly
+      },
+      isNotifyProperty : function(property) {
+        return this.getPublishInfo(property).notify
+      },
+      isReflectedProperty : function(property) {
+        return this.getPublishInfo(property).reflect
       }
-      this.listenListeners();
-      this.listenKeyPresses();
-      if (this._useContent) {
-        this.distributeContent();
-      }
-      this.takeAttributes();
-    }
-
+    })
   });
 
-  Polymer.noFeatures = function() {
-  };
+  using("Base", function(Base) {
+    Base.addFeature({
+      installHostAttributes : function() {
+        if (this.hostAttributes) {
+          this.cloneAttributes(this, this.hostAttributes)
+        }
+      },
+      cloneAttributes : function(node, attr$) {
+        attr$.split(" ").forEach(function(a) {
+          node.setAttribute(a, "")
+        })
+      },
+      takeAttributes : function() {
+        for (var name in this.published) {
+          var type = this.getPublishedPropertyType(name);
+          if (type === Boolean || this.hasAttribute(name)) {
+            this.attributeChanged(name, type)
+          }
+        }
+      },
+      attributeChanged : function(name, type) {
+        var type = type || this.getPublishedPropertyType(name);
+        if (type) {
+          this[name] = this.deserialize(name, this.getAttribute(name), type)
+        }
+      },
+      deserialize : function(name, value, type) {
+        switch(type) {
+          case Number:
+            value = Number(value);
+            break;
+          case Boolean:
+            value = this.hasAttribute(name);
+            break;
+          case Object:
+          case Array:
+            try {
+              value = JSON.parse(value)
+            } catch(x) {
+              value = "[invalid JSON]"
+            }
+            break;
+          case Date:
+            value = Date.parse(value);
+            break;
+          case String:
+          default:
+            break
+        }
+        return value
+      }
+    })
+  });
 
-  Polymer.defaultFeatures = Base.defaultFeatures;
+  using("Base", function(Base) {
+    Base.addFeature({
+      listeners : {},
+      listenListeners : function() {
+        var node, name, key;
+        for (key in this.listeners) {
+          if (key.indexOf(".") < 0) {
+            node = this;
+            name = key
+          } else {
+            name = key.split(".");
+            node = this.$[name[0]];
+            name = name[1]
+          }
+          this.listen(node, name, this.listeners[key])
+        }
+      },
+      listen : function(node, eventName, methodName) {
+        var host = this;
+        node.addEventListener(eventName, function(e) {
+          if (host[methodName]) {
+            host[methodName](e, e.detail)
+          } else {
+            console.warn("[%s].[%s]: event handler [%s] is null in scope (%o)", node.localName, eventName, methodName, host)
+          }
+        })
+      },
+      keyPresses : {},
+      listenKeyPresses : function() {
+        for (var n in this.keyPresses) {
+          this.addEventListener("keydown", this.keyPressesFeatureHandler);
+          for (n in this.keyPresses) {
+            if ( typeof n === "string") {
+              this.keyPresses[this.eventKeyCodes[n]] = this.keyPresses[n]
+            }
+          }
+          break
+        }
+      },
+      keyPressesFeatureHandler : function(e) {
+        var method = this.keyPresses[e.keyCode];
+        if (method && this[method]) {
+          return this[method](e.keyCode, e)
+        }
+      },
+      eventKeyCodes : {
+        ESC_KEY : 27,
+        ENTER_KEY : 13,
+        LEFT : 37,
+        UP : 38,
+        RIGHT : 39,
+        DOWN : 40
+      }
+    })
+  });
+
+  using("Base", function(Base) {
+    Base.addFeature({
+      $$ : function(slctr) {
+        return this.root.querySelector(slctr)
+      },
+      toggleClass : function(name, bool, node) {
+        node = node || this;
+        if (arguments.length == 1) {
+          bool = !node.contains(name)
+        }
+        if (bool) {
+          node.classList.add(name)
+        } else {
+          node.classList.remove(name)
+        }
+      },
+      toggleAttribute : function(name, bool, node) {
+        (node||this)[bool?"setAttribute":"removeAttribute"](name, "")
+      },
+      attributeFollows : function(name, neo, old) {
+        if (old) {
+          old.removeAttribute(name)
+        }
+        if (neo) {
+          neo.setAttribute(name, "")
+        }
+      },
+      fire : function(type, detail, onNode, bubbles, cancelable) {
+        var node = onNode || this;
+        var detail = detail === null || detail === undefined ? {} : detail;
+        var event = new CustomEvent(type, {
+          bubbles : bubbles !== undefined ? bubbles : true,
+          cancelable : cancelable !== undefined ? cancelable : true,
+          detail : detail
+        });
+        node.dispatchEvent(event);
+        return event
+      },
+      async : function(method) {
+        var handled = false;
+        var handle = function() {
+          if (!handled) {
+            handled = true;
+            method.call(this)
+          }
+        }.bind(this);
+        setTimeout(handle);
+        requestAnimationFrame(handle)
+      },
+      queryHost : function(node) {
+        return this.host || this._queryHost(this)
+      },
+      _queryHost : function(node) {
+        return node && (node.host || (node.host = this._queryHost(node.parentNode)))
+      },
+      transform : function(node, transform) {
+        node.style.webkitTransform = transform;
+        node.style.transform = transform
+      },
+      translate3d : function(node, x, y, z) {
+        this.transform(node, "translate3d(" + x + "," + y + "," + z + ")")
+      },
+      importHref : function(href, onload, onerror) {
+        var l = document.createElement("link");
+        l.rel = "import";
+        l.href = href;
+        l.onload = onload.bind(this);
+        l.onerror = onerror.bind(this);
+        document.head.appendChild(l);
+        return l
+      }
+    })
+  });
+
+  modulate("bind", function() {
+    var Bind = {
+      prepareInstance : function(inst) {
+        inst._data = Object.create(null)
+      },
+      setupBindListeners : function(inst) {
+        inst._bindListeners.forEach(function(info) {
+          var fn = new Function("e", "this." + info.path + " = e.detail.value;");
+          var node = info.id ? inst.$[info.id] : inst._nodes[info.index];
+          node.addEventListener(info.property + "-changed", fn.bind(this))
+        })
+      },
+      _builders : {},
+      addBuilder : function(kind, builder) {
+        this._builders[kind] = builder
+      },
+      addBuilders : function(builders) {
+        for (var n in builders) {
+          this._builders[n] = builders[n]
+        }
+      },
+      prepareModel : function(model) {
+        model._propertyEffects = {};
+        model._bindListeners = [];
+        model._setData = this._setData
+      },
+      _telemetry : {
+        _setDataCalls : 0
+      },
+      _setData : function(property, value) {
+        var old = this._data[property];
+        if (old !== value) {
+          this._data[property] = value
+        }
+        return old
+      },
+      addPropertyEffect : function(model, property, kind, effect) {
+        var fx = model._propertyEffects[property];
+        if (!fx) {
+          fx = model._propertyEffects[property] = []
+        }
+        fx.push({
+          kind : kind,
+          effect : effect
+        })
+      },
+      createBindings : function(model) {
+        var fx$ = model._propertyEffects;
+        if (fx$) {
+          for (var n in fx$) {
+            var fx = fx$[n];
+            fx.sort(this._sortPropertyEffects);
+            var compiledEffects = fx.map(function(x) {
+              return this._buildEffect(model, n, x)
+            }, this);
+            this._bindPropertyEffects(model, n, compiledEffects)
+          }
+        }
+      },
+      _sortPropertyEffects : function(a, b) {
+        if (a.kind === "compute" || b.kind === "notify") {
+          return -1
+        }
+        if (a.kind === "notify" || b.kind === "compute") {
+          return 1
+        }
+        return 0
+      },
+      _buildEffect : function(model, property, fx) {
+        var b = this._builders[fx.kind];
+        if (b) {
+          return b(model, property, fx.effect)
+        } else {
+          throw "bind._buildEffect: missing builder kind [" + fx.kind + "]"
+        }
+      },
+      _bindPropertyEffects : function(model, property, effects) {
+        var defun = {
+          get : function() {
+            return this._data[property]
+          }
+        };
+        if (effects.length) {
+          effects = effects.join("\n		");
+          var effector = "_" + property + "Effector";
+          model[effector] = new Function("old", effects);
+          var body = ["var old = this._setData('" + property + "', value);", "if (value !== old) {", "  this." + effector + "(old);", "}"].join("\n");
+          var setter = new Function("value", body);
+          defun.set = setter
+        }
+        Object.defineProperty(model, property, defun)
+      },
+      _addAnnotatedListener : function(model, index, property, path) {
+        model._bindListeners.push({
+          index : index,
+          property : property,
+          path : path
+        })
+      },
+      _bindAnnotationProperty : function(name, path, index) {
+        return "this._nodes[" + index + "]." + name + " = this._data." + path + ";"
+      },
+      _addBindListener : function(property, path, id) {
+        var bl = this._requireBindListeners(property);
+        bl.targets.push({
+          id : id,
+          path : path
+        })
+      }
+    };
+    return Bind
+  });
+
+  using(["bind"], function(Bind) {
+    Bind.addComputedPropertyEffect = function(model, name, expression) {
+      var index = expression.indexOf("(");
+      var method = expression.slice(0, index);
+      var args = expression.slice(index + 1, -1).replace(/ /g, "").split(",");
+      this.addPropertyEffect(model, args[0], "compute", {
+        property : name,
+        method : method
+      })
+    };
+    Bind._notifyChange = function(property) {
+      this.fire(property + "-changed", {
+        value : this[property]
+      }, null, false)
+    };
+    Bind.addBuilders({
+      method : function(model, source, effect) {
+        return "this." + effect + "(this._data." + source + ", old);"
+      },
+      bind : function(model, hostProperty, targetPath) {
+        var parts = targetPath.split(".");
+        var id = parts[0], property = parts[1];
+        if (!property) {
+          property = "textContent"
+        } else {
+          model._bindListeners.push({
+            id : id,
+            property : property,
+            path : hostProperty
+          })
+        }
+        return "this.$." + id + "." + property + " = " + "this._data." + hostProperty + ";"
+      },
+      notify : function(model, source) {
+        model._notifyChange = Bind._notifyChange;
+        return "this._notifyChange('" + source + "')"
+      },
+      compute : function(model, source, effect) {
+        return "this." + effect.property + " = this." + effect.method + "(this._data." + source + ");"
+      },
+      annotation : function(model, hostProperty, info) {
+        var property = info.name || "textContent";
+        if (property !== "textContent") {
+          Bind._addAnnotatedListener(model, info.index, property, info.value)
+        }
+        return "this._nodes[" + info.index + "]." + property + " = this._data." + info.value + ";"
+      }
+    })
+  });
+
+  modulate("bind-annotations", ["bind"], function(Bind) {
+    var AnnotationsBind = {
+      preprocessBindAnnotations : function(scope, list) {
+        scope._nodes = [];
+        list.forEach(function(annotation) {
+          var index = scope._nodes.push(annotation) - 1;
+          annotation.bindings.forEach(function(binding) {
+            AnnotationsBind._bindAnnotationBinding(scope, binding, index)
+          })
+        })
+      },
+      _bindAnnotationBinding : function(scope, binding, index) {
+        binding.index = index;
+        var path = binding.value;
+        var i = path.indexOf(".");
+        var model = i >= 0 ? path.slice(0, i) : path;
+        Bind.addPropertyEffect(scope, model, "annotation", binding)
+      },
+      marshalAnnotatedNodes : function(nodes, root, finder) {
+        return nodes.map(function(a) {
+          return finder(root, a)
+        })
+      }
+    };
+    return AnnotationsBind
+  });
+
+  using(["Base", "bind", "bind-annotations"], function(Base, Bind, Annotations) {
+    Base.addFeature({
+      _bootBind : function() {
+        Bind.prepareModel(this);
+        this._addPropertyBindEffects(this.bind)
+      },
+      _bootBindEffects : function() {
+        if (this._annotes) {
+          Annotations.preprocessBindAnnotations(this, this._annotes)
+        }
+        Bind.createBindings(this)
+      },
+      addPropertyEffect : function(property, kind, effect) {
+        return Bind.addPropertyEffect(this, property, kind, effect)
+      },
+      _addPropertyBindEffects : function(effects) {
+        for (var n in effects) {
+          var effect = effects[n];
+          if ( typeof effect === "object") {
+            for (var nn in effect) {
+              this._addPropertyBindEffect(n, effect[nn])
+            }
+          } else {
+            this._addPropertyBindEffect(n, effect)
+          }
+        }
+      },
+      _addPropertyBindEffect : function(property, effect) {
+        var kind = "bind";
+        if ( typeof this[effect] === "function") {
+          kind = "method"
+        }
+        this.addPropertyEffect(property, kind, effect)
+      },
+      _setupInstanceBindings : function() {
+        Bind.prepareInstance(this)
+      },
+      _setupBindListeners : function() {
+        Bind.setupBindListeners(this)
+      }
+    }, true)
+  });
+
+  using("Base", function(Base) {
+    Base.addFeature({
+      registerFeatures : function() {
+        this._standardRegister()
+      },
+      _standardRegister : function() {
+        this._simplexRegister();
+        this._bootBind();
+        this._bootAnnotations();
+        this._bootBindEffects()
+      },
+      initFeatures : function() {
+        this._standardInit()
+      },
+      _standardInit : function() {
+        this._simplexInit();
+        if (this._template) {
+          this._marshalIdNodes();
+          this._marshalAnnotatedNodes();
+          this._setupAnnotatedListeners()
+        }
+        this._setupInstanceBindings();
+        this._setupBindListeners();
+        this.takeAttributes();
+        this.installHostAttributes();
+        this.listenListeners();
+        this.listenKeyPresses()
+      }
+    })
+  });
 
 </script>
+
+<style>
+  [layout][horizontal], [layout][vertical] {
+    display: -ms-flexbox;
+    display: -webkit-flex;
+    display: flex
+  }
+  [layout][horizontal][inline], [layout][vertical][inline] {
+    display: -ms-inline-flexbox;
+    display: -webkit-inline-flex;
+    display: inline-flex
+  }
+  [layout][horizontal] {
+    -ms-flex-direction: row;
+    -webkit-flex-direction: row;
+    flex-direction: row
+  }
+  [layout][horizontal][reverse] {
+    -ms-flex-direction: row-reverse;
+    -webkit-flex-direction: row-reverse;
+    flex-direction: row-reverse
+  }
+  [layout][vertical] {
+    -ms-flex-direction: column;
+    -webkit-flex-direction: column;
+    flex-direction: column
+  }
+  [layout][vertical][reverse] {
+    -ms-flex-direction: column-reverse;
+    -webkit-flex-direction: column-reverse;
+    flex-direction: column-reverse
+  }
+  [layout][wrap] {
+    -ms-flex-wrap: wrap;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap
+  }
+  [layout][wrap-reverse] {
+    -ms-flex-wrap: wrap-reverse;
+    -webkit-flex-wrap: wrap-reverse;
+    flex-wrap: wrap-reverse
+  }
+  [flex] {
+    -ms-flex: 1;
+    -webkit-flex: 1;
+    flex: 1
+  }
+  [flex][auto] {
+    -ms-flex: 1 1 auto;
+    -webkit-flex: 1 1 auto;
+    flex: 1 1 auto
+  }
+  [flex][none] {
+    -ms-flex: none;
+    -webkit-flex: none;
+    flex: none
+  }
+  [flex][one] {
+    -ms-flex: 1;
+    -webkit-flex: 1;
+    flex: 1
+  }
+  [flex][two] {
+    -ms-flex: 2;
+    -webkit-flex: 2;
+    flex: 2
+  }
+  [flex][three] {
+    -ms-flex: 3;
+    -webkit-flex: 3;
+    flex: 3
+  }
+  [flex][four] {
+    -ms-flex: 4;
+    -webkit-flex: 4;
+    flex: 4
+  }
+  [flex][five] {
+    -ms-flex: 5;
+    -webkit-flex: 5;
+    flex: 5
+  }
+  [flex][six] {
+    -ms-flex: 6;
+    -webkit-flex: 6;
+    flex: 6
+  }
+  [flex][seven] {
+    -ms-flex: 7;
+    -webkit-flex: 7;
+    flex: 7
+  }
+  [flex][eight] {
+    -ms-flex: 8;
+    -webkit-flex: 8;
+    flex: 8
+  }
+  [flex][nine] {
+    -ms-flex: 9;
+    -webkit-flex: 9;
+    flex: 9
+  }
+  [flex][ten] {
+    -ms-flex: 10;
+    -webkit-flex: 10;
+    flex: 10
+  }
+  [flex][eleven] {
+    -ms-flex: 11;
+    -webkit-flex: 11;
+    flex: 11
+  }
+  [flex][twelve] {
+    -ms-flex: 12;
+    -webkit-flex: 12;
+    flex: 12
+  }
+  [layout][start] {
+    -ms-flex-align: start;
+    -webkit-align-items: flex-start;
+    align-items: flex-start
+  }
+  [layout][center], [layout][center-center] {
+    -ms-flex-align: center;
+    -webkit-align-items: center;
+    align-items: center
+  }
+  [layout][end] {
+    -ms-flex-align: end;
+    -webkit-align-items: flex-end;
+    align-items: flex-end
+  }
+  [layout][start-justified] {
+    -ms-flex-pack: start;
+    -webkit-justify-content: flex-start;
+    justify-content: flex-start
+  }
+  [layout][center-justified], [layout][center-center] {
+    -ms-flex-pack: center;
+    -webkit-justify-content: center;
+    justify-content: center
+  }
+  [layout][end-justified] {
+    -ms-flex-pack: end;
+    -webkit-justify-content: flex-end;
+    justify-content: flex-end
+  }
+  [layout][around-justified] {
+    -ms-flex-pack: around;
+    -webkit-justify-content: space-around;
+    justify-content: space-around
+  }
+  [layout][justified] {
+    -ms-flex-pack: justify;
+    -webkit-justify-content: space-between;
+    justify-content: space-between
+  }
+  [self-start] {
+    -ms-align-self: flex-start;
+    -webkit-align-self: flex-start;
+    align-self: flex-start
+  }
+  [self-center] {
+    -ms-align-self: center;
+    -webkit-align-self: center;
+    align-self: center
+  }
+  [self-end] {
+    -ms-align-self: flex-end;
+    -webkit-align-self: flex-end;
+    align-self: flex-end
+  }
+  [self-stretch] {
+    -ms-align-self: stretch;
+    -webkit-align-self: stretch;
+    align-self: stretch
+  }
+  [block] {
+    display: block
+  }
+  [hidden] {
+    display: none !important
+  }
+  [invisible] {
+    visibility: hidden !important
+  }
+  [relative] {
+    position: relative
+  }
+  [fit] {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0
+  }
+  body[fullbleed] {
+    margin: 0;
+    height: 100vh
+  }
+  [scroll] {
+    -webkit-overflow-scrolling: touch;
+    overflow: auto
+  }
+  [fixed-top] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0
+  }
+  [fixed-right] {
+    position: fixed;
+    top: 0;
+    right: 0;
+    botttom: 0
+  }
+  [fixed-bottom] {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0
+  }
+  [fixed-left] {
+    position: fixed;
+    top: 0;
+    botttom: 0;
+    left: 0
+  }
+  [segment], segment {
+    display: block;
+    position: relative;
+    -webkit-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    box-sizing: border-box;
+    margin: 1em .5em;
+    padding: 1em;
+    background-color: #fff;
+    -webkit-box-shadow: 0 0 0 1px rgba(0,0,0,.1);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.1);
+    border-radius: 5px 5px 5px 5px
+  }
+</style>
+
