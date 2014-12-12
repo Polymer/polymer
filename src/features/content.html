@@ -25,12 +25,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     register: function(prototype) {
       var t = prototype._template;
-      // TODO(sorvell): is qsa is wrong here due to distribution?
-      // TODO(sjmiles): No element should ever actually stamp a <content> node
-      // into it's composed tree, so I believe this is actually correct.
-      // However, I wonder if it's more efficient to capture during annotation
-      // parsing, since the parse step does a tree walk in any case, and the
-      // tree is smaller before element expansion.
       prototype._useContent = prototype._useContent ||
         Boolean(t && t.content.querySelector('content'));
     },
@@ -57,12 +51,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!this.contentRoot) {
         throw Error('poolContent() must be called before distributeContent()');
       }
+      // NOTE: `contentRoot` is populated only for the first 
+      // distribution. After that dom should be in the composed tree and
+      // distribution info should not be reset.
       // reset distributions
-      this._resetLightTree(this.contentRoot);
+      this._resetDistribution(this.contentRoot);
       // compute which nodes should be distributed where
       // TODO(jmesserly): this is simplified because we assume a single
       // ShadowRoot per host and no `<shadow>`.
-      this._poolDistribution(this.contentRoot, this._poolPopulation());
+      this._distributePool(this.contentRoot, this._collectPool());
       // update the real DOM to be the composed tree
       this._composeTree(this);
     },
@@ -97,11 +94,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // still prefixed. Alternatively we could just polyfill it somewhere.
     // Note that the arguments are reversed from what you might expect.
     elementMatches: function(selector, node) {
-      if (node === undefined) node = this;
+      if (node === undefined) {
+        node = this;
+      }
       return matchesSelector.call(node, selector);
     },
 
-    _poolPopulation: function() {
+    // Many of the following methods are all conceptually static, but they are
+    // included here as "protected" methods to allow overriding.
+
+    _resetDistribution: function(node) {
+      var children = getLightChildren(node);
+      for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        if (isInsertionPoint(child)) {
+          child._distributedNodes = [];
+        } else if (child._destinationInsertionPoints) {
+          child._destinationInsertionPoints = undefined;
+        }
+        this._resetDistribution(child);
+      }
+    },
+
+    _collectPool: function() {
       // Gather the pool of nodes that should be distributed. We will combine
       // these with the "content root" to arrive at the composed tree.
       var pool = [];
@@ -117,31 +132,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return pool;
     },
 
-    // Many of the following methods are all conceptually static, but they are
-    // included here as "protected" methods to allow overriding.
-
-    _resetLightTree: function(node) {
-      var children = getLightChildren(node);
-      for (var i = 0; i < children.length; i++) {
-        var child = children[i];
-        if (isInsertionPoint(child)) {
-          child._distributedNodes = [];
-        } else if (child._destinationInsertionPoints) {
-          child._destinationInsertionPoints = undefined;
-        }
-        this._resetLightTree(child);
-      }
-    },
-
-    _poolDistribution: function(node, pool) {
-      if (node.localName == 'content') {
+    _distributePool: function(node, pool) {
+      if (isInsertionPoint(node)) {
         // distribute nodes from the pool that this selector matches
         var content = node;
         var anyDistributed = false;
         for (var i = 0; i < pool.length; i++) {
           var node = pool[i];
           // skip nodes that were already used
-          if (!node) continue;
+          if (!node) {
+            continue;
+          } 
           // distribute this node if it matches
           if (this._matchesContentSelect(node, content)) {
             distributeNodeInto(node, content);
@@ -163,7 +164,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // recursively distribute.
       var children = getLightChildren(node);
       for (var i = 0; i < children.length; i++) {
-        this._poolDistribution(children[i], pool);
+        this._distributePool(children[i], pool);
       }
     },
 
@@ -224,12 +225,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _matchesContentSelect: function(node, contentElement) {
       var select = contentElement.getAttribute('select');
       // no selector matches all nodes (including text)
-      if (!select) return true;
+      if (!select) {
+        return true;
+      }
       select = select.trim();
       // same thing if it had only whitespace
-      if (!select) return true;
+      if (!select) {
+        return true;
+      }
       // selectors can only match Elements
-      if (!(node instanceof Element)) return false;
+      if (!(node instanceof Element)) {
+        return false;
+      }
       // only valid selectors can match:
       //   TypeSelector
       //   *
@@ -238,7 +245,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       //   AttributeSelector
       //   negation
       var validSelectors = /^(:not\()?[*.#[a-zA-Z_|]/;
-      if (!validSelectors.test(select)) return false;
+      if (!validSelectors.test(select)) {
+        return false;
+      }
+      // TODO(sorvell): This try..catch seems unfortunate and will nerf 
+      // performance, can we remove?
       try {
         return this.elementMatches(select, node);
       } catch (ex) {
