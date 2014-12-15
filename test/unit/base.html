@@ -13,6 +13,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <meta charset="utf-8">
   <script src="../../../web-component-tester/browser.js"></script>
   <script src="../../../webcomponentsjs/webcomponents.js"></script>
+  <link rel="import" href="../../src/module.html">
   <link rel="import" href="../../src/lang.html">
   <link rel="import" href="../../src/base.html">
 </head>
@@ -23,10 +24,14 @@ var Child;
 var instance;
 
 beforeEach(function() {
-  // Ensure a clean environment for each test.
-  Base._features = [];
-  Child = Object.create(Base);
-  instance = Object.create(Child);
+  using('Base', function(Base) {
+    // Ensure a clean environment for each test.
+    window.Base = Base;
+    window.Child = Object.create(Base);
+    Child.registerFeatures = function() {};
+    Child.initFeatures = function() {};
+    window.instance = Object.create(Child);
+  });
 });
 
 suite('addFeature', function() {
@@ -37,55 +42,21 @@ suite('addFeature', function() {
     assert.equal(Base.someProperty, 123);
   });
 
-  // TODO(nevir): What's up with this behavior?
-  test('kills init', function() {
-    Base.init = function() {};
-    Base.addFeature({});
-    assert.notOk(Base.init);
-  });
-
-  // TODO(nevir): Ditto above.
-  test('kills register', function() {
-    Base.register = function() {};
-    Base.addFeature({});
-    assert.notOk(Base.register);
-  });
-
 });
 
 suite('registerCallback', function() {
 
-  test('calls register() for any features', function() {
+  test('calls registered() after registerFeatures()', function() {
     var called = [];
-    Base.addFeature({register: function() {called.push('one')}});
-    Base.addFeature({register: function() {called.push('two')}});
-    assert.deepEqual(called, []);
-
-    Child.registerCallback();
-    assert.includeMembers(called, ['one', 'two']);
-  });
-
-  test('passes the prototype to feature register()', function() {
-    Base.addFeature({register: function(prototype) {
-      assert.equal(prototype, Child);
-    }});
-    Child.registerCallback();
-  });
-
-  // TODO(nevir): Pull sinon into WCT to make this sort of test cleaner.
-  test('calls registered() after features', function() {
-    var lastCalled = null;
-    Base.addFeature({register: function() {
-      assert.equal(lastCalled, null);
-      lastCalled = 'feature';
-    }});
-    Child.registered = function() {
-      assert.equal(lastCalled, 'feature');
-      lastCalled = 'registered';
+    Child.registerFeatures = function() {
+      called.push('1');
     };
-
-    Child.registerCallback(Base);
-    assert.equal(lastCalled, 'registered');
+    Child.registered = function() {
+      called.push('2');
+    };
+    assert.deepEqual(called, []);
+    Child.registerCallback();
+    assert.includeMembers(called, ['1', '2']);
   });
 
 });
@@ -94,42 +65,34 @@ suite('createdCallback', function() {
 
   // TODO(nevir): sinonify.
   test('calls lifecycle events in the proper order', function() {
-    var lastCalled = null;
+    var called = [];
     Child.beforeCreated = function() {
-      assert.equal(lastCalled, null);
-      lastCalled = 'beforeCreated';
+      called.push('beforeCreated');
     };
-    Base.addFeature({init: function() {
-      assert.equal(lastCalled, 'beforeCreated');
-      lastCalled = 'feature';
-    }});
     Child.created = function() {
-      assert.equal(lastCalled, 'feature');
-      lastCalled = 'created';
+      called.push('created');
     };
     Child.afterCreated = function() {
-      assert.equal(lastCalled, 'created');
-      lastCalled = 'afterCreated';
+      called.push('afterCreated');
     };
-
-    instance.createdCallback();
-    assert.equal(lastCalled, 'afterCreated');
-  });
-
-  test('calls init() for any features', function() {
-    var called = [];
-    Base.addFeature({init: function() {called.push('one')}});
-    Base.addFeature({init: function() {called.push('two')}});
     assert.deepEqual(called, []);
-
     instance.createdCallback();
-    assert.includeMembers(called, ['one', 'two']);
+    assert.deepEqual(called, ['beforeCreated', 'created', 'afterCreated']);
   });
 
-  test('calls feature init() with the correct `this`', function() {
-    Base.addFeature({init: function() {
+  test('calls initFeatures()', function() {
+    var called = false;
+    Child.initFeatures = function() {
+      called = true;
+    };
+    instance.createdCallback();
+    assert.isTrue(called);
+  });
+
+  test('calls initFeatures() with the correct `this`', function() {
+    Child.initFeatures = function() {
       assert.equal(this, instance);
-    }});
+    };
     instance.createdCallback();
   });
 
