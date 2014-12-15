@@ -37,10 +37,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       ready: function() {
       },
 
-      _bootReady: function() {
-        this._readyListeners = [];
-      },
-
       originalAttachedCallback: Base.attachedCallback,
       
       // Checks if this element is inside another Polymer element. If so,
@@ -72,20 +68,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _listenReady: function(element) {
+        if (!this._readyListeners) {
+          this._readyListeners = [];
+        }
         this._readyListeners.push(element);
       },
 
+      // TODO(sorvell): this will need more modification.
+      // We want distribution to run to completion prior to any user `ready`
+      // methods running. Therefore we have 2 ready passes, one for distribution
+      // and one for user methods.
       _notifyReady: function() {
-        //console.group('[' + this.name + '#' + this.id + ']', 'ready');
-        this._ready();
+        this._broadcast('_ready');
+        this._broadcast('ready', true);
+      },
+
+      _broadcast: function(method, cleanup) {
+        // console.group(method, '[' + this.tag + '#' + this.id + ']', 'ready');
+        this[method]();
         var n$ = this._readyListeners;
         if (n$) {
           for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
-            n._notifyReady();
+            n._broadcast(method, cleanup);
           }
         }
-        this._readyListeners = null;
-        //console.groupEnd('[' + this.name + '#' + this.id + ']', 'ready');
+        if (cleanup) {
+          this._readyListeners = null;
+        }
+        // console.groupEnd(method, '[' + this.tag + '#' + this.id + ']', 'ready');
       },
 
       _ready: function() {
@@ -95,7 +105,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._useContent) {
           this.distributeContent();
         }
-        this.ready();
       }
 
     });
