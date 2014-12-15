@@ -1,0 +1,105 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<script>
+
+  using('Base', function(Base) {
+
+    /**
+    
+      Provides `ready` lifecycle callback which is called parent to child.
+    
+      This can be useful in a number of cases. Here are some examples:
+    
+      Setting a default property value that should have a side effect: To ensure
+      the side effect, an element must set a default value no sooner than
+      `created`; however, since `created` flows child to host, this is before the 
+      host has had a chance to set a property value on the child. The `ready`
+      method solves this problem since it's called host to child.
+    
+      Dom distribution: To support reprojection efficiently, it's important to 
+      distribute from host to child in one shot. The `attachedCallback` mostly
+      goes in the desired order except for elements that are in dom to start; in
+      this case, all children are attached before the host element. Ready also
+      addresses this case since it's guaranteed to be called host to child.
+    
+    */
+
+    Base.addFeature({
+
+      // for overriding
+      ready: function() {
+      },
+
+      _bootReady: function() {
+        this._readyListeners = [];
+      },
+
+      originalAttachedCallback: Base.attachedCallback,
+      
+      // Checks if this element is inside another Polymer element. If so,
+      // then pushes this element into an array of `_readyListeners`; if
+      // not, starts the notify cascade.
+      attachedCallback: function() {
+        this.originalAttachedCallback();
+        this._checkReady();
+      },
+
+      _checkReady: function() {
+        if (!this._readied) {
+          var host = this.queryHost();
+          if (host && !host._readied) {
+            host._listenReady(this);
+          } else {
+            this._notifyReady();
+          }
+        }
+      },
+
+      queryHost: function(node) {
+        return this.host || this._queryHost(this);
+      },
+
+      _queryHost: function(node) {
+        return node && 
+          (node.host || (node.host = this._queryHost(node.parentNode)));
+      },
+
+      _listenReady: function(element) {
+        this._readyListeners.push(element);
+      },
+
+      _notifyReady: function() {
+        //console.group('[' + this.name + '#' + this.id + ']', 'ready');
+        this._ready();
+        var n$ = this._readyListeners;
+        if (n$) {
+          for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+            n._notifyReady();
+          }
+        }
+        this._readyListeners = null;
+        //console.groupEnd('[' + this.name + '#' + this.id + ']', 'ready');
+      },
+
+      _ready: function() {
+        this._readied = true;
+        // TODO(jmesserly): this is a hook to allow content.html to be called
+        // before "ready". This needs to be factored better.
+        if (this._useContent) {
+          this.distributeContent();
+        }
+        this.ready();
+      }
+
+    });
+
+  });
+
+</script>

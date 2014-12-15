@@ -1,0 +1,118 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../bind/bind.html">
+<link rel="import" href="../../bind/bind-effects.html">
+<link rel="import" href="../../bind/bind-annotations.html">
+
+<script>
+
+  /**
+   * 
+   * Support for the declarative property sugaring via a `bind` object
+   * on the prototype and via mustache `{{ }}` annotations on templates.
+   *
+   * The `bind` module provides an API for registering effects against 
+   * properties.
+   * The effect data is consumed by the `bind-effects` module which compiles
+   * the effects into efficient JavaScript that is triggered, e.g., when a
+   * property is set to a new value.
+   *
+   * Property effects can be created imperatively, by template-annotations
+   * (e.g. mustache notation), or by declaration in the `bind` object.
+   *
+   * The bind object syntax is as follows:
+   *
+   * bind {
+   *   // if `method` is the name of a method on the current object, the
+   *   // method is invoked with the property changes. The method is provided
+   *   // arguments as follows: `method(value, oldValue)`
+   *   property: 'method'
+   *
+   *   // To have a property modification trigger multiple side effects, use
+   *   // an array.
+   *   property4: [
+   *    'property4Changed',
+   *    'renderStuff',
+   *    'fixupThings'
+   *   ]
+   * }
+   *
+   * @class feature: bind
+   */
+
+  using(['Base', 'bind', 'bind-annotations'], function(Base, Bind, Annotations) {
+
+    // TODO(sjmiles): note 'true' argument at the bottom causing this feature
+    // to be inserted at the top of the features list. This was a quick-fix.
+
+    Base.addFeature({
+
+      // prototyping
+
+      _bootBind: function() {
+        Bind.prepareModel(this);
+        this._addPropertyBindEffects(this.bind);
+        this._defineComputedProperties(this.computed);
+      },
+
+      _bootBindEffects: function() {
+        if (this._annotes) {
+          Annotations.preprocessBindAnnotations(this, this._annotes);
+        }
+        Bind.createBindings(this);
+      },
+
+      addPropertyEffect: function(property, kind, effect) {
+        return Bind.addPropertyEffect(this, property, kind, effect);
+      },
+
+      _addPropertyBindEffects: function(effects) {
+        for (var n in effects) {
+          var effect = effects[n];
+          if (typeof effect === 'object') {
+            // multiplexed definition
+            for (var nn in effect) {
+              this._addPropertyBindEffect(n, effect[nn]);
+            }
+          } else {
+            // single definition
+            this._addPropertyBindEffect(n, effect);
+          }
+        }
+      },
+
+      _addPropertyBindEffect: function(property, effect) {
+        this.addPropertyEffect(property, 'method', effect);
+      },
+
+      _defineComputedProperties: function(computed) {
+        if (computed) {
+          for (var n in computed) {
+            Bind.addComputedPropertyEffect(this, n, computed[n]);
+          }
+        }
+      },
+
+      // instancing
+
+      _setupInstanceBindings: function() {
+        Bind.prepareInstance(this);
+      },
+
+      _setupBindListeners: function() {
+        Bind.setupBindListeners(this);
+      }
+
+    }, true);
+
+  });
+
+</script>

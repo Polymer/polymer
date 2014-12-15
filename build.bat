@@ -1,2 +1,2 @@
-START /B vulcanize polymer.html --inline -output dist/polymer.html
-START /B vulcanize data.html --inline -output dist/data.html
+START /B vulcanize polymer-simplex.html --inline --strip -output dist/polymer-simplex.html
+START /B vulcanize polymer.html --inline  --strip -output dist/polymer.html

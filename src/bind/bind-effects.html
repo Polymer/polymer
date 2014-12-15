@@ -1,0 +1,94 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<script>
+  using(['bind'], function(Bind) {
+
+    Bind.addComputedPropertyEffect = function(model, name, expression) {
+      var index = expression.indexOf('(');
+      var method = expression.slice(0, index);
+      var args = expression.slice(index + 1, -1).replace(/ /g, '').split(',');
+      //console.log('%c on [%s] compute [%s] via [%s]', 'color: green', args[0], name, method);
+      this.addPropertyEffect(model, args[0], 'compute', {
+        property: name,
+        method: method
+      });
+    };
+
+    Bind._notifyChange = function(property) {
+      this.fire(property + '-changed', {value: this[property]}, null, false);
+    };
+
+    Bind.addBuilders({
+
+      method: function(model, source, effect) {
+      // TODO(sjmiles): validation system requires a blessed
+      // validator effect which needs to be processed first.
+      /*
+      if (typeof this[effect] === 'function') {
+        return [
+          'var validated = this.' + effect + '(value, old)',
+          'if (validated !== undefined) {',
+          '  // recurse',
+          '  this[property] = validated;',
+          '  return;',
+          '}'
+        ].join('\n');
+      }
+      */
+      //
+      return 'this.' + effect + '(this._data.' + source + ', old);'
+    },
+
+    // basic modus operandi
+    //
+    // <hostPath> %=% <targetPath>
+    // (node = <$.id | nodes[index]>)
+    // <model[.path]> %=% node.<property>
+    //
+    // flow-up:
+    // set(model): node.<property> = <model[.path]>
+    //
+    // flow-down:
+    // node.on.<property>-changed: <model[.path]> = e.detail.value
+
+    notify: function(model, source) {
+      model._notifyChange = Bind._notifyChange;
+      return 'this._notifyChange(\'' + source + '\')';
+    },
+
+    compute: function(model, source, effect) {
+      return 'this.' + effect.property
+          + ' = this.' + effect.method + '(this._data.' + source + ');';
+    },
+
+    // implement effect directives from template annotations
+    // _nodes[info.index][info.name] = {{info.value}}
+    annotation: function(model, hostProperty, info) {
+      var property = info.name || 'textContent';
+      if (property !== 'textContent') {
+      // <node>.on.<property>-changed: <path> = e.detail.value
+        Bind._addAnnotatedListener(model, info.index, property, info.value);
+      }
+      //
+      // flow-down
+      //
+      // construct the effect to occur when [property] changes:
+      // set nodes[index][name] to this[value]
+      //
+      //console.log('[_annotationEffectBuilder]: [%s] %=% [%s].[%s]', info.value, info.index, property);
+      return 'this._nodes[' + info.index + '].' + property
+          + ' = this._data.' + info.value + ';';
+    }
+
+  });
+
+});
+
+</script>
