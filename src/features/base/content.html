@@ -33,37 +33,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._useContent) {
           // capture lightChildren to help reify dom scoping
           saveLightChildrenIfNeeded(this);
-          // create our lite ShadowRoot document fragment
-          // this is where the <template> contents will be stamped
-          var root = document.createDocumentFragment();
-          // add a pointer back from the lite ShadowRoot to this node.
-          root.host = this;
-          // initialize the `root` pointers: `root` is guarenteed to always be
-          // available, and be either `this` or `this.contentRoot`. By contrast,
-          // `contentRoot` is only set if _useContent is true. 
-          this.contentRoot = root;
-          this.root = root;
-          // TODO(jmesserly): ad-hoc signal for `ShadowDOM-lite-enhanced` root
-          root.isShadowRoot = true;
+          // TODO(sorvell): ad-hoc signal for `ShadowDOM-lite-enhanced` root
+          this.hasShadyRoot = true;
         }
       },
 
       distributeContent: function() {
-        // sanity check to guard against uninitialized state
-        if (!this.contentRoot) {
-          throw Error('poolContent() must be called before distributeContent()');
+        // logically distribute self
+        if (this._useContent) {
+          // NOTE: contentRoot is primarily available to enable testing
+          if (!this.contentRoot) {
+            this.contentRoot = this.root;
+            this.root = this;
+          }
+          // reset distributions
+          // NOTE: `contentRoot` is populated only for the first 
+          // distribution. After that dom should be in the composed tree and
+          // distribution info should not be reset.
+          this._resetDistribution(this.contentRoot);
+          // compute which nodes should be distributed where
+          // TODO(jmesserly): this is simplified because we assume a single
+          // ShadowRoot per host and no `<shadow>`.
+          this._distributePool(this.contentRoot, this._collectPool());
         }
-        // NOTE: `contentRoot` is populated only for the first 
-        // distribution. After that dom should be in the composed tree and
-        // distribution info should not be reset.
-        // reset distributions
-        this._resetDistribution(this.contentRoot);
-        // compute which nodes should be distributed where
-        // TODO(jmesserly): this is simplified because we assume a single
-        // ShadowRoot per host and no `<shadow>`.
-        this._distributePool(this.contentRoot, this._collectPool());
-        // update the real DOM to be the composed tree
-        this._composeTree(this);
+        // now fully distribute/compose "clients"
+        var l = this._clients.length;
+        for (var i=0, c; (i<l) && (c=this._clients[i]); i++) {
+          c.distributeContent();
+        }
+        // compose self
+        if (this._useContent) {
+          this._composeTree(this);
+        } else if (this.root !== this) {
+          this.appendChild(this.root);
+          this.root = this;
+        }
       },
 
       // TODO(jmesserly): these methods will perform in O(N^2) where N is the
@@ -175,7 +179,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i = 0; i < children.length; i++) {
           var child = children[i];
           // If the child has a content root, let it compose itself.
-          if (!child.contentRoot) {
+          if (!child.hasShadyRoot) {
             this._composeTree(child);
           }
         }

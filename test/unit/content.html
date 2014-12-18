@@ -16,15 +16,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <link rel="import" href="../../polymer.html">
 </head>
 <body>
+<template></template>
 <script>
 
 // TODO(sorvell): cannot register element in main document under polyfill.
 var registered = false;
 function registerTestElement() {
   if (registered) return;
+  var template = document.querySelector('template');
   Polymer({
-    tag: 'x-content-test', 
-    _useContent: true
+    tag: 'x-content-test',
+    _useContent: true,
+    _template: template
   });
   registered = true;
 }
@@ -51,7 +54,7 @@ function testRender(descr, hostInnerHtml, shadowRootHtml, expectedHtml) {
     host.innerHTML = hostInnerHtml;
     syncLightDOM(host);
     // Pretend we're stamping the template contents.
-    setInnerHTML(host.root, shadowRootHtml);
+    setInnerHTML(host.contentRoot, shadowRootHtml);
     // Invoke distribution and verify the resulting tree.
     host.distributeContent();
     assert.strictEqual(host.innerHTML, expectedHtml);
@@ -93,14 +96,15 @@ suite('render content', function() {
 
 
 test('Reproject', function() {
+  registerTestElement();
   var host = document.createElement('x-content-test');
   host.innerHTML = '<a></a>';
   var a = host.firstChild;
   syncLightDOM(host);
-  setInnerHTML(host.root, '<x-content-test id="p">' +
-      '<b></b><content></content></x-content-test>');
-
-  var p = host.root.firstChild;
+  setInnerHTML(host.contentRoot, '<x-content-test id="p"></x-content-test>');
+  var p = host.contentRoot.firstChild;
+  host._clients.push(p);
+  p.innerHTML = '<b></b><content></content>';
   var b = p.firstChild;
   var content = p.lastChild;
 
@@ -108,12 +112,12 @@ test('Reproject', function() {
   CustomElements.upgrade(p);
 
   syncLightDOM(p);
-  setInnerHTML(p.root,
+  setInnerHTML(p.contentRoot,
       'a: <content select=a></content>b: <content select=b></content>');
-  var textNodeA = p.root.firstChild;
-  var contentA = p.root.childNodes[1];
-  var textNodeB = p.root.childNodes[2]
-  var contentB = p.root.childNodes[3];
+  var textNodeA = p.contentRoot.firstChild;
+  var contentA = p.contentRoot.childNodes[1];
+  var textNodeB = p.contentRoot.childNodes[2]
+  var contentB = p.contentRoot.childNodes[3];
 
   function testRender() {
     // Simulate the correct ordering as "ready" would fire.
@@ -125,12 +129,12 @@ test('Reproject', function() {
 
     assertArrayEqual(host.lightChildren, [a]);
     assert.strictEqual(a.lightParent, host);
-    assertArrayEqual(host.root.lightChildren, [p]);
-    assert.strictEqual(p.lightParent, host.root);
+    assertArrayEqual(host.contentRoot.lightChildren, [p]);
+    assert.strictEqual(p.lightParent, host.contentRoot);
     assertArrayEqual(p.lightChildren, [b, content]);
     assert.strictEqual(b.lightParent, p);
     assert.strictEqual(content.lightParent, p);
-    assertArrayEqual(p.root.lightChildren,
+    assertArrayEqual(p.contentRoot.lightChildren,
         [textNodeA, contentA, textNodeB, contentB]);
   }
 
@@ -145,7 +149,7 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content>fallback</content>');
+    setInnerHTML(host.contentRoot, '<content>fallback</content>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
@@ -164,15 +168,15 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content></content><b>after</b>');
+    setInnerHTML(host.contentRoot, '<content></content><b>after</b>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a><b>after</b>');
 
-    host.root.lightChildren[1].textContent = '';
+    host.contentRoot.lightChildren[1].textContent = '';
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
 
-    host.root.lightChildren = [];
+    host.contentRoot.lightChildren = [];
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '');
   });
@@ -182,8 +186,8 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content select="xxx"><b>fallback</b></content>');
-    var b = host.root.firstChild.firstChild;
+    setInnerHTML(host.contentRoot, '<content select="xxx"><b>fallback</b></content>');
+    var b = host.contentRoot.firstChild.firstChild;
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<b>fallback</b>');
 
@@ -191,11 +195,11 @@ suite('Mutate light DOM', function() {
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<b></b>');
 
-    host.root.firstChild.lightChildren = [];
+    host.contentRoot.firstChild.lightChildren = [];
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '');
 
-    host.root.lightChildren = [];
+    host.contentRoot.lightChildren = [];
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '');
   });
@@ -205,7 +209,7 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content>fallback</content>');
+    setInnerHTML(host.contentRoot, '<content>fallback</content>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
@@ -225,7 +229,7 @@ suite('Mutate light DOM', function() {
     var b = a.nextSibling;
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content>fallback</content>');
+    setInnerHTML(host.contentRoot, '<content>fallback</content>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a></a><b></b>');
 
@@ -241,8 +245,8 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content></content><b>after</b>');
-    var b = host.root.lastChild;
+    setInnerHTML(host.contentRoot, '<content></content><b>after</b>');
+    var b = host.contentRoot.lastChild;
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a><b>after</b>');
 
@@ -250,11 +254,11 @@ suite('Mutate light DOM', function() {
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
 
-    host.root.lightChildren.splice(1, 1); // remove b
+    host.contentRoot.lightChildren.splice(1, 1); // remove b
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
-    host.root.lightChildren = []; // remove a
+    host.contentRoot.lightChildren = []; // remove a
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '');
   });
@@ -265,16 +269,16 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a><b>World</b>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content select="b">fallback b</content>' +
+    setInnerHTML(host.contentRoot, '<content select="b">fallback b</content>' +
                             '<content select="a">fallback a</content>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<b>World</b><a>Hello</a>');
 
-    host.root.firstChild.setAttribute('select', 'xxx');
+    host.contentRoot.firstChild.setAttribute('select', 'xxx');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, 'fallback b<a>Hello</a>');
 
-    host.root.firstChild.setAttribute('select', '');
+    host.contentRoot.firstChild.setAttribute('select', '');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a><b>World</b>fallback a');
   });
@@ -284,7 +288,7 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content></content>');
+    setInnerHTML(host.contentRoot, '<content></content>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
@@ -298,12 +302,12 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content></content>');
+    setInnerHTML(host.contentRoot, '<content></content>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
     var b = document.createElement('b');
-    host.root.appendChild(b);
+    host.contentRoot.appendChild(b);
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
   });
@@ -314,7 +318,7 @@ suite('Mutate light DOM', function() {
     var a = host.firstChild;
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content></content>');
+    setInnerHTML(host.contentRoot, '<content></content>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
@@ -328,13 +332,13 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content></content>');
-    var content = host.root.firstChild;
+    setInnerHTML(host.contentRoot, '<content></content>');
+    var content = host.contentRoot.firstChild;
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
     var b = document.createElement('b');
-    host.root.insertBefore(b, content);
+    host.contentRoot.insertBefore(b, content);
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<b></b><a>Hello</a>');
   });
@@ -345,7 +349,7 @@ suite('Mutate light DOM', function() {
     var a = host.firstChild;
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content></content>');
+    setInnerHTML(host.contentRoot, '<content></content>');
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
@@ -360,13 +364,13 @@ suite('Mutate light DOM', function() {
     host.innerHTML = '<a>Hello</a>';
 
     syncLightDOM(host);
-    setInnerHTML(host.root, '<content></content>');
-    var content = host.root.firstChild;
+    setInnerHTML(host.contentRoot, '<content></content>');
+    var content = host.contentRoot.firstChild;
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<a>Hello</a>');
 
     var b = document.createElement('b');
-    host.root.replaceChild(b, content);
+    host.contentRoot.replaceChild(b, content);
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<b></b>');
   });
