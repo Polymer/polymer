@@ -57,8 +57,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._distributePool(this.contentRoot, this._collectPool());
         }
         // now fully distribute/compose "clients"
-        var l = this._clients.length;
-        for (var i=0, c; (i<l) && (c=this._clients[i]); i++) {
+        var c$ = this._getDistributionClients();
+        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
           c.distributeContent();
         }
         // compose self
@@ -104,6 +104,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           node = this;
         }
         return matchesSelector.call(node, selector);
+      },
+
+      querySelectorLocal: function(selector) {
+        var self = this;
+        return this.queryLocal(function(n) {
+          return self.elementMatches(selector, n);
+        });
+      },
+
+      queryLocal: function(matcher) {
+        var c$ = this.children;
+        var list = [];
+        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if (!c._destinationInsertionPoints) {
+            this._queryLocal(c, matcher, list);
+          }
+        }
+        return list;
+      },
+
+      _queryLocal: function(node, matcher, list) {
+        if (matcher(node)) {
+          list.push(node);
+        }
+        var c$ = getLightChildren(node);
+        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if (c.nodeType === Node.ELEMENT_NODE) {
+            this._queryLocal(c, matcher, list);
+          }
+        }
       },
 
       // Many of the following methods are all conceptually static, but they are
@@ -172,6 +202,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i = 0; i < children.length; i++) {
           this._distributePool(children[i], pool);
         }
+      },
+
+      _getDistributionClients: function() {
+        return this._clients ? this._clients :
+          this.queryLocal(function(n) {
+            // TODO(sorvell): need a better test here
+            return Boolean(n.distributeContent);
+          });
       },
 
       _composeTree: function(node) {

@@ -103,7 +103,6 @@ test('Reproject', function() {
   syncLightDOM(host);
   setInnerHTML(host.contentRoot, '<x-content-test id="p"></x-content-test>');
   var p = host.contentRoot.firstChild;
-  host._clients.push(p);
   p.innerHTML = '<b></b><content></content>';
   var b = p.firstChild;
   var content = p.lastChild;
@@ -122,6 +121,8 @@ test('Reproject', function() {
   function testRender() {
     // Simulate the correct ordering as "ready" would fire.
     host.distributeContent();
+    // NOTE: needed only for this imperative test that needs
+    // to simulate distribution from `contentRoot`
     p.distributeContent();
 
     assert.strictEqual(host.innerHTML,
@@ -373,6 +374,31 @@ suite('Mutate light DOM', function() {
     host.contentRoot.replaceChild(b, content);
     host.distributeContent();
     assert.strictEqual(host.innerHTML, '<b></b>');
+  });
+
+  test('querySelectorLocal', function() {
+    var host = document.createElement('x-content-test');
+    host.innerHTML = '<div id="main"></div>';
+    syncLightDOM(host);
+    setInnerHTML(host.contentRoot, '<content></content><span id="main"></span>' +
+      '<x-content-test></x-content-test>');
+    var hostLocalMain = host.contentRoot.firstChild.nextSibling;
+    var child = host.contentRoot.lastChild;
+    // force upgrade on polyfilled browsers
+    CustomElements.upgrade(child);
+    child.innerHTML = '<div id="sub"></div>';
+    var childLightSub = child.firstChild;
+    syncLightDOM(child);
+    setInnerHTML(child.contentRoot, '<content></content><span id="sub"></span>');
+    var childLocalSub = child.contentRoot.lastChild;
+    host.distributeContent();
+    // NOTE: needed only for this imperative test that needs
+    // to simulate distribution from `contentRoot`
+    child.distributeContent();
+    
+    assert.deepEqual(host.querySelectorLocal('#main'), [hostLocalMain]);
+    assert.deepEqual(host.querySelectorLocal('#sub'), [childLightSub]);
+    assert.deepEqual(child.querySelectorLocal('#sub'), [childLocalSub]);
   });
 
 });
