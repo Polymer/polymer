@@ -21,11 +21,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       setupBindListeners: function(inst) {
         inst._bindListeners.forEach(function(info) {
+          // Property listeners:
           // <node>.on.<property>-changed: <path]> = e.detail.value
           //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
-          var fn = new Function('e', 'this.' + info.path + ' = e.detail.value;');
+
+          // TODO(kschaaf): using the dirty check from notifyPath to determine whether
+          // to update the value avoids null references when the object has gone away
+          var notifyPath = (info.path.indexOf('.') > 0) ? 
+            'if (this.notifyPath(\'' + info.path + '\', e.detail.value)) { ' : '';
+          var fn = new Function('e', notifyPath + 'this.' + info.path +
+            ' = e.detail.value;' + (notifyPath ? '}' : ''));
           var node = inst._nodes[info.index];
           node.addEventListener(info.property + '-changed', fn.bind(inst));
+
+          // Path listeners:
+          if (node._isPublishedObject && node._isPublishedObject(info.property)) {
+            node.addEventListener(info.property + '-path-changed', function(e) {
+              // re-jigger path
+              // binding.path == item
+              // binding.property == zizz
+              // if no e.detail.path, path === binding.path
+              // else replace binding.name with binding.path in e.detail.path
+              var path = this._fixPath(info.path, info.property, e.detail.path);
+              inst.notifyPath(path, e.detail.value);
+            });
+          }
         });
       },
 

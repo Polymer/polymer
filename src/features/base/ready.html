@@ -31,81 +31,62 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     
     */
 
+    var hostStack = [];
+
     Base.addFeature({
 
       // for overriding
       ready: function() {
       },
 
-      originalAttachedCallback: Base.attachedCallback,
-      
-      // Checks if this element is inside another Polymer element. If so,
-      // then pushes this element into an array of `_readyListeners`; if
-      // not, starts the notify cascade.
-      attachedCallback: function() {
-        this.originalAttachedCallback();
-        this._checkReady();
+      queryHost: function() {
+        return this.host;
+      },
+
+      // 1. set this element's `host` and push this element onto the `host`'s
+      // list of `client` elements
+      // 2. establish this element as the current hosting element (allows 
+      // any elements we stamp to easily set host to us).
+      _prepareStamping: function() {
+        this.host = hostStack[hostStack.length-1];
+        if (this.host) {
+          this.host._clients.push(this);
+        }
+        if (!this._clients) {
+          this._clients = [];
+        }
+        hostStack.push(this);
+      },
+
+      // 1. this element is no longer the current hosting element
+      // 2. if necessary, perform dom composition.
+      _finishStamping: function() {
+        hostStack.pop();
+        if (this._readied || !this.host || this.host._readied) {
+          this.distributeContent();
+        }
       },
 
       _checkReady: function() {
-        if (!this._readied) {
-          var host = this.queryHost();
-          if (host && !host._readied) {
-            host._listenReady(this);
-          } else {
-            this._notifyReady();
-          }
+        if (!this.host || this.host._readied) {
+          this._ready();
         }
       },
 
-      queryHost: function(node) {
-        return this.host || this._queryHost(this);
-      },
-
-      _queryHost: function(node) {
-        return node && 
-          (node.host || (node.host = this._queryHost(node.parentNode)));
-      },
-
-      _listenReady: function(element) {
-        if (!this._readyListeners) {
-          this._readyListeners = [];
-        }
-        this._readyListeners.push(element);
-      },
-
-      // TODO(sorvell): this will need more modification.
-      // We want distribution to run to completion prior to any user `ready`
-      // methods running. Therefore we have 2 ready passes, one for distribution
-      // and one for user methods.
-      _notifyReady: function() {
-        this._broadcast('_ready');
-        this._broadcast('ready', true);
-      },
-
-      _broadcast: function(method, cleanup) {
-        // console.group(method, '[' + this.tag + '#' + this.id + ']', 'ready');
-        this[method]();
-        var n$ = this._readyListeners;
-        if (n$) {
-          for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
-            n._broadcast(method, cleanup);
-          }
-        }
-        if (cleanup) {
-          this._readyListeners = null;
-        }
-        // console.groupEnd(method, '[' + this.tag + '#' + this.id + ']', 'ready');
-      },
-
+      // call `ready` if necessary ensuring host -> client ordering.
       _ready: function() {
-        this._readied = true;
-        // TODO(jmesserly): this is a hook to allow content.html to be called
-        // before "ready". This needs to be factored better.
-        if (this._useContent) {
-          this.distributeContent();
+        if (!this._readied) {
+          // ready myself
+          this._readied = true;
+          this.ready();
+          // ready my clients...
+          var n$ = this._clients;
+          for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+            n._ready();
+          }
+          this._clients = null;
         }
-      }
+      },
 
     });
 
