@@ -33,28 +33,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._useContent) {
           // capture lightChildren to help reify dom scoping
           saveLightChildrenIfNeeded(this);
-          // TODO(sorvell): ad-hoc signal for `ShadowDOM-lite-enhanced` root
-          this.hasShadyRoot = true;
         }
       },
 
       distributeContent: function() {
         // logically distribute self
         if (this._useContent) {
-          // NOTE: contentRoot is primarily available to enable testing
-          if (!this.contentRoot) {
-            this.contentRoot = this.root;
+          if (!this.shadyRoot) {
+            this.shadyRoot = this.root;
             this.root = this;
           }
           // reset distributions
-          // NOTE: `contentRoot` is populated only for the first 
-          // distribution. After that dom should be in the composed tree and
-          // distribution info should not be reset.
-          this._resetDistribution(this.contentRoot);
+          this._resetDistribution(this.shadyRoot);
           // compute which nodes should be distributed where
           // TODO(jmesserly): this is simplified because we assume a single
           // ShadowRoot per host and no `<shadow>`.
-          this._distributePool(this.contentRoot, this._collectPool());
+          this._distributePool(this.shadyRoot, this._collectPool());
         }
         // now fully distribute/compose "clients"
         var c$ = this._getDistributionClients();
@@ -76,6 +70,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // subsequent call. An alternative approach would be to schedule the work,
       // and do it asynchronously, which would give us O(N) performance because
       // we'd do it once per frame in the worst case.
+      /**
+        Adds the given `node` to the element's `lightChildren`, optional at the
+        index specified by `opt_index`. This method also performs
+        dom composition.
+      */
       addLightChild: function(node, opt_index) {
         saveLightChildrenIfNeeded(this);
         if (opt_index === undefined) {
@@ -86,6 +85,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.distributeContent();
       },
 
+      /**
+        Removes the given `node` from the element's `lightChildren`.
+        This method also performs dom composition.
+      */
       removeLightChild: function(node) {
         saveLightChildrenIfNeeded(this);
         var index = this.lightChildren.indexOf(node);
@@ -106,6 +109,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return matchesSelector.call(node, selector);
       },
 
+      /**
+        Returns the list of childNodes in the element's local dom.
+      */
+      get localChildren() {
+        return getLightChildren(this.shadyRoot || this);
+      },
+
+      /**
+        Returns an array of elements matching the given css `selector` contained
+        within the element's local dom.
+      */
       querySelectorLocal: function(selector) {
         var self = this;
         return this.queryLocal(function(n) {
@@ -114,10 +128,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       queryLocal: function(matcher) {
-        var c$ = this.children;
+        var c$ = this.localChildren;
         var list = [];
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
-          if (!c._destinationInsertionPoints) {
+          if (c.nodeType === Node.ELEMENT_NODE) {
             this._queryLocal(c, matcher, list);
           }
         }
@@ -217,7 +231,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i = 0; i < children.length; i++) {
           var child = children[i];
           // If the child has a content root, let it compose itself.
-          if (!child.hasShadyRoot) {
+          if (!child._useContent) {
             this._composeTree(child);
           }
         }
@@ -226,9 +240,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _composeNode: function(node) {
         var children = [];
-        var lightChildren = getLightChildren(node.contentRoot || node);
-        for (var i = 0; i < lightChildren.length; i++) {
-          var child = lightChildren[i];
+        var c$ = getLightChildren(node.shadyRoot || node);
+        for (var i = 0; i < c$.length; i++) {
+          var child = c$[i];
           if (isInsertionPoint(child)) {
             var distributedNodes = child._distributedNodes;
             for (var j = 0; j < distributedNodes.length; j++) {
