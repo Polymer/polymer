@@ -39,6 +39,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       distributeContent: function() {
         // logically distribute self
         if (this._useContent) {
+          // ensure shadyRoot exists
+          // TODO(sorvell): the existence of `shadyRoot` is questionable;
+          // instead consider having `this.root` simply be local dom.
           if (!this.shadyRoot) {
             this.shadyRoot = this.root;
             this.root = this;
@@ -128,26 +131,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       queryLocal: function(matcher) {
-        var c$ = this.localChildren;
         var list = [];
-        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+        this._queryLocalElements(this.localChildren, matcher, list);
+        return list;
+      },
+
+      _queryLocalElements: function(elements, matcher, list) {
+        for (var i=0, l=elements.length, c; (i<l) && (c=elements[i]); i++) {
           if (c.nodeType === Node.ELEMENT_NODE) {
             this._queryLocal(c, matcher, list);
           }
         }
-        return list;
       },
 
       _queryLocal: function(node, matcher, list) {
         if (matcher(node)) {
           list.push(node);
         }
-        var c$ = getLightChildren(node);
-        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
-          if (c.nodeType === Node.ELEMENT_NODE) {
-            this._queryLocal(c, matcher, list);
-          }
-        }
+        this._queryLocalElements(getLightChildren(node), matcher, list);
       },
 
       // Many of the following methods are all conceptually static, but they are
@@ -166,9 +167,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      // Gather the pool of nodes that should be distributed. We will combine
+      // these with the "content root" to arrive at the composed tree.
       _collectPool: function() {
-        // Gather the pool of nodes that should be distributed. We will combine
-        // these with the "content root" to arrive at the composed tree.
         var pool = [];
         var children = getLightChildren(this);
         for (var i = 0; i < children.length; i++) {
@@ -182,6 +183,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return pool;
       },
 
+      // perform "logical" distribution; note, no actual dom is moved here,
+      // instead elements are distributed into a `content._distributedNodes`
+      // array where applicable.
       _distributePool: function(node, pool) {
         if (isInsertionPoint(node)) {
           // distribute nodes from the pool that this selector matches
@@ -218,6 +222,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      // returns a list of elements that support content distribution
+      // within this element's local dom.
       _getDistributionClients: function() {
         return this._clients ? this._clients :
           this.queryLocal(function(n) {
@@ -226,6 +232,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           });
       },
 
+      // Reify dom such that it is at its correct rendering position
+      // based on logical distribution.
       _composeTree: function(node) {
         var children = this._composeNode(node);
         for (var i = 0; i < children.length; i++) {
@@ -238,6 +246,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._updateChildNodes(node, children);
       },
 
+      // Returns the list of nodes which should be rendered inside `node`.
       _composeNode: function(node) {
         var children = [];
         var c$ = getLightChildren(node.shadyRoot || node);
@@ -258,6 +267,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return children;
       },
 
+      // Ensures that the rendered node list inside `node` is `children`.
       _updateChildNodes: function(node, children) {
         // Add the children that need to be added. 
         // NOTE: we do this left-to-right in order to maintain the same
@@ -310,14 +320,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!validSelectors.test(select)) {
           return false;
         }
-        // TODO(sorvell): This try..catch seems unfortunate and will nerf 
-        // performance, can we remove?
-        try {
-          return this.elementMatches(select, node);
-        } catch (ex) {
-          // Invalid selector.
-          return false;
-        }
+        return this.elementMatches(select, node);
       }
     });
 
