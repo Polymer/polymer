@@ -9,30 +9,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <script>
 
-  using('Base', function(Base) {
+  /**
+   *
+   * Provides `ready` lifecycle callback which is called parent to child.
+   *
+   * This can be useful in a number of cases. Here are some examples:
+   *
+   * Setting a default property value that should have a side effect: To ensure
+   * the side effect, an element must set a default value no sooner than
+   * `created`; however, since `created` flows child to host, this is before the
+   * host has had a chance to set a property value on the child. The `ready`
+   * method solves this problem since it's called host to child.
+   *
+   * Dom distribution: To support reprojection efficiently, it's important to 
+   * distribute from host to child in one shot. The `attachedCallback` mostly
+   * goes in the desired order except for elements that are in dom to start; in
+   * this case, all children are attached before the host element. Ready also
+   * addresses this case since it's guaranteed to be called host to child.
+   *
+   * @class standard feature: ready
+   */
 
-    /**
-    
-      Provides `ready` lifecycle callback which is called parent to child.
-    
-      This can be useful in a number of cases. Here are some examples:
-    
-      Setting a default property value that should have a side effect: To ensure
-      the side effect, an element must set a default value no sooner than
-      `created`; however, since `created` flows child to host, this is before the 
-      host has had a chance to set a property value on the child. The `ready`
-      method solves this problem since it's called host to child.
-    
-      Dom distribution: To support reprojection efficiently, it's important to 
-      distribute from host to child in one shot. The `attachedCallback` mostly
-      goes in the desired order except for elements that are in dom to start; in
-      this case, all children are attached before the host element. Ready also
-      addresses this case since it's guaranteed to be called host to child.
-    
-    */
+  using('Base', function(Base) {
 
     var hostStack = [];
 
+    var inheritedStampTemplate = Base.stampTemplate;
+ 
     Base.addFeature({
 
       // for overriding
@@ -41,6 +44,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       queryHost: function() {
         return this.host;
+      },
+
+      stampTemplate: function() {
+        // establishes this element as the current `host` 
+        // so stamped elements can lookup host
+        // TODO(sjmiles): ad-hoc dependency on 'ready' module
+        this._prepareStamping();
+        // call inherited method
+        inheritedStampTemplate.call(this);
+        // ensures dom is fully composed and attached to the element;
+        // removes this element as the current `host`
+        // after this, `this.root` points to the element itself.
+        // TODO(sjmiles): ad-hoc dependency on 'ready' module
+        this._finishStamping();
       },
 
       // 1. set this element's `host` and push this element onto the `host`'s
