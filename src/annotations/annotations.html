@@ -64,14 +64,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   modulate('Annotations', function() {
 
+    // null-array (shared empty array to avoid null-checks)
+    var nar = [];
+
     var Annotations = {
 
       // preprocess-time
 
       parseAnnotations: function(template) {
-        var list = [];
-        this._parseNodeAnnotations(template.content, list);
-        return list;
+        //if (template.annotations) {
+        //  return template.annotations;
+        //} else {
+          var list = [];
+          this._parseNodeAnnotations(
+            template._content || template.content, list);
+          //template.annotations = list;
+          return list;
+        //}
       },
 
       _parseNodeAnnotations: function(node, list) {
@@ -115,7 +124,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _parseChildNodesAnnotations: function(root, annote, list) {
         if (root.firstChild) {
-          for (var i=0, node=root.firstChild; node; node=node.nextSibling, i++) {
+          for (var i=0, node=root.firstChild; node; node=node.nextSibling, i++){
+            if (node.localName === 'template') {
+              // TODO(sjmiles): simply altering the .content reference didn't
+              // work (there was some confusion, might need verification)
+              var content = document.createDocumentFragment();
+              content.appendChild(node.content);
+              // TODO(sjmiles): using `nar` to avoid unnecessary allocation;
+              // in general the handling of these arrays needs some cleanup 
+              // in this module
+              list.push({
+                bindings: nar,
+                events: nar,
+                templateContent: content,
+                parent: annote,
+                index: i
+              });
+            }
+            //
             var childAnnotation = this._parseNodeAnnotations(node, list);
             if (childAnnotation) {
               childAnnotation.parent = annote;
@@ -170,10 +196,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       // instance-time
-
-      instanceTemplate: function(template) {
-        return document.importNode(template.content, true);
-      },
 
       findAnnotatedNode: function(root, annote) {
         if (!annote.parent) {
