@@ -20,10 +20,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     Base.addFeature({
 
-      // TODO(sjmiles): ad-hoc signal for `ShadowDOM-lite-enhanced` nodes
-      isHost: true,
-
       _bootContent: function() {
+        // Use this system iff projection is needed, otherwise localDom
+        // === composed DOM.
         this._useContent = this._useContent ||
           Boolean(this._template &&
           this._template.content.querySelector('content'));
@@ -33,6 +32,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._useContent) {
           // capture lightChildren to help reify dom scoping
           saveLightChildrenIfNeeded(this);
+          this.lightDom = new DomRoot(this, this);
         }
       },
 
@@ -44,6 +44,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // instead consider having `this.root` simply be local dom.
           if (!this.shadyRoot) {
             this.shadyRoot = this.root;
+            this.localDom = new DomRoot(this.shadyRoot, this);
             this.root = this;
           }
           // reset distributions
@@ -53,6 +54,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // ShadowRoot per host and no `<shadow>`.
           this._distributePool(this.shadyRoot, this._collectPool());
         }
+
         // now fully distribute/compose "clients"
         var c$ = this._getDistributionClients();
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
@@ -65,43 +67,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.appendChild(this.root);
           this.root = this;
         }
-      },
 
-      // TODO(jmesserly): these methods will perform in O(N^2) where N is the
-      // number of times they are called. That is because each call does
-      // `distibuteContent` and the work it needs to do increases with each
-      // subsequent call. An alternative approach would be to schedule the work,
-      // and do it asynchronously, which would give us O(N) performance because
-      // we'd do it once per frame in the worst case.
-      /**
-        Adds the given `node` to the element's `lightChildren`, optional at the
-        index specified by `opt_index`. This method also performs
-        dom composition.
-      */
-      addLightChild: function(node, opt_index) {
-        saveLightChildrenIfNeeded(this);
-        if (opt_index === undefined) {
-          this.lightChildren.push(node);
-        } else {
-          this.lightChildren.splice(opt_index, 0, node);
+        // TODO(sorvell): consider a better location for this.
+        if (!this.lightDom) {
+          this.lightDom = this.localDom = new DomRoot(this, this);
         }
-        this.distributeContent();
       },
 
-      /**
-        Removes the given `node` from the element's `lightChildren`.
-        This method also performs dom composition.
-      */
-      removeLightChild: function(node) {
-        saveLightChildrenIfNeeded(this);
-        var index = this.lightChildren.indexOf(node);
-        if (index < 0) {
-          throw Error('The node to be removed is not a light child of this node');
-        }
-        this.lightChildren.splice(index, 1);
-        this.distributeContent();
-      },
-
+      
       // This is a polyfill for Element.prototype.matches, which is sometimes
       // still prefixed. Alternatively we could just polyfill it somewhere.
       // Note that the arguments are reversed from what you might expect.
@@ -110,13 +83,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           node = this;
         }
         return matchesSelector.call(node, selector);
-      },
-
-      /**
-        Returns the list of childNodes in the element's local dom.
-      */
-      get localChildren() {
-        return getLightChildren(this.shadyRoot || this);
       },
 
       /**
@@ -132,7 +98,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       queryLocal: function(matcher) {
         var list = [];
-        this._queryLocalElements(this.localChildren, matcher, list);
+        this._queryLocalElements(this.localDom.children, matcher, list);
         return list;
       },
 
@@ -149,6 +115,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           list.push(node);
         }
         this._queryLocalElements(getLightChildren(node), matcher, list);
+      },
+
+      /*
+        Returns a list of nodes distributed within this element. These can be 
+        dom children or elements distributed to children that are insertion
+        points.
+      */
+      querySelectorDistributed: function(selector, node) {
+        node = node || this;
+        var list = node.querySelectorAll(selector);
+        return list;
       },
 
       // Many of the following methods are all conceptually static, but they are
@@ -222,6 +199,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      // TODO(sorvell): building this list is an obviously perf issue; 
+      // it needs to be explicitly managed.
+      //
       // returns a list of elements that support content distribution
       // within this element's local dom.
       _getDistributionClients: function() {
@@ -391,6 +371,64 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var matchesSelector = p.matches || p.matchesSelector ||
         p.mozMatchesSelector || p.msMatchesSelector ||
         p.oMatchesSelector || p.webkitMatchesSelector;
+
+
+    var DomRoot = function(node, host) {
+      //saveLightChildrenIfNeeded(node);
+      this.node = node;
+      this.host = host;
+    };
+
+    DomRoot.prototype = {
+      
+      get children() {
+        return getLightChildren(this.node || this.host);
+      },
+
+      // TODO(jmesserly): these methods will perform in O(N^2) where N is the
+      // number of times they are called. That is because each call does
+      // `distributeContent` and the work it needs to do increases with each
+      // subsequent call. An alternative approach would be to schedule the work,
+      // and do it asynchronously, which would give us O(N) performance because
+      // we'd do it once per frame in the worst case.
+      /**
+        Adds the given `node` to the element's `lightChildren`, optional at the
+        index specified by `opt_index`. This method also performs
+        dom composition.
+      */
+      appendChild: function(node) {
+        this.children.push(node);
+        this.host.distributeContent();
+      },
+
+      insertBefore: function(node, ref_node) {
+        if (ref_node) {
+          var index = this.children.indexOf(ref_node);
+          if (index < 0) {
+            throw Error('The ref_node to be inserted before is not a child ' +
+              'of this node');
+          }
+          this.children.splice(index, 0, node);
+          this.host.distributeContent();
+        } else {
+          this.appendChild(node);
+        }
+      },
+
+      /**
+        Removes the given `node` from the element's `lightChildren`.
+        This method also performs dom composition.
+      */
+      removeChild: function(node) {
+        var index = this.children.indexOf(node);
+        if (index < 0) {
+          throw Error('The node to be removed is not a child of this node');
+        }
+        this.children.splice(index, 1);
+        this.host.distributeContent();
+      }
+            
+    }; 
 
   });
 
