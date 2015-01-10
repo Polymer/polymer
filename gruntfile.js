@@ -86,6 +86,16 @@ module.exports = function(grunt) {
         }
       }
     },
+    retire : {
+      js      : ['gruntfile.js', 'src/*.js', 'src/**/*.js', 'test/**/*.js', 'workbench/smoke/*.js'],
+      node    : ['./'],
+      options : {
+        verbose        : true,
+        packageOnly    : true,
+        jsRepository   : 'https://raw.github.com/bekk/retire.js/master/repository/jsrepository.json',
+        nodeRepository : 'https://raw.github.com/bekk/retire.js/master/repository/npmrepository.json'
+      }
+    },    
     pkg: grunt.file.readJSON('package.json')
   });
 
@@ -115,4 +125,5 @@ module.exports = function(grunt) {
     delete config.dependencies.URL;
     grunt.file.write('./dist/bower.json', JSON.stringify(config, null, 2));
   });
+  grunt.loadNpmTasks('grunt-retire');
 };
