@@ -26,6 +26,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var originalBootTemplate = Base._bootTemplate;
 
+    var deep = false;
+
     Base.addFeature({
 
       _bootTemplate: function() {
@@ -48,20 +50,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!styles.length) {
           return;
         }
-        if (!this._template) {
-          var template = this._template = document.createElement('template');
-          this._template.content.appendChild(document.createElement('content'));
+        if (!deep) {
+          if (!this._template) {
+            var template = this._template = document.createElement('template');
+            this._template.content.appendChild(document.createElement('content'));
+          }
         }
-
         this._processStyles(this._styles, tag);
-        if (template) {
+        if (!deep && template) {
           this.insertStyles(this._styles, template.content);
         }
       },
 
       _processStyles: function(styles, name) {
         for (var i=0, l=styles.length, style; (i<l) && (style=styles[i]); i++) {
-          this._processStyle(style, name);
+          if (deep) {
+            this._processStyleDeep(style, name);
+          } else {
+            this._processStyle(style, name);
+          }
         }
       },
 
@@ -76,6 +83,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         text = text.replace(compound, function(match, part) {
           return host + '(' + part + ')';
         });
+        style.textContent = text;
+      },
+
+      _processStyleDeep: function(style, name) {
+        var text = style.textContent;
+        var sel = /([^{}]*){/g;
+        var rec = /([^\s>\{\}\;])\s([^}{>])/g;
+        var n = new RegExp(name, 'g');
+        text = text.replace(sel, function(match) {
+          var parts = match.split(',');
+          for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
+            p = p.replace(rec, function(m, s, e) {
+              return s + ' /deep/ ' + e;
+            });
+            p = p.replace(n, 'html /deep/ ' + name);
+            parts[i] = p;
+          }
+          match = parts.join(',');
+          return match;
+        });  
+        // console.warn('style');
+        // console.log(text);
         style.textContent = text;
       },
 
