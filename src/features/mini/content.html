@@ -85,49 +85,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return matchesSelector.call(node, selector);
       },
 
-      /**
-        Returns an array of elements matching the given css `selector` contained
-        within the element's local dom.
-      */
-      querySelectorLocal: function(selector) {
-        var self = this;
-        return this.queryLocal(function(n) {
-          return self.elementMatches(selector, n);
-        });
-      },
-
-      queryLocal: function(matcher) {
-        var list = [];
-        this._queryLocalElements(this.localDom.children, matcher, list);
-        return list;
-      },
-
-      _queryLocalElements: function(elements, matcher, list) {
-        for (var i=0, l=elements.length, c; (i<l) && (c=elements[i]); i++) {
-          if (c.nodeType === Node.ELEMENT_NODE) {
-            this._queryLocal(c, matcher, list);
-          }
-        }
-      },
-
-      _queryLocal: function(node, matcher, list) {
-        if (matcher(node)) {
-          list.push(node);
-        }
-        this._queryLocalElements(getLightChildren(node), matcher, list);
-      },
-
-      /*
-        Returns a list of nodes distributed within this element. These can be 
-        dom children or elements distributed to children that are insertion
-        points.
-      */
-      querySelectorDistributed: function(selector, node) {
-        node = node || this;
-        var list = node.querySelectorAll(selector);
-        return list;
-      },
-
       // Many of the following methods are all conceptually static, but they are
       // included here as "protected" methods to allow overriding.
 
@@ -206,7 +163,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // within this element's local dom.
       _getDistributionClients: function() {
         return this._clients ? this._clients :
-          this.queryLocal(function(n) {
+          this.localDom._query(function(n) {
             // TODO(sorvell): need a better test here
             return Boolean(n.distributeContent);
           });
@@ -301,7 +258,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return false;
         }
         return this.elementMatches(select, node);
+      },
+
+      /*
+        Returns a list of nodes distributed within this element. These can be 
+        dom children or elements distributed to children that are insertion
+        points.
+      */
+      querySelectorAllComposed: function(selector, node) {
+        node = node || this;
+        var list = node.querySelectorAll(selector);
+        return list;
       }
+
     });
 
     function distributeNodeInto(child, insertionPoint) {
@@ -309,7 +278,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var points = child._destinationInsertionPoints;
       if (!points) {
         child._destinationInsertionPoints = [insertionPoint];
-      } else {
+      // TODO(sorvell): _destinationInsertionPoints may not be cleared when
+      // nodes are dynamically added/removed, therefore test before adding
+      // insertion points.
+      } else if (points.indexOf(insertionPoint) < 0) {
         points.push(insertionPoint);
       }
     }
@@ -426,6 +398,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         this.children.splice(index, 1);
         this.host.distributeContent();
+      },
+
+      querySelector: function(selector) {
+        return this.querySelectorAll(selector)[0];
+      },
+
+      querySelectorAll: function(selector) {
+        var self = this;
+        return this._query(function(n) {
+          return self.host.elementMatches(selector, n);
+        });
+      },
+
+      _query: function(matcher) {
+        var list = [];
+        this._queryElements(this.children, matcher, list);
+        return list;
+      },
+
+      _queryElements: function(elements, matcher, list) {
+        for (var i=0, l=elements.length, c; (i<l) && (c=elements[i]); i++) {
+          if (c.nodeType === Node.ELEMENT_NODE) {
+            this._queryElement(c, matcher, list);
+          }
+        }
+      },
+
+      _queryElement: function(node, matcher, list) {
+        if (matcher(node)) {
+          list.push(node);
+        }
+        this._queryElements(getLightChildren(node), matcher, list);
       }
             
     }; 
