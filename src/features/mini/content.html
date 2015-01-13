@@ -69,11 +69,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
 
         // TODO(sorvell): consider a better location for this.
-        if (!this.lightDom) {
-          this.lightDom = this.localDom = new DomRoot(this, this);
+        if (!this._useContent) {
+          var hasLocal = (this._template);
+          var defRoot = new DomRoot(this, this);
+          var nullRoot = new DomRoot(nullFragment, this);
+          nullRoot.emptyRoot = true;
+          this.localDom = hasLocal ? defRoot : nullRoot;
+          this.lightDom = !hasLocal ? defRoot : nullRoot;
         }
       },
-
       
       // This is a polyfill for Element.prototype.matches, which is sometimes
       // still prefixed. Alternatively we could just polyfill it somewhere.
@@ -352,6 +356,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     };
 
     DomRoot.prototype = {
+
+      domRoot: true,
       
       get children() {
         return getLightChildren(this.node || this.host);
@@ -369,19 +375,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         dom composition.
       */
       appendChild: function(node) {
-        this.children.push(node);
-        this.host.distributeContent();
+        if (this.host._useContent) {
+          saveLightChildrenIfNeeded(this.node);
+          this.children.push(node);
+          this.host.distributeContent();
+        } else {
+          this.node.appendChild(node);
+        }
       },
 
       insertBefore: function(node, ref_node) {
         if (ref_node) {
-          var index = this.children.indexOf(ref_node);
-          if (index < 0) {
-            throw Error('The ref_node to be inserted before is not a child ' +
-              'of this node');
+          if (this.host._useContent) {
+            saveLightChildrenIfNeeded(this.node);
+            var index = this.children.indexOf(ref_node);
+            if (index < 0) {
+              throw Error('The ref_node to be inserted before is not a child ' +
+                'of this node');
+            }
+            this.children.splice(index, 0, node);
+            this.host.distributeContent();
+          } else {
+            this.node.insertBefore(node, ref_node);
           }
-          this.children.splice(index, 0, node);
-          this.host.distributeContent();
         } else {
           this.appendChild(node);
         }
@@ -392,12 +408,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         This method also performs dom composition.
       */
       removeChild: function(node) {
-        var index = this.children.indexOf(node);
-        if (index < 0) {
-          throw Error('The node to be removed is not a child of this node');
+        if (this.host._useContent) {
+          var index = this.children.indexOf(node);
+          if (index < 0) {
+            throw Error('The node to be removed is not a child of this node');
+          }
+          this.children.splice(index, 1);
+          this.host.distributeContent();
+        } else {
+          this.node.removeChild(node);
         }
-        this.children.splice(index, 1);
-        this.host.distributeContent();
       },
 
       querySelector: function(selector) {
@@ -433,6 +453,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
             
     }; 
+
+    var nullFragment = document.createDocumentFragment();
 
   });
 
