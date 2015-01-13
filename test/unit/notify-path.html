@@ -1,0 +1,268 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../web-component-tester/browser.js"></script>
+  <script src="../../../webcomponentsjs/webcomponents.js"></script>
+  <link rel="import" href="../../polymer.html">
+<body>
+
+<script>
+  Polymer({
+    name: 'x-basic',
+    published: {
+      notifyingvalue: {
+        type: Number,
+        notify: true
+      }
+    }
+  });
+</script>
+
+<template>
+  <x-basic id="basic1" notifyingvalue="{{obj.value}}"></x-basic>
+  <x-basic id="basic2" notifyingvalue="{{obj.value}}"></x-basic>
+</template>
+<script>
+  Polymer({
+    name: 'x-compose',
+    published: {
+      obj: {
+        type: Object,
+        notify: true
+      }
+    }
+  });
+</script>
+
+<template>
+  <x-compose id="compose" obj="{{obj}}"></x-compose>
+</template>
+<script>
+  Polymer({
+    name: 'x-forward',
+    published: {
+      obj: {
+        type: Object,
+        notify: true
+      }
+    }
+  });
+</script>
+
+<template>
+  <x-basic id="basic" notifyingvalue="{{nested.obj.value}}"></x-basic>
+  <x-compose id="compose" obj="{{nested.obj}}"></x-compose>
+  <x-forward id="forward" obj="{{nested.obj}}"></x-forward>
+</template>
+<script>
+  Polymer({
+    name: 'x-stuff'
+  });
+</script>
+
+<script>
+
+suite('basic path bindings', function() {
+
+  var el;
+
+  beforeEach(function() {
+    el = document.createElement('x-stuff');
+    document.body.appendChild(el);
+  });
+
+  afterEach(function() {
+    el.remove();
+  });
+
+  test('downward data flow', function() {
+    var nested = {
+      obj: {
+        value: 42
+      }
+    };
+    el.nested = nested;
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.obj, nested.obj);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.obj, nested.obj);
+    assert.equal(el.$.forward.$.compose.obj, nested.obj);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from basic element property change', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.basic.notifyingvalue = 42;
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from composed element property change', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.compose.$.basic1.notifyingvalue = 42;
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from forward\'s composed element property change', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.forward.$.compose.$.basic1.notifyingvalue = 42;
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from setPath in top element', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.setPath('nested.obj.value', 42);
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from setPath in composed element', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.compose.setPath('obj.value', 42);
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from setPath in forward element', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.forward.setPath('obj.value', 42);
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from setPath in forward\'s composed element', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.forward.$.compose.setPath('obj.value', 42);
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from object change in compose element', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.compose.obj = {
+      value: 42
+    };
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from object change in forward element', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.forward.obj = {
+      value: 42
+    };
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+  test('notification from object change in forward\'s compose element', function() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.$.forward.$.compose.obj = {
+      value: 42
+    };
+    assert.equal(el.$.basic.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingvalue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingvalue, 42);
+  });
+
+});
+
+</script>
+
+
+
+</body>
+</html>

@@ -112,6 +112,18 @@ using('Base', function(Base) {
       }
     },
 
+    getPath: function(path) {
+      var parts = path.split('.');
+      var last = parts.pop();
+      var prop = this;
+      while (parts.length && (prop=prop[parts.shift()])) {
+        if (!prop) {
+          return;
+        }
+      }
+      return prop[last];
+    },
+
     addPathBindMethod: function(path, method) {
       var fx$ = this._pathEffects || (this._pathEffects = []);
       var match = path.indexOf('.*') == (path.length-2);
@@ -121,6 +133,9 @@ using('Base', function(Base) {
       fx$.push({path: path, match: match, method: method});
     },
 
+    // TODO(kschaaf): This machine can be optimized to memoize compiled path
+    // effectors as new paths are notified for performance, since it involves
+    // a fair amount of runtime lookup
     _pathEffector: function(path, value) {
       var model = modelForPath(path);
       var fx$ = this._propertyEffects[model];
@@ -131,6 +146,8 @@ using('Base', function(Base) {
           if (n) {
             if (effect.value === path) {
               n[effect.name || 'textContent'] = value;
+            } else if (effect.value.indexOf(path) == 0) {
+              n[effect.name || 'textContent'] = this.getPath(effect.value);
             // path == item.stuff.count
             // value == item.stuff 
             // name == zizz

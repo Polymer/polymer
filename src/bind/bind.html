@@ -24,8 +24,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // Property listeners:
           // <node>.on.<property>-changed: <path]> = e.detail.value
           //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
-          // TODO(kschaaf): using the dirty check from notifyPath to determine whether
-          // to update the value avoids null references when the object has gone away
           var node = inst._nodes[info.index];
           node.addEventListener(info.property + '-changed', info.changedFn.bind(inst));
 
@@ -49,16 +47,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _addAnnotatedListener: function(model, index, property, path) {
         // <node>.on.<property>-changed: <path> = e.detail.value
 
-        var notifyPath = (path.indexOf('.') > 0) ? 
-          'if (this.notifyPath(\'' + path + '\', e.detail.value)) { ' : '';
-        var changedFn = new Function('e', notifyPath + 'this.' + path +
-          ' = e.detail.value;' + (notifyPath ? '}' : ''));
+        var changedFn = 'this.' + path + ' = e.detail.value;';
+        if (path.indexOf('.') > 0) {
+          // TODO(kschaaf): dirty check avoids null references when the object has gone away
+          changedFn = 
+            'if (this._data[\'' + path + '\'] != e.detail.value) {\n' +
+            '\t' + changedFn + '\n' +
+            '\tthis.notifyPath(\'' + path + '\', e.detail.value)\n' +
+            '}';
+        }
 
         model._bindListeners.push({
           index: index,
           property: property,
           path: path,
-          changedFn: changedFn
+          changedFn: new Function('e', changedFn)
         });
       },
       
