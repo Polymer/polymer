@@ -39,7 +39,7 @@ By principle, Polymer team tries to avoid abstracting DOM APIs, especially new o
 
 ```js
 var ctor = Polymer({
-  name: 'x-custom',
+  is: 'x-custom',
   created: function() {
     this.innerHTML = 'Hello World, I am a <b>Custom Element!</b>';
   }
@@ -72,7 +72,7 @@ By itself, the `published` feature **doesn't do anything**. It only provides API
 ```js
 Polymer({
 
-  name: 'x-custom',
+  is: 'x-custom',
 
   published: {
     user: String,
@@ -100,7 +100,7 @@ Many custom elements want to support configuration using HTML attributes. Custom
 ```js
   Polymer({
 
-    name: 'x-custom',
+    is: 'x-custom',
 
     created: function() {
       // handle any initial value
@@ -137,7 +137,7 @@ Here is the equivalent of the above code, taking advantage of the `attributes` f
 
   Polymer({
 
-    name: 'x-custom',
+    is: 'x-custom',
 
     published: {
       user: String
@@ -174,7 +174,7 @@ As usual, we started by writing basic template support by hand. It generally loo
 
   Polymer({
 
-    name: 'x-custom',
+    is: 'x-custom',
 
     created: function() {
       var template = <find the template somehow>;
@@ -200,7 +200,7 @@ Again, it's simple, but it's a common pattern, so the `template` feature does it
 
   Polymer({
 
-    name: 'x-custom'
+    is: 'x-custom'
 
   });
 
@@ -226,7 +226,7 @@ Traditionally, modifying DOM is done by querying for elements to manipulate. Her
 
   Polymer({
 
-    name: 'x-custom',
+    is: 'x-custom',
 
     created: function() {
       this.querySelector("#name").textContent = this.name;
@@ -252,7 +252,7 @@ The `annotations-nodes` feature builds a map of instance nodes by `id` in `this.
 
   Polymer({
 
-    name: 'x-custom',
+    is: 'x-custom',
 
     created: function() {
       this.$.name.textContent = this.name;
@@ -278,7 +278,7 @@ Most elements also need to listen for events. The standard DOM method `addEventL
 
   Polymer({
 
-    name: 'x-custom',
+    is: 'x-custom',
 
     created: function() {
       this.$.button.addEventListener('click', function() {
@@ -306,7 +306,7 @@ Declaring listeners in the template is convenient, and also helps us decouple vi
 
   Polymer({
 
-    name: 'x-custom',
+    is: 'x-custom',
 
     kickAction: function() {
       alert('Ow!');
