@@ -28,6 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._template.content.querySelector('content'));
       },
 
+      // called as part of content initialization, prior to template stamping
       _poolContent: function() {
         if (this._useContent) {
           // capture lightChildren to help reify dom scoping
@@ -36,17 +37,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      distributeContent: function() {
-        // logically distribute self
+      // called as part of content initialization, after template stamping
+      _setupRoot: function() {
         if (this._useContent) {
           // ensure shadyRoot exists
-          // TODO(sorvell): the existence of `shadyRoot` is questionable;
-          // instead consider having `this.root` simply be local dom.
-          if (!this.shadyRoot) {
-            this.shadyRoot = this.root;
-            this.localDom = new DomRoot(this.shadyRoot, this);
-            this.root = this;
-          }
+          this.shadyRoot = this.root;
+          this.localDom = new DomRoot(this.shadyRoot, this);
+          this.root = this;
+        } else {
+          var hasLocalDom = (this._template);
+          var defRoot = new DomRoot(this, this);
+          var nullRoot = new DomRoot(nullFragment, this);
+          nullRoot.emptyRoot = true;
+          this.localDom = hasLocalDom ? defRoot : nullRoot;
+          this.lightDom = !hasLocalDom ? defRoot : nullRoot;
+        }
+      },
+
+      distributeContent: function() {
+        // logically distribute self
+        this._prepareContent();
+        // now fully distribute/compose "clients"
+        var c$ = this._getDistributionClients();
+        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
+          c.distributeContent();
+        }
+        this._composeContent();
+      },
+
+      _prepareContent: function() {
+        if (this._useContent) {
           // reset distributions
           this._resetDistribution(this.shadyRoot);
           // compute which nodes should be distributed where
@@ -54,12 +74,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // ShadowRoot per host and no `<shadow>`.
           this._distributePool(this.shadyRoot, this._collectPool());
         }
+      },
 
-        // now fully distribute/compose "clients"
-        var c$ = this._getDistributionClients();
-        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
-          c.distributeContent();
-        }
+      _composeContent: function() {
         // compose self
         if (this._useContent) {
           this._composeTree(this);
@@ -67,18 +84,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.appendChild(this.root);
           this.root = this;
         }
-
-        // TODO(sorvell): consider a better location for this.
-        if (!this._useContent) {
-          var hasLocal = (this._template);
-          var defRoot = new DomRoot(this, this);
-          var nullRoot = new DomRoot(nullFragment, this);
-          nullRoot.emptyRoot = true;
-          this.localDom = hasLocal ? defRoot : nullRoot;
-          this.lightDom = !hasLocal ? defRoot : nullRoot;
-        }
       },
-      
+
       // This is a polyfill for Element.prototype.matches, which is sometimes
       // still prefixed. Alternatively we could just polyfill it somewhere.
       // Note that the arguments are reversed from what you might expect.
