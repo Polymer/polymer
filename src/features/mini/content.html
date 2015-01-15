@@ -42,6 +42,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._useContent) {
           // ensure shadyRoot exists
           this.shadyRoot = this.root;
+          this.shadyRoot.host = this;
           this.localDom = new DomRoot(this.shadyRoot, this);
           this.root = this;
         } else {
@@ -280,11 +281,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node = node || this;
         var list = node.querySelectorAll(selector);
         return list;
-      },
-
-      elementParent: function(node) {
-        node = node || this;
-        return node.lightParent || node.parentNode;
       }
 
     });
@@ -349,7 +345,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var children = [];
         for (var child = node.firstChild; child; child = child.nextSibling) {
           children.push(child);
-          child.lightParent = node;
+          child.lightParent = child.lightParent || node;
         }
         node.lightChildren = children;
       }
@@ -374,9 +370,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     DomRoot.prototype = {
 
       domRoot: true,
-      
-      get children() {
-        return getLightChildren(this.node || this.host);
+
+      children: function(node) {
+        node = node || this.node || this.host;
+        return getLightChildren(node);
+      },
+
+      elementParent: function(node) {
+        node = node || this.node;
+        return node.lightParent || node.parentNode;
+      },
+
+      batch: function(batch_fn) {
+        this._batching = true;
+        if (batch_fn) {
+          batch_fn.call(this.host);
+          this.distribute();
+        }
+      },
+
+      distribute: function() {
+        this._batching = false;
+        this.host.distributeContent();
+      },
+
+      _maybeDistribute: function() {
+        if (!this._batching) {
+          this.host.distributeContent();
+        }
       },
 
       // TODO(jmesserly): these methods will perform in O(N^2) where N is the
@@ -385,37 +406,58 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // subsequent call. An alternative approach would be to schedule the work,
       // and do it asynchronously, which would give us O(N) performance because
       // we'd do it once per frame in the worst case.
-      /**
-        Adds the given `node` to the element's `lightChildren`, optional at the
-        index specified by `opt_index`. This method also performs
-        dom composition.
-      */
-      appendChild: function(node) {
+      appendChild: function(node, container) {
+        container = container || this.node;
         if (this.host._useContent) {
-          saveLightChildrenIfNeeded(this.node);
-          this.children.push(node);
-          this.host.distributeContent();
+          saveLightChildrenIfNeeded(container);
+          var children = this.children(container);
+          // handle document fragments
+          if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+            var n = node.firstChild;
+            while (n) {
+              children.push(n);
+              n.lightParent = container;
+              n = n.nextSibling;
+            }
+          } else {
+            children.push(node);
+            node.lightParent = container;
+          }
+          this._maybeDistribute();
         } else {
-          this.node.appendChild(node);
+          container.appendChild(node);
         }
       },
 
-      insertBefore: function(node, ref_node) {
+      insertBefore: function(node, ref_node, container) {
+        container = container || this.node;
         if (ref_node) {
           if (this.host._useContent) {
-            saveLightChildrenIfNeeded(this.node);
-            var index = this.children.indexOf(ref_node);
+            var children = this.children(container);
+            saveLightChildrenIfNeeded(container);
+            var index = children.indexOf(ref_node);
             if (index < 0) {
               throw Error('The ref_node to be inserted before is not a child ' +
                 'of this node');
             }
-            this.children.splice(index, 0, node);
-            this.host.distributeContent();
+            // handle document fragments
+            if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+              var n = node.lastChild;
+              while (n) {
+                children.splice(index, 0, n);
+                n.lightParent = container;
+                n = n.previousSibling;
+              }
+            } else {
+              children.splice(index, 0, node);
+              node.lightParent = container;
+            }
+            this._maybeDistribute();
           } else {
-            this.node.insertBefore(node, ref_node);
+            container.insertBefore(node, ref_node);
           }
         } else {
-          this.appendChild(node);
+          this.appendChild(node, container);
         }
       },
 
@@ -423,14 +465,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Removes the given `node` from the element's `lightChildren`.
         This method also performs dom composition.
       */
-      removeChild: function(node) {
+      removeChild: function(node, container) {
+        container = container || this.node;
         if (this.host._useContent) {
-          var index = this.children.indexOf(node);
-          if (index < 0) {
+          var children = this.children(container);
+          var index = children.indexOf(node);
+          if ((index < 0) || (container !== node.lightParent)) {
             throw Error('The node to be removed is not a child of this node');
           }
-          this.children.splice(index, 1);
-          this.host.distributeContent();
+          children.splice(index, 1);
+          node.lightParent = null;
+          this._maybeDistribute();
         } else {
           this.node.removeChild(node);
         }
@@ -449,7 +494,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _query: function(matcher) {
         var list = [];
-        this._queryElements(this.children, matcher, list);
+        this._queryElements(this.children(), matcher, list);
         return list;
       },
 
@@ -465,7 +510,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (matcher(node)) {
           list.push(node);
         }
-        this._queryElements(getLightChildren(node), matcher, list);
+        this._queryElements(this.children(node), matcher, list);
       }
             
     }; 
