@@ -16,38 +16,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     */
 
     Base.addFeature({
-      _prepContent: function() {
-        this._useContent = this._useContent || Boolean(this._template);
-      },
 
-      _poolContent: function() {
-        this.lightDom = new DomRoot(this);
-      },
+      // no-op's when ShadowDOM is in use
+      _poolContent: function() {},
 
-      // this should happen only 1x.
-      distributeContent: function() {
-        if (this.shadowRoot) {
-          return;
-        }
-        // compose "clients"
-        var c$ = this._getDistributionClients();
-        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
-          c.distributeContent();
-        }
-        // compose self
-        if (this._useContent) {
-          this._createShadowRoot();
-        } else if (this.root !== this) {
-          this.appendChild(this.root);
-          this.root = this;
-        }
-      },
+      _prepareContent: function() {},
 
-      _createShadowRoot: function() {
-        var root = this.createShadowRoot();
-        this.localDom = new DomRoot(root);
-        root.appendChild(this.root);
-        this.root = root;
+      _composeTree: function() {},
+
+      distributeContent: function() {},
+
+      // create a shadowRoot!
+      _createLocalRoot: function() {
+        this.createShadowRoot();
+        this.localDom = new Base.DomRoot(this.shadowRoot);
+        this.shadowRoot.appendChild(this.root);
+        this.root = this.shadowRoot;
       },
 
       querySelectorAllComposed: function(selector, node) {
@@ -76,28 +60,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     });
 
 
-    var DomRoot = function(node, host) {
+    Base.DomRoot = function(node, host) {
       this.node = node;
     };
 
-    DomRoot.prototype = {
+    Base.DomRoot.prototype = {
 
       domRoot: true,
       
-      get children() {
-        return this.node.childNodes;
+      children: function(node) {
+        node = node || this.node;
+        return Array.prototope.slice.call(node.childNodes);
       },
 
-      appendChild: function(node) {
-        this.node.appendChild(node);
+      batch: function(fn) {
+        if (fn) {
+          fn.call(this.host);
+        }
       },
 
-      insertBefore: function(node, ref_node) {
-        this.node.insertBefore(node, ref_node);
+      distribute: function() {},
+
+      appendChild: function(node, container) {
+        container = container || this.node;
+        container.appendChild(node);
       },
 
-      removeChild: function(node) {
-        this.node.removeChild(node);
+      insertBefore: function(node, ref_node, container) {
+        container = container || this.node;
+        container.insertBefore(node, ref_node);
+      },
+
+      removeChild: function(node, container) {
+        container = container || this.node;
+        container.removeChild(node);
+      },
+
+      elementParent: function(node) {
+        node = node || this.node;
+        return node.parentNode;
       },
 
       querySelector: function(selector) {
@@ -111,6 +112,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     };
+
+    Polymer.dom = new Base.DomRoot(document.body);
 
   });
 

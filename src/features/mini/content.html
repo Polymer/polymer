@@ -21,15 +21,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     Base.addFeature({
 
       _prepContent: function() {
-        // Use this system iff projection is needed, otherwise localDom
-        // === composed DOM.
-        // TODO(sorvell): we should use ShadyDOM whenever there's a template
-        // not just when there's an a priori content. We need to measure the 
-        // perf impact of this.
-        // This impacts https://github.com/Polymer/polymer/issues/1078.
-        this._useContent = this._useContent ||
-          Boolean(this._template &&
-          this._template.content.querySelector('content'));
+        // Use this system iff localDom is needed.
+        this._useContent = this._useContent || Boolean(this._template);
       },
 
       // called as part of content initialization, prior to template stamping
@@ -37,26 +30,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._useContent) {
           // capture lightChildren to help reify dom scoping
           saveLightChildrenIfNeeded(this);
-          this.lightDom = new DomRoot(this, this);
         }
       },
 
       // called as part of content initialization, after template stamping
       _setupRoot: function() {
         if (this._useContent) {
-          // ensure shadyRoot exists
-          this.shadyRoot = this.root;
-          this.shadyRoot.host = this;
-          this.localDom = new DomRoot(this.shadyRoot, this);
-          this.root = this;
+          this._createLocalRoot();
         } else {
-          var hasLocalDom = (this._template);
-          var defRoot = new DomRoot(this, this);
-          var nullRoot = new DomRoot(nullFragment, this);
-          nullRoot.emptyRoot = true;
-          this.localDom = hasLocalDom ? defRoot : nullRoot;
-          this.lightDom = !hasLocalDom ? defRoot : nullRoot;
+          this.localDom = new Base.DomRoot(nullFragment, this);
+          this.localDom.emptyRoot = true;
         }
+        this.lightDom = new Base.DomRoot(this, this);
+      },
+
+      _createLocalRoot: function() {
+        this.shadyRoot = this.root;
+        this.shadyRoot.host = this;
+        this.localDom = new Base.DomRoot(this.shadyRoot, this);
+        this.root = this;
       },
 
       distributeContent: function() {
@@ -361,17 +353,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         p.oMatchesSelector || p.webkitMatchesSelector;
 
 
-    var DomRoot = function(node, host) {
+    Base.DomRoot = function(node, host) {
       //saveLightChildrenIfNeeded(node);
       this.node = node;
-      this.host = host;
+      this.host = host || Base;
     };
 
     // TODO(sorvell): the api here does not cover the case of inserting an
     // element into an insertion point parent. We need api of this type to 
     // handle that case appendChildTo(parent, node)
     // where node goes into parent.lightChildren iff that exists.
-    DomRoot.prototype = {
+    Base.DomRoot.prototype = {
 
       domRoot: true,
 
@@ -485,20 +477,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      querySelector: function(selector) {
-        return this.querySelectorAll(selector)[0];
+      querySelector: function(selector, node) {
+        return this.querySelectorAll(selector, node)[0];
       },
 
-      querySelectorAll: function(selector) {
+      querySelectorAll: function(selector, node) {
         var self = this;
         return this._query(function(n) {
           return self.host.elementMatches(selector, n);
-        });
+        }, node);
       },
 
-      _query: function(matcher) {
+      _query: function(matcher, node) {
         var list = [];
-        this._queryElements(this.children(), matcher, list);
+        this._queryElements(this.children(node), matcher, list);
         return list;
       },
 
@@ -520,6 +512,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }; 
 
     var nullFragment = document.createDocumentFragment();
+
+    Polymer.dom = new Base.DomRoot(document.body);
 
   });
 
