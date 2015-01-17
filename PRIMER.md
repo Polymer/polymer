@@ -238,7 +238,7 @@ Polymer({
 });
 ```
 
-Remember that the fields assigned to `count`, such as `readOnly` and `notify` don't do anything by themselves, it requires other features to give them life.
+Remember that the fields assigned to `count`, such as `readOnly` and `notify` don't do anything by themselves, it requires other features to give them life, and may depend on which layer of Polymer is in use.
 
 <a name="attribute-deserialization"></a>
 ## Attribute deserialization
@@ -280,7 +280,7 @@ Example:
 <a name="host-attributes"></a>
 ## Boolean host attributes
 
-A list of attribute names to be applied to instances of the custom element can be provided as space-separated strings in the `hostAttributes` property.  These will simply be set on the element during creation.  This is intended for "boolean" attributes only, such as common layout attributes used by the [layout.html](layout-html) CSS; values cannot be supplied at this time.
+A list of attribute names to be applied to instances of the custom element can be provided as space-separated strings in the `hostAttributes` property.  These will simply be set on the element during creation.  This is intended for "boolean" attributes only, such as common layout attributes used by the [layout.html](layout-html) CSS; attribute values cannot be supplied at this time.
 
 Example: 
 
@@ -307,7 +307,7 @@ After creation:
 <a name="module-registry"></a>
 ## Module registry
 
-Polymer provides and internally uses a JavaScript "module registry" to organize code library code defined outside the context of a custom element prototype, and may be used to organize user code when convenient as well.  The registry is responsible for storing and retrieving JS modules by name.  As this facility does not provide dependency loading, it is the responsibility of the user to HTMLImport files containing any dependent modules before use.
+Polymer provides and internally uses a JavaScript "module registry" to organize library code defined outside the context of a custom element prototype, and may be used to organize user code when convenient as well.  The registry is responsible for storing and retrieving JS modules by name.  As this facility does not provide dependency loading, it is the responsibility of the user to HTMLImport files containing any dependent modules before use.
 
 Modules are registered using the `modulate` global function, passing a name to register and a factory function that returns the module:
 
@@ -713,7 +713,7 @@ Polymer supports cooperative two-way binding between elements, allowing elements
 
 When a Polymer elements changs a property that was "published" as part of its public API with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
 
-As such, one could attach an `on-<property-changed` listener to an element to be notified of changes to such properties, set the `event.detail.value` to a property on itself, and take necessary actions based on the new value.  However, given this is a common pattern, bindings using "curly-braces" (e.g. `{{property}}`) will automatically perform this upwards binding automatically without the user needing to perform those tasks.  This can be defeated by using "square-brace" syntax (e.g. `[[property]]`), which results in only one-way (downward) data-binding.
+As such, one could attach an `on-<property>-changed` listener to an element to be notified of changes to such properties, set the `event.detail.value` to a property on itself, and take necessary actions based on the new value.  However, given this is a common pattern, bindings using "curly-braces" (e.g. `{{property}}`) will automatically perform this upwards binding automatically without the user needing to perform those tasks.  This can be defeated by using "square-brace" syntax (e.g. `[[property]]`), which results in only one-way (downward) data-binding.
 
 To summarize, two-way data-binding is achieved when both the host and the child agree to participate, satisfying these three conditions:
 
@@ -858,14 +858,14 @@ Example:
 
 As with change handlers for paths, bindings to paths (object sub-properties) are dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPath`](#set-path) API, which provides the required notification to elements with registered interest, as discussed below.
 
-Note that path bindings are distinct from property bindings in a subtle way: when a property's value changs, an assignment must occur for the value to propagate to the property on the element at the other side of the binding.  However, if two elements are bound to the same path of a shared object and the value at that path changes (via a property binding or via `setPath`), the value seen by both elements actually changes with no additional assignment necessary, by virtue of it being a property on a shared object reference.  In this case, the element who changed the path must notify the system so that other elements who have registered interest in the same path may take side effects.  However, there is no concept of one-way binding or notification in this case, since there is no concept of propagation in this case.  That is, all bindings and change handlers for the same path will always update when the value of the path changes.
+Note that path bindings are distinct from property bindings in a subtle way: when a property's value changs, an assignment must occur for the value to propagate to the property on the element at the other side of the binding.  However, if two elements are bound to the same path of a shared object and the value at that path changes (via a property binding or via `setPath`), the value seen by both elements actually changes with no additional assignment necessary, by virtue of it being a property on a shared object reference.  In this case, the element who changed the path must notify the system so that other elements who have registered interest in the same path may take side effects.  However, there is no concept of one-way binding in this case, since there is no concept of propagation.  That is, all bindings and change handlers for the same path will always be notified and update when the value of the path changes.
 
 <a name="set-path"></a>
 ### Path change notification
 
-Two-way data-binding and observation of paths is achieved using a similar strategy to the one described above for [2-way proptery binding](#twoway-binding): When a sub-property of a published `Object` changes, an element fires a non-bubbling `<property>-path-changed` DOM event with a `detail.path` value indicating the path on the object that changed.  Elements that have registered interest in that object (either via binding or change handler) may then take side effects based on knowledge of the path having changed.  Finally, those elements will forward the notification on to any children they have bound the object to, and if the element published the root object for the path that changed on its API, it will also throw a new `<propety>-path-changed` event appropriately.  Through this method, a notification will reach any part of the tree that has registered interest in that path so that side effects occur.
+Two-way data-binding and observation of paths in Polymer is achieved using a similar strategy to the one described above for [2-way proptery binding](#twoway-binding): When a sub-property of a published `Object` changes, an element fires a non-bubbling `<property>-path-changed` DOM event with a `detail.path` value indicating the path on the object that changed.  Elements that have registered interest in that object (either via binding or change handler) may then take side effects based on knowledge of the path having changed.  Finally, those elements will forward the notification on to any children they have bound the object to, and if the element published the root object for the path that changed on its API, it will also fire a new `<propety>-path-changed` event appropriately.  Through this method, a notification will reach any part of the tree that has registered interest in that path so that side effects occur.
 
-This system "just works" to the extent that changes to sub-properties occur as a result of being bound to a notifying custom element property that changed.  However, often code needs to "poke" at an object's sub-properties directly.  As more sophisticated observation mechanisms such as Object.observe are not employed to achieve the best startup and runtime performance cross-platform for the most common use cases, changing an object's sub-properties directly requires cooperation from the user.
+This system "just works" to the extent that changes to object sub-properties occur as a result of being bound to a notifying custom element property that changed.  However, often imperative code needs to "poke" at an object's sub-properties directly.  As we avoid more sophisticated observation mechanisms such as Object.observe or dirty-checking in order to achieve the best startup and runtime performance cross-platform for the most common use cases, changing an object's sub-properties directly requires cooperation from the user.
 
 Specifically, Polymer provides two API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `setPath(path, value)`.
 
