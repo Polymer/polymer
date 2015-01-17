@@ -33,6 +33,7 @@ Custom Elements with Templates stamped into "local DOM"
 |---------|-------
 | Template stamping into local DOM | \<dom-module>\<template>...\</template>\</dom-module>
 | Light child (re-)distribution	| \<content>
+| Local & light tree API	| localDom, lightDom
 | Top-down callback after distribution| configure: function() { … }
 | Bottom-up callback after configuration| ready: function() { … }
 
@@ -995,15 +996,7 @@ Flexbox children:
 * self-end
 * self-stretch
 
-# General Patterns
-
-### Communication between elemeents
-
-### 
-
 # Migration Notes
-
-The following are specific
 
 ### Styling
 
@@ -1022,8 +1015,6 @@ Current limitations that are on the backlog for evaluation/improvement:
 ### Structured data and path notification
 
 ### Array notification
-
-### Local / light tree API
 
 <a name="todo-inheritance"></a>
 ### Mixins / Inheritance
