@@ -4,7 +4,7 @@ WORK IN PROGRESS
 
 ## Feature Layering
 
-Polymer 0.8 is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extend that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
+Polymer 0.8 is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extent that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
 
 Higher layers depend on lower layers, and elements requiring lower layers will actually be imbued with features of the highest-level version of Polymer used on the page (those elements would simply not use/take advantage of those features).  This provides a good tradeoff between element authors being able to avoid direct dependencies on unused features when their element is used standalone, while also allowing end users to mix-and-match elements created with different layers on the same page.
 
@@ -203,7 +203,7 @@ MyElement = Polymer({
 });
 ```
 
-`Polymer.Base` also implements `registerCallback`, which will be calle dby `Polymer()` to allow `Polymer.Base` to supply a layering system for Polymer abstractions.
+`Polymer.Base` also implements `registerCallback`, which will be called by `Polymer()` to allow `Polymer.Base` to supply a layering system for Polymer abstractions.
 
 See the [section on configuring elements](#configuring-elements) for a more in-depth description of the practical uses of each callback.
 
@@ -211,7 +211,7 @@ See the [section on configuring elements](#configuring-elements) for a more in-d
 <a name="published-api"></a>
 ## Published API
 
-Placing an object-valued `published` property on your prototype allows you define metadata regarding your Custom Element's API, which can then be accessed by an API for use by other Polymer features.
+Placing an object-valued `published` property on your prototype allows you to define metadata regarding your Custom Element's API, which can then be accessed by an API for use by other Polymer features.
 
 By itself, the `published` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see featues below for details).
 
@@ -488,7 +488,7 @@ Example:
     },
     
     warnAction: function(e) {
-    	alert('Don't click me, click the button!');
+    	alert("Don't click me, click the button!");
     },
 
     kickAction: function(e) {
@@ -859,12 +859,12 @@ Example:
 
 As with change handlers for paths, bindings to paths (object sub-properties) are dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPath`](#set-path) API, which provides the required notification to elements with registered interest, as discussed below.
 
-Note that path bindings are distinct from property bindings in a subtle way: when a property's value changs, an assignment must occur for the value to propagate to the property on the element at the other side of the binding.  However, if two elements are bound to the same path of a shared object and the value at that path changes (via a property binding or via `setPath`), the value seen by both elements actually changes with no additional assignment necessary, by virtue of it being a property on a shared object reference.  In this case, the element who changed the path must notify the system so that other elements who have registered interest in the same path may take side effects.  However, there is no concept of one-way binding in this case, since there is no concept of propagation.  That is, all bindings and change handlers for the same path will always be notified and update when the value of the path changes.
+Note that path bindings are distinct from property bindings in a subtle way: when a property's value changes, an assignment must occur for the value to propagate to the property on the element at the other side of the binding.  However, if two elements are bound to the same path of a shared object and the value at that path changes (via a property binding or via `setPath`), the value seen by both elements actually changes with no additional assignment necessary, by virtue of it being a property on a shared object reference.  In this case, the element who changed the path must notify the system so that other elements who have registered interest in the same path may take side effects.  However, there is no concept of one-way binding in this case, since there is no concept of propagation.  That is, all bindings and change handlers for the same path will always be notified and update when the value of the path changes.
 
 <a name="set-path"></a>
 ### Path change notification
 
-Two-way data-binding and observation of paths in Polymer is achieved using a similar strategy to the one described above for [2-way proptery binding](#twoway-binding): When a sub-property of a published `Object` changes, an element fires a non-bubbling `<property>-path-changed` DOM event with a `detail.path` value indicating the path on the object that changed.  Elements that have registered interest in that object (either via binding or change handler) may then take side effects based on knowledge of the path having changed.  Finally, those elements will forward the notification on to any children they have bound the object to, and if the element published the root object for the path that changed on its API, it will also fire a new `<propety>-path-changed` event appropriately.  Through this method, a notification will reach any part of the tree that has registered interest in that path so that side effects occur.
+Two-way data-binding and observation of paths in Polymer is achieved using a similar strategy to the one described above for [2-way property binding](#twoway-binding): When a sub-property of a published `Object` changes, an element fires a non-bubbling `<property>-path-changed` DOM event with a `detail.path` value indicating the path on the object that changed.  Elements that have registered interest in that object (either via binding or change handler) may then take side effects based on knowledge of the path having changed.  Finally, those elements will forward the notification on to any children they have bound the object to, and if the element published the root object for the path that changed on its API, it will also fire a new `<propety>-path-changed` event appropriately.  Through this method, a notification will reach any part of the tree that has registered interest in that path so that side effects occur.
 
 This system "just works" to the extent that changes to object sub-properties occur as a result of being bound to a notifying custom element property that changed.  However, often imperative code needs to "poke" at an object's sub-properties directly.  As we avoid more sophisticated observation mechanisms such as Object.observe or dirty-checking in order to achieve the best startup and runtime performance cross-platform for the most common use cases, changing an object's sub-properties directly requires cooperation from the user.
 
