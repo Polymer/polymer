@@ -42,13 +42,13 @@ Custom elements with declarative data binding, events, and property nofication
 | Feature | Usage 
 |---------|-------
 | [Local node marshalling](#node-marshalling) | this.$.\<id>
-| Event listener setup| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
-| Annotated event listener setup | \<element on-[event]=”function”>
-| Key listener setup| keyPresses: { '\<cha]r>' | \<code>: ‘function’, … }
-| Utilities | toggleClass, toggleAttribute, fire, async, …
+| [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
+| [Annotated event listener setup](#annotated-listeners) | \<element on-[event]=”function”>
+| [Key listener setup](#key-listeners) | keyPresses: { '\<cha]r>' | \<code>: ‘function’, … }
 | Property change callbacks | bind: { \<property>: ‘function’ }
 | Declarative property binding | \<element prop=”{{property|path}}”
 | Computed properties | compute: { \<property>: ‘function(\<property>)’ }
+| [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | Set path with notification | setPath(\<path>, \<value>)
 | Attribute-based layout | layout.html (layout horizontal flex ...)
 
@@ -108,7 +108,7 @@ var el2 = document.createElement('my-element');
 ```
 
 <a name="bespoke-constructor"></a>
-## Bespoke Constructor Support
+## Bespoke constructor support
 
 While the standard `Polymer.Class()` and `Polymer()` functions return a basic constructor that can be used to instance the custom element, Polymer also supports providing a bespoke `constructor` function on the prototype that can, for example, accept arguments to configure the element.  In that case, the constructor should generally call `document.createElement(this.is)` to construct the element and return the element instance after constructing it.
 
@@ -136,7 +136,7 @@ var el = new MyElement(42, 'octopus');
 ```
 
 <a name="type-extension"></a>
-## Native HTML Element Extension
+## Native HTML element extension
 
 Polymer 0.8 currently only supports extending native HTML elements (e.g. `input`, `button`, etc., as opposed to [extending other custom elements](#todo-inheritance)).  To extend a native HTML element, set the `extends` property to the tag name of the element to extend.
 
@@ -164,7 +164,7 @@ console.log(el2 instanceof HTMLInputElement); // true
 ```
 
 <a name="basic-callbacks"></a>
-## Basic Lifecycle Callbacks
+## Basic lifecycle callbacks
 
 Polymer's Base prototype implements the standard Custom Element lifecycle callbacks to perform tasks necessary for Polymer's built-in features.  The hooks in turn call shorter-named lifecycle methods on your prototype.
 
@@ -241,9 +241,9 @@ Polymer({
 Remember that the fields assigned to `count`, such as `readOnly` and `notify` don't do anything by themselves, it requires other features to give them life.
 
 <a name="attribute-deserialization"></a>
-## Attribute Deserialization
+## Attribute deserialization
 
-If an attribute matches a property listed in the `published` object, the attribute value will assigned to a property of the same name on the element instance.  Attribute values (always strings) will be automatically converted to the published type when assigned to the property.  If no other `published` options are specified for a property, the type (specified using the type constructor, e.g. `Object`, `String`, etc.) can be set directly as the value of the property in the published object; otherwise it should be provided as the value to the `type` key in the `published` configuration object.
+If an attribute matches a property listed in the `published` object, the attribute value will be assigned to a property of the same name on the element instance.  Attribute values (always strings) will be automatically converted to the published type when assigned to the property.  If no other `published` options are specified for a property, the type (specified using the type constructor, e.g. `Object`, `String`, etc.) can be set directly as the value of the property in the published object; otherwise it should be provided as the value to the `type` key in the `published` configuration object.
 
 The type system includes support for Object values expressed as JSON, or Date objects expressed as any Date-parsable string representation. Boolean properties set based on the existence of the attribute: if the attribute exists at all, its value is true, regardless of its string-value (and the value is only false if the attribute does not exist).
 
@@ -266,7 +266,7 @@ Example:
 
     created: function() {
       // render
-      this.innerHTML = 'Hello World, my user is ' + (this.user || 'nobody') + '.' +
+      this.innerHTML = 'Hello World, my user is ' + (this.user || 'nobody') + '.\n' +
       	'This user is ' + (this.manager ? '' : 'not') + ' a manager.';
     }
 
@@ -278,7 +278,7 @@ Example:
 ```
 
 <a name="host-attributes"></a>
-## Boolean Host Attributes
+## Boolean host attributes
 
 A list of attribute names to be applied to instances of the custom element can be provided as space-separated strings in the `hostAttributes` property.  These will simply be set on the element during creation.  This is intended for "boolean" attributes only, such as common layout attributes used by the [layout.html](layout-html) CSS; values cannot be supplied at this time.
 
@@ -305,7 +305,7 @@ After creation:
 ```
 
 <a name="module-registry"></a>
-## Module Registry
+## Module registry
 
 Polymer provides and internally uses a JavaScript "module registry" to organize code library code defined outside the context of a custom element prototype, and may be used to organize user code when convenient as well.  The registry is responsible for storing and retrieving JS modules by name.  As this facility does not provide dependency loading, it is the responsibility of the user to HTMLImport files containing any dependent modules before use.
 
@@ -370,7 +370,7 @@ using(['FunSupport', ...], function(funSupport, ...) {
 
 
 <a name="prototype-mixins"></a>
-## Prototype Mixins
+## Prototype mixins
 
 Polymer will "mixin" objects specified in a `mixin` array into the prototype.  This can be useful for adding common code between multiple elements.
 
@@ -425,29 +425,148 @@ MyElement = Polymer({
 ## Light child (re-)distribution
 
 <a name="configure-callback"></a>
-## Top-down callback after distribution
+## Configure callback
 
 <a name="ready-callback"></a>
-## Bottom-up callback after configuration
+## Ready callback
 
 # Polymer Standard Layer
 
 <a name="node-marshalling"></a>
 ## Local node marshalling
 
+Polymer automatically builds a map of instance nodes stamped into its local DOM, to provide convenient access to frequently used nodes without the need to query for (and memoize) them manually.  Any node specified in the element's template with an `id` is stored on the `this.$` hash by `id`.
 
+Example:
+
+```html
+<template>
+
+  Hello World from <span id="name"></span>!
+
+</template>
+
+<script>
+
+  Polymer({
+
+    is: 'x-custom',
+
+    created: function() {
+      this.$.name.textContent = this.name;
+    }
+
+  });
+
+</script>
+```
 
 <a name="event-listeners"></a>
 ## Event listener setup
 
+Event listeners can be added to the host element by providing an object-valued `listeners` property that maps events to event handler function names.  A `<id>.<event>` syntax is supported for adding listeners on local-DOM children by `id`.
+
+Example:
+
+```html
+<template>
+
+  <button id="button">Click Me</button>
+
+</template>
+
+<script>
+
+  Polymer({
+
+    is: 'x-custom',
+    
+    listeners: {
+    	'click': 'warnAction',
+    	'button.click': 'kickAction'
+    },
+    
+    warnAction: function(e) {
+    	alert('Don't click me, click the button!');
+    },
+
+    kickAction: function(e) {
+      alert('The "' + e.target.textContent + '" button was clicked.');
+      return true;
+    }
+
+  });
+
+</script>
+```
+
 <a name="annotated-listeners"></a>
 ## Annotated event listener setup
+
+For adding event listeners to local-DOM children, a more convenient `on-<event>` annotation syntax is supported directly in the template.  This often eliminates the need to give an element an `id` solely for the purpose of binding an event listener.
+
+Example:
+
+```html
+<template>
+
+  <button on-click="kickAction">Kick Me</button>
+
+</template>
+
+<script>
+
+  Polymer({
+
+    is: 'x-custom',
+
+    kickAction: function() {
+      alert('Ow!');
+    }
+
+  });
+
+</script>
+```
 
 <a name="key-listeners"></a>
 ## Key listener setup
 
-<a name="utility-functions"></a>
-## Utility Functions
+Polymer will automatically listen for `keypress` events and call handlers specified in the `keyPresses` object, which maps key codes to handler functions.  The key may either be specified as a keyboard code or one of several convenience strings supported:
+
+* ESC_KEY
+* ENTER_KEY
+* LEFT
+* UP
+* RIGHT
+* DOWN
+
+Example:
+
+```js
+<script>
+
+  Polymer({
+
+    is: 'x-custom',
+    
+    keyPresses: {
+    	'ESC_KEY': 'exitCurrentMode',
+    	88: 'handleXKeyPress'
+    },
+    
+    exitCurrentMode: function(e) {
+    	...
+    },
+
+    handleXKeyPress: function(e) {
+    	...
+    }
+
+  });
+
+</script>
+```
 
 <a name="change-callbacks"></a>
 ## Property change callbacks
@@ -461,9 +580,61 @@ MyElement = Polymer({
 <a name="set-path"></a>
 ## Set path with notification
 
+<a name="utility-functions"></a>
+## Utility Functions
+
+Polymer's Base prototype provides a set of useful convenience/utility functions for instances to use.  See API documentation for more details.
+
+* toggleClass: function(name, bool, [node])
+* toggleAttribute: function(name, bool, [node])
+* attributeFollows: function(name, neo, old)
+* fire: function(type, [detail], [onNode], [bubbles], [cancelable])
+* async: function(method)
+* queryHost: function(node)
+* transform: function(node, transform)
+* translate3d: function(node, x, y, z)
+* importHref: function(href, onload, onerror)
+
 <a name="layout-html"></a>
 ## Attribute-based layout
 
+CSS is notoriously verbose for doing even the most basic layout tasks, and so Polymer provides a useful set of layout CSS that can be applied using very terse HTML attribues (as opposed to CSS classes), which we find greatly improves the readability of markup.  Below is a quick cheatsheet of attributes available; refer to `layout.html` directly for details.
+
+General:
+
+* block
+* hidden
+* relative
+* fit
+* fullbleed
+
+Flexbox:
+
+* layout horizontal, layout vertical
+	* inline
+	* reverse
+	* wrap
+	* wrap-reverse
+	* start
+	* center
+	* end
+	* start-justified
+	* center-justified
+	* end-justified
+	* around-justified
+	* center-center
+	* justified
+
+Flexbox children: 
+
+* flex
+	* auto
+	* none
+	* one .. twelve
+* self-start
+* self-center
+* self-end
+* self-stretch
 
 # Migration Notes
 
