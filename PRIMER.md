@@ -527,8 +527,40 @@ this.localDOM.batch(function() {
 
 ```
 
-**TODO**: Povide API equivalent to ShadowDOM's `getDistributedNodes` and `getDestinationInsertionPoints`. 
+To provide a `local` view of the dom tree from a perspective independent of a custom element, polymer provides the `Polymer.dom` object. This object supports `querySelector/querySelectorAll` for example and the following guarantees that elements inside local DOM will not be seen.
 
+Example:
+
+```html
+  Polymer.dom.querySelector('#myId');
+```
+
+Sometimes it's necessary to access the elements which have been distributed to a given `<content>` insertion point or to know to which `<content>` a given node has been distributed. The `distributedNodes` and `destinationInsertionPoints` respectively provide this information.
+
+Example:
+
+```html
+  <x-foo>
+    <div></div>
+  </x-foo>
+  
+  // x-foo's template
+  <template>
+    <content></content>
+  </template>
+
+  ...
+
+  var div = xFoo.lightDom.querySelector('div');
+  var content = xFoo.localDom.querySelector('content');
+  var distributed = xFoo.localDom.distributedNodes(content)[0];
+  var insertedTo = xFoo.localDom.destinationInsertionPoints()[0];
+
+  // the following should be true:
+  assert.equal(distributed, div);
+  assert.equal(insertedTo, content)
+  
+```
 
 <a name="ready-method"></a>
 ## Ready callback

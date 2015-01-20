@@ -85,18 +85,18 @@ suite('projection', function() {
     var p = re.localDom.querySelector('x-project');
     assert.equal(p.is, 'x-project');
     var c1 = rere.localDom.querySelector('content');
-    assert.include(getDistributedNodes(c1), projected);
+    assert.include(rere.localDom.distributedNodes(c1), projected);
     var c2 = re.localDom.querySelector('content');
-    assert.include(getDistributedNodes(c2), projected);
+    assert.include(rere.localDom.distributedNodes(c2), projected);
     var c3 = p.localDom.querySelector('content');
-    assert.include(getDistributedNodes(c3), projected);
+    assert.include(rere.localDom.distributedNodes(c3), projected);
     var ip$ = [c1, c2, c3];
-    assert.deepEqual(getDestinationInsertionPoints(projected), ip$);
+    assert.deepEqual(rere.localDom.destinationInsertionPoints(projected), ip$);
   });
 
   test('distributeContent', function() {
     var test = document.querySelector('x-test');
-    test.distributeContent();
+    test._distributeContent();
     var rere = test.localDom.querySelector('x-rereproject');
     assert.equal(rere.is, 'x-rereproject');
     var re = rere.localDom.querySelector('x-reproject');
