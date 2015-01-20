@@ -1301,13 +1301,13 @@ Thus, for the short term we expect users will need to consider compound effects 
 
 ## Structured data and path notification
 
-TODO
+TODO - call `setPath` and/or `notifyPath` to wire-up non-bound paths
 
 ## Array notification
 
-TODO
+TODO - array changes not observed; for now need to "kick" x-repeat's render
 
 <a name="todo-inheritance"></a>
 ## Mixins / Inheritance
 
-TODO - Use composition for now
+TODO - use composition for now
