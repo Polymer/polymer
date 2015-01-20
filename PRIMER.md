@@ -706,7 +706,7 @@ Example:
 <a name="key-listeners"></a>
 ## Key listener setup
 
-Polymer will automatically listen for `keypress` events and call handlers specified in the `keyPresses` object, which maps key codes to handler functions.  The key may either be specified as a keyboard code or one of several convenience strings supported:
+Polymer will automatically listen for `keydown` events and call handlers specified in the `keyPresses` object, which maps key codes to handler functions.  The key may either be specified as a keyboard code or one of several convenience strings supported:
 
 * ESC_KEY
 * ENTER_KEY
@@ -1171,24 +1171,115 @@ Flexbox children:
 
 # Migration Notes
 
-### Styling
+This section covers how to deal with yet-unimplemented and/or de-scoped features in Polymer 0.8 as compared to 0.5.  Many of these are simply un-implemented; that is, we will likely have a final "solution" that addresses the need, we just haven't tackled that feature yet as we address items in priority order.  Other solutions in 0.8 may be lower-level as compared to 0.5, and will be explained here.
 
-### Self / Child Configuration
+As the final 0.8 API solidifies, this section will be updated accordingly.  As such, this section should be considered answers "how do I solve problem xyz <em>TODAY</em>", rather than a representation of the final Polymer 0.8 API.
 
-### Binding limitations
+## Styling
+
+TODO: explain shadow/shady DOM styling considerations.
+
+## Self / Child Configuration
+
+Lifecycle callback timing and best practices are in high flux at the moment.
+
+Currently, at `created` time, children are not stamped yet.  As such, configuring any properties that may have side-effects involving children will error.  As such, it is not reccomended to use the `created` callback for self-configuration.
+
+There is a work-in-progress `configure` callback that is called top-down after children have been stamped & `created` , but is not ready for use yet.
+
+
+## Binding limitations
 
 Current limitations that are on the backlog for evaluation/improvement:
 
 * no sub-textContent binding
+    * Use `<span>`'s to break up textContent into discrete elements
 * no attribute binding
-* no good class/style
+    * Call `this.toggleAttribute` / `this.attributeFollows` from change handlers
+* no good class/style binding support
+    * Call `this.toggleClass`, `this.style.prop = ...` from change handlers
 
-### Compound property effects
+## Compound property effects
 
-### Structured data and path notification
+Polymer 0.8 currently has no built-in support for compound observation or compound expressions.  This problem space is on the backlog to be tackled in the near future.  This section will discuss lower-level tools that are available in 0.8 that can be used instead.
 
-### Array notification
+Assume an element has a boolean property that should be set when either of two conditions are true: e.g. when `<my-parent>.isManager == true` OR `<my-parent>.mode == 2`, you want to set `<my-child>.disabled = true`.
+
+The most naive way to achieve this in 0.8 is with separate change handlers for the dependent properties that set a `shouldDisable` property bound to the `my-child`.
+
+Example: 
+
+```html
+<template>
+    <my-child disabled="{{shouldDisable}}"></my-child>
+</template>
+<script>
+Polymer({
+    
+    is: 'my-parent',
+    
+    bind: {
+        isManager: 'computeShouldDisable',
+        mode: 'computeShouldDisable',
+    },
+    
+    // Warning: Called once for every change to dependent properties!
+    computeShouldDisable: function() {
+        this.shouldDisable = this.isManager || (this.mode == 2);
+    }
+    
+});
+</script>
+```
+
+Due to the synchronous nature of bindings in 0.8, code such as the following will result in `<my-child>.disabled` being set twice (and any side-effects of that property changing to potentially occur twice:
+
+```js
+myParent.isManager = false;
+myParent.mode = 5;
+```
+
+Thus, in order to ensure side effects for any dependent properties only occur once for any number of changes to them during a turn, manually introducing asynchronicity is required.  The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
+
+Example:
+
+```html
+<template>
+    <my-child disabled="{{shouldDisable}}"></my-child>
+</template>
+<script>
+Polymer({
+    
+    is: 'my-parent',
+    
+    bind: {
+        isManager: 'computeShouldDisableDebounced',
+        mode: 'computeShouldDisableDebounced',
+    },
+    
+    computeShouldDisableDebounced: function() {
+        this.debounce('computeShouldDisable', this.computeShouldDisable);
+    },
+    
+    // Better: called once for multiple changes 
+    computeShouldDisable: function() {
+        this.shouldDisable = this.isManager || (this.mode == 2);
+    }
+    
+});
+</script>
+```
+Thus, for the short term we expect users will need to consider compound effects and apply use of the `job` function to ensure efficient
+
+## Structured data and path notification
+
+TODO
+
+## Array notification
+
+TODO
 
 <a name="todo-inheritance"></a>
-### Mixins / Inheritance
+## Mixins / Inheritance
 
+TODO
