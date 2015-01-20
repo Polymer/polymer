@@ -774,7 +774,8 @@ Polymer({
   },
   
   bind: {
-    disabled: 'disabledChanged'
+    disabled: 'disabledChanged',
+    highlight: 'highlightChanged'
   },
   
   disabledChanged: function(newValue, oldValue) {
@@ -1311,3 +1312,11 @@ TODO - array changes not observed; for now need to "kick" x-repeat's render
 ## Mixins / Inheritance
 
 TODO - use composition for now
+
+## Default values
+
+TODO
+
+## Define input in import
+
+## Gesture support
