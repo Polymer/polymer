@@ -16,7 +16,7 @@ Bare-minum Custom Element sugaring
 | Feature | Usage 
 |---------|-------
 | [Custom element constructor](#element-constructor) | Polymer.Class({ … });
-| [Custom element registration](#register-element) | Polymer({ name: ‘...’,  … }};
+| [Custom element registration](#register-element) | Polymer({ is: ‘...’,  … }};
 | [Bespoke constructor support](#bespoke-constructor) | constructor: function() { … }
 | [Basic lifecycle callbacks](#basic-callbacks) | created, attached, detached, attributeChanged
 | [Native HTML element extension](#type-extension) | extends: ‘…’
