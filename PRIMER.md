@@ -31,11 +31,11 @@ Custom Elements with Templates stamped into "local DOM"
 
 | Feature | Usage 
 |---------|-------
-| Template stamping into local DOM | \<dom-module>\<template>...\</template>\</dom-module>
-| Light child (re-)distribution	| \<content>
-| Local & light tree API	| localDom, lightDom
-| Top-down callback after distribution| configure: function() { … }
-| Bottom-up callback after configuration| ready: function() { … }
+| [Template stamping into local DOM](#template-stamping) | \<dom-module>\<template>...\</template>\</dom-module>
+| [DOM (re-)distribution](#dom-distribution) | \<content>
+| [Local & light tree API](#dom-api)	| localDom, lightDom
+| [Bottom-up callback after configuration](#ready-method) | ready: function() { … }
+| [Top-down callback after distribution](#configure-method) | configure: function() { … }
 
 ### polymer.html (standard)
 Custom elements with declarative data binding, events, and property nofication
@@ -422,14 +422,155 @@ Polymer({
 <a name="template-stamping"></a>
 ## Template stamping into local DOM
 
-<a name="light-distribution"></a>
-## Light child (re-)distribution
+We call the dom which an element is in charge of creating an managing its `local DOM`. This is distinct from the element's children which are sometimes called its `light DOM` for clarity.
 
-<a name="configure-callback"></a>
+To specify dom to use for an element's local DOM, use the `<dom-module>` element.
+Give the `<dom-module>` an `id` attribute that matches its element's 
+`is` property and put a `<template>` inside the `<dom-module>`.
+Polymer will automatically stamp this template into the element's local DOM.
+
+Example:
+
+```html
+<dom-module id="x-foo">
+  <template>I am x-foo!</template>
+</dom-module>
+
+<script>
+	Polymer({
+		is: 'x-foo'
+	});
+</script>
+```
+
+We say that an element definition has an imperative and declarative portion. The imperative
+portion is the call to `Polymer({...})`, and the declarative portion is the `<dom-module>`
+element. The imperative and declarative portions of an element's definition may be placed
+in the same html file or in separate files.
+
+**NOTE:** Defining an element in the main html document is not currently supported.
+
+**NOTE:** Polymer also currently supports locating the element's template at the node previous 
+to the element's script element; however, this may be deprecated.
+
+<a name="dom-distribution"></a>
+## DOM (re-)distribution
+
+To support composition of an element's light DOM with its local DOM, Polymer supports the `<content>` element. The `<content>` element provides an insertion point at which an element's light DOM is combined with its local DOM. The `<content>` element supports a `select` attribute which filters nodes via a simple selector.
+
+Polymer supports multiple local DOM implementations. On browsers that support ShadowDOM, ShadowDOM may be used to create local DOM. On other supported browsers, Polymer provides local DOM via a custom implementation called ShadyDOM which is inspired by and compatible with ShadowDOM.
+
+Example:
+
+```html
+<template>
+	<header>Local dom header followed by distributed dom.</header>
+	<content select=".content"></content>
+	<footer>Footer after distributed dom.</footer>
+</template>
+```
+<a name="dom-api"></a>
+## DOM API
+
+Polymer provides custom API for manipulating dom such that local DOM and light DOM trees are properly maintained. An element has a `lightDOM` property and a `localDOM` each of which are used to manipulate their respective dom trees. The following methods are provided:
+
+  * appendChild(node)
+  * insertBefore(node, ref_node)
+  * removeChild(node)
+  * querySelector/querySelectorAll(selector)
+  * children()
+  * elementParent(node)
+
+Example:
+
+```html
+  var toLight = document.createElement('div');
+  this.lightDOM.appendChild(toLight);
+  
+  var toLocal = document.createElement('div');
+  this.localDom.insertBefore(toLocal, this.localDom.children()[0]);
+  
+  var allSpans = this.localDOM.querySelectorAll('span');
+```
+
+For manipulating dom in elements that themselves do not have local dom, the above api's support an extra argument which is the container `node` in which the operation should be performed.
+
+Example:
+
+```html
+<template>
+  <div id="container">
+  	 <div id="first"></div>
+  	 <content></content>
+  </div>
+</template>
+
+...
+
+var insert = document.createElement('div');
+this.localDOM.insertBefore(insert, this.$.first, this.$.container);
+
+```
+
+**NOTE:** It's only strictly necessary to use `lightDOM/localDOM` when performing dom manipulation on elements whose composed dom and local dom is distinct. This includes elements with local dom and elements that are parents of insertion points. It is recommended, however, that `lightDOM/localDOM` be used whenever manipulating element dom.
+
+When multiple dom operations need to occur at once time, it's more efficient to batch these operations together. A batching mechanism is provided to support this use case.
+
+Example:
+
+```html
+this.localDOM.batch(function() {
+	for (var i=0; i<10; i++) {
+	  this.localDOM.appendChild(document.createElement('div'));
+	}	
+});
+
+```
+
+**TODO**: Povide API equivalent to ShadowDOM's `getDistributedNodes` and `getDestinationInsertionPoints`. 
+
+
+<a name="ready-method"></a>
+## Ready callback
+
+The `ready` method is part of an element's lifecycle and is automatically called 'bottom-up' after the element's template has been stamped and all elements inside the element's local DOM have each had their `ready` method called. Implement `ready` when it's necessary to manipulate an element's local DOM when the element is constructed.
+
+Example:
+
+```html
+  ready: function() {
+    this.$.ajax.go();
+  }
+```
+
+**NOTE**: Currently this method should be used to provide default settings for an element. In the future, this functionality will move the the `configure` method.
+
+Example:
+
+```html
+  ready: function() {
+    // setting a default value
+    if (this.foo === undefined) {
+      this.foo = 5;
+    }
+  }
+```
+
+<a name="configure-method"></a>
 ## Configure callback
 
-<a name="ready-callback"></a>
-## Ready callback
+**NOTE**: Experimental API which provides a preview of upcoming functionality.
+
+The `configure` method is part of an element's lifecycle and is automatically called 'top-down' after the element's template has been stamped but before `configure` is called on any elements inside the element's local DOM. It is intended to be used to initialize an element's input data and is `stateless`.
+
+Example:
+
+```html
+  configure: function() {
+    // note: `this` is **not** the element here.
+  }
+```
+
 
 # Polymer Standard Layer
 
