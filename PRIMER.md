@@ -2,7 +2,16 @@ WORK IN PROGRESS
 
 # Polymer 0.8 Primer
 
-## Feature Layering
+Table of Contents:
+
+* [Feature layering](#feature-layering)
+* [Polymer micro features](#polymer-micro)
+* [Polymer mini features](#polymer-mini)
+* [Polymer standard features](#polymer-standard)
+* [Migration notes](#migration-notes)
+
+<a name="feature-layering"></a>
+# Feature layering
 
 Polymer 0.8 is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extent that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
 
@@ -10,7 +19,7 @@ Higher layers depend on lower layers, and elements requiring lower layers will a
 
 Below is a description of the current Polymer layers and included features, followed by individual feature guides.
 
-### polymer-micro.html
+## polymer-micro.html
 Bare-minum Custom Element sugaring
 
 | Feature | Usage 
@@ -26,7 +35,7 @@ Bare-minum Custom Element sugaring
 | [Module registry](#module-registry) | modularize, using
 | [Prototype Mixins](#prototype-mixins) | mixins: [ … ]
 
-### polymer-mini.html
+## polymer-mini.html
 Custom Elements with Templates stamped into "local DOM"
 
 | Feature | Usage 
@@ -37,7 +46,7 @@ Custom Elements with Templates stamped into "local DOM"
 | [Bottom-up callback after configuration](#ready-method) | ready: function() { … }
 | [Top-down callback after distribution](#configure-method) | configure: function() { … }
 
-### polymer.html (standard)
+## polymer.html (standard)
 Custom elements with declarative data binding, events, and property nofication
 
 | Feature | Usage 
@@ -53,6 +62,7 @@ Custom elements with declarative data binding, events, and property nofication
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Attribute-based layout](#layout-html) | layout.html (layout horizontal flex ...)
 
+<a name="polymer-micro"></a>
 # Polymer Micro Features
 
 <a name="element-constructor"></a>
@@ -417,6 +427,7 @@ Polymer({
 </script>
 ```
 
+<a name="polymer-mini"></a>
 # Polymer Mini Layer
 
 <a name="template-stamping"></a>
@@ -604,6 +615,7 @@ Example:
 ```
 
 
+<a name="polymer-standard"></a>
 # Polymer Standard Layer
 
 <a name="node-marshalling"></a>
@@ -1169,6 +1181,7 @@ Flexbox children:
 * self-end
 * self-stretch
 
+<a name="migration-notes"></a>
 # Migration Notes
 
 This section covers how to deal with yet-unimplemented and/or de-scoped features in Polymer 0.8 as compared to 0.5.  Many of these are simply un-implemented; that is, we will likely have a final "solution" that addresses the need, we just haven't tackled that feature yet as we address items in priority order.  Other solutions in 0.8 may be lower-level as compared to 0.5, and will be explained here.
