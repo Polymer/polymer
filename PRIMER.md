@@ -1273,7 +1273,7 @@ Polymer({
 });
 </script>
 ```
-Thus, for the short term we expect users will need to consider compound effects and apply use of the `job` function to ensure efficient
+Thus, for the short term we expect users will need to consider compound effects and apply use of the `debounce` function to ensure efficient side-effects.
 
 ## Structured data and path notification
 
