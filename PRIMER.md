@@ -1183,9 +1183,13 @@ TODO: explain shadow/shady DOM styling considerations.
 
 Lifecycle callback timing and best practices are in high flux at the moment.
 
+__TL;DR: Do all initialization/configuration in `ready` today.__
+
 Currently, at `created` time, children are not stamped yet.  As such, configuring any properties that may have side-effects involving children will error.  As such, it is not reccomended to use the `created` callback for self-configuration.
 
 There is a work-in-progress `configure` callback that is called top-down after children have been stamped & `created` , but is not ready for use yet.
+
+The `ready` callback is called bottom-up after children have been `configure`-ed.  Currently, this is the only useful & safe place to do configuration of properties that may have side-effects on children.  Ideally this configuration step will be moved to the `configure` callback in the future.
 
 
 ## Binding limitations
