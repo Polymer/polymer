@@ -286,7 +286,14 @@ Example:
 </script>
 
 <x-custom user="Scott" manager></x-custom>
+<!--
+<x-custom>'s innerHTML becomes:
+Hello World, my user is Scott.
+This user is a manager.
+-->
 ```
+
+**Warning:** Currently only lower-case published properties are supported.  Camel-case property support will be added in this sprint.
 
 <a name="host-attributes"></a>
 ## Boolean host attributes
@@ -1188,6 +1195,10 @@ This section covers how to deal with yet-unimplemented and/or de-scoped features
 
 As the final 0.8 API solidifies, this section will be updated accordingly.  As such, this section should be considered answers "how do I solve problem xyz <em>TODAY</em>", rather than a representation of the final Polymer 0.8 API.
 
+## Property casing
+
+**Warning:** Currently only lower-case published properties are supported.  Support for upper-case properties will be added this sprint.  In the short-term, please use lower-case properties.
+
 ## Styling
 
 TODO: explain shadow/shady DOM styling considerations.
@@ -1249,7 +1260,7 @@ Polymer({
 </script>
 ```
 
-Due to the synchronous nature of bindings in 0.8, code such as the following will result in `<my-child>.disabled` being set twice (and any side-effects of that property changing to potentially occur twice:
+Due to the synchronous nature of bindings in 0.8, code such as the following will result in `<my-child>.disabled` being set twice (and any side-effects of that property changing to potentially occur twice):
 
 ```js
 myParent.isManager = false;
@@ -1299,4 +1310,4 @@ TODO
 <a name="todo-inheritance"></a>
 ## Mixins / Inheritance
 
-TODO
+TODO - Use composition for now
