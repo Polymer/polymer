@@ -1232,18 +1232,20 @@ The `ready` callback is called bottom-up after children have been `configure`-ed
 
 ## Binding limitations
 
-Current limitations that are on the backlog for evaluation/improvement:
+Current limitations that are on the backlog for evaluation/improvement are listed below, with current workarounds:
 
-* no sub-textContent binding
+* Sub-textContent binding
     * Use `<span>`'s to break up textContent into discrete elements
-* no attribute binding
+* Attribute binding
     * Call `this.toggleAttribute` / `this.attributeFollows` from change handlers
-* no good class/style binding support
+* Class/style binding support
     * Call `this.toggleClass`, `this.style.prop = ...` from change handlers
+* Support for compound property binding
+    * See below
 
 ## Compound property effects
 
-Polymer 0.8 currently has no built-in support for compound observation or compound expressions.  This problem space is on the backlog to be tackled in the near future.  This section will discuss lower-level tools that are available in 0.8 that can be used instead.
+Polymer 0.8 currently has no built-in support for compound observation or compound binding expressions.  This problem space is on the backlog to be tackled in the near future.  This section will discuss lower-level tools that are available in 0.8 that can be used instead.
 
 Assume an element has a boolean property that should be set when either of two conditions are true: e.g. when `<my-parent>.isManager == true` OR `<my-parent>.mode == 2`, you want to set `<my-child>.disabled = true`.
 
@@ -1281,7 +1283,7 @@ myParent.isManager = false;
 myParent.mode = 5;
 ```
 
-Thus, in order to ensure side effects for any dependent properties only occur once for any number of changes to them during a turn, manually introducing asynchronicity is required.  The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
+If the work of computing the property is expensive, or if the side-effects of the binding are expensive, then you may want to ensure side-effects only occur once for any number of changes to them during a turn by manually introducing asynchronicity.  The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
 
 Example:
 
@@ -1315,7 +1317,17 @@ Thus, for the short term we expect users will need to consider compound effects 
 
 ## Structured data and path notification
 
-TODO - call `setPath` and/or `notifyPath` to wire-up non-bound paths
+TODO - call `setPath` and/or `notifyPath` to notify non-bound path changes
+
+## Repeating elements
+
+Repeating templates is moved to a custom element (HTMLTemplateElement type extension called `x-repeat`):
+
+```html
+<template is="x-repeat" items="{{data}}">
+    <div>{{item.sub}}</div>
+</template>
+```
 
 ## Array notification
 
@@ -1328,16 +1340,8 @@ TODO - use composition for now
 
 ## Default values
 
-TODO
-
-## Define input in import
+TODO - initialize in ready for now
 
 ## Gesture support
 
-## Repeating elements
-
-```html
-<template is="x-repeat" items="{{data}}">
-    <div>{{item.sub}}</div>
-</template>
-```
+TODO - use standard DOM for now until gesture support is ported
