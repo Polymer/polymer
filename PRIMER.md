@@ -1208,6 +1208,15 @@ As the final 0.8 API solidifies, this section will be updated accordingly.  As s
 
 TODO: explain shadow/shady DOM styling considerations.
 
+* `<style>` goes outside the template
+* Prefix with element name
+
+```css
+x-foo .my-class {
+  ...
+}
+```
+
 ## Self / Child Configuration
 
 Lifecycle callback timing and best practices are in high flux at the moment.
@@ -1310,7 +1319,7 @@ TODO - call `setPath` and/or `notifyPath` to wire-up non-bound paths
 
 ## Array notification
 
-TODO - array changes not observed; for now need to "kick" x-repeat's render
+TODO - array changes not observed; for now need to "kick" x-repeat's `render`
 
 <a name="todo-inheritance"></a>
 ## Mixins / Inheritance
@@ -1324,3 +1333,11 @@ TODO
 ## Define input in import
 
 ## Gesture support
+
+## Repeating elements
+
+```html
+<template is="x-repeat" items="{{data}}">
+    <div>{{item.sub}}</div>
+</template>
+```
