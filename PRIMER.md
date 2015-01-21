@@ -1105,7 +1105,7 @@ Example:
 
 ```html
 <template>
-	<div hidden="{{!enabled}}></div>
+	<div hidden="{{!enabled}}"></div>
 </template>
 ```
 
