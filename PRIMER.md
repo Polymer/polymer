@@ -965,7 +965,7 @@ Example 2: One-way binding (downward)
 </template
 ```
 
-Example 2: One-way binding (downward)
+Example 3: One-way binding (downward)
 
 ```html
 
@@ -987,7 +987,7 @@ Example 2: One-way binding (downward)
 </template
 ```
 
-Example 3: One-way binding (upward)
+Example 4: One-way binding (upward)
 
 ```html
 
@@ -995,9 +995,11 @@ Example 3: One-way binding (upward)
 	Polymer({
 		is: 'custom-element',
 		published: {
-			prop: String,
-			notify: true,
-			readOnly: true
+			prop: {
+    			type: String,
+    			notify: true,
+    			readOnly: true
+    		}
 		}
 	});
 </script>
@@ -1011,7 +1013,7 @@ Example 3: One-way binding (upward)
 </template
 ```
 
-Example 4: Error / non-sensical state
+Example 5: Error / non-sensical state
 
 ```html
 
@@ -1019,9 +1021,11 @@ Example 4: Error / non-sensical state
 	Polymer({
 		is: 'custom-element',
 		published: {
-			prop: String,
-			notify: true,
-			readOnly: true
+			prop: {
+    			type: String,
+    			notify: true,
+    			readOnly: true
+    		}
 		}
 	});
 </script>
