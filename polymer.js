@@ -7,7 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-// @version 0.5.3
+// @version 0.5.4
 window.PolymerGestures = {};
 
 (function(scope) {
@@ -3813,7 +3813,7 @@ window.PolymerGestures = {};
 })(this);
 
 Polymer = {
-  version: '0.5.3'
+  version: '0.5.4'
 };
 
 // TODO(sorvell): this ensures Polymer is an object and not a function
