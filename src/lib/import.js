@@ -49,24 +49,27 @@ function importElements(node, callback) {
  * function argument. This method can be used to lazily load imports. 
  * For example,
  *
- *     Polymer.import(['my-import1.html', 'my-import2.html'], function() {
- *       console.log('imports lazily loaded'); 
+ *     Polymer.import(['my-import1.html', 'my-import2.html'], function(imports) {
+ *       console.log('imports lazily loaded:', imports); 
+ *       console.log('do your magic with imported document', imports[0].import); 
  *     });
  * 
  * @method import
  * @param {Array} urls Array of urls to load as HTMLImports.
- * @param {Function} callback Callback called when all imports have loaded.
+ * @param {Function} callback(imports) Callback called when all imports have loaded.
  */
 function _import(urls, callback) {
   if (urls && urls.length) {
       var frag = document.createDocumentFragment();
+      var links = [];
       for (var i=0, l=urls.length, url, link; (i<l) && (url=urls[i]); i++) {
         link = document.createElement('link');
         link.rel = 'import';
         link.href = url;
+        links.push(link);
         frag.appendChild(link);
       }
-      importElements(frag, callback);
+      importElements(frag, callback && function(){callback(links);});
   } else if (callback) {
     callback();
   }
