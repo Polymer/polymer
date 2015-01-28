@@ -9,14 +9,23 @@
 # subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 npm install
 
+pushd ..
+git clone git://github.com/Polymer/NodeBind
+git clone git://github.com/Polymer/TemplateBinding
+git clone git://github.com/Polymer/URL
+git clone git://github.com/Polymer/observe-js
+git clone git://github.com/Polymer/polymer-expressions
+git clone git://github.com/Polymer/polymer-gestures
+git clone git://github.com/Polymer/tools
+popd
+
 grunt release
 
 lasttag=`git tag -l | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1`
 git checkout --detach ${lasttag}
 git merge -s ours master --no-commit
 
+files=(`ls dist | sed -e 's/\/dist//' | grep -v 'polymer-versioned.js'`)
 mv dist/* .
 
-git show master:dist/polymer.html > polymer.html
-
-git add --ignore-errors polymer.js polymer.min.js polymer.html layout.html bower.json README.md build.log
+git add -f --ignore-errors "${files[@]}"
