@@ -1,5 +1,7 @@
 # Polymer 0.8 Preview
 
+Authors interested in learning the core concepts in 0.8 may be interested in our [primer](https://github.com/Polymer/polymer/blob/0.8-preview/PRIMER.md).
+
 ## From The Ground Up
 
 Let us begin this tale with a short stroll through the layers that Polymer is
