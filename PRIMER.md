@@ -58,7 +58,7 @@ Custom elements with declarative data binding, events, and property nofication
 | [Property change callbacks](#change-callbacks) | bind: { \<property>: ‘function’ }
 | [Declarative property binding](#property-binding) | \<element prop=”{{property|path}}”
 | [Computed properties](#computed-properties) | compute: { \<property>: ‘function(\<property>)’ }
-| [Path change notification](#set-path) | setPath(\<path>, \<value>)
+| [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Attribute-based layout](#layout-html) | layout.html (layout horizontal flex ...)
 
@@ -827,7 +827,7 @@ Polymer({
 });
 ```
 
-Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPath`](#set-path) API, which provides the required notification to elements with registered interest.
+Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPathValue`](#set-path) API, which provides the required notification to elements with registered interest.
 
 <a name="property-binding"></a>
 ## Declarative property binding
@@ -1054,9 +1054,9 @@ Example:
 </template>
 ```
 
-As with change handlers for paths, bindings to paths (object sub-properties) are dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPath`](#set-path) API, which provides the required notification to elements with registered interest, as discussed below.
+As with change handlers for paths, bindings to paths (object sub-properties) are dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPathValue`](#set-path) API, which provides the required notification to elements with registered interest, as discussed below.
 
-Note that path bindings are distinct from property bindings in a subtle way: when a property's value changes, an assignment must occur for the value to propagate to the property on the element at the other side of the binding.  However, if two elements are bound to the same path of a shared object and the value at that path changes (via a property binding or via `setPath`), the value seen by both elements actually changes with no additional assignment necessary, by virtue of it being a property on a shared object reference.  In this case, the element who changed the path must notify the system so that other elements who have registered interest in the same path may take side effects.  However, there is no concept of one-way binding in this case, since there is no concept of propagation.  That is, all bindings and change handlers for the same path will always be notified and update when the value of the path changes.
+Note that path bindings are distinct from property bindings in a subtle way: when a property's value changes, an assignment must occur for the value to propagate to the property on the element at the other side of the binding.  However, if two elements are bound to the same path of a shared object and the value at that path changes (via a property binding or via `setPathValue`), the value seen by both elements actually changes with no additional assignment necessary, by virtue of it being a property on a shared object reference.  In this case, the element who changed the path must notify the system so that other elements who have registered interest in the same path may take side effects.  However, there is no concept of one-way binding in this case, since there is no concept of propagation.  That is, all bindings and change handlers for the same path will always be notified and update when the value of the path changes.
 
 <a name="set-path"></a>
 ### Path change notification
@@ -1065,7 +1065,7 @@ Two-way data-binding and observation of paths in Polymer is achieved using a sim
 
 This system "just works" to the extent that changes to object sub-properties occur as a result of being bound to a notifying custom element property that changed.  However, often imperative code needs to "poke" at an object's sub-properties directly.  As we avoid more sophisticated observation mechanisms such as Object.observe or dirty-checking in order to achieve the best startup and runtime performance cross-platform for the most common use cases, changing an object's sub-properties directly requires cooperation from the user.
 
-Specifically, Polymer provides two API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `setPath(path, value)`.
+Specifically, Polymer provides two API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `setPathValue(path, value)`.
 
 Example:
 
@@ -1089,11 +1089,11 @@ Example:
 </script>
 ```
 
-Since in the majority of cases, notifyPath will be called directly after an assignment, a convenience function `setPath` is provided that performs both actions:
+Since in the majority of cases, notifyPath will be called directly after an assignment, a convenience function `setPathValue` is provided that performs both actions:
 
 ```js
 		reassignManager: function(newManager) {
-			this.setPath('user.manager', newManager);
+			this.setPathValue('user.manager', newManager);
 		}
 ```
 
@@ -1317,7 +1317,7 @@ Thus, for the short term we expect users will need to consider compound effects 
 
 ## Structured data and path notification
 
-TODO - call `setPath` and/or `notifyPath` to notify non-bound path changes
+TODO - call `setPathValue` and/or `notifyPath` to notify non-bound path changes
 
 ## Repeating elements
 
