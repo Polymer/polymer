@@ -54,9 +54,9 @@ Custom elements with declarative data binding, events, and property nofication
 | [Local node marshalling](#node-marshalling) | this.$.\<id>
 | [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
 | [Annotated event listener setup](#annotated-listeners) | \<element on-[event]=”function”>
-| [Key listener setup](#key-listeners) | keyPresses: { '\<char>' | \<code>: ‘function’, … }
+| [Key listener setup](#key-listeners) | keyPresses: { '\<char>' \| \<code>: ‘function’, … }
 | [Property change callbacks](#change-callbacks) | bind: { \<property>: ‘function’ }
-| [Declarative property binding](#property-binding) | \<element prop=”{{property|path}}”
+| [Declarative property binding](#property-binding) | \<element prop=”{{property\|path}}”
 | [Computed properties](#computed-properties) | compute: { \<property>: ‘function(\<property>)’ }
 | [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
