@@ -193,7 +193,7 @@ MyElement = Polymer({
 
 	is: 'my-element',
 
-	create: function() {
+	created: function() {
 		console.log(this.localName + '#' + this.id + ' was created');
 	},
 	
