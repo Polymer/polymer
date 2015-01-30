@@ -68,7 +68,7 @@ Custom elements with declarative data binding, events, and property nofication
 <a name="element-constructor"></a>
 ## Custom Element Constructor
 
-The most basic Polymer API is `Polymer.Class({...})`, which takes an object expressing the prototype of your custom element, chains it to Polymer's `Base` prototype (which provides value-add features described below), and returns a constructor that can be passed to `document.regsterElement()` to register your element with the HTML parser, and after which can be used to instantiate new instances of your element via code.
+The most basic Polymer API is `Polymer.Class({...})`, which takes an object expressing the prototype of your custom element, chains it to Polymer's `Base` prototype (which provides value-add features described below), and returns a constructor that can be passed to `document.registerElement()` to register your element with the HTML parser, and after which can be used to instantiate new instances of your element via code.
 
 The only requirement for the prototype passed to `Polymer.Class` is that `is` property specifies the HTML tag name the element will be registered as.
 
