@@ -17,5 +17,3 @@ For running tests or building minified files, consult the [tooling information](
 ## Releases
 
 [Release (tagged) versions](https://github.com/Polymer/polymer/releases) of Polymer include concatenated and minified sources for your convenience.
-
-[![Analytics](https://ga-beacon.appspot.com/UA-39334307-2/Polymer/polymer/README)](https://github.com/igrigorik/ga-beacon)
