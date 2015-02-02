@@ -25,10 +25,10 @@
   *     <a href="{{resolvePath(path)}}">Resolved</a>
   * 
   * @method resolvePath
-  * @param {String} url Url path to resolve.
-  * @param {String} base Optional base url against which to resolve, defaults
+  * @param {string} url Url path to resolve.
+  * @param {string} base Optional base url against which to resolve, defaults
   * to the element's ownerDocument url.
-  * returns {String} resolved url.
+  * returns {string} resolved url.
   */
 
 var path = {
