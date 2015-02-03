@@ -1,0 +1,100 @@
+<script>
+
+/*
+  Extremely simple css parser. Intended to be not more than what we need
+  and definitely not necessarly correct =).
+*/
+modulate('Css-parse', function() {
+
+  function parse(text) {
+    text = clean(text);
+    return parseCss(lex(text), text);
+  }
+
+  // remove stuff we don't care about that may hinder parsing
+  function clean(cssText) {
+    return cssText.replace(rx.comments, '').replace(rx.port, '');
+  }
+
+  // super simple {...} lexer that returns a node tree
+  function lex(text) {
+    var root = {start: 0, end: text.length-1};
+    var n = root;
+    for (var i=0, s=0, l=text.length; i < l; i++) {
+      switch (text[i]) {
+        case OPEN_BRACE:
+          //console.group(i);
+          if (!n.rules) {
+            n.rules = [];
+          }
+          var p = n;
+          var previous = p.rules[p.rules.length-1];
+          n = {start: i, parent: p, previous: previous};
+          p.rules.push(n);
+          break;
+        case CLOSE_BRACE: 
+          //console.groupEnd(n.start);
+          n.end = i;
+          n = n.parent || root;
+          break;
+      }
+    }
+    return root;
+  }
+
+  // add selectors/cssText to node tree
+  function parseCss(node, text) {
+    var t = text.substring(node.start+1, node.end);
+    node.cssText = t.trim();
+    if (node.parent) {
+      var ss = node.previous ? node.previous.end : node.parent.start;
+      t = text.substring(ss+1, node.start);
+      node.selector = t.trim();
+    }
+    var r$ = node.rules;
+    if (r$) {
+      for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
+        parseCss(r, text);
+      }  
+    }
+    return node;  
+  }
+
+  // stringify parsed css.
+  function stringify(node, text) {
+    text = text || '';
+    if (node.selector) {
+      text += node.selector + ' ' + OPEN_BRACE + '\n';
+    }
+    var r$ = node.rules;
+    if (r$) {
+      for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
+        text = stringify(r, text);
+      }  
+    } else {
+      text += '  ' + node.cssText + '\n';
+    }
+    if (node.selector) {
+      text += CLOSE_BRACE + '\n\n';
+    }
+    return text;
+  }
+
+  var OPEN_BRACE = '{';
+  var CLOSE_BRACE = '}';
+
+  // helper regexp's
+  var rx = {
+    comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
+    port: /@import[^;]*;/gim
+  };
+
+  // exports 
+  return {
+    parse: parse,
+    stringify: stringify
+  };
+
+});
+
+</script>
