@@ -1,0 +1,74 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="style-transformer.html">
+<script>
+
+  using(['Base', 'Style-transformer'], function(Base, transformer) {
+    
+    var prepTemplate = Base._prepTemplate;
+    var stampTemplate = Base._stampTemplate;
+
+    var domModule = document.createElement('dom-module');
+
+    var useShadow = (window.PolymerSettings && PolymerSettings.shadow &&
+      Element.prototype.createShadowRoot);
+
+    Base.addFeature({
+
+      // declaration-y
+      _prepTemplate: function() {
+        this._encapsulateStyle = 
+          !useShadow && domModule.import(this.is).hasAttribute('encapsulate');
+        console.log(this.is, this._encapsulateStyle);
+        prepTemplate.call(this);
+        if (this._encapsulateStyle) {
+          if (this._template) {
+            transformer.dom(this._template.content, this.is);
+          }
+          this._scopeCss();
+        }
+      },
+
+      // TODO(sorvell): styles outside template should resolve path/loading
+      // issues, but needs special handling to work with HTMLImports
+      // polyfill and may be inefficient (?)
+      _scopeCss: function() {
+        var m = domModule.import(this.is);
+        this._scopeStyles(m.querySelectorAll('style'));
+        // TODO(sorvell): does not work in HTMLIMports polyfill since
+        // SD rules are not parsed.
+        this._scopeStyles(m.querySelectorAll('link[rel=stylesheet]'));
+      },
+
+      _scopeStyles: function(styles) {
+        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+          // TODO(sorvell): support for HTML Imports polyfill.
+          s = s.__appliedElement || s;
+          if (s.sheet) {
+            var css = transformer.cssFromSheet(s.sheet);
+          }
+          s.parentNode.removeChild(s);
+          transformer.applyCss(transformer.css(css, this.is));
+        }
+      },
+
+      // instance-y
+
+      _stampTemplate: function() {
+        if (this._encapsulateStyle) {
+          transformer.host(this, this.is);
+        }
+        stampTemplate.call(this);
+      }
+
+    });
+
+  });
+</script>

@@ -36,21 +36,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     */
 
     function transformDom(dom, scope) {
-      var selector = scope + SCOPE_SUFFIX;
-      _transformDom(dom, selector);
+      _transformDom(dom, scope + SCOPE_SUFFIX);
+    }
+
+    function transformHost(host, scope) {
+      host.classList.add(scope + HOST_SCOPE_SUFFIX);
     }
 
     function _transformDom(node, selector) {
       if (node.classList) {
         node.classList.add(selector);
       }
-      for (var e=node.firstElementChild; e; e=e.nextElementSibling) {
+      // NOTE: it'd be better to use *Element* but Safari does not support
+      // this api for document fragments.
+      for (var e=node.firstChild; e; e=e.nextSibling) {
         _transformDom(e, selector);
       }
     }
 
-    function transformStyle(style, scope) {
-      var tree = css.parse(style.textContent);
+    function transformCss(cssText, scope) {
+      var tree = css.parse(cssText);
       onTransformRules(tree, function(rule) {
         transformRule(rule, scope);
       });
@@ -81,7 +86,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         p$[i] = transformComplexSelector(p, scope);
       }
       rule.selector = p$.join(SELECTOR_SEP);
-      // console.log('transformRule', rule.selector);
     }
 
     function transformComplexSelector(selector, scope) {
@@ -99,11 +103,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function transformCompoundSelector(selector, scope) {
+      // replace :host with host scoping class
       if (selector.indexOf(HOST) >=0) {
-        selector = selector.replace(HOST, scope);
+        selector = selector.replace(HOST, CLASS_PREFIX + scope + 
+          HOST_SCOPE_SUFFIX);
+      // replace other selectors with scoping class
       } else {
         selector = transformSimpleSelector(selector, scope);
       }
+      // process ::content up to the ::content and then stop
       var stop;
       if (selector.indexOf(CONTENT) >= 0) {
         selector = selector.replace(CONTENT, ' ');
@@ -118,7 +126,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return p$.join(PSEUDO_PREFIX);
     }
 
-    var SCOPE_SUFFIX = '';
+    function applyCss(css) {
+      var style = document.createElement('style');
+      style.textContent = css;
+      // TODO(sorvell): investigate if it's better to batch multiple
+      // styles, perhaps into a fragment that's appended at once? (hopefully
+      // this doesn't matter)
+      document.head.appendChild(style);
+    }
+
+    function cssFromSheet(sheet) {
+      var css = [], rules = sheet.cssRules;
+      for (var i=0, l=rules.length, r; (i<l) && (r=rules[i]); i++) {
+        if (r.styleSheet) {
+          css.push(cssFromSheet(r.styleSheet));
+        } else {
+          css.push(r.cssText);
+        }
+      }
+      return css.join('\n\n');
+    }
+
+    var SCOPE_SUFFIX = '-x';
+    var HOST_SCOPE_SUFFIX = '-xx';
     var AT_RULE = '@';
     var KEYFRAME_RULE = 'keyframe';
     var SELECTOR_SEP = ',';
@@ -131,7 +161,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // exports
     return {
       dom: transformDom,
-      style: transformStyle
+      host: transformHost,
+      css: transformCss,
+      applyCss: applyCss,
+      cssFromSheet: cssFromSheet
     };
 
   });
