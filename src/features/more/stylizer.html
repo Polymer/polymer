@@ -10,15 +10,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="style-transformer.html">
 <script>
 
-  using(['Base', 'Style-transformer'], function(Base, transformer) {
+  using(['Base', 'Style-transformer', 'Css-parse'], function(Base, transformer, css) {
     
     var prepTemplate = Base._prepTemplate;
     var stampTemplate = Base._stampTemplate;
 
     var domModule = document.createElement('dom-module');
 
+    // Transform styles if not using ShadowDOM or if flag is set.
     var useShadow = (window.PolymerSettings && PolymerSettings.shadow &&
-      Element.prototype.createShadowRoot);
+      Element.prototype.createShadowRoot && !window.ShadowDOMPolyfill);
 
     Base.addFeature({
 
@@ -26,7 +27,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _prepTemplate: function() {
         this._encapsulateStyle = 
           !useShadow && domModule.import(this.is).hasAttribute('encapsulate');
-        console.log(this.is, this._encapsulateStyle);
+        //console.log(this.is, this._encapsulateStyle);
         prepTemplate.call(this);
         if (this._encapsulateStyle) {
           if (this._template) {
@@ -36,26 +37,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      // TODO(sorvell): styles outside template should resolve path/loading
-      // issues, but needs special handling to work with HTMLImports
-      // polyfill and may be inefficient (?)
+      // TODO(sorvell): Need to decide where to place styles. If we do it
+      // outside the template, HTMLImports will load them for us and fix paths;
+      // however, ShadowDOM styles will not be properly parsed.
       _scopeCss: function() {
         var m = domModule.import(this.is);
         this._scopeStyles(m.querySelectorAll('style'));
         // TODO(sorvell): does not work in HTMLIMports polyfill since
         // SD rules are not parsed.
-        this._scopeStyles(m.querySelectorAll('link[rel=stylesheet]'));
+        //this._scopeStyles(m.querySelectorAll('link[rel=stylesheet]'));
       },
 
       _scopeStyles: function(styles) {
+        // list of styles for later manipulation.
+        this._styles = this._styles || [];
         for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-          // TODO(sorvell): support for HTML Imports polyfill.
+          // NOTE: __appliedElement is supplied by the HTMLImports polyfill
+          // and is the element in the main document used to apply styles.
           s = s.__appliedElement || s;
-          if (s.sheet) {
-            var css = transformer.cssFromSheet(s.sheet);
-          }
+          // if (s.sheet) {
+          //   // TODO(sorvell): Grabbing cssText does not work on browsers that
+          //   // don't support SD rules since they are not parsed.
+          //   var cssText = transformer.cssTextFromSheet(s.sheet);
+          // }
+          var cssText = s.textContent;
           s.parentNode.removeChild(s);
-          transformer.applyCss(transformer.css(css, this.is));
+          this._styles.push(s);
+          s.__cssRules = css.parse(cssText);
+          transformer.applyCss(transformer.css(s.__cssRules, this.is), this.is);
         }
       },
 

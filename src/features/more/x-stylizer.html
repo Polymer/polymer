@@ -1,0 +1,141 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="style-transformer.html">
+<script>
+
+  using(['Base', 'Style-transformer'], function(Base, transformer) {
+    
+    var scopeStyles = Base._scopeStyles;
+
+    Base.addFeature({
+
+      _scopeStyles: function(styles) {
+        scopeStyles.call(this, styles);
+      },
+
+      _computeElementStyleProperties: function(node) {
+        var s$ = this._styles;
+        var props = Object.create(this._styleProperties);
+        var p = this._reifyCustomProperty.bind(this, props, node);
+        for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
+          transformer.forEachStyleRule(s.__cssRules, p);
+        }
+        return props;
+      },
+
+      // test if a rule matches the given node and if so, 
+      // collect any custom properties
+      _reifyCustomProperty: function(properties, node, rule) {
+        if (this.elementMatches(rule.selector, node)) {
+          var m, p, v;
+          // --g: var(--b); or --g: 5;
+          while (m = CUSTOM_VAR_ASSIGN.exec(rule.cssText)) {
+            p = m[1];
+            v = m[2];
+            var cv = v.match(CUSTOM_VAR_MATCH);
+            cv = cv && cv[1];
+            properties[p] = cv ? this._styleProperties[cv] : v;
+          }
+          // --g: { ... }
+          // TODO(sorvell): support custom variable assignment within mixins
+          while (m = CUSTOM_MIXIN_ASSIGN.exec(rule.cssText)) {
+            p = m[1];
+            v = m[2];
+            properties[p] = v;
+          }
+        }
+      },
+
+      // declaration-y
+      applyStyleProperties: function(bag) {
+        this._ensureScopeSelector();
+        var s$ = this._styles;
+        var b = this._applyPropertiesToRule.bind(this, bag);
+        var cssText = '';
+        for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
+          cssText += transformer.css(s.textContent, this.is, b) + '\n\n';
+        }
+        if (cssText) {
+          this._applyCustomCss(cssText);
+        }
+      },
+
+      _ensureScopeSelector: function() {
+        if (!this._scopeSelector) {
+          this._scopeSelector = this._scopeSelector || (this.is + 
+          '-' + Math.floor(Math.random() * 1e6));
+          this.classList.add(this._scopeSelector);
+          this._scopeSelector = '.' + this._scopeSelector;
+        }
+      },
+
+      _applyCustomCss: function(cssText) {
+        if (this._customStyle) {
+          this._customStyle.textContent = cssText;
+        } else {
+          this._customStyle = transformer.applyCss(cssText, this._scopeSelector);
+        }
+      },
+
+      _applyPropertiesToRule: function(properties, rule) {
+        this._scopifyRule(rule);
+        if (rule.cssText.match(CUSTOM_RULE_RX)) {
+          rule.cssText = this._applyPropertiesToText(rule.cssText, properties);
+        } else {
+          rule.cssText = '';
+        }
+        //console.log(rule.cssText);
+      },
+
+      _applyPropertiesToText: function(cssText, properties) {
+        // TODO(sorvell): probably too simple; 
+        // just remove @mixin(...) and var(...) for easy replacement
+        cssText = cssText.replace(CUSTOM_RULE_TRIM, '$1;');
+        for (var i in properties) {
+          var p = properties[i], mixin = typeof p === 'object';
+          var r = mixin ? this._mixinToValues(p) : p + ';';
+          cssText = cssText.replace(new RegExp(i + '[\\s;]', 'g'), r);
+        }
+        return cssText;
+      },
+
+      _mixinToValues: function(mixin) {
+        var s = [];
+        for (var i in mixin) {
+          s.push(i + ': ' + mixin[i] + ';');
+        }
+        return s.join('\n') + '\n';
+      },
+
+      _scopifyRule: function(rule) {
+        var selector = rule.selector;
+        var host = this.is + HOST_SCOPE_SUFFIX;
+        var parts = selector.split(',');
+        for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
+          parts[i] = (p.indexOf(host) >= 0) ?
+            p.replace(host, host + this._scopeSelector) :
+            this._scopeSelector + ' ' + p;
+        }
+        rule.selector = parts.join(',');
+      }
+
+    });
+
+    var HOST_SCOPE_SUFFIX = '-xx';
+    var CUSTOM_MIXIN = '@mixin';
+    var CUSTOM_VAR = 'var';
+    var CUSTOM_RULE_RX = /@mixin|var/;
+    var CUSTOM_RULE_TRIM = /(?:@mixin|var)\(([^)]*)\);/gim;
+    var CUSTOM_VAR_ASSIGN = /(--[^\:;]*?):\s*?([^;{]*?);/g;
+    var CUSTOM_VAR_MATCH = /^var\(([^)]*?)\)/;
+    var CUSTOM_MIXIN_ASSIGN = /(--[^\:;]*?):[^{;]*?{([^}]*?)}/g;
+
+  });
+</script>

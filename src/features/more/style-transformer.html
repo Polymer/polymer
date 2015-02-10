@@ -35,12 +35,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     */
 
-    function transformDom(dom, scope) {
-      _transformDom(dom, scope + SCOPE_SUFFIX);
-    }
-
-    function transformHost(host, scope) {
-      host.classList.add(scope + HOST_SCOPE_SUFFIX);
+    // Given a node and scope name, add a scoping class to each node 
+    // in the tree. This facilitates transforming css into scoped rules. 
+    function transformDom(node, scope) {
+      _transformDom(node, scope + SCOPE_SUFFIX);
     }
 
     function _transformDom(node, selector) {
@@ -54,32 +52,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    function transformCss(cssText, scope) {
-      var tree = css.parse(cssText);
-      onTransformRules(tree, function(rule) {
-        transformRule(rule, scope);
-      });
-      return css.stringify(tree);
+    function transformHost(host, scope) {
+      host.classList.add(scope + HOST_SCOPE_SUFFIX);
     }
 
-    function onTransformRules(node, cb) {
+    // Given a string of cssText and a scoping string (scope), returns
+    // a string of scoped css where each selector is transformed to include
+    // a class created from the scope. ShadowDOM selectors are also transformed
+    // (e.g. :host) to use the scoping selector.
+    function transformCss(rules, scope, callback) {
+      if (typeof rules === 'string') {
+        rules = css.parse(rules);
+      } 
+      forEachStyleRule(rules, function(rule) {
+        transformRule(rule, scope);
+        if (callback) {
+          callback(rule, scope);
+        }
+      });
+      return css.stringify(rules);
+    }
+
+    function forEachStyleRule(node, cb) {
       var s = node.selector;
       var skipRules = false;
       if (s) {
-        if (s.indexOf(AT_RULE) !== 0) {
+        if ((s.indexOf(AT_RULE) !== 0) && (s.indexOf(MIXIN) !== 0)) {
           cb(node);
-        } else {
-          skipRules = (s.indexOf(KEYFRAME_RULE) >= 0);
         }
+        skipRules = (s.indexOf(KEYFRAME_RULE) >= 0) || (s.indexOf(MIXIN) >= 0);
       }
       var r$ = node.rules;
       if (r$ && !skipRules) {
         for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
-          onTransformRules(r, cb);
+          forEachStyleRule(r, cb);
         }
       }
     }
 
+    // transforms a css rule to a scoped rule.
     function transformRule(rule, scope) {
       var p$ = rule.selector.split(SELECTOR_SEP);
       for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
@@ -126,20 +137,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return p$.join(PSEUDO_PREFIX);
     }
 
-    function applyCss(css) {
+    // add a string of cssText to the document.
+    function applyCss(cssText, moniker) {
       var style = document.createElement('style');
-      style.textContent = css;
+      if (moniker) {
+        style.setAttribute('scope', moniker);
+      }
+      style.textContent = cssText;
       // TODO(sorvell): investigate if it's better to batch multiple
       // styles, perhaps into a fragment that's appended at once? (hopefully
       // this doesn't matter)
       document.head.appendChild(style);
+      return style;
     }
 
-    function cssFromSheet(sheet) {
+    // Collates and returns the cssText for a gien stylesheet (sheet)
+    function cssTextFromSheet(sheet) {
       var css = [], rules = sheet.cssRules;
       for (var i=0, l=rules.length, r; (i<l) && (r=rules[i]); i++) {
         if (r.styleSheet) {
-          css.push(cssFromSheet(r.styleSheet));
+          css.push(cssTextFromSheet(r.styleSheet));
         } else {
           css.push(r.cssText);
         }
@@ -157,6 +174,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var CONTENT = "::content";
     var CLASS_PREFIX = '.';
     var PSEUDO_PREFIX = ':';
+    var MIXIN = '--';
 
     // exports
     return {
@@ -164,7 +182,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       host: transformHost,
       css: transformCss,
       applyCss: applyCss,
-      cssFromSheet: cssFromSheet
+      cssTextFromSheet: cssTextFromSheet,
+      forEachStyleRule: forEachStyleRule
     };
 
   });
