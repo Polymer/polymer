@@ -22,7 +22,7 @@ Below is a description of the current Polymer layers and included features, foll
 ## polymer-micro.html
 Bare-minum Custom Element sugaring
 
-| Feature | Usage 
+| Feature | Usage
 |---------|-------
 | [Custom element constructor](#element-constructor) | Polymer.Class({ … });
 | [Custom element registration](#register-element) | Polymer({ is: ‘...’,  … }};
@@ -38,7 +38,7 @@ Bare-minum Custom Element sugaring
 ## polymer-mini.html
 Custom Elements with Templates stamped into "local DOM"
 
-| Feature | Usage 
+| Feature | Usage
 |---------|-------
 | [Template stamping into local DOM](#template-stamping) | \<dom-module>\<template>...\</template>\</dom-module>
 | [DOM (re-)distribution](#dom-distribution) | \<content>
@@ -49,7 +49,7 @@ Custom Elements with Templates stamped into "local DOM"
 ## polymer.html (standard)
 Custom elements with declarative data binding, events, and property nofication
 
-| Feature | Usage 
+| Feature | Usage
 |---------|-------
 | [Local node marshalling](#node-marshalling) | this.$.\<id>
 | [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
@@ -83,7 +83,7 @@ var MyElement = Polymer.Class({
 	created: function() {
 		this.innerHTML = 'My element!';
 	}
-	
+
 });
 
 document.registerElement('my-element', MyElement);
@@ -111,7 +111,7 @@ MyElement = Polymer({
 	created: function() {
 		this.innerHTML = 'My element!';
 	}
-	
+
 });
 
 var el1 = new MyElement();
@@ -136,11 +136,11 @@ MyElement = Polymer({
 		el.configureWithBar(bar);
 		return el;
 	},
-	
+
 	configureWithBar: function(bar) {
 		...
 	}
-	
+
 });
 
 var el = new MyElement(42, 'octopus');
@@ -160,11 +160,11 @@ MyInput = Polymer({
 	is: 'my-input',
 
 	extends: 'input',
-	
+
 	created: function() {
 		this.style.border = '1px solid red';
 	}
-	
+
 });
 
 var el1 = new MyInput();
@@ -196,20 +196,20 @@ MyElement = Polymer({
 	created: function() {
 		console.log(this.localName + '#' + this.id + ' was created');
 	},
-	
+
 	attached: function() {
 		console.log(this.localName + '#' + this.id + ' was attached');
 	},
-	
+
 	detached: function() {
 		console.log(this.localName + '#' + this.id + ' was detached');
 	},
-	
+
 	attributeChanged: function(name, type) {
 		console.log(this.localName + '#' + this.id + ' attribute ' + name +
 			' was changed to ' + this.getAttribute(name));
 	}
-	
+
 });
 ```
 
@@ -225,7 +225,7 @@ Placing an object-valued `published` property on your prototype allows you to de
 
 By itself, the `published` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see featues below for details).
 
-Example: 
+Example:
 
 ```js
 Polymer({
@@ -300,7 +300,7 @@ This user is a manager.
 
 A list of attribute names to be applied to instances of the custom element can be provided as space-separated strings in the `hostAttributes` property.  These will simply be set on the element during creation.  This is intended for "boolean" attributes only, such as common layout attributes used by the [layout.html](layout-html) CSS; attribute values cannot be supplied at this time.
 
-Example: 
+Example:
 
 ```html
 <script>
@@ -308,9 +308,9 @@ Example:
   Polymer({
 
     is: 'x-custom',
-    
+
     hostAttribute: 'layout horizontal fit'
-	
+
   });
 
 </script>
@@ -336,7 +336,7 @@ Modules are registered using the `modulate` global function, passing a name to r
 modulate('FunSupport', function() {
 
 	return {
-		makeElementFun = function(el) {
+		makeElementFun: function(el) {
 			el.style.border = 'border: 20px dotted fuchsia;';
 		}
 	};
@@ -379,7 +379,7 @@ using(['FunSupport', ...], function(funSupport, ...) {
 		created: function() {
 			funSupport.makeElementFun(this);
 		}
-		
+
 	});
 
 });
@@ -405,8 +405,8 @@ modulate('FunMixin', function() {
 		funCreatedCallback: function() {
 			this.makeElementFun();
 		},
-		
-		makeElementFun = function() {
+
+		makeElementFun: function() {
 			this.style.border = 'border: 20px dotted fuchsia;';
 		}
 	};
@@ -423,13 +423,13 @@ Example: `my-element.html`
 Polymer({
 
 	is: 'my-element',
-	
+
 	mixins: ['FunMixin'],
 
 	created: function() {
 		this.funCreatedCallback();
 	}
-	
+
 });
 </script>
 ```
@@ -443,7 +443,7 @@ Polymer({
 We call the dom which an element is in charge of creating an managing its `local DOM`. This is distinct from the element's children which are sometimes called its `light DOM` for clarity.
 
 To specify dom to use for an element's local DOM, use the `<dom-module>` element.
-Give the `<dom-module>` an `id` attribute that matches its element's 
+Give the `<dom-module>` an `id` attribute that matches its element's
 `is` property and put a `<template>` inside the `<dom-module>`.
 Polymer will automatically stamp this template into the element's local DOM.
 
@@ -468,7 +468,7 @@ in the same html file or in separate files.
 
 **NOTE:** Defining an element in the main html document is not currently supported.
 
-**NOTE:** Polymer also currently supports locating the element's template at the node previous 
+**NOTE:** Polymer also currently supports locating the element's template at the node previous
 to the element's script element; however, this may be deprecated.
 
 <a name="dom-distribution"></a>
@@ -504,10 +504,10 @@ Example:
 ```html
   var toLight = document.createElement('div');
   this.lightDOM.appendChild(toLight);
-  
+
   var toLocal = document.createElement('div');
   this.localDom.insertBefore(toLocal, this.localDom.children()[0]);
-  
+
   var allSpans = this.localDOM.querySelectorAll('span');
 ```
 
@@ -540,7 +540,7 @@ Example:
 this.localDOM.batch(function() {
 	for (var i=0; i<10; i++) {
 	  this.localDOM.appendChild(document.createElement('div'));
-	}	
+	}
 });
 
 ```
@@ -561,7 +561,7 @@ Example:
   <x-foo>
     <div></div>
   </x-foo>
-  
+
   // x-foo's template
   <template>
     <content></content>
@@ -577,7 +577,7 @@ Example:
   // the following should be true:
   assert.equal(distributed, div);
   assert.equal(insertedTo, content)
-  
+
 ```
 
 <a name="ready-method"></a>
@@ -673,12 +673,12 @@ Example:
   Polymer({
 
     is: 'x-custom',
-    
+
     listeners: {
     	'click': 'warnAction',
     	'button.click': 'kickAction'
     },
-    
+
     warnAction: function(e) {
     	alert("Don't click me, click the button!");
     },
@@ -740,12 +740,12 @@ Example:
 Polymer({
 
   is: 'x-custom',
-  
+
   keyPresses: {
   	'ESC_KEY': 'exitCurrentMode',
   	88: 'handleXKeyPress'
   },
-  
+
   exitCurrentMode: function(e) {
   	...
   },
@@ -772,17 +772,17 @@ Polymer({
   published: {
     disabled: Boolean
   },
-  
+
   bind: {
     disabled: 'disabledChanged',
     highlight: 'highlightChanged'
   },
-  
+
   disabledChanged: function(newValue, oldValue) {
     this.toggleClass('disabled', newValue);
     this.highlight = true;
   },
-  
+
   highlightChanged: function() {
     this.classList.add('highlight');
     setTimeout(function() {
@@ -809,11 +809,11 @@ Polymer({
   published: {
     user: Object
   },
-  
+
   bind: {
     'user.manager.*': 'userManagerChanged'
   },
-  
+
   userManagerChanged: function(newValue, oldValue, path) {
     if (path) {
       // sub-property of user.manager changed
@@ -854,14 +854,14 @@ To bind to textContent, the binding annotation must currently span the entire co
 <script>
 
 	Polymer({
-	
+
 	  is: 'user-view',
 
 	  published: {
 	    firstName: String,
 	    lastName: String
 	  }
-	
+
 	});
 
 </script>
@@ -882,13 +882,13 @@ To bind to properties, the binding annotation should be provided as the value to
 <script>
 
 	Polymer({
-	
+
 	  is: 'main-view',
 
 	  published: {
 	    user: Object
 	  }
-	
+
 	});
 
 </script>
@@ -896,7 +896,7 @@ To bind to properties, the binding annotation should be provided as the value to
 
 As in the exmaple above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
 
-Note that while HTML attributes are used to specify bindings, values are assigned directly to JS properties, not to the HTML attributes of the elements.  
+Note that while HTML attributes are used to specify bindings, values are assigned directly to JS properties, not to the HTML attributes of the elements.
 
 Note that currently binding to `style` is a special case which results in the value being set to `style.cssText`.
 
@@ -1078,7 +1078,7 @@ Example:
 	Polymer({
 
 		is: 'custom-element',
-		
+
 		reassignManager: function(newManager) {
 			this.user.manager = newManager;
 			// Notification required for binding to update!
@@ -1120,19 +1120,19 @@ Polymer supports virtual properties whose values are calculated from other prope
 </template>
 <script>
     Polymer({
-    
+
        computed: {
-         // when `user` changes `computeFullName` is called and the 
+         // when `user` changes `computeFullName` is called and the
          // value it returns is stored as `fullName`
          fullName: 'computeFullName(user)',
        },
-    
+
        computeFullName: function(user) {
          return user.firstName + ' ' + user.lastName;
        }
-    
+
       ...
-    
+
     });
 </script>
 ```
@@ -1182,7 +1182,7 @@ Flexbox:
 	* center-center
 	* justified
 
-Flexbox children: 
+Flexbox children:
 
 * flex
 	* auto
@@ -1251,7 +1251,7 @@ Assume an element has a boolean property that should be set when either of two c
 
 The most naive way to achieve this in 0.8 is with separate change handlers for the dependent properties that set a `shouldDisable` property bound to the `my-child`.
 
-Example: 
+Example:
 
 ```html
 <template>
@@ -1259,19 +1259,19 @@ Example:
 </template>
 <script>
 Polymer({
-    
+
     is: 'my-parent',
-    
+
     bind: {
         isManager: 'computeShouldDisable',
         mode: 'computeShouldDisable',
     },
-    
+
     // Warning: Called once for every change to dependent properties!
     computeShouldDisable: function() {
         this.shouldDisable = this.isManager || (this.mode == 2);
     }
-    
+
 });
 </script>
 ```
@@ -1293,23 +1293,23 @@ Example:
 </template>
 <script>
 Polymer({
-    
+
     is: 'my-parent',
-    
+
     bind: {
         isManager: 'computeShouldDisableDebounced',
         mode: 'computeShouldDisableDebounced',
     },
-    
+
     computeShouldDisableDebounced: function() {
         this.debounce('computeShouldDisable', this.computeShouldDisable);
     },
-    
-    // Better: called once for multiple changes 
+
+    // Better: called once for multiple changes
     computeShouldDisable: function() {
         this.shouldDisable = this.isManager || (this.mode == 2);
     }
-    
+
 });
 </script>
 ```
