@@ -58,7 +58,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @class data feature: path notification
    */
 
-using('Base', function(Base) {
+using(['Base', 'Annotations'], function(Base, Annotations) {
 
   Base.addFeature({
     /**
@@ -105,7 +105,7 @@ using('Base', function(Base) {
         }
         // TODO(kschaaf): want dirty-check here?
         // if (prop[last] !== value) {
-          prop[last] = value;          
+          prop[last] = value;
           this.notifyPath(path, value);
         // }
       } else {
@@ -139,42 +139,60 @@ using('Base', function(Base) {
     // effectors as new paths are notified for performance, since it involves
     // a fair amount of runtime lookup
     _pathEffector: function(path, value) {
+      // get root property
       var model = modelForPath(path);
+      // search property effects of the root property for 'annotation' effects
       var fx$ = this._propertyEffects[model];
-      fx$.forEach(function(x) {
-        if (x.kind === 'annotation') {
-          var effect = x.effect;
-          var n = this._nodeForBinding(effect);
+      fx$.forEach(function(fx) {
+        if (fx.kind === 'annotation') {
+          // locate the bound node
+          var n = this._nodeForBinding(fx.effect);
           if (n) {
-            if (effect.value === path || effect.value.indexOf(path + '.') === 0) {
-              var v = (effect.value === path) ? value : this.getPathValue(effect.value);
-              v = effect.negate ? !v : v;
-              if (effect.kind == 'attribute') {
-                this.serializeValueToAttribute(v, effect.name, n);
-              } else { // property || text
-                n[effect.name || 'textContent'] = v;
-              }
-            // path == item.stuff.count
-            // value == item.stuff 
-            // name == zizz
-            // calls effect n.notifyPath for zizz.count
-            } else if ((path.indexOf(effect.value + '.') === 0) && n.notifyPath) {
-              var p = this._fixPath(effect.name , effect.value, path);
-              n.notifyPath(p, value, true);
-            }
+            // perform the effect
+            this._performAnnotationPathEffect(n, path, value, fx.effect);
           }
         }
       }, this);
+      // iterate and perform _pathEffects matching path
       if (this._pathEffects) {
-        this._pathEffects.forEach(function(x) {
-          if (x.path == path || (x.match && path.indexOf(x.path) === 0)) {
-            var fn = this[x.method];
-            if (fn) {
-              // TODO(kschaaf): sending null for old; no good way to get it?
-              fn.call(this, value, null, path);
-            }
-          }
+        this._pathEffects.forEach(function(fx) {
+          this._performPathEffect(path, value, fx);
         }, this);
+      }
+    },
+
+    _nodeForBinding: function(info) {
+      return info.id ? this.$[info.id] : this._nodes[info.index];
+    },
+
+    _performAnnotationPathEffect: function(node, path, value, effect) {
+      if (effect.value === path || effect.value.indexOf(path + '.') === 0) {
+        var v = (effect.value === path) ? 
+          value : this.getPathValue(effect.value);
+        v = effect.negate ? !v : v;
+        if (effect.kind == 'attribute') {
+          this.serializeValueToAttribute(v, effect.name, node);
+        } else { // property || text
+          node[effect.name || 'textContent'] = v;
+        }
+      } else 
+      // path == item.stuff.count
+      // value == item.stuff 
+      // name == zizz
+      // calls effect node.notifyPath for zizz.count
+      if ((path.indexOf(effect.value + '.') === 0) && node.notifyPath) {
+        var p = this._fixPath(effect.name , effect.value, path);
+        node.notifyPath(p, value, true);
+      }
+    },
+
+    _performPathEffect: function(path, value, fx) {
+      if (fx.path == path || (fx.match && path.indexOf(fx.path) === 0)) {
+        var fn = this[fx.method];
+        if (fn) {
+          // TODO(kschaaf): sending null for old; no good way to get it?
+          fn.call(this, value, null, path);
+        }
       }
     },
 
@@ -183,20 +201,23 @@ using('Base', function(Base) {
     },
 
     _notifyPath: function(path, value) {
-      var event = modelForPath(path) + EVENT_PATH_CHANGED;
-      this.fire(event, { path: path, value: value }, null, false);
-    },
-
-    _nodeForBinding: function(info) {
-      return info.id ? this.$[info.id] : this._nodes[info.index];
+      var rootName = modelForPath(path);
+      var dashCaseName = Annotations.camelToDashCase(rootName); 
+      var eventName = dashCaseName + EVENT_PATH_CHANGED;
+      this.fire(eventName, { 
+        path: path, 
+        value: value 
+      }, null, false);
     }
 
   });
 
+  // TODO(sjmiles): needs a home
   function modelForPath(path) {
     return path.split('.').shift();
   }
 
+  // TODO(sjmiles): should be imported from elsewhere
   var EVENT_CHANGED = '-changed';
   var EVENT_PATH_CHANGED = '-path' + EVENT_CHANGED;
 
