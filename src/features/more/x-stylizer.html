@@ -12,20 +12,49 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   using(['Base', 'Style-transformer'], function(Base, transformer) {
     
-    var scopeStyles = Base._scopeStyles;
+    var beforeReady = Base._beforeReady;
 
     Base.addFeature({
 
-      _scopeStyles: function(styles) {
-        scopeStyles.call(this, styles);
+      // called host before local children.
+      _beforeConfigure: function() {
+        this._computeStyleProperties();
+        console.log(this.is, this._styleProperties);
+      },
+
+      _beforeReady: function() {
+        beforeReady.call(this);
+        if (this._styleProperties) {
+          this.applyStyleProperties(this._styleProperties);
+        }
+      },
+
+      _computeStyleProperties: function() {
+        if (this.host) {
+          this._styleProperties = this.host._computeElementStyleProperties(this);
+        }
+        // TODO(sorvell): factor this to better spot.
+        if (this._styleProperties) {
+          for (var i in this._styleProperties) {
+            this._styleProperties[i] = 
+              this._valueForProperty(this._styleProperties[i]);
+          }
+        }
       },
 
       _computeElementStyleProperties: function(node) {
         var s$ = this._styles;
-        var props = Object.create(this._styleProperties);
+        var props = Object.create(this._styleProperties || null);
+        if (node._styleProperties) {
+          for (var i in node._styleProperties) {
+            props[i] = node._styleProperties[i];
+          }
+        }
         var p = this._reifyCustomProperty.bind(this, props, node);
-        for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
-          transformer.forEachStyleRule(s.__cssRules, p);
+        if (s$) {
+          for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
+            transformer.forEachStyleRule(s.__cssRules, p);
+          }
         }
         return props;
       },
@@ -39,9 +68,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           while (m = CUSTOM_VAR_ASSIGN.exec(rule.cssText)) {
             p = m[1];
             v = m[2];
-            var cv = v.match(CUSTOM_VAR_MATCH);
-            cv = cv && cv[1];
-            properties[p] = cv ? this._styleProperties[cv] : v;
+            properties[p] = this._valueForProperty(v);
           }
           // --g: { ... }
           // TODO(sorvell): support custom variable assignment within mixins
@@ -53,24 +80,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      _valueForProperty: function(property) {
+        var cv;
+        while ((typeof property === 'string') && 
+          (cv = property.match(CUSTOM_VAR_MATCH))) {
+          property = this._styleProperties[cv[1]];
+        }
+        return property;
+      },
+
       // declaration-y
       applyStyleProperties: function(bag) {
-        this._ensureScopeSelector();
         var s$ = this._styles;
-        var b = this._applyPropertiesToRule.bind(this, bag);
-        var cssText = '';
-        for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
-          cssText += transformer.css(s.textContent, this.is, b) + '\n\n';
-        }
-        if (cssText) {
-          this._applyCustomCss(cssText);
+        if (s$) {
+          this._ensureScopeSelector();
+          var b = this._applyPropertiesToRule.bind(this, bag);
+          var cssText = '';
+          for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
+            cssText += transformer.css(s.textContent, this.is, b) + '\n\n';
+          }
+          if (cssText) {
+            this._applyCustomCss(cssText);
+          }
         }
       },
 
       _ensureScopeSelector: function() {
         if (!this._scopeSelector) {
           this._scopeSelector = this._scopeSelector || (this.is + 
-          '-' + Math.floor(Math.random() * 1e6));
+            '-' + Math.floor(Math.random() * 1e6));
           this.classList.add(this._scopeSelector);
           this._scopeSelector = '.' + this._scopeSelector;
         }
@@ -99,19 +137,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // just remove @mixin(...) and var(...) for easy replacement
         cssText = cssText.replace(CUSTOM_RULE_TRIM, '$1;');
         for (var i in properties) {
-          var p = properties[i], mixin = typeof p === 'object';
-          var r = mixin ? this._mixinToValues(p) : p + ';';
+          var p = properties[i], obj = typeof p === 'object';
+          var r = obj ? this._mixinToCss(p) : 
+            this._propertyToCss(p);
           cssText = cssText.replace(new RegExp(i + '[\\s;]', 'g'), r);
         }
         return cssText;
       },
 
-      _mixinToValues: function(mixin) {
+      _mixinToCss: function(mixin) {
         var s = [];
         for (var i in mixin) {
           s.push(i + ': ' + mixin[i] + ';');
         }
         return s.join('\n') + '\n';
+      },
+
+      _propertyToCss: function(property) {
+        var p = property.trim();
+        p = p[p.length-1] === ';' ? p : p + ';';
+        return p + '\n';
       },
 
       _scopifyRule: function(rule) {
@@ -124,6 +169,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._scopeSelector + ' ' + p;
         }
         rule.selector = parts.join(',');
+      },
+
+      updateStyles: function() {
+        this._computeStyleProperties();
+        this.applyStyleProperties(this._styleProperties);
+        var c$ = this._getDistributionClients();
+        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
+          c.updateStyles();
+        }
       }
 
     });
