@@ -1,25 +1,18 @@
-WORK IN PROGRESS
-
 # Polymer 0.8 Primer
+
+**<div style="color:red">Polymer 0.8 and this document are a WORK IN PROGRESS and APIs are subject to change.</div>**
 
 Table of Contents:
 
-* [Feature layering](#feature-layering)
-* [Polymer micro features](#polymer-micro)
-* [Polymer mini features](#polymer-mini)
-* [Polymer standard features](#polymer-standard)
+* [Feature list](#feature-list)
 * [Migration notes](#migration-notes)
 
-<a name="feature-layering"></a>
-# Feature layering
+# Feature list
 
-Polymer 0.8 is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extent that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
+<a name="feature-list"></a>
+Below is a description of the current Polymer features, followed by individual feature guides.
 
-Higher layers depend on lower layers, and elements requiring lower layers will actually be imbued with features of the highest-level version of Polymer used on the page (those elements would simply not use/take advantage of those features).  This provides a good tradeoff between element authors being able to avoid direct dependencies on unused features when their element is used standalone, while also allowing end users to mix-and-match elements created with different layers on the same page.
-
-Below is a description of the current Polymer layers and included features, followed by individual feature guides.
-
-## polymer-micro.html
+<a name="polymer-micro"></a>
 Bare-minum Custom Element sugaring
 
 | Feature | Usage
@@ -35,8 +28,8 @@ Bare-minum Custom Element sugaring
 | [Module registry](#module-registry) | modularize, using
 | [Prototype Mixins](#prototype-mixins) | mixins: [ … ]
 
-## polymer-mini.html
-Custom Elements with Templates stamped into "local DOM"
+<a name="polymer-mini"></a>
+Template content stamped into "local DOM"
 
 | Feature | Usage
 |---------|-------
@@ -46,8 +39,8 @@ Custom Elements with Templates stamped into "local DOM"
 | [Top-down callback to configure defaults](#configure-method) | configure: function() { … }
 | [Bottom-up callback after configuration](#ready-method) | ready: function() { … }
 
-## polymer.html (standard)
-Custom elements with declarative data binding, events, and property nofication
+<a name="polymer-standard"></a>
+Declarative data binding, events, and property nofication
 
 | Feature | Usage
 |---------|-------
@@ -66,9 +59,6 @@ Custom elements with declarative data binding, events, and property nofication
 | [Read-only properties](#read-only) |  published: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Attribute-based layout](#layout-html) | layout.html (layout horizontal flex ...)
-
-<a name="polymer-micro"></a>
-# Polymer Micro Features
 
 <a name="element-constructor"></a>
 ## Custom Element Constructor
@@ -439,9 +429,6 @@ Polymer({
 </script>
 ```
 
-<a name="polymer-mini"></a>
-# Polymer Mini Layer
-
 <a name="template-stamping"></a>
 ## Template stamping into local DOM
 
@@ -615,9 +602,6 @@ Example:
     this.$.ajax.go();
   }
 ```
-
-<a name="polymer-standard"></a>
-# Polymer Standard Layer
 
 <a name="node-marshalling"></a>
 ## Local node marshalling
@@ -1223,6 +1207,7 @@ Polymer's Base prototype provides a set of useful convenience/utility functions 
 * translate3d: function(node, x, y, z)
 * importHref: function(href, onload, onerror)
 
+<!--
 <a name="layout-html"></a>
 ## Attribute-based layout
 
@@ -1263,6 +1248,20 @@ Flexbox children:
 * self-center
 * self-end
 * self-stretch
+-->
+
+<a name="feature-layering"></a>
+## Feature layering
+
+Polymer 0.8 is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extent that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
+
+Higher layers depend on lower layers, and elements requiring lower layers will actually be imbued with features of the highest-level version of Polymer used on the page (those elements would simply not use/take advantage of those features).  This provides a good tradeoff between element authors being able to avoid direct dependencies on unused features when their element is used standalone, while also allowing end users to mix-and-match elements created with different layers on the same page.
+
+* polymer-micro.html: [Polymer micro features](#polymer-micro)
+* polymer-mini.html: [Polymer mini features](#polymer-mini)
+* polymer.html: [Polymer standard features](#polymer-standard)
+
+---
 
 <a name="migration-notes"></a>
 # Migration Notes
@@ -1277,29 +1276,28 @@ As the final 0.8 API solidifies, this section will be updated accordingly.  As s
 
 ## Styling
 
-TODO: explain shadow/shady DOM styling considerations.
+Currently all polymer elements are rendered with "Shady DOM" composition, meaning local DOM is stamped into the composed tree rather than into shadow roots (where Shadow DOM available).  This will change shortly once the new Shady DOM style shimmer is completed, after which local DOM styling will be done according to Shadow DOM rules.  DETAILS TO FOLLOW.
+
+In the meantime, styling should be done against the composed tree, meaning:
 
 * `<style>` goes outside the template
-* Prefix with element name
+* Prefix selectors with element name to provide "host" scope
 
-```css
-x-foo .my-class {
-  ...
-}
+```html
+<dom-module id="x-foo">
+    
+    <style>
+        x-foo .my-class {
+          ...
+        }
+    </style>
+    
+    <template>
+    ...
+    </template>
+
+</dom-module>
 ```
-
-## Self / Child Configuration
-
-Lifecycle callback timing and best practices are in high flux at the moment.
-
-__TL;DR: Do all initialization/configuration in `ready` today.__
-
-Currently, at `created` time, children are not stamped yet.  As such, configuring any properties that may have side-effects involving children will error.  As such, it is not reccomended to use the `created` callback for self-configuration.
-
-There is a work-in-progress `configure` callback that is called top-down after children have been stamped & `created` , but is not ready for use yet.
-
-The `ready` callback is called bottom-up after children have been `configure`-ed.  Currently, this is the only useful & safe place to do configuration of properties that may have side-effects on children.  Ideally this configuration step will be moved to the `configure` callback in the future.
-
 
 ## Binding limitations
 
