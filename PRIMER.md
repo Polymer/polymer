@@ -47,7 +47,6 @@ Declarative data binding, events, and property nofication
 | [Local node marshalling](#node-marshalling) | this.$.\<id>
 | [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
 | [Annotated event listener setup](#annotated-listeners) | \<element on-[event]=”function”>
-| [Key listener setup](#key-listeners) | keyPresses: { '\<char>' \| \<code>: ‘function’, … }
 | [Property change callbacks](#change-callbacks) | bind: { \<property>: ‘function’ }
 | [Declarative property binding](#property-binding) | \<element prop=”{{property\|path}}”>
 | [Property change notification](#property-notification) | published: { \<prop>: { notify: true } }
@@ -558,9 +557,8 @@ Example:
   <template>
     <content></content>
   </template>
-
-  ...
-
+```
+```js
   var div = xFoo.lightDom.querySelector('div');
   var content = xFoo.localDom.querySelector('content');
   var distributed = xFoo.localDom.distributedNodes(content)[0];
@@ -579,7 +577,7 @@ The `configure` method is part of an element's lifecycle and is automatically ca
 
 Example:
 
-```html
+```js
   configure: function() {
     // return default values of properties
     return {
@@ -597,7 +595,7 @@ The `ready` method is part of an element's lifecycle and is automatically called
 
 Example:
 
-```html
+```js
   ready: function() {
     this.$.ajax.go();
   }
@@ -694,41 +692,6 @@ Example:
   });
 
 </script>
-```
-
-<a name="key-listeners"></a>
-## Key listener setup
-
-Polymer will automatically listen for `keydown` events and call handlers specified in the `keyPresses` object, which maps key codes to handler functions.  The key may either be specified as a keyboard code or one of several convenience strings supported:
-
-* ESC_KEY
-* ENTER_KEY
-* LEFT
-* UP
-* RIGHT
-* DOWN
-
-Example:
-
-```js
-Polymer({
-
-  is: 'x-custom',
-
-  keyPresses: {
-    'ESC_KEY': 'exitCurrentMode',
-    88: 'handleXKeyPress'
-  },
-
-  exitCurrentMode: function(e) {
-    ...
-  },
-
-  handleXKeyPress: function(e) {
-    ...
-  }
-
-});
 ```
 
 <a name="change-callbacks"></a>
