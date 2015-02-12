@@ -146,18 +146,18 @@
       requestAnimationFrame(this.flushReadyCallbacks);
     },
 
-    addReadyCallback: function(callback) {
+    addReadyCallback: function(callback, args) {
       if (callback) {
-        readyCallbacks.push(callback);
+        readyCallbacks.push({fn: callback, args: args});
       }
     },
 
     flushReadyCallbacks: function() {
       if (readyCallbacks) {
-        var fn;
+        var callback;
         while (readyCallbacks.length) {
-          fn = readyCallbacks.shift();
-          fn();
+          callback = readyCallbacks.shift();
+          callback.fn(callback.args);
         }
       }
     },
@@ -198,8 +198,8 @@
   function whenReady(callback) {
     queue.waitToReady = true;
     Polymer.endOfMicrotask(function() {
-      HTMLImports.whenReady(function() {
-        queue.addReadyCallback(callback);
+      HTMLImports.whenReady(function(args) {
+        queue.addReadyCallback(callback, args);
         queue.waitToReady = false;
         queue.check();
     });
