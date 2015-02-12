@@ -10,7 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="style-transformer.html">
 <script>
 
-  using(['Base', 'Style-transformer'], function(Base, transformer) {
+  using(['Base', 'Style-transformer', 'Css-parse'], function(Base, transformer, css) {
     
     var beforeReady = Base._beforeReady;
 
@@ -34,6 +34,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._styleProperties = this.host._computeElementStyleProperties(this);
         } else {
           this._styleProperties = Object.create(this.styleProperties || null);
+          // apply values from defaults;
+          this._stylePropertiesFromStyles(this, this._styleProperties, [defaultSheet]);
         }
         // TODO(sorvell): factor this to better spot.
         for (var i in this._styleProperties) {
@@ -43,20 +45,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _computeElementStyleProperties: function(node) {
-        var s$ = this._styles;
         var props = Object.create(this._styleProperties || null);
         if (node.styleProperties) {
           for (var i in node.styleProperties) {
             props[i] = node.styleProperties[i];
           }
         }
+        this._stylePropertiesFromStyles(node, props, this._styles);
+        return props;
+      },
+
+      _stylePropertiesFromStyles: function(node, props, styles) {
         var p = this._reifyCustomProperty.bind(this, props, node);
-        if (s$) {
-          for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
+        if (styles) {
+          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
             transformer.forEachStyleRule(s.__cssRules, p);
           }
         }
-        return props;
       },
 
       // test if a rule matches the given node and if so, 
@@ -178,9 +183,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
           c.updateStyles();
         }
+      },
+
+      addStyleDefaults: function(defaults) {
+        addStyleDefaults(defaults);
       }
 
     });
+
+    var defaultSheet = document.createElement('style'); 
+
+    function addStyleDefaults(defaults) {
+      defaultSheet.textContent += defaults;
+      defaultSheet.__cssRules = css.parse(defaultSheet.textContent);
+    }
+    addStyleDefaults('');
+
 
     var HOST_SCOPE_SUFFIX = '-xx';
     var CUSTOM_MIXIN = '@mixin';
