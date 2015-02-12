@@ -1419,10 +1419,6 @@ TODO - array changes not observed; for now need to "kick" x-repeat's `render`
 
 TODO - use composition for now
 
-## Default values
-
-TODO - initialize in ready for now
-
 ## Gesture support
 
 TODO - use standard DOM for now until gesture support is ported
