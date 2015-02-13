@@ -368,7 +368,9 @@ window.PolymerGestures = {};
       var e = this.makeBaseEvent(inType, inDict);
       for (var i = 0, keys = Object.keys(inDict), k; i < keys.length; i++) {
         k = keys[i];
-        e[k] = inDict[k];
+        if( k !== 'bubbles' && k !== 'cancelable' ) {
+           e[k] = inDict[k];
+        }
       }
       return e;
     },
@@ -377,7 +379,7 @@ window.PolymerGestures = {};
 
       var e = this.makeBaseEvent(inType, inDict);
       // define inherited MouseEvent properties
-      for(var i = 0, p; i < MOUSE_PROPS.length; i++) {
+      for(var i = 2, p; i < MOUSE_PROPS.length; i++) {
         p = MOUSE_PROPS[i];
         e[p] = inDict[p] || MOUSE_DEFAULTS[i];
       }
@@ -983,7 +985,7 @@ window.PolymerGestures = {};
       dispatcher.listen(target, this.events);
     },
     unregister: function(target) {
-      if (target === document) {
+      if (target.nodeType === Node.DOCUMENT_NODE) {
         return;
       }
       dispatcher.unlisten(target, this.events);
@@ -1414,7 +1416,7 @@ window.PolymerGestures = {};
       dispatcher.listen(target, this.events);
     },
     unregister: function(target) {
-      if (target === document) {
+      if (target.nodeType === Node.DOCUMENT_NODE) {
         return;
       }
       dispatcher.unlisten(target, this.events);
@@ -1490,7 +1492,7 @@ window.PolymerGestures = {};
       dispatcher.listen(target, this.events);
     },
     unregister: function(target) {
-      if (target === document) {
+      if (target.nodeType === Node.DOCUMENT_NODE) {
         return;
       }
       dispatcher.unlisten(target, this.events);
@@ -3383,12 +3385,11 @@ window.PolymerGestures = {};
   Filter.prototype = {
     transform: function(model, observer, filterRegistry, toModelDirection,
                         initialArgs) {
-      var fn = filterRegistry[this.name];
       var context = model;
-      if (fn) {
-        context = undefined;
-      } else {
-        fn = context[this.name];
+      var fn = context[this.name];
+
+      if (!fn) {
+        fn = filterRegistry[this.name];
         if (!fn) {
           console.error('Cannot find function or filter: ' + this.name);
           return;
@@ -5841,18 +5842,18 @@ scope.isIE = isIE;
     return splices;
   }
 
-  // Export the observe-js object for **Node.js**, with
-  // backwards-compatibility for the old `require()` API. If we're in
-  // the browser, export as a global object.
+  // Export the observe-js object for **Node.js**, with backwards-compatibility
+  // for the old `require()` API. Also ensure `exports` is not a DOM Element.
+  // If we're in the browser, export as a global object.
 
   var expose = global;
 
-  if (typeof exports !== 'undefined') {
+  if (typeof exports !== 'undefined' && !exports.nodeType) {
     if (typeof module !== 'undefined' && module.exports) {
-      expose = exports = module.exports;
+      exports = module.exports;
     }
     expose = exports;
-  } 
+  }
 
   expose.Observer = Observer;
   expose.Observer.runEOM_ = runEOM;
@@ -6047,7 +6048,8 @@ scope.isIE = isIE;
     var eventType = getEventForInputType(input);
 
     function eventHandler() {
-      observable.setValue(input[property]);
+      var isNum = property == 'value' && input.type == 'number';
+      observable.setValue(isNum ? input.valueAsNumber : input[property]);
       observable.discardChanges();
       (postEventFn || noop)(input);
       Platform.performMicrotaskCheckpoint();
