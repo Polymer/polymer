@@ -7,10 +7,10 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="../lib/css-parse.html">
+<link rel="import" href="../lib/style-util.html">
 <script>
 
-  modulate('Style-transformer', ['Css-parse'], function(css) {
+  modulate('StyleTransformer', ['StyleUtil'], function(styleUtil) {
 
     /* Transforms ShadowDOM styling into ShadyDOM styling
 
@@ -61,47 +61,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // a class created from the scope. ShadowDOM selectors are also transformed
     // (e.g. :host) to use the scoping selector.
     function transformCss(rules, scope, callback) {
-      if (typeof rules === 'string') {
-        rules = css.parse(rules);
-      } 
-      forEachStyleRule(rules, function(rule) {
+      return styleUtil.toCssText(rules, function(rule) {
         transformRule(rule, scope);
         if (callback) {
           callback(rule, scope);
         }
       });
-      return css.stringify(rules);
-    }
-
-    function forEachStyleRule(node, cb) {
-      var s = node.selector;
-      var skipRules = false;
-      if (s) {
-        if ((s.indexOf(AT_RULE) !== 0) && (s.indexOf(MIXIN) !== 0)) {
-          cb(node);
-        }
-        skipRules = (s.indexOf(KEYFRAME_RULE) >= 0) || (s.indexOf(MIXIN) >= 0);
-      }
-      var r$ = node.rules;
-      if (r$ && !skipRules) {
-        for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
-          forEachStyleRule(r, cb);
-        }
-      }
     }
 
     // transforms a css rule to a scoped rule.
     function transformRule(rule, scope) {
-      var p$ = rule.selector.split(SELECTOR_SEP);
+      var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
       for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
         p$[i] = transformComplexSelector(p, scope);
       }
-      rule.selector = p$.join(SELECTOR_SEP);
+      rule.selector = p$.join(COMPLEX_SELECTOR_SEP);
     }
 
     function transformComplexSelector(selector, scope) {
       var stop = false;
-      return selector.replace(SIMPLE_RX, function(s) {
+      return selector.replace(SIMPLE_SELECTOR_SEP, function(s) {
         if (!stop) {
           var o = transformCompoundSelector(s, scope);
           if (o.stop) {
@@ -137,53 +116,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return p$.join(PSEUDO_PREFIX);
     }
 
-    // add a string of cssText to the document.
-    function applyCss(cssText, moniker) {
-      var style = document.createElement('style');
-      if (moniker) {
-        style.setAttribute('scope', moniker);
-      }
-      style.textContent = cssText;
-      // TODO(sorvell): investigate if it's better to batch multiple
-      // styles, perhaps into a fragment that's appended at once? (hopefully
-      // this doesn't matter)
-      document.head.appendChild(style);
-      return style;
-    }
-
-    // Collates and returns the cssText for a gien stylesheet (sheet)
-    function cssTextFromSheet(sheet) {
-      var css = [], rules = sheet.cssRules;
-      for (var i=0, l=rules.length, r; (i<l) && (r=rules[i]); i++) {
-        if (r.styleSheet) {
-          css.push(cssTextFromSheet(r.styleSheet));
-        } else {
-          css.push(r.cssText);
-        }
-      }
-      return css.join('\n\n');
-    }
-
     var SCOPE_SUFFIX = '-x';
     var HOST_SCOPE_SUFFIX = '-xx';
-    var AT_RULE = '@';
-    var KEYFRAME_RULE = 'keyframe';
-    var SELECTOR_SEP = ',';
-    var SIMPLE_RX = /([^\s>+~]+)/g
+    var COMPLEX_SELECTOR_SEP = ',';
+    var SIMPLE_SELECTOR_SEP = /([^\s>+~]+)/g;
     var HOST = ':host';
     var CONTENT = "::content";
     var CLASS_PREFIX = '.';
     var PSEUDO_PREFIX = ':';
-    var MIXIN = '--';
 
     // exports
     return {
       dom: transformDom,
       host: transformHost,
-      css: transformCss,
-      applyCss: applyCss,
-      cssTextFromSheet: cssTextFromSheet,
-      forEachStyleRule: forEachStyleRule
+      css: transformCss
     };
 
   });

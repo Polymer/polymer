@@ -7,33 +7,33 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="../lib/style-util.html">
 <link rel="import" href="style-transformer.html">
+<link rel="import" href="shadow-settings.html">
 <script>
 
-  using(['Base', 'Style-transformer', 'Css-parse'], function(Base, transformer, css) {
+  using(['Base', 'StyleTransformer', 'StyleUtil', 'ShadowSettings'], 
+    function(Base, transformer, styleUtil, settings) {
     
     var prepTemplate = Base._prepTemplate;
     var stampTemplate = Base._stampTemplate;
 
     var domModule = document.createElement('dom-module');
 
-    // Transform styles if not using ShadowDOM or if flag is set.
-    var useShadow = (window.PolymerSettings && PolymerSettings.shadow &&
-      Element.prototype.createShadowRoot && !window.ShadowDOMPolyfill);
-
     Base.addFeature({
 
       // declaration-y
       _prepTemplate: function() {
-        var port = domModule.import(this.is);
-        this._encapsulateStyle = 
-          !useShadow && (port && port.hasAttribute('encapsulate'));
-        //console.log(this.is, this._encapsulateStyle);
         prepTemplate.call(this);
+        var port = domModule.import(this.is);
+        this._encapsulateStyle = (port && port.hasAttribute('encapsulate')) &&
+          !settings.useNativeShadow;
         if (this._encapsulateStyle) {
           if (this._template) {
             transformer.dom(this._template.content, this.is);
           }
+        }
+        if (settings.useNativeShadow || this._encapsulateStyle) {
           this._scopeCss();
         }
       },
@@ -44,9 +44,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _scopeCss: function() {
         var m = domModule.import(this.is);
         this._scopeStyles(m.querySelectorAll('style'));
-        // TODO(sorvell): does not work in HTMLIMports polyfill since
-        // SD rules are not parsed.
-        //this._scopeStyles(m.querySelectorAll('link[rel=stylesheet]'));
       },
 
       _scopeStyles: function(styles) {
@@ -56,21 +53,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // NOTE: __appliedElement is supplied by the HTMLImports polyfill
           // and is the element in the main document used to apply styles.
           s = s.__appliedElement || s;
-          // if (s.sheet) {
-          //   // TODO(sorvell): Grabbing cssText does not work on browsers that
-          //   // don't support SD rules since they are not parsed.
-          //   var cssText = transformer.cssTextFromSheet(s.sheet);
-          // }
           var cssText = s.textContent;
           s.parentNode.removeChild(s);
           this._styles.push(s);
-          s.__cssRules = css.parse(cssText);
-          transformer.applyCss(transformer.css(s.__cssRules, this.is), this.is);
+          s.__cssRules = styleUtil.parser.parse(cssText);
+          if (settings.useNativeShadow) {
+            this._template.content.appendChild(s);
+          } else {
+            styleUtil.applyCss(null, 
+              transformer.css(s.__cssRules, this.is), this.is);
+          }
         }
       },
 
       // instance-y
-
       _stampTemplate: function() {
         if (this._encapsulateStyle) {
           transformer.host(this, this.is);
