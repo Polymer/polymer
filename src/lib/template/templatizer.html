@@ -1,0 +1,93 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<script>
+
+modulate('Templatizer', ['Base', 'Annotations'], function(Base, Annotations) {
+
+  Templatizer = {
+
+    templatize: function(template) {
+      if (template._content && template._content._ctor) {
+        this.ctor = template._content._ctor;
+        //console.log('Templatizer.templatize: using memoized archetype');
+        return;
+      }
+      //
+      var host = this.host;
+      var archetype = Object.create(Base);
+      //
+      archetype._template = template;
+      this.customPrepAnnotations(archetype, template);
+      archetype._prepEffects();
+      archetype.listen = function() {
+        host.listen.apply(host, arguments);
+      };
+      //
+      var ctor = function() {
+        this._setupConfigure();
+        this.root = this.instanceTemplate(this._template);
+        this._marshalTemplateContent();
+        this._marshalAnnotatedNodes();
+        this._marshalInstanceEffects();
+        this._marshalAnnotatedListeners();
+        this._ready();
+        this._notifyPath = function() {
+          var pd = this.pathDelegate;
+          if (pd) {
+            var args = Array.prototype.slice.call(arguments);
+            args.unshift(this);
+            pd._notifyDelegatePath.apply(pd, args);
+          }
+        };
+      };
+      //
+      ctor.prototype = archetype;
+      archetype.constructor = ctor;
+      template._content._ctor = ctor;
+      //
+      // TODO(sjmiles): choose less general name
+      this.ctor = ctor;
+    },
+
+    customPrepAnnotations: function(archetype, template) {
+      if (template) {
+        var c = template._content;
+        if (c) {
+          archetype._annotes = c._annotes ||
+            Annotations.parseAnnotations(template);
+          c._annotes = archetype._annotes;
+        } 
+        else {
+          console.warn('no _content');
+        }
+      }
+      else {
+        console.warn('no _template');
+      }
+    },
+
+    stamp: function(model) {
+      var instance = new this.ctor();
+      if (model) {
+        for (var n in model) {
+          instance[n] = model[n];
+        }
+      }
+      return instance;
+    }
+
+  };
+
+  return Templatizer;
+
+});
+
+</script>

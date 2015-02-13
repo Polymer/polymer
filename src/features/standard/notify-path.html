@@ -74,6 +74,7 @@ using(['Base', 'Annotations'], function(Base, Annotations) {
       var old = this._setData(path, value);
       // manual dirty checking for now...
       if (old !== value) {
+        //console.group(this.localName + '#' + this.id + ' ' + path);
         // Take path effects at this level for exact path matches,
         // and notify down for any bindings to a subset of this path
         this._pathEffector(path, value);
@@ -84,7 +85,7 @@ using(['Base', 'Annotations'], function(Base, Annotations) {
           // TODO(sorvell): should only notify if notify: true?
           this._notifyPath(path, value);
         }
-        return true;
+        //console.groupEnd(this.localName + '#' + this.id + ' ' + path);
       }
     },
 
@@ -143,21 +144,27 @@ using(['Base', 'Annotations'], function(Base, Annotations) {
       var model = modelForPath(path);
       // search property effects of the root property for 'annotation' effects
       var fx$ = this._propertyEffects[model];
-      fx$.forEach(function(fx) {
-        if (fx.kind === 'annotation') {
-          // locate the bound node
-          var n = this._nodeForBinding(fx.effect);
-          if (n) {
-            // perform the effect
-            this._performAnnotationPathEffect(n, path, value, fx.effect);
+      if (fx$) {
+        fx$.forEach(function(fx) {
+          if (fx.kind === 'annotation') {
+            // locate the bound node
+            var n = this._nodeForBinding(fx.effect);
+            if (n) {
+              // perform the effect
+              this._performAnnotationPathEffect(n, path, value, fx.effect);
+            }
           }
-        }
-      }, this);
+        }, this);
+      }
       // iterate and perform _pathEffects matching path
       if (this._pathEffects) {
         this._pathEffects.forEach(function(fx) {
           this._performPathEffect(path, value, fx);
         }, this);
+      }
+      // notify runtime-bound paths
+      if (this._boundPaths) {
+        this._notifyBoundPaths();
       }
     },
 
@@ -167,20 +174,22 @@ using(['Base', 'Annotations'], function(Base, Annotations) {
 
     _performAnnotationPathEffect: function(node, path, value, effect) {
       if (effect.value === path || effect.value.indexOf(path + '.') === 0) {
-        var v = (effect.value === path) ? 
+        var v = (effect.value === path) ?
           value : this.getPathValue(effect.value);
         v = effect.negate ? !v : v;
         if (effect.kind == 'attribute') {
-          this.serializeValueToAttribute(v, effect.name, node);
+          this.serializeValueToAttribute(v, effect.name, n);
         } else { // property || text
+          //console.log(this.localName + '#' + this.id +
+          //  '.' + (effect.name || 'textContent') + ' = ' + v);
           node[effect.name || 'textContent'] = v;
         }
-      } else 
-      // path == item.stuff.count
-      // value == item.stuff 
-      // name == zizz
-      // calls effect node.notifyPath for zizz.count
-      if ((path.indexOf(effect.value + '.') === 0) && node.notifyPath) {
+        // path == item.stuff.count
+        // value == item.stuff 
+        // name == zizz
+        // calls effect n.notifyPath for zizz.count
+      } else if ((path.indexOf(effect.value + '.') === 0) && 
+                  node.notifyPath && !effect.negate) {
         var p = this._fixPath(effect.name , effect.value, path);
         node.notifyPath(p, value, true);
       }
@@ -193,6 +202,44 @@ using(['Base', 'Annotations'], function(Base, Annotations) {
           // TODO(kschaaf): sending null for old; no good way to get it?
           fn.call(this, value, null, path);
         }
+      }
+    },
+
+    bindPaths: function(to, from) {
+      this._boundPaths = this._boundPaths || {};
+      if (from) {
+        this._boundPaths[to] = from;
+        // this.setPathValue(to, this.getPathValue(from));
+      } else {
+        this.unbindPath(to);
+        // this.setPathValue(to, from);
+      }
+    },
+
+    unbindPaths: function(path) {
+      if (this._boundPaths) {
+        delete this._boundPaths[path];
+      }
+    },
+
+    _notifyBoundPaths: function() {
+      var from, to;
+      for (var a in this._boundPaths) {
+        var b = this._boundPaths[a];
+        if (path.indexOf(a + '.') == 0) {
+          from = a;
+          to = b;
+          break;
+        }
+        if (path.indexOf(b + '.') == 0) {
+          from = b;
+          to = a;
+          break;
+        }
+      }
+      if (from && to) {
+        var p = this._fixPath(to, from, path);
+        this.notifyPath(p, value);
       }
     },
 

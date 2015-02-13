@@ -1,0 +1,192 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="templatizer.html">
+<link rel="import" href="../array-observe.html">
+
+<script>
+
+  using(['ArrayObserve'], function(ArrayObserve) {
+    /**
+     * Creates a pseudo-custom-element that maps property values to bindings
+     * in DOM.
+     * 
+     * `stamp` method creates an instance of the pseudo-element. The instance
+     * references a document-fragment containing the stamped and bound dom
+     * via it's `root` property. 
+     *  
+     */
+
+    Polymer({
+
+      is: 'x-repeat',
+      extends: 'template',
+
+      published: {
+        items: Object
+      },
+
+      mixins: [
+        'Templatizer'
+      ],
+
+      bind: {
+        'items.*': 'itemsChanged'
+      },
+
+      attached: function() {
+        if (!this.ctor) {
+          this.templatize(this);
+        }
+        this.itemsChanged(this.items);
+      },
+
+      detached: function() {
+        this.unobserveArray(this.items);
+        this.derender();
+      },
+
+      itemsChanged: function(items, old, path) {
+        if (this.isAttached) {
+          if (path) {
+            this.notifyElement(path, items);
+          } else {
+            if (old) {
+              this.unobserveArray(old);
+            }
+            if (items) {
+              this.observeArray(items);
+            }
+            this.render();
+          }
+        }
+      },
+
+      observeArray: function(items) {
+        this.boundArrayObserver = this.boundArrayObserver || this.arrayObserver.bind(this);
+        ArrayObserve.observe(items, this.boundArrayObserver);
+      },
+
+      unobserveArray: function(items) {
+        ArrayObserve.unobserve(items, this.boundArrayObserver);
+      },
+
+      arrayObserver: function(splices) {
+        this.renderSplices(splices);
+      },
+
+      renderSplices: function(splices) {
+        var pool = [];
+        for (var i=0; i<splices.length; i++) {
+          var s = splices[i];
+          var removed = this.rows.splice(s.index, s.removed.length);
+          while (removed.length) {
+            this.poolRow(removed.pop(), pool);          
+          }
+          for (var idx=s.index; idx < s.index + s.addedCount; idx++) {
+            this.rows.splice(idx, 0, this.insertRow(idx, pool));
+          }
+        }
+      },
+
+      poolRow: function(row, pool) {
+        for (var i=0; i<row.children.length; i++) {
+          row.root.appendChild(row.children[i]);
+        }
+        pool.push(row);
+      },
+
+      insertRow: function(idx, pool) {
+        var row;
+        var item = this.items[idx];
+        if (pool.length) {
+          row = pool.pop();
+          row.item = item;
+        } else {
+          row = this.generateRow(idx, item);
+        }
+        var parent = this.rows[idx];
+        this.parentNode.insertBefore(row.root, parent ? parent.children[0] : this);
+        return row;
+      },
+
+      render: function() {
+        this.derender();
+        if (this.items) {
+          this.rows = this.createRows(this.items, this.parentNode);
+        }
+      },
+
+      derender: function() {
+        if (this.rows) {
+          this.rows.forEach(function(row) {
+            row.children.forEach(function(n) {
+              n.remove();
+            });
+          });
+        }
+      },
+
+      createRows: function(items, parent) {
+        var rows = [];
+        for (var i=0, row, item; item=items[i]; i++) {
+          row = this.generateRow(i, item);
+          // TODO(sorvell): replace with localDom API
+          parent.insertBefore(row.root, this);
+          rows.push(row);
+        }
+        return rows;
+      },
+
+      generateRow: function(idx, item) {
+        var row = this.stamp({
+          item: item,
+          pathDelegate: this
+        });
+        // each row is a document fragment which is lost when we appendChild,
+        // so we have to track each child individually
+        var children = [];
+        for (var n = row.root.firstChild; n; n=n.nextSibling) {
+          children.push(n);
+          n._templateProxy = row;
+        }
+        row.children = children;
+        return row;
+      },
+
+      _notifyDelegatePath: function(row, path, value) {
+        var idx = this.items.indexOf(row.item);
+        this.notifyPath(path.replace('item', 'items.' + idx), value);
+      },
+
+      notifyElement: function(path, value) {
+        // 'items.'.length == 6
+        var dot = path.indexOf('.', 6);
+        var idx = path.substring(6, dot < 0 ? path.length : dot);
+        if (dot >= 0) {
+          path = 'item.' + path.substring(dot+1);
+          this.rows[idx].notifyPath(path, value, true);
+        } else {
+          this.rows[idx].item = value;
+        }
+      },
+
+      indexForElement: function(el) {
+        while (el && !el._templateProxy) {
+          el = el.parentNode;
+        }
+        return this.rows.indexOf(el._templateProxy);
+      }
+
+    });
+
+  });
+
+</script>
