@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <script>
 
-  using(['bind'], function(Bind) {
+  using(['Annotations', 'bind'], function(Annotations, Bind) {
 
     Bind.addComputedPropertyEffect = function(model, name, expression) {
       var index = expression.indexOf('(');
@@ -22,8 +22,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     };
 
+    // TODO(sjmiles): case shenanigans
+    // TODO(sjmiles): ad hoc?
+    Bind.mapCase = function(name) {
+      var mapd = Bind._caseMap[name];
+      if (!mapd) {
+        mapd = Bind._caseMap[name] = Annotations.camelToDashCase(name);
+      }
+      return mapd;
+    };
+    // case mapping memoizations
+    Bind._caseMap = {
+    };
+
+    // TODO(sjmiles): the effect system could be data-driven, but it evolved
+    // as code-generation because (1) we emulated hand-written application
+    // sources and (2) performance.
+    //
+    // Data-driven (machine) systems have advantages (avoiding `eval` for one)
+    // that make them generally attractive, if we can obtain performance 
+    // parity. Note that we might construct such a system even if it's 
+    // performance is degraded to satisfy CSP requirements.
+    //
+    // When using code generation, it's hard to know where how deeply to unroll
+    // vs. creating and calling a utility method. _notifyChange is an example 
+    // of a utility method invoked from generated code. This method occupies 
+    // the border between code-generation and machine techniques.   
+
     Bind._notifyChange = function(property) {
-      this.fire(property + '-changed', {value: this[property]}, null, false);
+      // TODO(sjmiles): case shenanigans
+      var eventName = Bind.mapCase(property)+ '-changed';
+      this.fire(eventName, {
+        value: this[property]
+      }, null, false);
     };
 
     Bind._shouldAddListener = function(info) {
@@ -57,14 +88,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // basic modus operandi
       //
       // <hostPath> %=% <targetPathValue>
-      // (node = <$.id | nodes[index]>)
       // <model[.path]> %=% node.<property>
       //
-      // flow-up:
-      // set(model): node.<property> = <model[.path]>
+      // down: model.set(...): node.<property> = <model[.path]>
+      // up:   node.on(<property>-changed): <model[.path]> = e.detail.value
       //
-      // flow-down:
-      // node.on.<property>-changed: <model[.path]> = e.detail.value
       notify: function(model, source) {
         model._notifyChange = Bind._notifyChange;
         return 'this._notifyChange(\'' + source + '\')';
@@ -84,8 +112,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       annotation: function(model, hostProperty, info) {
         var property = info.name;
         if (Bind._shouldAddListener(info)) {
-          // <node>.on.<property>-changed: <path> = e.detail.value
-          Bind._addAnnotatedListener(model, info.index, property, info.value);
+          // TODO(sjmiles): case shenanigans
+          var dashCaseProperty = Annotations.camelToDashCase(property);
+          // <node>.on.<dash-case-property>-changed: <path> = e.detail.value
+          Bind._addAnnotatedListener(model, info.index, 
+            dashCaseProperty, info.value);
         }
         //
         if (!property) {
@@ -128,6 +159,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             ;
           value = 'val';
         }
+        // TODO(sjmiles): being able to express logic (negate) as actual JS is 
+        // convenient when code-generating. Remember to always process a custom
+        // token stream (e.g. '!' below) instead of passing template code 
+        // directly to eval.
         value = (info.negate ? '!' : '') + value;
         var node = 'this._nodes[' + info.index + ']';
         if (info.kind == 'attribute') {
