@@ -10,10 +10,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="templatizer.html">
 <link rel="import" href="../array-observe.html">
+<link rel="import" href="../collection.html">
 
 <script>
 
-  using(['ArrayObserve'], function(ArrayObserve) {
+  using(['ArrayObserve', 'Collection'], function(ArrayObserve, Collection) {
     /**
      * Creates a pseudo-custom-element that maps property values to bindings
      * in DOM.
@@ -30,7 +31,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       extends: 'template',
 
       published: {
-        items: Object
+        items: Array,
+        sort: Function,
+        filter: Function,
+        observe: String,
+        delay: Number
       },
 
       mixins: [
@@ -38,23 +43,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       ],
 
       bind: {
-        'items.*': 'itemsChanged'
+        'sort': '_sortChanged',
+        'filter': '_filterChanged',
+        'observe': '_observeChanged',
+        'items.*': '_itemsChanged'
       },
 
       created: function() {
-        this.boundArrayObserver = this.arrayObserver.bind(this);
+        this.boundCollectionObserver = this.render.bind(this);
       },
 
       attached: function() {
         if (!this.ctor) {
           this.templatize(this);
         }
-        this.itemsChanged(this.items);
       },
 
-      detached: function() {
-        this.unobserveArray(this.items);
-        this.derender();
+      _sortChanged: function() {
+        this._sortFn = this.sort && (typeof this.sort == 'function' ? 
+          this.sort : this.host[this.sort].bind(this.host));
+        this.debounce('render', this.render);
+      },
+
+      _filterChanged: function() {
+        this._filterFn = this.filter && (typeof this.filter == 'function' ? 
+          this.filter : this.host[this.filter].bind(this.host));
+        this.debounce('render', this.render);
+      },
+
+      _observeChanged: function() {
+        this._observePaths = this.observe && 
+          this.observe.replace('.*', '.').split(' ');
       },
 
       itemsChanged: function(items, old, path) {
@@ -65,96 +84,114 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _itemsChanged: function(items, old, path) {
         if (path) {
-          this.notifyElement(path, items);
+          this._notifyElement(path, items);
+          this._checkObservedPaths(path);
         } else {
           if (old) {
-            this.unobserveArray(old);
+            this._unobserveCollection(old);
           }
           if (items) {
-            this.observeArray(items);
+            this._observeCollection(items);
+            this.debounce('render', this.render);
+          }
+        }
+      },
+
+      _checkObservedPaths: function(path) {
+        if (this._observePaths && path.indexOf('items.') === 0) {
+          path = path.substring(path.indexOf('.', 6) + 1);
+          var paths = this._observePaths;
+          for (var i=0; i<paths.length; i++) {
+            if (path.indexOf(paths[i]) === 0) {
+              this.debounce('render', this.render, this.delay);
+              return;
+            }
           }
           this.render();
         }
       },
 
-      observeArray: function(items) {
-        ArrayObserve.observe(items, this.boundArrayObserver);
+      _observeCollection: function(items) {
+        this.collection = Collection.get(items);
+        this.collection.observe(this.boundCollectionObserver);
       },
 
-      unobserveArray: function(items) {
-        ArrayObserve.unobserve(items, this.boundArrayObserver);
+      _unobserveCollection: function(items) {
+        var collection = Collection.get(items);
+        collection.unobserve(this.boundCollectionObserver);
       },
 
-      arrayObserver: function(splices) {
-        this.renderSplices(splices);
+      render: function(splices) {
+        // TODO(kschaaf): polyfill timing; config'ed prop change handlers
+        // run before attached
+        if (!this.isAttached) {
+          this.async(this.render, 1);
+          return;
+        }
+        var c = this.collection;
+        var rowForKey = this._rowForKey = {};
+        var keys;
+        if (!this._sortFn && splices) {
+          keys = this._orderedKeys;
+          this._applySplices(splices);
+        } else {
+          keys = this._orderedKeys = c.getKeys();
+        }
+        // Filter
+        if (this._filterFn) {
+          keys = keys.filter(function(a, b) {
+            return this._filterFn(c.getItem(a), c.getItem(b));
+          }, this);
+        }
+        // Sort
+        if (this._sortFn) {
+          keys.sort(function(a, b) {
+            return this._sortFn(c.getItem(a), c.getItem(b));
+          }.bind(this));
+        }
+        // Assign
+        this.rows = this.rows || [];
+        for (var i=0; i<keys.length; i++) {
+          var row = this.rows[i];
+          if (!row) {
+            this.rows.push(row = this._insertRow(i));
+          }
+          var key = keys[i];
+          row.item = c.getItem(key);
+          row.key = key;
+          rowForKey[key] = i;
+        }
+        // Remove extra
+        for (; i<this.rows.length; i++) {
+          this._detachRow(this.rows[i]);
+        }
+        this.rows.splice(keys.length, this.rows.length-keys.length);
       },
 
-      renderSplices: function(splices) {
-        var pool = [];
+      _applySplices: function(splices) {
+        var keys = this._orderedKeys;
         for (var i=0; i<splices.length; i++) {
           var s = splices[i];
-          var removed = this.rows.splice(s.index, s.removed.length);
-          while (removed.length) {
-            this.poolRow(removed.pop(), pool);          
-          }
-          for (var idx=s.index; idx < s.index + s.addedCount; idx++) {
-            this.rows.splice(idx, 0, this.insertRow(idx, pool));
-          }
+          var args = [s.index, s.removed.length].concat(s.added);
+          keys.splice.apply(keys, args);
         }
       },
 
-      poolRow: function(row, pool) {
-        for (var i=0; i<row.children.length; i++) {
-          row.root.appendChild(row.children[i]);
+      _detachRow: function(row) {
+        for (var i=0; i<row._children.length; i++) {
+          row.root.appendChild(row._children[i]);
         }
-        pool.push(row);
       },
 
-      insertRow: function(idx, pool) {
-        var row;
-        var item = this.items[idx];
-        if (pool.length) {
-          row = pool.pop();
-          row.item = item;
-        } else {
-          row = this.generateRow(idx, item);
-        }
+      _insertRow: function(idx) {
+        var row = this._generateRow(idx);
         var parent = this.rows[idx];
         this.parentNode.insertBefore(row.root, parent ? parent.children[0] : this);
         return row;
       },
 
-      render: function() {
-        this.derender();
-        if (this.items) {
-          this.rows = this.createRows(this.items, this.parentNode);
-        }
-      },
-
-      derender: function() {
-        if (this.rows) {
-          this.rows.forEach(function(row) {
-            row.children.forEach(function(n) {
-              n.remove();
-            });
-          });
-        }
-      },
-
-      createRows: function(items, parent) {
-        var rows = [];
-        for (var i=0, l=items.length, row; i<l; i++) {
-          row = this.generateRow(i, items[i]);
-          rows.push(row);
-          // TODO(sorvell): replace with localDom API
-          parent.insertBefore(row.root, this);
-        }
-        return rows;
-      },
-
-      generateRow: function(idx, item) {
+      _generateRow: function(idx) {
         var row = this.stamp({
-          item: item,
           pathDelegate: this
         });
         // each row is a document fragment which is lost when we appendChild,
@@ -164,25 +201,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           children.push(n);
           n._templateProxy = row;
         }
-        row.children = children;
+        // Since archetype overrides Base/HTMLElement, Safari complains
+        // when accessing `children`
+        row._children = children;
         return row;
       },
 
       _notifyDelegatePath: function(row, path, value) {
-        var idx = this.items.indexOf(row.item);
-        this.notifyPath(path.replace('item', 'items.' + idx), value);
+        this.notifyPath(path.replace('item', 'items.' + row.key), value);
       },
 
-      notifyElement: function(path, value) {
+      _notifyElement: function(path, value) {
         // 'items.'.length == 6
         var dot = path.indexOf('.', 6);
-        var idx = path.substring(6, dot < 0 ? path.length : dot);
+        var key = path.substring(6, dot < 0 ? path.length : dot);
+        var idx = this._rowForKey[key];
         if (dot >= 0) {
           path = 'item.' + path.substring(dot+1);
           this.rows[idx].notifyPath(path, value, true);
         } else {
           this.rows[idx].item = value;
         }
+      },
+
+      itemForElement: function(el) {
+        while (el && !el._templateProxy) {
+          el = el.parentNode;
+        }
+        return el._templateProxy.item;
+      },
+
+      keyForElement: function(el) {
+        while (el && !el._templateProxy) {
+          el = el.parentNode;
+        }
+        return el._templateProxy.key;
       },
 
       indexForElement: function(el) {
