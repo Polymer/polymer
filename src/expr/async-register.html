@@ -1,0 +1,70 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<script>
+(function() {
+  
+  var elementQueue = [], notifyCallbacks = [];
+
+  // TODO(sorvell): monkey-patch dom module
+  var domModule = document.createElement('dom-module');
+  var domModulePrototype = Object.getPrototypeOf(domModule);
+  domModulePrototype.created = function() {
+    if (this.id) {
+      elementQueue.push(this.id);
+    }
+  };
+
+  // TODO(sorvell): monkey-path registerElement
+  var registerElement = document.registerElement;
+  document.registerElement = function(is, options) {
+    var m = domModule.import(is);
+    if (m) {
+      m.__elementOptions = options;
+      flushQueue();
+    } else {
+      registerElement.call(document, is, options);
+    }
+  };
+
+  function flushQueue() {
+    var m;
+    while ((m = domModule.import(elementQueue[0])) && m.__elementOptions) {
+      registerElement.call(document, elementQueue.shift(), m.__elementOptions);
+    }
+    if (!elementQueue.length) {
+      notify();
+    }
+  }
+
+  // notification when all registered...
+  function isWaiting() {
+    return Boolean(elementQueue.length);
+  }
+
+  function notify() {
+    while (notifyCallbacks.length) {
+      notifyCallbacks.shift().call();
+    }
+  }
+
+  Polymer.whenReady = function(callback) {
+    if (callback) {
+      if (!isWaiting()) {
+        callback();
+      } else {
+        notifyCallbacks.push(callback);
+      }
+    }
+  };
+
+  Polymer.isWaiting = isWaiting;
+
+})();
+</script>
