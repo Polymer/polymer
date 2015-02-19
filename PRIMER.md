@@ -833,7 +833,7 @@ To bind to properties, the binding annotation should be provided as the value to
 </script>
 ```
 
-As in the exmaple above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
+As in the example above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
 
 In order to bind to camel-case properties of elements, dash-case should be used in the attribute name.  Example:
 
@@ -851,7 +851,7 @@ Note that currently binding to `style` is a special case which results in the va
 
 Polymer supports cooperative two-way binding between elements, allowing elements that "produce" data or changes to data to propagate those changes upwards to hosts when desired.
 
-When a Polymer elements changs a property that was "published" as part of its public API with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
+When a Polymer elements changes a property that was "published" as part of its public API with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
 
 As such, one could attach an `on-<property>-changed` listener to an element to be notified of changes to such properties, set the `event.detail.value` to a property on itself, and take necessary actions based on the new value.  However, given this is a common pattern, bindings using "curly-braces" (e.g. `{{property}}`) will automatically perform this upwards binding automatically without the user needing to perform those tasks.  This can be defeated by using "square-brace" syntax (e.g. `[[property]]`), which results in only one-way (downward) data-binding.
 
@@ -1064,7 +1064,7 @@ Polymer provides an alternate binding annotation syntax to make it explicit when
     <!-- results in <my-element>.setAttribute('selected', this.value); -->
 
     <!-- Property binding -->
-    <my-element selected="{{value}}></my-element>
+    <my-element selected="{{value}}"></my-element>
     <!-- results in <my-element>.selected = this.value; -->
 
 </template>
