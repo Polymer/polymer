@@ -814,7 +814,7 @@ To bind to properties, the binding annotation should be provided as the value to
 ```html
 <dom-module id="main-view">
     <template>
-      <user-view firstName="{{user.first}}" last="{{user.last}}"></user-view>
+      <user-view first="{{user.first}}" last="{{user.last}}"></user-view>
     </template>
 </dom-module>
 
@@ -833,7 +833,14 @@ To bind to properties, the binding annotation should be provided as the value to
 </script>
 ```
 
-As in the exmaple above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
+As in the example above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
+
+In order to bind to camel-case properties of elements, dash-case should be used in the attribute name.  Example:
+
+```html
+<user-view first-name="{{managerName}}"></user-view>
+<!-- will set <user-view>.firstName = this.managerName; -->
+```
 
 Note that while HTML attributes are used to specify bindings, values are assigned directly to JS properties, not to the HTML attributes of the elements.
 
@@ -844,7 +851,7 @@ Note that currently binding to `style` is a special case which results in the va
 
 Polymer supports cooperative two-way binding between elements, allowing elements that "produce" data or changes to data to propagate those changes upwards to hosts when desired.
 
-When a Polymer elements changs a property that was "published" as part of its public API with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
+When a Polymer elements changes a property that was "published" as part of its public API with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
 
 As such, one could attach an `on-<property>-changed` listener to an element to be notified of changes to such properties, set the `event.detail.value` to a property on itself, and take necessary actions based on the new value.  However, given this is a common pattern, bindings using "curly-braces" (e.g. `{{property}}`) will automatically perform this upwards binding automatically without the user needing to perform those tasks.  This can be defeated by using "square-brace" syntax (e.g. `[[property]]`), which results in only one-way (downward) data-binding.
 
@@ -1057,7 +1064,7 @@ Polymer provides an alternate binding annotation syntax to make it explicit when
     <!-- results in <my-element>.setAttribute('selected', this.value); -->
 
     <!-- Property binding -->
-    <my-element selected="{{value}}></my-element>
+    <my-element selected="{{value}}"></my-element>
     <!-- results in <my-element>.selected = this.value; -->
 
 </template>
@@ -1235,7 +1242,25 @@ As the final 0.8 API solidifies, this section will be updated accordingly.  As s
 
 ## Property casing
 
-**Warning:** Currently only lower-case published properties are supported.  Support for upper-case properties will be added this sprint.  In the short-term, please use lower-case properties.
+TL;DR: When binding to camel-cased properties, use "dash-case" attribute names to indicate the "camelCase" property to bind to.
+
+Example: bind `this.myValue` to `<x-foo>.thatValue`:
+
+BEFORE: 0.5 
+
+```html
+<x-foo thatValue="{{myValue}}"></x-foo>
+```
+
+AFTER: 0.8 
+
+```html
+<x-foo that-value="{{myValue}}"></x-foo>
+```
+
+In 0.5, binding annotations were allowed to mixed-case properties (despite the fact that attribute names always get converted to lower-case by the HTML parser), and the Node.bind implementation at the "receiving end" of the binding automatically inferred the mixed-case property it was assumed to refer to at instance time.
+
+In 0.8, "binding" is done at prorotype time before the type of the element being bound to is known, hence knowing the exact JS property to bind to allows better efficiency.
 
 ## Styling
 
@@ -1359,21 +1384,37 @@ Thus, for the short term we expect users will need to consider compound effects 
 
 ## Structured data and path notification
 
-TODO - call `setPathValue` and/or `notifyPath` to notify non-bound path changes
+To notify non-bound structured data changes changes, use `setPathValue` and `notifyPath`:
+
+```js
+this.setPathValue('user.manager', 'Matt');
+```
+
+Which is equivalent to:
+
+```js
+this.user.manager = 'Matt';
+this.notifyPath('user.manager', this.user.manager);
+```
+
 
 ## Repeating elements
 
 Repeating templates is moved to a custom element (HTMLTemplateElement type extension called `x-repeat`):
 
 ```html
-<template is="x-repeat" items="{{data}}">
-    <div>{{item.sub}}</div>
+<template is="x-repeat" items="{{users}}">
+    <div>{{item.name}}</div>
 </template>
 ```
 
 ## Array notification
 
-TODO - array changes not observed; for now need to "kick" x-repeat's `render`
+This area is in high flux.  Arrays bound to `x-repeat` are currently observed using `Array.observe` (or equivalent shim) and `x-repeat` will reflect changes to array mutations (push, pop, shift, unshift, splice) asynchronously.
+
+**In-place sort of array is not supported**.  Sorting/filtering will likely be provided as a feature of `x-repeat` (and possibly other array-aware elements such as `x-list`) in the future.
+
+Implementation and usage details will likely change, stay tuned.
 
 <a name="todo-inheritance"></a>
 ## Mixins / Inheritance

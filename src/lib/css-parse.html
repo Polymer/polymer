@@ -50,6 +50,9 @@ modulate('CssParse', function() {
     if (node.parent) {
       var ss = node.previous ? node.previous.end : node.parent.start;
       t = text.substring(ss, node.start-1);
+      // TODO(sorvell): ad hoc; make selector include only after last ;
+      // helps with mixin syntax
+      t = t.substring(t.lastIndexOf(';')+1);
       node.selector = t.trim();
     }
     var r$ = node.rules;
@@ -64,18 +67,27 @@ modulate('CssParse', function() {
   // stringify parsed css.
   function stringify(node, text) {
     text = text || '';
+    // calc rule cssText
+    var cssText = '';
     if (node.cssText || node.rules) {
+      var r$ = node.rules;
+      if (r$ && !hasMixinRules(r$)) {
+        for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
+          cssText = stringify(r, cssText);
+        }  
+      } else {
+        cssText = removeCustomProps(node.cssText).trim();
+        if (cssText) {
+          cssText = '  ' + cssText + '\n';
+        }
+      }
+    }
+    // emit rule iff there is cssText
+    if (cssText) {
       if (node.selector) {
         text += node.selector + ' ' + OPEN_BRACE + '\n';
       }
-      var r$ = node.rules;
-      if (r$) {
-        for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
-          text = stringify(r, text);
-        }  
-      } else {
-        text += '  ' + node.cssText + '\n';
-      }
+      text += cssText;
       if (node.selector) {
         text += CLOSE_BRACE + '\n\n';
       }
@@ -86,10 +98,26 @@ modulate('CssParse', function() {
   var OPEN_BRACE = '{';
   var CLOSE_BRACE = '}';
 
+  function hasMixinRules(rules) {
+    return (rules[0].selector.indexOf(VAR_START) >= 0);
+  }
+
+  function removeCustomProps(cssText) {
+    return cssText
+      .replace(rx.customProp, '')
+      .replace(rx.mixinProp, '')
+      .replace(rx.mixinApply, '');
+  }
+
+  var VAR_START = '--';
+
   // helper regexp's
   var rx = {
     comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
-    port: /@import[^;]*;/gim
+    port: /@import[^;]*;/gim,
+    customProp: /--[^;{]*?:[^{};]*?;/gim,
+    mixinProp: /--[^;{]*?:[^{;]*?{[^}]*?}/gim,
+    mixinApply: /@mixin[\s]*\([^)]*?\)[\s]*;/gim
   };
 
   // exports 
