@@ -24,6 +24,8 @@ modulate('Collection', ['Base', 'ArrayObserve', 'Debounce'], function(Base, Arra
     this.callbacks = [];
     this.debounce = null;
     this.map = null;
+    this.added = [];
+    this.removed = [];
 
     if (!noObserve) {
       ArrayObserve.observe(userArray, this.applySplices.bind(this));
@@ -48,30 +50,49 @@ modulate('Collection', ['Base', 'ArrayObserve', 'Debounce'], function(Base, Arra
       }
     },
 
-    add: function(item, batch) {
+    add: function(item, squelch) {
       var key = this.store.push(item) - 1;
       if (this.map) {
         this.map.set(item, key);
       }
-      if (!batch) {
+      if (!squelch) {
+        this.added.push(key);
         this.debounce = Debounce(this.debounce, this.notify.bind(this));
       }
       return key;
     },
 
-    remove: function(item, batch) {
-      var key = this.getKey(item);
+    removeKey: function(key) {
+      if (this.map) {
+        this.map.delete(this.store[key]);
+      }
       delete this.store[key];
+      this.removed.push(key);
+      this.debounce = Debounce(this.debounce, this.notify.bind(this));
+    },
+
+    remove: function(item, squelch) {
+      var key = this.getKey(item);
       if (this.map) {
         this.map.delete(item);
       }
-      if (!batch) {
+      delete this.store[key];
+      if (!squelch) {
+        this.removed.push(key);
         this.debounce = Debounce(this.debounce, this.notify.bind(this));
       }
       return key;
     },
 
     notify: function(splices) {
+      if (!splices) {
+        splices = [{
+          added: this.added,
+          removed: this.removed
+        }];
+        this.added = [];
+        this.removed = [];
+      }
       this.callbacks.forEach(function(cb) { 
         cb(splices);
       }, this);
@@ -97,7 +118,7 @@ modulate('Collection', ['Base', 'ArrayObserve', 'Debounce'], function(Base, Arra
       this.store[key] = value;
     },
 
-    getItem:  function(key) {
+    getItem: function(key) {
       return this.store[key];
     },
 
