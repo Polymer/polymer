@@ -14,7 +14,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script>
 
-  using(['ArrayObserve', 'Collection'], function(ArrayObserve, Collection) {
+  using(['ArrayObserve', 'Collection', 'Debounce'], function(ArrayObserve, Collection, Debounce) {
     /**
      * Creates a pseudo-custom-element that maps property values to bindings
      * in DOM.
@@ -24,6 +24,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * via it's `root` property. 
      *  
      */
+
+    var debounceDistribute;
 
     Polymer({
 
@@ -54,8 +56,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       attached: function() {
+        // Templatizing (generating the instance constructor) needs to wait
+        // until attached, since it may not have its template content handed
+        // back to it until then, following its host template stamping
         if (!this.ctor) {
           this.templatize(this);
+        }
+        if (this._renderPendingAttach) {
+          this._renderPendingAttach = false; 
+          this.render();
         }
       },
 
@@ -76,12 +85,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.observe.replace('.*', '.').split(' ');
       },
 
-      itemsChanged: function(items, old, path) {
-        if (this.isAttached) {
-          this._itemsChanged(items, old, path);
-        }
-      },
-
       _itemsChanged: function(items, old, path) {
         if (path) {
           this._notifyElement(path, items);
@@ -94,7 +97,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._observeCollection(items);
             this.debounce('render', this.render);
           }
-        }
+        }          
       },
 
       _checkObservedPaths: function(path) {
@@ -107,7 +110,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               return;
             }
           }
-          this.render();
         }
       },
 
@@ -122,12 +124,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       render: function(splices) {
-        // TODO(kschaaf): polyfill timing; config'ed prop change handlers
-        // run before attached
+        // TODO(kschaaf): should actually queue splices also
         if (!this.isAttached) {
-          this.async(this.render, 1);
+          // Render must follow attachment
+          this._renderPendingAttach = true;
           return;
         }
+        if (this.host) {
+          // this.host.localDom.batch(function() {
+          //   this._render(splices);
+          // }, this);
+          this.host.localDom.batch();
+          this._render(splices);
+          debounceDistribute = Debounce.call(this, debounceDistribute, function() {
+            console.log('distribute');
+            this.host.localDom.distribute();
+          }.bind(this));
+        } else {
+          this._render(splices);
+        }
+      },
+
+      _render: function(splices) {
         var c = this.collection;
         var rowForKey = this._rowForKey = {};
         var keys;
@@ -151,6 +169,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // Assign
         this.rows = this.rows || [];
+
         for (var i=0; i<keys.length; i++) {
           var row = this.rows[i];
           if (!row) {
@@ -179,14 +198,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _detachRow: function(row) {
         for (var i=0; i<row._children.length; i++) {
-          row.root.appendChild(row._children[i]);
+          var el = row._children[i];
+          if (this.host) {
+            var parentNode = this.lightDom.elementParent();
+            this.host.localDom.removeChild(el, parentNode);
+          }
+          row.root.appendChild(el);
         }
       },
 
       _insertRow: function(idx) {
         var row = this._generateRow(idx);
-        var parent = this.rows[idx];
-        this.parentNode.insertBefore(row.root, parent ? parent.children[0] : this);
+        var beforeRow = this.rows[idx];
+        var beforeNode = beforeRow ? beforeRow._children[0] : this;
+        var parentNode = this.lightDom.elementParent();
+        if (this.host) {
+          this.host.localDom.insertBefore(row.root, beforeNode, parentNode);
+        } else {
+          parentNode.insertBefore(row.root, beforeNode);
+        }
         return row;
       },
 
@@ -199,7 +229,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var children = [];
         for (var n = row.root.firstChild; n; n=n.nextSibling) {
           children.push(n);
-          n._templateProxy = row;
+          n._templateInstance = row;
         }
         // Since archetype overrides Base/HTMLElement, Safari complains
         // when accessing `children`
@@ -228,24 +258,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       itemForElement: function(el) {
-        while (el && !el._templateProxy) {
+        while (el && !el._templateInstance) {
           el = el.parentNode;
         }
-        return el._templateProxy.item;
+        return el._templateInstance.item;
       },
 
       keyForElement: function(el) {
-        while (el && !el._templateProxy) {
+        while (el && !el._templateInstance) {
           el = el.parentNode;
         }
-        return el._templateProxy.key;
+        return el._templateInstance.key;
       },
 
       indexForElement: function(el) {
-        while (el && !el._templateProxy) {
+        while (el && !el._templateInstance) {
           el = el.parentNode;
         }
-        return this.rows.indexOf(el._templateProxy);
+        return this.rows.indexOf(el._templateInstance);
       }
 
     });
