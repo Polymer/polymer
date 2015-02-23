@@ -7,9 +7,10 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="../../lib/array-splice.html">
 <script>
 
-  using('Base', function(Base) {
+  using(['Base', 'ArraySplice'], function(Base, ArraySplice) {
 
     /**
 
@@ -64,6 +65,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _prepareContent: function() {
         if (this._useContent) {
+          //console.log(this.is, 'dirty!');
+          this._distributionClean = false;
           // reset distributions
           this._resetDistribution(this.shadyRoot);
           // compute which nodes should be distributed where
@@ -77,6 +80,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // compose self
         if (this._useContent) {
           this._composeTree(this);
+          this._distributionClean = true;
+          //console.log(this.is, 'clean!');
         } else if (this.root !== this) {
           this.appendChild(this.root);
           this.root = this;
@@ -129,12 +134,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // instead elements are distributed into a `content._distributedNodes`
       // array where applicable.
       _distributePool: function(node, pool) {
+        var children;
         if (isInsertionPoint(node)) {
           // distribute nodes from the pool that this selector matches
           var content = node;
           var anyDistributed = false;
           for (var i = 0; i < pool.length; i++) {
-            var node = pool[i];
+            node = pool[i];
             // skip nodes that were already used
             if (!node) {
               continue;
@@ -150,18 +156,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           // Fallback content if nothing was distributed here
           if (!anyDistributed) {
-            var children = getLightChildren(content);
+            children = getLightChildren(content);
             for (var i = 0; i < children.length; i++) {
               distributeNodeInto(children[i], content);
             }
           }
-          return;
+          return true;
         }
         // recursively distribute.
-        var children = getLightChildren(node);
+        children = getLightChildren(node);
+        var hasInsertionPoint;
         for (var i = 0; i < children.length; i++) {
-          this._distributePool(children[i], pool);
+          hasInsertionPoint = this._distributePool(children[i], pool) ||
+            hasInsertionPoint;
         }
+        //TODO(sorvell): need to unset this if the insertion point is removed
+        node.__skipDistribute = !hasInsertionPoint;
+        return hasInsertionPoint;
       },
 
       // TODO(sorvell): building this list is a perf issue; 
@@ -214,28 +225,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // Ensures that the rendered node list inside `node` is `children`.
       _updateChildNodes: function(node, children) {
-        // Add the children that need to be added. 
-        // NOTE: we do this left-to-right in order to maintain the same
-        // attach order as the platform does.
-        for (var i=0, l=children.length, c, b; (i<l) && (c=children[i]); i++) {
-          b = children[i-1] || null;
-          if (c.parentNode != node || c.previousSibling != b) {
-            insertBefore(node, c, b && b.nextSibling)
+        var splices = ArraySplice.calculateSplices(children, node.childNodes);
+        for (var i=0; i<splices.length; i++) {
+          var s = splices[i];
+          // remove
+          for (var j=0, c; j < s.removed.length; j++) {
+            c = s.removed[j];
+            if (c.previousSibling == children[s.index-1]) {
+              remove(c);
+            }
           }
-        }
-        // We just added nodes in order, starting from an unknown point;
-        // therefore delete everything before and after the expected children.
-        var last = children[children.length-1];
-        var lastChild = node.lastChild;
-        while (lastChild && lastChild != last) {
-          node.removeChild(lastChild);
-          lastChild = node.lastChild;
-        }
-        var first = children[0];
-        var firstChild = node.firstChild;
-        while (firstChild && firstChild != first) {
-          node.removeChild(firstChild);
-          firstChild = node.firstChild;
+          // insert
+          for (var idx=s.index, c, o; idx < s.index + s.addedCount; idx++) {
+            c = children[idx];
+            o = node.childNodes[idx];
+            while (o && o === c) {
+              o = o.nexSibling;
+            }
+            insertBefore(node, c, o);
+          }
         }
       },
 
@@ -277,6 +285,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node = node || this;
         var list = node.querySelectorAll(selector);
         return list;
+      },
+
+      // extension point for system overriding
+      _elementAdd: function(node) {
+      },
+
+      // extension point for system overriding
+      _elementRemove: function(node) {
       }
 
     });
@@ -380,27 +396,60 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return node.lightParent || node.parentNode;
       },
 
-      batch: function(batch_fn) {
-        this._batching = true;
+      batch: function(batch_fn, context) {
+        this._batching = (this._batching || 0) + 1;
         if (batch_fn) {
-          batch_fn.call(this.host);
-          this.distribute();
+          batch_fn.call(context || this.host);
+          this._batching--;
+          this._maybeDistribute();
         }
       },
 
       distribute: function() {
+        // TODO(kschaaf): use counter
         this._batching = false;
-        this.host._distributeContent();
+        if (!this.host._distributionClean) {
+          this.host._distributeContent();
+        }
       },
 
       _maybeDistribute: function() {
         if (!this._batching) {
-          this.host._distributeContent();
+          this.distribute();
+        }
+      },
+
+      _dirtyHost: function() {
+        this.host._distributionClean = false;
+      },
+
+      // Distribution can be avoided when:
+      // 1. a container is not a custom element or is a custom element without
+      // a shadyRoot.
+      // 2. a container has been run through distribution and marked as not 
+      // needing distribution (not a parent of an insertion point).
+      // 3. a container expicitly has the `skipDistribute` attribute. NOTE:
+      // this is experimental and exists so that appending a doc fragment with
+      // no insertion points can be fast pathed. If this is a good idea, then
+      // it's definitely something the annotator should help with.
+      _skipDistribution: function(container) {
+        // custom elements must distribute unless they don't have shady
+        // (marked via _useContent)
+        if (container._distributeContent) {
+          return !container._useContent;
+        } else {
+          // marked via distribution system
+          return (container.__skipDistribute || 
+            // marked explicitly
+            // TODO(sorvell): temporary, the annotator should help with this
+            (container.hasAttribute && 
+            container.hasAttribute('skipDistribute')));
         }
       },
 
       appendChild: function(node, container) {
         container = container || this.node;
+        this.host._elementAdd(node);
         if (this.host._useContent) {
           saveLightChildrenIfNeeded(container);
           var children = this.children(container);
@@ -416,34 +465,55 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             children.push(node);
             node.lightParent = container;
           }
+          if (this._skipDistribution(container)) {
+            if (container === this.node) {
+              container = this.host;
+            }
+            container.appendChild(node);
+          } else {
+            this._dirtyHost();
+          }
           this._maybeDistribute();
         } else {
           container.appendChild(node);
         }
+        return node;
       },
 
+      // TODO(sorvell): implement skipDistribute for other methods!!
       insertBefore: function(node, ref_node, container) {
         container = container || this.node;
+        this.host._elementAdd(node);
         if (ref_node) {
           if (this.host._useContent) {
-            var children = this.children(container);
             saveLightChildrenIfNeeded(container);
+            var children = this.children(container);
             var index = children.indexOf(ref_node);
             if (index < 0) {
               throw Error('The ref_node to be inserted before is not a child ' +
                 'of this node');
             }
+            // TODO(sorvell): need to distirbute if inserting a <content> as node 
+            // or in doc fragment!
             // handle document fragments
             if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-              var n = node.lastChild;
+              var n = node.firstChild;
               while (n) {
-                children.splice(index, 0, n);
+                children.splice(index++, 0, n);
                 n.lightParent = container;
-                n = n.previousSibling;
+                n = n.nextSibling;
               }
             } else {
               children.splice(index, 0, node);
               node.lightParent = container;
+            }
+            if (this._skipDistribution(container)) {
+              if (container === this.node) {
+                container = this.host;
+              }
+              container.insertBefore(node, ref_node);
+            } else {
+              this._dirtyHost();
             }
             this._maybeDistribute();
           } else {
@@ -452,6 +522,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           this.appendChild(node, container);
         }
+        return node;
       },
 
       /**
@@ -460,6 +531,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       */
       removeChild: function(node, container) {
         container = container || this.node;
+        this.host._elementRemove(node);
         if (this.host._useContent) {
           var children = this.children(container);
           var index = children.indexOf(node);
@@ -468,6 +540,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           children.splice(index, 1);
           node.lightParent = null;
+          if (this._skipDistribution(container)) {
+            if (container === this.node) {
+              container = this.host;
+            }
+            container.removeChild(node);
+          } else {
+            this._dirtyHost();
+          }
           this._maybeDistribute();
         } else {
           this.node.removeChild(node);
