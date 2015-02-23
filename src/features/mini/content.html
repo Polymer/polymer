@@ -54,12 +54,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _distributeContent: function() {
         // logically distribute self
+        this._distributionClean = false;
         this._prepareContent();
         // now fully distribute/compose "clients"
         var c$ = this._getDistributionClients();
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
           c._distributeContent();
         }
+        this._composeContent();
+        this._distributionClean = true;
       },
 
       _prepareContent: function() {
@@ -81,7 +84,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.appendChild(this.root);
           this.root = this;
         }
-        this.__shadyDomIsClean = true;
       },
 
       // This is a polyfill for Element.prototype.matches, which is sometimes
@@ -166,6 +168,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           hasInsertionPoint = this._distributePool(children[i], pool) ||
             hasInsertionPoint;
         }
+        //TODO(sorvell): need to unset this if the insertion point is removed
         node.__skipDistribute = !hasInsertionPoint;
         return hasInsertionPoint;
       },
@@ -403,7 +406,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       distribute: function() {
         // TODO(kschaaf): use counter
         this._batching = false;
-        if (!this.host.__shadyDomIsClean) {
+        if (!this.host._distributionClean) {
           this.host._distributeContent();
         }
       },
@@ -412,6 +415,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!this._batching) {
           this.distribute();
         }
+      },
+
+      _dirtyHost: function() {
+        this.host._distributionClean = false;
       },
 
       appendChild: function(node, container) {
@@ -430,6 +437,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           } else {
             children.push(node);
             node.lightParent = container;
+          }
+          if (container.__skipDistribute) {
+            if (container === this.node) {
+              this.host.appendChild(node);
+            } else {
+              container.appendChild(node);
+            }
+          } else {
+            this._dirtyHost();
           }
           this._maybeDistribute();
         } else {
@@ -458,23 +474,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               while (n) {
                 children.splice(index++, 0, n);
                 n.lightParent = container;
-                var next = n.nextSibling;
-                if (container.__skipDistribute) {
-                  container.insertBefore(n, ref_node);
-                }
-                n = next;
+                n = n.nextSibling;
               }
             } else {
               children.splice(index, 0, node);
               node.lightParent = container;
-              if (container.__skipDistribute) {
+            }
+            if (container.__skipDistribute) {
+              if (container === this.node) {
+                this.host.insertBefore(node, ref_node);
+              } else {
                 container.insertBefore(node, ref_node);
               }
+            } else {
+              this._dirtyHost();
             }
-            if (!container.__skipDistribute) {
-              this.host.__shadyDomIsClean = false;
-              this._maybeDistribute();
-            }
+            this._maybeDistribute();
           } else {
             container.insertBefore(node, ref_node);
           }
@@ -498,6 +513,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           children.splice(index, 1);
           node.lightParent = null;
+          if (container.__skipDistribute) {
+            if (container === this.node) {
+              this.host.removeChild(node);
+            } else {
+              container.removeChild(node);
+            }
+          } else {
+            this._dirtyHost();
+          }
           this._maybeDistribute();
         } else {
           this.node.removeChild(node);
