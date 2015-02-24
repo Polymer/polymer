@@ -1103,7 +1103,7 @@ Values will be serialized according to type: Arrays/Objects will be `JSON.string
 <a name="computed-properties"></a>
 ## Computed properties
 
-Polymer supports virtual properties whose values are calculated from other properties.  Computed properties can be defined by providing an object-valued `computed` property on the prototype that maps property names to computing functions.  The name of the function to compute the value is provided as a string with dependent properties as arguments in parenthesis.  Only one dependency is supported at this time.
+Polymer supports virtual properties whose values are calculated from other properties.  Computed properties can be defined by providing an object-valued `computed` property on the prototype that maps property names to computing functions.  The name of the function to compute the value is provided as a string with dependent properties as arguments in parenthesis.  The function will be called once (asynchronously) for any change to the dependent properties.
 
 ```html
 <dom-module id="x-custom">
@@ -1118,13 +1118,13 @@ Polymer supports virtual properties whose values are calculated from other prope
        is: 'x-custom',
     
        computed: {
-         // when `user` changes `computeFullName` is called and the
-         // value it returns is stored as `fullName`
-         fullName: 'computeFullName(user)',
+         // when `first` or `last` changes `computeFullName` is called once 
+         // (asynchronously) and the value it returns is stored as `fullName`
+         fullName: 'computeFullName(first, last)',
        },
 
-       computeFullName: function(user) {
-         return user.firstName + ' ' + user.lastName;
+       computeFullName: function(first, last) {
+         return first + ' ' + last;
        }
 
       ...
@@ -1132,6 +1132,8 @@ Polymer supports virtual properties whose values are calculated from other prope
     });
 </script>
 ```
+
+Note: Only direct properties of the element (as opposed to sub-properties of an object) can be used as dependencies at this time.
 
 <a name="read-only"></a>
 ## Read-only properties
@@ -1304,50 +1306,11 @@ Current limitations that are on the backlog for evaluation/improvement are liste
 * Support for compound property binding
     * See below
 
-## Compound property effects
+## Compound observation
 
-Polymer 0.8 currently has no built-in support for compound observation or compound binding expressions.  This problem space is on the backlog to be tackled in the near future.  This section will discuss lower-level tools that are available in 0.8 that can be used instead.
+Polymer 0.8 does not currently support observer functions called once for changes to a set of dependent properties, outside of computed properties.  If the work of computing the property is expensive, or if the side-effects of the binding are expensive, then you may want to ensure side-effects only occur once for any number of changes to them during a turn by manually introducing asynchronicity.  The `computed` property feature uses `debounce` under the hood to achieve the same effect.
 
-Assume an element has a boolean property that should be set when either of two conditions are true: e.g. when `<my-parent>.isManager == true` OR `<my-parent>.mode == 2`, you want to set `<my-child>.disabled = true`.
-
-The most naive way to achieve this in 0.8 is with separate change handlers for the dependent properties that set a `shouldDisable` property bound to the `my-child`.
-
-Example:
-
-```html
-<dom-module id="x-parent">
-    <template>
-        <x-child disabled="{{shouldDisable}}"></my-child>
-    </template>
-</dom-module>
-
-<script>
-Polymer({
-    
-    is: 'x-parent',
-    
-    bind: {
-        isManager: 'computeShouldDisable',
-        mode: 'computeShouldDisable',
-    },
-
-    // Warning: Called once for every change to dependent properties!
-    computeShouldDisable: function() {
-        this.shouldDisable = this.isManager || (this.mode == 2);
-    }
-
-});
-</script>
-```
-
-Due to the synchronous nature of bindings in 0.8, code such as the following will result in `<my-child>.disabled` being set twice (and any side-effects of that property changing to potentially occur twice):
-
-```js
-myParent.isManager = false;
-myParent.mode = 5;
-```
-
-If the work of computing the property is expensive, or if the side-effects of the binding are expensive, then you may want to ensure side-effects only occur once for any number of changes to them during a turn by manually introducing asynchronicity.  The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
+The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
 
 Example:
 
