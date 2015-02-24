@@ -1308,7 +1308,7 @@ Current limitations that are on the backlog for evaluation/improvement are liste
 
 ## Compound observation
 
-Polymer 0.8 does not currently support observer functions called once for changes to a set of dependent properties, outside of computed properties.  If the work of computing the property is expensive, or if the side-effects of the binding are expensive, then you may want to ensure side-effects only occur once for any number of changes to them during a turn by manually introducing asynchronicity.  The `computed` property feature uses `debounce` under the hood to achieve the same effect.
+Polymer 0.8 does not currently support observer functions called once for changes to a set of dependent properties, outside of computed properties.  If the side-effects of the binding are expensive, then you may want to ensure side-effects only occur once for any number of changes to them during a turn by manually introducing asynchronicity.
 
 The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
 
@@ -1343,7 +1343,7 @@ Polymer({
 });
 </script>
 ```
-Thus, for the short term we expect users will need to consider compound effects and apply use of the `debounce` function to ensure efficient side-effects.
+Note, the `computed` property feature uses `debounce` under the hood to achieve a similar effect.
 
 ## Structured data and path notification
 
