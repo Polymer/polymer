@@ -54,7 +54,7 @@ Declarative data binding, events, and property nofication
 | [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
 | [Declarative attribute binding](#attribute-binding) | \<element attr$=”{{property\|path}}”>
 | [Reflecting properties to attributes](#attribute-reflection) | published: \<prop>: { reflect: true } }
-| [Computed properties](#computed-properties) | compute: { \<property>: ‘function(\<property>)’ }
+| [Computed properties](#computed-properties) | computed: { \<property>: ‘function(\<property>)’ }
 | [Read-only properties](#read-only) |  published: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Attribute-based layout](#layout-html) | layout.html (layout horizontal flex ...)
