@@ -303,7 +303,7 @@ Example:
 
     is: 'x-custom',
 
-    hostAttribute: 'layout horizontal fit'
+    hostAttributes: 'layout horizontal fit'
 
   });
 
