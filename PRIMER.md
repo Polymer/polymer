@@ -805,7 +805,7 @@ To bind to textContent, the binding annotation must currently span the entire co
 
 </script>
 
-<user-view firstName="Samuel" lastName="Adams"></user-view>
+<user-view first="Samuel" last="Adams"></user-view>
 
 ```
 
