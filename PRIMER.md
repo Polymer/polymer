@@ -303,7 +303,7 @@ Example:
 
     is: 'x-custom',
 
-    hostAttribute: 'layout horizontal fit'
+    hostAttributes: 'layout horizontal fit'
 
   });
 
@@ -805,7 +805,7 @@ To bind to textContent, the binding annotation must currently span the entire co
 
 </script>
 
-<user-view firstName="Samuel" lastName="Adams"></user-view>
+<user-view first="Samuel" last="Adams"></user-view>
 
 ```
 
@@ -814,7 +814,7 @@ To bind to properties, the binding annotation should be provided as the value to
 ```html
 <dom-module id="main-view">
     <template>
-      <user-view firstName="{{user.first}}" last="{{user.last}}"></user-view>
+      <user-view first="{{user.first}}" last="{{user.last}}"></user-view>
     </template>
 </dom-module>
 
@@ -833,7 +833,14 @@ To bind to properties, the binding annotation should be provided as the value to
 </script>
 ```
 
-As in the exmaple above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
+As in the example above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
+
+In order to bind to camel-case properties of elements, dash-case should be used in the attribute name.  Example:
+
+```html
+<user-view first-name="{{managerName}}"></user-view>
+<!-- will set <user-view>.firstName = this.managerName; -->
+```
 
 Note that while HTML attributes are used to specify bindings, values are assigned directly to JS properties, not to the HTML attributes of the elements.
 
@@ -844,7 +851,7 @@ Note that currently binding to `style` is a special case which results in the va
 
 Polymer supports cooperative two-way binding between elements, allowing elements that "produce" data or changes to data to propagate those changes upwards to hosts when desired.
 
-When a Polymer elements changs a property that was "published" as part of its public API with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
+When a Polymer elements changes a property that was "published" as part of its public API with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
 
 As such, one could attach an `on-<property>-changed` listener to an element to be notified of changes to such properties, set the `event.detail.value` to a property on itself, and take necessary actions based on the new value.  However, given this is a common pattern, bindings using "curly-braces" (e.g. `{{property}}`) will automatically perform this upwards binding automatically without the user needing to perform those tasks.  This can be defeated by using "square-brace" syntax (e.g. `[[property]]`), which results in only one-way (downward) data-binding.
 
@@ -1057,7 +1064,7 @@ Polymer provides an alternate binding annotation syntax to make it explicit when
     <!-- results in <my-element>.setAttribute('selected', this.value); -->
 
     <!-- Property binding -->
-    <my-element selected="{{value}}></my-element>
+    <my-element selected="{{value}}"></my-element>
     <!-- results in <my-element>.selected = this.value; -->
 
 </template>
@@ -1096,7 +1103,7 @@ Values will be serialized according to type: Arrays/Objects will be `JSON.string
 <a name="computed-properties"></a>
 ## Computed properties
 
-Polymer supports virtual properties whose values are calculated from other properties.  Computed properties can be defined by providing an object-valued `computed` property on the prototype that maps property names to computing functions.  The name of the function to compute the value is provided as a string with dependent properties as arguments in parenthesis.  Only one dependency is supported at this time.
+Polymer supports virtual properties whose values are calculated from other properties.  Computed properties can be defined by providing an object-valued `computed` property on the prototype that maps property names to computing functions.  The name of the function to compute the value is provided as a string with dependent properties as arguments in parenthesis.  The function will be called once (asynchronously) for any change to the dependent properties.
 
 ```html
 <dom-module id="x-custom">
@@ -1111,13 +1118,13 @@ Polymer supports virtual properties whose values are calculated from other prope
        is: 'x-custom',
     
        computed: {
-         // when `user` changes `computeFullName` is called and the
-         // value it returns is stored as `fullName`
-         fullName: 'computeFullName(user)',
+         // when `first` or `last` changes `computeFullName` is called once 
+         // (asynchronously) and the value it returns is stored as `fullName`
+         fullName: 'computeFullName(first, last)',
        },
 
-       computeFullName: function(user) {
-         return user.firstName + ' ' + user.lastName;
+       computeFullName: function(first, last) {
+         return first + ' ' + last;
        }
 
       ...
@@ -1125,6 +1132,8 @@ Polymer supports virtual properties whose values are calculated from other prope
     });
 </script>
 ```
+
+Note: Only direct properties of the element (as opposed to sub-properties of an object) can be used as dependencies at this time.
 
 <a name="read-only"></a>
 ## Read-only properties
@@ -1235,7 +1244,25 @@ As the final 0.8 API solidifies, this section will be updated accordingly.  As s
 
 ## Property casing
 
-**Warning:** Currently only lower-case published properties are supported.  Support for upper-case properties will be added this sprint.  In the short-term, please use lower-case properties.
+TL;DR: When binding to camel-cased properties, use "dash-case" attribute names to indicate the "camelCase" property to bind to.
+
+Example: bind `this.myValue` to `<x-foo>.thatValue`:
+
+BEFORE: 0.5 
+
+```html
+<x-foo thatValue="{{myValue}}"></x-foo>
+```
+
+AFTER: 0.8 
+
+```html
+<x-foo that-value="{{myValue}}"></x-foo>
+```
+
+In 0.5, binding annotations were allowed to mixed-case properties (despite the fact that attribute names always get converted to lower-case by the HTML parser), and the Node.bind implementation at the "receiving end" of the binding automatically inferred the mixed-case property it was assumed to refer to at instance time.
+
+In 0.8, "binding" is done at prorotype time before the type of the element being bound to is known, hence knowing the exact JS property to bind to allows better efficiency.
 
 ## Styling
 
@@ -1279,50 +1306,11 @@ Current limitations that are on the backlog for evaluation/improvement are liste
 * Support for compound property binding
     * See below
 
-## Compound property effects
+## Compound observation
 
-Polymer 0.8 currently has no built-in support for compound observation or compound binding expressions.  This problem space is on the backlog to be tackled in the near future.  This section will discuss lower-level tools that are available in 0.8 that can be used instead.
+Polymer 0.8 does not currently support observer functions called once for changes to a set of dependent properties, outside of computed properties.  If the side-effects of the binding are expensive, then you may want to ensure side-effects only occur once for any number of changes to them during a turn by manually introducing asynchronicity.
 
-Assume an element has a boolean property that should be set when either of two conditions are true: e.g. when `<my-parent>.isManager == true` OR `<my-parent>.mode == 2`, you want to set `<my-child>.disabled = true`.
-
-The most naive way to achieve this in 0.8 is with separate change handlers for the dependent properties that set a `shouldDisable` property bound to the `my-child`.
-
-Example:
-
-```html
-<dom-module id="x-parent">
-    <template>
-        <x-child disabled="{{shouldDisable}}"></my-child>
-    </template>
-</dom-module>
-
-<script>
-Polymer({
-    
-    is: 'x-parent',
-    
-    bind: {
-        isManager: 'computeShouldDisable',
-        mode: 'computeShouldDisable',
-    },
-
-    // Warning: Called once for every change to dependent properties!
-    computeShouldDisable: function() {
-        this.shouldDisable = this.isManager || (this.mode == 2);
-    }
-
-});
-</script>
-```
-
-Due to the synchronous nature of bindings in 0.8, code such as the following will result in `<my-child>.disabled` being set twice (and any side-effects of that property changing to potentially occur twice):
-
-```js
-myParent.isManager = false;
-myParent.mode = 5;
-```
-
-If the work of computing the property is expensive, or if the side-effects of the binding are expensive, then you may want to ensure side-effects only occur once for any number of changes to them during a turn by manually introducing asynchronicity.  The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
+The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
 
 Example:
 
@@ -1355,25 +1343,41 @@ Polymer({
 });
 </script>
 ```
-Thus, for the short term we expect users will need to consider compound effects and apply use of the `debounce` function to ensure efficient side-effects.
+Note, the `computed` property feature uses `debounce` under the hood to achieve a similar effect.
 
 ## Structured data and path notification
 
-TODO - call `setPathValue` and/or `notifyPath` to notify non-bound path changes
+To notify non-bound structured data changes changes, use `setPathValue` and `notifyPath`:
+
+```js
+this.setPathValue('user.manager', 'Matt');
+```
+
+Which is equivalent to:
+
+```js
+this.user.manager = 'Matt';
+this.notifyPath('user.manager', this.user.manager);
+```
+
 
 ## Repeating elements
 
 Repeating templates is moved to a custom element (HTMLTemplateElement type extension called `x-repeat`):
 
 ```html
-<template is="x-repeat" items="{{data}}">
-    <div>{{item.sub}}</div>
+<template is="x-repeat" items="{{users}}">
+    <div>{{item.name}}</div>
 </template>
 ```
 
 ## Array notification
 
-TODO - array changes not observed; for now need to "kick" x-repeat's `render`
+This area is in high flux.  Arrays bound to `x-repeat` are currently observed using `Array.observe` (or equivalent shim) and `x-repeat` will reflect changes to array mutations (push, pop, shift, unshift, splice) asynchronously.
+
+**In-place sort of array is not supported**.  Sorting/filtering will likely be provided as a feature of `x-repeat` (and possibly other array-aware elements such as `x-list`) in the future.
+
+Implementation and usage details will likely change, stay tuned.
 
 <a name="todo-inheritance"></a>
 ## Mixins / Inheritance

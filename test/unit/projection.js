@@ -167,6 +167,21 @@ suite('projection', function() {
     assert.equal(rere.localDom.querySelectorAll('#local').length, 0);
   });
 
+  test('localDom.insertBefore first element results in minimal change', function() {
+    var test = document.querySelector('x-test');
+    var children = test.localDom.children();
+    var rere = test.localDom.querySelector('x-rereproject');
+    assert.equal(rere.attachedCount, 1);
+    var s = document.createElement('span');
+    s.id = 'local-first';
+    s.textContent = 'Local First';
+    test.localDom.insertBefore(s, children[0]);
+    assert.equal(test.localDom.querySelector('#local-first'), s);
+    assert.equal(rere.attachedCount, 1);
+    test.localDom.removeChild(s);
+    assert.equal(rere.attachedCount, 1);
+  });
+
   test('localDom.appendChild (fragment)', function() {
     var test = document.querySelector('x-test');
     var rere = test.localDom.querySelector('x-rereproject');
