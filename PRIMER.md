@@ -24,7 +24,6 @@ Bare-minum Custom Element sugaring
 | [Native HTML element extension](#type-extension) | extends: ‘…’
 | [Publish API](#published-api) | published: { … }
 | [Attribute deserialization to property](#attribute-deserialization) | published: { \<property>: \<Type> }
-| [Set boolean host attributes](#host-attributes) | hostAttributes: [ … ]
 | [Module registry](#module-registry) | modularize, using
 | [Prototype Mixins](#prototype-mixins) | mixins: [ … ]
 
@@ -288,33 +287,6 @@ This user is a manager.
 ```
 
 **Warning:** Currently only lower-case published properties are supported.  Camel-case property support will be added in this sprint.
-
-<a name="host-attributes"></a>
-## Boolean host attributes
-
-A list of attribute names to be applied to instances of the custom element can be provided as space-separated strings in the `hostAttributes` property.  These will simply be set on the element during creation.  This is intended for "boolean" attributes only, such as common layout attributes used by the [layout.html](layout-html) CSS; attribute values cannot be supplied at this time.
-
-Example:
-
-```html
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    hostAttributes: 'layout horizontal fit'
-
-  });
-
-</script>
-```
-
-After creation:
-
-```html
-<x-custom layout horizontal fit></x-custom>
-```
 
 <a name="module-registry"></a>
 ## Module registry
