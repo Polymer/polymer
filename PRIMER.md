@@ -291,6 +291,8 @@ This user is a manager.
 <a name="module-registry"></a>
 ## Module registry
 
+TODO(nevir): Document `define` and friends.
+
 Polymer provides and internally uses a JavaScript "module registry" to organize library code defined outside the context of a custom element prototype, and may be used to organize user code when convenient as well.  The registry is responsible for storing and retrieving JS modules by name.  As this facility does not provide dependency loading, it is the responsibility of the user to HTMLImport files containing any dependent modules before use.
 
 Modules are registered using the `modulate` global function, passing a name to register and a factory function that returns the module:
