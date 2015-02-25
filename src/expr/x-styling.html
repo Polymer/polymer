@@ -8,11 +8,10 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="../lib/style-util.html">
-<link rel="import" href="style-transformer.html">
-<link rel="import" href="shadow-settings.html">
-<link rel="import" href="x-stylizer-defaults.html">
+<link rel="import" href="../lib/style-transformer.html">
+<link rel="import" href="../lib/shadow-settings.html">
+<link rel="import" href="x-styling-defaults.html">
 <script>
-
   using(['Base', 'StyleTransformer', 'StyleUtil', 'ShadowSettings', 'StyleDefaults'],
     function(Base, transformer, styleUtil, settings, defaults) {
     
@@ -112,20 +111,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       applyStyleProperties: function(bag) {
         var s$ = this._styles;
         if (s$) {
-          if (!settings.useNativeShadow) {
-            this._ensureScopeSelector();
-          }
-          var b = this._applyPropertiesToRule.bind(this, bag);
-          var cssText = '';
-          // TODO(sorvell): don't redo parsing work each time as below; 
-          // instead create a sheet with just custom properties
-          for (var i=0, l=s$.length, s; (i<l) && (s=s$[i]); i++) {
-            cssText += this._transformCss(s.textContent, this.is, b) + '\n\n'; 
-          }
-          if (cssText) {
-            this._applyCustomCss(cssText);
+          var style = styleFromCache(this.is, bag, s$);
+          this._ensureScopeSelector(style ? style._scope : null);
+          if (!style) {
+            var cssText = this._generateCustomStyleCss(bag, s$);
+            style = cssText ? this._applyCustomCss(cssText) : {};
+            cacheStyle(this.is, style, this._scopeSelector, 
+              this._styleProperties, s$);
+          } else if (settings.useNativeShadow) {
+            this._applyCustomCss(style.textContent);
           }
         }
+      },
+
+      _generateCustomStyleCss: function(properties, styles) {
+        var b = this._applyPropertiesToRule.bind(this, properties);
+        var cssText = '';
+        // TODO(sorvell): don't redo parsing work each time as below; 
+        // instead create a sheet with just custom properties
+        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+          cssText += this._transformCss(s.textContent, this.is, b) + '\n\n'; 
+        }
+        return cssText;
       },
 
       _transformCss: function(cssText, scope, callback) {
@@ -134,22 +141,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           transformer.css(cssText, scope, callback);
       },
 
-      _ensureScopeSelector: function() {
+      _xScopeCount: 0,
+
+      _ensureScopeSelector: function(selector) {
         if (!this._scopeSelector) {
-          this._scopeSelector = this._scopeSelector || (this.is + 
-            '-' + Math.floor(Math.random() * 1e6));
-          this.classList.add(this._scopeSelector);
-          this._scopeSelector = '.' + this._scopeSelector;
+          var c = Object.getPrototypeOf(this)._xScopeCount++;
+          this._scopeSelector = selector || (this.is + '-' + c);
+          //console.log(this.is, c, this._scopeSelector);
+          if (!settings.useNativeShadow) {
+            this.classList.add(this._scopeSelector);
+          }
         }
       },
 
       _applyCustomCss: function(cssText) {
         if (this._customStyle) {
           this._customStyle.textContent = cssText;
-        } else {
+        } else if (cssText) {
           this._customStyle = styleUtil.applyCss(cssText, this._scopeSelector,
             settings.useNativeShadow ? this.localDom : null);
         }
+        return this._customStyle;
       },
 
       _applyPropertiesToRule: function(properties, rule) {
@@ -202,8 +214,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var parts = selector.split(',');
         for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
           parts[i] = (p.indexOf(host) >= 0) ?
-            p.replace(host, host + this._scopeSelector) :
-            this._scopeSelector + ' ' + p;
+            p.replace(host, host + '.' + this._scopeSelector) :
+            '.' + this._scopeSelector + ' ' + p;
         }
         rule.selector = parts.join(',');
       },
@@ -222,6 +234,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     });
+
+    
+    var styleCache = {};
+    function cacheStyle(is, style, scope, bag, styles) {
+      style._scope = scope;
+      style._properties = bag;
+      style._styles = styles;
+      var s$ = styleCache[is] = styleCache[is] || [];
+      s$.push(style);
+    }
+
+    function styleFromCache(is, bag, checkStyles) {
+      var styles = styleCache[is];
+      if (styles) {
+        for (var i=0, s; i < styles.length; i++) {
+          s = styles[i];
+          if (objectsEqual(bag, s._properties) && 
+            objectsEqual(checkStyles,  s._styles)) { 
+            return s;
+          }
+        }
+      }
+    }
+
+    function objectsEqual(a, b) {
+      for (var i in a) {
+        if (a[i] !== b[i]) {
+          return false;
+        }
+      }
+      for (var i in b) {
+        if (a[i] !== b[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
 
     // TODO(sorvell): simple version of mixin; should go elsewhere
     function mixin(a, b) {
