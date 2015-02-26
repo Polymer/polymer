@@ -44,15 +44,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       dependencies = Array.isArray(id) ? id : [];
     }
 
+    var inferredId = _inferModuleId();
     if (typeof id !== 'string') {
-      id = _inferModuleId();
+      id = inferredId;
+    }
+    if (id.indexOf('\\') !== -1) {
+      throw new TypeError('Please use / as module path delimiters');
     }
 
     if (id in _modules) {
       throw new Error('The module "' + id + '" has already been defined');
     }
 
-    _modules[id] = _withDependencies(dependencies, factory);
+    // TODO(nevir): This is naive; doesn't support the vulcanize case.
+    var base = inferredId.match(/^(.*?)[^\/]*$/)[1];
+    _modules[id] = _withDependencies(base, dependencies, factory);
     return _modules[id];
   }
   // Semi-private. We expose this for tests & introspection.
@@ -66,29 +72,59 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // Utility
 
-  // TODO(nevir): Temporary for anonymous module ids until we determine them via
-  // current script URL.
-  var _anonymousModuleCount = 0;
-
   /** @return {string} A module id inferred from the current document/import. */
   function _inferModuleId() {
-    return '__anonymous_' + _anonymousModuleCount++ + '__';
+    var doc = document.currentScript && document.currentScript.ownerDocument || document;
+    if (!doc.baseURI) {
+      throw new Error('Unable to determine a module id: No baseURI for the document');
+    }
+    return doc.baseURI;
   }
 
   /**
    * Calls `factory` with the exported values of `dependencies`.
    *
+   * @param {string} base
    * @param {Array<string>} dependencies
    * @param {function(...*)} factory
    */
-  function _withDependencies(dependencies, factory) {
+  function _withDependencies(base, dependencies, factory) {
     var modules = dependencies.map(function(id) {
+      id = _resolveRelativeId(base, id);
       if (!(id in _modules)) {
         throw new ReferenceError('The module "' + id + '" has not been loaded');
       }
       return _modules[id];
     });
     return factory.apply(null, modules);
+  }
+
+  /**
+   * @param {string} base The module path/URI that acts as the relative base.
+   * @param {string} id The module ID that should be relatively resolved.
+   * @return {string} The expanded module ID.
+   */
+  function _resolveRelativeId(base, id) {
+    if (id[0] !== '.') return id;
+    // We need to be careful to only process the path of URLs.
+    var match  = base.match(/^([^\/]*\/\/[^\/]+\/)?(.*?)\/?$/);
+    var prefix = match[1] || '';
+    // We start with the base, and then mutate it into the final path.
+    var terms   = match[2] ? match[2].split('/') : [];
+    var idTerms = id.match(/^\/?(.*?)\/?$/)[1].split('/');
+
+    for (var i = 0; i < idTerms.length; i++) {
+      var idTerm = idTerms[i];
+      if (idTerm === '.') {
+        continue;
+      } else if (idTerm === '..') {
+        terms.pop();
+      } else {
+        terms.push(idTerm);
+      }
+    }
+
+    return prefix + terms.join('/');
   }
 
   // Exports
@@ -110,7 +146,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     dependencies = typeof dependencies === 'string' ? [dependencies] : dependencies;
     define(dependencies, factory);
   };
-
 
 })(this);
 </script>
