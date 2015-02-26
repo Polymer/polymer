@@ -9,48 +9,143 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <script>
 (function(scope) {
+  'use strict';
 
-  function withDependencies(task, depends) {
-    depends = depends || [];
-    if (!depends.map) {
-      depends = [depends];
+  /** @type {Object<key, *>} A mapping of ids to modules. */
+  var _modules = Object.create(null);
+
+  // `define`
+
+  /**
+   * An AMD-compliant implementation of `define` that does not perform loading.
+   *
+   * @see https://github.com/amdjs/amdjs-api/wiki/AMD
+   *
+   * Dependencies must be loaded prior to calling `define`, or you will receive
+   * an error.
+   *
+   * @param {string=} id The id of the module being defined. If not provided,
+   *     one will be given to the module based on the document it was called in.
+   * @param {Array<string>=} dependencies A list of module ids that should be
+   *     exposed as dependencies of the module being defined.
+   * @param {function(...*)|*} factory A function that is given the exported
+   *     values for `dependencies`, in the same order. Alternatively, you can
+   *     pass the exported value directly.
+   */
+  function define(id, dependencies, factory) {
+    factory = factory || dependencies || id;
+    // TODO(nevir): Assign directly as exports if not a function.
+    if (typeof factory !== 'function') {
+      throw new TypeError('The last argument to define() must be a function');
     }
-    return task.apply(this, depends.map(marshal));
+
+    if (!Array.isArray(dependencies)) {
+      // TODO(nevir): Default dependencies should be require, exports, module.
+      dependencies = Array.isArray(id) ? id : [];
+    }
+
+    var inferredId = _inferModuleId();
+    if (typeof id !== 'string') {
+      id = inferredId;
+    }
+    if (id.indexOf('\\') !== -1) {
+      throw new TypeError('Please use / as module path delimiters');
+    }
+
+    if (id in _modules) {
+      throw new Error('The module "' + id + '" has already been defined');
+    }
+
+    // TODO(nevir): This is naive; doesn't support the vulcanize case.
+    var base = inferredId.match(/^(.*?)[^\/]*$/)[1];
+    _modules[id] = _withDependencies(base, dependencies, factory);
+    return _modules[id];
+  }
+  // Semi-private. We expose this for tests & introspection.
+  define._modules = _modules;
+
+  /**
+   * Let other implementations know that this is an AMD implementation.
+   * @see https://github.com/amdjs/amdjs-api/wiki/AMD#defineamd-property-
+   */
+  define.amd = {};
+
+  // Utility
+
+  /** @return {string} A module id inferred from the current document/import. */
+  function _inferModuleId() {
+    var doc = document.currentScript && document.currentScript.ownerDocument || document;
+    if (!doc.baseURI) {
+      throw new Error('Unable to determine a module id: No baseURI for the document');
+    }
+    return doc.baseURI;
   }
 
-  function module(name, dependsOrFactory, moduleFactory) {
-    var module = null;
-    switch (arguments.length) {
-      case 0:
-        return;
-      case 2:
-        // dependsOrFactory is `factory` in this case
-        module = dependsOrFactory.apply(this);
-        break;
-      default:
-        // dependsOrFactory is `depends` in this case
-        module = withDependencies(moduleFactory, dependsOrFactory);
-        break;
-    }
-    modules[name] = module;
-  };
-
-  function marshal(name) {
-    return modules[name];
+  /**
+   * Calls `factory` with the exported values of `dependencies`.
+   *
+   * @param {string} base
+   * @param {Array<string>} dependencies
+   * @param {function(...*)} factory
+   */
+  function _withDependencies(base, dependencies, factory) {
+    var modules = dependencies.map(function(id) {
+      id = _resolveRelativeId(base, id);
+      if (!(id in _modules)) {
+        throw new ReferenceError('The module "' + id + '" has not been loaded');
+      }
+      return _modules[id];
+    });
+    return factory.apply(null, modules);
   }
 
-  var modules = {};
+  /**
+   * @param {string} base The module path/URI that acts as the relative base.
+   * @param {string} id The module ID that should be relatively resolved.
+   * @return {string} The expanded module ID.
+   */
+  function _resolveRelativeId(base, id) {
+    if (id[0] !== '.') return id;
+    // We need to be careful to only process the path of URLs.
+    var match  = base.match(/^([^\/]*\/\/[^\/]+\/)?(.*?)\/?$/);
+    var prefix = match[1] || '';
+    // We start with the base, and then mutate it into the final path.
+    var terms   = match[2] ? match[2].split('/') : [];
+    var idTerms = id.match(/^\/?(.*?)\/?$/)[1].split('/');
 
-  var using = function(depends, task) {
-    withDependencies(task, depends);
+    for (var i = 0; i < idTerms.length; i++) {
+      var idTerm = idTerms[i];
+      if (idTerm === '.') {
+        continue;
+      } else if (idTerm === '..') {
+        terms.pop();
+      } else {
+        terms.push(idTerm);
+      }
+    }
+
+    return prefix + terms.join('/');
+  }
+
+  // Exports
+
+  scope.define = define;
+
+  // TODO(nevir): Do we want to also implement AMD's (optional) global `require`
+  // function? It doesn't support relative lookups, so that may be a no-go:
+  // https://github.com/amdjs/amdjs-api/blob/master/require.md
+
+  // TODO(nevir): Get rid of these; they're purely transitionary.
+  scope.modulate = function(id, dependencies, factory) {
+    console.warn('modulate() is deprecated. Please call define() instead.');
+    dependencies = typeof dependencies === 'string' ? [dependencies] : dependencies;
+    define(id, dependencies, factory);
   };
-
-  // exports
-
-  scope.marshal = marshal;
-  // `module` confuses commonjs detectors
-  scope.modulate = module;
-  scope.using = using;
+  scope.using = function(dependencies, factory) {
+    console.warn('using() is deprecated. Please call define() instead.');
+    dependencies = typeof dependencies === 'string' ? [dependencies] : dependencies;
+    define(dependencies, factory);
+  };
 
 })(this);
 </script>
