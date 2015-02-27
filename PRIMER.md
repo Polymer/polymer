@@ -24,7 +24,6 @@ Bare-minum Custom Element sugaring
 | [Native HTML element extension](#type-extension) | extends: ‘…’
 | [Publish API](#published-api) | published: { … }
 | [Attribute deserialization to property](#attribute-deserialization) | published: { \<property>: \<Type> }
-| [Set boolean host attributes](#host-attributes) | hostAttributes: [ … ]
 | [Module registry](#module-registry) | modularize, using
 | [Prototype Mixins](#prototype-mixins) | mixins: [ … ]
 
@@ -54,7 +53,7 @@ Declarative data binding, events, and property nofication
 | [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
 | [Declarative attribute binding](#attribute-binding) | \<element attr$=”{{property\|path}}”>
 | [Reflecting properties to attributes](#attribute-reflection) | published: \<prop>: { reflect: true } }
-| [Computed properties](#computed-properties) | compute: { \<property>: ‘function(\<property>)’ }
+| [Computed properties](#computed-properties) | computed: { \<property>: ‘function(\<property>)’ }
 | [Read-only properties](#read-only) |  published: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Attribute-based layout](#layout-html) | layout.html (layout horizontal flex ...)
@@ -289,33 +288,6 @@ This user is a manager.
 
 **Warning:** Currently only lower-case published properties are supported.  Camel-case property support will be added in this sprint.
 
-<a name="host-attributes"></a>
-## Boolean host attributes
-
-A list of attribute names to be applied to instances of the custom element can be provided as space-separated strings in the `hostAttributes` property.  These will simply be set on the element during creation.  This is intended for "boolean" attributes only, such as common layout attributes used by the [layout.html](layout-html) CSS; attribute values cannot be supplied at this time.
-
-Example:
-
-```html
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    hostAttributes: 'layout horizontal fit'
-
-  });
-
-</script>
-```
-
-After creation:
-
-```html
-<x-custom layout horizontal fit></x-custom>
-```
-
 <a name="module-registry"></a>
 ## Module registry
 
@@ -481,7 +453,7 @@ Example:
 <a name="dom-api"></a>
 ## DOM API
 
-Polymer provides custom API for manipulating dom such that local DOM and light DOM trees are properly maintained. An element has a `lightDOM` property and a `localDOM` each of which are used to manipulate their respective dom trees. The following methods are provided:
+Polymer provides custom API for manipulating dom such that local DOM and light DOM trees are properly maintained. An element has a `lightDom` property and a `localDom` each of which are used to manipulate their respective dom trees. The following methods are provided:
 
   * appendChild(node)
   * insertBefore(node, ref_node)
@@ -494,12 +466,12 @@ Example:
 
 ```html
   var toLight = document.createElement('div');
-  this.lightDOM.appendChild(toLight);
+  this.lightDom.appendChild(toLight);
 
   var toLocal = document.createElement('div');
   this.localDom.insertBefore(toLocal, this.localDom.children()[0]);
 
-  var allSpans = this.localDOM.querySelectorAll('span');
+  var allSpans = this.localDom.querySelectorAll('span');
 ```
 
 For manipulating dom in elements that themselves do not have local dom, the above api's support an extra argument which is the container `node` in which the operation should be performed.
@@ -517,20 +489,20 @@ Example:
 ...
 
 var insert = document.createElement('div');
-this.localDOM.insertBefore(insert, this.$.first, this.$.container);
+this.localDom.insertBefore(insert, this.$.first, this.$.container);
 
 ```
 
-**NOTE:** It's only strictly necessary to use `lightDOM/localDOM` when performing dom manipulation on elements whose composed dom and local dom is distinct. This includes elements with local dom and elements that are parents of insertion points. It is recommended, however, that `lightDOM/localDOM` be used whenever manipulating element dom.
+**NOTE:** It's only strictly necessary to use `lightDom/localDom` when performing dom manipulation on elements whose composed dom and local dom is distinct. This includes elements with local dom and elements that are parents of insertion points. It is recommended, however, that `lightDom/localDom` be used whenever manipulating element dom.
 
 When multiple dom operations need to occur at once time, it's more efficient to batch these operations together. A batching mechanism is provided to support this use case.
 
 Example:
 
 ```html
-this.localDOM.batch(function() {
+this.localDom.batch(function() {
   for (var i=0; i<10; i++) {
-    this.localDOM.appendChild(document.createElement('div'));
+    this.localDom.appendChild(document.createElement('div'));
   }
 });
 
@@ -655,7 +627,7 @@ Example:
     listeners: {
       'click': 'handleClick'
     },
-    
+
     handleClick: function(e) {
       alert("Thank you for clicking");
     }
@@ -1060,7 +1032,7 @@ Polymer provides an alternate binding annotation syntax to make it explicit when
 <template>
 
     <!-- Attribute binding -->
-    <my-element selected$="{{value}}"></my-element>    
+    <my-element selected$="{{value}}"></my-element>
     <!-- results in <my-element>.setAttribute('selected', this.value); -->
 
     <!-- Property binding -->
@@ -1081,19 +1053,19 @@ In specific cases, it may be useful to keep an HTML attribute value in sync with
 ```html
 <script>
     Polymer({
-    
+
        published: {
          response: {
             type: Object,
             reflect: true
          }
        },
-    
+
        responseHandler: function(response) {
          this.response = 'loaded';
          // results in this.setAttribute('response', 'loaded');
        }
-    
+
     });
 </script>
 ```
@@ -1114,11 +1086,11 @@ Polymer supports virtual properties whose values are calculated from other prope
 
 <script>
     Polymer({
-    
+
        is: 'x-custom',
-    
+
        computed: {
-         // when `first` or `last` changes `computeFullName` is called once 
+         // when `first` or `last` changes `computeFullName` is called once
          // (asynchronously) and the value it returns is stored as `fullName`
          fullName: 'computeFullName(first, last)',
        },
@@ -1143,7 +1115,7 @@ When a property only "produces" data and never consumes data, this can be made e
 ```html
 <script>
     Polymer({
-    
+
        published: {
          response: {
             type: Object,
@@ -1151,13 +1123,13 @@ When a property only "produces" data and never consumes data, this can be made e
             notify: true
          }
        },
-    
+
        responseHandler: function(response) {
          this._setResponse(response);
        }
-    
+
       ...
-    
+
     });
 </script>
 ```
@@ -1248,13 +1220,13 @@ TL;DR: When binding to camel-cased properties, use "dash-case" attribute names t
 
 Example: bind `this.myValue` to `<x-foo>.thatValue`:
 
-BEFORE: 0.5 
+BEFORE: 0.5
 
 ```html
 <x-foo thatValue="{{myValue}}"></x-foo>
 ```
 
-AFTER: 0.8 
+AFTER: 0.8
 
 ```html
 <x-foo that-value="{{myValue}}"></x-foo>
@@ -1275,13 +1247,13 @@ In the meantime, styling should be done against the composed tree, meaning:
 
 ```html
 <dom-module id="x-foo">
-    
+
     <style>
         x-foo .my-class {
           ...
         }
     </style>
-    
+
     <template>
     ...
     </template>
@@ -1323,9 +1295,9 @@ Example:
 
 <script>
 Polymer({
-    
+
     is: 'x-parent',
-    
+
     bind: {
         isManager: 'computeShouldDisableDebounced',
         mode: 'computeShouldDisableDebounced',

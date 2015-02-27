@@ -130,10 +130,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._renderPendingAttach = true;
           return;
         }
-        if (this.host) {
-          this.host.localDom.batch();
+        var parent = this.lightDom.elementParent(this);
+        this._domTarget = this.host ? this.host.localDom : 
+          (parent.lightDom ? parent.lightDom : null);
+        if (this._domTarget) {
+          this._domTarget.batch();
           this._render(splices);
-          this.host.debounce('distribute', function() {
+          this._domTarget.host.debounce('distribute', function() {
             this.localDom.distribute();
           });
         } else {
@@ -144,7 +147,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _render: function(splices) {
         var c = this.collection;
         if (splices) {
-          if (this._sortFn) {
+          if (this._sortFn || splices[0].index == null) {
             this._applySplicesViewSort(splices);
           } else {
             this._applySplicesArraySort(splices);
@@ -190,6 +193,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      _keySort: function(a, b) {
+        return this.collection.getKey(a) - this.collection.getKey(b);
+      },
+
       _applySplicesViewSort: function(splices) {
         var c = this.collection;
         var keys = this._orderedKeys;
@@ -197,6 +204,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var removedRows = [];
         var addedKeys = [];
         var pool = [];
+        var sortFn = this._sortFn || this._keySort.bind(this);
         splices.forEach(function(s) {
           // Collect all removed row idx's
           for (var i=0; i<s.removed.length; i++) {
@@ -230,7 +238,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           // Sort added keys
           addedKeys.sort(function(a, b) {
-            return this._sortFn(c.getItem(a), c.getItem(b));
+            return this.sortFn(c.getItem(a), c.getItem(b));
           }, this);
           // Insert new rows using sort (from pool or newly created)
           var start = 0;
@@ -245,11 +253,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var item = c.getItem(key);
         var end = this.rows.length - 1;
         var idx = -1;
+        var sortFn = this._sortFn || this._keySort.bind(this);
         // Binary search for insertion point
         while (start <= end) {
           var mid = (start + end) >> 1;
           var midKey = this._orderedKeys[mid];
-          var cmp = this._sortFn(c.getItem(midKey), item);
+          var cmp = sortFn(c.getItem(midKey), item);
           if (cmp < 0) {
             start = mid + 1;
           } else if (cmp > 0) {
@@ -306,9 +315,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var row = this.rows[idx];
         for (var i=0; i<row._children.length; i++) {
           var el = row._children[i];
-          if (this.host) {
+          if (this._domTarget) {
             var parentNode = this.lightDom.elementParent();
-            this.host.localDom.removeChild(el, parentNode);
+            this._domTarget.removeChild(el, parentNode);
           }
           row.root.appendChild(el);
         }
@@ -320,8 +329,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var beforeRow = this.rows[idx];
         var beforeNode = beforeRow ? beforeRow._children[0] : this;
         var parentNode = this.lightDom.elementParent();
-        if (this.host) {
-          this.host.localDom.insertBefore(row.root, beforeNode, parentNode);
+        if (this._domTarget) {
+          this._domTarget.insertBefore(row.root, beforeNode, parentNode);
         } else {
           parentNode.insertBefore(row.root, beforeNode);
         }

@@ -7,15 +7,18 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="../lib/style-util.html">
-<link rel="import" href="style-transformer.html">
-<link rel="import" href="shadow-settings.html">
+<link rel="import" href="../../lib/style-util.html">
+<link rel="import" href="../../lib/resolve-url.html">
+<link rel="import" href="../../lib/style-transformer.html">
+<link rel="import" href="../../lib/settings.html">
 <script>
 
-  using(['Base', 'StyleTransformer', 'StyleUtil', 'ShadowSettings'], 
-    function(Base, transformer, styleUtil, settings) {
+  using(['Base', 'Annotations', 'StyleTransformer', 'StyleUtil', 'Settings', 
+    'ResolveUrl'], 
+    function(Base, Annotations, transformer, styleUtil, settings, resolver) {
     
     var prepTemplate = Base._prepTemplate;
+    var prepElement = Base._prepElement;
     var stampTemplate = Base._stampTemplate;
 
     var domModule = document.createElement('dom-module');
@@ -28,15 +31,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var port = domModule.import(this.is);
         this._encapsulateStyle = (port && port.hasAttribute('encapsulate')) &&
           !settings.useNativeShadow;
-        // scope dom 
-        if (this._encapsulateStyle && this._template) {
-          transformer.dom(this._template.content, this.is);
-        }
         // scope css
+        // NOTE: dom scoped via annotations
         // TODO(sorvell): native shadow styles will contain custom properties
         if (settings.useNativeShadow || this._encapsulateStyle) {
           this._scopeCss();
         }
+      },
+
+      _prepElement: function(element) {
+        if (this._encapsulateStyle) {
+          element.classList.add(this.is + transformer.SCOPE_SUFFIX);
+        }
+        prepElement.call(this, element);
       },
 
       // TODO(sorvell): Need to decide where to place styles. If we do it
@@ -67,7 +74,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // TODO(sorvell): goes away if these are in template; we need to unapply
       // the styles from the document.
       _prepareStyles: function(styles) {
-        var output = []
+        var output = [];
         for (var i=0, l=styles.length, s, m; (i<l) && (s=styles[i]); i++) {
           // NOTE: __appliedElement is supplied by the HTMLImports polyfill
           // and is the element in the main document used to apply styles.
@@ -77,6 +84,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             m._styles = [];
             s = s.__appliedElement || s;
             s.parentNode.removeChild(s);
+            // TODO(sorvell): currently only needed in native since we rely
+            // on HTMLImports polyfill otherwise; if we move styles into
+            // templates, this will always be required.
+            if (settings.useNativeImports) {
+              s.textContent = resolver.resolveCss(s.textContent, 
+                s.ownerDocument);
+            }
             m._styles.push(s);
           }
           // TODO(sorvell): clone styles only so they can have separate parsed
