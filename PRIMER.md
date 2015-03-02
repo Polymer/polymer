@@ -22,8 +22,8 @@ Bare-minum Custom Element sugaring
 | [Bespoke constructor support](#bespoke-constructor) | constructor: function() { … }
 | [Basic lifecycle callbacks](#basic-callbacks) | created, attached, detached, attributeChanged
 | [Native HTML element extension](#type-extension) | extends: ‘…’
-| [Publish API](#published-api) | published: { … }
-| [Attribute deserialization to property](#attribute-deserialization) | published: { \<property>: \<Type> }
+| [Configure properties](#property-config) | propertyConfig: { … }
+| [Attribute deserialization to property](#attribute-deserialization) | propertyConfig: { \<property>: \<Type> }
 | [Module registry](#module-registry) | modularize, using
 | [Prototype Mixins](#prototype-mixins) | mixins: [ … ]
 
@@ -46,15 +46,15 @@ Declarative data binding, events, and property nofication
 | [Local node marshalling](#node-marshalling) | this.$.\<id>
 | [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
 | [Annotated event listener setup](#annotated-listeners) | \<element on-[event]=”function”>
-| [Property change callbacks](#change-callbacks) | bind: { \<property>: ‘function’ }
+| [Property change callbacks](#change-callbacks) | propertyConfig: \<prop>: { observer: ‘function’ }
 | [Declarative property binding](#property-binding) | \<element prop=”{{property\|path}}”>
-| [Property change notification](#property-notification) | published: { \<prop>: { notify: true } }
+| [Property change notification](#property-notification) | propertyConfig: { \<prop>: { notify: true } }
 | [Binding to structured data](#path-binding) | \<element prop=”{{obj.sub.path}}”>
 | [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
 | [Declarative attribute binding](#attribute-binding) | \<element attr$=”{{property\|path}}”>
-| [Reflecting properties to attributes](#attribute-reflection) | published: \<prop>: { reflect: true } }
+| [Reflecting properties to attributes](#attribute-reflection) | propertyConfig: \<prop>: { reflect: true } }
 | [Computed properties](#computed-properties) | computed: { \<property>: ‘function(\<property>)’ }
-| [Read-only properties](#read-only) |  published: { \<prop>: { readOnly: true } }
+| [Read-only properties](#read-only) |  propertyConfig: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Attribute-based layout](#layout-html) | layout.html (layout horizontal flex ...)
 
@@ -211,12 +211,12 @@ MyElement = Polymer({
 See the [section on configuring elements](#configuring-elements) for a more in-depth description of the practical uses of each callback.
 
 
-<a name="published-api"></a>
-## Published API
+<a name="property-config"></a>
+## Configuring properties
 
-Placing an object-valued `published` property on your prototype allows you to define metadata regarding your Custom Element's API, which can then be accessed by an API for use by other Polymer features.
+Placing an object-valued `propertyConfig` property on your prototype allows you to define metadata regarding your Custom Element's properties, which can then be accessed via an API for use by other Polymer features.
 
-By itself, the `published` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see featues below for details).
+By itself, the `propertyConfig` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see featues below for details).
 
 Example:
 
@@ -225,7 +225,7 @@ Polymer({
 
   is: 'x-custom',
 
-  published: {
+  propertyConfig: {
     user: String,
     isHappy: Boolean,
     count: {
@@ -247,7 +247,7 @@ Remember that the fields assigned to `count`, such as `readOnly` and `notify` do
 <a name="attribute-deserialization"></a>
 ## Attribute deserialization
 
-If an attribute matches a property listed in the `published` object, the attribute value will be assigned to a property of the same name on the element instance.  Attribute values (always strings) will be automatically converted to the published type when assigned to the property.  If no other `published` options are specified for a property, the type (specified using the type constructor, e.g. `Object`, `String`, etc.) can be set directly as the value of the property in the published object; otherwise it should be provided as the value to the `type` key in the `published` configuration object.
+If an attribute matches a property listed in the `propertyConfig` object, the attribute value will be assigned to a property of the same name on the element instance.  Attribute values (always strings) will be automatically converted to the propertyConfig type when assigned to the property.  If no other `propertyConfig` options are specified for a property, the type (specified using the type constructor, e.g. `Object`, `String`, etc.) can be set directly as the value of the property in the propertyConfig object; otherwise it should be provided as the value to the `type` key in the `propertyConfig` configuration object.
 
 The type system includes support for Object values expressed as JSON, or Date objects expressed as any Date-parsable string representation. Boolean properties set based on the existence of the attribute: if the attribute exists at all, its value is true, regardless of its string-value (and the value is only false if the attribute does not exist).
 
@@ -260,7 +260,7 @@ Example:
 
     is: 'x-custom',
 
-    published: {
+    propertyConfig: {
       user: String,
       manager: {
         type: Boolean,
@@ -285,8 +285,6 @@ Hello World, my user is Scott.
 This user is a manager.
 -->
 ```
-
-**Warning:** Currently only lower-case published properties are supported.  Camel-case property support will be added in this sprint.
 
 <a name="module-registry"></a>
 ## Module registry
@@ -358,7 +356,7 @@ using(['FunSupport', ...], function(funSupport, ...) {
 
 Polymer will "mixin" objects specified in a `mixin` array into the prototype.  This can be useful for adding common code between multiple elements.
 
-The current mixin feature in 0.8 is basic; it simply loops over properties in the provided object and adds property descriptors for those on the prototype (such that `set`/`get` accessors are copied in addition to properties and functions).  Note that there is currently no support for publishing properties or hooking lifecycle callbacks directly via mixins.  The general pattern is for the mixin to supply functions to be called by the target element as part of its usage contract (and should be documented as such).  These limitations will likely be revisited in the future.
+The current mixin feature in 0.8 is basic; it simply loops over properties in the provided object and adds property descriptors for those on the prototype (such that `set`/`get` accessors are copied in addition to properties and functions).  Note that there is currently no support for configuring properties or hooking lifecycle callbacks directly via mixins.  The general pattern is for the mixin to supply functions to be called by the target element as part of its usage contract (and should be documented as such).  These limitations will likely be revisited in the future.
 
 The [module registry](#module-registry) should generally be used for registering mixins.  Mixins registered with the Polymer module registry may be referred to by String name without needing to expliitly request the module via `using`.  Otherwise, values in the `mixin` array should be an Object reference (generally retrieved via `using`).
 
@@ -667,9 +665,9 @@ Example:
 ```
 
 <a name="change-callbacks"></a>
-## Property change callbacks
+## Property change callbacks (observers)
 
-Custom element properties may be observed for changes by specifying an object-valued `bind` property that maps element properties to chagne handler names.  When the property changes, the change handler will be called with the new and old values.
+Custom element properties may be observed for changes by specifying `observer` property in the `propertyConfig` for the property that gives the name of a funciton to call.  When the property changes, the change handler will be called with the new and old values as arguments.
 
 Example:
 
@@ -678,13 +676,14 @@ Polymer({
 
   is: 'x-custom',
 
-  published: {
-    disabled: Boolean
-  },
-
-  bind: {
-    disabled: 'disabledChanged',
-    highlight: 'highlightChanged'
+  propertyConfig: {
+    disabled: {
+      type: Boolean,
+      observer: 'disabledChanged'
+    },
+    highlight: {
+      observer: 'highlightChanged'
+    }
   },
 
   disabledChanged: function(newValue, oldValue) {
@@ -702,11 +701,9 @@ Polymer({
 });
 ```
 
-Note as in the example above, change handlers can be bound to properties that are not necessarily published.
-
 Property change observation is achieved in Polymer by installing setters on the custom element prototype for properties with registered interest (as opposed to observation via Object.observe or dirty checking, for example).
 
-Observing changes to object sub-properties is also supported via the `bind` object, by specifying a full (e.g. `user.manager.name`) or partial path (`user.*`).
+Observing changes to multiple properties is supported via the `observers` object, by specifying a string-separated list of dependent properties that should result in a change function being called.  These observers differ from single-property observers in that the change handler is called asynchronously.
 
 Example:
 
@@ -715,11 +712,37 @@ Polymer({
 
   is: 'x-custom',
 
-  published: {
+  propertyConfig: {
+    preload: Boolean,
+    src: String,
+    size: String
+  },
+
+  observers: {
+    'preload src size': 'updateImage'
+  },
+
+  updateImage: function(preload, src, size) {
+    // ... do work using dependent values
+  }
+
+});
+```
+
+Additionally, observing changes to object sub-properties is also supported via the same `observers` object, by specifying a full (e.g. `user.manager.name`) or partial path (`user.*`) and function name to call.  In this case, the third argument will indicate the path that changed.  Note that currently the second argument (old value) will not be valid.
+
+Example:
+
+```js
+Polymer({
+
+  is: 'x-custom',
+
+  propertyConfig: {
     user: Object
   },
 
-  bind: {
+  observers: {
     'user.manager.*': 'userManagerChanged'
   },
 
@@ -768,7 +791,7 @@ To bind to textContent, the binding annotation must currently span the entire co
 
     is: 'user-view',
 
-    published: {
+    propertyConfig: {
       first: String,
       last: String
     }
@@ -796,7 +819,7 @@ To bind to properties, the binding annotation should be provided as the value to
 
     is: 'main-view',
 
-    published: {
+    propertyConfig: {
       user: Object
     }
 
@@ -823,15 +846,15 @@ Note that currently binding to `style` is a special case which results in the va
 
 Polymer supports cooperative two-way binding between elements, allowing elements that "produce" data or changes to data to propagate those changes upwards to hosts when desired.
 
-When a Polymer elements changes a property that was "published" as part of its public API with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
+When a Polymer elements changes a property that was configured in `propertyConfig` with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
 
 As such, one could attach an `on-<property>-changed` listener to an element to be notified of changes to such properties, set the `event.detail.value` to a property on itself, and take necessary actions based on the new value.  However, given this is a common pattern, bindings using "curly-braces" (e.g. `{{property}}`) will automatically perform this upwards binding automatically without the user needing to perform those tasks.  This can be defeated by using "square-brace" syntax (e.g. `[[property]]`), which results in only one-way (downward) data-binding.
 
 To summarize, two-way data-binding is achieved when both the host and the child agree to participate, satisfying these three conditions:
 
 1. The host must use curly-brace `{{property}}` syntax.  Square-brace `[[property]]` syntax results in one-way downward binding, regardless of the notify state of the child's property.
-2. The child property being bound to must be published with the `notify` flag set to true (or otherwise send a `<propety>-changed` custom event).  If the property being bound is not published or if the `notify` flag is not set, only one-way (downward) binding will occur.
-3. The child property being bound to must not published with the `readOnly` flag set to true.  If the child property is `notify: true` and `readOnly:true`, and the host binding uses curly-brace syntax, the binding will effectively be one-way (upward).
+2. The child property being bound to must be configured with the `notify` flag set to true (or otherwise send a `<propety>-changed` custom event).  If the property being bound does not have the `notify` flag set, only one-way (downward) binding will occur.
+3. The child property being bound to must not be configured with the `readOnly` flag set to true.  If the child property is `notify: true` and `readOnly:true`, and the host binding uses curly-brace syntax, the binding will effectively be one-way (upward).
 
 Example 1: Two-way binding
 
@@ -840,7 +863,7 @@ Example 1: Two-way binding
 <script>
   Polymer({
     is: 'custom-element',
-    published: {
+    propertyConfig: {
       prop: {
         type: String,
         notify: true
@@ -863,7 +886,7 @@ Example 2: One-way binding (downward)
 <script>
   Polymer({
     is: 'custom-element',
-    published: {
+    propertyConfig: {
       prop: {
         type: String,
         notify: true
@@ -886,7 +909,7 @@ Example 3: One-way binding (downward)
 <script>
   Polymer({
     is: 'custom-element',
-    published: {
+    propertyConfig: {
       prop: String    // no `notify:true`!
     }
   });
@@ -906,7 +929,7 @@ Example 4: One-way binding (upward)
 <script>
   Polymer({
     is: 'custom-element',
-    published: {
+    propertyConfig: {
       prop: {
           type: String,
           notify: true,
@@ -930,7 +953,7 @@ Example 5: Error / non-sensical state
 <script>
   Polymer({
     is: 'custom-element',
-    published: {
+    propertyConfig: {
       prop: {
           type: String,
           notify: true,
@@ -969,7 +992,7 @@ Note that path bindings are distinct from property bindings in a subtle way: whe
 <a name="set-path"></a>
 ### Path change notification
 
-Two-way data-binding and observation of paths in Polymer is achieved using a similar strategy to the one described above for [2-way property binding](#property-notification): When a sub-property of a published `Object` changes, an element fires a non-bubbling `<property>-path-changed` DOM event with a `detail.path` value indicating the path on the object that changed.  Elements that have registered interest in that object (either via binding or change handler) may then take side effects based on knowledge of the path having changed.  Finally, those elements will forward the notification on to any children they have bound the object to, and if the element published the root object for the path that changed on its API, it will also fire a new `<propety>-path-changed` event appropriately.  Through this method, a notification will reach any part of the tree that has registered interest in that path so that side effects occur.
+Two-way data-binding and observation of paths in Polymer is achieved using a similar strategy to the one described above for [2-way property binding](#property-notification): When a sub-property of a property configured with `type: Object` changes, an element fires a non-bubbling `<property>-path-changed` DOM event with a `detail.path` value indicating the path on the object that changed.  Elements that have registered interest in that object (either via binding or change handler) may then take side effects based on knowledge of the path having changed.  Finally, those elements will forward the notification on to any children they have bound the object to, and if the element configured the root object as `type: Object` for the path that changed on its API, it will also fire a new `<propety>-path-changed` event appropriately.  Through this method, a notification will reach any part of the tree that has registered interest in that path so that side effects occur.
 
 This system "just works" to the extent that changes to object sub-properties occur as a result of being bound to a notifying custom element property that changed.  However, often imperative code needs to "poke" at an object's sub-properties directly.  As we avoid more sophisticated observation mechanisms such as Object.observe or dirty-checking in order to achieve the best startup and runtime performance cross-platform for the most common use cases, changing an object's sub-properties directly requires cooperation from the user.
 
@@ -1048,13 +1071,13 @@ Again, as values must be serialized to strings when binding to attributes, it is
 <a name="attribute-reflection"></a>
 ## Reflecting properties to attributes
 
-In specific cases, it may be useful to keep an HTML attribute value in sync with a property value.  This may be achieved by setting `reflect: true` on a property in the published configuration object.  This will cause any change to the property to be serialized out to an attribute of the same name.
+In specific cases, it may be useful to keep an HTML attribute value in sync with a property value.  This may be achieved by setting `reflect: true` on a property in the `propertyConfig` configuration object.  This will cause any change to the property to be serialized out to an attribute of the same name.
 
 ```html
 <script>
     Polymer({
 
-       published: {
+       propertyConfig: {
          response: {
             type: Object,
             reflect: true
@@ -1075,7 +1098,7 @@ Values will be serialized according to type: Arrays/Objects will be `JSON.string
 <a name="computed-properties"></a>
 ## Computed properties
 
-Polymer supports virtual properties whose values are calculated from other properties.  Computed properties can be defined by providing an object-valued `computed` property on the prototype that maps property names to computing functions.  The name of the function to compute the value is provided as a string with dependent properties as arguments in parenthesis.  The function will be called once (asynchronously) for any change to the dependent properties.
+Polymer supports virtual properties whose values are calculated from other properties.  Computed properties can be defined in the `propertyConfig` object by providing a `computed` key mapping to a computing function.  The name of the function to compute the value is provided as a string with dependent properties as arguments in parenthesis.  The function will be called once (asynchronously) for any change to the dependent properties.
 
 ```html
 <dom-module id="x-custom">
@@ -1089,10 +1112,19 @@ Polymer supports virtual properties whose values are calculated from other prope
 
        is: 'x-custom',
 
-       computed: {
-         // when `first` or `last` changes `computeFullName` is called once
-         // (asynchronously) and the value it returns is stored as `fullName`
-         fullName: 'computeFullName(first, last)',
+       propertyConfig: {
+
+         first: String,
+
+         last: String,
+
+         fullName: {
+           type: String,
+           // when `first` or `last` changes `computeFullName` is called once
+           // (asynchronously) and the value it returns is stored as `fullName`
+           computed: 'computeFullName(first, last)'
+         } 
+
        },
 
        computeFullName: function(first, last) {
@@ -1110,13 +1142,13 @@ Note: Only direct properties of the element (as opposed to sub-properties of an 
 <a name="read-only"></a>
 ## Read-only properties
 
-When a property only "produces" data and never consumes data, this can be made explicit to avoid accidental changes from the host by setting the `readOnly` flag to `true` in the published property definition.  In order for the element to actually change the value of the property, it must use a private generated setter of the convention `_set<Property>(value)`.
+When a property only "produces" data and never consumes data, this can be made explicit to avoid accidental changes from the host by setting the `readOnly` flag to `true` in the `propertyConfig` property definition.  In order for the element to actually change the value of the property, it must use a private generated setter of the convention `_set<Property>(value)`.
 
 ```html
 <script>
     Polymer({
 
-       published: {
+       propertyConfig: {
          response: {
             type: Object,
             readOnly: true,
@@ -1275,47 +1307,6 @@ Current limitations that are on the backlog for evaluation/improvement are liste
     * May bind entire inline style from one property to `style` _property_:
       `<div style="{{styles}}">`
     * Otherwise, assign `this.style.props` from change handlers
-* Support for compound property binding
-    * See below
-
-## Compound observation
-
-Polymer 0.8 does not currently support observer functions called once for changes to a set of dependent properties, outside of computed properties.  If the side-effects of the binding are expensive, then you may want to ensure side-effects only occur once for any number of changes to them during a turn by manually introducing asynchronicity.
-
-The `debounce` API on the Polymer Base prototype can be used to achieve this.  The `debounce` API takes a signal name (String), callback, and optional wait time, and only calls the callback once for any number `debounce` calls with the same `signalName` started within the wait period.
-
-Example:
-
-```html
-<dom-module id="x-parent">
-    <template>
-        <x-child disabled="{{shouldDisable}}"></my-child>
-    </template>
-</dom-module>
-
-<script>
-Polymer({
-
-    is: 'x-parent',
-
-    bind: {
-        isManager: 'computeShouldDisableDebounced',
-        mode: 'computeShouldDisableDebounced',
-    },
-
-    computeShouldDisableDebounced: function() {
-        this.debounce('computeShouldDisable', this.computeShouldDisable);
-    },
-
-    // Better: called once for multiple changes
-    computeShouldDisable: function() {
-        this.shouldDisable = this.isManager || (this.mode == 2);
-    }
-
-});
-</script>
-```
-Note, the `computed` property feature uses `debounce` under the hood to achieve a similar effect.
 
 ## Structured data and path notification
 
