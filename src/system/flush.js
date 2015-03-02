@@ -54,7 +54,7 @@ function flush() {
 
 // polling dirty checker
 // flush periodically if platform does not have object observe.
-if (!Observer.hasObjectObserve) {
+if (typeof Observer !== "undefined" && !Observer.hasObjectObserve) {
   var FLUSH_POLL_INTERVAL = 125;
   window.addEventListener('WebComponentsReady', function() {
     flush();
