@@ -299,15 +299,15 @@ Modules are registered using the `modulate` global function, passing a name to r
 
 ```js
 <script>
-modulate('FunSupport', function() {
+  modulate('FunSupport', function() {
 
-  return {
-    makeElementFun: function(el) {
-      el.style.border = 'border: 20px dotted fuchsia;';
-    }
-  };
+    return {
+      makeElementFun: function(el) {
+        el.style.border = 'border: 20px dotted fuchsia;';
+      }
+    };
 
-});
+  });
 </script>
 ```
 
@@ -317,12 +317,12 @@ A list of module dependencies can be specified as the second parameter, which wi
 
 ```js
 <script>
-modulate('FunSupport', ['Squid', 'Octopus'], function(squid, octopus) {
+  modulate('FunSupport', ['Squid', 'Octopus'], function(squid, octopus) {
 
-  // use squid & octopus
-  return ...;
+    // use squid & octopus
+    return ...;
 
-});
+  });
 </script>
 ```
 
@@ -335,20 +335,20 @@ Modules are requested using the `using` global function, passing a list of depen
 <link rel="import" href="fun-support.html">
 
 <script>
-// Use module dependency
-using(['FunSupport', ...], function(funSupport, ...) {
+  // Use module dependency
+  using(['FunSupport', ...], function(funSupport, ...) {
 
-  MyElement = Polymer({
+    MyElement = Polymer({
 
-    is: 'my-element',
+      is: 'my-element',
 
-    created: function() {
-      funSupport.makeElementFun(this);
-    }
+      created: function() {
+        funSupport.makeElementFun(this);
+      }
+
+    });
 
   });
-
-});
 </script>
 ```
 
@@ -386,17 +386,17 @@ Example: `my-element.html`
 <link rel="import" href="fun-mixin.html">
 
 <script>
-Polymer({
+  Polymer({
 
-  is: 'my-element',
+    is: 'my-element',
 
-  mixins: ['FunMixin'],
+    mixins: ['FunMixin'],
 
-  created: function() {
-    this.funCreatedCallback();
-  }
+    created: function() {
+      this.funCreatedCallback();
+    }
 
-});
+  });
 </script>
 ```
 
@@ -464,14 +464,14 @@ Polymer provides custom API for manipulating dom such that local DOM and light D
 
 Example:
 
-```html
-  var toLight = document.createElement('div');
-  this.lightDom.appendChild(toLight);
+```js
+var toLight = document.createElement('div');
+this.lightDom.appendChild(toLight);
 
-  var toLocal = document.createElement('div');
-  this.localDom.insertBefore(toLocal, this.localDom.children()[0]);
+var toLocal = document.createElement('div');
+this.localDom.insertBefore(toLocal, this.localDom.children()[0]);
 
-  var allSpans = this.localDom.querySelectorAll('span');
+var allSpans = this.localDom.querySelectorAll('span');
 ```
 
 For manipulating dom in elements that themselves do not have local dom, the above api's support an extra argument which is the container `node` in which the operation should be performed.
@@ -499,13 +499,12 @@ When multiple dom operations need to occur at once time, it's more efficient to 
 
 Example:
 
-```html
+```js
 this.localDom.batch(function() {
-  for (var i=0; i<10; i++) {
+  for (var i = 0; i < 10; i++) {
     this.localDom.appendChild(document.createElement('div'));
   }
 });
-
 ```
 
 To provide a `local` view of the dom tree from a perspective independent of a custom element, polymer provides the `Polymer.dom` object. This object supports `querySelector/querySelectorAll` for example and the following guarantees that elements inside local DOM will not be seen.
@@ -513,7 +512,7 @@ To provide a `local` view of the dom tree from a perspective independent of a cu
 Example:
 
 ```html
-  Polymer.dom.querySelector('#myId');
+Polymer.dom.querySelector('#myId');
 ```
 
 Sometimes it's necessary to access the elements which have been distributed to a given `<content>` insertion point or to know to which `<content>` a given node has been distributed. The `distributedNodes` and `destinationInsertionPoints` respectively provide this information.
@@ -521,25 +520,25 @@ Sometimes it's necessary to access the elements which have been distributed to a
 Example:
 
 ```html
-  <x-foo>
-    <div></div>
-  </x-foo>
+<x-foo>
+  <div></div>
+</x-foo>
 
-  // x-foo's template
-  <template>
-    <content></content>
-  </template>
+// x-foo's template
+<template>
+  <content></content>
+</template>
 ```
+
 ```js
-  var div = xFoo.lightDom.querySelector('div');
-  var content = xFoo.localDom.querySelector('content');
-  var distributed = xFoo.localDom.distributedNodes(content)[0];
-  var insertedTo = xFoo.localDom.destinationInsertionPoints()[0];
+var div = xFoo.lightDom.querySelector('div');
+var content = xFoo.localDom.querySelector('content');
+var distributed = xFoo.localDom.distributedNodes(content)[0];
+var insertedTo = xFoo.localDom.destinationInsertionPoints()[0];
 
-  // the following should be true:
-  assert.equal(distributed, div);
-  assert.equal(insertedTo, content)
-
+// the following should be true:
+assert.equal(distributed, div);
+assert.equal(insertedTo, content)
 ```
 
 <a name="configure-method"></a>
@@ -550,13 +549,13 @@ The `configure` method is part of an element's lifecycle and is automatically ca
 Example:
 
 ```js
-  configure: function() {
-    // return default values of properties
-    return {
-        mode: 'auto',
-        employees: []
-    };
-  }
+configure: function() {
+  // return default values of properties
+  return {
+      mode: 'auto',
+      employees: []
+  };
+}
 ```
 In general, the configure method should only return the object containing default values, and not cause any side-effects on `this` that may interact with children, as these will still be in an un-configured state at this point.  Such actions should be done in the [ready callback](#ready-method).
 
@@ -568,9 +567,9 @@ The `ready` method is part of an element's lifecycle and is automatically called
 Example:
 
 ```js
-  ready: function() {
-    this.$.ajax.go();
-  }
+ready: function() {
+  this.$.ajax.go();
+}
 ```
 
 <a name="node-marshalling"></a>
@@ -582,9 +581,9 @@ Example:
 
 ```html
 <dom-module id="x-custom">
-    <template>
-      Hello World from <span id="name"></span>!
-    </template>
+  <template>
+    Hello World from <span id="name"></span>!
+  </template>
 </dom-module>
 
 <script>
@@ -611,11 +610,11 @@ Example:
 
 ```html
 <dom-module id="x-custom">
-    <template>
-      <div>I will respond</div>
-      <div>to a click on</div>
-      <div>any of my children!</div>
-    </template>
+  <template>
+    <div>I will respond</div>
+    <div>to a click on</div>
+    <div>any of my children!</div>
+  </template>
 </dom-module>
 
 <script>
@@ -646,9 +645,9 @@ Example:
 
 ```html
 <dom-module id="x-custom">
-    <template>
-      <button on-click="handleClick">Kick Me</button>
-    </template>
+  <template>
+    <button on-click="handleClick">Kick Me</button>
+  </template>
 </dom-module>
 
 <script>
@@ -785,9 +784,9 @@ To bind to properties, the binding annotation should be provided as the value to
 
 ```html
 <dom-module id="main-view">
-    <template>
-      <user-view first="{{user.first}}" last="{{user.last}}"></user-view>
-    </template>
+  <template>
+    <user-view first="{{user.first}}" last="{{user.last}}"></user-view>
+  </template>
 </dom-module>
 
 <script>
@@ -836,8 +835,8 @@ To summarize, two-way data-binding is achieved when both the host and the child 
 Example 1: Two-way binding
 
 ```html
-
 <script>
+
   Polymer({
     is: 'custom-element',
     published: {
@@ -847,8 +846,8 @@ Example 1: Two-way binding
       }
     }
   });
-</script>
 
+</script>
 ...
 
 <!-- changes to `value` propagate downward to `prop` on child -->
@@ -859,7 +858,6 @@ Example 1: Two-way binding
 Example 2: One-way binding (downward)
 
 ```html
-
 <script>
   Polymer({
     is: 'custom-element',
@@ -882,16 +880,16 @@ Example 2: One-way binding (downward)
 Example 3: One-way binding (downward)
 
 ```html
-
 <script>
+
   Polymer({
     is: 'custom-element',
     published: {
       prop: String    // no `notify:true`!
     }
   });
-</script>
 
+</script>
 ...
 
 <!-- changes to `value` propagate downward to `prop` on child -->
@@ -902,7 +900,6 @@ Example 3: One-way binding (downward)
 Example 4: One-way binding (upward)
 
 ```html
-
 <script>
   Polymer({
     is: 'custom-element',
@@ -926,8 +923,8 @@ Example 4: One-way binding (upward)
 Example 5: Error / non-sensical state
 
 ```html
-
 <script>
+
   Polymer({
     is: 'custom-element',
     published: {
@@ -938,6 +935,7 @@ Example 5: Error / non-sensical state
         }
     }
   });
+
 </script>
 
 ...
@@ -979,9 +977,9 @@ Example:
 
 ```html
 <dom-module id="custom-element">
-    <template>
-      <div>{{user.manager.name}}</div>
-    </template>
+  <template>
+    <div>{{user.manager.name}}</div>
+  </template>
 </dom-module>
 
 <script>
@@ -1002,9 +1000,9 @@ Example:
 Since in the majority of cases, notifyPath will be called directly after an assignment, a convenience function `setPathValue` is provided that performs both actions:
 
 ```js
-    reassignManager: function(newManager) {
-      this.setPathValue('user.manager', newManager);
-    }
+reassignManager: function(newManager) {
+  this.setPathValue('user.manager', newManager);
+}
 ```
 
 ### Expressions in binding annotations
@@ -1031,16 +1029,17 @@ Polymer provides an alternate binding annotation syntax to make it explicit when
 ```html
 <template>
 
-    <!-- Attribute binding -->
-    <my-element selected$="{{value}}"></my-element>
-    <!-- results in <my-element>.setAttribute('selected', this.value); -->
+  <!-- Attribute binding -->
+  <my-element selected$="{{value}}"></my-element>
+  <!-- results in <my-element>.setAttribute('selected', this.value); -->
 
-    <!-- Property binding -->
-    <my-element selected="{{value}}"></my-element>
-    <!-- results in <my-element>.selected = this.value; -->
+  <!-- Property binding -->
+  <my-element selected="{{value}}"></my-element>
+  <!-- results in <my-element>.selected = this.value; -->
 
 </template>
 ```
+
 Values will be serialized according to type: Arrays/Objects will be `JSON.stringify`'ed, booleans will result in a non-valued attribute to be either set or removed, and `Dates` and all primitive types will be serialized using the value returned from `toString`.
 
 Again, as values must be serialized to strings when binding to attributes, it is always more performant to use property binding for pure data propagation.
@@ -1052,21 +1051,21 @@ In specific cases, it may be useful to keep an HTML attribute value in sync with
 
 ```html
 <script>
-    Polymer({
+  Polymer({
 
-       published: {
-         response: {
-            type: Object,
-            reflect: true
-         }
-       },
+    published: {
+     response: {
+        type: Object,
+        reflect: true
+     }
+    },
 
-       responseHandler: function(response) {
-         this.response = 'loaded';
-         // results in this.setAttribute('response', 'loaded');
-       }
+    responseHandler: function(response) {
+      this.response = 'loaded';
+      // results in this.setAttribute('response', 'loaded');
+    }
 
-    });
+  });
 </script>
 ```
 
@@ -1079,29 +1078,29 @@ Polymer supports virtual properties whose values are calculated from other prope
 
 ```html
 <dom-module id="x-custom">
-    <template>
-      My name is <span>{{fullName}}</span>
-    </template>
+  <template>
+    My name is <span>{{fullName}}</span>
+  </template>
 <dom-module id="x-custom">
 
 <script>
-    Polymer({
+  Polymer({
 
-       is: 'x-custom',
+    is: 'x-custom',
 
-       computed: {
-         // when `first` or `last` changes `computeFullName` is called once
-         // (asynchronously) and the value it returns is stored as `fullName`
-         fullName: 'computeFullName(first, last)',
-       },
+    computed: {
+      // when `first` or `last` changes `computeFullName` is called once
+      // (asynchronously) and the value it returns is stored as `fullName`
+      fullName: 'computeFullName(first, last)',
+    },
 
-       computeFullName: function(first, last) {
-         return first + ' ' + last;
-       }
+    computeFullName: function(first, last) {
+      return first + ' ' + last;
+    }
 
-      ...
+    ...
 
-    });
+  });
 </script>
 ```
 
@@ -1114,23 +1113,23 @@ When a property only "produces" data and never consumes data, this can be made e
 
 ```html
 <script>
-    Polymer({
+  Polymer({
 
-       published: {
-         response: {
-            type: Object,
-            readOnly: true,
-            notify: true
-         }
-       },
+    published: {
+      response: {
+        type: Object,
+        readOnly: true,
+        notify: true
+      }
+    },
 
-       responseHandler: function(response) {
-         this._setResponse(response);
-       }
+    responseHandler: function(response) {
+      this._setResponse(response);
+    }
 
-      ...
+    ...
 
-    });
+  });
 </script>
 ```
 
@@ -1248,15 +1247,15 @@ In the meantime, styling should be done against the composed tree, meaning:
 ```html
 <dom-module id="x-foo">
 
-    <style>
-        x-foo .my-class {
-          ...
-        }
-    </style>
+  <style>
+    x-foo .my-class {
+      ...
+    }
+  </style>
 
-    <template>
+  <template>
     ...
-    </template>
+  </template>
 
 </dom-module>
 ```
@@ -1288,13 +1287,13 @@ Example:
 
 ```html
 <dom-module id="x-parent">
-    <template>
-        <x-child disabled="{{shouldDisable}}"></my-child>
-    </template>
+  <template>
+    <x-child disabled="{{shouldDisable}}"></my-child>
+  </template>
 </dom-module>
 
 <script>
-Polymer({
+  Polymer({
 
     is: 'x-parent',
 
@@ -1312,7 +1311,7 @@ Polymer({
         this.shouldDisable = this.isManager || (this.mode == 2);
     }
 
-});
+  });
 </script>
 ```
 Note, the `computed` property feature uses `debounce` under the hood to achieve a similar effect.
@@ -1332,14 +1331,13 @@ this.user.manager = 'Matt';
 this.notifyPath('user.manager', this.user.manager);
 ```
 
-
 ## Repeating elements
 
 Repeating templates is moved to a custom element (HTMLTemplateElement type extension called `x-repeat`):
 
 ```html
 <template is="x-repeat" items="{{users}}">
-    <div>{{item.name}}</div>
+  <div>{{item.name}}</div>
 </template>
 ```
 
