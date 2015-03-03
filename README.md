@@ -97,7 +97,7 @@ Remember that the fields assigned to `count`, such as `readOnly` and `notify` do
 
 ### Feature: _attributes_
 
-Many custom elements want to support configuration using HTML attributes. Custom Elements provides the `attributeChanged` callback gives us the raw API for this ability, but then we have to deal with initialization and type conversion (attributes are always strings). Here is an example of a custom element that supports a `user` attribute using the raw API.
+Many custom elements want to support configuration using HTML attributes. Custom Elements provides the `attributeChanged` callback which gives us the raw API for this ability, but then we have to deal with initialization and type conversion (attributes are always strings). Here is an example of a custom element that supports a `user` attribute using the raw API.
 
 ```js
   Polymer({
