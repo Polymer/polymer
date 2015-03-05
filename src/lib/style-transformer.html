@@ -42,21 +42,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function _transformDom(node, selector) {
-      if (node.classList) {
-        node.className = node.className.replace(SCOPING_CLASS, '');
-        if (selector) {
-          node.classList.add(selector);
-        }
+      if (node.setAttribute) {
+        node.setAttribute(SCOPE_ATTR, selector);
       }
-      // NOTE: it'd be better to use *Element* but Safari does not support
-      // this api for document fragments.
-      for (var e=node.firstChild; e; e=e.nextSibling) {
-        _transformDom(e, selector);
+      var c$ = Polymer.dom.childNodes(node);
+      for (var i=0; i<c$.length; i++) {
+        _transformDom(c$[i], selector);
       }
     }
 
+    function transformElement(element, scope) {
+      element.setAttribute(SCOPE_ATTR, scope + SCOPE_SUFFIX);
+    }
+
     function transformHost(host, scope) {
-      host.classList.add(scope + HOST_SCOPE_SUFFIX);
     }
 
     // Given a string of cssText and a scoping string (scope), returns
@@ -103,7 +102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // replace :host with host scoping class
       var jumpIndex = selector.search(SCOPE_JUMP);
       if (selector.indexOf(HOST) >=0) {
-        var r = CLASS_PREFIX + scope + HOST_SCOPE_SUFFIX;
+        var r = scope;
         // :host(...)
         selector = selector.replace(HOST_PAREN, function(m, host, paren) {
           return r + paren;
@@ -126,12 +125,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function transformSimpleSelector(selector, scope) {
       var p$ = selector.split(PSEUDO_PREFIX);
-      p$[0] += CLASS_PREFIX + scope + SCOPE_SUFFIX;
+      p$[0] += CSS_PREFIX + scope + SCOPE_SUFFIX + CSS_SUFFIX;
       return p$.join(PSEUDO_PREFIX);
     }
 
-    var SCOPE_SUFFIX = '-x';
-    var HOST_SCOPE_SUFFIX = '-xx';
+    var SCOPE_ATTR = 'style-scope';
+    var SCOPE_SUFFIX = '';
     var COMPLEX_SELECTOR_SEP = ',';
     var SIMPLE_SELECTOR_SEP = /([^\s>+~]+)/g;
     var HOST = ':host';
@@ -142,12 +141,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var WHITESPACE = /[\s]+/g;
     var DEEP = '/deep/';
     var SCOPE_JUMP = /\:\:content|\:\:shadow|\/deep\//;
-    var CLASS_PREFIX = '.';
+    var CSS_PREFIX = '[' + SCOPE_ATTR + '=';
+    var CSS_SUFFIX = ']';
     var PSEUDO_PREFIX = ':';
     var SCOPING_CLASS = /(?:^|\s)([\S]*?-x)(?:$|\s)/;
 
     // exports
     return {
+      element: transformElement,
       dom: transformDom,
       host: transformHost,
       css: transformCss,
