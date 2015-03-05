@@ -11,180 +11,186 @@ suite('projection', function() {
   }
 
 
-  test('localDom.querySelector', function() {
+  test('querySelector (local)', function() {
     var test = document.querySelector('x-test');
-    var projected = test.localDom.querySelector('#projected');
+    var projected = Polymer.dom.querySelector('#projected', test.root);
     assert.equal(projected.textContent, 'projected');
-    var p2 = test.lightDom.querySelector('#projected');
+    var p2 = Polymer.dom.querySelector('#projected', test);
     assert.notOk(p2);
-    var rere = test.localDom.querySelector('x-rereproject');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     assert.equal(rere.is, 'x-rereproject');
-    var re = rere.localDom.querySelector('x-reproject');
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
     assert.equal(re.is, 'x-reproject');
-    var p = re.localDom.querySelector('x-project');
+    var p = Polymer.dom.querySelector('x-project', re.root);
     assert.equal(p.is, 'x-project');
   });
 
-  test('localDom.querySelectorAll', function() {
+  test('querySelectorAll (local)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var re = rere.localDom.querySelector('x-reproject');
-    var p = re.localDom.querySelector('x-project');
-    var rereList = rere.localDom.querySelectorAll('*');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
+    var p = Polymer.dom.querySelector('x-project', re.root);
+    var rereList = Polymer.dom.querySelectorAll('*', rere.root);
     assert.include(rereList, re);
     assert.equal(rereList.length, 2);
-    var reList = re.localDom.querySelectorAll('*');
+    var reList = Polymer.dom.querySelectorAll('*', re.root);
     assert.include(reList, p);
     assert.equal(reList.length, 2);
-    var pList = p.localDom.querySelectorAll('*');
+    var pList = Polymer.dom.querySelectorAll('*', p.root);
     assert.equal(pList.length, 1);
   });
 
-  test('lightDom.querySelector', function() {
+  test('querySelector (light)', function() {
     var test = document.querySelector('x-test');
-    var projected = test.localDom.querySelector('#projected');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var re = rere.localDom.querySelector('x-reproject');
-    var p = re.localDom.querySelector('x-project');
-    assert.equal(rere.lightDom.querySelector('#projected'), projected);
-    assert(re.lightDom.querySelector('content'));
-    assert(p.lightDom.querySelector('content'));
+    var projected = Polymer.dom.querySelector('#projected', test.root);
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
+    var p = Polymer.dom.querySelector('x-project', re.root);
+    assert.equal(Polymer.dom.querySelector('#projected', rere), projected);
+    assert(Polymer.dom.querySelector('content', re));
+    assert(Polymer.dom.querySelector('content', p));
   });
 
-  test('lightDom.querySelectorAll', function() {
+  test('querySelectorAll (light)', function() {
     var test = document.querySelector('x-test');
-    var projected = test.localDom.querySelector('#projected');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var re = rere.localDom.querySelector('x-reproject');
-    var p = re.localDom.querySelector('x-project');
-    assert.equal(rere.lightDom.querySelectorAll('#projected')[0], projected);
-    assert(re.lightDom.querySelectorAll('content').length, 1);
-    assert(p.lightDom.querySelectorAll('content').length, 1);
+    var projected = Polymer.dom.querySelector('#projected', test.root);
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
+    var p = Polymer.dom.querySelector('x-project', re.root);
+    assert.equal(Polymer.dom.querySelectorAll('#projected', rere)[0], projected);
+    assert(Polymer.dom.querySelectorAll('content', re).length, 1);
+    assert(Polymer.dom.querySelectorAll('content', p).length, 1);
   });
 
-  test('querySelectorAllComposed', function() {
-    var test = document.querySelector('x-test');
-    var projected = test.localDom.querySelector('#projected');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var re = rere.localDom.querySelector('x-reproject');
-    var p = re.localDom.querySelector('x-project');
-    assert.equal(rere.querySelectorAllComposed('#projected')[0], projected);
-    assert.equal(re.querySelectorAllComposed('#projected')[0], projected);
-    assert.equal(p.querySelectorAllComposed('#projected')[0], projected);
-  });
+  // test('querySelectorAllComposed', function() {
+  //   var test = document.querySelector('x-test');
+  //   var projected = Polymer.dom.querySelector('#projected', test.root);
+  //   var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+  //   var re = Polymer.dom.querySelector('x-reproject', rere.root);
+  //   var p = Polymer.dom.querySelector('x-project', re.root);
+  //   assert.equal(rere.querySelectorAllComposed('#projected')[0], projected);
+  //   assert.equal(re.querySelectorAllComposed('#projected')[0], projected);
+  //   assert.equal(p.querySelectorAllComposed('#projected')[0], projected);
+  // });
 
 
   test('projection', function() {
     var test = document.querySelector('x-test');
-    var projected = test.localDom.querySelector('#projected');
+    var projected = Polymer.dom.querySelector('#projected', test.root);
     assert.equal(projected.textContent, 'projected');
-    var rere = test.localDom.querySelector('x-rereproject');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     assert.equal(rere.is, 'x-rereproject');
-    var re = rere.localDom.querySelector('x-reproject');
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
     assert.equal(re.is, 'x-reproject');
-    var p = re.localDom.querySelector('x-project');
+    var p = Polymer.dom.querySelector('x-project', re.root);
     assert.equal(p.is, 'x-project');
-    var c1 = rere.localDom.querySelector('content');
-    assert.include(rere.localDom.distributedNodes(c1), projected);
-    var c2 = re.localDom.querySelector('content');
-    assert.include(rere.localDom.distributedNodes(c2), projected);
-    var c3 = p.localDom.querySelector('content');
-    assert.include(rere.localDom.distributedNodes(c3), projected);
+    var c1 = Polymer.dom.querySelector('content', rere.root);
+    assert.include(Polymer.dom.distributedNodes(c1), projected);
+    var c2 = Polymer.dom.querySelector('content', re.root);
+    assert.include(Polymer.dom.distributedNodes(c2), projected);
+    var c3 = Polymer.dom.querySelector('content', p.root);
+    assert.include(Polymer.dom.distributedNodes(c3), projected);
     var ip$ = [c1, c2, c3];
-    assert.deepEqual(rere.localDom.destinationInsertionPoints(projected), ip$);
+    assert.deepEqual(Polymer.dom.destinationInsertionPoints(projected), ip$);
   });
 
   test('distributeContent', function() {
     var test = document.querySelector('x-test');
+    test._distributionClean = false;
     test._distributeContent();
-    var rere = test.localDom.querySelector('x-rereproject');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     assert.equal(rere.is, 'x-rereproject');
-    var re = rere.localDom.querySelector('x-reproject');
+    rere._distributionClean = false;
+    rere._distributeContent();
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
     assert.equal(re.is, 'x-reproject');
-    var p = re.localDom.querySelector('x-project');
+    re._distributionClean = false;
+    re._distributeContent();
+    var p = Polymer.dom.querySelector('x-project', re.root);
     assert.equal(p.is, 'x-project');
   });
 
-  test('lightDom.appendChild', function() {
+  test('appendChild (light)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     var s = document.createElement('span');
     s.id = 'added';
     s.textContent = 'Added';
-    rere.lightDom.appendChild(s);
-    assert.equal(test.localDom.querySelector('#added'), s);
+    Polymer.dom.appendChild(s, rere);
+    assert.equal(Polymer.dom.querySelector('#added', test.root), s);
   });
 
-  test('lightDom.insertBefore', function() {
+  test('insertBefore (light)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var ref = test.localDom.querySelector('#added');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var ref = Polymer.dom.querySelector('#added', test.root);
     var s = document.createElement('span');
     s.id = 'added2';
     s.textContent = 'Added2';
-    rere.lightDom.insertBefore(s, ref);
-    assert.equal(test.localDom.querySelector('#added2'), s);
+    Polymer.dom.insertBefore(s, ref, rere);
+    assert.equal(Polymer.dom.querySelector('#added2', test.root), s);
   });
 
-  test('lightDom.removeChild', function() {
+  test('removeChild (light)', function() {
     var test = document.querySelector('x-test');
-    var added = test.localDom.querySelector('#added');
-    var added2 = test.localDom.querySelector('#added2');
-    var rere = test.localDom.querySelector('x-rereproject');
-    rere.lightDom.removeChild(added);
-    rere.lightDom.removeChild(added2);
-    assert.equal(test.localDom.querySelectorAll().length, 0);
+    var added = Polymer.dom.querySelector('#added', test.root);
+    var added2 = Polymer.dom.querySelector('#added2', test.root);
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    assert.equal(Polymer.dom.querySelectorAll('*', test.root).length, 4);
+    Polymer.dom.removeChild(added, rere);
+    Polymer.dom.removeChild(added2, rere);
+    assert.equal(Polymer.dom.querySelectorAll('*', test.root).length, 2);
   });
 
-  test('localDom.appendChild', function() {
+  test('appendChild (local)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     var s = document.createElement('span');
     s.id = 'local';
     s.textContent = 'Local';
-    rere.localDom.appendChild(s);
-    assert.equal(rere.localDom.querySelector('#local'), s);
+    Polymer.dom.appendChild(s, rere.root);
+    assert.equal(Polymer.dom.querySelector('#local', rere.root), s);
   });
 
-  test('localDom.insertBefore', function() {
+  test('insertBefore (local)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var ref = test.localDom.querySelector('#local');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var ref = Polymer.dom.querySelector('#local', test.root);
     var s = document.createElement('span');
     s.id = 'local2';
     s.textContent = 'Local2';
-    rere.localDom.insertBefore(s, ref);
-    assert.equal(rere.localDom.querySelector('#local2'), s);
+    Polymer.dom.insertBefore(s, ref, rere.root);
+    assert.equal(Polymer.dom.querySelector('#local2', rere.root), s);
   });
 
-  test('localDom.removeChild', function() {
+  test('removeChild (local)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var local = rere.localDom.querySelector('#local');
-    var local2 = rere.localDom.querySelector('#local2');
-    rere.localDom.removeChild(local);
-    rere.localDom.removeChild(local2);
-    assert.equal(rere.localDom.querySelectorAll('#local').length, 0);
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var local = Polymer.dom.querySelector('#local', rere.root);
+    var local2 = Polymer.dom.querySelector('#local2', rere.root);
+    Polymer.dom.removeChild(local, rere.root);
+    Polymer.dom.removeChild(local2, rere.root);
+    assert.equal(Polymer.dom.querySelectorAll('#local', rere.root).length, 0);
   });
 
   test('localDom.insertBefore first element results in minimal change', function() {
     var test = document.querySelector('x-test');
-    var children = test.localDom.children();
-    var rere = test.localDom.querySelector('x-rereproject');
+    var children = Polymer.dom.childNodes(test.root);
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     assert.equal(rere.attachedCount, 1);
     var s = document.createElement('span');
     s.id = 'local-first';
     s.textContent = 'Local First';
-    test.localDom.insertBefore(s, children[0]);
-    assert.equal(test.localDom.querySelector('#local-first'), s);
+    Polymer.dom.insertBefore(s, children[0], test.root);
+    assert.equal(Polymer.dom.querySelector('#local-first', test.root), s);
     assert.equal(rere.attachedCount, 1);
-    test.localDom.removeChild(s);
+    Polymer.dom.removeChild(s, test.root);
     assert.equal(rere.attachedCount, 1);
   });
 
-  test('localDom.appendChild (fragment)', function() {
+  test('appendChild (fragment, local)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     var fragment = document.createDocumentFragment();
     var childCount = 5;
     for (var i=0; i < childCount; i++) {
@@ -192,18 +198,18 @@ suite('projection', function() {
       s.textContent = i; 
       fragment.appendChild(s);
     }
-    rere.localDom.appendChild(fragment);
-    var added = rere.localDom.querySelectorAll('span');
+    Polymer.dom.appendChild(fragment, rere.root);
+    var added = Polymer.dom.querySelectorAll('span', rere.root);
     assert.equal(added.length, childCount);
     for (var i=0; i < added.length; i++) {
-      rere.localDom.removeChild(added[i]);
+      Polymer.dom.removeChild(added[i], rere.root);
     }
-    assert.equal(rere.localDom.querySelectorAll('span').length, 0);
+    assert.equal(Polymer.dom.querySelectorAll('span', rere.root).length, 0);
   });
 
-  test('localDom.insertBefore (fragment)', function() {
+  test('insertBefore (fragment, local)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     var fragment = document.createDocumentFragment();
     var childCount = 5;
     for (var i=0; i < childCount; i++) {
@@ -213,54 +219,63 @@ suite('projection', function() {
     }
     var l = document.createElement('span');
     l.textContent = 'last';
-    rere.localDom.appendChild(l);
-    rere.localDom.insertBefore(fragment, l);
-    var added = rere.localDom.querySelectorAll('span');
+    Polymer.dom.appendChild(l, rere.root);
+    Polymer.dom.insertBefore(fragment, l, rere.root);
+    var added = Polymer.dom.querySelectorAll('span', rere.root);
     assert.equal(added.length, childCount+1);
     assert.equal(added[added.length-1], l);
     for (var i=0; i < added.length; i++) {
-      rere.localDom.removeChild(added[i]);
+      Polymer.dom.removeChild(added[i], rere.root);
     }
-    assert.equal(rere.localDom.querySelectorAll('span').length, 0);
+    assert.equal(Polymer.dom.querySelectorAll('span', rere.root).length, 0);
   });
 
-  test('localDom.batch', function() {
+  test('distribute (forced)', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
+    var p = Polymer.dom.querySelector('x-project', re.root);
     var s = document.createElement('span');
-    s.id = 'local';
-    s.textContent = 'Local';
-    rere.localDom.batch();
-    rere.localDom.appendChild(s);
-    assert.equal(rere.localDom.querySelector('#local'), s);
+    s.id = 'light';
+    s.textContent = 'Light';
+    Polymer.dom.appendChild(s, rere);
+    assert.equal(Polymer.dom.querySelector('#light', rere), s);
+    assert.equal(Polymer.dom.elementParent(s), rere);
     if (rere.shadyRoot) {
-      assert.notEqual(s.parentNode, rere.root);
+      assert.notEqual(s.parentNode, rere);
     }
-    rere.localDom.distribute();
-    assert.equal(s.parentNode, rere.root);
-    rere.localDom.removeChild(s);
+    Polymer.dom.flush();
+    if (rere.shadyRoot) {
+      assert.equal(s.parentNode, p);
+    }
+    Polymer.dom.removeChild(s, rere);
+    if (rere.shadyRoot) {
+      assert.equal(s.parentNode, p);
+    }
+    Polymer.dom.flush();
+    if (rere.shadyRoot) {
+      assert.equal(s.parentNode, null);
+    }
   });
 
-  test('localDom.batch function', function() {
+  test('elementParent', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var s = document.createElement('span');
-    s.id = 'local';
-    s.textContent = 'Local';
-    rere.localDom.batch(function() {;
-      rere.localDom.appendChild(s);
-    });
-    assert.equal(rere.localDom.querySelector('#local'), s);
-    assert.equal(s.parentNode, rere.root);
-    rere.localDom.removeChild(s);
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var projected = Polymer.dom.querySelector('#projected', test.root);
+    assert.equal(Polymer.dom.elementParent(test), wrap(document.body));
+    assert.equal(Polymer.dom.elementParent(projected), rere);
   });
 
-  test('lightDom/localDom.elementParent', function() {
+  test('queryDistributedElements', function() {
     var test = document.querySelector('x-test');
-    var rere = test.localDom.querySelector('x-rereproject');
-    var projected = test.localDom.querySelector('#projected');
-    assert.equal(test.lightDom.elementParent(), wrap(document.body));
-    assert.equal(test.localDom.elementParent(projected), rere);
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
+    var p = Polymer.dom.querySelector('x-project', re.root);
+    var projected = Polymer.dom.querySelector('#projected', test.root);
+    var d$ = Polymer.dom.queryDistributedElements(p.root);
+    assert.equal(d$.length, 1);
+    assert.equal(d$[0], projected);
+
   });
 
   test('Polymer.dom.querySelector', function() {

@@ -1,0 +1,359 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="settings.html">
+<script>
+
+  modulate('DomApi', ['Debounce', 'Settings'], function(Debounce, settings) {
+
+    var DomApi = function() {
+      this._dirty = [];
+    };
+
+    DomApi.prototype = {
+
+      childNodes: function(node) {
+        return getLightChildren(node);
+      },
+
+      elementParent: function(node) {
+        return node.lightParent || node.parentNode;
+      },
+
+      flush: function() {
+        for (var i=0, host; i<this._dirty.length; i++) {
+          host = this._dirty[i];
+          if (host.__distribute) {
+            host.__distribute.complete();
+          }
+        }
+        this._dirty = [];
+      },
+
+      _lazyDistribute: function(host) {
+        host._distributionClean = false;
+        // TODO(sorvell): optimize debounce so it does less work by default
+        // and then remove these checks...
+        // need to dirty distribution once.
+        if (!host.__distribute || !host.__distribute.finish) {
+          host._debounce('__distribute', host._distributeContent);
+          this._dirty.push(host);
+        }
+      },
+
+      // cases in which we may not be able to just do standard appendChild
+      // 1. container has a shadyRoot (needsDistribution IFF the shadyRoot
+      // has an insertion point)
+      // 2. container is a shadyRoot (don't distribute, instead set 
+      // container to container.host.
+      // 3. node is <content> (host of container needs distribution)
+      appendChild: function(node, container) {
+        var distributed;
+        if (node.lightParent) {
+          this._removeLogicalInfo(node, node.lightParent);
+        }
+        if (this._nodeIsInLogicalTree(container)) {
+          var host = this._hostForNode(container);
+          this._addLogicalInfo(node, container, host && host.shadyRoot);
+          if (host) {
+            host._elementAdd(node);
+            distributed = this._maybeDistribute(node, container, host);
+          }
+        }
+        if (!distributed) {
+          // if adding to a shadyRoot, add to host instead
+          container = container._isShadyRoot ? container.host : container;
+          container.appendChild(node);
+        }
+        return node;
+      },
+
+      insertBefore: function(node, ref_node, container) {
+        if (!ref_node) {
+          return this.appendChild(node, container);
+        }
+        var distributed;
+        if (node.lightParent) {
+          this._removeLogicalInfo(node, node.lightParent);
+        }
+        if (this._nodeIsInLogicalTree(container)) {
+          saveLightChildrenIfNeeded(container);
+          var children = this.childNodes(container);
+          var index = children.indexOf(ref_node);
+          if (index < 0) {
+            throw Error('The ref_node to be inserted before is not a child ' +
+              'of this node');
+          }
+          var host = this._hostForNode(container);
+          this._addLogicalInfo(node, container, host && host.shadyRoot, index);
+          if (host) {
+            host._elementAdd(node);
+            distributed = this._maybeDistribute(node, container, host);
+          }
+        }
+        if (!distributed) {
+          // if ref_node is <content> replace with first distributed node
+          ref_node = ref_node.localName === CONTENT ? 
+            this._firstComposedNode(ref_node) : ref_node;
+          // if adding to a shadyRoot, add to host instead
+          container = container._isShadyRoot ? container.host : container;
+          container.insertBefore(node, ref_node);
+        }
+        return node;
+      },
+
+      /**
+        Removes the given `node` from the element's `lightChildren`.
+        This method also performs dom composition.
+      */
+      removeChild: function(node, container) {
+        var distributed;
+        if (this._nodeIsInLogicalTree(container)) {
+          var host = this._hostForNode(container);
+          this._removeLogicalInfo(node, container);
+          if (host) {
+            host._elementRemove(node);
+            distributed = this._maybeDistribute(node, container, host);
+          }
+        }
+        if (!distributed) {
+          // if removing from a shadyRoot, remove form host instead
+          container = container._isShadyRoot ? container.host : container;
+          container.removeChild(node);
+        }
+      },
+
+      _maybeDistribute: function(node, parent, host) {
+        var distribute = this._parentNeedsDistribution(parent) ||
+          this._nodeNeedsDistribution(node);
+        if (distribute) {
+          this._lazyDistribute(host);
+        }
+        return distribute;
+      },
+
+      _nodeIsInLogicalTree: function(node) {
+        return Boolean(node._isShadyRoot ||
+          node._ownerShadyRoot ||
+          node.shadyRoot);
+      },
+
+      _hostForNode: function(node) {
+        var root = node.shadyRoot || (node._isShadyRoot ? 
+          node : node._ownerShadyRoot);
+        return root && root.host;
+      },
+
+      _parentNeedsDistribution: function(parent) {
+        return parent.shadyRoot && parent.shadyRoot._hasInsertionPoint;
+      },
+
+      // TODO(sorvell): technically we should check non-fragment nodes for 
+      // <content> children but since this case is assumed to be exceedingly
+      // rare, we avoid the cost and will address with some specific api
+      // when the need arises.
+      _nodeNeedsDistribution: function(node) {
+        return (node.localName === CONTENT) || 
+          ((node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
+            node.querySelector(CONTENT));
+      },
+
+      _addLogicalInfo: function(node, container, root, index) {
+        saveLightChildrenIfNeeded(container);
+        var children = this.childNodes(container);
+        index = index === undefined ? children.length : index;
+        // handle document fragments
+        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+          var n = node.firstChild;
+          while (n) {
+            children.splice(index++, 0, n);
+            n.lightParent = container;
+            n = n.nextSibling;
+          }
+        } else {
+          children.splice(index, 0, node);
+          node.lightParent = container;
+          node._ownerShadyRoot = root;
+        }
+        // TODO(sorvell): consider not attaching this to every node and instead
+        // looking up the tree for this info.
+        // add _ownerShadyRoot info
+        var c$ = this.childNodes(node);
+        if (c$.length) {
+          this._addRootToChildren(node, root);
+        }
+      },
+
+      // NOTE: in general, we expect contents of the lists here to be small-ish
+      // and therefore indexOf to be nbd. Other optimizations can be made
+      // for larger lists (linked list) 
+      _removeLogicalInfo: function(node, container) {
+        var children = this.childNodes(container);
+        var index = children.indexOf(node);
+        if ((index < 0) || (container !== node.lightParent)) {
+          throw Error('The node to be removed is not a child of this node');
+        }
+        children.splice(index, 1);
+        node.lightParent = null;
+        // TODO(sorvell): need to clear any children of element?
+        node._ownerShadyRoot = null;
+      },
+
+      _addRootToChildren: function(children, root) {
+        for (var i=0, l=children.length, c, cc; (i<l) && (c=children[i]); i++) {
+          c._ownerShadyRoot = root;
+          cc = this.childNodes(c);
+          if (cc.length) {
+            this._addRootToChildren(cc, root);
+          }
+        }
+      },
+
+      // TODO(sorvell): This will fail if distribution that affects this 
+      // question is pending; this is expected to be exceedingly rare, but if
+      // the issue comes up, we can force a flush in this case.
+      _firstComposedNode: function(content) {
+        var n$ = this.distributedNodes(content);
+        for (var i=0, l=n$.length, n, p$; (i<l) && (n=n$[i]); i++) {
+          p$ = this.destinationInsertionPoints(n);
+          // means that we're composed to this spot.
+          if (p$[p$.length-1] === content) {
+            return n;
+          }
+        }
+      },
+
+      // TODO(sorvell): consider doing native QSA and filtering results.
+      querySelector: function(selector, node) {
+        return this.querySelectorAll(selector, node)[0];
+      },
+
+      querySelectorAll: function(selector, node) {
+        node = node || document;
+        return this._query(function(n) {
+          return matchesSelector.call(n, selector);
+        }, node);  
+      },
+
+      _query: function(matcher, node) {
+        var list = [];
+        this._queryElements(this.childNodes(node), matcher, list);
+        return list;
+      },
+
+      _queryElements: function(elements, matcher, list) {
+        for (var i=0, l=elements.length, c; (i<l) && (c=elements[i]); i++) {
+          if (c.nodeType === Node.ELEMENT_NODE) {
+            this._queryElement(c, matcher, list);
+          }
+        }
+      },
+
+      _queryElement: function(node, matcher, list) {
+        if (matcher(node)) {
+          list.push(node);
+        }
+        this._queryElements(this.childNodes(node), matcher, list);
+      },
+
+      destinationInsertionPoints: function(node) {
+        return node._destinationInsertionPoints ||
+          Array.prototype.slice.call(node.getDestinationInsertionPoints());;
+      },
+
+      distributedNodes: function(content) {
+        return content._distributedNodes ||
+          Array.prototype.slice.call(content.getDistributedNodes());
+      },
+
+      /*
+        Returns a list of nodes distributed within this element. These can be 
+        dom children or elements distributed to children that are insertion
+        points.
+      */
+      queryDistributedElements: function(selector, node) {
+        if (arguments.length === 1) {
+          node = selector;
+          selector = '*';
+        }
+        var c$ = this.childNodes(node);
+        var list = [];
+        this._distributedFilter(selector, c$, list);
+        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if (c.localName === CONTENT) {
+            this._distributedFilter(selector, this.distributedNodes(c), list);
+          }
+        }
+        return list;
+      },
+
+      _distributedFilter: function(selector, list, results) {
+        results = results || [];
+        for (var i=0, l=list.length, d; (i<l) && (d=list[i]); i++) {
+          if ((d.nodeType === Node.ELEMENT_NODE) && 
+            (d.localName !== CONTENT) &&
+            matchesSelector.call(d, selector)) {
+            results.push(d);
+          }
+        }
+        return results;
+      }
+            
+    }; 
+
+    if (settings.useShadow) {
+
+      DomApi.prototype.querySelectorAll = function(selector, node) {
+        node = node || document;
+        return Array.prototype.slice.call(node.querySelectorAll(selector));
+      };
+      
+    }
+
+    var CONTENT = 'content';
+
+    Polymer.dom = new DomApi();
+
+    function getLightChildren(node) {
+      var children = node.lightChildren;
+      return children ? children : node.childNodes;
+    }
+
+    function saveLightChildrenIfNeeded(node) {
+      // Capture the list of light children. It's important to do this before we
+      // start transforming the DOM into "rendered" state.
+      // 
+      // Children may be added to this list dynamically. It will be treated as the
+      // source of truth for the light children of the element. This element's
+      // actual children will be treated as the rendered state once lightChildren
+      // is populated.
+      if (!node.lightChildren) {
+        var children = [];
+        for (var child = node.firstChild; child; child = child.nextSibling) {
+          children.push(child);
+          child.lightParent = child.lightParent || node;
+        }
+        node.lightChildren = children;
+      }
+    }
+
+    var p = Element.prototype;
+    var matchesSelector = p.matches || p.matchesSelector ||
+        p.mozMatchesSelector || p.msMatchesSelector ||
+        p.oMatchesSelector || p.webkitMatchesSelector;
+
+    return {
+      getLightChildren: getLightChildren,
+      saveLightChildrenIfNeeded: saveLightChildrenIfNeeded,
+      matchesSelector: matchesSelector
+    };
+
+  });
+
+</script>

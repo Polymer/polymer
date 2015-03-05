@@ -19,14 +19,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * Support for mapping attributes to properties.
    *
-   * Properties that are `published` are mapped to attributes.
+   * Properties that are configured in `properties` with a type are mapped
+   * to attributes.
    * 
-   * A value set in a published attribute is deserialized into the specified 
+   * A value set in an attribute is deserialized into the specified 
    * data-type and stored into the matching property.
    *
    * Example:
    *
-   *     published: {
+   *     properties: {
    *       // values set to index attribute are converted to Number and propagated
    *       // to index property
    *       index: Number,
@@ -77,16 +78,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _takeAttributesToModel: function(model) {
-        for (var name in this.published) {
-          var type = this.getPublishedPropertyType(name);
-          if (type === Boolean || this.hasAttribute(name)) {
+        for (var name in this.properties) {
+          var type = this.getPropertyType(name);
+          if (type && this.hasAttribute(name)) {
             this.setAttributeToProperty(model, name, type);
           }
         }
       },
 
       setAttributeToProperty: function(model, name, type) {
-        type = type || this.getPublishedPropertyType(name);
+        if (this._serializing) {
+          // Don't deserialize back to property if currently reflecting
+          return;
+        }
+        type = type || this.getPropertyType(name);
         if (type) {
           model[name] = this.deserialize(name, this.getAttribute(name), type);
         }
@@ -154,19 +159,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      _serializing: false,
       reflectPropertyToAttribute: function(name) {
+        this._serializing = true;
         this.serializeValueToAttribute(this[name], name);
+        this._serializing = false;
       },
 
       serializeValueToAttribute: function(value, attribute, node) {
-        node = node || this;
         value = this.serialize(value);
-        attribute = this.camelToDashCase(attribute);
-        if (value !== undefined) {
-          node.setAttribute(attribute, value);
-        } else {
-          node.removeAttribute(attribute);
-        }
+        (node || this)[value === undefined ? 'removeAttribute' : 'setAttribute'](
+          this.camelToDashCase(attribute), value
+        );
       },
 
       // TODO(sjmiles): duplicate of function in Annotations library
