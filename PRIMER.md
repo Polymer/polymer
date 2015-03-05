@@ -235,8 +235,8 @@ Polymer({
     }
   },
 
-  ready: function() {
-    this.innerHTML = 'Hello World, I am a <b>Custom Element!</b>';
+  attached: function() {
+    this.innerHTML = 'Hello World, I am a ' + (this.user || 'nobody') + '.';
   }
 
 });
