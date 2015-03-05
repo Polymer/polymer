@@ -14,8 +14,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /* Transforms ShadowDOM styling into ShadyDOM styling
 
-     Transformations:
-
      * scoping: 
 
         * elements in scope get scoping selector class="x-foo-scope"
@@ -25,26 +23,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
      * :host -> scopeName
 
-     * :host(...), :host-context(...): NOT SUPPORTED
-     TODO(sorvell): probably need to support this?
+     * :host(...) -> scopeName...
 
      * ::content -> ' ' NOTE: requires use of scoping selector and selectors
        cannot otherwise be scoped:
        e.g. :host ::content > .bar -> x-foo > .bar
 
-     * ::shadow, /deep/: NOT SUPPORTED
+     * ::shadow, /deep/: processed simimlar to ::content
+
+     * :host-context(...): NOT SUPPORTED
 
     */
 
     // Given a node and scope name, add a scoping class to each node 
     // in the tree. This facilitates transforming css into scoped rules. 
     function transformDom(node, scope) {
-      _transformDom(node, scope + SCOPE_SUFFIX);
+      _transformDom(node, scope ? scope + SCOPE_SUFFIX : '');
     }
 
     function _transformDom(node, selector) {
       if (node.classList) {
-        node.classList.add(selector);
+        node.className = node.className.replace(SCOPING_CLASS, '');
+        if (selector) {
+          node.classList.add(selector);
+        }
       }
       // NOTE: it'd be better to use *Element* but Safari does not support
       // this api for document fragments.
@@ -81,7 +83,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function transformComplexSelector(selector, scope) {
       var stop = false;
-      return selector.replace(SIMPLE_SELECTOR_SEP, function(s) {
+      selector = selector.replace(SIMPLE_SELECTOR_SEP, function(s) {
         if (!stop) {
           var o = transformCompoundSelector(s, scope);
           if (o.stop) {
@@ -91,21 +93,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return s;
       });
+      // collapse empty selectors and weird cases where a separator was removed
+      // leaving only '> >'
+      selector = selector.replace(WHITESPACE, ' ').replace('> >', '>');
+      return selector;
     }
 
     function transformCompoundSelector(selector, scope) {
       // replace :host with host scoping class
+      var jumpIndex = selector.search(SCOPE_JUMP);
       if (selector.indexOf(HOST) >=0) {
-        selector = selector.replace(HOST, CLASS_PREFIX + scope + 
-          HOST_SCOPE_SUFFIX);
+        var r = CLASS_PREFIX + scope + HOST_SCOPE_SUFFIX;
+        // :host(...)
+        selector = selector.replace(HOST_PAREN, function(m, host, paren) {
+          return r + paren;
+        });
+        // now normal :host
+        selector = selector.replace(HOST, r);
       // replace other selectors with scoping class
-      } else {
+      } else if (jumpIndex !== 0) {
         selector = transformSimpleSelector(selector, scope);
       }
-      // process ::content up to the ::content and then stop
+      // process scope jumping selectors up to the scope jump and then stop
+      // e.g. .zonk ::content > .foo ==> .zonk.scope > .foo
       var stop;
-      if (selector.indexOf(CONTENT) >= 0) {
-        selector = selector.replace(CONTENT, ' ');
+      if (jumpIndex >= 0) {
+        selector = selector.replace(SCOPE_JUMP, ' ');
         stop = true;
       }
       return {value: selector, stop: stop};
@@ -122,9 +135,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var COMPLEX_SELECTOR_SEP = ',';
     var SIMPLE_SELECTOR_SEP = /([^\s>+~]+)/g;
     var HOST = ':host';
-    var CONTENT = "::content";
+    // NOTE: this supports 1 nested () pair for things like 
+    // :host(:not([selected]), more general support requires
+    // parsing which seems like overkill
+    var HOST_PAREN = /(\:host)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
+    var WHITESPACE = /[\s]+/g;
+    var DEEP = '/deep/';
+    var SCOPE_JUMP = /\:\:content|\:\:shadow|\/deep\//;
     var CLASS_PREFIX = '.';
     var PSEUDO_PREFIX = ':';
+    var SCOPING_CLASS = /(?:^|\s)([\S]*?-x)(?:$|\s)/;
 
     // exports
     return {
