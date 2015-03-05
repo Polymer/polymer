@@ -266,13 +266,13 @@ suite('projection', function() {
     assert.equal(Polymer.dom.elementParent(projected), rere);
   });
 
-  test('distributedElements', function() {
+  test('queryDistributedElements', function() {
     var test = document.querySelector('x-test');
     var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     var re = Polymer.dom.querySelector('x-reproject', rere.root);
     var p = Polymer.dom.querySelector('x-project', re.root);
     var projected = Polymer.dom.querySelector('#projected', test.root);
-    var d$ = Polymer.dom.distributedElements(p.root);
+    var d$ = Polymer.dom.queryDistributedElements(p.root);
     assert.equal(d$.length, 1);
     assert.equal(d$[0], projected);
 
