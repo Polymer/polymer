@@ -235,7 +235,7 @@ Polymer({
     }
   },
 
-  created: function() {
+  ready: function() {
     this.innerHTML = 'Hello World, I am a <b>Custom Element!</b>';
   }
 
