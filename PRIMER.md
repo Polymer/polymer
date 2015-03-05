@@ -34,7 +34,7 @@ Template content stamped into "local DOM"
 |---------|-------
 | [Template stamping into local DOM](#template-stamping) | \<dom-module>\<template>...\</template>\</dom-module>
 | [DOM (re-)distribution](#dom-distribution) | \<content>
-| [Local & light tree API](#dom-api)  | localDom, lightDom
+| [DOM API](#dom-api)  | Polymer.dom
 | [Top-down callback to configure defaults](#configure-method) | configure: function() { … }
 | [Bottom-up callback after configuration](#ready-method) | ready: function() { … }
 
@@ -56,7 +56,9 @@ Declarative data binding, events, and property nofication
 | [Computed properties](#computed-properties) | computed: { \<property>: ‘function(\<property>)’ }
 | [Read-only properties](#read-only) |  properties: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
-| [Attribute-based layout](#layout-html) | layout.html (layout horizontal flex ...)
+| [Scoped styling](#scoped-styling) | \<style> in \<dom-module>, Shadow-DOM styling rules (:host, ...)
+| [General polymer settings](#settings) | \<script> Polymer = { ... }; \</script>
+
 
 <a name="element-constructor"></a>
 ## Custom Element Constructor
@@ -451,25 +453,35 @@ Example:
 <a name="dom-api"></a>
 ## DOM API
 
-Polymer provides custom API for manipulating dom such that local DOM and light DOM trees are properly maintained. An element has a `lightDom` property and a `localDom` each of which are used to manipulate their respective dom trees. The following methods are provided:
+Polymer provides custom API for manipulating dom such that local DOM and light DOM trees are properly maintained.
 
-  * appendChild(node)
-  * insertBefore(node, ref_node)
-  * removeChild(node)
-  * querySelector/querySelectorAll(selector)
-  * children()
-  * elementParent(node)
+**<div style="color:red">Note: All DOM manipulation must use this API, as opposed to DOM API directly on nodes.</div>**
+
+The following methods are provided:
+
+  * `Polymer.dom.appendChild(node, parent)`
+  * `Polymer.dom.insertBefore(node, beforeNode, parent)`
+  * `Polymer.dom.removeChild(node, parent)`
+  * `Polymer.dom.querySelector(selector, parent)`
+  * `Polymer.dom.querySelectorAll(selector, parent)`
+  * `Polymer.dom.childNodes(parent)`
+  * `Polymer.dom.elementParent(node)`
+  * `Polymer.dom.distributedNodes(contentElement)`
+  * `Polymer.dom.destinationInsertionPoints(node)`
+  * `Polymer.dom.flush()` - The insert, append, and remove operations are trasnacted lazily in certain cases for performance.  In order to interrogate the dom (e.g. `offsetHeight`, `getComputedStyle`, etc.) immediately after one of these operations, call `Polymer.dom.flush()` first.
+
+Calling `append`/`insertBefore` where parent is a custom Polymer element adds the node to the light DOM of the element.  In order to insert/append into the shadow root of a custom element, use `this.root` as the parent.
 
 Example:
 
 ```js
 var toLight = document.createElement('div');
-this.lightDom.appendChild(toLight);
+Polymer.dom.appendChild(toLight, this);
 
 var toLocal = document.createElement('div');
-this.localDom.insertBefore(toLocal, this.localDom.children()[0]);
+Polymer.dom.insertBefore(toLocal, Polymer.dom.childNodes(this.root)[0], this);
 
-var allSpans = this.localDom.querySelectorAll('span');
+var allSpans = Polymer.dom.querySelectorAll('span', this);
 ```
 
 For manipulating dom in elements that themselves do not have local dom, the above api's support an extra argument which is the container `node` in which the operation should be performed.
@@ -487,30 +499,8 @@ Example:
 ...
 
 var insert = document.createElement('div');
-this.localDom.insertBefore(insert, this.$.first, this.$.container);
+Polymer.dom.insertBefore(insert, this.$.first, this.$.container);
 
-```
-
-**NOTE:** It's only strictly necessary to use `lightDom/localDom` when performing dom manipulation on elements whose composed dom and local dom is distinct. This includes elements with local dom and elements that are parents of insertion points. It is recommended, however, that `lightDom/localDom` be used whenever manipulating element dom.
-
-When multiple dom operations need to occur at once time, it's more efficient to batch these operations together. A batching mechanism is provided to support this use case.
-
-Example:
-
-```js
-this.localDom.batch(function() {
-  for (var i = 0; i < 10; i++) {
-    this.localDom.appendChild(document.createElement('div'));
-  }
-});
-```
-
-To provide a `local` view of the dom tree from a perspective independent of a custom element, polymer provides the `Polymer.dom` object. This object supports `querySelector/querySelectorAll` for example and the following guarantees that elements inside local DOM will not be seen.
-
-Example:
-
-```html
-Polymer.dom.querySelector('#myId');
 ```
 
 Sometimes it's necessary to access the elements which have been distributed to a given `<content>` insertion point or to know to which `<content>` a given node has been distributed. The `distributedNodes` and `destinationInsertionPoints` respectively provide this information.
@@ -529,10 +519,10 @@ Example:
 ```
 
 ```js
-var div = xFoo.lightDom.querySelector('div');
-var content = xFoo.localDom.querySelector('content');
-var distributed = xFoo.localDom.distributedNodes(content)[0];
-var insertedTo = xFoo.localDom.destinationInsertionPoints()[0];
+var div = Polymer.dom.querySelector('div', xFoo);
+var content = xFoo.localDom.querySelector('content', xFoo);
+var distributed = Polymer.dom.distributedNodes(content)[0];
+var insertedTo = Polymer.dom.destinationInsertionPoints(div)[0];
 
 // the following should be true:
 assert.equal(distributed, div);
@@ -1182,48 +1172,74 @@ Polymer's Base prototype provides a set of useful convenience/utility functions 
 * translate3d: function(node, x, y, z)
 * importHref: function(href, onload, onerror)
 
-<!--
-<a name="layout-html"></a>
-## Attribute-based layout
+<a name="scoped-styling"></a>
+## Scoped styling
 
-CSS is notoriously verbose for doing even the most basic layout tasks, and so Polymer provides a useful set of layout CSS that can be applied using very terse HTML attribues (as opposed to CSS classes), which we find greatly improves the readability of markup.  Below is a quick cheatsheet of attributes available; refer to `layout.html` directly for details.
+Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutorials/webcomponents/shadowdom-201/)" for providing scoped styling of the element's local DOM.  Scoped styles should be provided via `<style>` tags placed inside the `<dom-module>` for an element (but not inside the `<template>`.
 
-General:
+```html
 
-* block
-* hidden
-* relative
-* fit
-* fullbleed
+<dom-module id="my-element">
+  
+  <style>
+    :host {
+      display: block;
+      border: 1px solid red;
+    }
+    #child-element {
+      background: yellow;
+    }
+    /* styling elements distributed to content (via ::content) requires */
+    /* using a wrapper element for compatibility with shady DOM         */
+    .content-wrapper > ::content .special {
+      background: orange;
+    }
+  </style>
+  
+  <template>
+    <div id="child-element">In local Dom!</div>
+    <div class="content-wrapper"><content></content></div>
+  </template>
+  
+</dom-module>
 
-Flexbox:
+<script>
 
-* layout horizontal, layout vertical
-  * inline
-  * reverse
-  * wrap
-  * wrap-reverse
-  * start
-  * center
-  * end
-  * start-justified
-  * center-justified
-  * end-justified
-  * around-justified
-  * center-center
-  * justified
+    Polymer({
+        is: 'my-element'
+    });
 
-Flexbox children:
+</script>
 
-* flex
-  * auto
-  * none
-  * one .. twelve
-* self-start
-* self-center
-* self-end
-* self-stretch
--->
+```
+
+Note: Remote stylesheets (`<link rel="stylesheet">`) are not currently supported for providing scoped styles.  This may be added in future versions.
+
+<a name="settings"></a>
+## Global Polymer settings
+
+Document-level global Polymer settings can be set before loading by setting a `Polymer` object on window as the first script in the main document:
+
+```html
+<html>
+<head>
+  <meta charset="utf-8">
+  <script> Polymer = { dom: 'shadow' }; </script>
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <link rel="import" href="components/my-app.html">
+</head>
+<body>
+
+  ...
+    
+```
+
+Available settings:
+
+* `dom` - options:
+    * `shady` - all local DOM will be rendered using Shady DOM (even where shadow-DOM supported (current default)
+    * `shadow` - local DOM will be rendered using Shadow DOM where supported (this will be made default soon)
+
 
 <a name="feature-layering"></a>
 ## Feature layering
