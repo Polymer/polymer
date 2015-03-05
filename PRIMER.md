@@ -57,6 +57,7 @@ Declarative data binding, events, and property nofication
 | [Read-only properties](#read-only) |  properties: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Scoped styling](#scoped-styling) | \<style> in \<dom-module>, Shadow-DOM styling rules (:host, ...)
+| [Sharing styles](#shared-styles) | styleModules: [ ... ]
 | [General polymer settings](#settings) | \<script> Polymer = { ... }; \</script>
 
 
@@ -1213,7 +1214,34 @@ Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutori
 
 ```
 
-Note: Remote stylesheets (`<link rel="stylesheet">`) are not currently supported for providing scoped styles.  This may be added in future versions.
+Note: Remote stylesheets (`<link rel="stylesheet">`) are not currently supported for providing scoped styles.  This may be added in future versions.  See below for workarounds.
+
+<a name="shared-stylesheets"></a>
+### Sharing styesheets
+
+Styles can be shared between elements by defining `<dom-module>`'s containing styles to be shared, and referencing shared styles to be included in a given element by listing the `dom-module` id in an array of `styleModules`.
+
+Example:
+
+```html
+<dom-module id="common-styles">
+  <style>
+      ...
+  </style>
+</dom-module>
+```
+
+```js
+Polymer({
+  is: 'element-one'
+  styleModules: ['common-styles']
+});
+
+Polymer({
+  is: 'element-two'
+  styleModules: ['common-styles']
+});
+```
 
 <a name="settings"></a>
 ## Global Polymer settings
@@ -1282,31 +1310,6 @@ AFTER: 0.8
 In 0.5, binding annotations were allowed to mixed-case properties (despite the fact that attribute names always get converted to lower-case by the HTML parser), and the Node.bind implementation at the "receiving end" of the binding automatically inferred the mixed-case property it was assumed to refer to at instance time.
 
 In 0.8, "binding" is done at prorotype time before the type of the element being bound to is known, hence knowing the exact JS property to bind to allows better efficiency.
-
-## Styling
-
-Currently all polymer elements are rendered with "Shady DOM" composition, meaning local DOM is stamped into the composed tree rather than into shadow roots (where Shadow DOM available).  This will change shortly once the new Shady DOM style shimmer is completed, after which local DOM styling will be done according to Shadow DOM rules.  DETAILS TO FOLLOW.
-
-In the meantime, styling should be done against the composed tree, meaning:
-
-* `<style>` goes outside the template
-* Prefix selectors with element name to provide "host" scope
-
-```html
-<dom-module id="x-foo">
-
-  <style>
-    x-foo .my-class {
-      ...
-    }
-  </style>
-
-  <template>
-    ...
-  </template>
-
-</dom-module>
-```
 
 ## Binding limitations
 
