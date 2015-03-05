@@ -67,16 +67,16 @@ By default, the default Polymer distribution include several features. Although 
 
 ### Feature: _property-config_
 
-The first feature implements support for the `propertyConfig` property. By placing a object-valued `propertyConfig` property on your prototype, let's you define various aspects of your custom-elements public API. 
+The first feature implements support for the `properties` property. By placing a object-valued `properties` property on your prototype, let's you define various aspects of your custom-elements public API. 
 
-By itself, the `propertyConfig` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see [link to docs] for details).
+By itself, the `properties` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see [link to docs] for details).
 
 ```js
 Polymer({
 
   is: 'x-custom',
 
-  propertyConfig: {
+  properties: {
     user: String,
     isHappy: Boolean,
     count: {
@@ -128,7 +128,7 @@ Many custom elements want to support configuration using HTML attributes. Custom
 
 Although it's relatively simple, having to write this code becomes annoying when working with multiple attributes or non-String types. It's also not very DRY. 
 
-Instead, Polymer's `attributes` feature handles this work for you (using the `propertyConfig` feature data). If an attribute is set that matches a property listed in the `propertyConfig` object, the value is captured into the matching property. Strings are automatically converted to the specified type.
+Instead, Polymer's `attributes` feature handles this work for you (using the `properties` feature data). If an attribute is set that matches a property listed in the `properties` object, the value is captured into the matching property. Strings are automatically converted to the specified type.
 
 The type system includes support for Object values expressed as JSON, or Date objects expressed as any Date-parsable string representation. Boolean properties are mapped to Boolean attributes, in other words, if the attribute exists at all, its value is true, regardless of its string-value (and the value is only false if the attribute does not exist).
 
@@ -141,7 +141,7 @@ Here is the equivalent of the above code, taking advantage of the `attributes` f
 
     is: 'x-custom',
 
-    propertyConfig: {
+    properties: {
       user: String
     },
 
