@@ -175,7 +175,7 @@ suite('projection', function() {
 
   test('localDom.insertBefore first element results in minimal change', function() {
     var test = document.querySelector('x-test');
-    var children = Polymer.dom.children(test.root);
+    var children = Polymer.dom.childNodes(test.root);
     var rere = Polymer.dom.querySelector('x-rereproject', test.root);
     assert.equal(rere.attachedCount, 1);
     var s = document.createElement('span');
@@ -264,6 +264,18 @@ suite('projection', function() {
     var projected = Polymer.dom.querySelector('#projected', test.root);
     assert.equal(Polymer.dom.elementParent(test), wrap(document.body));
     assert.equal(Polymer.dom.elementParent(projected), rere);
+  });
+
+  test('distributedElements', function() {
+    var test = document.querySelector('x-test');
+    var rere = Polymer.dom.querySelector('x-rereproject', test.root);
+    var re = Polymer.dom.querySelector('x-reproject', rere.root);
+    var p = Polymer.dom.querySelector('x-project', re.root);
+    var projected = Polymer.dom.querySelector('#projected', test.root);
+    var d$ = Polymer.dom.distributedElements(p.root);
+    assert.equal(d$.length, 1);
+    assert.equal(d$[0], projected);
+
   });
 
   test('Polymer.dom.querySelector', function() {

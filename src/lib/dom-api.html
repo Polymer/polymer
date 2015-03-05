@@ -18,7 +18,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     DomApi.prototype = {
 
-      children: function(node) {
+      childNodes: function(node) {
         return getLightChildren(node);
       },
 
@@ -84,7 +84,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (this._nodeIsInLogicalTree(container)) {
           saveLightChildrenIfNeeded(container);
-          var children = this.children(container);
+          var children = this.childNodes(container);
           var index = children.indexOf(ref_node);
           if (index < 0) {
             throw Error('The ref_node to be inserted before is not a child ' +
@@ -166,7 +166,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _addLogicalInfo: function(node, container, root, index) {
         saveLightChildrenIfNeeded(container);
-        var children = this.children(container);
+        var children = this.childNodes(container);
         index = index === undefined ? children.length : index;
         // handle document fragments
         if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
@@ -184,7 +184,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // TODO(sorvell): consider not attaching this to every node and instead
         // looking up the tree for this info.
         // add _ownerShadyRoot info
-        var c$ = this.children(node);
+        var c$ = this.childNodes(node);
         if (c$.length) {
           this._addRootToChildren(node, root);
         }
@@ -194,7 +194,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // and therefore indexOf to be nbd. Other optimizations can be made
       // for larger lists (linked list) 
       _removeLogicalInfo: function(node, container) {
-        var children = this.children(container);
+        var children = this.childNodes(container);
         var index = children.indexOf(node);
         if ((index < 0) || (container !== node.lightParent)) {
           throw Error('The node to be removed is not a child of this node');
@@ -208,7 +208,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _addRootToChildren: function(children, root) {
         for (var i=0, l=children.length, c, cc; (i<l) && (c=children[i]); i++) {
           c._ownerShadyRoot = root;
-          cc = this.children(c);
+          cc = this.childNodes(c);
           if (cc.length) {
             this._addRootToChildren(cc, root);
           }
@@ -243,7 +243,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _query: function(matcher, node) {
         var list = [];
-        this._queryElements(this.children(node), matcher, list);
+        this._queryElements(this.childNodes(node), matcher, list);
         return list;
       },
 
@@ -259,7 +259,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (matcher(node)) {
           list.push(node);
         }
-        this._queryElements(this.children(node), matcher, list);
+        this._queryElements(this.childNodes(node), matcher, list);
       },
 
       destinationInsertionPoints: function(node) {
@@ -278,8 +278,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         points.
       */
       distributedElements: function(selector, node) {
-        var c$ = this.children(node);
-        var list = this._distributedFilter(c$) || [];
+        if (arguments.length === 1) {
+          node = selector;
+          selector = '*';
+        }
+        var c$ = this.childNodes(node);
+        var list = [];
+        this._distributedFilter(selector, c$, list);
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
           if (c.localName === CONTENT) {
             this._distributedFilter(selector, this.distributedNodes(c), list);
@@ -291,8 +296,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _distributedFilter: function(selector, list, results) {
         results = results || [];
         for (var i=0, l=list.length, d; (i<l) && (d=list[i]); i++) {
-          if ((d.nodeType === Node.ELEMENT_NODE) &&
-            elementMatches.call(d, selector)) {
+          if ((d.nodeType === Node.ELEMENT_NODE) && 
+            (d.localName !== CONTENT) &&
+            matchesSelector.call(d, selector)) {
             results.push(d);
           }
         }
