@@ -12,23 +12,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /**
    * Generates a boilerplate constructor.
    * 
-   * Unless the user has specified a constructor on the prototype, 
-   * this module generates one.
-   *
    *     XFoo = Polymer({
    *       is: 'x-foo'
    *     });
    *     ASSERT(new XFoo() instanceof XFoo);
    *  
-   * Remember that `document.registerElement` does not produce a functional
-   * constructor, so any custom constructor must create it's own `this`, e.g.:
+   * You can supply a custom constructor on the prototype. But remember that 
+   * this constructor will only run if invoked **manually**. Elements created
+   * via `document.createElement` or from HTML _will not invoke this method_.
+   * 
+   * Instead, we reuse the concept of `constructor` for a factory method which 
+   * can take arguments. 
    * 
    *     MyFoo = Polymer({
    *       is: 'my-foo',
    *       constructor: function(foo) {
-   *         var elt = document.createElement('my-foo');
-   *         elt.foo = foo;
-   *         return elt; 
+   *         this.foo = foo;
    *       }
    *       ...
    *     });
@@ -36,39 +35,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @class base feature: constructor
    */
 
-  using('Base', function(Base) {
+  Polymer.Base.addFeature({
 
-    Base.addFeature({
+    // registration-time
 
-      // registration-time
-
-      _prepConstructor: function() {
-        if (!this.hasOwnProperty('constructor')) {
-          var ctor;
-          if (this.extends) {
-            ctor = function() {
-              return document.createElement(this.extends, this.is);
-            };
-          } else {
-            ctor = function() {
-              return document.createElement(this.is);
-            };
-          }
-          // ensure constructor is set. The `constructor` property is
-          // not writable on Safari; note: Chrome requires the property
-          // to be configurable.
-          Object.defineProperty(this, 'constructor', {value: ctor, 
-            writable: true, configurable: true});
-          ctor.prototype = this;
-        } else {
-          ctor = this.constructor;
-        }
-        if (this.hasOwnProperty('extends')) {
-          ctor.extends = this.extends; 
-        }
+    _prepConstructor: function() {
+      // capture user-supplied `constructor`
+      if (this.hasOwnProperty('constructor')) {
+        this._userConstructor = this.constructor;
       }
+      // support both possible `createElement` signatures
+      this._factoryArgs = this.extends ? [this.extends, this.is] : [this.is];
+      // thunk the constructor to delegate allocation to `createElement`
+      var ctor = function() { 
+        return this._factory(); 
+      };
+      if (this.hasOwnProperty('extends')) {
+        ctor.extends = this.extends; 
+      }
+      // ensure constructor is set. The `constructor` property is
+      // not writable on Safari; note: Chrome requires the property
+      // to be configurable.
+      Object.defineProperty(this, 'constructor', {value: ctor, 
+        writable: true, configurable: true});
+      ctor.prototype = this;
+    },
 
-    });
+    _factory: function() {
+      var elt = document.createElement.apply(document, this._factoryArgs);
+      if (this._userConstructor) {
+        this._userConstructor.apply(elt, arguments);
+      }
+      return elt;
+    }
 
   });
+
 </script>
