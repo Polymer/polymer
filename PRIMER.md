@@ -249,9 +249,9 @@ Remember that the fields assigned to `count`, such as `readOnly` and `notify` do
 <a name="attribute-deserialization"></a>
 ## Attribute deserialization
 
-If an attribute matches a property listed in the `properties` object, the attribute value will be assigned to a property of the same name on the element instance.  Attribute values (always strings) will be automatically converted to the properties type when assigned to the property.  If no other `properties` options are specified for a property, the type (specified using the type constructor, e.g. `Object`, `String`, etc.) can be set directly as the value of the property in the properties object; otherwise it should be provided as the value to the `type` key in the `properties` configuration object.
+If a property is configured in the `properties` object with a `type` field, an attribute on the instance matching the property name will be deserialized according to the type specified and assigned to a property of the same name on the element instance.  If no other `properties` options are specified for a property, the `type` (specified using the type constructor, e.g. `Object`, `String`, etc.) can be set directly as the value of the property in the `properties` object; otherwise it should be provided as the value to the `type` key in the `properties` configuration object.
 
-The type system includes support for Object values expressed as JSON, or Date objects expressed as any Date-parsable string representation. Boolean properties set based on the existence of the attribute: if the attribute exists at all, its value is true, regardless of its string-value (and the value is only false if the attribute does not exist).
+The type system includes support for Object and Array values expressed as JSON, or Date objects expressed as any Date-parsable string representation. Boolean properties set based on the existence of the attribute: if the attribute exists at all, its value is true, regardless of its string-value (and the value is only false if the attribute does not exist).
 
 Example:
 
@@ -270,7 +270,7 @@ Example:
       }
     },
 
-    created: function() {
+    attached: function() {
       // render
       this.innerHTML = 'Hello World, my user is ' + (this.user || 'nobody') + '.\n' +
         'This user is ' + (this.manager ? '' : 'not') + ' a manager.';
@@ -287,6 +287,30 @@ Hello World, my user is Scott.
 This user is a manager.
 -->
 ```
+
+In order to configure camel-case properties of elements using attributes, dash-case should be used in the attribute name.  Example:
+
+```html
+<script>
+
+  Polymer({
+
+    is: 'x-custom',
+
+    properties: {
+      userName: String,
+    }
+
+  });
+
+</script>
+
+<x-custom user-name="Scott"></x-custom>
+<!-- Sets <x-custom>.userName = 'Scott';  -->
+```
+
+
+Note: Deserialization occurs both at create time, as well as at runtime, e.g. when the attribute is changed via `setAttribute`.  However, it is encouraged that attributes only be used for configuring properties in static markup, and instead that properties are set directly for changes at runtime.
 
 <a name="prototype-mixins"></a>
 ## Prototype mixins
