@@ -24,18 +24,17 @@ Bare-minum Custom Element sugaring
 | [Native HTML element extension](#type-extension) | extends: ‘…’
 | [Configure properties](#property-config) | properties: { … }
 | [Attribute deserialization to property](#attribute-deserialization) | properties: { \<property>: \<Type> }
-| [Module registry](#module-registry) | modularize, using
 | [Prototype Mixins](#prototype-mixins) | mixins: [ … ]
 
 <a name="polymer-mini"></a>
-Template content stamped into "local DOM"
+Template content stamped into "local DOM" and tree lifecycle
 
 | Feature | Usage
 |---------|-------
 | [Template stamping into local DOM](#template-stamping) | \<dom-module>\<template>...\</template>\</dom-module>
 | [DOM (re-)distribution](#dom-distribution) | \<content>
 | [DOM API](#dom-api)  | Polymer.dom
-| [Top-down callback to configure defaults](#configure-method) | configure: function() { … }
+| [Configuring default values](#configure-values)  | properties: \<prop>: { value: \<primitive>\|\<function> }
 | [Bottom-up callback after configuration](#ready-method) | ready: function() { … }
 
 <a name="polymer-standard"></a>
@@ -289,71 +288,6 @@ This user is a manager.
 -->
 ```
 
-<a name="module-registry"></a>
-## Module registry
-
-Polymer provides and internally uses a JavaScript "module registry" to organize library code defined outside the context of a custom element prototype, and may be used to organize user code when convenient as well.  The registry is responsible for storing and retrieving JS modules by name.  As this facility does not provide dependency loading, it is the responsibility of the user to HTMLImport files containing any dependent modules before use.
-
-Modules are registered using the `modulate` global function, passing a name to register and a factory function that returns the module:
-
-`fun-support.html`
-
-```js
-<script>
-  modulate('FunSupport', function() {
-
-    return {
-      makeElementFun: function(el) {
-        el.style.border = 'border: 20px dotted fuchsia;';
-      }
-    };
-
-  });
-</script>
-```
-
-A list of module dependencies can be specified as the second parameter, which will be provided to the factory function:
-
-`fun-support.html`
-
-```js
-<script>
-  modulate('FunSupport', ['Squid', 'Octopus'], function(squid, octopus) {
-
-    // use squid & octopus
-    return ...;
-
-  });
-</script>
-```
-
-Modules are requested using the `using` global function, passing a list of dependencies:
-
-`my-element.html`
-
-```html
-<!-- Load module dependency -->
-<link rel="import" href="fun-support.html">
-
-<script>
-  // Use module dependency
-  using(['FunSupport', ...], function(funSupport, ...) {
-
-    MyElement = Polymer({
-
-      is: 'my-element',
-
-      created: function() {
-        funSupport.makeElementFun(this);
-      }
-
-    });
-
-  });
-</script>
-```
-
-
 <a name="prototype-mixins"></a>
 ## Prototype mixins
 
@@ -361,14 +295,12 @@ Polymer will "mixin" objects specified in a `mixin` array into the prototype.  T
 
 The current mixin feature in 0.8 is basic; it simply loops over properties in the provided object and adds property descriptors for those on the prototype (such that `set`/`get` accessors are copied in addition to properties and functions).  Note that there is currently no support for configuring properties or hooking lifecycle callbacks directly via mixins.  The general pattern is for the mixin to supply functions to be called by the target element as part of its usage contract (and should be documented as such).  These limitations will likely be revisited in the future.
 
-The [module registry](#module-registry) should generally be used for registering mixins.  Mixins registered with the Polymer module registry may be referred to by String name without needing to expliitly request the module via `using`.  Otherwise, values in the `mixin` array should be an Object reference (generally retrieved via `using`).
 
 Example: `fun-mixin.html`
 
 ```js
-modulate('FunMixin', function() {
+FunMixin = {
 
-  return {
     funCreatedCallback: function() {
       this.makeElementFun();
     },
@@ -391,7 +323,7 @@ Example: `my-element.html`
 
     is: 'my-element',
 
-    mixins: ['FunMixin'],
+    mixins: [FunMixin],
 
     created: function() {
       this.funCreatedCallback();
@@ -530,6 +462,38 @@ assert.equal(distributed, div);
 assert.equal(insertedTo, content)
 ```
 
+<a name="configure-values"></a>
+## Configuring default property values
+
+Default values for properties may be specified in the `properties` object using the `value` field.  The value may either be a primitive value, or a function that returns a value (which should be used for initializing Objects and Arrays to avoid shared objects on instances).
+
+Example:
+
+```js
+Polymer({
+
+  is: 'x-custom',
+   
+  properties: {
+  
+    mode: {
+      type: String,
+      value: 'auto'
+    },
+    
+    data: {
+      type: Object,
+      notify: true,
+      value: function() { return {}; }
+    }
+  
+  }
+
+});
+```
+
+
+<!--
 <a name="configure-method"></a>
 ## Configure callback
 
@@ -547,11 +511,12 @@ configure: function() {
 }
 ```
 In general, the configure method should only return the object containing default values, and not cause any side-effects on `this` that may interact with children, as these will still be in an un-configured state at this point.  Such actions should be done in the [ready callback](#ready-method).
+-->
 
 <a name="ready-method"></a>
 ## Ready callback
 
-The `ready` method is part of an element's lifecycle and is automatically called 'bottom-up' after the element's template has been stamped and all elements inside the element's local DOM have been `configure`'ed and had their `ready` method called. Implement `ready` when it's necessary to manipulate an element's local DOM when the element is constructed.
+The `ready` method is part of an element's lifecycle and is automatically called 'bottom-up' after the element's template has been stamped and all elements inside the element's local DOM have been configured (with values bound from parents, deserialized attributes, or else default values) and had their `ready` method called. Implement `ready` when it's necessary to manipulate an element's local DOM when the element is constructed.
 
 Example:
 
