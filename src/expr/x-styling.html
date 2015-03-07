@@ -12,14 +12,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../lib/settings.html">
 <link rel="import" href="x-styling-defaults.html">
 <script>
-  using(['Base', 'StyleTransformer', 'StyleUtil', 'Settings', 'StyleDefaults'],
-    function(Base, transformer, styleUtil, settings, defaults) {
+  (function() {
     
-    var beforeReady = Base._beforeReady;
-
     // TODO(sorvell): consider if calculating properties and applying
     // styles with properties should be separate modules.
-    Base.addFeature({
+    Polymer.Base.addFeature({
 
       // compute style properties top-down so that values can be inherited
       // easily from host.
@@ -29,26 +26,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _computeStyleProperties: function() {
         var props = {};
-        mixin(props, this._computeStylePropertiesFromHost());        
-        mixin(props, this._computeOwnStyleProperties());
+        this.simpleMixin(props, this._computeStylePropertiesFromHost());        
+        this.simpleMixin(props, this._computeOwnStyleProperties());
         this._reifyCustomProperties(props);
         return props;
       },
 
       _computeStylePropertiesFromHost: function() {
         // TODO(sorvell): experimental feature, global defaults!
-        var props = {}, styles = [defaults.defaultSheet];
+        var props = {}, styles = [Polymer.StyleDefaults.defaultSheet];
         if (this.host) {
           props = Object.create(this.host._styleProperties);
           styles = this.host._styles;
         }
-        mixin(props, this._customPropertiesFromStyles(styles, this.host));
+        this.simpleMixin(props,
+          this._customPropertiesFromStyles(styles, this.host));
         return props;
       },
 
       _computeOwnStyleProperties: function() {
         var props = {};
-        mixin(props, this._customPropertiesFromStyles(this._styles));
+        this.simpleMixin(props, this._customPropertiesFromStyles(this._styles));
         if (this.styleProperties) {
           for (var i in this.styleProperties) {
             props[i] = this.styleProperties[i];
@@ -62,7 +60,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var p = this._customPropertiesFromRule.bind(this, props, hostNode);
         if (styles) {
           for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-            styleUtil.forEachStyleRule(this._rulesForStyle(s), p);
+            Polymer.StyleUtil.forEachStyleRule(this._rulesForStyle(s), p);
           }
         }
         return props;
@@ -118,10 +116,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             style = cssText ? this._applyCustomCss(cssText) : {};
             cacheStyle(this.is, style, this._scopeSelector, 
               this._styleProperties, s$);
-          } else if (settings.useNativeShadow) {
+          } else if (Polymer.Settings.useNativeShadow) {
             this._applyCustomCss(style.textContent);
           }
-          if (style.textContent && !settings.useNativeShadow) {
+          if (style.textContent && !Polymer.Settings.useNativeShadow) {
             this.classList.add(this._scopeSelector);
           }
         }
@@ -139,9 +137,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _transformCss: function(cssText, scope, callback) {
-        return settings.useNativeShadow ?
-          styleUtil.toCssText(cssText, callback) : 
-          transformer.css(cssText, scope, callback);
+        return Polymer.Settings.useNativeShadow ?
+          Polymer.StyleUtil.toCssText(cssText, callback) : 
+          Polymer.StyleTransformer.css(cssText, scope, callback);
       },
 
       _xScopeCount: 0,
@@ -157,14 +155,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._customStyle) {
           this._customStyle.textContent = cssText;
         } else if (cssText) {
-          this._customStyle = styleUtil.applyCss(cssText, this._scopeSelector,
-            settings.useNativeShadow ? this.root : null);
+          this._customStyle = Polymer.StyleUtil.applyCss(cssText, 
+            this._scopeSelector,
+            Polymer.Settings.useNativeShadow ? this.root : null);
         }
         return this._customStyle;
       },
 
       _applyPropertiesToRule: function(properties, rule) {
-        if (!settings.useNativeShadow) {
+        if (!Polymer.Settings.useNativeShadow) {
           this._scopifyRule(rule);
         }
         if (rule.cssText.match(CUSTOM_RULE_RX)) {
@@ -209,10 +208,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _scopifyRule: function(rule) {
         var selector = rule.selector;
-        var host = this.is + HOST_SCOPE_SUFFIX;
+        var host = this.is;
+        var rx = new RegExp(host + HOST_SELECTOR_SEP);
         var parts = selector.split(',');
         for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
-          parts[i] = (p.indexOf(host) >= 0) ?
+          parts[i] = p.match(rx) ?
             p.replace(host, host + '.' + this._scopeSelector) :
             '.' + this._scopeSelector + ' ' + p;
         }
@@ -271,14 +271,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return true;
     }
 
-    // TODO(sorvell): simple version of mixin; should go elsewhere
-    function mixin(a, b) {
-      for (var i in b) {
-        a[i] = b[i];
-      }
-    }
-
-    var HOST_SCOPE_SUFFIX = '-xx';
+    var HOST_SELECTOR_SEP = '($|[\\.\\:\\[\\s>\\+~])';
     var CUSTOM_RULE_RX = /@mixin|var/;
     var CUSTOM_VAR_ASSIGN = /(--[^\:;]*?):\s*?([^;{]*?);/g;
     var CUSTOM_MIXIN_ASSIGN = /(--[^\:;]*?):[^{;]*?{([^}]*?)}/g;
@@ -286,5 +279,5 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var CUSTOM_VAR_USE = /(?:^|[;}\s])([^;{}]*?):[\s]*?var\(([^)]*)?\)/gim;
     var CUSTOM_MIXIN_USE = /@mixin\(([^)]*)\)/gim;
 
-  });
+  })();
 </script>
