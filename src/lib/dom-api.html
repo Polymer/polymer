@@ -15,28 +15,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var Debounce = Polymer.Debounce;
     var Settings = Polymer.Settings;
 
-    var DomApi = function() {
-      this._dirty = [];
+    var nativeInsertBefore = Element.prototype.insertBefore;
+    var nativeRemoveChild = Element.prototype.removeChild;
+    var nativeAppendChild = Element.prototype.appendChild;
+
+    var dirtyRoots = [];
+
+    var DomApi = function(node, patch) {
+      this.node = node;
+      if (patch) {
+        this.patch();
+      }
     };
 
     DomApi.prototype = {
 
-      childNodes: function(node) {
-        return getLightChildren(node);
+      // experimental: support patching selected native api.
+      patch: function() {
+        var self = this;
+        this.node.appendChild = function(node) {
+          return self.appendChild(node);
+        }
+        this.node.insertBefore = function(node, ref_node) {
+          return self.insertBefore(node, ref_node);
+        }
+        this.node.removeChild = function(node) {
+          return self.removeChild(node);
+        }
       },
 
-      elementParent: function(node) {
-        return node.lightParent || node.parentNode;
+      get childNodes() {
+        return getLightChildren(this.node);
+      },
+
+      get parentNode() {
+        return this.node.lightParent || this.node.parentNode;
       },
 
       flush: function() {
-        for (var i=0, host; i<this._dirty.length; i++) {
-          host = this._dirty[i];
+        for (var i=0, host; i<dirtyRoots.length; i++) {
+          host = dirtyRoots[i];
           if (host.__distribute) {
             host.__distribute.complete();
           }
         }
-        this._dirty = [];
+        dirtyRoots = [];
       },
 
       _lazyDistribute: function(host) {
@@ -46,7 +69,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // need to dirty distribution once.
         if (!host.__distribute || !host.__distribute.finish) {
           host._debounce('__distribute', host._distributeContent);
-          this._dirty.push(host);
+          dirtyRoots.push(host);
         }
       },
 
@@ -56,48 +79,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // 2. container is a shadyRoot (don't distribute, instead set 
       // container to container.host.
       // 3. node is <content> (host of container needs distribution)
-      appendChild: function(node, container) {
+      appendChild: function(node) {
         var distributed;
         if (node.lightParent) {
           this._removeLogicalInfo(node, node.lightParent);
         }
-        if (this._nodeIsInLogicalTree(container)) {
-          var host = this._hostForNode(container);
-          this._addLogicalInfo(node, container, host && host.shadyRoot);
+        if (this._nodeIsInLogicalTree(this.node)) {
+          var host = this._hostForNode(this.node);
+          this._addLogicalInfo(node, this.node, host && host.shadyRoot);
           if (host) {
             host._elementAdd(node);
-            distributed = this._maybeDistribute(node, container, host);
+            distributed = this._maybeDistribute(node, this.node, host);
           }
         }
         if (!distributed) {
           // if adding to a shadyRoot, add to host instead
-          container = container._isShadyRoot ? container.host : container;
-          container.appendChild(node);
+          var container = this.node._isShadyRoot ? this.node.host : this.node;
+          nativeAppendChild.call(container, node);
         }
         return node;
       },
 
-      insertBefore: function(node, ref_node, container) {
+      insertBefore: function(node, ref_node) {
         if (!ref_node) {
-          return this.appendChild(node, container);
+          return this.appendChild(node);
         }
         var distributed;
         if (node.lightParent) {
           this._removeLogicalInfo(node, node.lightParent);
         }
-        if (this._nodeIsInLogicalTree(container)) {
-          saveLightChildrenIfNeeded(container);
-          var children = this.childNodes(container);
+        if (this._nodeIsInLogicalTree(this.node)) {
+          saveLightChildrenIfNeeded(this.node);
+          var children = this.childNodes;
           var index = children.indexOf(ref_node);
           if (index < 0) {
             throw Error('The ref_node to be inserted before is not a child ' +
               'of this node');
           }
-          var host = this._hostForNode(container);
-          this._addLogicalInfo(node, container, host && host.shadyRoot, index);
+          var host = this._hostForNode(this.node);
+          this._addLogicalInfo(node, this.node, host && host.shadyRoot, index);
           if (host) {
             host._elementAdd(node);
-            distributed = this._maybeDistribute(node, container, host);
+            distributed = this._maybeDistribute(node, this.node, host);
           }
         }
         if (!distributed) {
@@ -105,8 +128,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           ref_node = ref_node.localName === CONTENT ? 
             this._firstComposedNode(ref_node) : ref_node;
           // if adding to a shadyRoot, add to host instead
-          container = container._isShadyRoot ? container.host : container;
-          container.insertBefore(node, ref_node);
+          var container = this.node._isShadyRoot ? this.node.host : this.node;
+          nativeInsertBefore.call(container, node, ref_node);
         }
         return node;
       },
@@ -115,20 +138,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Removes the given `node` from the element's `lightChildren`.
         This method also performs dom composition.
       */
-      removeChild: function(node, container) {
+      removeChild: function(node) {
         var distributed;
-        if (this._nodeIsInLogicalTree(container)) {
-          var host = this._hostForNode(container);
-          this._removeLogicalInfo(node, container);
+        if (this._nodeIsInLogicalTree(this.node)) {
+          var host = this._hostForNode(this.node);
+          this._removeLogicalInfo(node, this.node);
           if (host) {
             host._elementRemove(node);
-            distributed = this._maybeDistribute(node, container, host);
+            distributed = this._maybeDistribute(node, this.node, host);
           }
         }
         if (!distributed) {
           // if removing from a shadyRoot, remove form host instead
-          container = container._isShadyRoot ? container.host : container;
-          container.removeChild(node);
+          var container = this.node._isShadyRoot ? this.node.host : this.node;
+          nativeRemoveChild.call(container, node);
         }
       },
 
@@ -169,7 +192,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _addLogicalInfo: function(node, container, root, index) {
         saveLightChildrenIfNeeded(container);
-        var children = this.childNodes(container);
+        var children = factory(container).childNodes;
         index = index === undefined ? children.length : index;
         // handle document fragments
         if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
@@ -187,7 +210,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // TODO(sorvell): consider not attaching this to every node and instead
         // looking up the tree for this info.
         // add _ownerShadyRoot info
-        var c$ = this.childNodes(node);
+        var c$ = factory(node).childNodes;
         if (c$.length) {
           this._addRootToChildren(node, root);
         }
@@ -197,7 +220,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // and therefore indexOf to be nbd. Other optimizations can be made
       // for larger lists (linked list) 
       _removeLogicalInfo: function(node, container) {
-        var children = this.childNodes(container);
+        var children = factory(container).childNodes;
         var index = children.indexOf(node);
         if ((index < 0) || (container !== node.lightParent)) {
           throw Error('The node to be removed is not a child of this node');
@@ -211,7 +234,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _addRootToChildren: function(children, root) {
         for (var i=0, l=children.length, c, cc; (i<l) && (c=children[i]); i++) {
           c._ownerShadyRoot = root;
-          cc = this.childNodes(c);
+          cc = factory(c).childNodes;
           if (cc.length) {
             this._addRootToChildren(cc, root);
           }
@@ -222,9 +245,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // question is pending; this is expected to be exceedingly rare, but if
       // the issue comes up, we can force a flush in this case.
       _firstComposedNode: function(content) {
-        var n$ = this.distributedNodes(content);
+        var n$ = factory(content).getDistributedNodes();
         for (var i=0, l=n$.length, n, p$; (i<l) && (n=n$[i]); i++) {
-          p$ = this.destinationInsertionPoints(n);
+          p$ = factory(n).getDestinationInsertionPoints();
           // means that we're composed to this spot.
           if (p$[p$.length-1] === content) {
             return n;
@@ -233,20 +256,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       // TODO(sorvell): consider doing native QSA and filtering results.
-      querySelector: function(selector, node) {
-        return this.querySelectorAll(selector, node)[0];
+      querySelector: function(selector) {
+        return this.querySelectorAll(selector)[0];
       },
 
-      querySelectorAll: function(selector, node) {
-        node = node || document;
+      querySelectorAll: function(selector) {
         return this._query(function(n) {
           return matchesSelector.call(n, selector);
-        }, node);  
+        }, this.node);  
       },
 
       _query: function(matcher, node) {
         var list = [];
-        this._queryElements(this.childNodes(node), matcher, list);
+        this._queryElements(factory(node).childNodes, matcher, list);
         return list;
       },
 
@@ -262,17 +284,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (matcher(node)) {
           list.push(node);
         }
-        this._queryElements(this.childNodes(node), matcher, list);
+        this._queryElements(factory(node).childNodes, matcher, list);
       },
 
-      destinationInsertionPoints: function(node) {
-        return node._destinationInsertionPoints ||
-          Array.prototype.slice.call(node.getDestinationInsertionPoints());;
+      getDestinationInsertionPoints: function() {
+        return this.node._destinationInsertionPoints ||
+          Array.prototype.slice.call(this.node.getDestinationInsertionPoints());
       },
 
-      distributedNodes: function(content) {
-        return content._distributedNodes ||
-          Array.prototype.slice.call(content.getDistributedNodes());
+      getDistributedNodes: function() {
+        return this.node._distributedNodes ||
+          Array.prototype.slice.call(this.node.getDistributedNodes());
       },
 
       /*
@@ -280,17 +302,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         dom children or elements distributed to children that are insertion
         points.
       */
-      queryDistributedElements: function(selector, node) {
-        if (arguments.length === 1) {
-          node = selector;
-          selector = '*';
-        }
-        var c$ = this.childNodes(node);
+      queryDistributedElements: function(selector) {
+        var c$ = this.childNodes;
         var list = [];
         this._distributedFilter(selector, c$, list);
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
           if (c.localName === CONTENT) {
-            this._distributedFilter(selector, this.distributedNodes(c), list);
+            this._distributedFilter(selector, factory(c).getDistributedNodes(),
+              list);
           }
         }
         return list;
@@ -312,16 +331,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     if (Settings.useShadow) {
 
-      DomApi.prototype.querySelectorAll = function(selector, node) {
-        node = node || document;
-        return Array.prototype.slice.call(node.querySelectorAll(selector));
+      DomApi.prototype.querySelectorAll = function(selector) {
+        return Array.prototype.slice.call(this.node.querySelectorAll(selector));
       };
+
+      DomApi.prototype.patch = function() {};
       
     }
 
     var CONTENT = 'content';
 
-    Polymer.dom = new DomApi();
+    var factory = function(node, patch) {
+      node = node || document;
+      if (!node.__domApi) {
+        node.__domApi = new DomApi(node, patch);
+      }
+      return node.__domApi;
+    }
+
+    Polymer.dom = factory;
+
+    // make flush available directly.
+    Polymer.dom.flush = DomApi.prototype.flush;
 
     function getLightChildren(node) {
       var children = node.lightChildren;
