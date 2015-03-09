@@ -116,7 +116,7 @@ var el2 = document.createElement('my-element');
 <a name="bespoke-constructor"></a>
 ## Bespoke constructor support
 
-While the standard `Polymer.Class()` and `Polymer()` functions return a basic constructor that can be used to instance the custom element, Polymer also supports providing a bespoke `constructor` function on the prototype that can, for example, accept arguments to configure the element.  In that case, the constructor should generally call `document.createElement(this.is)` to construct the element and return the element instance after constructing it.
+While the standard `Polymer.Class()` and `Polymer()` functions return a basic constructor that can be used to instance the custom element, Polymer also supports providing a bespoke `constructor` function on the prototype that can, for example, accept arguments to configure the element.  In this case, the actual constructor returned from `Polymer` will first create an instance using `document.createElement`, then invoke the user-supplied `constructor` function with `this` bound to the element instance.
 
 Example:
 
@@ -126,10 +126,8 @@ MyElement = Polymer({
   is: 'my-element',
 
   constructor: function(foo, bar) {
-    var el = document.createElement(this.is);
     el.foo = foo;
     el.configureWithBar(bar);
-    return el;
   },
 
   configureWithBar: function(bar) {
