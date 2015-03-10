@@ -408,7 +408,7 @@ Example:
 <a name="dom-api"></a>
 ## DOM API
 
-Polymer provides custom API for manipulating dom such that local DOM and light DOM trees are properly maintained.
+Polymer provides custom API for manipulating DOM such that local DOM and light DOM trees are properly maintained.
 
 **<div style="color:red">Note: All DOM manipulation must use this API, as opposed to DOM API directly on nodes.</div>**
 
@@ -425,7 +425,9 @@ The following methods are provided:
   * `Polymer.dom(node).getDestinationInsertionPoints()`
   * `Polymer.dom.flush()` - The insert, append, and remove operations are trasnacted lazily in certain cases for performance.  In order to interrogate the dom (e.g. `offsetHeight`, `getComputedStyle`, etc.) immediately after one of these operations, call `Polymer.dom.flush()` first.
 
-Calling `append`/`insertBefore` where parent is a custom Polymer element adds the node to the light DOM of the element.  In order to insert/append into the shadow root of a custom element, use `this.root` as the parent.
+Calling `append`/`insertBefore` where `parent` is a custom Polymer element adds the node to the light DOM of the element.  In order to insert/append into the shadow root of a custom element, use `this.root` as the parent.
+
+`Polymer.dom` properties and methods that return a list of nodes return an `Array`, not a `NodeList` like the standard DOM equivalent.
 
 Example:
 
@@ -440,7 +442,7 @@ Polymer.dom(this.root).insertBefore(toLocal, beforeNode);
 var allSpans = Polymer.dom(this).querySelectorAll('span');
 ```
 
-For manipulating dom in elements that themselves do not have local dom, the above api's support an extra argument which is the container `node` in which the operation should be performed.
+You can use `Polymer.dom` on any node, whether or not it has a local DOM tree:
 
 Example:
 
