@@ -64,29 +64,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // a string of scoped css where each selector is transformed to include
     // a class created from the scope. ShadowDOM selectors are also transformed
     // (e.g. :host) to use the scoping selector.
-    function transformCss(rules, scope, callback) {
+    function transformCss(rules, scope, ext, callback) {
+      var hostScope = calcHostScope(scope, ext);
       return Polymer.StyleUtil.toCssText(rules, function(rule) {
-        transformRule(rule, scope);
+        transformRule(rule, scope, hostScope);
         if (callback) {
-          callback(rule, scope);
+          callback(rule, scope, hostScope);
         }
       });
     }
 
+    function calcHostScope(scope, ext) {
+      return ext ? '[is=' +  scope + ']' : scope;
+    }
+
     // transforms a css rule to a scoped rule.
-    function transformRule(rule, scope) {
+    function transformRule(rule, scope, hostScope) {
       var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
       for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
-        p$[i] = transformComplexSelector(p, scope);
+        p$[i] = transformComplexSelector(p, scope, hostScope);
       }
       rule.selector = p$.join(COMPLEX_SELECTOR_SEP);
     }
 
-    function transformComplexSelector(selector, scope) {
+    function transformComplexSelector(selector, scope, hostScope) {
       var stop = false;
       selector = selector.replace(SIMPLE_SELECTOR_SEP, function(s) {
         if (!stop) {
-          var o = transformCompoundSelector(s, scope);
+          var o = transformCompoundSelector(s, scope, hostScope);
           if (o.stop) {
             stop = true;
           }
@@ -100,17 +105,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return selector;
     }
 
-    function transformCompoundSelector(selector, scope) {
+    function transformCompoundSelector(selector, scope, hostScope) {
       // replace :host with host scoping class
       var jumpIndex = selector.search(SCOPE_JUMP);
       if (selector.indexOf(HOST) >=0) {
-        var r = scope;
         // :host(...)
         selector = selector.replace(HOST_PAREN, function(m, host, paren) {
-          return r + paren;
+          return hostScope + paren;
         });
         // now normal :host
-        selector = selector.replace(HOST, r);
+        selector = selector.replace(HOST, hostScope);
       // replace other selectors with scoping class
       } else if (jumpIndex !== 0) {
         selector = transformSimpleSelector(selector, scope);
