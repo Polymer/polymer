@@ -56,7 +56,7 @@ Declarative data binding, events, and property nofication
 | [Read-only properties](#read-only) |  properties: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Scoped styling](#scoped-styling) | \<style> in \<dom-module>, Shadow-DOM styling rules (:host, ...)
-| [Sharing styles](#shared-styles) | styleModules: [ ... ]
+| [Sharing stylesheets](#shared-stylesheets) | styleModules: [ ... ]
 | [General polymer settings](#settings) | \<script> Polymer = { ... }; \</script>
 
 
@@ -1204,7 +1204,7 @@ Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutori
 Note: Remote stylesheets (`<link rel="stylesheet">`) are not currently supported for providing scoped styles.  This may be added in future versions.  See below for workarounds.
 
 <a name="shared-stylesheets"></a>
-### Sharing styesheets
+### Sharing stylesheets
 
 Styles can be shared between elements by defining `<dom-module>`'s containing styles to be shared, and referencing shared styles to be included in a given element by listing the `dom-module` id in an array of `styleModules`.
 
