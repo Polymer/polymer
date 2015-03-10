@@ -431,12 +431,13 @@ Example:
 
 ```js
 var toLight = document.createElement('div');
-Polymer.dom.appendChild(toLight, this);
+Polymer.dom(this).appendChild(toLight);
 
 var toLocal = document.createElement('div');
-Polymer.dom.insertBefore(toLocal, Polymer.dom.childNodes(this.root)[0], this);
+var beforeNode = Polymer.dom(this.root).childNodes[0];
+Polymer.dom(this.root).insertBefore(toLocal, beforeNode);
 
-var allSpans = Polymer.dom.querySelectorAll('span', this);
+var allSpans = Polymer.dom(this).querySelectorAll('span');
 ```
 
 For manipulating dom in elements that themselves do not have local dom, the above api's support an extra argument which is the container `node` in which the operation should be performed.
@@ -454,11 +455,11 @@ Example:
 ...
 
 var insert = document.createElement('div');
-Polymer.dom.insertBefore(insert, this.$.first, this.$.container);
+Polymer.dom(this.$.container).insertBefore(insert, this.$.first);
 
 ```
 
-Sometimes it's necessary to access the elements which have been distributed to a given `<content>` insertion point or to know to which `<content>` a given node has been distributed. The `distributedNodes` and `destinationInsertionPoints` respectively provide this information.
+Sometimes it's necessary to access the elements which have been distributed to a given `<content>` insertion point or to know to which `<content>` a given node has been distributed. The `getDistributedNodes` and `getDestinationInsertionPoints` respectively provide this information.
 
 Example:
 
@@ -474,10 +475,10 @@ Example:
 ```
 
 ```js
-var div = Polymer.dom.querySelector('div', xFoo);
-var content = xFoo.localDom.querySelector('content', xFoo);
-var distributed = Polymer.dom.distributedNodes(content)[0];
-var insertedTo = Polymer.dom.destinationInsertionPoints(div)[0];
+var div = Polymer.dom(xFoo).querySelector('div');
+var content = Polymer.dom(xFoo.root).querySelector('content');
+var distributed = Polymer.dom(content).getDistributedNodes()[0];
+var insertedTo = Polymer.dom(div).getDestinationInsertionPoints();
 
 // the following should be true:
 assert.equal(distributed, div);
