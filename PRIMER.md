@@ -1207,7 +1207,7 @@ Loading remote stylesheets is also supported. The syntax is slightly different f
 
 ```html
 <dom-module id="my-element">
-  <link rel="import" stylesheet href="my-element-style.css">
+  <link rel="import" type="css" href="my-element-style.css">
   <template>...</template>
 </dom-module>
 ```
