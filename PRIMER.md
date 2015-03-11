@@ -51,7 +51,7 @@ Declarative data binding, events, and property nofication
 | [Binding to structured data](#path-binding) | \<element prop=”{{obj.sub.path}}”>
 | [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
 | [Declarative attribute binding](#attribute-binding) | \<element attr$=”{{property\|path}}”>
-| [Reflecting properties to attributes](#attribute-reflection) | properties: \<prop>: { reflect: true } }
+| [Reflecting properties to attributes](#attribute-reflection) | properties: \<prop>: { reflectToAttribute: true } }
 | [Computed properties](#computed-properties) | computed: { \<property>: ‘function(\<property>)’ }
 | [Read-only properties](#read-only) |  properties: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
@@ -1051,7 +1051,7 @@ Again, as values must be serialized to strings when binding to attributes, it is
 <a name="attribute-reflection"></a>
 ## Reflecting properties to attributes
 
-In specific cases, it may be useful to keep an HTML attribute value in sync with a property value.  This may be achieved by setting `reflect: true` on a property in the `properties` configuration object.  This will cause any change to the property to be serialized out to an attribute of the same name.
+In specific cases, it may be useful to keep an HTML attribute value in sync with a property value.  This may be achieved by setting `reflectToAttribute: true` on a property in the `properties` configuration object.  This will cause any change to the property to be serialized out to an attribute of the same name.
 
 ```html
 <script>
@@ -1060,7 +1060,7 @@ In specific cases, it may be useful to keep an HTML attribute value in sync with
     properties: {
      response: {
         type: Object,
-        reflect: true
+        reflectToAttribute: true
      }
     },
 
