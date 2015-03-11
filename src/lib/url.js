@@ -73,6 +73,7 @@ var urlResolver = {
   }
 };
 
+var ABS_URL = /(^\/)|(^#)|(^[\w-\d]*:)/;
 var CSS_URL_REGEXP = /(url\()([^)]*)(\))/g;
 var CSS_IMPORT_REGEXP = /(@import[\s]+(?!url\())([^;]*)(;)/g;
 var URL_ATTRS = ['href', 'src', 'action', 'style', 'url'];
@@ -96,12 +97,8 @@ function replaceUrlsInCssText(cssText, baseUrl, keepAbsolute, regexp) {
 }
 
 function resolveRelativeUrl(baseUrl, url, keepAbsolute) {
-  // do not resolve '/' absolute urls
-  if (url && url[0] === '/') {
-    return url;
-  }
-  // do not resolve '#' links, they are used for routing
-  if (url && url[0] === '#') {
+  // do not resolve absolute urls
+  if (ABS_URL.test(url)) {
     return url;
   }
   var u = new URL(url, baseUrl);
