@@ -45,58 +45,62 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         prepElement.call(this, element);
       },
 
-      // TODO(sorvell): Need to decide where to place styles. If we do it
-      // outside the template, HTMLImports will load them for us and fix paths;
-      // however, ShadowDOM styles will not be properly parsed.
       _scopeCss: function() {
-        this._styles = this._prepareStyles(this._findStyles());
+        this._styles = this._prepareStyles();
         this._scopeStyles(this._styles);
       },
 
       // search for extra style modules via `styleModules`
-      _findStyles: function() {
-        var styles = [];
-        var modules = (this.styleModules || []);
-        if (modules.indexOf(this.is) < 0) {
-          modules.push(this.is);
-        }
-        for (var i=0, l=modules.length, n, m; (i<l) && (n=modules[i]); i++) {
-          m = Polymer.DomModule.import(n);
-          if (m) {
-            styles = styles.concat(Array.prototype.slice.call(
-              m._styles ? m._styles : m.querySelectorAll('style')));
+      _prepareStyles: function() {
+        var cssText = '', m$ = this.styleModules;
+        if (m$) {
+          for (var i=0, l=m$.length, m; (i<l) && (m=m$[i]); i++) {
+            cssText += this._cssFromModule(m);
           }
+        }
+        cssText += this._cssFromModule(this.is);
+        var styles = [];
+        if (cssText) {
+          var s = document.createElement('style');
+          s.textContent = cssText;  
+          styles.push(s);
         }
         return styles;
       },
 
-      // TODO(sorvell): goes away if these are in template; we need to unapply
-      // the styles from the document.
-      _prepareStyles: function(styles) {
-        var output = [];
-        for (var i=0, l=styles.length, s, m; (i<l) && (s=styles[i]); i++) {
-          // NOTE: __appliedElement is supplied by the HTMLImports polyfill
-          // and is the element in the main document used to apply styles.
-          m = s.parentNode;
-          // store styles on module for later lookup
-          if (m) {
-            m._styles = [];
-            s = s.__appliedElement || s;
-            s.parentNode.removeChild(s);
-            // TODO(sorvell): currently only needed in native since we rely
-            // on HTMLImports polyfill otherwise; if we move styles into
-            // templates, this will always be required.
-            if (Polymer.Settings.useNativeImports) {
-              s.textContent = Polymer.ResolveUrl.resolveCss(s.textContent, 
-                s.ownerDocument);
-            }
-            m._styles.push(s);
-          }
-          // TODO(sorvell): clone styles only so they can have separate parsed
-          // rulesets when shared.
-          output.push(s.cloneNode(true));
+      // returns cssText of styles in a given module; also un-applies any
+      // styles that apply to the document.
+      _cssFromModule: function(moduleId) {
+        var m = Polymer.DomModule.import(moduleId);
+        if (m && !m._cssText) {
+          var cssText = '';
+          var e$ = Array.prototype.slice.call(m.querySelectorAll('style'));
+          this._unapplyStyles(e$);
+          e$ = e$.concat(Array.prototype.map.call(
+            m.querySelectorAll(REMOTE_SHEET_SELECTOR), function(l) {
+              return l.import.body;
+            }));
+          m._cssText = this._cssFromStyles(e$);
         }
-        return output;
+        return m && m._cssText || '';
+      },
+
+      _cssFromStyles: function(styles) {
+        var cssText = '';
+        for (var i=0, l=styles.length, s; (i<l) && (s = styles[i]); i++) {
+          if (s && s.textContent) {
+            cssText += 
+              Polymer.ResolveUrl.resolveCss(s.textContent, s.ownerDocument);
+          }
+        }
+        return cssText;
+      },
+
+      _unapplyStyles: function(styles) {
+        for (var i=0, l=styles.length, s; (i<l) && (s = styles[i]); i++) {
+          s = s.__appliedElement || s;
+          s.parentNode.removeChild(s);
+        }
       },
 
       _scopeStyles: function(styles) {
@@ -143,6 +147,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     });
+
+    var REMOTE_SHEET_SELECTOR = 'link[rel=import][type~=css]';
 
   })();
 

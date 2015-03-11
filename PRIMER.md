@@ -1201,15 +1201,21 @@ Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutori
     });
 
 </script>
-
 ```
 
-Note: Remote stylesheets (`<link rel="stylesheet">`) are not currently supported for providing scoped styles.  This may be added in future versions.  See below for workarounds.
+Loading remote stylesheets is also supported. The syntax is slightly different from how stylesheets are typically loaded. This is typically convenient for developers who like to separate styles or use style pre-processing tools. 
+
+```html
+<dom-module id="my-element">
+  <link rel="import" stylesheet href="my-element-style.css">
+  <template>...</template>
+</dom-module>
+```
 
 <a name="shared-stylesheets"></a>
 ### Sharing stylesheets
 
-Styles can be shared between elements by defining `<dom-module>`'s containing styles to be shared, and referencing shared styles to be included in a given element by listing the `dom-module` id in an array of `styleModules`.
+In addition to using remote stylesheets as described above, styles can be shared between elements by defining `<dom-module>`'s containing styles to be shared, and referencing shared styles to be included in a given element by listing the `dom-module` id in an array of `styleModules`.
 
 Example:
 
