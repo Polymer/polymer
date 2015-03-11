@@ -23,15 +23,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _addAnnotatedListener: function(model, index, property, path) {
       // <node>.on.<property>-changed: <path> = e.detail.value
       //
-      var changedFn = 'this.' + path + ' = e.detail.value;';
+      var changedFn = '\tthis.' + path + ' = e.detail.value;';
       if (path.indexOf('.') > 0) {
         // TODO(kschaaf): dirty check avoids null references when the object has gone away
         changedFn = 
-          'if (this._data[\'' + path + '\'] != e.detail.value) {\n' +
-          '\t' + changedFn + '\n' +
-          '\tthis.notifyPath(\'' + path + '\', e.detail.value)\n' +
-          '}';
+          '\tif (this._data[\'' + path + '\'] != e.detail.value) {\n' +
+          '\t\t' + changedFn + '\n' +
+          '\t\tthis.notifyPath(\'' + path + '\', e.detail.value)\n' +
+          '\t}';
       }
+      changedFn = 'if (e.detail.path) {\n' +
+        '\tvar path = this._fixPath(\'' + path + '\', \'' + 
+          property + '\', e.detail.path);\n' + 
+        '\tthis.notifyPath(path, e.detail.value);\n' +
+        '} else {\n' +
+        changedFn + '\n' +
+        '}';
       //
       model._bindListeners.push({
         index: index,
@@ -172,19 +179,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
         var node = inst._nodes[info.index];
         node.addEventListener(info.property + '-changed', inst._notifyListener.bind(inst, info.changedFn));
-        // Path listeners:
-        var type = node.getPropertyType && node.getPropertyType(info.property);
-        if (type == Object || type == Array) {
-          node.addEventListener(info.property + '-path-changed', inst._notifyListener.bind(inst, function(e) {
-            // re-jigger path
-            // binding.path == item
-            // binding.property == zizz
-            // if no e.detail.path, path === binding.path
-            // else replace binding.name with binding.path in e.detail.path
-            var path = this._fixPath(info.path, info.property, e.detail.path);
-            this.notifyPath(path, e.detail.value);
-          }));
-        }
       });
     },
 
