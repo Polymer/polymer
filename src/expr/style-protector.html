@@ -1,0 +1,68 @@
+<script>
+(function() {
+
+  var styleProtector = {
+
+    scopeDocumentSheets: function() {
+      this.scopeSheets(this.getSheetsToScope());
+    },
+    
+    getSheetsToScope: function() {
+      var s$ = document.styleSheets;
+      return Array.prototype.filter.call(s$, function(s) {
+        return s.ownerNode.hasAttribute(this.SCOPE_ATTR);
+      }, this);
+    },
+
+    scopeSheets: function(sheets) {
+      for (var i=0, l=sheets.length, s; (i<l) && (s=sheets[i]); i++) {
+        this.scopeSheet(s);
+      }
+    },
+
+    scopeSheet: function(sheet) {
+      var owner = sheet.ownerNode;
+      var css = this.sheetToScopedCss(sheet);
+      if (owner.localName === 'link') {
+        var style = document.createElement('style');
+        style.textContent = css;
+        owner.parentNode.insertBefore(style, owner);
+        owner.parentNode.removeChild(owner);
+      } else {
+        owner.textContent = css;
+      }
+    },
+
+    sheetToScopedCss: function(sheet) {
+      var css = this.rulesToCss(sheet.cssRules);
+      var rules = Polymer.CssParse.parse(css);
+      var self = this;
+      Polymer.StyleUtil.forEachStyleRule(rules, function(r) {
+        r.selector = self.scopeSelector(r.selector);
+      });
+      return Polymer.CssParse.stringify(rules);
+    },
+
+    scopeSelector: function(selector) {
+      var parts = selector.split(this.SELECTOR_SEP);
+      return parts.map(function(p) {
+        return p.trim() + this.SCOPE_SELECTOR;
+      }, this).join(this.SELECTOR_SEP);
+    },
+
+    rulesToCss: function(cssRules) {
+      for (var i=0, css=[]; i < cssRules.length; i++) {
+        css.push(cssRules[i].cssText);
+      }
+      return css.join('\n\n');
+    },
+
+    SCOPE_SELECTOR: ':not([style-scope])',
+    SCOPE_ATTR: 'needs-scoping',
+    SELECTOR_SEP: ','
+  };
+
+  addEventListener('DOMContentLoaded', styleProtector.scopeDocumentSheets());
+
+})();
+</script>
