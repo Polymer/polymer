@@ -53,7 +53,8 @@ Declarative data binding, events, and property nofication
 | [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
 | [Declarative attribute binding](#attribute-binding) | \<element attr$=”{{property\|path}}”>
 | [Reflecting properties to attributes](#attribute-reflection) | properties: \<prop>: { reflectToAttribute: true } }
-| [Computed properties](#computed-properties) | computed: { \<property>: ‘function(\<property>)’ }
+| [Computed properties](#computed-properties) | computed: { \<property>: ‘computeFn(dep1, dep2)’ }
+| [Annotated computed properties](#annotated-computed) | \<span>{{computeFn(dep1, dep2)}}\</span>
 | [Read-only properties](#read-only) |  properties: { \<prop>: { readOnly: true } }
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Scoped styling](#scoped-styling) | \<style> in \<dom-module>, Shadow-DOM styling rules (:host, ...)
@@ -1151,6 +1152,45 @@ Polymer supports virtual properties whose values are calculated from other prope
 ```
 
 Note: Only direct properties of the element (as opposed to sub-properties of an object) can be used as dependencies at this time.
+
+<a name="annotated-computed"></a>
+## Annotated computed properties
+
+Anonymous computed properties may also be placed directly in template binding annotations.  This is useful when the propery need not be a part of the element's API or otherwise used by logic in the element, and is only used for downward data propagation.  Note: this is the only form of functions allowed in template bindings.
+
+Example:
+
+```html
+<dom-module id="x-custom">
+  <template>
+    My name is <span>{{computeFullName(first, last)}}</span>
+  </template>
+<dom-module id="x-custom">
+
+<script>
+  Polymer({
+
+    is: 'x-custom',
+
+    properties: {
+
+      first: String,
+
+      last: String
+      
+    },
+
+    computeFullName: function(first, last) {
+      return first + ' ' + last;
+    }
+
+    ...
+
+  });
+</script>
+```
+
+
 
 <a name="read-only"></a>
 ## Read-only properties
