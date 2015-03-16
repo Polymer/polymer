@@ -50,15 +50,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // _nodes[index][<binding.name=>]{{binding.value}}
     _bindAnnotationBinding: function(scope, binding, index) {
-      // capture the node index
-      binding.index = index;
-      // discover top-level property (model) from path
-      var path = binding.value;
-      var i = path.indexOf('.');
-      // [name=]{{model[.subpath]}}
-      var model = (i >= 0) ? path.slice(0, i) : path;
-      // add 'annotation' binding effect for property 'model'
-      Polymer.Bind.addPropertyEffect(scope, model, 'annotation', binding);
+      var computed = binding.value.match(/(\w*)\((.*)\)/);
+      if (computed) {
+        var method = computed[1];
+        var args = computed[2].split(/[^\w]+/);
+        this._bindComputedAnnotationBinding(scope, method, args, binding, index);
+      } else {
+        // capture the node index
+        binding.index = index;
+        // discover top-level property (model) from path
+        var path = binding.value;
+        var i = path.indexOf('.');
+        // [name=]{{model[.subpath]}}
+        var model = (i >= 0) ? path.slice(0, i) : path;
+        // add 'annotation' binding effect for property 'model'
+        Polymer.Bind.addPropertyEffect(scope, model, 'annotation', binding);
+      }
+    },
+
+    _bindComputedAnnotationBinding: function(scope, method, args, info, index) {
+      var property = info.name;
+      var node = 'this._nodes[' + index + ']';
+      var methodArgs = 'this._data.' + args.join(', this._data.');
+      var value = 'this.' + method + '(' + methodArgs + ')';
+      var methodString;
+      if (info.kind == 'attribute') {
+        methodString = 'this.serializeValueToAttribute(' + value + ',' + 
+          '\'' + property + '\',' + node + ');';
+      } else {
+        if (!property) {
+          property = 'textContent';
+        }
+        if (property === 'style') {
+          property = 'style.cssText';
+        }
+        methodString = node + '.' + property + ' = ' + value + ';';          
+      }
+      var debounceId = '\'_inline' + '_' + index + '_' + property + '\'';
+      methodString = 'this.debounce(' + debounceId + ', function() {\n' +
+        '\t\t' + methodString + '\n' +
+        '\t});';
+      var effect = {
+        property: property,
+        index: index,
+        args: args,
+        methodName: method,
+        methodString: methodString
+      };
+      for (var i=0; i<args.length; i++) {
+        Polymer.Bind.addPropertyEffect(scope, args[i], 'computedAnnotation', effect);
+      }
     },
 
     // concretize `_nodes` map (annotation based)
