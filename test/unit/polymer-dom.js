@@ -1,4 +1,4 @@
-suite('projection', function() {
+suite('Polymer.dom', function() {
 
   test('querySelector (local)', function() {
     var test = document.querySelector('x-test');
@@ -235,7 +235,7 @@ suite('projection', function() {
     }
   });
 
-  test('elementParent', function() {
+  test('parentNode', function() {
     var test = document.querySelector('x-test');
     var rere = Polymer.dom(test.root).querySelector('x-rereproject');
     var projected = Polymer.dom(test.root).querySelector('#projected');
@@ -262,6 +262,33 @@ suite('projection', function() {
     assert.ok(test);
     assert.notOk(rere);
     assert.notOk(projected);
+  });
+
+  test('Polymer.dom event', function() {
+    var test = document.querySelector('x-test');
+    var rere = Polymer.dom(test.root).querySelector('x-rereproject');
+    var re = Polymer.dom(rere.root).querySelector('x-reproject');
+    var p = Polymer.dom(re.root).querySelector('x-project');
+    var eventHandled = 0;
+    test.addEventListener('test-event', function(e) {
+      eventHandled++;
+      assert.equal(Polymer.dom(e).rootTarget, p);
+      assert.equal(Polymer.dom(e).localTarget, test);
+      var path = Polymer.dom(e).path;
+      assert.equal(path.length, 10);
+      assert.equal(path[0], p);
+      assert.equal(path[2], re);
+      assert.equal(path[4], rere);
+      assert.equal(path[6], test);
+    });
+
+    rere.addEventListener('test-event', function(e) {
+      eventHandled++;
+      assert.equal(Polymer.dom(e).localTarget, rere);
+    });
+
+    p.fire('test-event');
+    assert.equal(eventHandled, 2);
   });
 
 });
