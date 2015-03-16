@@ -24,7 +24,8 @@ Bare-minum Custom Element sugaring
 | [Native HTML element extension](#type-extension) | extends: ‘…’
 | [Configure properties](#property-config) | properties: { … }
 | [Attribute deserialization to property](#attribute-deserialization) | properties: { \<property>: \<Type> }
-| [Prototype Mixins](#prototype-mixins) | mixins: [ … ]
+| [Static attributes on host](#host-attributes) | hostAttributes: { \<attribute>: \<value> }
+| [Prototype mixins](#prototype-mixins) | mixins: [ … ]
 
 <a name="polymer-mini"></a>
 Template content stamped into "local DOM" and tree lifecycle
@@ -46,7 +47,7 @@ Declarative data binding, events, and property nofication
 | [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
 | [Annotated event listener setup](#annotated-listeners) | \<element on-[event]=”function”>
 | [Property change callbacks](#change-callbacks) | properties: \<prop>: { observer: ‘function’ }
-| [Declarative property binding](#property-binding) | \<element prop=”{{property\|path}}”>
+| [Annotated property binding](#property-binding) | \<element prop=”{{property\|path}}”>
 | [Property change notification](#property-notification) | properties: { \<prop>: { notify: true } }
 | [Binding to structured data](#path-binding) | \<element prop=”{{obj.sub.path}}”>
 | [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
@@ -309,6 +310,37 @@ In order to configure camel-case properties of elements using attributes, dash-c
 
 
 Note: Deserialization occurs both at create time, as well as at runtime, e.g. when the attribute is changed via `setAttribute`.  However, it is encouraged that attributes only be used for configuring properties in static markup, and instead that properties are set directly for changes at runtime.
+
+<a name="host-attributes"></a>
+## Static attributes on host
+
+If a custom elements needs HTML attributes set on it at create-time, these may be declared in a `hostAttributes` property on the prototype, where keys are the attribtue name and values are the values to be assigned.  Values should typically be provided as strings, as HTML attributes can only be strings; however, the standard `serialize` method is used to convert values to strings, so `true` will serialize to an empty attribute, and `false` will result in no attribtue set, and so forth (see [here](#attribute-serialization) for more details).
+
+Example:
+
+```html
+<script>
+
+  Polymer({
+
+    is: 'x-custom',
+
+    hostAttributes: {
+      role: 'button',
+      'aria-disabled': true
+      tabindex: 0
+    }
+
+  });
+
+</script>
+```
+
+Results in:
+
+```html
+<x-custom role="button" aria-disabled tabindex="0"></x-custom>
+```
 
 <a name="prototype-mixins"></a>
 ## Prototype mixins
@@ -742,7 +774,7 @@ Polymer({
 Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPathValue`](#set-path) API, which provides the required notification to elements with registered interest.
 
 <a name="property-binding"></a>
-## Declarative property binding
+## Annotated property binding
 
 ### Basic property binding
 
@@ -1073,7 +1105,8 @@ In specific cases, it may be useful to keep an HTML attribute value in sync with
 </script>
 ```
 
-Values will be serialized according to type: Arrays/Objects will be `JSON.stringify`'ed, booleans will result in a non-valued attribute to be either set or removed, and `Dates` and all primitive types will be serialized using the value returned from `toString`.
+<a name="attribute-serialization'></a>
+Values will be serialized according to type; by default Arrays/Objects will be `JSON.stringify`'ed, booleans will result in a non-valued attribute to be either set or removed, and `Dates` and all primitive types will be serialized using the value returned from `toString`.  The `serialize` method may be overridden to supply custom object serialization.
 
 <a name="computed-properties"></a>
 ## Computed properties
