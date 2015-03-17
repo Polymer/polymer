@@ -1,0 +1,61 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="style-util.html">
+<link rel="import" href="style-transformer.html">
+<link rel="import" href="style-defaults.html">
+
+<script>
+(function() {
+
+  Polymer({
+
+    is: 'x-style',
+    extends: 'style',
+
+    created: function() {
+      var rules = Polymer.StyleUtil.parser.parse(this.textContent);
+      this.applyProperties(rules);
+      // TODO(sorvell): since custom rules must match directly, they tend to be
+      // made with selectors like `*`.
+      // We *remove them here* so they don't apply too widely and nerf recalc.
+      // This means that normal properties mixe in rules with custom 
+      // properties will *not* apply.
+      var cssText = Polymer.StyleUtil.parser.stringify(rules);
+      this.textContent = this.scopeCssText(cssText);
+    },
+
+    scopeCssText: function(cssText) {
+      return Polymer.Settings.useNativeShadow ?
+        cssText :
+        Polymer.StyleUtil.toCssText(cssText, function(rule) {
+          Polymer.StyleTransformer.rootRule(rule);
+      });
+    },
+
+    applyProperties: function(rules) {
+      var cssText = '';
+      Polymer.StyleUtil.forEachStyleRule(rules, function(rule) {
+        if (rule.cssText.match(CUSTOM_RULE)) {
+          // TODO(sorvell): use parser.stringify, it needs an option not to
+          // strip custom properties.
+          cssText += rule.selector + ' {\n' + rule.cssText + '\n}\n';
+        }
+      });
+      if (cssText) {
+        Polymer.StyleDefaults.applyCss(cssText);
+      }
+    }
+
+  });
+
+  var CUSTOM_RULE = /--[^;{'"]*\:/;
+
+})();
+</script>

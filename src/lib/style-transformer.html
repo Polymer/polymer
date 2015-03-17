@@ -78,19 +78,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return ext ? '[is=' +  scope + ']' : scope;
     }
 
-    // transforms a css rule to a scoped rule.
     function transformRule(rule, scope, hostScope) {
+      _transformRule(rule, transformComplexSelector,
+        scope, hostScope);
+    }
+
+    // transforms a css rule to a scoped rule.
+    function _transformRule(rule, transformer, scope, hostScope) {
       var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
       for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
-        p$[i] = transformComplexSelector(p, scope, hostScope);
+        p$[i] = transformer(p, scope, hostScope);
       }
       rule.selector = p$.join(COMPLEX_SELECTOR_SEP);
     }
 
     function transformComplexSelector(selector, scope, hostScope) {
       var stop = false;
-      var o = selector;
-
       selector = selector.replace(SIMPLE_SELECTOR_SEP, function(m, c, s) {
         if (!stop) {
           var o = transformCompoundSelector(s, c, scope, hostScope);
@@ -117,7 +120,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         selector = selector.replace(HOST, hostScope);
       // replace other selectors with scoping class
       } else if (jumpIndex !== 0) {
-        selector = transformSimpleSelector(selector, scope);
+        selector = scope ? transformSimpleSelector(selector, scope) : selector;
       }
       // remove left-side combinator when dealing with ::content.
       if (selector.indexOf(CONTENT) >= 0) {
@@ -139,7 +142,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return p$.join(PSEUDO_PREFIX);
     }
 
+    function transformRootRule(rule) {
+      _transformRule(rule, transformRootSelector);
+    }
+
+    function transformRootSelector(selector) {
+      return selector.match(SCOPE_JUMP) ?
+        transformComplexSelector(selector) :
+        selector.trim() + SCOPE_ROOT_SELECTOR;
+    }
+
     var SCOPE_ATTR = 'style-scope';
+    var SCOPE_ROOT_SELECTOR = ':not([' + SCOPE_ATTR + '])';
     var SCOPE_SUFFIX = '';
     var COMPLEX_SELECTOR_SEP = ',';
     var SIMPLE_SELECTOR_SEP = /(^|[\s>+~]+)([^\s>+~]+)/g;
@@ -161,6 +175,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       dom: transformDom,
       host: transformHost,
       css: transformCss,
+      rule: transformRule,
+      rootRule: transformRootRule,
       SCOPE_SUFFIX: SCOPE_SUFFIX
     };
 
