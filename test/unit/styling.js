@@ -40,7 +40,11 @@ suite('scoped-styling', function() {
 
   test('::content selectors', function() {
     var content = document.querySelector('.content');
+    var content1 = document.querySelector('.content1');
+    var content2 = document.querySelector('.content2');
     assertComputed(content, '6px');
+    assertComputed(content1, '13px');
+    assertComputed(content2, '14px');
   });
 
   test('::shadow selectors', function() {
@@ -69,7 +73,7 @@ suite('scoped-styling', function() {
     assertComputed(specialButton, '11px');
   });
 
-  if (window.Polymer && Polymer.Settings.useNativeShadow) {
+  if (window.Polymer && !Polymer.Settings.useNativeShadow) {
 
     suite('scoped-styling-shady-only', function() {
 

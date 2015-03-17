@@ -89,23 +89,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function transformComplexSelector(selector, scope, hostScope) {
       var stop = false;
-      selector = selector.replace(SIMPLE_SELECTOR_SEP, function(s) {
+      var o = selector;
+
+      selector = selector.replace(SIMPLE_SELECTOR_SEP, function(m, c, s) {
         if (!stop) {
-          var o = transformCompoundSelector(s, scope, hostScope);
+          var o = transformCompoundSelector(s, c, scope, hostScope);
           if (o.stop) {
             stop = true;
           }
+          c = o.combinator;
           s = o.value;  
         }
-        return s;
+        return c + s;
       });
-      // collapse empty selectors and weird cases where a separator was removed
-      // leaving only '> >'
-      selector = selector.replace(WHITESPACE, ' ').replace('> >', '>');
       return selector;
     }
 
-    function transformCompoundSelector(selector, scope, hostScope) {
+    function transformCompoundSelector(selector, combinator, scope, hostScope) {
       // replace :host with host scoping class
       var jumpIndex = selector.search(SCOPE_JUMP);
       if (selector.indexOf(HOST) >=0) {
@@ -119,6 +119,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       } else if (jumpIndex !== 0) {
         selector = transformSimpleSelector(selector, scope);
       }
+      // remove left-side combinator when dealing with ::content.
+      if (selector.indexOf(CONTENT) >= 0) {
+        combinator = '';
+      }
       // process scope jumping selectors up to the scope jump and then stop
       // e.g. .zonk ::content > .foo ==> .zonk.scope > .foo
       var stop;
@@ -126,7 +130,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         selector = selector.replace(SCOPE_JUMP, ' ');
         stop = true;
       }
-      return {value: selector, stop: stop};
+      return {value: selector, combinator: combinator, stop: stop};
     }
 
     function transformSimpleSelector(selector, scope) {
@@ -138,14 +142,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var SCOPE_ATTR = 'style-scope';
     var SCOPE_SUFFIX = '';
     var COMPLEX_SELECTOR_SEP = ',';
-    var SIMPLE_SELECTOR_SEP = /([^\s>+~]+)/g;
+    var SIMPLE_SELECTOR_SEP = /(^|[\s>+~]+)([^\s>+~]+)/g;
     var HOST = ':host';
     // NOTE: this supports 1 nested () pair for things like 
     // :host(:not([selected]), more general support requires
     // parsing which seems like overkill
     var HOST_PAREN = /(\:host)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
-    var WHITESPACE = /[\s]+/g;
-    var DEEP = '/deep/';
+    var CONTENT = '::content';
     var SCOPE_JUMP = /\:\:content|\:\:shadow|\/deep\//;
     var CSS_PREFIX = '[' + SCOPE_ATTR + '=';
     var CSS_SUFFIX = ']';
