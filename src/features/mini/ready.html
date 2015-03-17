@@ -32,6 +32,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
 
   var baseAttachedCallback = Polymer.Base.attachedCallback;
+  var baseDetachedCallback = Polymer.Base.detachedCallback;
 
   Polymer.Base.addFeature({
 
@@ -47,8 +48,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     ready: function() {
     },
 
-    queryHost: function() {
-      return this.host;
+    queryHost: function(node) {
+      return this.host || this._queryHost(this);
+    },
+
+    _queryHost: function(node) {
+      return node && 
+        (node.host || (node.host = this._queryHost(Polymer.dom(node).parentNode)));
     },
 
     // 1. set this element's `host` and push this element onto the `host`'s
@@ -57,9 +63,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // any elements we stamp to easily set host to us).
     _pushHost: function() {
       this.host = Polymer.Base.hostStack[Polymer.Base.hostStack.length-1];
-      if (this.host) {
-        this.host._clients.push(this);
-      }
+      this._addToHost();
       if (!this._clients) {
         this._clients = [];
       }
@@ -73,6 +77,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _popHost: function() {
       // this element is no longer the current hosting element
       Polymer.Base.hostStack.pop();
+    },
+
+    _addToHost: function() {
+      if (!this.host) {
+        this.host = this.queryHost();
+      }
+      if (this.host) {
+        this.host._clients.push(this);
+      }
+    },
+
+    _removeFromHost: function() {
+      if (this.host) {
+        // TODO (sorvell): slow lookup, could use linked list instead
+        // since we don't need random access.
+        var i = this.host._clients.indexOf(this);
+        if (i >= 0) {
+          this.host._clients.splice(i, 1);
+        }
+        this.host = null;
+      }
     },
 
     _readyContent: function() {
@@ -126,11 +151,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // normalize lifecycle: ensure attached occurs only after ready.
     attachedCallback: function() {
+      // avoids redoing work done via creation
+      if (!this.host) {
+        this._addToHost();
+      }
       if (this._readied) {
         baseAttachedCallback.call(this);
       } else {
         this._attachedPending = true;
       }
+    },
+
+    detachedCallback: function() {
+      baseDetachedCallback.call(this);
+      this._removeFromHost();
     }
 
   });
