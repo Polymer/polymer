@@ -13,6 +13,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
  'use strict';
 
+  var async = scope.Base.async;
+
   var Gestures = {
     gestures: {},
 
@@ -152,9 +154,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     },
 
-    fire: function(target, type, detail) {
+    fire: function(target, type, detail, bubbles, cancelable) {
       return target.dispatchEvent(
-        new CustomEvent(type, {detail: detail})
+        new CustomEvent(type, {
+          detail: detail,
+          bubbles: bubbles,
+          cancelable: cancelable
+        })
       );
     }
 
@@ -232,8 +238,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   });
 
-  // dispatch a non-bubbling "tap" at each node that requested it
-  // dispatch synchronously with the native mouse or touch event
+  // dispatch a *bubbling* "tap" only at the node that is the target of the
+  // generating event.
+  // dispatch *synchronously* so that we can implement prevention of native
+  // actions like links being followed.
+  //
+  // TODO(dfreedm): a tap should not occur when there's too much movement.
+  // Right now, a tap can occur when a touchend happens very far from the
+  // generating touch.
+  // This *should* obviate the need for tapPrevented via track.
   Gestures.register({
     name: 'tap',
     deps: ['click', 'touchend'],
@@ -248,18 +261,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     forward: function(e) {
-      // prevent taps on preventDefault'd clicks
-      // track gesture should disable taps
+      // prevent taps from being generated from events that have been
+      // canceled (e.g. via cancelNextClick) or already handled via
+      // a listener lower in the tree.
       if (!e.tapPrevented) {
-        this.fire(e.currentTarget, e.target);
+        e.tapPrevented = true;
+        this.fire(e.target);
       }
     },
 
-    // fire a non-bubbling event; predictable performance ftw!
-    fire: function(target, tapTarget) {
-      return Gestures.fire(target, 'tap', {
-        tapTarget: tapTarget
-      });
+    // fire a bubbling event from the generating target.
+    fire: function(target) {
+      Gestures.fire(target, 'tap', {}, true);
     }
 
   });
