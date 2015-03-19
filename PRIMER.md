@@ -1679,7 +1679,7 @@ Example usage of `my-toolbar`:
 
 Experimental cross-platform support for custom properties is provided in Polymer by a Javascript library that approximates the capabilities of the CSS Variables specification  *for the specific use case of theming custom elements*, while also extending it to add the mixin capability described above.  **It is important to note that this is not a full polyfill**, as doing so would be prohibitively expensive; rather this is a shim that is inspired by that specification and trades off aspects of the full dynamism possible in CSS with practicality and performance.
 
-Below are current limitations of this experimental system.  Improvements to performance and dynamism will continue to be explored, with results evaluated to 
+Below are current limitations of this experimental system.  Improvements to performance and dynamism will continue to be explored. 
 
 * As this feature is still experimental, custom properties are not currently applied to elements by default.  To enable *usage* of custom properties, set an `enableCustomStyleProperties: true` property on the Polymer element prototype.
 
