@@ -1384,7 +1384,7 @@ Elements in a template can be automatically repeated and bound to array items us
     <div> Employee list: </div>
     <template is="x-repeat" items="{{employees}}">
         <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{itemlast}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
     </template>
 
   </template>
@@ -1442,7 +1442,7 @@ Keeping structured data in sync requires that Polymer understand the path associ
     <div> Employee list: </div>
     <template is="x-repeat" id="employeeList" items="{{employees}}">
         <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{itemlast}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
         <button on-click="toggleSelection">Select</button>
     </template>
     
@@ -1451,7 +1451,7 @@ Keeping structured data in sync requires that Polymer understand the path associ
     <div> Selected employees: </div>
     <template is="x-repeat" items="{{selected}}">
         <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{itemlast}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
     </template>
     
   </template>
