@@ -1,11 +1,87 @@
 <!--
 @license
-Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
 The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+
+**THIS ELEMENT IS EXPERIMENTAL.  API AND NAME SUBJECT TO CHANGE.**
+
+The `x-repeat` element is a custom `HTMLTemplateElement` type extension that
+automatically stamps and binds one instance of template content to each object
+in a user-provided array.  `x-repeat` accepts an `items` property, and one
+instance of the template is stamped for each item into the DOM at the location
+of the `x-repeat` element.  The `item` property will be set on each instance's
+binding scope, thus templates should bind to sub-properties of `item`.
+
+Example:
+
+```html
+<dom-module id="employee-list">
+
+  <template>
+
+    <div> Employee list: </div>
+    <template is="x-repeat" items="{{employees}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{itemlast}}</span></div>
+    </template>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: 'employee-list',
+      ready: function() {
+        this.employees = [
+            {first: 'Bob', last: 'Smith'},
+            {first: 'Sally', last: 'Johnson'},
+            ...
+        ];
+      }
+    });
+  </script>
+
+</dom-module>
+``` 
+
+Notifications for changes to items sub-properties will be forwarded to template 
+instances, which will update via the normal structured data notification system.
+
+Mutations to the `items` array itself (`push`, `pop`, `splice`, `shift`,
+`unshift`) are observed via `Array.observe` (where supported, or an
+shim of this API on unsupported browsers), and template instances are kept in
+sync with the data in the array.
+
+A view-specific filter/sort may be applied to each `x-repeat` by supplying a
+`filter` and/or `sort` property.  This may be a string that names a function on
+the host, or a function may be assigned to the property directly.  The functions
+should implemented following the standard `Array` filter/sort API.
+
+In order to re-run the filter or sort functions based on changes to sub-fields
+of `items`, the `observe` property may be set as a space-separated list of
+`item` sub-fields that should cause a re-filter/sort when modified.
+
+For example, for an `x-repeat` with a filter of the following:
+
+```js
+isEngineer: function(item) {
+    return item.type == 'engineer' || item.manager.type == 'engineer';
+}
+```
+
+Then the `observe` property should be configured as follows:
+
+```html
+<template is="x-repeat" items="{{employees}}" 
+          filter="isEngineer" observe="type manager.type">
+```
+
 -->
 
 <link rel="import" href="templatizer.html">
@@ -14,37 +90,64 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script>
 
-  /**
-   * Creates a pseudo-custom-element that maps property values to bindings
-   * in DOM.
-   * 
-   * `stamp` method creates an instance of the pseudo-element. The instance
-   * references a document-fragment containing the stamped and bound dom
-   * via it's `root` property. 
-   *  
-   */
-
   Polymer({
 
     is: 'x-repeat',
     extends: 'template',
 
     properties: {
+
+      /**
+       * An array containing items determining how many instances of the template
+       * to stamp and that that each template instance should bind to.
+       */
       items: {
         type: Array
       },
+
+      /**
+       * A function that should determine the sort order of the items.  This
+       * property should either be provided as a string, indicating a method
+       * name on the element's host, or else be an actual function.  The
+       * function should match the sort function passed to `Array.sort`.
+       * Using a sort function has no effect on the underlying `items` array.
+       */
       sort: {
         type: Function,
         observer: '_sortChanged'
       },
+
+      /**
+       * A function that can be used to filter items out of the view.  This
+       * property should either be provided as a string, indicating a method
+       * name on the element's host, or else be an actual function.  The
+       * function should match the sort function passed to `Array.filter`.
+       * Using a filter function has no effect on the underlying `items` array.
+       */
       filter: {
         type: Function,
         observer: '_filterChanged'
       },
+
+      /**
+       * When using a `filter` or `sort` function, the `observe` property
+       * should be set to a space-separated list of the names of item
+       * sub-fields that should trigger a re-sort or re-filter when changed.
+       * These should generally be fields of `item` that the sort or filter
+       * function depends on.
+       */
       observe: {
         type: String,
         observer: '_observeChanged'
       },
+
+      /**
+       * When using a `filter` or `sort` function, the `delay` property
+       * determines a debounce time after a change to observed item
+       * properties that must pass before the filter or sort is re-run.
+       * This is useful in rate-limiting shuffing of the view when
+       * item changes may be frequent.
+       */
       delay: Number
     },
 
@@ -363,6 +466,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    /**
+     * Returns the item associated with a given element stamped by
+     * this `x-repeat`.
+     */
     itemForElement: function(el) {
       while (el && !el._templateInstance) {
         el = el.parentNode;
@@ -370,6 +477,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return el._templateInstance.item;
     },
 
+    /**
+     * Returns the `Polymer.Collection` key associated with a given
+     * element stamped by this `x-repeat`.
+     */
     keyForElement: function(el) {
       while (el && !el._templateInstance) {
         el = el.parentNode;
@@ -377,6 +488,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return el._templateInstance.key;
     },
 
+    /**
+     * Returns the index in `items` associated with a given element
+     * stamped by this `x-repeat`.
+     */
     indexForElement: function(el) {
       while (el && !el._templateInstance) {
         el = el.parentNode;
