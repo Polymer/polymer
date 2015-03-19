@@ -1442,7 +1442,7 @@ Keeping structured data in sync requires that Polymer understand the path associ
     <div> Employee list: </div>
     <template is="x-repeat" id="employeeList" items="{{employees}}">
         <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{itemlast}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
         <button on-click="toggleSelection">Select</button>
     </template>
     
@@ -1451,7 +1451,7 @@ Keeping structured data in sync requires that Polymer understand the path associ
     <div> Selected employees: </div>
     <template is="x-repeat" items="{{selected}}">
         <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{itemlast}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
     </template>
     
   </template>
@@ -1535,7 +1535,7 @@ For the reasons above, the Polymer team is currently exploring other options for
 
 Polymer 0.8 includes a highly experimental and opt-in shim for custom CSS properties inspired by (and compatible with) the future W3C [CSS Custom Properties for Cascading Variables](http://dev.w3.org/csswg/css-variables/) specification (see [explainer on MDN here](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_variables)).
 
-Rather than exposing the details of an element's internal implementation for theming, instaed an element author would define one or more custom CSS properties as part of the element's API which it would consume to style internals of the element deemed important for themeing by the element's author.  These custom properties can be defined similar to other standard CSS properties and will inherit from the point of definition down the composed DOM tree, similar to the effect of `color` and `font-family`.
+Rather than exposing the details of an element's internal implementation for theming, instead an element author would define one or more custom CSS properties as part of the element's API which it would consume to style internals of the element deemed important for themeing by the element's author.  These custom properties can be defined similar to other standard CSS properties and will inherit from the point of definition down the composed DOM tree, similar to the effect of `color` and `font-family`.
 
 In the simple example below, the author of `my-toolbar` identified the need for users of the toolbar to be able to change the color of the toolbar title.  The author exposed a custom property called `--my-toolbar-title-color` which is assigned to the `color` property of the selector for the title element.  Users of the toolbar may define this variable in a CSS rule anywhere up the tree, and the value of the property will inherit down to the toolbar where it is used if defined, similar to other standard inheriting CSS properties.
 
@@ -1709,7 +1709,7 @@ Below are current limitations of this experimental system.  Improvements to perf
 
 * Dynamic effects are reflected at the point of a variable’s application, but not its definition.  
 
-    For the following example, adding/removing the `highlight` class on the `#title` element will have the desired effect, since the dynamism is related to *application* of a custom property.
+    For the following example, adding/removing the `highlighted` class on the `#title` element will have the desired effect, since the dynamism is related to *application* of a custom property.
 
     ```css
     #title {
@@ -1721,7 +1721,7 @@ Below are current limitations of this experimental system.  Improvements to perf
     }
     ```
     
-    However, the shim does not currently support dynamism at the point of *definition* of a custom.  In the following example, `this.updateStyles()` would be required to update the value of `--title-background` being applied to `#title` when the `highlight` class was added or removed.
+    However, the shim does not currently support dynamism at the point of *definition* of a custom property.  In the following example, `this.updateStyles()` would be required to update the value of `--title-background` being applied to `#title` when the `highlighted` class was added or removed.
     
     ```css
     #title {
