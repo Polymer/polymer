@@ -1482,7 +1482,7 @@ EXPERIMENTAL - API MAY CHANGE
 
 Polymer's binding features are only available within templates that are managed by Polymer.  As such, these features are available in templates used to define Polymer elements, for example, but not for elements placed directly in the main document.
 
-In order to use Polymer bindings without defining a new custom element, you may wrap the elements utilizing bindings with a custom template extension called `x-autobind`.  This template will immediately stamp itself into the main document
+In order to use Polymer bindings without defining a new custom element, you may wrap the elements utilizing bindings with a custom template extension called `x-autobind`.  This template will immediately stamp itself into the main document and bind elements to the template itself as the binding scope.
 
 ```html
 <!doctype html>
