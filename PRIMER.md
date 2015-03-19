@@ -1735,6 +1735,7 @@ Below are current limitations of this experimental system.  Improvements to perf
 
 <a name="x-style"></a>
 ## Custom element for document styling (x-style)
+EXPERIMENTAL - API MAY CHANGE
 
 An experimental `<style is="x-style">` custom element is provided for defining styles in the main document that can take advantage of several special features of Polymer's styling system:
 
@@ -1783,6 +1784,7 @@ Note, all features of `x-style` are available when defining styles as part of Po
 
 <a name="external-stylesheets"></a>
 ## External stylesheets
+EXPERIMENTAL - API MAY CHANGE
 
 Polymer includes an experimental feature to support loading external stylesheets that will be applied to the local DOM of an element.  This is typically convenient for developers who like to separate styles, share common styles between elements, or use style pre-processing tools.  The syntax is slightly different from how stylesheets are typically loaded, as the feature leverages HTML Imports (or the HTML Imports polyfill, where appropriate) to load the stylesheet text such that it may be properly shimmed and/or injected as an inline style.
 
@@ -1812,6 +1814,7 @@ Example:
 
 <a name="feature-layering"></a>
 ## Feature layering
+EXPERIMENTAL - API MAY CHANGE
 
 Polymer 0.8 is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extent that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
 
