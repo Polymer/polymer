@@ -909,9 +909,7 @@ In order to bind to camel-case properties of elements, dash-case should be used 
 <!-- will set <user-view>.firstName = this.managerName; -->
 ```
 
-Note that while HTML attributes are used to specify bindings, values are assigned directly to JS properties, not to the HTML attributes of the elements.
-
-Note that currently binding to `style` is a special case which results in the value being set to `style.cssText`.
+Note that while HTML attributes are used to specify bindings, values are assigned directly to JS properties, not to the HTML attributes of the elements unless specific [attribute bindings](#attribute-binding) are used.
 
 <a name="property-notification"></a>
 ### Property change notification and Two-way binding
@@ -1118,7 +1116,7 @@ Example:
 
 In the vast majority of cases, binding data to other elements should use property binding described above, where changes are propagated by setting the new value to the JavaScript property on the element.
 
-However, there may be cases where a user actually needs to set an attribute on an element, as opposed to a property.  These include when attribute selectors are used for CSS or for for interoperability with elements that require using attribute-based API.
+However, there may be cases where a user actually needs to set an attribute on an element, as opposed to a property.  These include a handful of [problematic native HTML attributes](#native-binding), when attribute selectors are used for CSS or for for interoperability with elements that require using attribute-based API.
 
 Polymer provides an alternate binding annotation syntax to make it explicit when binding values to attributes is desired by using `$=` rather than `=`.  This results in in a call to `element.setAttribute('<attr>', value);`, as opposed to `element.property = value;`.
 
@@ -1143,7 +1141,7 @@ Again, as values must be serialized to strings when binding to attributes, it is
 <a name="native-binding"></a>
 ## Binding to native element attributes
 
-There are a handful of extremely common native element attributes which can also be modified as properties.  Due to cross-browser limitations with the ability to place binding braces `{{...}}` in some of these attribute values, it is recommended to always use attribute binding (using `$=`) when binding dynamic values to these specific attributes, rather than binding to their property names.
+There are a handful of extremely common native element attributes which can also be modified as properties.  Due to cross-browser limitations with the ability to place binding braces `{{...}}` in some of these attribute values, as well as the fact that some of these attributes map to differently named JS properties, it is recommended to always use attribute binding (using `$=`) when binding dynamic values to these specific attributes, rather than binding to their property names.
 
 Normal attribute assignment to static values:
 
