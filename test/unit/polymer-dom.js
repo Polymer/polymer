@@ -275,7 +275,9 @@ suite('Polymer.dom', function() {
       assert.equal(Polymer.dom(e).rootTarget, p);
       assert.equal(Polymer.dom(e).localTarget, test);
       var path = Polymer.dom(e).path;
-      assert.equal(path.length, 10);
+      // path includes window only on more recent Shadow DOM implementations
+      // account for that here.
+      assert.ok(path.length >= 10);
       assert.equal(path[0], p);
       assert.equal(path[2], re);
       assert.equal(path[4], rere);
