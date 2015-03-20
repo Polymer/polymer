@@ -36,13 +36,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var self = this;
         this.node.appendChild = function(node) {
           return self.appendChild(node);
-        }
+        };
         this.node.insertBefore = function(node, ref_node) {
           return self.insertBefore(node, ref_node);
-        }
+        };
         this.node.removeChild = function(node) {
           return self.removeChild(node);
-        }
+        };
       },
 
       get childNodes() {
@@ -162,29 +162,69 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      replaceChild: function(node, ref_node) {
+        this.insertBefore(node, ref_node);
+        this.removeChild(ref_node);
+      },
+
+      _getOwnerShadyRoot: function() {
+        return this._ownerShadyRootForNode(this.node);
+      },
+
+      _ownerShadyRootForNode: function(node) {
+        if (node._ownerShadyRoot === undefined) {
+          var root;
+          if (node._isShadyRoot) {
+            root = node;
+          } else if (node.host) {
+            root = node.host.shadyRoot;
+          } else {
+            var parent = Polymer.dom(node).parentNode;
+            if (parent) {
+              root = parent._isShadyRoot ? parent : 
+                this._ownerShadyRootForNode(parent);
+            } else {
+             root = null;
+            }
+          }
+          node._ownerShadyRoot = root;
+        }
+        return node._ownerShadyRoot;
+        
+      },
+
       _maybeDistribute: function(node, parent, host) {
+        var nodeNeedsDistribute = this._nodeNeedsDistribution(node);
         var distribute = this._parentNeedsDistribution(parent) ||
-          this._nodeNeedsDistribution(node);
+          nodeNeedsDistribute;
+        if (nodeNeedsDistribute) {
+          this._updateInsertionPoints(host);
+        }
         if (distribute) {
           this._lazyDistribute(host);
         }
         return distribute;
       },
 
+      _updateInsertionPoints: function(host) {
+        host.shadyRoot._insertionPoints =
+          factory(host.shadyRoot).querySelectorAll(CONTENT);
+      }, 
+
       _nodeIsInLogicalTree: function(node) {
         return Boolean(node._isShadyRoot ||
-          node._ownerShadyRoot ||
+          this._getOwnerShadyRoot(node) ||
           node.shadyRoot);
       },
 
       _hostForNode: function(node) {
         var root = node.shadyRoot || (node._isShadyRoot ? 
-          node : node._ownerShadyRoot);
+          node : this._getOwnerShadyRoot(node));
         return root && root.host;
       },
 
       _parentNeedsDistribution: function(parent) {
-        return parent.shadyRoot && parent.shadyRoot._hasInsertionPoint;
+        return parent.shadyRoot && hasInsertionPoint(parent.shadyRoot);
       },
 
       // TODO(sorvell): technically we should check non-fragment nodes for 
@@ -235,7 +275,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         children.splice(index, 1);
         node.lightParent = null;
         // TODO(sorvell): need to clear any children of element?
-        node._ownerShadyRoot = null;
+        node._ownerShadyRoot = undefined;
       },
 
       _addRootToChildren: function(children, root) {
@@ -354,7 +394,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node.__domApi = new DomApi(node, patch);
       }
       return node.__domApi;
-    }
+    };
 
     Polymer.dom = function(obj, patch) {
       if (obj instanceof Event) {
@@ -390,6 +430,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    function hasInsertionPoint(root) {
+      return Boolean(root._insertionPoints.length);
+    }
+
     var p = Element.prototype;
     var matchesSelector = p.matches || p.matchesSelector ||
         p.mozMatchesSelector || p.msMatchesSelector ||
@@ -399,6 +443,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       getLightChildren: getLightChildren,
       saveLightChildrenIfNeeded: saveLightChildrenIfNeeded,
       matchesSelector: matchesSelector,
+      hasInsertionPoint: hasInsertionPoint,
       factory: factory
     };
 
