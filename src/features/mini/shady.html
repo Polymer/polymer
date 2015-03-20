@@ -23,6 +23,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _prepContent: function() {
         // Use this system iff localDom is needed.
         this._useContent = this._useContent || Boolean(this._template);
+        if (this._useContent) {
+          this._template._hasInsertionPoint =
+            this._template.content.querySelector('content');
+        }
       },
 
       // called as part of content initialization, prior to template stamping
@@ -43,6 +47,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _createLocalRoot: function() {
         this.shadyRoot = this.root;
         this.shadyRoot._isShadyRoot = true;
+        // capture insertion point list
+        // TODO(sorvell): it's faster to do this via native qSA than annotator.
+        this.shadyRoot._insertionPoints = this._template._hasInsertionPoint ?
+          this.shadyRoot.querySelectorAll('content') : [];
+        // save logical tree info for shadyRoot.
+        saveLightChildrenIfNeeded(this.shadyRoot);
         this.shadyRoot.host = this;
       },
 
@@ -66,7 +76,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _beginDistribute: function() {
-        if (this._useContent) {
+        if (this._useContent && hasInsertionPoint(this.shadyRoot)) {
           // reset distributions
           this._resetDistribution(this.shadyRoot);
           // compute which nodes should be distributed where
@@ -79,8 +89,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _finishDistribute: function() {
         // compose self
         if (this._useContent) {
-          this._composeTree(this);
-        } else {
+          if (hasInsertionPoint(this.shadyRoot)) {
+            this._composeTree();
+          } else {
+            if (!this.shadyRoot._hasDistributed) {
+              this.textContent = '';
+              this.appendChild(this.shadyRoot);  
+            } else {
+              // simplified non-tree walk composition
+              var children = this._composeNode(this);
+              this._updateChildNodes(this, children);
+            }
+          }
+          this.shadyRoot._hasDistributed = true;
+        } else if (this.root !== this) {
+          this.appendChild(this.root);
           this.root = this;
         }
         this._distributionClean = true;
@@ -100,15 +123,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // included here as "protected" methods to allow overriding.
 
       _resetDistribution: function(node) {
+        // light children
         var children = getLightChildren(node);
         for (var i = 0; i < children.length; i++) {
           var child = children[i];
-          if (isInsertionPoint(child)) {
-            child._distributedNodes = [];
-          } else if (child._destinationInsertionPoints) {
+          if (child._destinationInsertionPoints) {
             child._destinationInsertionPoints = undefined;
           }
-          this._resetDistribution(child);
+        }
+        // insertion points
+        var p$ = node._insertionPoints;
+        for (var j = 0; j < p$.length; j++) {
+          p$[j]._distributedNodes = [];
         }
       },
 
@@ -132,52 +158,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // instead elements are distributed into a `content._distributedNodes`
       // array where applicable.
       _distributePool: function(node, pool) {
-        // TODO(sorvell): is this the best place to set this?
-        node._ownerShadyRoot = this.shadyRoot;
-        var children;
-        if (isInsertionPoint(node)) {
-          this.shadyRoot._hasInsertionPoint = true;
-          // distribute nodes from the pool that this selector matches
-          var content = node;
-          var anyDistributed = false;
-          for (var i = 0; i < pool.length; i++) {
-            node = pool[i];
-            // skip nodes that were already used
-            if (!node) {
-              continue;
-            } 
-            // distribute this node if it matches
-            if (this._matchesContentSelect(node, content)) {
-              distributeNodeInto(node, content);
-              // remove this node from the pool
-              pool[i] = undefined;
-              // since at least one node matched, we won't need fallback content
-              anyDistributed = true;
-              var parent = content.lightParent;
-              if (parent && parent.shadyRoot && 
-                parent.shadyRoot._hasInsertionPoint) {
-                //console.warn('marked dirty', this.is);
-                parent._distributionClean = false;
-              }
+        var p$ = node._insertionPoints;
+        for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
+          this._distributeInsertionPoint(p, pool);
+        }
+      },
+
+      _distributeInsertionPoint: function(content, pool) {
+        // distribute nodes from the pool that this selector matches
+        var anyDistributed = false;
+        for (var i=0, l=pool.length, node; i < l; i++) {
+          node=pool[i];
+          // skip nodes that were already used
+          if (!node) {
+            continue;
+          } 
+          // distribute this node if it matches
+          if (this._matchesContentSelect(node, content)) {
+            distributeNodeInto(node, content);
+            // remove this node from the pool
+            pool[i] = undefined;
+            // since at least one node matched, we won't need fallback content
+            anyDistributed = true;
+            var parent = content.lightParent;
+            // dirty a shadyRoot if a change may trigger reprojection!
+            if (parent && parent.shadyRoot && 
+              hasInsertionPoint(parent.shadyRoot)) {
+              parent._distributionClean = false;
             }
           }
-          // Fallback content if nothing was distributed here
-          if (!anyDistributed) {
-            children = getLightChildren(content);
-            for (var i = 0; i < children.length; i++) {
-              distributeNodeInto(children[i], content);
-            }
+        }
+        // Fallback content if nothing was distributed here
+        if (!anyDistributed) {
+          children = getLightChildren(content);
+          for (var j = 0; j < children.length; j++) {
+            distributeNodeInto(children[j], content);
           }
-          return true;
         }
-        // recursively distribute.
-        children = getLightChildren(node);
-        var hasInsertionPoint;
-        for (var i = 0; i < children.length; i++) {
-          hasInsertionPoint = this._distributePool(children[i], pool) ||
-            hasInsertionPoint;
-        }
-        return hasInsertionPoint;
       },
 
       // returns a list of elements that support content distribution
@@ -188,16 +205,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // Reify dom such that it is at its correct rendering position
       // based on logical distribution.
-      _composeTree: function(node) {
-        var children = this._composeNode(node);
-        for (var i = 0; i < children.length; i++) {
-          var child = children[i];
-          // If the child has a content root, let it compose itself.
-          if (!child._useContent) {
-            this._composeTree(child);
+      _composeTree: function() {
+        this._updateChildNodes(this, this._composeNode(this));
+        var p$ = this.shadyRoot._insertionPoints;
+        for (var i=0, l=p$.length, p, parent; (i<l) && (p=p$[i]); i++) {
+          var parent = p.lightParent || p.parentNode;
+          if (!parent._useContent && (parent !== this) && 
+            (parent !== this.shadyRoot)) {
+            this._updateChildNodes(parent, this._composeNode(parent));
           }
         }
-        this._updateChildNodes(node, children);
       },
 
       // Returns the list of nodes which should be rendered inside `node`.
@@ -286,6 +303,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var saveLightChildrenIfNeeded = Polymer.DomApi.saveLightChildrenIfNeeded;
     var getLightChildren = Polymer.DomApi.getLightChildren;
     var matchesSelector = Polymer.DomApi.matchesSelector;
+    var hasInsertionPoint = Polymer.DomApi.hasInsertionPoint;
 
     function distributeNodeInto(child, insertionPoint) {
       insertionPoint._distributedNodes.push(child);
