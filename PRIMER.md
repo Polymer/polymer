@@ -1256,7 +1256,7 @@ Note: Only direct properties of the element (as opposed to sub-properties of an 
 <a name="annotated-computed"></a>
 ## Annotated computed properties
 
-Anonymous computed properties may also be placed directly in template binding annotations.  This is useful when the propery need not be a part of the element's API or otherwise used by logic in the element, and is only used for downward data propagation.  Note: this is the only form of functions allowed in template bindings.
+Anonymous computed properties may also be placed directly in template binding annotations.  This is useful when the property need not be a part of the element's API or otherwise used by logic in the element, and is only used for downward data propagation.  Note: this is the only form of functions allowed in template bindings.
 
 Example:
 
