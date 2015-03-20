@@ -1892,7 +1892,7 @@ Current limitations that are on the backlog for evaluation/improvement are liste
 
 ## Structured data and path notification
 
-To notify non-bound structured data changes changes, use `setPathValue` and `notifyPath`:
+To notify non-bound structured data changes, use `setPathValue` and `notifyPath`:
 
 ```js
 this.setPathValue('user.manager', 'Matt');
