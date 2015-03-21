@@ -1518,7 +1518,7 @@ EXPERIMENTAL - API MAY CHANGE
 
 Shadow DOM (and its approximation via Shady DOM) bring much needed benefits of scoping and style encapsulation to web development, making it safer and easier to reason about the effects of CSS on parts of your application.  Styles do not leak into the local DOM from above, and styles do not leak from one local DOM into the local DOM of other elements inside.
 
-This is great for *protecting* scopes from unwanted style leakage.  But what about when you intentionally want to *customize* the style of a custom element's local DOM, as the user of an element?  This often comes up under the umbrella of "theming".  For example a "custom-checkbox" element that may interally use a `.checked` class can protect itself from being affected by CSS from other components that may also happen to use a `.checked` class.  However, as the user of the checkbox you may wish to intentionally change the color of the check to match your product's branding, for example.  The same "protection" that Shadow DOM provides at the same time introduces a practical barrier to "theming" use cases.
+This is great for *protecting* scopes from unwanted style leakage.  But what about when you intentionally want to *customize* the style of a custom element's local DOM, as the user of an element?  This often comes up under the umbrella of "theming".  For example a "custom-checkbox" element that may interally use a `.checked` class can protect itself from being affected by CSS from other components that may also happen to use a `.checked` class.  However, as the user of the checkbox you may wish to intentionally change the color of the check to match your product's branding, for example.  The "protection" that Shadow DOM provides at the same time introduces a practical barrier to "theming" use cases.
 
 One solution the Shadow DOM spec authors provided to address the theming problem are the `/deep/` and `::shadow` combinators, which allow writing rules that pierce through the Shadow DOM encapsulation boundary.  Although Polymer 0.5 promoted this mechanism for theming, it was ultimately unsatisfying for several reasons: 
 
@@ -1533,7 +1533,7 @@ For the reasons above, the Polymer team is currently exploring other options for
 
 Polymer 0.8 includes a highly experimental and opt-in shim for custom CSS properties inspired by (and compatible with) the future W3C [CSS Custom Properties for Cascading Variables](http://dev.w3.org/csswg/css-variables/) specification (see [explainer on MDN here](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_variables)).
 
-Rather than exposing the details of an element's internal implementation for theming, instead an element author would define one or more custom CSS properties as part of the element's API which it would consume to style internals of the element deemed important for themeing by the element's author.  These custom properties can be defined similar to other standard CSS properties and will inherit from the point of definition down the composed DOM tree, similar to the effect of `color` and `font-family`.
+Rather than exposing the details of an element's internal implementation for theming, instead an element author would define one or more custom CSS properties as part of the element's API which it would consume to style internals of the element deemed important for theming by the element's author.  These custom properties can be defined similar to other standard CSS properties and will inherit from the point of definition down the composed DOM tree, similar to the effect of `color` and `font-family`.
 
 In the simple example below, the author of `my-toolbar` identified the need for users of the toolbar to be able to change the color of the toolbar title.  The author exposed a custom property called `--my-toolbar-title-color` which is assigned to the `color` property of the selector for the title element.  Users of the toolbar may define this variable in a CSS rule anywhere up the tree, and the value of the property will inherit down to the toolbar where it is used if defined, similar to other standard inheriting CSS properties.
 
@@ -1605,7 +1605,7 @@ The `--my-toolbar-title-color` property will only affect the color of the title 
 
 Thus, custom CSS properties introduce a powerful way for element authors to expose a theming API to their users in a way that naturally fits right alongside normal CSS styling and avoids the problems with `/deep/` and `::shadow`, and is already on a standards track with shipping implementation by Mozilla and planned support by Chrome.
 
-However, it may be tedious (or impossible) for an element author to anticipate and expose every possible CSS property that may be important for theming an element as individual CSS properties (for example, what if a user needed to ajust the `opacity` of the toolbar title?).  For this reason, the custom properties shim included in Polymer includes an experimental extension allowing a bag of CSS properties to be defined as a custom property and allowing all properties in the bag to be applied to a specific CSS rule in an element's local DOM.  For this, we introduce a `mixin` capability that is analogous to `var`, but allows an entire bag of properties to be mixed in.
+However, it may be tedious (or impossible) for an element author to anticipate and expose every possible CSS property that may be important for theming an element as individual CSS properties (for example, what if a user needed to adjust the `opacity` of the toolbar title?).  For this reason, the custom properties shim included in Polymer includes an experimental extension allowing a bag of CSS properties to be defined as a custom property and allowing all properties in the bag to be applied to a specific CSS rule in an element's local DOM.  For this, we introduce a `mixin` capability that is analogous to `var`, but allows an entire bag of properties to be mixed in.
 
 Example:
 
@@ -1616,15 +1616,15 @@ Example:
     :host {
       padding: 4px;
       background-color: gray;
-      mixin(--my-toolbar-theme)
+      mixin(--my-toolbar-theme);
     }
     .title {
-      mixin(--my-stopwatch-title-theme)
+      mixin(--my-stopwatch-title-theme);
     }
   </style>
   
   <template>
-    <span class=".title">{{title}}</span>
+    <span class="title">{{title}}</span>
   </template>
   
   ...
@@ -1763,7 +1763,7 @@ Example:
     }
     
     /* Custom properties that inherit down the document tree may be defined */
-    body {
+    * {
       --my-toolbar-title-color: green;
     }
     
