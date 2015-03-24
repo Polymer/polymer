@@ -407,7 +407,7 @@ Example: `my-element.html`
 <a name="template-stamping"></a>
 ## Template stamping into local DOM
 
-We call the dom which an element is in charge of creating an managing its `local DOM`. This is distinct from the element's children which are sometimes called its `light DOM` for clarity.
+We call the dom which an element is in charge of creating and managing its `local DOM`. This is distinct from the element's children which are sometimes called its `light DOM` for clarity.
 
 When native Shadow DOM is used, "local DOM" is actually contained in a shadow root.  When the Shady DOM system is used, "local DOM" is a virtual notion maintained by Polymer with similar semantics to Shadow DOM.  Polymer normalizes these two systems via a common API, such that you can always think about the "local DOM" and "light DOM" trees in the same way regardless of the underlying implementation.
 
