@@ -186,6 +186,7 @@
   var importQueue = [];
   var mainQueue = [];
   var readyCallbacks = [];
+  var numberOfErrorImportsProcessed = 0;
 
   function queueForElement(element) {
     return document.contains(element) ? mainQueue : importQueue;
@@ -198,8 +199,14 @@
   function whenReady(callback) {
     queue.waitToReady = true;
     Polymer.endOfMicrotask(function() {
-      HTMLImports.whenReady(function() {
-        queue.addReadyCallback(callback);
+      HTMLImports.whenReady(function(args) {
+	  
+        if(args != undefined && args != null && args.errorImports.constructor === Array) {
+		  args.errorImports.length == numberOfErrorImportsProcessed ? queue.addReadyCallback(callback) : numberOfErrorImportsProcessed++;				
+		}
+		else {
+		  queue.addReadyCallback(callback);
+		}
         queue.waitToReady = false;
         queue.check();
     });
