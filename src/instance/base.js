@@ -39,9 +39,9 @@
      *     }
      *
      * @method job
-     * @param String {String} job A string identifier for the job to debounce.
+     * @param string {string} job A string identifier for the job to debounce.
      * @param Function {Function} callback A function that is called (with `this` context) when the wait time elapses.
-     * @param Number {Number} wait Time in milliseconds (ms) after the last signal that must elapse before invoking `callback`
+     * @param number {number} wait Time in milliseconds (ms) after the last signal that must elapse before invoking `callback`
      * @type Handle
      */
     job: function(job, callback, wait) {
@@ -388,7 +388,7 @@
    * 
    * @method isBase
    * @param Object {Object} object Object to test.
-   * @type Boolean
+   * @type boolean
    */
   function isBase(object) {
     return object.hasOwnProperty('PolymerBase')

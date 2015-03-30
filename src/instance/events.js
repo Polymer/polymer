@@ -65,9 +65,9 @@
    * 
    * @method addEventListener
    * @param {Node} node node on which to listen
-   * @param {String} eventType name of the event
+   * @param {string} eventType name of the event
    * @param {Function} handlerFn event handler function
-   * @param {Boolean} capture set to true to invoke event capturing
+   * @param {boolean} capture set to true to invoke event capturing
    * @type Function
    */
   // alias PolymerGestures event listener logic
@@ -82,9 +82,9 @@
    * 
    * @method removeEventListener
    * @param {Node} node node on which to listen
-   * @param {String} eventType name of the event
+   * @param {string} eventType name of the event
    * @param {Function} handlerFn event handler function
-   * @param {Boolean} capture set to true to invoke event capturing
+   * @param {boolean} capture set to true to invoke event capturing
    * @type Function
    */
   scope.removeEventListener = function(node, eventType, handlerFn, capture) {
