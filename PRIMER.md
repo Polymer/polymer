@@ -455,7 +455,8 @@ Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutori
       background: yellow;
     }
     /* styling elements distributed to content (via ::content) requires */
-    /* using a wrapper element for compatibility with shady DOM         */
+    /* selecting the parent of the <content> element for compatibility with */
+    /* shady DOM . This can be :host or a wrapper element. */
     .content-wrapper > ::content .special {
       background: orange;
     }
@@ -1619,7 +1620,7 @@ Example:
       mixin(--my-toolbar-theme);
     }
     .title {
-      mixin(--my-stopwatch-title-theme);
+      mixin(--my-toolbar-title-theme);
     }
   </style>
   
