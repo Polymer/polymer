@@ -20,32 +20,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       model._clearPath = this._clearPath;
     },
 
-    _addAnnotatedListener: function(model, index, property, path) {
+    _addAnnotatedListener: function(model, index, property, path, event) {
       // <node>.on.<property>-changed: <path> = e.detail.value
       //
-      var changedFn = '\t\tthis.' + path + ' = e.detail.value;';
+      var value = 'target.' + property;
+      var changedFn = '\t\tthis.' + path + ' = ' + value + ';';
       if (path.indexOf('.') > 0) {
         // TODO(kschaaf): dirty check avoids null references when the object has gone away
         changedFn = 
-          '\tif (this._data[\'' + path + '\'] != e.detail.value) {\n' +
+          '\tif (this._data[\'' + path + '\'] != ' + value + ') {\n' +
           '\t\t' + changedFn + '\n' +
-          '\t\tthis.notifyPath(\'' + path + '\', e.detail.value)\n' +
+          '\t\tthis.notifyPath(\'' + path + '\', ' + value + ')\n' +
           '\t}';
       }
       changedFn = 
-        'if (e.detail.path) {\n' +
-        '\tvar path = this._fixPath(\'' + path + '\', \'' + 
+        'if (!e.path || e.path[0] == target) {\n' +
+        '\tif (e.detail && e.detail.path) {\n' +
+        '\t\tvar path = this._fixPath(\'' + path + '\', \'' + 
           property + '\', e.detail.path);\n' + 
-        '\tthis.notifyPath(path, e.detail.value);\n' +
-        '} else {\n' +
+        '\t\tthis.notifyPath(path, e.detail.value);\n' +
+        '\t} else {\n' +
         changedFn + '\n' +
+        '\t}' +
         '}';
       //
       model._bindListeners.push({
         index: index,
-        property: property,
         path: path,
-        changedFn: new Function('e', changedFn)
+        changedFn: new Function('e', 'target', changedFn),
+        event: event || (Polymer.CaseMap.camelToDashCase(property) + '-changed')
       });
     },
 
@@ -180,7 +183,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // <node>.on.<property>-changed: <path]> = e.detail.value
         //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
         var node = inst._nodes[info.index];
-        node.addEventListener(info.property + '-changed', inst._notifyListener.bind(inst, info.changedFn));
+        node.addEventListener(info.event, inst._notifyListener.bind(inst, info.changedFn));
       });
     },
 
