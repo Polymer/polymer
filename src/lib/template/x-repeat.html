@@ -102,7 +102,8 @@ Then the `observe` property should be configured as follows:
        * to stamp and that that each template instance should bind to.
        */
       items: {
-        type: Array
+        type: Array,
+        observer: '_itemsChanged'
       },
 
       /**
@@ -155,10 +156,6 @@ Then the `observe` property should be configured as follows:
       Polymer.Templatizer
     ],
 
-    observers: {
-      'items.*': '_itemsChanged'
-    },
-
     created: function() {
       this.boundCollectionObserver = this.render.bind(this);
     },
@@ -193,19 +190,14 @@ Then the `observe` property should be configured as follows:
         this.observe.replace('.*', '.').split(' ');
     },
 
-    _itemsChanged: function(items, old, path) {
-      if (path) {
-        this._notifyElement(path, items);
-        this._checkObservedPaths(path);
-      } else {
-        if (old) {
-          this._unobserveCollection(old);
-        }
-        if (items) {
-          this._observeCollection(items);
-          this.debounce('render', this.render);
-        }
-      }          
+    _itemsChanged: function(items, old) {
+      if (old) {
+        this._unobserveCollection(old);
+      }
+      if (items) {
+        this._observeCollection(items);
+        this.debounce('render', this.render);
+      }
     },
 
     _checkObservedPaths: function(path) {
@@ -265,6 +257,7 @@ Then the `observe` property should be configured as follows:
         }
         row.item = item;
         row.key = key;
+        row.index = i;
         rowForKey[key] = i;
       }
       // Remove extra
@@ -448,16 +441,55 @@ Then the `observe` property should be configured as follows:
       return row;
     },
 
-    _forwardProp: function(prop) {
+    _forwardParentProp: function(prop) {
       if (this.rows) {
         this.rows.forEach(function(row) {
-          row[prop] = this[prop];
+          var val = this['_parent_' + prop];
+          row.parent[prop] = val;
+          row.notifyPath('parent.' + prop, val, true);
+        }, this);        
+      }
+    },
+
+    _forwardParentPath: function(path, value) {
+      if (this.rows) {
+        this.rows.forEach(function(row) {
+          row.notifyPath('parent.' + path, value, true);
         }, this);        
       }
     },
 
     _notifyDelegatePath: function(row, path, value) {
-      this.notifyPath(path.replace('item', 'items.' + row.key), value);
+      // 'parent.foo.bar.baz'
+      // p[1] = 'parent'
+      // p[2] = 'foo.bar.baz'
+      // p[3] = 'foo'
+      var p = path.match(/([^.]*)\.(([^.]*).*)/);
+      switch (p[1]) {
+        case 'item':
+          this.notifyPath(path.replace('item', 'items.' + row.key), value);
+          break;
+        case 'parent':
+          if (p[2] == p[3]) {
+            this.host[p[2]] = value;
+          } else {
+            this.host.notifyPath(p[2], value);
+          }
+          break;
+      }
+    },
+
+    notifyPath: function(path, value, fromAbove) {
+      var prop = path.substring(0, path.indexOf('.'));
+      if (prop == 'item') {
+        this._notifyElement(path, value);
+      } else {
+        if (prop.indexOf('_parent_') === 0) {
+          this._forwardParentPath(path.substring(8), value);
+        } else {
+          Polymer.Base.notifyPath.apply(this, arguments);
+        }
+      }
     },
 
     _notifyElement: function(path, value) {

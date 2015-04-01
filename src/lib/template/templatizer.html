@@ -35,6 +35,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.customPrepAnnotations(archetype, template);
       // setup accessors
       archetype._prepEffects();
+      // forward parent properties to archetype
+      this._prepParentProperties(archetype);
       // late-binds archetype.listen to host.listen; h.l doesn't exist yet
       archetype.listen = function() { 
         this.listen.apply(this, arguments);
@@ -65,16 +67,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         archetype._template = template;
         var c = template._content;
         if (c) {
-          var contentHost = archetype.contentHost;
-          if (contentHost) {
-            Polymer.Annotations.prepElement = 
-              contentHost._prepElement.bind(contentHost);
-            this._createForwardBindings();
-          }
-          archetype._annotes = c._annotes ||
-            Polymer.Annotations.parseAnnotations(template);
-          c._annotes = archetype._annotes;
-          Polymer.Annotations.prepElement = null;
+          archetype._annotes = c._annotes;
+          archetype._parentProps = c._parentProps;
         } 
         else {
           console.warn('no _content');
@@ -85,29 +79,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _createForwardBindings: function() {
-      if (this._forwardProp) {
-        // inner nested x-repeat host isn't the outer x-repeat! argh...
-        var tidx = this.host._nodes.lastIndexOf(this);
-        var bindings = this.host._annotes.filter(function(o) {
-          return o.bindings[0] && o.bindings[0].index == tidx;
-        })[0].bindings.filter(function(b) {
-          return b.name != 'items';
-        });
-        this._forwardProps = bindings.map(function(b) {
-          return b.name;
-        });
-        this._forwardListenerProps = bindings.filter(function(b) {
-          return Polymer.Bind._shouldAddListener(b);
-        }).map(function(b) {
-          return b.name;
-        });
-        var fx = bindings.reduce(function(f, b) { 
-          f[b.name] = ['this._forwardProp(\'' + b.name + '\')'];
-          return f;
-        }, {});
-        for (var n in fx) {
-          Polymer.Bind._bindPropertyEffects(this, n, fx[n]);
+    _prepParentProperties: function(archetype) {
+      if (this._forwardParentProp) {
+        if (this._parentProps = archetype._parentProps) {
+          for (var prop in this._parentProps) {
+            Polymer.Bind._bindPropertyEffects(this, '_parent_' + prop,
+              ['this._forwardParentProp(\'' + prop + '\')']);
+          }
         }
       }
     },
@@ -133,9 +111,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     stamp: function(model) {
-      model = Polymer.Base.extend(this._forwardProps.reduce(function(m, p) {
-        m[p] = this[p]; return m;
-      }.bind(this), {}), model);
+      if (model) {
+        model.parent = model.parent || {};
+        for (var prop in this._parentProps) {
+          model.parent[prop] = this['_parent_' + prop];
+        }
+      }
       return new this.ctor(model);
     }
 

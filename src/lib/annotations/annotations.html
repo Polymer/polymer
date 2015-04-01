@@ -141,13 +141,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (node.localName === 'template') {
             // TODO(sjmiles): simply altering the .content reference didn't
             // work (there was some confusion, might need verification)
+            var bindings = [];
             var content = document.createDocumentFragment();
+            content._annotes = this.parseAnnotations(node);
+            // Special-case treatment of 'parent.*' props for nested templates
+            // Automatically bind `prop` on host to `_parent_prop` on template
+            // for any `parent.prop`'s encountered in template binding; it is
+            // responsibility of the template implementation to forward
+            // these properties as appropriate
+            var parentProps = content._parentProps = {};
+            content._annotes.forEach(function(n) {
+              n.bindings.forEach(function(b) {
+                var m;
+                if (m = b.value.match(/parent\.([^.]*)/)) {
+                  var prop = m[1];
+                  if (!parentProps[prop]) {
+                    parentProps[prop] = true;
+                    bindings.push({
+                      index: i,
+                      kind: 'property',
+                      mode: '{',
+                      name: '_parent_' + prop,
+                      value: prop
+                    });
+                  }
+                }
+              });
+            });
             content.appendChild(node.content);
             // TODO(sjmiles): using `nar` to avoid unnecessary allocation;
             // in general the handling of these arrays needs some cleanup 
             // in this module
             list.push({
-              bindings: Polymer.nar,
+              bindings: bindings,
               events: Polymer.nar,
               templateContent: content,
               parent: annote,
