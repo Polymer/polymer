@@ -1,0 +1,115 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="templatizer.html">
+
+<script>
+
+  /**
+   * Stamps the template iff the `if` property is truthy.
+   *
+   * When `if` becomes falsey, the stamped content is hidden but not
+   * removed from dom. When `if` subsequently becomes truthy again, the content
+   * is simply re-shown. This approach is used due to its favorable performance
+   * characteristics: the expense of creating template content is paid only 
+   * once and lazily.
+   *
+   * Set the `restamp` property to true to force the stamped content to be
+   * created / destroyed when the `if` condition changes.
+   */
+  Polymer({
+
+    is: 'x-if',
+    extends: 'template',
+
+    properties: {
+
+      'if': {
+        type: Boolean
+      },
+
+      item: {
+        type: Object
+      },
+
+      restamp: {
+        type: Boolean
+      }
+
+    },
+
+    mixins: [
+      Polymer.Templatizer
+    ],
+
+    observers: {
+      'if item restamp': 'render'
+    },
+
+    render: function() {
+      if (!this.ctor) {
+        this._wrapTextNodes(this._content);
+        this.templatize(this);
+      }
+      if (this.if) {
+        this._ensureInstance();
+      } else if (this.restamp) {
+        this._teardownInstance();
+      }
+      if (!this.restamp && this._instance) {
+        this._showHideInstance(this.if);
+      }
+    },
+
+    _ensureInstance: function() {
+      if (!this._instance) {
+        // TODO(sorvell): pickup stamping logic from x-repeat
+        this._instance = this.stamp(this.item);
+        var root = this._instance.root;
+        this._instance._children = Array.prototype.slice.call(root.childNodes);
+        // TODO(sorvell): this incantation needs to be simpler.
+        var parent = Polymer.dom(Polymer.dom(this).parentNode);
+        parent.insertBefore(root, this);
+      }
+    },
+
+    _teardownInstance: function() {
+      if (this._instance) {
+        var parent = Polymer.dom(Polymer.dom(this).parentNode);
+        this._instance._children.forEach(function(n) {
+          parent.removeChild(n);
+        });
+        this._instance = null;
+      }
+    },
+
+    _wrapTextNodes: function(root) {
+      // wrap text nodes in span so they can be hidden.
+      for (var n = root.firstChild; n; n=n.nextSibling) {
+        if (n.nodeType === Node.TEXT_NODE) {
+          var s = document.createElement('span');
+          root.insertBefore(s, n);
+          s.appendChild(n);
+          n = s;
+        }
+      }
+    },
+
+    _showHideInstance: function(showing) {
+      this._instance._children.forEach(function(n) {
+        if (n.setAttribute) {
+          this.serializeValueToAttribute(!showing, 'hidden', n);
+        }
+      }, this);
+    }
+
+  });
+
+</script>
