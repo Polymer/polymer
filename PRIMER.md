@@ -1919,8 +1919,8 @@ Current limitations that are on the backlog for evaluation/improvement are liste
       `<div class$="{{classes}}">`
     * Otherwise, `this.classList.add/remove` from change handlers
 * CSS inline-style binding:
-    * May bind entire inline style from one property to `style` _property_:
-      `<div style="{{styles}}">`
+    * May bind entire inline style from one property to `style` _attribute_:
+      `<div style$="{{styles}}">`
     * Otherwise, assign `this.style.props` from change handlers
 
 ## Structured data and path notification
