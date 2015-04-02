@@ -1041,6 +1041,38 @@ Example 5: Error / non-sensical state
 <custom-element prop="[[value]]"></custom-element>
 ```
 
+### Custom notify event and binding to native elements
+
+As mentioned above, Polymer uses an event naming convention to achieve two-way binding.  The act of two-way binding to a property using `target-prop={{hostProp}}` syntax results in Polymer adding a `<target-prop>-changed` event listener to the element by default.  All properties of a Polymer element with `notify: true` send events using this convention to notify of changes.
+
+In order to two-way bind to native elements or non-Polymer elements that do not follow this event naming convention when notifying changes, you may specify a custom event name in the curley braces, delimited with `::`.
+
+Example:
+
+```html
+<!-- Listens for `input` event and sets hostValue to <input>.value -->
+<input value="{{hostValue::input}}">
+
+<!-- Listens for `change` event and sets hostChecked to <input>.checked -->
+<input type="checkbox" checked="{{hostChecked::change}}">
+
+<!-- Listens for `timeupdate ` event and sets hostTime to <video>.currentTime -->
+<video url="..." current-time="{{hostTime::timeupdate}}">
+```
+
+Note: When binding to standard notifying properties on Polymer elements, specifying the event name is unnecessary, as the default convention will be used.  The following constructions are equivalent:
+
+```html
+
+<!-- Listens for `value-changed` event -->
+<my-element value="{{hostValue::value-changed}}">
+
+<!-- Listens for `value-changed` event using Polymer convention by default -->
+<my-element value="{{hostValue}}">
+
+```
+
+
 <a name="path-binding"></a>
 ### Binding to structured data
 
