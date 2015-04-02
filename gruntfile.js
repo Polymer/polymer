@@ -7,11 +7,13 @@
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
 module.exports = function(grunt) {
+  'use strict';
   var readManifest = require('../tools/loader/readManifest.js');
-  var Polymer = readManifest('build.json');
+  // var Polymer = readManifest('build.json');
   var banner = grunt.file.read('banner.txt') + '// @version <%= buildversion %>\n';
 
   grunt.initConfig({
+    pkg: grunt.file.readJSON('package.json'),
     'wct-test': {
       local: {
         options: {remote: false},
@@ -86,7 +88,39 @@ module.exports = function(grunt) {
         }
       }
     },
-    pkg: grunt.file.readJSON('package.json')
+    jshint: {
+      options: {
+        eqeqeq: true,
+        noarg: true,
+        quotmark: 'single',
+        undef: true,
+        unused: 'vars',
+        strict: true,
+        reporter: require('jshint-stylish')
+      },
+      server: {
+        options: {
+          node: true
+        },
+        src: ['*.js', 'conf/**/*.js']
+      },
+      client: {
+        options: {
+          browser: true,
+          extract: 'auto',
+          globals: {
+            Polymer: true,
+            WebComponents: true,
+            PolymerGestures: true,
+            PolymerExpressions: true,
+            CustomElements: true,
+            DOMTokenList: true
+          }
+        },
+        src: ['*.html',
+              'src/**/*.js']
+      }
+    }
   });
 
   grunt.loadTasks('../tools/tasks');
@@ -96,10 +130,11 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-uglify');
   grunt.loadNpmTasks('grunt-audit');
   grunt.loadNpmTasks('grunt-string-replace');
+  grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('web-component-tester');
 
   grunt.registerTask('default', ['minify']);
-  grunt.registerTask('minify', ['version', 'string-replace', 'concat', 'uglify', 'copy', 'clean-bower', 'audit']);
+  grunt.registerTask('minify', ['jshint:server', 'version', 'string-replace', 'concat', 'uglify', 'copy', 'clean-bower', 'audit']);
   grunt.registerTask('test', ['wct-test:local']);
   grunt.registerTask('test-remote', ['wct-test:remote']);
   grunt.registerTask('test-buildbot', ['test']);

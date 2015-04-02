@@ -64,7 +64,7 @@
   var prototypesByName = {};
 
   function registerPrototype(name, prototype) {
-    return prototypesByName[name] = prototype || {};
+    return (prototypesByName[name] = prototype || {});
   }
 
   function getRegisteredPrototype(name) {

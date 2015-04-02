@@ -8,10 +8,11 @@
  */
 
 (function(scope) {
+  'use strict';
 
   // imports
 
-  var log = window.WebComponents ? WebComponents.flags.log : {};
+  // var log = window.WebComponents ? WebComponents.flags.log : {};
   var api = scope.api.instance.events;
   var EVENT_PREFIX = api.EVENT_PREFIX;
 
@@ -37,7 +38,7 @@
     },
     addAttributeDelegates: function(delegates) {
       // for each attribute
-      for (var i=0, a; a=this.attributes[i]; i++) {
+      for (var i=0, a; (a=this.attributes[i]); i++) {
         // does it have magic marker identifying it as an event delegate?
         if (this.hasEventPrefix(a.name)) {
           // if so, add the info to delegates

@@ -8,6 +8,7 @@
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
 
+/*global mocha: true */
 mocha.setup({
   ui:'tdd',
   slow: 1000,
