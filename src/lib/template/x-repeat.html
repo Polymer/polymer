@@ -102,8 +102,7 @@ Then the `observe` property should be configured as follows:
        * to stamp and that that each template instance should bind to.
        */
       items: {
-        type: Array,
-        observer: '_itemsChanged'
+        type: Array
       },
 
       /**
@@ -156,6 +155,10 @@ Then the `observe` property should be configured as follows:
       Polymer.Templatizer
     ],
 
+    observers: {
+      'items.*': '_itemsChanged'
+    },
+
     created: function() {
       this.boundCollectionObserver = this.render.bind(this);
     },
@@ -190,13 +193,18 @@ Then the `observe` property should be configured as follows:
         this.observe.replace('.*', '.').split(' ');
     },
 
-    _itemsChanged: function(items, old) {
-      if (old) {
-        this._unobserveCollection(old);
-      }
-      if (items) {
-        this._observeCollection(items);
-        this.debounce('render', this.render);
+    _itemsChanged: function(items, old, path) {
+      if (path) {
+        this._notifyItemChanged(path, items);
+        this._checkObservedPaths(path);
+      } else {
+        if (old) {
+          this._unobserveCollection(old);
+        }
+        if (items) {
+          this._observeCollection(items);
+          this.debounce('render', this.render);
+        }        
       }
     },
 
@@ -443,20 +451,9 @@ Then the `observe` property should be configured as follows:
     // Implements extension point from Templatizer
     // Called as a side effect of a template instance path change, responsible 
     // for notifying items.<key-for-row>.<path> change up to host
-    _handleInstancePath: function(row, root, subPath, value) {
+    _forwardInstancePath: function(row, root, subPath, value) {
       if (root == 'item') {
         this.notifyPath('items.' + row.key + '.' + subPath, value);
-      }
-    },
-
-    // Implements extension point from Templatizer
-    // Called as a side effect of a host path change, and performs actions
-    // required when items.* changes (notify specific row & check observed
-    // paths), then calls Templatizer to check for parent path changes
-    _handleParentPath: function(path, value) {
-      if (path.indexOf('items.') === 0) {
-        this._notifyItemChanged(path, value);
-        this._checkObservedPaths(path);
       }
     },
 
