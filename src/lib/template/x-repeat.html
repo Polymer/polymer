@@ -425,8 +425,7 @@ Then the `observe` property should be configured as follows:
 
     _generateRow: function(idx, item) {
       var row = this.stamp({
-        item: item,
-        pathDelegate: this
+        item: item
       });
       // each row is a document fragment which is lost when we appendChild,
       // so we have to track each child individually
@@ -441,6 +440,29 @@ Then the `observe` property should be configured as follows:
       return row;
     },
 
+    // Implements extension point from Templatizer
+    // Called as a side effect of a template instance path change, responsible 
+    // for notifying items.<key-for-row>.<path> change up to host
+    _handleInstancePath: function(row, root, subPath, value) {
+      if (root == 'item') {
+        this.notifyPath('items.' + row.key + '.' + subPath, value);
+      }
+    },
+
+    // Implements extension point from Templatizer
+    // Called as a side effect of a host path change, and performs actions
+    // required when items.* changes (notify specific row & check observed
+    // paths), then calls Templatizer to check for parent path changes
+    _handleParentPath: function(path, value) {
+      if (path.indexOf('items.') === 0) {
+        this._notifyItemChanged(path, value);
+        this._checkObservedPaths(path);
+      }
+    },
+
+    // Implements extension point from Templatizer mixin
+    // Called as side-effect of a host property change, responsible for
+    // notifying parent.<prop> path change on each row
     _forwardParentProp: function(prop) {
       if (this.rows) {
         this.rows.forEach(function(row) {
@@ -451,6 +473,9 @@ Then the `observe` property should be configured as follows:
       }
     },
 
+    // Implements extension point from Templatizer
+    // Called as side-effect of a host path change, responsible for
+    // notifying parent.<path> path change on each row
     _forwardParentPath: function(path, value) {
       if (this.rows) {
         this.rows.forEach(function(row) {
@@ -459,38 +484,9 @@ Then the `observe` property should be configured as follows:
       }
     },
 
-    _notifyDelegatePath: function(row, path, value) {
-      // 'parent.foo.bar.baz'
-      // p[1] = 'parent'
-      // p[2] = 'foo.bar.baz'
-      // p[3] = 'foo'
-      var p = path.match(/([^.]*)\.(([^.]*).*)/);
-      switch (p[1]) {
-        case 'item':
-          this.notifyPath(path.replace('item', 'items.' + row.key), value);
-          break;
-        case 'parent':
-          if (p[2] == p[3]) {
-            this.host[p[2]] = value;
-          } else {
-            this.host.notifyPath(p[2], value);
-          }
-          break;
-      }
-    },
-
-    notifyPath: function(path, value, fromAbove) {
-      var prop = path.substring(0, path.indexOf('.'));
-      if (prop == 'items') {
-        this._notifyElement(path, value);
-        this._checkObservedPaths(path);
-      } else if (prop.indexOf('_parent_') === 0) {
-        this._forwardParentPath(path.substring(8), value);
-      }
-      Polymer.Base.notifyPath.apply(this, arguments);
-    },
-
-    _notifyElement: function(path, value) {
+    // Called as a side effect of a host items.<key>.<path> path change,
+    // responsible for notifying item.<path> changes to row for key
+    _notifyItemChanged: function(path, value) {
       if (this._rowForKey) {
         // 'items.'.length == 6
         var dot = path.indexOf('.', 6);

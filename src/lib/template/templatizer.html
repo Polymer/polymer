@@ -23,6 +23,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (template._content._ctor) {
         this.ctor = template._content._ctor;
         //console.log('Templatizer.templatize: using memoized archetype');
+        // forward parent properties to archetype
+        this._prepParentProperties(this.ctor.prototype._parentProps);
         return;
       }
       // `archetype` is the prototype of the anonymous
@@ -36,7 +38,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // setup accessors
       archetype._prepEffects();
       // forward parent properties to archetype
-      this._prepParentProperties(archetype);
+      this._prepParentProperties(archetype._parentProps);
       // late-binds archetype.listen to host.listen; h.l doesn't exist yet
       archetype.listen = function() { 
         this.listen.apply(this, arguments);
@@ -79,23 +81,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _prepParentProperties: function(archetype) {
+    _prepParentProperties: function(parentProps) {
       if (this._forwardParentProp) {
-        if (this._parentProps = archetype._parentProps) {
-          for (var prop in this._parentProps) {
-            Polymer.Bind._bindPropertyEffects(this, '_parent_' + prop,
+        if (this._parentProps = parentProps) {
+          for (var prop in parentProps) {
+            var parentProp = '_parent_' + prop;
+            var val = this[parentProp];
+            Polymer.Bind._bindPropertyEffects(this, parentProp,
               ['this._forwardParentProp(\'' + prop + '\')']);
+            this._setData(parentProp, val);
           }
         }
       }
     },
 
-    _notifyPathImpl: function() {
-      var pd = this.pathDelegate;
-      if (pd) {
-        var args = Array.prototype.slice.call(arguments);
-        args.unshift(this);
-        pd._notifyDelegatePath.apply(pd, args);
+    _notifyPathImpl: function(path, value) {
+      var p = path.match(/([^.]*)\.(([^.]*).*)/);
+                          // 'root.sub.path'
+      var root = p[1];    // 'root'
+      var sub = p[3];     // 'sub'
+      var subPath = p[2]; // 'sub.path'
+      // Notify host of parent.* path/property changes
+      var host = this._host;
+      if (root == 'parent') {
+        if (sub == subPath) {
+          host.host[sub] = value;
+        } else {
+          host.host.notifyPath(subPath, value);
+        }        
+      }
+      // Extension point for Templatizer sub-classes
+      if (host._handleInstancePath) {
+        host._handleInstancePath.call(host, this, root, subPath, value);
+      }
+    },
+
+    // Implements extension point from Base notify-path module
+    _pathChanged: function(path, value, fromAbove) {
+      if (this._forwardParentPath) {
+        if (path.indexOf('_parent_') === 0) {
+          this._forwardParentPath(path.substring(8), value);
+        }
+      }
+      // Extension point for Templatizer sub-classes
+      if (this._handleParentPath) {
+        this._handleParentPath(path, value);
       }
     },
 
@@ -111,11 +141,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     stamp: function(model) {
-      if (model) {
+      model = model || {};
+      // TODO(kschaaf): temporary workaround to have the correct "binding" host
+      model._host = this;
+      if (this._parentProps) {
         model.parent = model.parent || {};
         for (var prop in this._parentProps) {
           model.parent[prop] = this['_parent_' + prop];
-        }
+        }        
       }
       return new this.ctor(model);
     }
