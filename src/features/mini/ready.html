@@ -48,56 +48,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     ready: function() {
     },
 
-    queryHost: function(node) {
-      return this.host || this._queryHost(this);
+    /**
+      Returns the host of the local dom in which this element exists.
+      This is a shorthand for Polymer.dom(this).getOwnerRoot().host
+    */
+    get host() {
+      return this._host || (this._host = this._queryHost());
     },
 
     _queryHost: function(node) {
-      return node && 
-        (node.host || (node.host = this._queryHost(Polymer.dom(node).parentNode)));
+      var ownerRoot = Polymer.dom(this).getOwnerRoot();
+      return ownerRoot && ownerRoot.host;
     },
 
+    // NOTE: The concept of 'host' is overloaded. There are two different
+    // notions:
+    // 1. an element hosts the elements in its local dom root.
+    // 2. an element hosts the elements on which it configures data.
+    // Practially, these notions are almost always coincident.
+    // Some special elements like templates may separate them.
+    // In order not to over-emphaisize this technical difference, we expose 
+    // one concept to the user and it maps to the dom-related meaning of host.
+    //
     // 1. set this element's `host` and push this element onto the `host`'s
     // list of `client` elements
     // 2. establish this element as the current hosting element (allows 
     // any elements we stamp to easily set host to us).
-    _pushHost: function() {
-      this.host = Polymer.Base.hostStack[Polymer.Base.hostStack.length-1];
-      this._addToHost();
-      if (!this._clients) {
-        this._clients = [];
+    _pushHost: function(host) {
+      this._host = host = host || 
+        Polymer.Base.hostStack[Polymer.Base.hostStack.length-1];
+      if (host && host._clients) {
+        host._clients.push(this);
       }
       this._beginHost();
     },
 
     _beginHost: function() {
       Polymer.Base.hostStack.push(this);
+      if (!this._clients) {
+        this._clients = [];
+      }
     },
 
     _popHost: function() {
       // this element is no longer the current hosting element
       Polymer.Base.hostStack.pop();
-    },
-
-    _addToHost: function() {
-      if (!this.host) {
-        this.host = this.queryHost();
-      }
-      if (this.host) {
-        this.host._clients.push(this);
-      }
-    },
-
-    _removeFromHost: function() {
-      if (this.host) {
-        // TODO (sorvell): slow lookup, could use linked list instead
-        // since we don't need random access.
-        var i = this.host._clients.indexOf(this);
-        if (i >= 0) {
-          this.host._clients.splice(i, 1);
-        }
-        this.host = null;
-      }
     },
 
     _readyContent: function() {
@@ -118,14 +113,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // send data configuration signal
       this._configure();
       // now fully prepare localChildren
-      var c$ = this._getDistributionClients();
+      var c$ = this._clients;
       for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
         c._initializeContent();
       }
       // perform actual dom composition
       this._finishDistribute();
+      // ensure elements are attached if they are in the dom at ready time
+      // helps normalize attached ordering between native and polyfill ce.
+      // TODO(sorvell): worth perf cost? ~6%
+      // if (!Polymer.Settings.useNativeCustomElements) {
+      //   CustomElements.takeRecords();
+      // }
       // send ready signal
       this._ready();
+      // reset _host as it needs to be established by local dom after data
+      // configuration
+      this._host = null;
+      this._clients = null;
     },
 
     // calls `configure`
@@ -151,10 +156,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // normalize lifecycle: ensure attached occurs only after ready.
     attachedCallback: function() {
-      // avoids redoing work done via creation
-      if (!this.host) {
-        this._addToHost();
-      }
       if (this._readied) {
         baseAttachedCallback.call(this);
       } else {
@@ -163,8 +164,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     detachedCallback: function() {
+      // uncache host so it will be calculated again.
+      this._host = null;
       baseDetachedCallback.call(this);
-      this._removeFromHost();
     }
 
   });

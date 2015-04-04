@@ -163,7 +163,7 @@ Then the `observe` property should be configured as follows:
       this.boundCollectionObserver = this.render.bind(this);
     },
 
-    attached: function() {
+    ready: function() {
       // Templatizing (generating the instance constructor) needs to wait
       // until attached, since it may not have its template content handed
       // back to it until then, following its host template stamping
@@ -258,11 +258,12 @@ Then the `observe` property should be configured as follows:
       this.rows = this.rows || [];
       for (var i=0; i<keys.length; i++) {
         var key = keys[i];
+        var item = c.getItem(key);
         var row = this.rows[i];
         if (!row) {
-          this.rows.push(row = this._insertRow(i));
+          this.rows.push(row = this._insertRow(i, null, item));
         }
-        row.item = c.getItem(key);
+        row.item = item;
         row.key = key;
         rowForKey[key] = i;
       }
@@ -419,8 +420,8 @@ Then the `observe` property should be configured as follows:
       return row;
     },
 
-    _insertRow: function(idx, pool) {
-      var row = (pool && pool.pop()) || this._generateRow(idx);
+    _insertRow: function(idx, pool, item) {
+      var row = (pool && pool.pop()) || this._generateRow(idx, item);
       var beforeRow = this.rows[idx];
       var beforeNode = beforeRow ? beforeRow._children[0] : this;
       var parentNode = Polymer.dom(this).parentNode;
@@ -429,8 +430,9 @@ Then the `observe` property should be configured as follows:
       return row;
     },
 
-    _generateRow: function(idx) {
+    _generateRow: function(idx, item) {
       var row = this.stamp({
+        item: item,
         pathDelegate: this
       });
       // each row is a document fragment which is lost when we appendChild,
@@ -468,15 +470,20 @@ Then the `observe` property should be configured as follows:
       }
     },
 
+    _instanceForElement: function(el) {
+      while (el && !el._templateInstance) {
+        el = el.parentNode;
+      }
+      return el._templateInstance;
+    },
+
     /**
      * Returns the item associated with a given element stamped by
      * this `x-repeat`.
      */
     itemForElement: function(el) {
-      while (el && !el._templateInstance) {
-        el = el.parentNode;
-      }
-      return el._templateInstance && el._templateInstance.item;
+      var instance = this._instanceForElement(el);
+      return instance && instance.item;
     },
 
     /**
@@ -484,10 +491,8 @@ Then the `observe` property should be configured as follows:
      * element stamped by this `x-repeat`.
      */
     keyForElement: function(el) {
-      while (el && !el._templateInstance) {
-        el = el.parentNode;
-      }
-      return el._templateInstance && el._templateInstance.key;
+      var instance = this._instanceForElement(el);
+      return instance && instance.key;
     },
 
     /**
@@ -495,10 +500,8 @@ Then the `observe` property should be configured as follows:
      * stamped by this `x-repeat`.
      */
     indexForElement: function(el) {
-      while (el && !el._templateInstance) {
-        el = el.parentNode;
-      }
-      return this.rows.indexOf(el._templateInstance);
+      var instance = this._instanceForElement(el);
+      return this.rows.indexOf(instance);
     }
 
   });
