@@ -14,21 +14,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
   (function() {
     
+    var baseAttachedCallback = Polymer.Base.attachedCallback;
+
     // TODO(sorvell): consider if calculating properties and applying
     // styles with properties should be separate modules.
     Polymer.Base.addFeature({
 
-      // compute style properties top-down so that values can be inherited
-      // easily from host.
-      _beforeConfigure: function() {
-        if (this.enableCustomStyleProperties) {
+      attachedCallback: function() {
+        baseAttachedCallback.call(this);
+        if (this.enableCustomStyleProperties && !this._scopeSelector) {
           this._updateOwnStyles();
         }
       },
 
       _updateOwnStyles: function() {
-        this._styleProperties = this._computeStyleProperties();
-        this.applyStyleProperties(this._styleProperties);
+        if (this.enableCustomStyleProperties) {
+          this._styleProperties = this._computeStyleProperties();
+          this.applyStyleProperties(this._styleProperties);
+        }
       },
 
       _computeStyleProperties: function() {
@@ -53,6 +56,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.simpleMixin(props,
           this._customPropertiesFromStyles(styles, this.host));
         return props;
+        
       },
 
       _computeOwnStyleProperties: function() {
@@ -130,7 +134,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           } else if (Polymer.Settings.useNativeShadow) {
             this._applyCustomCss(style.textContent);
           }
-          if (style.textContent && !Polymer.Settings.useNativeShadow) {
+          if (style.textContent /*&& !Polymer.Settings.useNativeShadow*/) {
             this.setAttribute(XSCOPE_ATTR, this._scopeSelector);
           }
         }
@@ -201,7 +205,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (v) {
             var parts = v.split(' ');
             for (var i=0, p; i < parts.length; i++) {
-              p = props[parts[i].trim()]
+              p = props[parts[i].trim()];
               if (p) {
                 output += '\t' + this._propertyToCss(p);
               }
@@ -233,7 +237,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       updateStyles: function() {
         this._updateOwnStyles();
-        var c$ = this._getDistributionClients();
+        // TODO(sorvell): temporary way to find local dom that needs 
+        // x-scope styling.
+        var c$ = Polymer.dom(this.root).querySelectorAll('[x-style-scope]');
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
           if (c.updateStyles) {
             c.updateStyles();

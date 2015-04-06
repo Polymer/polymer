@@ -28,6 +28,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // `archetype` is the prototype of the anonymous
       // class created by the templatizer 
       var archetype = Object.create(Polymer.Base);
+      archetype.host = this;
+      archetype.contentHost = this._getContentHost();
       // normally Annotations.parseAnnotations(template) but
       // archetypes do special caching
       this.customPrepAnnotations(archetype, template);
@@ -37,18 +39,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       archetype.listen = function() { 
         this.listen.apply(this, arguments);
       }.bind(this.host);
-      /*
-      var host = this.host;
-      archetype.listen = function() {
-        host.listen.apply(host, arguments);
-      };
-      */
+
       // boilerplate code
       archetype._notifyPath = this._notifyPathImpl;
       // boilerplate code
       var _constructor = this._constructorImpl;
-      var ctor = function TemplateInstance(model, host) {
-        _constructor.call(this, model, host);
+      var ctor = function TemplateInstance(model) {
+        _constructor.call(this, model);
       };
       // standard references
       ctor.prototype = archetype;
@@ -59,14 +56,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.ctor = ctor;
     },
 
+    _getContentHost: function() {
+      return (this.host && this.host.contentHost) || this.host;
+    },
+
     customPrepAnnotations: function(archetype, template) {
       if (template) {
         archetype._template = template;
         var c = template._content;
         if (c) {
-          if (this.host) {
+          var contentHost = archetype.contentHost;
+          if (contentHost) {
             Polymer.Annotations.prepElement = 
-              this.host._prepElement.bind(this.host);
+              contentHost._prepElement.bind(contentHost);
           }
           archetype._annotes = c._annotes ||
             Polymer.Annotations.parseAnnotations(template);
@@ -91,26 +93,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _constructorImpl: function(model, host) {
+    _constructorImpl: function(model) {
       this._setupConfigure(model);
-      this.host = host;
-      if (this.host) {
-        this.host._beginHost();
-      }
+      this._pushHost(this.host);
       this.root = this.instanceTemplate(this._template);
-      if (this.host) {
-        this.host._popHost();
-      }
-      this._marshalTemplateContent();
+      this._popHost();
       this._marshalAnnotatedNodes();
       this._marshalInstanceEffects();
       this._marshalAnnotatedListeners();
-      this._ready();
+      this._readyContent();
     },
 
     stamp: function(model) {
-      return new this.ctor(model, this.host);
+      return new this.ctor(model);
     }
+
+    // TODO(sorvell): note, using the template as host is ~5-10% faster if 
+    // elements have no default values.
+    // _constructorImpl: function(model, host) {
+    //   this._setupConfigure(model);
+    //   host._beginHost();
+    //   this.root = this.instanceTemplate(this._template);
+    //   host._popHost();
+    //   this._marshalTemplateContent();
+    //   this._marshalAnnotatedNodes();
+    //   this._marshalInstanceEffects();
+    //   this._marshalAnnotatedListeners();
+    //   this._ready();
+    // },
+
+    // stamp: function(model) {
+    //   return new this.ctor(model, this.host);
+    // }
+    
 
   };
 

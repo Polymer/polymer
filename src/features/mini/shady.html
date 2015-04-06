@@ -47,6 +47,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _createLocalRoot: function() {
         this.shadyRoot = this.root;
         this.shadyRoot._isShadyRoot = true;
+        this.shadyRoot._dirtyRoots = [];
         // capture insertion point list
         // TODO(sorvell): it's faster to do this via native qSA than annotator.
         this.shadyRoot._insertionPoints = this._template._hasInsertionPoint ?
@@ -57,20 +58,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _distributeContent: function() {
-        // logically distribute self
-        if (!this._distributionClean) {
+        if (this._useContent && !this._distributionClean) {
+          // logically distribute self
           this._beginDistribute();
-        }
-        // TODO(sorvell): consider having a 'dirtyList' of elements to distribute
-        // now fully distribute/compose "clients"
-        var c$ = this._getDistributionClients();
-        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
-          // only dirtied via reprojection
-          if (!c._distributionClean) {
-            c._distributeContent();
-          }
-        }
-        if (!this._distributionClean) {
+          this._distributeDirtyRoots();
           this._finishDistribute();
         }
       },
@@ -84,6 +75,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // ShadowRoot per host and no `<shadow>`.
           this._distributePool(this.shadyRoot, this._collectPool());
         }
+      },
+
+      _distributeDirtyRoots: function() {
+        var c$ = this.shadyRoot._dirtyRoots;
+        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
+          c._distributeContent();
+        }
+        this.shadyRoot._dirtyRoots = [];
       },
 
       _finishDistribute: function() {
@@ -102,9 +101,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
           this.shadyRoot._hasDistributed = true;
-        } else if (this.root !== this) {
-          this.appendChild(this.root);
-          this.root = this;
         }
         this._distributionClean = true;
       },
@@ -185,6 +181,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             if (parent && parent.shadyRoot &&
               hasInsertionPoint(parent.shadyRoot)) {
               parent._distributionClean = false;
+              this.shadyRoot._dirtyRoots.push(parent);
             }
           }
         }
@@ -195,12 +192,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             distributeNodeInto(children[j], content);
           }
         }
-      },
-
-      // returns a list of elements that support content distribution
-      // within this element's local dom.
-      _getDistributionClients: function() {
-        return this._clients;
       },
 
       // Reify dom such that it is at its correct rendering position

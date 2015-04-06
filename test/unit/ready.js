@@ -16,22 +16,4 @@ suite('ready', function() {
     assert.deepEqual(readyList, ready);
   });
 
-  test('element.host set/unset via attach/detach', function() {
-    clearTestLists();
-    var xReady = document.body.appendChild(document.createElement('x-ready'));
-    CustomElements.takeRecords(document);
-    document.body.removeChild(xReady);
-    CustomElements.takeRecords(document);
-    assert.notOk(xReady.host);
-    assert.notOk(xReady.$.a.host);
-    assert.notOk(xReady.$.foo.host);
-    assert.notOk(xReady.$.foo.$.bar1.host);
-    document.body.appendChild(xReady);
-    CustomElements.takeRecords(document);
-    assert.notOk(xReady.host);
-    assert.equal(xReady.$.a.host, xReady);
-    assert.equal(xReady.$.foo.host, xReady);
-    assert.equal(xReady.$.foo.$.bar1.host, xReady.$.foo);
-  });
-
 });
