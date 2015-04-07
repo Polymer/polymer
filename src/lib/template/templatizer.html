@@ -13,6 +13,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.Templatizer = {
 
     templatize: function(template) {
+      this._templatized = template;
       // TODO(sjmiles): supply _alternate_ content reference missing from root
       // templates (not nested). `_content` exists to provide content sharing
       // for nested templates.
@@ -64,6 +65,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return (this.host && this.host.contentHost) || this.host;
     },
 
+    _getAllStampedChildren: function(children) {
+      children = children || [];
+      if (this._getStampedChildren) {
+        var c$ = this._getStampedChildren();
+        for (var i=0, c; c = c$[i]; i++) {
+          children.push(c);
+          if (c._getAllStampedChildren) {
+            c._getAllStampedChildren(children);
+          }
+        }
+      }
+      return children;
+    },
+
     customPrepAnnotations: function(archetype, template) {
       if (template) {
         archetype._template = template;
@@ -83,13 +98,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _prepParentProperties: function(parentProps) {
       if (this._forwardParentProp) {
+        if (this._templatized != this) {
+          // templatized template is probably not a Polymer.Base...
+          Polymer.Bind.prepareModel(this._templatized);
+          Polymer.Bind.prepareInstance(this._templatized);
+          this._templatized._forwardParentProp =
+            this._forwardParentProp.bind(this);
+        }
         if (this._parentProps = parentProps) {
           for (var prop in parentProps) {
             var parentProp = '_parent_' + prop;
-            var val = this[parentProp];
-            Polymer.Bind._bindPropertyEffects(this, parentProp,
-              ['this._forwardParentProp(\'' + prop + '\')']);
-            this._setData(parentProp, val);
+            var val = this._templatized[parentProp];
+            Polymer.Bind._bindPropertyEffects(this._templatized, parentProp,
+              ['this._forwardParentProp(\'' + prop + '\', this._data.' + parentProp + ')']);
+            this._templatized._setData(parentProp, val);
           }
         }
       }
@@ -102,10 +124,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var sub = p[3];     // 'sub'
       var subPath = p[2]; // 'sub.path'
       // Notify host of parent.* path/property changes
-      var host = this._host;
+      var host = this._dataHost;
       if (root == 'parent') {
         if (sub == subPath) {
-          host.host[sub] = value;
+          host._dataHost[sub] = value;
         } else {
           host.notifyPath('_parent_' + subPath, value);
         }        
@@ -130,6 +152,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._setupConfigure(model);
       this._pushHost(this.host);
       this.root = this.instanceTemplate(this._template);
+      this.root.__styleScoped = true;
       this._popHost();
       this._marshalAnnotatedNodes();
       this._marshalInstanceEffects();
@@ -139,8 +162,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     stamp: function(model) {
       model = model || {};
-      // TODO(kschaaf): temporary workaround to have the correct "binding" host
-      model._host = this;
       if (this._parentProps) {
         model.parent = model.parent || {};
         for (var prop in this._parentProps) {
