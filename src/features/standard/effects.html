@@ -8,46 +8,45 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="../../lib/bind/bind.html">
-<link rel="import" href="../../lib/bind/bind-effects.html">
-<link rel="import" href="../../lib/bind/bind-annotations.html">
+<link rel="import" href="../../lib/bind/accessors.html">
+<link rel="import" href="../../lib/bind/effects.html">
 
 <script>
 
   /**
-   * Support for the declarative property sugaring via mustache `{{ }}` 
-   * annotations in templates, and via the `properties` objects on 
+   * Support for the declarative property sugaring via mustache `{{ }}`
+   * annotations in templates, and via the `properties` objects on
    * prototypes.
    *
    * Example:
-   * 
+   *
    *     <template>
    *       <span hidden="{{hideSpan}}">{{name}}</span> is on the hook.
    *     </template>
-   * 
+   *
    * The `properties` object syntax is as follows:
    *
    *     Polymer({
-   *     
+   *
    *       properties: {
    *         myProp: {
    *           observer: 'myPropChanged',
    *           computed: 'computemyProp(input1, input2)'
    *         }
    *       }
-   *     
+   *
    *       ...
-   *     
+   *
    *     });
    *
-   * The `bind` feature also provides an API for registering effects against 
+   * The `bind` feature also provides an API for registering effects against
    * properties.
-   * 
+   *
    * Property effects can be created imperatively, by template-annotations
    * (e.g. mustache notation), or by declaration in the `properties` object.
    *
-   * The effect data is consumed by the `bind` subsystem (`/src/bind/*`), 
-   * which compiles the effects into efficient JavaScript that is triggered, 
+   * The effect data is consumed by the `bind` subsystem (`/src/bind/*`),
+   * which compiles the effects into efficient JavaScript that is triggered,
    * e.g., when a property is set to a new value.
    *
    * @class data feature: bind
@@ -55,85 +54,116 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.Base.addFeature({
 
-    addPropertyEffect: function(property, kind, effect) {
+    _addPropertyEffect: function(property, kind, effect) {
+     // TODO(sjmiles): everything to the right of the first '.' is lost, implies
+     // there is some duplicate information flow (not the only sign)
      var model = property.split('.').shift();
      Polymer.Bind.addPropertyEffect(this, model, kind, effect);
     },
 
     // prototyping
 
-    _notifyListener: Polymer.Bind._notifyListener,
-
     _prepEffects: function() {
       Polymer.Bind.prepareModel(this);
-      this._addDynamicEffects(this.properties);
+      this._notifyChange
+      this._addPropertyEffects(this.properties);
       this._addObserverEffects(this.observers);
       this._addAnnotationEffects(this._annotes);
       Polymer.Bind.createBindings(this);
     },
 
-    _addDynamicEffects: function(dynamic) {
-      if (dynamic) {
-        for (var n in dynamic) {
-          var effect = dynamic[n];
+    _addPropertyEffects: function(effects) {
+      if (effects) {
+        for (var n in effects) {
+          var effect = effects[n];
           if (effect.observer) {
             this._addObserverEffect(n, effect.observer);
           }
           if (effect.computed) {
-            Polymer.Bind.addComputedPropertyEffect(this, n, effect.computed);
+            this._addComputedEffect(n, effect.computed);
           }
           if (this.isNotifyProperty(n)) {
-            this.addPropertyEffect(n, 'notify');
+            this._addPropertyEffect(n, 'notify');
           }
           if (this.isReflectedProperty(n)) {
-            this.addPropertyEffect(n, 'reflect');
+            this._addPropertyEffect(n, 'reflect');
           }
         }
       }
     },
 
-    _addObserverEffects: function(observers) {
-      for (var n in observers) {
-        this._addObserverEffect(n, observers[n]);
+    _addComputedEffect: function(name, computed) {
+      Polymer.Bind.addComputedPropertyEffect(name, computed);
+    },
+
+    _addObserverEffects: function(effects) {
+      for (var n in effects) {
+        this._addObserverEffect(n, effects[n]);
       }
     },
 
     _addObserverEffect: function(property, observer) {
+      var effect = {
+        method: observer
+      };
       var props = property.split(' ');
-      var methodString;
       if (props.length == 1) {
         // Single property synchronous observer (supports paths)
         var model = property.split('.').shift();
         if (model != property) {
-           // TODO(kschaaf): path observers won't get the right `new` argument...care?
-           this.addPathObserver(property, observer);
+          // TODO(kschaaf): path observers won't get the right `new` argument
+          this.addPathObserver(property, observer);
         }
-        methodString = 'this.' + observer + '(this._data.' + model + ', old);';
-        this.addPropertyEffect(model, 'observer', {
-          method: observer,
-          property: model,
-          methodString: methodString
-        });
+        effect.property = model;
+        this._addPropertyEffect(model, 'observer', effect);
       } else {
-        // Multiple-property debounced observer
-        var methodArgs = 'this._data.' + props.join(', this._data.');
-        methodString = 'this.debounce(\'_' + observer + '\', function() {\n' +
-          '\t\tthis.' + observer + '(' + methodArgs + ');\n' +
-          '\t});';
-        var effect = {
-          method: observer,
-          properties: props,
-          methodString: methodString
-        };
-        for (var i=0; i<props.length; i++) {
-          this.addPropertyEffect(props[i], 'observer', effect);
+        // Multiple-property observer
+        effect.properties = props;
+        for (var i=0, l=props.length; i<l; i++) {
+          this._addPropertyEffect(props[i], 'observer', effect);
         }
       }
     },
 
-    _addAnnotationEffects: function(notes) {
-      if (notes) {
-        Polymer.BindAnnotations.addEffects(this, notes);
+    _addAnnotationEffects: function(effects) {
+      // create a virtual annotation list, must be concretized at instance time
+      this._nodes = [];
+      // process annotations that have been parsed from template
+      effects.forEach(function(note) {
+        // where to find the node in the concretized list
+        var index = this._nodes.push(note) - 1;
+        note.bindings.forEach(function(binding) {
+          this._bindAnnotationBinding(binding, index);
+        }, this);
+      }, this);
+    },
+
+    // _nodes[index][<binding.name=>]{{binding.value}}
+    _bindAnnotationBinding: function(binding, index) {
+      var computed = binding.value.match(/(\w*)\((.*)\)/);
+      if (computed) {
+        var method = computed[1];
+        var args = computed[2].split(/[^\w]+/);
+        this._bindComputedAnnotationBinding(method, args, binding, index);
+      } else {
+        // capture the node index
+        binding.index = index;
+        // discover top-level property (model) from path
+        var model = binding.value.split('.').shift();
+        // add 'annotation' binding effect for property 'model'
+        this._addPropertyEffect(model, 'annotation', binding);
+      }
+    },
+
+    _bindComputedAnnotationBinding: function(method, args, info, index) {
+      var effect = {
+        property: info.name,
+        index: index,
+        args: args,
+        methodName: method
+      };
+      for (var i=0, l=args.length; i<l; i++) {
+        this._addPropertyEffect(args[i], 'annotatedComputation', effect);
       }
     },
 
