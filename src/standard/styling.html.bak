@@ -1,0 +1,157 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../lib/style-util.html">
+<link rel="import" href="../../lib/resolve-url.html">
+<link rel="import" href="../../lib/style-transformer.html">
+<link rel="import" href="../../lib/settings.html">
+
+<script>
+
+  (function() {
+
+    var prepTemplate = Polymer.Base._prepTemplate;
+    var prepElement = Polymer.Base._prepElement;
+    var baseStampTemplate = Polymer.Base._stampTemplate;
+
+    Polymer.Base.addFeature({
+
+      // declaration-y
+      _prepTemplate: function() {
+        prepTemplate.call(this);
+        var port = Polymer.DomModule.import(this.is);
+        if (this._encapsulateStyle === undefined) {
+          this._encapsulateStyle = 
+            Boolean(port && !Polymer.Settings.useNativeShadow);
+        }
+        // scope css
+        // NOTE: dom scoped via annotations
+        if (Polymer.Settings.useNativeShadow || this._encapsulateStyle) {
+          this._scopeCss();
+        }
+      },
+
+      _prepElement: function(element) {
+        if (this._encapsulateStyle) {
+          Polymer.StyleTransformer.element(element, this.is);
+        }
+        prepElement.call(this, element);
+      },
+
+      _scopeCss: function() {
+        this._styles = this._prepareStyles();
+        this._scopeStyles(this._styles);
+      },
+
+      // search for extra style modules via `styleModules`
+      _prepareStyles: function() {
+        var cssText = '', m$ = this.styleModules;
+        if (m$) {
+          for (var i=0, l=m$.length, m; (i<l) && (m=m$[i]); i++) {
+            cssText += this._cssFromModule(m);
+          }
+        }
+        cssText += this._cssFromModule(this.is);
+        var styles = [];
+        if (cssText) {
+          var s = document.createElement('style');
+          s.textContent = cssText;  
+          styles.push(s);
+        }
+        return styles;
+      },
+
+      // returns cssText of styles in a given module; also un-applies any
+      // styles that apply to the document.
+      _cssFromModule: function(moduleId) {
+        var m = Polymer.DomModule.import(moduleId);
+        if (m && !m._cssText) {
+          var cssText = '';
+          var e$ = Array.prototype.slice.call(m.querySelectorAll('style'));
+          this._unapplyStyles(e$);
+          e$ = e$.concat(Array.prototype.map.call(
+            m.querySelectorAll(REMOTE_SHEET_SELECTOR), function(l) {
+              return l.import.body;
+            }));
+          m._cssText = this._cssFromStyles(e$);
+        }
+        return m && m._cssText || '';
+      },
+
+      _cssFromStyles: function(styles) {
+        var cssText = '';
+        for (var i=0, l=styles.length, s; (i<l) && (s = styles[i]); i++) {
+          if (s && s.textContent) {
+            cssText += 
+              Polymer.ResolveUrl.resolveCss(s.textContent, s.ownerDocument);
+          }
+        }
+        return cssText;
+      },
+
+      _unapplyStyles: function(styles) {
+        for (var i=0, l=styles.length, s; (i<l) && (s = styles[i]); i++) {
+          s = s.__appliedElement || s;
+          s.parentNode.removeChild(s);
+        }
+      },
+
+      _scopeStyles: function(styles) {
+        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+          // transform style if necessary and place in correct place
+          if (Polymer.Settings.useNativeShadow) {
+            if (this._template) {
+              this._template.content.appendChild(s);
+            }
+          } else {
+            var rules = this._rulesForStyle(s);
+            Polymer.StyleUtil.applyCss(
+              Polymer.StyleTransformer.css(rules, this.is, this.extends), 
+              this.is, null, true);
+          }
+        }
+      },
+
+      _rulesForStyle: function(style) {
+        if (!style.__cssRules) {
+          style.__cssRules = Polymer.StyleUtil.parser.parse(style.textContent);
+        }
+        return style.__cssRules;
+      },
+
+      // instance-y
+      _stampTemplate: function() {
+        if (this._encapsulateStyle) {
+          Polymer.StyleTransformer.host(this, this.is);
+        }
+        baseStampTemplate.call(this);
+      },
+
+      // add scoping class whenever an element is added to localDOM
+      _elementAdd: function(node) {
+        if (this._encapsulateStyle && !node.__styleScoped) {
+          Polymer.StyleTransformer.dom(node, this.is);
+        }
+      },
+
+      // remove scoping class whenever an element is removed from localDOM
+      _elementRemove: function(node) {
+        if (this._encapsulateStyle) {
+          Polymer.StyleTransformer.dom(node, '');
+        }
+      }
+
+    });
+
+    var REMOTE_SHEET_SELECTOR = 'link[rel=import][type~=css]';
+
+  })();
+
+</script>

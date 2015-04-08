@@ -1,0 +1,179 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../lib/case-map.html">
+
+<script>
+
+  /**
+   * Support for `hostAttributes` property.
+   *
+   *     hostAttributes: 'block vertical layout'
+   *
+   * `hostAttributes` is a space-delimited string of boolean attribute names to
+   * set true on each instance.
+   *
+   * Support for mapping attributes to properties.
+   *
+   * Properties that are configured in `properties` with a type are mapped
+   * to attributes.
+   *
+   * A value set in an attribute is deserialized into the specified
+   * data-type and stored into the matching property.
+   *
+   * Example:
+   *
+   *     properties: {
+   *       // values set to index attribute are converted to Number and propagated
+   *       // to index property
+   *       index: Number,
+   *       // values set to label attribute are propagated to index property
+   *       label: String
+   *     }
+   *
+   * Types supported for deserialization:
+   *
+   * - Number
+   * - Boolean
+   * - String
+   * - Object (JSON)
+   * - Array (JSON)
+   * - Date
+   *
+   * This feature implements `attributeChanged` to support automatic
+   * propagation of attribute values at run-time. If you override
+   * `attributeChanged` be sure to call this base class method
+   * if you also want the standard behavior.
+   *
+   * @class base feature: attributes
+   */
+
+  Polymer.Base.addFeature({
+
+    _marshalAttributes: function() {
+      this._takeAttributes();
+      this._installHostAttributes(this.hostAttributes);
+    },
+
+    _installHostAttributes: function(attributes) {
+      if (attributes) {
+        this.applyAttributes(this, attributes);
+      }
+    },
+
+    applyAttributes: function(node, attr$) {
+      for (var n in attr$) {
+        this.serializeValueToAttribute(attr$[n], n, this);
+      }
+    },
+
+    _takeAttributes: function() {
+      this._takeAttributesToModel(this);
+    },
+
+    _takeAttributesToModel: function(model) {
+      for (var propName in this.properties) {
+        var attrName = Polymer.CaseMap.camelToDashCase(propName);
+        if (this.hasAttribute(attrName)) {
+          var val = this.getAttribute(attrName);
+          var type = this.getPropertyType(propName);
+          model[propName] = this.deserialize(val, type);
+        }
+      }
+    },
+
+    setAttributeToProperty: function(model, attrName) {
+      // Don't deserialize back to property if currently reflecting
+      if (!this._serializing) {
+        var propName = Polymer.CaseMap.dashToCamelCase(attrName);
+        if (propName in this.properties) {
+          var type = this.getPropertyType(propName);
+          var val = this.getAttribute(attrName);
+          model[propName] = this.deserialize(val, type);
+        }
+      }
+    },
+
+    _serializing: false,
+    reflectPropertyToAttribute: function(name) {
+      this._serializing = true;
+      this.serializeValueToAttribute(this[name], name);
+      this._serializing = false;
+    },
+
+    serializeValueToAttribute: function(value, attribute, node) {
+      var str = this.serialize(value);
+      (node || this)
+        [str === undefined ? 'removeAttribute' : 'setAttribute']
+          (Polymer.CaseMap.camelToDashCase(attribute), str);
+    },
+
+    deserialize: function(value, type) {
+      switch (type) {
+        case Number:
+          value = Number(value);
+          break;
+
+        case Boolean:
+          value = (value !== null);
+          break;
+
+        case Object:
+          try {
+            value = JSON.parse(value);
+          } catch(x) {
+            // allow non-JSON literals like Strings and Numbers
+          }
+          break;
+
+        case Array:
+          try {
+            value = JSON.parse(value);
+          } catch(x) {
+            value = null;
+            console.warn('Polymer::Attributes: couldn`t decode Array as JSON');
+          }
+          break;
+
+        case Date:
+          value = new Date(value);
+          break;
+
+        case String:
+        default:
+          break;
+      }
+      return value;
+    },
+
+    serialize: function(value) {
+      switch (typeof value) {
+        case 'boolean':
+          return value ? '' : undefined;
+
+        case 'object':
+          if (value instanceof Date) {
+            return value;
+          } else if (value) {
+            try {
+              return JSON.stringify(value);
+            } catch(x) {
+              return '';
+            }
+          }
+
+        default:
+          return value != null ? value : undefined;
+      }
+    }
+
+  });
+
+</script>
