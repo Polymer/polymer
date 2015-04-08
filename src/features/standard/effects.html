@@ -91,8 +91,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _addComputedEffect: function(name, computed) {
-      Polymer.Bind.addComputedPropertyEffect(name, computed);
+    _addComputedEffect: function(name, expression) {
+      var index = expression.indexOf('(');
+      var method = expression.slice(0, index);
+      var args = expression.slice(index + 1, -1).replace(/ /g, '').split(',');
+      //console.log('%c on [%s] compute [%s] via [%s]', 'color: green', args[0], name, method);
+      var effect = {
+        property: name,
+        args: args,
+        methodName: method
+      };
+      for (var i=0; i<args.length; i++) {
+        this._addPropertyEffect(args[i], 'compute', effect);
+      }
     },
 
     _addObserverEffects: function(effects) {
@@ -138,6 +149,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _addAnnotationEffect: function(effect, index) {
+      // TODO(sjmiles): annotations have 'effects' proper and 'listener'
+      if (Polymer.Bind._shouldAddListener(effect)) {
+        // <node>.on.<dash-case-property>-changed: <path> = e.detail.value
+        Polymer.Bind._addAnnotatedListener(this, index,
+          effect.name, effect.value, effect.event);
+      }
       var computed = effect.value.match(/(\w*)\((.*)\)/);
       if (computed) {
         var method = computed[1];
@@ -155,6 +172,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addAnnotatedComputationEffect: function(method, args, info, index) {
       var effect = {
+        kind: info.kind,
         property: info.name,
         index: index,
         args: args,

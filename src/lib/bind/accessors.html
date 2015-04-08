@@ -33,10 +33,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }, null, false);
       },
 
+      // TODO(sjmiles): not having _notifyListener may break accessors.html
+      // this is temporary because standard/configure.html installs
+      // it's own version on Polymer.Base
       // NOTE: exists as a hook for processing listeners
+      /*
       _notifyListener: function(fn, e) {
-        return fn.call(this, e);
+        // NOTE: pass e.target because e.target can get lost if this function
+        // is queued asynchrously
+        return fn.call(this, e, e.target);
       },
+      */
 
       _propertySet: function(property, value, effects) {
         var old = this._data[property];
@@ -45,7 +52,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (typeof value == 'object') {
             this._clearPath(property);
           }
-          this._effectEffects(property, value, effects);
+          if (effects) {
+            this._effectEffects(property, value, effects);
+          }
         }
         return old;
       },
@@ -69,22 +78,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     },
-
-    // the Bind module supports pluggable effect builders
-
-    /*
-    _builders: {},
-
-    addBuilder: function(kind, builder) {
-      this._builders[kind] = builder;
-    },
-
-    addBuilders: function(builders) {
-      for (var n in builders) {
-        this._builders[n] = builders[n];
-      }
-    },
-    */
 
     // a prepared model can acquire effects
 
@@ -142,24 +135,81 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         get: function() {
           // TODO(sjmiles): elide delegation for performance, good ROI?
           return this._data[property];
-        },
-        set: function(value) {
-          this._propertySet(property, value, effects)
         }
       };
-      //console.log(prop.set ? prop.set.toString() : '(read-only)');
+      var setter = function(value) {
+        this._propertySet(property, value, effects);
+      };
+      // ReadOnly properties have a private setter only
+      // TODO(kschaaf): Per current Bind factoring, we shouldn't
+      // be interrogating the prototype here
+      if (model.isReadOnlyProperty && model.isReadOnlyProperty(property)) {
+        //model['_' + property + 'Setter'] = setter;
+        //model['_set_' + property] = setter;
+        model['_set' + this.upper(property)] = setter;
+      } else {
+        defun.set = setter;
+      }
       Object.defineProperty(model, property, defun);
-      //console.log(model, property, defun);
     },
 
-/*
     upper: function(name) {
       return name[0].toUpperCase() + name.substring(1);
     },
-*/
 
-    //
+    // <node>.on.<property>-changed: <path> = e.detail.value
+    _addAnnotatedListener: function(model, index, property, path, event) {
+      var factory = this._isStructured(path)
+        ? this._notedListenerTwo : this._notedListenerOne;
+      var listener = {
+        index: index,
+        property: property,
+        path: path,
+        changedFn: factory(property, path),
+        event: event || (Polymer.CaseMap.camelToDashCase(property) + '-changed')
+      };
+      model._bindListeners.push(listener);
+    },
 
+    _eventIsBogus: function(e, target) {
+      return e.path && e.path[0] !== target;
+    },
+
+    _notedListenerOne: function(property, path) {
+      return function(e, target) {
+        if (!Polymer.Bind._eventIsBogus(e, target)) {
+          if (e.detail.path) {
+            this.notifyPath(this._fixPath(path, property, e.detail.path),
+              e.detail.value);
+          } else {
+            this[path] = target[property];
+          }
+        }
+      };
+    },
+
+    _notedListenerTwo: function(property, path) {
+      return function(e, target) {
+        if (!Polymer.Bind._eventIsBogus(e, target)) {
+          if (e.detail.path) {
+            this.notifyPath(this._fixPath(path, property, e.detail.path),
+              e.detail.value);
+          } else {
+            var value = target[property];
+            // TODO(kschaaf): dirty check avoids null references when the object has gone away
+            if (this._data[path] != value) {
+              this.setPathValue(path, value);
+            }
+          }
+        }
+      };
+    },
+
+    _isStructured: function(path) {
+      return path.indexOf('.') > 0;
+    },
+
+/*
     _addAnnotatedListener: function(model, index, property, path, event) {
       // <node>.on.<property>-changed: <path> = e.detail.value
       //
@@ -191,6 +241,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         event: event || (Polymer.CaseMap.camelToDashCase(property) + '-changed')
       });
     },
+*/
 
     // for instances
 
