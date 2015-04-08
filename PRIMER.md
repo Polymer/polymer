@@ -114,7 +114,7 @@ Because the vast majority of users will always want to register the custom eleme
 Example:
 
 ```js
-MyElement = Polymer({
+var MyElement = Polymer({
 
   is: 'my-element',
 
@@ -137,7 +137,7 @@ While the standard `Polymer.Class()` and `Polymer()` functions return a basic co
 Example:
 
 ```js
-MyElement = Polymer({
+var MyElement = Polymer({
 
   is: 'my-element',
 
@@ -164,7 +164,7 @@ Polymer 0.8 currently only supports extending native HTML elements (e.g. `input`
 Example:
 
 ```js
-MyInput = Polymer({
+var MyInput = Polymer({
 
   is: 'my-input',
 
@@ -198,7 +198,7 @@ You can always fallback to using the low-level methods if you wish (in other wor
 Example:
 
 ```js
-MyElement = Polymer({
+var MyElement = Polymer({
 
   is: 'my-element',
 
@@ -370,16 +370,15 @@ Example: `fun-mixin.html`
 ```js
 FunMixin = {
 
-    funCreatedCallback: function() {
-      this.makeElementFun();
-    },
+  funCreatedCallback: function() {
+    this.makeElementFun();
+  },
 
-    makeElementFun: function() {
-      this.style.border = 'border: 20px dotted fuchsia;';
-    }
-  };
+  makeElementFun: function() {
+    this.style.border = '20px dotted fuchsia';
+  }
 
-});
+};
 ```
 
 Example: `my-element.html`
@@ -471,9 +470,9 @@ Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutori
 
 <script>
 
-    Polymer({
-        is: 'my-element'
-    });
+  Polymer({
+    is: 'my-element'
+  });
 
 </script>
 ```
@@ -530,7 +529,7 @@ var toLocal = document.createElement('div');
 var beforeNode = Polymer.dom(this.root).childNodes[0];
 Polymer.dom(this.root).insertBefore(toLocal, beforeNode);
 
-var allSpans = Polymer.dom(this).querySelectorAll('span');
+var allDivs = Polymer.dom(this).querySelectorAll('div');
 ```
 
 You can use `Polymer.dom` on any node, whether or not it has a local DOM tree:
@@ -540,8 +539,8 @@ Example:
 ```html
 <template>
   <div id="container">
-     <div id="first"></div>
-     <content></content>
+    <div id="first"></div>
+    <content></content>
   </div>
 </template>
 
@@ -557,9 +556,7 @@ Sometimes it's necessary to access the elements which have been distributed to a
 Example:
 
 ```html
-<x-foo>
-  <div></div>
-</x-foo>
+<x-foo><div></div></x-foo>
 
 // x-foo's template
 <template>
@@ -571,7 +568,7 @@ Example:
 var div = Polymer.dom(xFoo).querySelector('div');
 var content = Polymer.dom(xFoo.root).querySelector('content');
 var distributed = Polymer.dom(content).getDistributedNodes()[0];
-var insertedTo = Polymer.dom(div).getDestinationInsertionPoints();
+var insertedTo = Polymer.dom(div).getDestinationInsertionPoints()[0];
 
 // the following should be true:
 assert.equal(distributed, div);
@@ -664,8 +661,8 @@ Example:
 
     is: 'x-custom',
 
-    created: function() {
-      this.$.name.textContent = this.name;
+    attached: function() {
+      this.$.name.textContent = this.localName;
     }
 
   });
@@ -824,8 +821,8 @@ Polymer({
       // sub-property of user.manager changed
       console.log('manager ' + path.split('.').pop() + ' changed to ' + newValue);
     } else {
-      // user.manager object itself changed
-      console.log('new manager name is ' + newValue.name);
+      // user object itself changed
+      console.log('object changed to ' + newValue);
     }
   }
 
@@ -845,17 +842,17 @@ To bind to textContent, the binding annotation must currently span the entire co
 
 ```html
 <dom-module id="user-view">
-    <template>
+  <template>
 
-      <!-- Supported -->
-      First: <span>{{first}}</span><br>
-      Last: <span>{{last}}</span>
+    <!-- Supported -->
+    First: <span>{{first}}</span><br>
+    Last: <span>{{last}}</span>
 
-      <!-- Not currently supported! -->
-      <div>First: {{first}}</div>
-      <div>Last: {{last}}</div>
+    <!-- Not currently supported! -->
+    <div>First: {{first}}</div>
+    <div>Last: {{last}}</div>
 
-    </template>
+  </template>
 </dom-module>
 
 <script>
@@ -988,7 +985,7 @@ Example 3: One-way binding (downward)
 ...
 
 <!-- changes to `value` propagate downward to `prop` on child -->
-<!-- changes to `prop` are not notified to host due to notify:falsey -->
+<!-- changes to `prop` are not notified to host due to notify:false -->
 <custom-element prop="{{value}}"></custom-element>
 ```
 
@@ -1472,17 +1469,17 @@ Keeping structured data in sync requires that Polymer understand the path associ
 
     <div> Employee list: </div>
     <template is="x-repeat" id="employeeList" items="{{employees}}">
-        <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{item.last}}</span></div>
-        <button on-click="toggleSelection">Select</button>
+      <div>First name: <span>{{item.first}}</span></div>
+      <div>Last name: <span>{{item.last}}</span></div>
+      <button on-click="toggleSelection">Select</button>
     </template>
     
     <x-array-selector id="selector" items="{{employees}}" selected="{{selected}}" multi toggle></x-array-selector>
     
     <div> Selected employees: </div>
     <template is="x-repeat" items="{{selected}}">
-        <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{item.last}}</span></div>
+      <div>First name: <span>{{item.first}}</span></div>
+      <div>Last name: <span>{{item.last}}</span></div>
     </template>
     
   </template>
@@ -1492,9 +1489,9 @@ Keeping structured data in sync requires that Polymer understand the path associ
       is: 'employee-list',
       ready: function() {
         this.employees = [
-            {first: 'Bob', last: 'Smith'},
-            {first: 'Sally', last: 'Johnson'},
-            ...
+          {first: 'Bob', last: 'Smith'},
+          {first: 'Sally', last: 'Johnson'},
+          ...
         ];
       },
       toggleSelection: function(e) {
@@ -1534,7 +1531,7 @@ In order to use Polymer bindings without defining a new custom element, you may 
     <core-ajax url="http://..." lastresponse="{{data}}"></core-ajax>
     
     <template is="x-repeat" items="{{data}}">
-        <div><span>{{item.first}}</span> <span>{{item.last}}</span></div>
+      <div><span>{{item.first}}</span> <span>{{item.last}}</span></div>
     </template>
     
   </template>
@@ -1626,11 +1623,17 @@ Example usage of `my-toolbar`:
   
     <my-toolbar title="This one is green."></my-toolbar>
     <my-toolbar title="This one is green too."></my-toolbar>
-
     <my-toolbar class="warning" title="This one is red."></my-toolbar>
   
   </template>
+  
+  <script>
 
+    Polymer({
+      is: 'my-element'
+    });
+
+  </script>
 </dom-module>
 ```
 
@@ -1698,7 +1701,6 @@ Example usage of `my-toolbar`:
   
     <my-toolbar title="This one is green."></my-toolbar>
     <my-toolbar title="This one is green too."></my-toolbar>
-
     <my-toolbar class="warning" title="This one is red."></my-toolbar>
   
   </template>
