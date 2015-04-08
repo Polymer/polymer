@@ -1,0 +1,300 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../lib/style-util.html">
+<link rel="import" href="../lib/style-transformer.html">
+<link rel="import" href="../lib/settings.html">
+<link rel="import" href="../lib/style-defaults.html">
+<script>
+  (function() {
+    
+    var baseAttachedCallback = Polymer.Base.attachedCallback;
+
+    // TODO(sorvell): consider if calculating properties and applying
+    // styles with properties should be separate modules.
+    Polymer.Base.addFeature({
+
+      attachedCallback: function() {
+        baseAttachedCallback.call(this);
+        if (this.enableCustomStyleProperties && !this._scopeSelector) {
+          this._updateOwnStyles();
+        }
+      },
+
+      _updateOwnStyles: function() {
+        if (this.enableCustomStyleProperties) {
+          this._styleProperties = this._computeStyleProperties();
+          this.applyStyleProperties(this._styleProperties);
+        }
+      },
+
+      _computeStyleProperties: function() {
+        var props = {};
+        this.simpleMixin(props, this._computeStylePropertiesFromHost());        
+        this.simpleMixin(props, this._computeOwnStyleProperties());
+        this._reifyCustomProperties(props);
+        return props;
+      },
+
+      _computeStylePropertiesFromHost: function() {
+        // TODO(sorvell): experimental feature, global defaults!
+        var props = {}, styles = [Polymer.StyleDefaults.defaultSheet];
+        if (this.host) {
+          // enable finding styles in hosts without `enableStyleCustomProperties`
+          if (!this.host._styleProperties) {
+            this.host._styleProperties = this.host._computeStyleProperties();
+          }
+          props = Object.create(this.host._styleProperties);
+          styles = this.host._styles;
+        }
+        this.simpleMixin(props,
+          this._customPropertiesFromStyles(styles, this.host));
+        return props;
+        
+      },
+
+      _computeOwnStyleProperties: function() {
+        var props = {};
+        this.simpleMixin(props, this._customPropertiesFromStyles(this._styles));
+        if (this.styleProperties) {
+          for (var i in this.styleProperties) {
+            props[i] = this.styleProperties[i];
+          }
+        }
+        return props;
+      },
+
+      _customPropertiesFromStyles: function(styles, hostNode) {
+        var props = {};
+        var p = this._customPropertiesFromRule.bind(this, props, hostNode);
+        if (styles) {
+          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+            Polymer.StyleUtil.forEachStyleRule(this._rulesForStyle(s), p);
+          }
+        }
+        return props;
+      },
+
+      // test if a rule matches the given node and if so, 
+      // collect any custom properties
+      // TODO(sorvell): support custom variable assignment within mixins
+      _customPropertiesFromRule: function(props, hostNode, rule) {
+        hostNode = hostNode || this;
+        // TODO(sorvell): file crbug, ':host' does not match element.
+        if (this.elementMatches(rule.selector) ||
+          ((hostNode === this) && (rule.selector === ':host'))) {
+          // --g: var(--b); or --g: 5;
+          this._collectPropertiesFromRule(rule, CUSTOM_VAR_ASSIGN, props);
+          // --g: { ... }
+          this._collectPropertiesFromRule(rule, CUSTOM_MIXIN_ASSIGN, props);
+        }
+      },
+
+      // given a rule and rx that matches key and value, set key in properties
+      // to value
+      _collectPropertiesFromRule: function(rule, rx, properties) {
+        var m;
+        while (m = rx.exec(rule.cssText)) {
+          properties[m[1]] = m[2].trim();
+        }
+      },
+   
+      _reifyCustomProperties: function(props) {
+        for (var i in props) {
+          props[i] = this._valueForCustomProperty(props[i], props);
+        }
+      },
+
+      _valueForCustomProperty: function(property, props) {
+        var cv;
+        while ((typeof property === 'string') && 
+          (cv = property.match(CUSTOM_VAR_VALUE))) {
+          property = props[cv[1]];
+        }
+        return property;
+      },
+
+      // apply styles
+      applyStyleProperties: function(bag) {
+        var s$ = this._styles;
+        if (s$) {
+          var style = styleFromCache(this.is, bag, s$);
+          this._ensureScopeSelector(style ? style._scope : null);
+          if (!style) {
+            var cssText = this._generateCustomStyleCss(bag, s$);
+            style = cssText ? this._applyCustomCss(cssText) : {};
+            cacheStyle(this.is, style, this._scopeSelector, 
+              this._styleProperties, s$);
+          } else if (Polymer.Settings.useNativeShadow) {
+            this._applyCustomCss(style.textContent);
+          }
+          if (style.textContent /*&& !Polymer.Settings.useNativeShadow*/) {
+            this.setAttribute(XSCOPE_ATTR, this._scopeSelector);
+          }
+        }
+      },
+
+      _generateCustomStyleCss: function(properties, styles) {
+        var b = this._applyPropertiesToRule.bind(this, properties);
+        var cssText = '';
+        // TODO(sorvell): don't redo parsing work each time as below; 
+        // instead create a sheet with just custom properties
+        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+          cssText += this._transformCss(s.textContent, b) + '\n\n'; 
+        }
+        return cssText.trim();
+      },
+
+      _transformCss: function(cssText, callback) {
+        return Polymer.Settings.useNativeShadow ?
+          Polymer.StyleUtil.toCssText(cssText, callback) : 
+          Polymer.StyleTransformer.css(cssText, this.is, this.extends, callback);
+      },
+
+      _xScopeCount: 0,
+
+      _ensureScopeSelector: function(selector) {
+        if (!this._scopeSelector) {
+          var c = Object.getPrototypeOf(this)._xScopeCount++;
+          this._scopeSelector = selector || (this.is + '-' + c);
+        }
+      },
+
+      _applyCustomCss: function(cssText) {
+        if (this._customStyle) {
+          this._customStyle.textContent = cssText;
+        } else if (cssText) {
+          this._customStyle = Polymer.StyleUtil.applyCss(cssText, 
+            this._scopeSelector,
+            Polymer.Settings.useNativeShadow ? this.root : null);
+        }
+        return this._customStyle;
+      },
+
+      _applyPropertiesToRule: function(properties, rule) {
+        if (!Polymer.Settings.useNativeShadow) {
+          this._scopifyRule(rule);
+        }
+        if (rule.cssText.match(CUSTOM_RULE_RX)) {
+          rule.cssText = this._applyPropertiesToText(rule.cssText, properties);
+        } else {
+          rule.cssText = '';
+        }
+        //console.log(rule.cssText);
+      },
+
+      _applyPropertiesToText: function(cssText, props) {
+        var output = '';
+        var m, v;
+        // e.g. color: var(--color);
+        while (m = CUSTOM_VAR_USE.exec(cssText)) {
+          v = props[m[2]];
+          if (v) {
+            output += '\t' + m[1].trim() + ': ' + this._propertyToCss(v);
+          }
+        }
+        // e.g. @mixin(--stuff);
+        while (m = CUSTOM_MIXIN_USE.exec(cssText)) {
+          v = m[1];
+          if (v) {
+            var parts = v.split(' ');
+            for (var i=0, p; i < parts.length; i++) {
+              p = props[parts[i].trim()];
+              if (p) {
+                output += '\t' + this._propertyToCss(p);
+              }
+            }
+          }
+        }
+        return output;
+      },
+
+      _propertyToCss: function(property) {
+        var p = property.trim();
+        p = p[p.length-1] === ';' ? p : p + ';';
+        return p + '\n';
+      },
+
+      _scopifyRule: function(rule) {
+        var selector = rule.selector;
+        var host = this.is;
+        var rx = new RegExp(host + HOST_SELECTOR_SEP);
+        var parts = selector.split(',');
+        var scope = SCOPE_PREFIX + this._scopeSelector + SCOPE_SUFFIX;
+        for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
+          parts[i] = p.match(rx) ?
+            p.replace(host, host + scope) :
+            scope + ' ' + p;
+        }
+        rule.selector = parts.join(',');
+      },
+
+      updateStyles: function() {
+        this._updateOwnStyles();
+        // TODO(sorvell): temporary way to find local dom that needs 
+        // x-scope styling.
+        var c$ = Polymer.dom(this.root).querySelectorAll('[x-style-scope]');
+        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if (c.updateStyles) {
+            c.updateStyles();
+          }
+        }
+      }
+
+    });
+    
+    var styleCache = {};
+    function cacheStyle(is, style, scope, bag, styles) {
+      style._scope = scope;
+      style._properties = bag;
+      style._styles = styles;
+      var s$ = styleCache[is] = styleCache[is] || [];
+      s$.push(style);
+    }
+
+    function styleFromCache(is, bag, checkStyles) {
+      var styles = styleCache[is];
+      if (styles) {
+        for (var i=0, s; i < styles.length; i++) {
+          s = styles[i];
+          if (objectsEqual(bag, s._properties) && 
+            objectsEqual(checkStyles,  s._styles)) { 
+            return s;
+          }
+        }
+      }
+    }
+
+    function objectsEqual(a, b) {
+      for (var i in a) {
+        if (a[i] !== b[i]) {
+          return false;
+        }
+      }
+      for (var i in b) {
+        if (a[i] !== b[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    var XSCOPE_ATTR = 'x-style-scope';
+    var SCOPE_PREFIX = '[' + XSCOPE_ATTR + '=';
+    var SCOPE_SUFFIX = ']';
+    var HOST_SELECTOR_SEP = '($|[\\.\\:\\[\\s>\\+~])';
+    var CUSTOM_RULE_RX = /mixin|var/;
+    var CUSTOM_VAR_ASSIGN = /(--[^\:;]*?):\s*?([^;{]*?);/g;
+    var CUSTOM_MIXIN_ASSIGN = /(--[^\:;]*?):[^{;]*?{([^}]*?)}/g;
+    var CUSTOM_VAR_VALUE = /^var\(([^)]*?)\)/;
+    var CUSTOM_VAR_USE = /(?:^|[;}\s])([^;{}]*?):[\s]*?var\(([^)]*)?\)/gim;
+    var CUSTOM_MIXIN_USE = /mixin\(([^)]*)\)/gim;
+
+  })();
+</script>
