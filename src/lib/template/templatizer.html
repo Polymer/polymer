@@ -99,19 +99,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _prepParentProperties: function(parentProps) {
       if (this._forwardParentProp) {
         if (this._templatized != this) {
-          // templatized template is probably not a Polymer.Base...
+          // Assumption: if `this` isn't the template being templatized,
+          // assume that the template is not a Poylmer.Base, so prep it
+          // for binding
           Polymer.Bind.prepareModel(this._templatized);
           Polymer.Bind.prepareInstance(this._templatized);
-          this._templatized._forwardParentProp =
-            this._forwardParentProp.bind(this);
         }
         if (this._parentProps = parentProps) {
+          // Create accessors for each parent prop that forward the property
+          // to template instances through abstract _forwardParentProp API
+          // that should be implemented by Templatizer users
           for (var prop in parentProps) {
             var parentProp = '_parent_' + prop;
             var val = this._templatized[parentProp];
-            Polymer.Bind._bindPropertyEffects(this._templatized, parentProp,
-              ['this._forwardParentProp(\'' + prop + '\', this._data.' + parentProp + ')']);
-            this._templatized._setData(parentProp, val);
+            var effects = [{
+              kind: 'function',
+              effect: { function: function(prop, source, value) {
+                this._forwardParentProp(prop, value);
+              }.bind(this, prop)}
+            }];
+            Polymer.Bind._createAccessors(this._templatized,
+              parentProp, effects);
+            this._templatized._propertySet(parentProp, val);
           }
         }
       }
