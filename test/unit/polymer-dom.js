@@ -293,4 +293,8 @@ suite('Polymer.dom', function() {
     assert.equal(eventHandled, 2);
   });
 
+  test('Polymer.dom.childNodes is an array', function() {
+    assert.isTrue(Array.isArray(Polymer.dom(document.body).childNodes));
+  });
+
 });
