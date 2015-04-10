@@ -39,22 +39,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // Given a node and scope name, add a scoping class to each node 
     // in the tree. This facilitates transforming css into scoped rules. 
-    function transformDom(node, scope) {
-      _transformDom(node, scope ? scope + SCOPE_SUFFIX : '');
+    function transformDom(node, scope, useAttr, shouldRemoveScope) {
+      _transformDom(node, scope || '', useAttr, shouldRemoveScope);
     }
 
-    function _transformDom(node, selector) {
+    function _transformDom(node, selector, useAttr, shouldRemoveScope) {
       if (node.setAttribute) {
-        node.setAttribute(SCOPE_ATTR, selector);
+        transformElement(node, selector, useAttr, shouldRemoveScope);
       }
       var c$ = Polymer.dom(node).childNodes;
       for (var i=0; i<c$.length; i++) {
-        _transformDom(c$[i], selector);
+        _transformDom(c$[i], selector, useAttr, shouldRemoveScope);
       }
     }
 
-    function transformElement(element, scope) {
-      element.setAttribute(SCOPE_ATTR, scope + SCOPE_SUFFIX);
+    function transformElement(element, scope, useAttr, shouldRemoveScope) {
+      if (useAttr) {
+        if (shouldRemoveScope) {
+          element.removeAttribute(SCOPE_NAME);
+        } else {
+          element.setAttribute(SCOPE_NAME, scope);
+        }
+      } else {
+        // note: if using classes, we add both the general 'style-scope' class
+        // as well as the specific scope. This enables easy filtering of all
+        // `style-scope` elements
+        if (scope) {
+          if (shouldRemoveScope) {
+            element.classList.remove(SCOPE_NAME, scope);
+          } else {
+            element.classList.add(SCOPE_NAME, scope);
+          }
+        }
+      }
     }
 
     function transformHost(host, scope) {
@@ -64,14 +81,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // a string of scoped css where each selector is transformed to include
     // a class created from the scope. ShadowDOM selectors are also transformed
     // (e.g. :host) to use the scoping selector.
-    function transformCss(rules, scope, ext, callback) {
+    function transformCss(rules, scope, ext, callback, useAttr) {
       var hostScope = calcHostScope(scope, ext);
+      scope = calcElementScope(scope, useAttr);
       return Polymer.StyleUtil.toCssText(rules, function(rule) {
         transformRule(rule, scope, hostScope);
         if (callback) {
           callback(rule, scope, hostScope);
         }
       });
+    }
+
+    function calcElementScope(scope, useAttr) {
+      if (scope) {
+        return useAttr ?
+          CSS_ATTR_PREFIX + scope + CSS_ATTR_SUFFIX :
+          CSS_CLASS_PREFIX + scope;
+      } else {
+        return '';
+      }
     }
 
     function calcHostScope(scope, ext) {
@@ -138,7 +166,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function transformSimpleSelector(selector, scope) {
       var p$ = selector.split(PSEUDO_PREFIX);
-      p$[0] += CSS_PREFIX + scope + SCOPE_SUFFIX + CSS_SUFFIX;
+      p$[0] += scope;
       return p$.join(PSEUDO_PREFIX);
     }
 
@@ -152,9 +180,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         selector.trim() + SCOPE_ROOT_SELECTOR;
     }
 
-    var SCOPE_ATTR = 'style-scope';
-    var SCOPE_ROOT_SELECTOR = ':not([' + SCOPE_ATTR + '])';
-    var SCOPE_SUFFIX = '';
+    var SCOPE_NAME = 'style-scope';
+    var SCOPE_ROOT_SELECTOR = ':not([' + SCOPE_NAME + '])' + 
+      ':not(.' + SCOPE_NAME + ')';
     var COMPLEX_SELECTOR_SEP = ',';
     var SIMPLE_SELECTOR_SEP = /(^|[\s>+~]+)([^\s>+~]+)/g;
     var HOST = ':host';
@@ -164,10 +192,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var HOST_PAREN = /(\:host)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
     var CONTENT = '::content';
     var SCOPE_JUMP = /\:\:content|\:\:shadow|\/deep\//;
-    var CSS_PREFIX = '[' + SCOPE_ATTR + '=';
-    var CSS_SUFFIX = ']';
+    var CSS_CLASS_PREFIX = '.';
+    var CSS_ATTR_PREFIX = '[' + SCOPE_NAME + '~=';
+    var CSS_ATTR_SUFFIX = ']';
     var PSEUDO_PREFIX = ':';
-    var SCOPING_CLASS = /(?:^|\s)([\S]*?-x)(?:$|\s)/;
 
     // exports
     Polymer.StyleTransformer = {
@@ -177,7 +205,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       css: transformCss,
       rule: transformRule,
       rootRule: transformRootRule,
-      SCOPE_SUFFIX: SCOPE_SUFFIX
+      SCOPE_NAME: SCOPE_NAME
     };
 
   })();
