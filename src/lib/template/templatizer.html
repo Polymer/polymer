@@ -25,7 +25,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.ctor = template._content._ctor;
         //console.log('Templatizer.templatize: using memoized archetype');
         // forward parent properties to archetype
-        this._prepParentProperties(this.ctor.prototype._parentProps);
+        this._prepParentProperties(this.ctor.prototype);
         return;
       }
       // `archetype` is the prototype of the anonymous
@@ -39,7 +39,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // setup accessors
       archetype._prepEffects();
       // forward parent properties to archetype
-      this._prepParentProperties(archetype._parentProps);
+      this._prepParentProperties(archetype);
       // late-binds archetype.listen to host.listen; h.l doesn't exist yet
       archetype.listen = rootDataHost.listen.bind(rootDataHost);
 
@@ -94,34 +94,59 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _prepParentProperties: function(parentProps) {
-      if (this._forwardParentProp) {
-        if (this._templatized != this) {
-          // Assumption: if `this` isn't the template being templatized,
-          // assume that the template is not a Poylmer.Base, so prep it
-          // for binding
-          Polymer.Bind.prepareModel(this._templatized);
-          Polymer.Bind.prepareInstance(this._templatized);
-        }
-        if (this._parentProps = parentProps) {
+    // Sets up accessors on the template to call abstract _forwardParentProp
+    // API that should be implemented by Templatizer users to get parent
+    // properties to their template instances.  These accessors are memoized 
+    // on the archetype and copied to instances.
+    _prepParentProperties: function(archetype) {
+      var parentProps = this._parentProps = archetype._parentProps;
+      if (this._forwardParentProp && parentProps) {
+
+        // Prototype setup (memoized on archetype)
+        var proto = archetype._parentPropProto;
+        if (!proto) {
+          proto = archetype._parentPropProto = Object.create(null);
+          if (this._templatized != this) {
+            // Assumption: if `this` isn't the template being templatized,
+            // assume that the template is not a Poylmer.Base, so prep it
+            // for binding
+            Polymer.Bind.prepareModel(proto);
+          }
           // Create accessors for each parent prop that forward the property
           // to template instances through abstract _forwardParentProp API
           // that should be implemented by Templatizer users
           for (var prop in parentProps) {
             var parentProp = '_parent_' + prop;
-            var val = this._templatized[parentProp];
             var effects = [{
               kind: 'function',
               effect: { function: function(prop, source, value) {
                 this._forwardParentProp(prop, value);
               }.bind(this, prop)}
             }];
-            Polymer.Bind._createAccessors(this._templatized,
-              parentProp, effects);
-            this._templatized._propertySet(parentProp, val);
+            Polymer.Bind._createAccessors(proto, parentProp, effects);
           }
         }
+
+        // Instance setup
+        if (this._templatized != this) {
+          Polymer.Bind.prepareInstance(this._templatized);
+        }
+        this._extendTemplate(this._templatized, proto);
+
       }
+    },
+
+    // Similar to Polymer.Base.extend, but retains any previously set instance
+    // values (_propertySet back on instance once accessor is installed)
+    _extendTemplate: function(template, proto) {
+      Object.getOwnPropertyNames(proto).forEach(function(n) {
+        var val = template[n];
+        var pd = Object.getOwnPropertyDescriptor(proto, n);
+        Object.defineProperty(template, n, pd);
+        if (val !== undefined) {
+          template._propertySet(n, val);
+        }
+      });
     },
 
     _notifyPathImpl: function(path, value) {
