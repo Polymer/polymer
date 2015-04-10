@@ -195,7 +195,7 @@ Then the `observe` property should be configured as follows:
 
     _itemsChanged: function(items, old, path) {
       if (path) {
-        this._notifyElement(path, items);
+        this._forwardItemPath(path, items);
         this._checkObservedPaths(path);
       } else {
         if (old) {
@@ -204,8 +204,8 @@ Then the `observe` property should be configured as follows:
         if (items) {
           this._observeCollection(items);
           this.debounce('render', this.render);
-        }
-      }          
+        }        
+      }
     },
 
     _checkObservedPaths: function(path) {
@@ -260,12 +260,13 @@ Then the `observe` property should be configured as follows:
         var key = keys[i];
         var item = c.getItem(key);
         var row = this.rows[i];
+        rowForKey[key] = i;
         if (!row) {
           this.rows.push(row = this._insertRow(i, null, item));
         }
         row.item = item;
         row.key = key;
-        rowForKey[key] = i;
+        row.index = i;
       }
       // Remove extra
       for (; i<this.rows.length; i++) {
@@ -425,15 +426,15 @@ Then the `observe` property should be configured as follows:
       var beforeRow = this.rows[idx];
       var beforeNode = beforeRow ? beforeRow._children[0] : this;
       var parentNode = Polymer.dom(this).parentNode;
-      row.root.__styleScoped = true;
       Polymer.dom(parentNode).insertBefore(row.root, beforeNode);
       return row;
     },
 
     _generateRow: function(idx, item) {
       var row = this.stamp({
-        item: item,
-        pathDelegate: this
+        index: idx,
+        key: this.collection.getKey(item),
+        item: item
       });
       // each row is a document fragment which is lost when we appendChild,
       // so we have to track each child individually
@@ -448,11 +449,54 @@ Then the `observe` property should be configured as follows:
       return row;
     },
 
-    _notifyDelegatePath: function(row, path, value) {
-      this.notifyPath(path.replace('item', 'items.' + row.key), value);
+    // Implements extension point from Templatizer mixin
+    _getStampedChildren: function() {
+      var children = [];
+      if (this.rows) {
+        for (var i=0; i<this.rows.length; i++) {
+          var c = this.rows[i]._children;
+          for (var j=0; j<c.length; j++)
+          children.push(c[j]);
+        }        
+      }
+      return children;
     },
 
-    _notifyElement: function(path, value) {
+    // Implements extension point from Templatizer
+    // Called as a side effect of a template instance path change, responsible 
+    // for notifying items.<key-for-row>.<path> change up to host
+    _forwardInstancePath: function(row, root, subPath, value) {
+      if (root == 'item') {
+        this.notifyPath('items.' + row.key + '.' + subPath, value);
+      }
+    },
+
+    // Implements extension point from Templatizer mixin
+    // Called as side-effect of a host property change, responsible for
+    // notifying parent.<prop> path change on each row
+    _forwardParentProp: function(prop, value) {
+      if (this.rows) {
+        this.rows.forEach(function(row) {
+          row.parent[prop] = value;
+          row.notifyPath('parent.' + prop, value, true);
+        }, this);        
+      }
+    },
+
+    // Implements extension point from Templatizer
+    // Called as side-effect of a host path change, responsible for
+    // notifying parent.<path> path change on each row
+    _forwardParentPath: function(path, value) {
+      if (this.rows) {
+        this.rows.forEach(function(row) {
+          row.notifyPath('parent.' + path, value, true);
+        }, this);        
+      }
+    },
+
+    // Called as a side effect of a host items.<key>.<path> path change,
+    // responsible for notifying item.<path> changes to row for key
+    _forwardItemPath: function(path, value) {
       if (this._rowForKey) {
         // 'items.'.length == 6
         var dot = path.indexOf('.', 6);

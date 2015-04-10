@@ -32,15 +32,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     properties: {
 
       'if': {
-        type: Boolean
-      },
-
-      item: {
-        type: Object
+        type: Boolean,
+        value: false
       },
 
       restamp: {
-        type: Boolean
+        type: Boolean,
+        value: false
       }
 
     },
@@ -50,28 +48,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     ],
 
     observers: {
-      'if item restamp': 'render'
+      'if restamp': 'render'
     },
 
     render: function() {
-      if (!this.ctor) {
-        this._wrapTextNodes(this._content);
-        this.templatize(this);
-      }
-      if (this.if) {
-        this._ensureInstance();
-      } else if (this.restamp) {
-        this._teardownInstance();
-      }
-      if (!this.restamp && this._instance) {
-        this._showHideInstance(this.if);
-      }
+      this.debounce('render', function() {
+        if (this.if) {
+          if (!this.ctor) {
+            this._wrapTextNodes(this._content);
+            this.templatize(this);
+          }
+          this._ensureInstance();
+        } else if (this.restamp) {
+          this._teardownInstance();
+        }
+        if (!this.restamp && this._instance) {
+          this._showHideInstance(this.if);
+        }
+      });
     },
 
     _ensureInstance: function() {
       if (!this._instance) {
         // TODO(sorvell): pickup stamping logic from x-repeat
-        this._instance = this.stamp(this.item);
+        this._instance = this.stamp();
         var root = this._instance.root;
         this._instance._children = Array.prototype.slice.call(root.childNodes);
         // TODO(sorvell): this incantation needs to be simpler.
@@ -102,12 +102,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    // Implements extension point from Templatizer mixin
+    _getStampedChildren: function() {
+      return this._instance._children;
+    },
+
     _showHideInstance: function(showing) {
-      this._instance._children.forEach(function(n) {
+      this._getAllStampedChildren().forEach(function(n) {
         if (n.setAttribute) {
           this.serializeValueToAttribute(!showing, 'hidden', n);
         }
       }, this);
+    },
+
+    // Implements extension point from Templatizer mixin
+    // Called as side-effect of a host property change, responsible for
+    // notifying parent.<prop> path change on instance
+    _forwardParentProp: function(prop, value) {
+      if (this._instance) {
+        this._instance.parent[prop] = value;
+        this._instance.notifyPath('parent.' + prop, value, true);
+      }
+    },
+
+    // Implements extension point from Templatizer
+    // Called as side-effect of a host path change, responsible for
+    // notifying parent.<path> path change on each row
+    _forwardParentPath: function(path, value) {
+      if (this._instance) {
+        this._instance.notifyPath('parent.' + path, value, true);
+      }
     }
 
   });

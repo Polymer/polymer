@@ -142,12 +142,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // TODO(sjmiles): simply altering the .content reference didn't
             // work (there was some confusion, might need verification)
             var content = document.createDocumentFragment();
+            content._annotes = this.parseAnnotations(node);
             content.appendChild(node.content);
+            // Special-case treatment of 'parent.*' props for nested templates
+            // Automatically bind `prop` on host to `_parent_prop` on template
+            // for any `parent.prop`'s encountered in template binding; it is
+            // responsibility of the template implementation to forward
+            // these properties as appropriate
+            var bindings = [];
+            this._discoverTemplateParentProps(content);
+            for (var prop in content._parentProps) {
+              bindings.push({
+                index: i,
+                kind: 'property',
+                mode: '{',
+                name: '_parent_' + prop,
+                value: prop
+              });
+            }
             // TODO(sjmiles): using `nar` to avoid unnecessary allocation;
             // in general the handling of these arrays needs some cleanup 
             // in this module
             list.push({
-              bindings: Polymer.nar,
+              bindings: bindings,
               events: Polymer.nar,
               templateContent: content,
               parent: annote,
@@ -162,6 +179,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
       }
+    },
+
+    // Finds all parent.* properties in template content and stores
+    // the path members in content._parentPropChain, which is an array
+    // of maps listing the properties of parent templates required at
+    // each level. Each outer template merges inner _parentPropChains to
+    // propagate inner parent property needs to outer templates.
+    // The top-level parent props from the chain (corresponding to this 
+    // template) are stored in content._parentProps.
+    _discoverTemplateParentProps: function(content) {
+      var chain = content._parentPropChain = [];
+      content._annotes.forEach(function(n) {
+        // Find all bindings to parent.* and spread them into _parentPropChain
+        n.bindings.forEach(function(b) {
+          var m;
+          if (m = b.value.match(/parent\.((parent\.)*[^.]*)/)) {
+            var parts = m[1].split('.');
+            for (var i=0; i<parts.length; i++) {
+              var pp = chain[i] || (chain[i] = {});
+              pp[parts[i]] = true;
+            }
+          }
+        });
+        // Merge child _parentPropChain[n+1] into this _parentPropChain[n]
+        if (n.templateContent) {
+          var tpp = n.templateContent._parentPropChain;
+          for (var i=1; i<tpp.length; i++) {
+            if (tpp[i]) {
+              var pp = chain[i-1] || (chain[i-1] = {});
+              Polymer.Base.simpleMixin(pp, tpp[i]);              
+            }
+          }
+        }
+      });
+      // Store this template's parentProps map
+      content._parentProps = chain[0];
     },
 
     // add annotation data from attributes to the `annotation` for node `node`
