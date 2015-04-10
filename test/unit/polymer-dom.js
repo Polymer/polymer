@@ -298,3 +298,41 @@ suite('Polymer.dom', function() {
   });
 
 });
+
+suite('Polymer.dom non-distributed elements', function() {
+  
+  var nd;
+
+  before(function() {
+    nd = document.querySelector('x-test-no-distribute');
+  });
+
+  test('Polymer.dom finds undistributed child', function() {
+    assert.ok(Polymer.dom(nd).children.length, 2, 'light children includes distributed and non-distributed nodes');
+  });
+
+  test('Polymer.dom removes/adds undistributed child', function() {
+    var b = Polymer.dom(nd).children[0];
+    assert.equal(Polymer.dom(b).getDestinationInsertionPoints().length, 0, 'element improperly distributed');
+    Polymer.dom(nd).removeChild(b);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(nd).children.length, 1, 'children length not decremented due to element removal');
+    Polymer.dom(nd).appendChild(b);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(nd).children.length, 2, 'children length not incremented due to element addition');
+  });
+
+  test('Polymer.dom removes/adds between light and local dom', function() {
+    var b = Polymer.dom(nd).children[1];
+    assert.equal(Polymer.dom(b).getDestinationInsertionPoints().length, 0, 'element improperly distributed');
+    Polymer.dom(nd.root).appendChild(b);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(nd).children.length, 1, 'children length not decremented due to element removal');
+    assert.equal(Polymer.dom(nd.root).children.length, 2, 'root children length not incremented due to element addition');
+    Polymer.dom(nd).appendChild(b);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(nd).children.length, 2, 'children length not incremented due to element addition');
+    assert.equal(Polymer.dom(nd.root).children.length, 1, 'root children length not decremented due to element removal');
+  });
+
+});
