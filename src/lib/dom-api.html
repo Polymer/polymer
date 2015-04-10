@@ -91,14 +91,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // 3. node is <content> (host of container needs distribution)
       appendChild: function(node) {
         var distributed;
-        if (node.lightParent) {
-          this._removeLogicalInfo(node, node.lightParent);
-        }
+        this._removeNodeFromHost(node);
         if (this._nodeIsInLogicalTree(this.node)) {
           var host = this._hostForNode(this.node);
           this._addLogicalInfo(node, this.node, host && host.shadyRoot);
+          this._addNodeToHost(node);
           if (host) {
-            host._elementAdd(node);
             distributed = this._maybeDistribute(node, this.node, host);
           }
         }
@@ -115,9 +113,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return this.appendChild(node);
         }
         var distributed;
-        if (node.lightParent) {
-          this._removeLogicalInfo(node, node.lightParent);
-        }
+        this._removeNodeFromHost(node);
         if (this._nodeIsInLogicalTree(this.node)) {
           saveLightChildrenIfNeeded(this.node);
           var children = this.childNodes;
@@ -128,8 +124,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           var host = this._hostForNode(this.node);
           this._addLogicalInfo(node, this.node, host && host.shadyRoot, index);
+          this._addNodeToHost(node);
           if (host) {
-            host._elementAdd(node);
             distributed = this._maybeDistribute(node, this.node, host);
           }
         }
@@ -152,30 +148,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var distributed;
         if (this._nodeIsInLogicalTree(this.node)) {
           var host = this._hostForNode(this.node);
-          this._removeLogicalInfo(node, this.node);
-          if (host) {
-            host._elementRemove(node);
-            distributed = this._maybeDistribute(node, this.node, host);
-          }
+          distributed = this._maybeDistribute(node, this.node, host);
+          this._removeNodeFromHost(node);
         }
         if (!distributed) {
           // if removing from a shadyRoot, remove form host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeRemoveChild.call(container, node);
         }
+        return node;
       },
 
       replaceChild: function(node, ref_node) {
         this.insertBefore(node, ref_node);
         this.removeChild(ref_node);
-      },
-
-      _getOwnerShadyRoot: function() {
-        return this._ownerShadyRootForNode(this.node);
+        return node;
       },
 
       getOwnerRoot: function() {
-        return this._getOwnerShadyRoot();
+        return this._ownerShadyRootForNode(this.node);
       },
 
       _ownerShadyRootForNode: function(node) {
@@ -218,13 +209,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _nodeIsInLogicalTree: function(node) {
         return Boolean(node._isShadyRoot ||
-          this._getOwnerShadyRoot(node) ||
+          this._ownerShadyRootForNode(node) ||
           node.shadyRoot);
       },
 
+      // note: a node is its own host
       _hostForNode: function(node) {
         var root = node.shadyRoot || (node._isShadyRoot ? 
-          node : this._getOwnerShadyRoot(node));
+          node : this._ownerShadyRootForNode(node));
         return root && root.host;
       },
 
@@ -242,6 +234,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             node.querySelector(CONTENT));
       },
 
+      _removeNodeFromHost: function(node) {
+        if (node.lightParent) {
+          var root = this._ownerShadyRootForNode(node);
+          if (root) {
+            root.host._elementRemove(node);
+          }
+          this._removeLogicalInfo(node, node.lightParent);
+        }
+      },
+
+      _addNodeToHost: function(node) {
+        var root = this._ownerShadyRootForNode(node);
+        if (root) {
+          root.host._elementAdd(node);
+        }
+      },
+
       _addLogicalInfo: function(node, container, root, index) {
         saveLightChildrenIfNeeded(container);
         var children = factory(container).childNodes;
@@ -257,14 +266,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           children.splice(index, 0, node);
           node.lightParent = container;
-          node._ownerShadyRoot = root;
-        }
-        // TODO(sorvell): consider not attaching this to every node and instead
-        // looking up the tree for this info.
-        // add _ownerShadyRoot info
-        var c$ = factory(node).childNodes;
-        if (c$.length) {
-          this._addRootToChildren(node, root);
         }
       },
 
@@ -281,16 +282,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node.lightParent = null;
         // TODO(sorvell): need to clear any children of element?
         node._ownerShadyRoot = undefined;
-      },
-
-      _addRootToChildren: function(children, root) {
-        for (var i=0, l=children.length, c, cc; (i<l) && (c=children[i]); i++) {
-          c._ownerShadyRoot = root;
-          cc = factory(c).childNodes;
-          if (cc.length) {
-            this._addRootToChildren(cc, root);
-          }
-        }
       },
 
       // TODO(sorvell): This will fail if distribution that affects this 

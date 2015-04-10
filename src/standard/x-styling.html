@@ -22,7 +22,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       attachedCallback: function() {
         baseAttachedCallback.call(this);
-        if (this.enableCustomStyleProperties && !this._scopeSelector) {
+        if (this.enableCustomStyleProperties && !this._xScopeSelector) {
           this._updateOwnStyles();
         }
       },
@@ -30,7 +30,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _updateOwnStyles: function() {
         if (this.enableCustomStyleProperties) {
           this._styleProperties = this._computeStyleProperties();
-          this.applyStyleProperties(this._styleProperties);
+          this._applyStyleProperties(this._styleProperties);
         }
       },
 
@@ -121,21 +121,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       // apply styles
-      applyStyleProperties: function(bag) {
+      _applyStyleProperties: function(bag) {
         var s$ = this._styles;
         if (s$) {
           var style = styleFromCache(this.is, bag, s$);
+          var old = this._xScopeSelector;
           this._ensureScopeSelector(style ? style._scope : null);
           if (!style) {
             var cssText = this._generateCustomStyleCss(bag, s$);
             style = cssText ? this._applyCustomCss(cssText) : {};
-            cacheStyle(this.is, style, this._scopeSelector, 
+            cacheStyle(this.is, style, this._xScopeSelector, 
               this._styleProperties, s$);
           } else if (Polymer.Settings.useNativeShadow) {
             this._applyCustomCss(style.textContent);
           }
           if (style.textContent /*&& !Polymer.Settings.useNativeShadow*/) {
-            this.setAttribute(XSCOPE_ATTR, this._scopeSelector);
+            this._applyXScopeSelector(this._xScopeSelector, old);
+          }
+        }
+      },
+
+      _applyXScopeSelector: function(selector, old) {
+        var c = this._scopeCssViaAttr ? this.getAttribute(SCOPE_NAME) :
+          this.className;
+        v = old ? c.replace(old, selector) :
+          (c ? c + ' ' : '') + XSCOPE_NAME + ' ' + selector;
+        if (c !== v) {
+          if (this._scopeCssViaAttr) {
+            this.setAttribute(SCOPE_NAME, v);
+          } else {
+            this.className = v;
           }
         }
       },
@@ -154,15 +169,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _transformCss: function(cssText, callback) {
         return Polymer.Settings.useNativeShadow ?
           Polymer.StyleUtil.toCssText(cssText, callback) : 
-          Polymer.StyleTransformer.css(cssText, this.is, this.extends, callback);
+          Polymer.StyleTransformer.css(cssText, this.is, this.extends, callback,
+            this._scopeCssViaAttr);
       },
 
       _xScopeCount: 0,
 
       _ensureScopeSelector: function(selector) {
-        if (!this._scopeSelector) {
+        if (!this._xScopeSelector) {
           var c = Object.getPrototypeOf(this)._xScopeCount++;
-          this._scopeSelector = selector || (this.is + '-' + c);
+          this._xScopeSelector = selector || (this.is + '-' + c);
         }
       },
 
@@ -171,7 +187,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._customStyle.textContent = cssText;
         } else if (cssText) {
           this._customStyle = Polymer.StyleUtil.applyCss(cssText, 
-            this._scopeSelector,
+            this._xScopeSelector,
             Polymer.Settings.useNativeShadow ? this.root : null);
         }
         return this._customStyle;
@@ -221,12 +237,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return p + '\n';
       },
 
+      // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
+      // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
+      // host selector: x-foo.wide -> x-foo.x-foo-42.wide
       _scopifyRule: function(rule) {
         var selector = rule.selector;
         var host = this.is;
-        var rx = new RegExp(host + HOST_SELECTOR_SEP);
+        var rx = new RegExp(HOST_SELECTOR_PREFIX + host + HOST_SELECTOR_SUFFIX);
         var parts = selector.split(',');
-        var scope = SCOPE_PREFIX + this._scopeSelector + SCOPE_SUFFIX;
+        var scope = this._scopeCssViaAttr ?
+          SCOPE_PREFIX + this._xScopeSelector + SCOPE_SUFFIX :
+          '.' + this._xScopeSelector;
         for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
           parts[i] = p.match(rx) ?
             p.replace(host, host + scope) :
@@ -235,11 +256,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         rule.selector = parts.join(',');
       },
 
+      _scopeElementClass: function(element, selector) {
+        if (!this._scopeCssViaAttr) {
+          selector += (selector ? ' ' : '') + SCOPE_NAME + ' ' + this.is + 
+            (element._xScopeSelector ? ' ' +  XSCOPE_NAME + ' ' + 
+            element._xScopeSelector : '');
+        }
+        return selector;
+      },
+
       updateStyles: function() {
         this._updateOwnStyles();
         // TODO(sorvell): temporary way to find local dom that needs 
         // x-scope styling.
-        var c$ = Polymer.dom(this.root).querySelectorAll('[x-style-scope]');
+        var scopeSelector = this._scopeCssViaAttr ? 
+          '[' + SCOPE_NAME + '~=' + XSCOPE_NAME + ']' : '.' + XSCOPE_NAME;
+        var c$ = Polymer.dom(this.root).querySelectorAll(scopeSelector);
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
           if (c.updateStyles) {
             c.updateStyles();
@@ -285,10 +317,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return true;
     }
 
-    var XSCOPE_ATTR = 'x-style-scope';
-    var SCOPE_PREFIX = '[' + XSCOPE_ATTR + '=';
+    var SCOPE_NAME= Polymer.StyleTransformer.SCOPE_NAME;
+    var XSCOPE_NAME = 'x-scope';
+    var SCOPE_PREFIX = '[' + SCOPE_NAME + '~=';
     var SCOPE_SUFFIX = ']';
-    var HOST_SELECTOR_SEP = '($|[\\.\\:\\[\\s>\\+~])';
+    var HOST_SELECTOR_PREFIX = '(?:^|[^.])';
+    var HOST_SELECTOR_SUFFIX = '($|[.:[\\s>+~])';
     var CUSTOM_RULE_RX = /mixin|var/;
     var CUSTOM_VAR_ASSIGN = /(--[^\:;]*?):\s*?([^;{]*?);/g;
     var CUSTOM_MIXIN_ASSIGN = /(--[^\:;]*?):[^{;]*?{([^}]*?)}/g;

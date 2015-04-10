@@ -55,17 +55,57 @@ suite('scoped-styling', function() {
     assertComputed(styled.$.child.$.deep, '8px');
   });
 
-  test('dynamically added elements', function() {
+  test('elements dynamically added/removed from root', function() {
     var d = document.createElement('div');
     d.classList.add('scoped');
+    d.textContent = 'Dynamically... Scoped!';
     Polymer.dom(styled.root).appendChild(d);
+    Polymer.dom.flush();
+    assertComputed(d, '4px');
+    Polymer.dom(document.body).appendChild(d);
+    Polymer.dom.flush();
+    assert.notInclude(d.getAttribute('style-scoped'), styled.is, 'scoping attribute not removed when added to other root');
+    assert.notInclude(d.className, styled.is, 'scoping class not removed when added to other root');
+    Polymer.dom(styled.root).appendChild(d);
+    Polymer.dom.flush();
     assertComputed(d, '4px');
     Polymer.dom(styled.root).removeChild(d);
-    assert.equal(d.getAttribute('style-scoped'), null);
+    Polymer.dom.flush();
+    assert.notInclude(d.getAttribute('style-scoped'), styled.is, 'scoping attribute not removed when removed from root');
+    assert.notInclude(d.className, styled.is, 'scoping class not removed when removed from root');
     Polymer.dom(styled.root).appendChild(d);
+    Polymer.dom.flush();
     assertComputed(d, '4px');
-    Polymer.dom(styled.root).removeChild(d);
-    assert.equal(d.getAttribute('style-scoped'), null);
+  });
+
+  test('elements dynamically added/removed from host', function() {
+    var d = document.createElement('div');
+    d.classList.add('scoped');
+    d.classList.add('blank');
+    d.textContent = 'Dynamically... unScoped!';
+    Polymer.dom(styled).appendChild(d);
+    Polymer.dom.flush();
+    assertComputed(d, '0px');
+    Polymer.dom(document.body).appendChild(d);
+    Polymer.dom.flush();
+    assert.notInclude(d.getAttribute('style-scoped'), styled.is, 'scoping attribute not removed when added to other root');
+    assert.notInclude(d.className, styled.is, 'scoping class not removed when added to other root');
+    Polymer.dom(styled).appendChild(d);
+    Polymer.dom.flush();
+    assertComputed(d, '0px');
+    Polymer.dom(styled).removeChild(d);
+    Polymer.dom.flush();
+    assert.notInclude(d.getAttribute('style-scoped'), styled.is, 'scoping attribute not removed when removed from root');
+    assert.notInclude(d.className, styled.is, 'scoping class not removed when removed from root');
+    Polymer.dom(styled).appendChild(d);
+    Polymer.dom.flush();
+    assertComputed(d, '0px');
+  });
+
+  test('elements with computed classes', function() {
+    assertComputed(styled.$.computed, '0px');
+    styled.aClass = 'computed';
+    assertComputed(styled.$.computed, '15px');
   });
 
   test('type extension elements', function() {
