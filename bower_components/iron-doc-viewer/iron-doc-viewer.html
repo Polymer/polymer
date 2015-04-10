@@ -31,10 +31,10 @@ you want to document:
 
     <iron-doc-element id="page" descriptor="{{_activeElement}}"></iron-doc-element>
     <nav>
-      <header class="paper-font-subhead">Elements</header>
       <ul on-tap="_onTapNavItem">
+        <!-- Polymer features are crazy special cased as `Polymer.Base`. -->
         <template is="x-repeat" items="{{_elements}}">
-          <li class="paper-font-button">{{item.is}}</li>
+          <li class="paper-font-code1" abstract$="{{item.abstract}}">{{item.is}}</li>
         </template>
       </ul>
     </nav>
@@ -140,12 +140,16 @@ var hydrolysis = require('hydrolysis');
     _processRoot: function(root) {
       this._root = root;
 
-      var features = this._findFeatures(root);
-      features.forEach(hydrolysis.docs.annotateFeature);
       var elements = this._findElements(root);
       elements.forEach(hydrolysis.docs.annotateElement);
 
-      this._elements      = elements.concat(this._featureElements(features));
+      var features = this._findFeatures(root);
+      if (features.length > 0) {
+        features.forEach(hydrolysis.docs.annotateFeature);
+        elements.unshift(this._featureElement(features));
+      }
+
+      this._elements      = elements;
       this._activeElement = this._elements[0];
 
       this.classList.add('loaded');
@@ -176,21 +180,30 @@ var hydrolysis = require('hydrolysis');
     },
 
     /**
+     * Builds a fake Hydrolysis element from a collection of Polymer features.
      *
+     * @param {!Array<hydrolysis.FeatureDescriptor>}
+     * @return {!hydrolysis.ElementDescriptor}
      */
-    _featureElements: function(features) {
+    _featureElement: function(features) {
       if (features.length === 0) return [];
 
       var properties = features.reduce(function(result, feature) {
         return result.concat(feature.properties);
       }, []);
 
-      return [{
-        is: 'Polymer.Base',
-        abstract: true,
+      return {
+        is:         'Polymer.Base',
+        abstract:   true,
         properties: properties,
-        desc: undefined,
-      }];
+        desc: '`Polymer.Base` acts as a base prototype for all Polymer ' +
+              'elements. It is composed via various calls to ' +
+              '`Polymer.Base.addFeature()`.\n' +
+              '\n' +
+              'The properties reflected here are the combined view of all ' +
+              'features found in this library. There may be more properties ' +
+              'added via other libraries, as well.',
+      };
     },
 
     /**
