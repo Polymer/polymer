@@ -1,0 +1,211 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../paper-styles/paper-styles.html">
+<link rel="import" href="../marked-element/marked-element.html">
+
+<!--
+Renders documentation describing a specific property of an element.
+
+Give it a hydrolysis `PropertyDescriptor` (via `descriptor`), and watch it go!
+-->
+<dom-module id="iron-doc-property">
+
+  <link rel="import" type="css" href="iron-doc-property.css">
+
+  <template>
+    <div id="transitionMask">
+      <div id="name" class="paper-font-code1">{{_model.name}}</div>
+      <div id="details">
+        <div id="meta">
+          <span id="type" class="paper-font-code1">{{_model.type}}</span>
+          <span id="default" hidden$="{{!_model.default}}">default: <span class="value paper-font-code1">{{_model.default}}</span></span>
+        </div>
+        <marked-element id="desc" markdown="{{_model.desc}}" hidden$="{{!_model.desc}}"></marked-element>
+      </div>
+    </div>
+  </template>
+
+</dom-module>
+
+<script>
+(function() {
+
+  // TODO(nevir): Consider setting up a helper lib exported from hydrolysis.
+
+  /**
+   * Finds the first JSDoc tag matching `name` and returns its value at `key`.
+   *
+   * @param {Array<hydrolysis.JSDocTag>} jsdocTags
+   * @param {string} tagName
+   * @param {string} key
+   * @return {?string}
+   */
+  function getTag(tags, tagName, key) {
+    if (!tags) return null;
+    for (var i = 0, tag; tag = tags[i]; i++) {
+      if (tag.tag === tagName) {
+        return tag[key];
+      }
+    }
+    return null;
+  }
+
+  Polymer({
+
+    is: 'iron-doc-property',
+
+    properties: {
+
+      /**
+       * The [Hydrolysis](https://github.com/PolymerLabs/hydrolysis)-generated
+       * element descriptor to display details for.
+       *
+       * Alternatively, the element descriptor can be provided as JSON via the text content
+       * of this element.
+       *
+       * @type {hydrolysis.PropertyDescriptor}
+       */
+      descriptor: {
+        type:     Object,
+        observer: '_descriptorChanged',
+      },
+
+      /**
+       * Whether the property should show a one-liner, or full summary.
+       *
+       * Note that this property _is_ reflected as an attribute, but we perform
+       * the reflection manually. In order to support the CSS transitions, we
+       * must calculate the element height before setting the attribute.
+       */
+      collapsed: {
+        type:     Boolean,
+        value:    false,
+        observer: '_collapsedChanged',
+      },
+
+      /** Whether the property is a private property. */
+      private: {
+        type:               Boolean,
+        reflectToAttribute: true,
+      },
+
+    },
+
+    listeners: {
+      'transitionEnd':       '_onTransitionEnd',
+      'webkitTransitionEnd': '_onTransitionEnd',
+    },
+
+    hostAttributes: {
+      class: 'paper-font-body1',
+    },
+
+    ready: function() {
+      this._isReady = true;
+    },
+
+    /**
+     * Resets any state that was set up for transitions.
+     *
+     * We are careful to reset our explicit heights after a transition
+     * completes, so that the property doesn't clip values if the user resizes
+     * their viewport.
+     */
+    _onTransitionEnd: function(event) {
+      if (event.path[0] !== this.$.transitionMask) return;
+      this.$.transitionMask.style.height = '';
+    },
+
+    /** Converts `descriptor` into our template-friendly `_model`. */
+    _descriptorChanged: function() {
+      if (!this.descriptor) {
+        this.private = false;
+        this._model = {};
+        return;
+      }
+
+      this.private = this._isPrivateProperty(this.descriptor);
+
+      var jsdoc = this.descriptor.jsdoc || {};
+      var tags  = jsdoc && jsdoc.tags;
+      this._model = {
+        name: this.descriptor.name,
+        type: getTag(tags, 'type', 'type') || this.descriptor.type,
+        desc: jsdoc ? jsdoc.body : this.descriptor.desc,
+        // default: "'abc123'",
+      };
+    },
+
+    /**
+     * Reflects `collapsed` as the `_collapsed` attribute.
+     *
+     * "Why not use `reflectToAttribute: true`?", you ask? A fine question!
+     *
+     * We avoid simple reflection purely because there is no purely declarative
+     * way of transitioning to/from `height: auto`. This callback manages
+     * setting explicit heights for the property so that CSS can interpolate it.
+     *
+     * @see #_onTransitionEnd
+     */
+    _collapsedChanged: function() {
+      if (!this._isReady) {
+        this.toggleAttribute('_collapsed', this.collapsed);
+        return;
+      }
+
+      var container = this.$.transitionMask;
+      var collapsed = this.collapsed;
+
+      // Measure `height: auto`, which we will need regardless of transition
+      // direction. We assume that the collapsed state has an explicit height
+      // set via CSS rules; so we do not bother measuring that.
+      container.style.height = 'auto';
+      var fullHeight = container.offsetHeight;
+
+      // Then, we reset to the start state. Changing directions mid-transition
+      // is _not_ supported!
+      if (this.collapsed) {
+        container.style.height = fullHeight + 'px'; // Height 'auto'.
+      } else {
+        container.style.height = ''; // Height specified by CSS rule.
+      }
+
+      // We must wait a frame so that the transition engine has a chance to know
+      // that something actually changed.
+      requestAnimationFrame(function() {
+        this.toggleAttribute('_collapsed', collapsed);
+        if (this.collapsed) {
+          container.style.height = ''; // Height specified by CSS rule.
+        } else {
+          container.style.height = fullHeight + 'px'; // Height 'auto'.
+        }
+      }.bind(this));
+    },
+
+    /**
+     * Determines whether the property should be shown.
+     *
+     * By default, private properties and reserved names (Polymer configuration)
+     * are filtered out.
+     *
+     * @param {!hydrolysis.PropertyDescriptor} property The descriptor to test.
+     * @return {boolean} Whether it should be shown.
+     */
+    _isPrivateProperty: function(property) {
+      if (property.private) return true; // For future support.
+      if (property.name[0] === '_') return true;
+      return false;
+    },
+
+  });
+
+})();
+</script>

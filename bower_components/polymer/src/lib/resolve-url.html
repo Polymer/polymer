@@ -1,0 +1,82 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<script>
+
+  (function() {
+
+    // path fixup for urls in cssText that's expected to 
+    // come from a given ownerDocument
+    function resolveCss(cssText, ownerDocument) {
+      return cssText.replace(CSS_URL_RX, function(m, pre, url, post) {
+        return pre + '\'' + 
+          resolve(url.replace(/["']/g, ''), ownerDocument) + 
+          '\'' + post;
+      });
+    }
+
+    // url fixup for urls in an element's attributes made relative to 
+    // ownerDoc's base url
+    function resolveAttrs(element, ownerDocument) {
+      for (var name in URL_ATTRS) {
+        var a$ = URL_ATTRS[name];
+        for (var i=0, l=a$.length, a, at, v; (i<l) && (a=a$[i]); i++) {
+          if (name === '*' || element.localName === name) {
+            at = element.attributes[a];
+            v = at && at.value;
+            if (v && (v.search(BINDING_RX) < 0)) {
+              at.value = (a === 'style') ?
+                resolveCss(v, ownerDocument) :
+                resolve(v, ownerDocument);
+            }
+          }
+        }
+      }
+    }
+
+    function resolve(url, ownerDocument) {
+      var resolver = getUrlResolver(ownerDocument);
+      resolver.href = url;
+      return resolver.href || url;
+    }
+
+    var tempDoc;
+    var tempDocBase;
+    function resolveUrl(url, baseUri) {
+      if (!tempDoc) {
+        tempDoc = document.implementation.createHTMLDocument('temp');
+        tempDocBase = tempDoc.createElement('base');
+        tempDoc.head.appendChild(tempDocBase);
+      }
+      tempDocBase.href = baseUri;
+      return resolve(url, tempDoc);
+    }
+
+    function getUrlResolver(ownerDocument) {
+      return ownerDocument.__urlResolver || 
+        (ownerDocument.__urlResolver = ownerDocument.createElement('a'));
+    }
+
+    var CSS_URL_RX = /(url\()([^)]*)(\))/g;
+    var URL_ATTRS = {
+      '*': ['href', 'src', 'style', 'url'],
+      form: ['action']
+    };
+    var BINDING_RX = /\{\{|\[\[/;
+
+    // exports
+    Polymer.ResolveUrl = {
+      resolveCss: resolveCss,
+      resolveAttrs: resolveAttrs,
+      resolveUrl: resolveUrl
+    };
+
+  })();
+
+</script>

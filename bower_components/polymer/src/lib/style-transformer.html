@@ -1,0 +1,185 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="style-util.html">
+
+<script>
+
+  (function() {
+
+    /* Transforms ShadowDOM styling into ShadyDOM styling
+
+     * scoping: 
+
+        * elements in scope get scoping selector class="x-foo-scope"
+        * selectors re-written as follows:
+
+          div button -> div.x-foo-scope button.x-foo-scope
+
+     * :host -> scopeName
+
+     * :host(...) -> scopeName...
+
+     * ::content -> ' ' NOTE: requires use of scoping selector and selectors
+       cannot otherwise be scoped:
+       e.g. :host ::content > .bar -> x-foo > .bar
+
+     * ::shadow, /deep/: processed simimlar to ::content
+
+     * :host-context(...): NOT SUPPORTED
+
+    */
+
+    // Given a node and scope name, add a scoping class to each node 
+    // in the tree. This facilitates transforming css into scoped rules. 
+    function transformDom(node, scope) {
+      _transformDom(node, scope ? scope + SCOPE_SUFFIX : '');
+    }
+
+    function _transformDom(node, selector) {
+      if (node.setAttribute) {
+        node.setAttribute(SCOPE_ATTR, selector);
+      }
+      var c$ = Polymer.dom(node).childNodes;
+      for (var i=0; i<c$.length; i++) {
+        _transformDom(c$[i], selector);
+      }
+    }
+
+    function transformElement(element, scope) {
+      element.setAttribute(SCOPE_ATTR, scope + SCOPE_SUFFIX);
+    }
+
+    function transformHost(host, scope) {
+    }
+
+    // Given a string of cssText and a scoping string (scope), returns
+    // a string of scoped css where each selector is transformed to include
+    // a class created from the scope. ShadowDOM selectors are also transformed
+    // (e.g. :host) to use the scoping selector.
+    function transformCss(rules, scope, ext, callback) {
+      var hostScope = calcHostScope(scope, ext);
+      return Polymer.StyleUtil.toCssText(rules, function(rule) {
+        transformRule(rule, scope, hostScope);
+        if (callback) {
+          callback(rule, scope, hostScope);
+        }
+      });
+    }
+
+    function calcHostScope(scope, ext) {
+      return ext ? '[is=' +  scope + ']' : scope;
+    }
+
+    function transformRule(rule, scope, hostScope) {
+      _transformRule(rule, transformComplexSelector,
+        scope, hostScope);
+    }
+
+    // transforms a css rule to a scoped rule.
+    function _transformRule(rule, transformer, scope, hostScope) {
+      var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
+      for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
+        p$[i] = transformer(p, scope, hostScope);
+      }
+      rule.selector = p$.join(COMPLEX_SELECTOR_SEP);
+    }
+
+    function transformComplexSelector(selector, scope, hostScope) {
+      var stop = false;
+      selector = selector.replace(SIMPLE_SELECTOR_SEP, function(m, c, s) {
+        if (!stop) {
+          var o = transformCompoundSelector(s, c, scope, hostScope);
+          if (o.stop) {
+            stop = true;
+          }
+          c = o.combinator;
+          s = o.value;  
+        }
+        return c + s;
+      });
+      return selector;
+    }
+
+    function transformCompoundSelector(selector, combinator, scope, hostScope) {
+      // replace :host with host scoping class
+      var jumpIndex = selector.search(SCOPE_JUMP);
+      if (selector.indexOf(HOST) >=0) {
+        // :host(...)
+        selector = selector.replace(HOST_PAREN, function(m, host, paren) {
+          return hostScope + paren;
+        });
+        // now normal :host
+        selector = selector.replace(HOST, hostScope);
+      // replace other selectors with scoping class
+      } else if (jumpIndex !== 0) {
+        selector = scope ? transformSimpleSelector(selector, scope) : selector;
+      }
+      // remove left-side combinator when dealing with ::content.
+      if (selector.indexOf(CONTENT) >= 0) {
+        combinator = '';
+      }
+      // process scope jumping selectors up to the scope jump and then stop
+      // e.g. .zonk ::content > .foo ==> .zonk.scope > .foo
+      var stop;
+      if (jumpIndex >= 0) {
+        selector = selector.replace(SCOPE_JUMP, ' ');
+        stop = true;
+      }
+      return {value: selector, combinator: combinator, stop: stop};
+    }
+
+    function transformSimpleSelector(selector, scope) {
+      var p$ = selector.split(PSEUDO_PREFIX);
+      p$[0] += CSS_PREFIX + scope + SCOPE_SUFFIX + CSS_SUFFIX;
+      return p$.join(PSEUDO_PREFIX);
+    }
+
+    function transformRootRule(rule) {
+      _transformRule(rule, transformRootSelector);
+    }
+
+    function transformRootSelector(selector) {
+      return selector.match(SCOPE_JUMP) ?
+        transformComplexSelector(selector) :
+        selector.trim() + SCOPE_ROOT_SELECTOR;
+    }
+
+    var SCOPE_ATTR = 'style-scope';
+    var SCOPE_ROOT_SELECTOR = ':not([' + SCOPE_ATTR + '])';
+    var SCOPE_SUFFIX = '';
+    var COMPLEX_SELECTOR_SEP = ',';
+    var SIMPLE_SELECTOR_SEP = /(^|[\s>+~]+)([^\s>+~]+)/g;
+    var HOST = ':host';
+    // NOTE: this supports 1 nested () pair for things like 
+    // :host(:not([selected]), more general support requires
+    // parsing which seems like overkill
+    var HOST_PAREN = /(\:host)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
+    var CONTENT = '::content';
+    var SCOPE_JUMP = /\:\:content|\:\:shadow|\/deep\//;
+    var CSS_PREFIX = '[' + SCOPE_ATTR + '=';
+    var CSS_SUFFIX = ']';
+    var PSEUDO_PREFIX = ':';
+    var SCOPING_CLASS = /(?:^|\s)([\S]*?-x)(?:$|\s)/;
+
+    // exports
+    Polymer.StyleTransformer = {
+      element: transformElement,
+      dom: transformDom,
+      host: transformHost,
+      css: transformCss,
+      rule: transformRule,
+      rootRule: transformRootRule,
+      SCOPE_SUFFIX: SCOPE_SUFFIX
+    };
+
+  })();
+
+</script>

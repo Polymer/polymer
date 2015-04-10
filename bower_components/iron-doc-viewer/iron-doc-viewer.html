@@ -1,0 +1,214 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../hydrolysis/hydrolysis.html">
+<link rel="import" href="../prism-highlighter/prism-highlighter.html">
+
+<link rel="import" href="iron-doc-element.html">
+
+<!--
+Renders documentation for all Polymer elements declared via an import.
+
+Point it at an import that declares (or transitively imports) all the elments
+you want to document:
+
+    <iron-doc-viewer src="my-elements.html"></iron-doc-viewer>
+
+-->
+<dom-module id="iron-doc-viewer">
+
+  <link rel="import" type="css" href="iron-doc-viewer.css">
+
+  <template>
+    <prism-highlighter></prism-highlighter>
+
+    <iron-doc-element id="page" descriptor="{{_activeElement}}"></iron-doc-element>
+    <nav>
+      <header class="paper-font-subhead">Elements</header>
+      <ul on-tap="_onTapNavItem">
+        <template is="x-repeat" items="{{_elements}}">
+          <li class="paper-font-button">{{item.is}}</li>
+        </template>
+      </ul>
+    </nav>
+  </template>
+
+</dom-module>
+
+<script>
+(function() {
+var hydrolysis = require('hydrolysis');
+
+  Polymer({
+
+    is: 'iron-doc-viewer',
+
+    properties: {
+
+      /**
+       * The URL to an import that declares (or transitively imports) the
+       * elements that you wish to see documented.
+       *
+       * If the URL is relative, it will be resolved relative to the master
+       * document.
+       *
+       * If you change this value after the `<iron-doc-viewer>` has been
+       * instantiated, you must call `load()`.
+       */
+      src: {
+        type: String,
+      },
+
+      /**
+       * The root URL to evaluate imports under. Any imports that are referenced
+       * outside of this root will be _ignored_.
+       *
+       * If you do not specify a root, this defaults to the directory that
+       * contains `src`.
+       *
+       * If you change this value after the `<iron-doc-viewer>` has been
+       * instantiated, you must call `load()`.
+       */
+      rootUrl: {
+        type: String,
+      },
+
+      /**
+       * The currently displayed element.
+       *
+       * @type {!hydrolysis.ElementDescriptor}
+       */
+      _activeElement: Object,
+
+    },
+
+    ready: function() {
+      this.load();
+    },
+
+    /**
+     * Begins loading the imports referenced by `src`.
+     *
+     * If you make changes to `src` or `rootUrl`, you must call this to view
+     * their results.
+     */
+    load: function() {
+      if (!this.src) {
+        console.error('Expected src to be set for', this);
+        return;
+      }
+
+      var baseUri = this.ownerDocument.baseURI;
+      var srcUrl  = new URL(this.src, baseUri).toString();
+      var rootUrl;
+      if (this.rootUrl) {
+        rootUrl = new URL(this.rootUrl).toString();
+      } else {
+        rootUrl = new URL('.', srcUrl).toString();
+      }
+
+      this._loader = new hydrolysis.Loader();
+      this._loader.addResolver(new hydrolysis.XHRResolver());
+      // The *last* resolver is the most specific.
+      this._loader.addResolver(new hydrolysis.NoopResolver({
+        test: function(uri) {
+          var fullUrl = new URL(uri, baseUri).toString();
+          return fullUrl.indexOf(rootUrl) !== 0;
+        },
+      }));
+
+      this._analyzer = new hydrolysis.Analyzer(false, this._loader);
+      this._analyzer.metadataTree(srcUrl.toString())
+          .then(this._processRoot.bind(this))
+          .catch(function(error) {
+            console.error('Failed to load source at:', this.src, error);
+          }.bind(this));
+    },
+
+    /**
+     * Extracts elements from a materialized Hydrolysis import tree.
+     *
+     * @param {!hydrolysis.ImportDescriptor} root
+     */
+    _processRoot: function(root) {
+      this._root = root;
+
+      var features = this._findFeatures(root);
+      features.forEach(hydrolysis.docs.annotateFeature);
+      var elements = this._findElements(root);
+      elements.forEach(hydrolysis.docs.annotateElement);
+
+      this._elements      = elements.concat(this._featureElements(features));
+      this._activeElement = this._elements[0];
+
+      this.classList.add('loaded');
+    },
+
+    /**
+     * Recursively finds all elements declared by `node` and its dependencies.
+     *
+     * @param {!hydrolysis.ImportDescriptor} node
+     * @return {!Array<hydrolysis.ElementDescriptor>}
+     */
+    _findElements: function(node) {
+      return (node.imports || []).reduce(function(elements, childNode) {
+        return elements.concat(this._findElements(childNode));
+      }.bind(this), node.elements || []);
+    },
+
+    /**
+     * Recursively finds all features declared by `node` and its dependencies.
+     *
+     * @param {!hydrolysis.ImportDescriptor} node
+     * @return {!Array<hydrolysis.FeatureDescriptor>}
+     */
+    _findFeatures: function(node) {
+      return (node.imports || []).reduce(function(features, childNode) {
+        return features.concat(this._findFeatures(childNode));
+      }.bind(this), node.features || []);
+    },
+
+    /**
+     *
+     */
+    _featureElements: function(features) {
+      if (features.length === 0) return [];
+
+      var properties = features.reduce(function(result, feature) {
+        return result.concat(feature.properties);
+      }, []);
+
+      return [{
+        is: 'Polymer.Base',
+        abstract: true,
+        properties: properties,
+        desc: undefined,
+      }];
+    },
+
+    /**
+     * Activates the element that the user selected.
+     *
+     * @param {!Event} event
+     */
+    _onTapNavItem: function(event) {
+      var elementName = event.target.textContent;
+      for (var i = 0, element; element = this._elements[i]; i++) {
+        if (element.is === elementName) {
+          this._activeElement = element;
+          return;
+        }
+      }
+    },
+
+  });
+
+})();
+</script>

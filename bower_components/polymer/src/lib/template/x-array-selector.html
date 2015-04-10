@@ -1,0 +1,178 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+Keeping structured data in sync requires that Polymer understand the path
+associations of data being bound.  The `x-array-selector` element ensures path
+linkage when selecting specific items from an array (either single or multiple).
+The `items` property accepts an array of user data, and via the `select(item)`
+and `deselect(item)` API, updates the `selected` property which may be bound to
+other parts of the application, and any changes to sub-fields of `selected`
+item(s) will be kept in sync with items in the `items` array.  When `multi`
+is false, `selected` is a property representing the last selected item.  When
+`multi` is true, `selected` is an array of multiply selected items.
+
+```html
+<dom-module id="employee-list">
+
+  <template>
+
+    <div> Employee list: </div>
+    <template is="x-repeat" id="employeeList" items="{{employees}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
+        <button on-click="toggleSelection">Select</button>
+    </template>
+    
+    <x-array-selector id="selector" items="{{employees}}" selected="{{selected}}" multi toggle></x-array-selector>
+    
+    <div> Selected employees: </div>
+    <template is="x-repeat" items="{{selected}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
+    </template>
+    
+  </template>
+
+  <script>
+    Polymer({
+      is: 'employee-list',
+      ready: function() {
+        this.employees = [
+            {first: 'Bob', last: 'Smith'},
+            {first: 'Sally', last: 'Johnson'},
+            ...
+        ];
+      },
+      toggleSelection: function(e) {
+        var item = this.$.employeeList.itemForElement(e.target);
+        this.$.selector.select(item);
+      }
+    });
+  </script>
+
+</dom-module>
+``` 
+-->
+
+<script>
+
+  Polymer({
+    is: 'x-array-selector',
+    
+    properties: {
+
+      /**
+       * An array containing items from which selection will be made.
+       */
+      items: {
+        type: Array,
+        observer: '_itemsChanged'
+      },
+
+      /**
+       * When `multi` is true, this is an array that contains any selected.
+       * When `multi` is false, this is the currently selected item, or `null`
+       * if no item is selected.
+       */
+      selected: {
+        type: Object,
+        notify: true
+      },
+
+      /**
+       * When `true`, calling `select` on an item that is already selected
+       * will deselect the item.
+       */
+      toggle: Boolean,
+
+      /**
+       * When `true`, multiple items may be selected at once (in this case,
+       * `selected` is an array of currently selected items).  When `false`,
+       * only one item may be selected at a time.
+       */
+      multi: Boolean
+    },
+    
+    _itemsChanged: function() {
+      // Unbind previous selection
+      if (Array.isArray(this.selected)) {
+        for (var i=0; i<this.selected.length; i++) {
+          this.unbindPaths('selected.' + i);
+        }
+      } else {
+        this.unbindPaths('selected');
+      }
+      // Initialize selection
+      if (this.multi) {
+        this.selected = [];
+      } else {
+        this.selected = null;
+      }
+    },
+
+    /**
+     * Deselects the given item if it is already selected.
+     */
+    deselect: function(item) {
+      if (this.multi) {
+        var scol = Polymer.Collection.get(this.selected);
+        // var skey = scol.getKey(item);
+        // if (skey >= 0) {
+        var sidx = this.selected.indexOf(item);
+        if (sidx >= 0) {
+          var skey = scol.getKey(item);
+          this.selected.splice(sidx, 1);
+          // scol.remove(item);
+          this.unbindPaths('selected.' + skey);
+          return true;
+        }
+      } else {
+        this.selected = null;
+        this.unbindPaths('selected');
+      }
+    },
+
+    /**
+     * Selects the given item.  When `toggle` is true, this will automatically
+     * deselect the item if already selected.
+     */
+    select: function(item) {
+      var icol = Polymer.Collection.get(this.items);
+      var key = icol.getKey(item);
+      if (this.multi) {
+        // var sidx = this.selected.indexOf(item);
+        // if (sidx < 0) {
+        var scol = Polymer.Collection.get(this.selected);
+        var skey = scol.getKey(item);
+        if (skey >= 0) {
+          this.deselect(item);
+        } else if (this.toggle) {
+          this.selected.push(item);
+          // this.bindPaths('selected.' + sidx, 'items.' + skey);
+          // skey = Polymer.Collection.get(this.selected).add(item);
+          this.async(function() {
+            skey = scol.getKey(item);
+            this.bindPaths('selected.' + skey, 'items.' + key);
+          });
+        }
+      } else {
+        if (this.toggle && item == this.selected) {
+          this.deselect();
+        } else {
+          this.bindPaths('selected', 'items.' + key);
+          this.selected = item;
+        }
+      }
+    }
+
+  });
+
+</script>

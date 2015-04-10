@@ -1,0 +1,132 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<script>
+
+  Polymer.Templatizer = {
+
+    templatize: function(template) {
+      // TODO(sjmiles): supply _alternate_ content reference missing from root
+      // templates (not nested). `_content` exists to provide content sharing
+      // for nested templates.
+      if (!template._content) {
+        template._content = template.content;
+      }
+      // fast path if template's anonymous class has been memoized
+      if (template._content._ctor) {
+        this.ctor = template._content._ctor;
+        //console.log('Templatizer.templatize: using memoized archetype');
+        return;
+      }
+      // `archetype` is the prototype of the anonymous
+      // class created by the templatizer 
+      var archetype = Object.create(Polymer.Base);
+      archetype.host = this;
+      archetype.contentHost = this._getContentHost();
+      // normally Annotations.parseAnnotations(template) but
+      // archetypes do special caching
+      this.customPrepAnnotations(archetype, template);
+      // setup accessors
+      archetype._prepEffects();
+      // late-binds archetype.listen to host.listen; h.l doesn't exist yet
+      archetype.listen = function() { 
+        this.listen.apply(this, arguments);
+      }.bind(this.host);
+
+      // boilerplate code
+      archetype._notifyPath = this._notifyPathImpl;
+      // boilerplate code
+      var _constructor = this._constructorImpl;
+      var ctor = function TemplateInstance(model) {
+        _constructor.call(this, model);
+      };
+      // standard references
+      ctor.prototype = archetype;
+      archetype.constructor = ctor;
+      // TODO(sjmiles): constructor cache?
+      template._content._ctor = ctor;
+      // TODO(sjmiles): choose less general name
+      this.ctor = ctor;
+    },
+
+    _getContentHost: function() {
+      return (this.host && this.host.contentHost) || this.host;
+    },
+
+    customPrepAnnotations: function(archetype, template) {
+      if (template) {
+        archetype._template = template;
+        var c = template._content;
+        if (c) {
+          var contentHost = archetype.contentHost;
+          if (contentHost) {
+            Polymer.Annotations.prepElement = 
+              contentHost._prepElement.bind(contentHost);
+          }
+          archetype._annotes = c._annotes ||
+            Polymer.Annotations.parseAnnotations(template);
+          c._annotes = archetype._annotes;
+          Polymer.Annotations.prepElement = null;
+        } 
+        else {
+          console.warn('no _content');
+        }
+      }
+      else {
+        console.warn('no _template');
+      }
+    },
+
+    _notifyPathImpl: function() {
+      var pd = this.pathDelegate;
+      if (pd) {
+        var args = Array.prototype.slice.call(arguments);
+        args.unshift(this);
+        pd._notifyDelegatePath.apply(pd, args);
+      }
+    },
+
+    _constructorImpl: function(model) {
+      this._setupConfigure(model);
+      this._pushHost(this.host);
+      this.root = this.instanceTemplate(this._template);
+      this._popHost();
+      this._marshalAnnotatedNodes();
+      this._marshalInstanceEffects();
+      this._marshalAnnotatedListeners();
+      this._readyContent();
+    },
+
+    stamp: function(model) {
+      return new this.ctor(model);
+    }
+
+    // TODO(sorvell): note, using the template as host is ~5-10% faster if 
+    // elements have no default values.
+    // _constructorImpl: function(model, host) {
+    //   this._setupConfigure(model);
+    //   host._beginHost();
+    //   this.root = this.instanceTemplate(this._template);
+    //   host._popHost();
+    //   this._marshalTemplateContent();
+    //   this._marshalAnnotatedNodes();
+    //   this._marshalInstanceEffects();
+    //   this._marshalAnnotatedListeners();
+    //   this._ready();
+    // },
+
+    // stamp: function(model) {
+    //   return new this.ctor(model, this.host);
+    // }
+    
+
+  };
+
+</script>
