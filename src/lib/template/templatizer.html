@@ -31,8 +31,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // `archetype` is the prototype of the anonymous
       // class created by the templatizer 
       var archetype = Object.create(Polymer.Base);
-      archetype.host = this;
-      archetype.contentHost = this._getContentHost();
+      var rootDataHost = this._getRootDataHost();
+      archetype._rootDataHost = rootDataHost;
       // normally Annotations.parseAnnotations(template) but
       // archetypes do special caching
       this.customPrepAnnotations(archetype, template);
@@ -41,16 +41,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // forward parent properties to archetype
       this._prepParentProperties(archetype._parentProps);
       // late-binds archetype.listen to host.listen; h.l doesn't exist yet
-      archetype.listen = function() { 
-        this.listen.apply(this, arguments);
-      }.bind(this.host);
+      archetype.listen = rootDataHost.listen.bind(rootDataHost);
 
       // boilerplate code
       archetype._notifyPath = this._notifyPathImpl;
       // boilerplate code
       var _constructor = this._constructorImpl;
-      var ctor = function TemplateInstance(model) {
-        _constructor.call(this, model);
+      var ctor = function TemplateInstance(model, host) {
+        _constructor.call(this, model, host);
       };
       // standard references
       ctor.prototype = archetype;
@@ -61,8 +59,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.ctor = ctor;
     },
 
-    _getContentHost: function() {
-      return (this.host && this.host.contentHost) || this.host;
+    _getRootDataHost: function() {
+      return (this.dataHost && this.dataHost._rootDataHost) || this.dataHost;
     },
 
     _getAllStampedChildren: function(children) {
@@ -133,17 +131,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var sub = p[3];     // 'sub'
       var subPath = p[2]; // 'sub.path'
       // Notify host of parent.* path/property changes
-      var host = this._dataHost;
+      var dataHost = this.dataHost;
       if (root == 'parent') {
         if (sub == subPath) {
-          host._dataHost[sub] = value;
+          dataHost.dataHost[sub] = value;
         } else {
-          host.notifyPath('_parent_' + subPath, value);
+          dataHost.notifyPath('_parent_' + subPath, value);
         }        
       }
       // Extension point for Templatizer sub-classes
-      if (host._forwardInstancePath) {
-        host._forwardInstancePath.call(host, this, root, subPath, value);
+      if (dataHost._forwardInstancePath) {
+        dataHost._forwardInstancePath.call(dataHost, this, root, subPath, value);
       }
     },
 
@@ -157,9 +155,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.Base._pathEffector.apply(this, arguments);
     },
 
-    _constructorImpl: function(model) {
+    _constructorImpl: function(model, host) {
       this._setupConfigure(model);
-      this._pushHost(this.host);
+      this._pushHost(host);
       this.root = this.instanceTemplate(this._template);
       this.root.__styleScoped = true;
       this._popHost();
@@ -177,7 +175,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           model.parent[prop] = this['_parent_' + prop];
         }        
       }
-      return new this.ctor(model);
+      return new this.ctor(model, this);
     }
 
     // TODO(sorvell): note, using the template as host is ~5-10% faster if 
