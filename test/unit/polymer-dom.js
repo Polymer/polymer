@@ -335,4 +335,42 @@ suite('Polymer.dom non-distributed elements', function() {
     assert.equal(Polymer.dom(nd.root).children.length, 1, 'root children length not decremented due to element removal');
   });
 
+  test('distributeContent correctly distributes changes to light dom', function() {
+    var shady = !Polymer.Settings.useShadow;
+    function testNoAttr() {
+      assert.equal(Polymer.dom(child).getDestinationInsertionPoints()[0], d.$.notTestContent, 'child not distributed logically');
+      if (shady) {
+        assert.equal(child.parentNode, d.$.notTestContainer, 'child not rendered in composed dom');
+      }
+    }
+    function testWithAttr() {
+      assert.equal(Polymer.dom(child).getDestinationInsertionPoints()[0], d.$.testContent, 'child not distributed logically');
+      if (shady) {
+        assert.equal(child.parentNode, d.$.testContainer, 'child not rendered in composed dom');
+      }
+    }
+    // test with x-distribute
+    var d = document.createElement('x-distribute');
+    document.body.appendChild(d);
+    var child = document.createElement('div');
+    child.classList.add('child');
+    child.textContent = 'Child';
+    Polymer.dom(d).appendChild(child);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(d).children[0], child, 'child not added to logical dom');
+    testNoAttr();
+    // set / unset `test` attr and see if it distributes properly
+    child.setAttribute('test', '');
+    d.distributeContent();
+    testWithAttr();
+    //
+    child.removeAttribute('test');
+    d.distributeContent();
+    testNoAttr();
+    //
+    child.setAttribute('test', '');
+    d.distributeContent();
+    testWithAttr();
+  });
+
 });
