@@ -108,6 +108,10 @@ suite('scoped-styling', function() {
     assertComputed(styled.$.computed, '15px');
   });
 
+  test('elements with hostAttributes: class', function() {
+    assertComputed(styled.$.child, '16px');
+  });
+
   test('type extension elements', function() {
     assertComputed(button, '10px');
     assertComputed(specialButton, '11px');
