@@ -138,38 +138,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _parseChildNodesAnnotations: function(root, annote, list, callback) {
       if (root.firstChild) {
         for (var i=0, node=root.firstChild; node; node=node.nextSibling, i++){
-          if (node.localName === 'template') {
-            // TODO(sjmiles): simply altering the .content reference didn't
-            // work (there was some confusion, might need verification)
-            var content = document.createDocumentFragment();
-            content._annotes = this.parseAnnotations(node);
-            content.appendChild(node.content);
-            // Special-case treatment of 'parent.*' props for nested templates
-            // Automatically bind `prop` on host to `_parent_prop` on template
-            // for any `parent.prop`'s encountered in template binding; it is
-            // responsibility of the template implementation to forward
-            // these properties as appropriate
-            var bindings = [];
-            this._discoverTemplateParentProps(content);
-            for (var prop in content._parentProps) {
-              bindings.push({
-                index: i,
-                kind: 'property',
-                mode: '{',
-                name: '_parent_' + prop,
-                value: prop
-              });
-            }
-            // TODO(sjmiles): using `nar` to avoid unnecessary allocation;
-            // in general the handling of these arrays needs some cleanup 
-            // in this module
-            list.push({
-              bindings: bindings,
-              events: Polymer.nar,
-              templateContent: content,
-              parent: annote,
-              index: i
-            });
+          if (node.localName === 'template' &&
+            !node.hasAttribute('preserve-content')) {
+            this._parseTemplate(node, i, list, annote);
           }
           //
           var childAnnotation = this._parseNodeAnnotations(node, list, callback);
@@ -179,6 +150,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
       }
+    },
+
+    // 1. Parse annotations from the template and memoize them on
+    //    content._annotes (recurses into nested templates)
+    // 2. Parse template bindings for parent.* properties and memoize them on
+    //    content._parentProps
+    // 3. Create bindings in current scope's annotation list to template for
+    //    parent props found in template
+    // 4. Remove template.content and store it in annotation list, where it
+    //    will be the responsibility of the host to set it back to the template
+    //    (this is both an optimization to avoid re-stamping nested template
+    //    children and avoids a bug in Chrome where nested template children
+    //    upgrade)
+    _parseTemplate: function(node, index, list, parent) {
+      // TODO(sjmiles): simply altering the .content reference didn't
+      // work (there was some confusion, might need verification)
+      var content = document.createDocumentFragment();
+      content._annotes = this.parseAnnotations(node);
+      content.appendChild(node.content);
+      // Special-case treatment of 'parent.*' props for nested templates
+      // Automatically bind `prop` on host to `_parent_prop` on template
+      // for any `parent.prop`'s encountered in template binding; it is
+      // responsibility of the template implementation to forward
+      // these properties as appropriate
+      var bindings = [];
+      this._discoverTemplateParentProps(content);
+      for (var prop in content._parentProps) {
+        bindings.push({
+          index: index,
+          kind: 'property',
+          mode: '{',
+          name: '_parent_' + prop,
+          value: prop
+        });
+      }
+      // TODO(sjmiles): using `nar` to avoid unnecessary allocation;
+      // in general the handling of these arrays needs some cleanup 
+      // in this module
+      list.push({
+        bindings: bindings,
+        events: Polymer.nar,
+        templateContent: content,
+        parent: parent,
+        index: index
+      });
     },
 
     // Finds all parent.* properties in template content and stores
