@@ -373,4 +373,18 @@ suite('Polymer.dom non-distributed elements', function() {
     testWithAttr();
   });
 
+  test('getOwnerRoot', function() {
+    var test = document.createElement('div');
+    var c1 = document.createElement('x-compose');
+    var c2 = document.createElement('x-compose');
+    Polymer.dom(c1.$.project).appendChild(test);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(test).getOwnerRoot(), c1.root, 'getOwnerRoot incorrect for child added to element in root');
+    Polymer.dom(c2.$.project).appendChild(test);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(test).getOwnerRoot(), c2.root, 'getOwnerRoot not correctly reset when element moved to different root');
+    Polymer.dom(c1).appendChild(test);
+    assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect for child moved from a root to no root');
+  });
+
 });
