@@ -117,6 +117,14 @@ suite('scoped-styling', function() {
     assertComputed(specialButton, '11px');
   });
 
+  test('element subtree added via dom api', function() {
+    var container = document.querySelector('x-dynamic-scope').$.container;
+    var a = container.querySelector('.added');
+    assertComputed(a, '17px');
+    var b = container.querySelector('.sub-added');
+    assertComputed(b, '18px');
+  });
+
   if (window.Polymer && !Polymer.Settings.useNativeShadow) {
 
     suite('scoped-styling-shady-only', function() {
@@ -127,7 +135,7 @@ suite('scoped-styling', function() {
 
       test('styles shimmed in registration order', function() {
         var s$ = document.head.querySelectorAll('style[scope]');
-        var expected = ['x-child2', 'x-styled', 'x-button'];
+        var expected = ['x-child2', 'x-styled', 'x-button', 'x-dynamic-scope'];
         var actual = [];
         for (var i=0; i<s$.length; i++) {
           actual.push(s$[i].getAttribute('scope'));
