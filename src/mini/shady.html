@@ -247,27 +247,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return children;
       },
 
-      // Ensures that the rendered node list inside `node` is `children`.
-      _updateChildNodes: function(node, children) {
+      // Ensures that the rendered node list inside `container` is `children`.
+      _updateChildNodes: function(container, children) {
+        var composed = getComposedChildren(container);
         var splices =
-          Polymer.ArraySplice.calculateSplices(children, node.childNodes);
-        for (var i=0; i<splices.length; i++) {
-          var s = splices[i];
-          // remove
-          for (var j=0, c; j < s.removed.length; j++) {
-            c = s.removed[j];
-            if (c.previousSibling == children[s.index-1]) {
-              remove(c);
-            }
+          Polymer.ArraySplice.calculateSplices(children, composed);
+        // process removals
+        for (var i=0, d=0, s; (i<splices.length) && (s=splices[i]); i++) {
+          for (var j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
+            removeFromOldComposedParent(container, n);
+            remove(n);
+            composed.splice(s.index + d, 1);
           }
-          // insert
-          for (var idx=s.index, ch, o; idx < s.index + s.addedCount; idx++) {
-            ch = children[idx];
-            o = node.childNodes[idx];
-            while (o && o === ch) {
-              o = o.nextSibling;
-            }
-            insertBefore(node, ch, o);
+          d -= s.addedCount;
+        }
+        // process adds
+        for (var i=0, s, next; (i<splices.length) && (s=splices[i]); i++) {
+          next = composed[s.index];
+          for (var j=s.index, n; j < s.index + s.addedCount; j++) {
+            n = children[j];
+            removeFromOldComposedParent(container, n);
+            insertBefore(container, n, next);
+            composed.splice(j, 0, n);
           }
         }
       },
@@ -313,6 +314,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var getLightChildren = Polymer.DomApi.getLightChildren;
     var matchesSelector = Polymer.DomApi.matchesSelector;
     var hasInsertionPoint = Polymer.DomApi.hasInsertionPoint;
+    var getComposedChildren = Polymer.DomApi.getComposedChildren;
 
     function distributeNodeInto(child, insertionPoint) {
       insertionPoint._distributedNodes.push(child);
@@ -343,6 +345,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     function insertBefore(parentNode, newChild, refChild) {
       // remove child from its old parent first
       remove(newChild);
+      removeFromOldComposedParent(parentNode, newChild);
       // make sure we never lose logical DOM information:
       // if the parentNode doesn't have lightChildren, save that information now.
       saveLightChildrenIfNeeded(parentNode);
@@ -358,6 +361,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         saveLightChildrenIfNeeded(parentNode);
         // remove it from the real DOM
         nativeRemoveChild.call(parentNode, node);
+      }
+    }
+
+    function removeFromOldComposedParent(newParent, node) {
+      var old = node.parentNode || node.lightParent;
+      if (old && (old !== newParent) && old.__composedChildren) {
+        var children = getComposedChildren(old);
+        var i = children.indexOf(node);
+        if (i >= 0) {
+          children.splice(i, 1);
+        }
       }
     }
 
