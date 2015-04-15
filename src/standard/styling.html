@@ -20,6 +20,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var prepTemplate = Polymer.Base._prepTemplate;
     var prepElement = Polymer.Base._prepElement;
     var baseStampTemplate = Polymer.Base._stampTemplate;
+    var nativeShadow = Polymer.Settings.useNativeShadow;
 
     Polymer.Base.addFeature({
 
@@ -29,11 +30,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var port = Polymer.DomModule.import(this.is);
         if (this._encapsulateStyle === undefined) {
           this._encapsulateStyle = 
-            Boolean(port && !Polymer.Settings.useNativeShadow);
+            Boolean(port && !nativeShadow);
         }
         // scope css
         // NOTE: dom scoped via annotations
-        if (Polymer.Settings.useNativeShadow || this._encapsulateStyle) {
+        if (nativeShadow || this._encapsulateStyle) {
           this._scopeCss();
         }
       },
@@ -107,7 +108,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _scopeStyles: function(styles) {
         for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
           // transform style if necessary and place in correct place
-          if (Polymer.Settings.useNativeShadow) {
+          if (nativeShadow) {
             if (this._template) {
               this._template.content.appendChild(s);
             }
@@ -147,6 +148,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _elementRemove: function(node) {
         if (this._encapsulateStyle) {
           Polymer.StyleTransformer.dom(node, this.is, this._scopeCssViaAttr, true);
+        }
+      },
+
+      /**
+       * Apply style scoping to the specified `container` and all its 
+       * descendants. If `shoudlObserve` is true, changes to the container are
+       * monitored via mutation observer and scoping is applied.
+       */
+      scopeSubtree: function(container, shouldObserve) {
+        if (nativeShadow) {
+          return;
+        }
+        var self = this;
+        var scopify = function(node) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            node.className = self._scopeElementClass(node, node.className);
+            var n$ = node.querySelectorAll('*');
+            Array.prototype.forEach.call(n$, function(n) {
+              n.className = self._scopeElementClass(n, n.className);
+            });
+          }
+        };
+        scopify(container);
+        if (shouldObserve) {
+          var mo = new MutationObserver(function(mxns) {
+            mxns.forEach(function(m) {
+              if (m.addedNodes) {
+                for (var i=0; i < m.addedNodes.length; i++) {
+                  scopify(m.addedNodes[i]);
+                }
+              }
+            });
+          });
+          mo.observe(container, {childList: true, subtree: true});
+          return mo;
         }
       }
 

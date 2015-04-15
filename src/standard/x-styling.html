@@ -17,6 +17,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var baseAttachedCallback = Polymer.Base.attachedCallback;
     var baseSerializeValueToAttribute = Polymer.Base.serializeValueToAttribute;
 
+    var nativeShadow = Polymer.Settings.useNativeShadow;
+
     // TODO(sorvell): consider if calculating properties and applying
     // styles with properties should be separate modules.
     Polymer.Base.addFeature({
@@ -133,10 +135,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             style = cssText ? this._applyCustomCss(cssText) : {};
             cacheStyle(this.is, style, this._xScopeSelector, 
               this._styleProperties, s$);
-          } else if (Polymer.Settings.useNativeShadow) {
+          } else if (nativeShadow) {
             this._applyCustomCss(style.textContent);
           }
-          if (style.textContent /*&& !Polymer.Settings.useNativeShadow*/) {
+          if (style.textContent || old /*&& !nativeShadow*/) {
             this._applyXScopeSelector(this._xScopeSelector, old);
           }
         }
@@ -168,7 +170,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _transformCss: function(cssText, callback) {
-        return Polymer.Settings.useNativeShadow ?
+        return nativeShadow ?
           Polymer.StyleUtil.toCssText(cssText, callback) : 
           Polymer.StyleTransformer.css(cssText, this.is, this.extends, callback,
             this._scopeCssViaAttr);
@@ -177,10 +179,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _xScopeCount: 0,
 
       _ensureScopeSelector: function(selector) {
-        if (!this._xScopeSelector) {
-          var c = Object.getPrototypeOf(this)._xScopeCount++;
-          this._xScopeSelector = selector || (this.is + '-' + c);
-        }
+        selector = selector || (this.is + '-' + 
+          (Object.getPrototypeOf(this)._xScopeCount++));
+        this._xScopeSelector = selector;
       },
 
       _applyCustomCss: function(cssText) {
@@ -189,13 +190,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else if (cssText) {
           this._customStyle = Polymer.StyleUtil.applyCss(cssText, 
             this._xScopeSelector,
-            Polymer.Settings.useNativeShadow ? this.root : null);
+            nativeShadow ? this.root : null);
         }
         return this._customStyle;
       },
 
       _applyPropertiesToRule: function(properties, rule) {
-        if (!Polymer.Settings.useNativeShadow) {
+        if (!nativeShadow) {
           this._scopifyRule(rule);
         }
         if (rule.cssText.match(CUSTOM_RULE_RX)) {
@@ -258,7 +259,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _scopeElementClass: function(element, selector) {
-        if (!this._scopeCssViaAttr) {
+        if (!nativeShadow && !this._scopeCssViaAttr) {
           selector += (selector ? ' ' : '') + SCOPE_NAME + ' ' + this.is + 
             (element._xScopeSelector ? ' ' +  XSCOPE_NAME + ' ' + 
             element._xScopeSelector : '');
@@ -284,11 +285,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       updateStyles: function() {
         this._updateOwnStyles();
+        this._updateRootStyles(this.root);
+      },
+
+      updateHostStyles: function() {
+        if (this.host) {
+          this.host.updateStyles();
+        } else {
+          this._updateRootStyles(document);
+        }
+      },
+
+      _updateRootStyles: function(root) {
         // TODO(sorvell): temporary way to find local dom that needs 
         // x-scope styling.
         var scopeSelector = this._scopeCssViaAttr ? 
           '[' + SCOPE_NAME + '~=' + XSCOPE_NAME + ']' : '.' + XSCOPE_NAME;
-        var c$ = Polymer.dom(this.root).querySelectorAll(scopeSelector);
+        var c$ = Polymer.dom(root).querySelectorAll(scopeSelector);
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
           if (c.updateStyles) {
             c.updateStyles();
