@@ -24,16 +24,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var DomApi = function(node, patch) {
       this.node = node;
-      if (patch) {
+      //if (patch) {
         this.patch();
-      }
+      //}
     };
 
     DomApi.prototype = {
 
       // experimental: support patching selected native api.
       patch: function() {
+        getComposedChildren(this.node);
+        saveLightChildrenIfNeeded(this.node);
         var self = this;
+        // methods
         this.node.appendChild = function(node) {
           return self.appendChild(node);
         };
@@ -43,6 +46,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.node.removeChild = function(node) {
           return self.removeChild(node);
         };
+
+        // accessors
+        Object.defineProperty(this.node, 'childNodes', {
+          get: function() {
+            return self.childNodes;
+          },
+          configurable: true
+        });
       },
 
       get childNodes() {
@@ -104,7 +115,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeAppendChild.call(container, node);
-          invalidateComposedChildren(container);
+          // TODO(sorvell): fix composed children
+          //invalidateComposedChildren(container);
+          getComposedChildren(container).push(node);
         }
         return node;
       },
@@ -137,7 +150,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeInsertBefore.call(container, node, ref_node);
-          invalidateComposedChildren(container);
+          // TODO(sorvell): fix composed children
+          // invalidateComposedChildren(container);
+          var composed = getComposedChildren(container);
+          var i = composed.indexOf(ref_node);
+          if (i >= 0) {
+            composed.splice(i, 0, node);
+          }
         }
         return node;
       },
@@ -157,7 +176,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if removing from a shadyRoot, remove form host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeRemoveChild.call(container, node);
-          invalidateComposedChildren(container);
+          // TODO(sorvell): fix composed children
+          // invalidateComposedChildren(container);
+          var composed = getComposedChildren(container);
+          var i = composed.indexOf(node);
+          if (i >= 0) {
+            composed.splice(i, 1);
+          }
         }
         return node;
       },
@@ -440,6 +465,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function invalidateComposedChildren(node) {
+      console.log('invalidateComposedChildren', node);
       node.__composedChildren = null;
     }
 
