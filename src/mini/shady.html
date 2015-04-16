@@ -119,6 +119,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           this.shadyRoot._hasDistributed = true;
           this.shadyRoot._distributionClean = true;
+          if (!this.__patched) {
+            Polymer.dom(this);
+            Polymer.dom(this.root);
+            Array.prototype.forEach.call(this.childNodes, function(c) {
+              Polymer.dom(c);
+            })
+          }
         }
       },
 
@@ -255,7 +262,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // process removals
         for (var i=0, d=0, s; (i<splices.length) && (s=splices[i]); i++) {
           for (var j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
-            removeFromOldComposedParent(container, n);
             remove(n);
             composed.splice(s.index + d, 1);
           }
@@ -266,7 +272,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           next = composed[s.index];
           for (var j=s.index, n; j < s.index + s.addedCount; j++) {
             n = children[j];
-            removeFromOldComposedParent(container, n);
             insertBefore(container, n, next);
             composed.splice(j, 0, n);
           }
@@ -315,6 +320,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var matchesSelector = Polymer.DomApi.matchesSelector;
     var hasInsertionPoint = Polymer.DomApi.hasInsertionPoint;
     var getComposedChildren = Polymer.DomApi.getComposedChildren;
+    var removeFromComposedParent = Polymer.DomApi.removeFromComposedParent;
 
     function distributeNodeInto(child, insertionPoint) {
       insertionPoint._distributedNodes.push(child);
@@ -343,38 +349,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var nativeRemoveChild = Element.prototype.removeChild;
 
     function insertBefore(parentNode, newChild, refChild) {
+      if (newChild.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        console.log(parentNode, newChild, refChild);
+      }
+      var newChildParent = getComposedParent(newChild);
+      if (newChildParent !== parentNode) {
+        removeFromComposedParent(newChildParent, newChild);
+      }
       // remove child from its old parent first
       remove(newChild);
-      removeFromOldComposedParent(parentNode, newChild);
       // make sure we never lose logical DOM information:
       // if the parentNode doesn't have lightChildren, save that information now.
       saveLightChildrenIfNeeded(parentNode);
       // insert it into the real DOM
       nativeInsertBefore.call(parentNode, newChild, refChild || null);
+      newChild._composedParent = parentNode;
     }
 
     function remove(node) {
-      var parentNode = node.parentNode;
+      var parentNode = getComposedParent(node);
       if (parentNode) {
         // make sure we never lose logical DOM information:
         // if the parentNode doesn't have lightChildren, save that information now.
         saveLightChildrenIfNeeded(parentNode);
+        node._composedParent = null;
         // remove it from the real DOM
         nativeRemoveChild.call(parentNode, node);
       }
     }
 
-    function removeFromOldComposedParent(newParent, node) {
-      var old = node.parentNode || node.lightParent;
-      if (old && (old !== newParent) && old.__composedChildren) {
-        var children = getComposedChildren(old);
-        var i = children.indexOf(node);
-        if (i >= 0) {
-          children.splice(i, 1);
-        }
-      }
+    function getComposedParent(node) {
+      return node.__patched ? node._composedParent : node.parentNode;
     }
-
   })();
 
 </script>

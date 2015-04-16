@@ -19,22 +19,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var nativeInsertBefore = Element.prototype.insertBefore;
     var nativeRemoveChild = Element.prototype.removeChild;
     var nativeAppendChild = Element.prototype.appendChild;
+    var nativeQuerySelector = Element.prototype.querySelector;
+    var nativeQuerySelectorAll = Element.prototype.querySelectorAll;
 
     var dirtyRoots = [];
 
     var DomApi = function(node, patch) {
       this.node = node;
-      //if (patch) {
+      //return;
+      // TODO(sorvell): eeek.
+      if (this.node === document || this.node === document.head) {
+        return;
+      }
+      if (/*patch*/ !this.node.__patched) {
         this.patch();
-      //}
+      }
     };
 
     DomApi.prototype = {
 
       // experimental: support patching selected native api.
       patch: function() {
-        getComposedChildren(this.node);
+        this.node.__patched = true;
         saveLightChildrenIfNeeded(this.node);
+        getComposedChildren(this.node);
+        if (!this.node.lightParent) {
+          this.node.lightParent = this.node.parentNode;
+        }
+        if (!this.node._composedParent) {
+          this.node._composedParent = this.node.parentNode;
+        }
+        
         var self = this;
         // methods
         this.node.appendChild = function(node) {
@@ -46,6 +61,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.node.removeChild = function(node) {
           return self.removeChild(node);
         };
+        //
+        this.node.querySelector = function(selector) {
+          return self.querySelector(selector);
+        };
+        this.node.querySelectorAll = function(selector) {
+          return self.querySelectorAll(selector);
+        };
 
         // accessors
         Object.defineProperty(this.node, 'childNodes', {
@@ -54,6 +76,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           },
           configurable: true
         });
+        Object.defineProperty(this.node, 'children', {
+          get: function() {
+            return self.children;
+          },
+          configurable: true
+        });
+        // TODO(sorvell): conditional due to problem in Safari.
+        if (this.node.lightParent || 
+          (this.node.parentNode && this.node.parentNode.__patched)) {
+          Object.defineProperty(this.node, 'parentNode', {
+            get: function() {
+              return self.parentNode;
+            },
+            configurable: true
+          });
+        }
       },
 
       get childNodes() {
@@ -68,7 +106,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       get parentNode() {
-        return this.node.lightParent || this.node.parentNode;
+        return this.node.lightParent || 
+          (this.node.__patched ? this.node._composedParent :
+          this.node.parentNode);
       },
 
       flush: function() {
@@ -115,9 +155,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeAppendChild.call(container, node);
-          // TODO(sorvell): fix composed children
-          //invalidateComposedChildren(container);
-          getComposedChildren(container).push(node);
+          addToComposedParent(container, node);
         }
         return node;
       },
@@ -150,13 +188,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeInsertBefore.call(container, node, ref_node);
-          // TODO(sorvell): fix composed children
-          // invalidateComposedChildren(container);
-          var composed = getComposedChildren(container);
-          var i = composed.indexOf(ref_node);
-          if (i >= 0) {
-            composed.splice(i, 0, node);
-          }
+          addToComposedParent(container, node, ref_node);
         }
         return node;
       },
@@ -176,13 +208,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if removing from a shadyRoot, remove form host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeRemoveChild.call(container, node);
-          // TODO(sorvell): fix composed children
-          // invalidateComposedChildren(container);
-          var composed = getComposedChildren(container);
-          var i = composed.indexOf(node);
-          if (i >= 0) {
-            composed.splice(i, 1);
-          }
+          removeFromComposedParent(container, node);
         }
         return node;
       },
@@ -458,15 +484,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function getComposedChildren(node) {
-      if (!node.__composedChildren) {
-        node.__composedChildren = Array.prototype.slice.call(node.childNodes);
+      if (!node._composedChildren) {
+        node._composedChildren = Array.prototype.slice.call(node.childNodes);
       }
-      return node.__composedChildren;
+      return node._composedChildren;
     }
 
-    function invalidateComposedChildren(node) {
-      console.log('invalidateComposedChildren', node);
-      node.__composedChildren = null;
+    function addToComposedParent(parent, node, ref_node) {
+      var children = getComposedChildren(parent);
+      var i = ref_node ? children.indexOf(ref_node) : -1;
+      if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        var fragChildren = getComposedChildren(node);
+        fragChildren.forEach(function(c) {
+          addNodeToComposedChildren(c, parent, children, i);
+        });
+      } else {
+        addNodeToComposedChildren(node, parent, children, i);
+      }
+      
+    }
+
+    function addNodeToComposedChildren(node, parent, children, i) {
+      node._composedParent = parent;
+      if (i >= 0) {
+        children.splice(i, 0, node);
+      } else {
+        children.push(node);
+      }
+    }
+
+    function removeFromComposedParent(parent, node) {
+      node._composedParent = null;
+      if (parent) {
+        var children = getComposedChildren(parent);
+        var i = children.indexOf(node);
+        if (i >= 0) {
+          children.splice(i, 1);
+        }
+      }
     }
 
     function saveLightChildrenIfNeeded(node) {
@@ -499,6 +554,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return {
       getLightChildren: getLightChildren,
       getComposedChildren: getComposedChildren,
+      removeFromComposedParent: removeFromComposedParent,
       saveLightChildrenIfNeeded: saveLightChildrenIfNeeded,
       matchesSelector: matchesSelector,
       hasInsertionPoint: hasInsertionPoint,
