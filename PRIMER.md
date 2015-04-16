@@ -740,6 +740,8 @@ Example:
 <a name="change-callbacks"></a>
 ## Property change callbacks (observers)
 
+### Single property observation
+
 Custom element properties may be observed for changes by specifying `observer` property in the `properties` for the property that gives the name of a funciton to call.  When the property changes, the change handler will be called with the new and old values as arguments.
 
 Example:
@@ -774,9 +776,15 @@ Polymer({
 });
 ```
 
-Property change observation is achieved in Polymer by installing setters on the custom element prototype for properties with registered interest (as opposed to observation via Object.observe or dirty checking, for example).
+Note that property change observation is achieved in Polymer by installing setters on the custom element prototype for properties with registered interest (as opposed to observation via Object.observe or dirty checking, for example).
 
-Observing changes to multiple properties is supported via the `observers` object, by specifying a string-separated list of dependent properties that should result in a change function being called.  These observers differ from single-property observers in that the change handler is called asynchronously.
+### Multipe property observation
+
+Observing changes to multiple properties is supported via the `observers` array on the prototype, using a string containing a method signature that includes any dependent arguments.  Once all properties are defined (`!== undefined`), the observer method will be called once for each change to a dependent property.  The current values of the dependent properties will be passed as arguments to the observer method in the order defined in the `observers` method signature.
+
+*Note, computing functions will only be called once all dependent properties are defined (`!=undefined`).  If one or more of the properties are optional, they would need default `value`'s defined in `properties` to ensure the observer is called.*
+
+*Note that any observers defined in the `observers` array will not receive `old` values as arguments, only new values.  Only single-property observers defined in the `properties` object received both `old` and `new` values.*
 
 Example:
 
@@ -791,9 +799,9 @@ Polymer({
     size: String
   },
 
-  observers: {
-    'preload src size': 'updateImage'
-  },
+  observers: [
+    'updateImage(preload, src, size)'
+  ],
 
   updateImage: function(preload, src, size) {
     // ... do work using dependent values
@@ -802,7 +810,9 @@ Polymer({
 });
 ```
 
-Additionally, observing changes to object sub-properties is also supported via the same `observers` object, by specifying a full (e.g. `user.manager.name`) or partial path (`user.*`) and function name to call.  In this case, the third argument will indicate the path that changed.  Note that currently the second argument (old value) will not be valid.
+### Path observation
+
+Observing changes to object sub-properties is also supported via the same `observers` array, by specifying a path (e.g. `user.manager.name`).
 
 Example:
 
@@ -816,23 +826,49 @@ Polymer({
   },
 
   observers: {
-    'user.manager.*': 'userManagerChanged'
+    'userManagerChanged(user.manager)'
   },
 
-  userManagerChanged: function(newValue, oldValue, path) {
-    if (path) {
-      // sub-property of user.manager changed
-      console.log('manager ' + path.split('.').pop() + ' changed to ' + newValue);
-    } else {
-      // user.manager object itself changed
-      console.log('new manager name is ' + newValue.name);
-    }
+  userManagerChanged: function(user) {
+    console.log('new manager name is ' + user.name);
   }
 
 });
 ```
 
-Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPathValue`](#set-path) API, which provides the required notification to elements with registered interest.
+*Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPathValue`](#set-path) API, which provides the required notification to elements with registered interest.*
+
+### Deep path observation
+
+Additionally, wildcard matching of path changes is also supported via the `observers` array, which allows notification when any (deep) sub-property of an object changes.  Note that the argument passed for a path with a wildcard is a change record object containing the `path` that changed, the new `value` of the path that changed, and the `base` value of the wildcard expression.
+
+Example:
+
+```js
+Polymer({
+
+  is: 'x-custom',
+
+  properties: {
+    user: Object
+  },
+
+  observers: {
+    'userManagerChanged(user.manager.*)'
+  },
+
+  userManagerChanged: function(changeRecord) {
+    if (changeRecord.path == 'user.manager') {
+      // user.manager object itself changed
+      console.log('new manager name is ' + newValue.name);
+    } else {
+      // sub-property of user.manager changed
+      console.log(changeRecord.path + ' changed to ' + changeRecord.value);
+    }
+  }
+
+});
+```
 
 <a name="property-binding"></a>
 ## Annotated property binding
@@ -1245,7 +1281,9 @@ Values will be serialized according to type; by default Arrays/Objects will be `
 <a name="computed-properties"></a>
 ## Computed properties
 
-Polymer supports virtual properties whose values are calculated from other properties.  Computed properties can be defined in the `properties` object by providing a `computed` key mapping to a computing function.  The name of the function to compute the value is provided as a string with dependent properties as arguments in parenthesis.  The function will be called once (asynchronously) for any change to the dependent properties.
+Polymer supports virtual properties whose values are calculated from other properties.  Computed properties can be defined in the `properties` object by providing a `computed` key mapping to a computing function.  The name of the function to compute the value is provided as a string with dependent properties as arguments in parenthesis.  Once all properties are defined (`!== undefined`), the computing function will be called to update the computed property once for each change to a dependent property.
+
+*Note, computing functions will only be called once all dependent properties are defined (`!=undefined`).  If one or more of the properties are optional, they would need default `value`'s defined in `properties` to ensure the property is computed.*
 
 ```html
 <dom-module id="x-custom">
@@ -1289,7 +1327,11 @@ Note: Only direct properties of the element (as opposed to sub-properties of an 
 <a name="annotated-computed"></a>
 ## Annotated computed properties
 
-Anonymous computed properties may also be placed directly in template binding annotations.  This is useful when the property need not be a part of the element's API or otherwise used by logic in the element, and is only used for downward data propagation.  Note: this is the only form of functions allowed in template bindings.
+Anonymous computed properties may also be placed directly in template binding annotations.  This is useful when the property need not be a part of the element's API or otherwise used by logic in the element, and is only used for downward data propagation.
+
+*Note: this is the only form of functions allowed in template bindings, and they must specify one or more dependent properties as arguments, otherwise the function will not be called.*
+
+*Note, computing functions will only be called once all dependent properties are defined (`!=undefined`).  If one or more of the properties are optional, they would need default `value`'s defined in `properties` to ensure the property is computed.*
 
 Example:
 
@@ -1459,6 +1501,8 @@ Then the `observe` property should be configured as follows:
           filter="isEngineer" observe="type manager.type">
 ```
 
+Note, to reach the outer parent scope, bindings in an `x-repeat` template may be prefixed with `parent.<property>`.
+
 <a name="x-array-selector"></a>
 ## Array selector (x-array-selector)
 EXPERIMENTAL - API MAY CHANGE
@@ -1506,6 +1550,53 @@ Keeping structured data in sync requires that Polymer understand the path associ
 
 </dom-module>
 ``` 
+
+<a name="x-if"></a>
+## Conditional template
+EXPERIMENTAL - API MAY CHANGE
+
+Elements can be conditionally stamped based on a boolean property by wrapping them in a custom `HTMLTemplateElement` type extension called `x-if`.  The `x-if` template stamps itself into the DOM only when its `if` property becomes truthy.
+
+If the `if` property becomes falsy again, by default all stamped elements will be hidden (but will remain in DOM) for fater performance should the `if` property become truthy again.  This behavior may be defeated by setting the `restamp` property, which results in slower `if` switching behavior as the elements are destroyed and re-stamped each time.
+
+Note, to reach the outer parent scope, all bindings in an `x-if` template must be prefixed with `parent.<property>`, as shown below.
+
+Example:
+
+**Note, this is a simple example for illustrative purposes only.  Read below for guidance on recommended usage of conditional templates.**
+
+```html
+<dom-module id="user-page">
+
+  <template>
+
+    All users will see this:
+    <div>{{user.name}}</div>
+
+    <template is="x-if" if="{{user.isAdmin}}">
+      Only admins will see this.
+      <div>{{parent.user.secretAdminStuff}}</div>
+    </template>
+
+  </template>
+  
+  <script>
+    Polymer({
+      is: 'user-page',
+      properties: {
+        user: Object
+      }
+    });
+  </script>
+  
+</dom-module>
+```
+
+Note, since it is generally much faster to hide/show elements rather than create/destroy them, conditional templates are only useful to save initial creation cost when the elements being stamped are relatively heavyweight and the conditional may rarely (or never) be true in given useages.  Otherwise, liberal use of conditional templates can actually *add* significant runtime performance overhead.
+
+Consider an app with 4 screens, plus an optional admin screen.  If most users will use all 4 screens during normal use of the app, it is generally better to incur the cost of stamping those elements once at startup (where some app initialization time is expected) and simply hide/show the screens as the user navigates through the app, rather than re-create and destroy all the elements of each screen as the user navigates.  Using a conditional template here may be a poor choice, since although it may save time at startup by stamping only the first screen, that saved time gets shifted to runtime latency for each user interaction, since the time to show the second screen will be *slower* as it must create the second screen from scratch rather than simply showing that screen.  Hiding/showing elements is as simple as attribute-binding to the `hidden` attribute (e.g. `<div hidden$="{{!shouldShow}}">`), and does not require conditional templating at all.
+
+However, using a conditional template may be appropriate in the case of an admin screen that should only be shown to admin users of an app.  Since most users would not be admins, there may be performance benefits to not burdening most of the users with the cost of stamping the elements for the admin page, especially if it is relatively heavyweight.
 
 <a name="x-autobind"></a>
 ## Auto-binding template
