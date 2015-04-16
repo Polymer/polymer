@@ -1,0 +1,116 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<script>
+
+(function() {
+
+  var saveLightChildrenIfNeeded = Polymer.DomApi.saveLightChildrenIfNeeded;
+  var getComposedChildren = Polymer.DomApi.getComposedChildren;
+
+  var log = false;
+
+  // experimental: support patching selected native api.
+  Polymer.DomApi.ctor.prototype.patch = function() {
+    this.node.__patched = true;
+    saveLightChildrenIfNeeded(this.node);
+    getComposedChildren(this.node);
+    if (!this.node.lightParent) {
+      this.node.lightParent = this.node.parentNode;
+    }
+    if (!this.node._composedParent) {
+      this.node._composedParent = this.node.parentNode;
+    }
+    
+    var self = this;
+    // methods
+    this.node.appendChild = function(node) {
+      log && console.log('appendChild', self.node, node);
+      return self.appendChild(node);
+    };
+    this.node.insertBefore = function(node, ref_node) {
+      log && console.log('insertBefore', self.node, node, ref_node);
+      return self.insertBefore(node, ref_node);
+    };
+    this.node.removeChild = function(node) {
+      log && console.log('removeChild', self.node, node);
+      return self.removeChild(node);
+    };
+    //
+    
+    this.node.querySelector = function(selector) {
+      return self.querySelector(selector);
+    };
+
+    this.node.querySelectorAll = function(selector) {
+      return self.querySelectorAll(selector);
+    };
+
+    // accessors
+    Object.defineProperty(this.node, 'childNodes', {
+      get: function() {
+        log && console.log('childNodes', self.node, self.childNodes.length);
+        return self.childNodes;
+      },
+      configurable: true
+    });
+    
+    Object.defineProperty(this.node, 'children', {
+      get: function() {
+        return self.children;
+      },
+      configurable: true
+    });
+    
+    // TODO(sorvell): conditional due to problem in Safari.
+    if (this.node.lightParent || 
+      (this.node.parentNode && this.node.parentNode.__patched)) {
+      Object.defineProperty(this.node, 'parentNode', {
+        get: function() {
+          log && console.log('parentNode', self.node, self.parentNode);
+          return self.parentNode;
+        },
+        configurable: true
+      });
+    }
+
+    // textContent / innerHTML
+    Object.defineProperty(this.node, 'textContent', {
+      get: function() {
+        return Array.prototype.map.call(self.childNodes, function(c) {
+          return c.textContent;
+        }).join('');
+      },
+      set: function(text) {
+        self._clear();
+        self.appendChild(document.createTextNode(text));
+      },
+      configurable: true
+    });
+
+    Object.defineProperty(this.node, 'innerHTML', {
+      get: function() {
+        // TODO(sorvell);
+      },
+      set: function(value) {
+        self._clear();
+        var d = document.createElement('div');
+        d.innerHTML = value;
+        for (var e=d.firstChild; e; e=e.nextSibling) {
+          self.appendChild(e);
+        }
+      },
+      configurable: true
+    });
+    
+  };
+
+})();
+
+</script>
