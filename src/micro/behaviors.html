@@ -10,19 +10,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
 
   /**
-   * Automatically extend using objects referenced in `mixins` array.
+   * Automatically extend using objects referenced in `behaviors` array.
+   *
+   *     someBehaviorObject = {
+   *       accessors: {
+   *        value: {type: Number, observer: '_numberChanged'}
+   *       },
+   *       observers: [ 
+   *         // ...
+   *       ],
+   *       ready: function() {
+   *         // called before prototoype's ready
+   *       },
+   *       _numberChanged: function() {}
+   *     };
    *
    *     Polymer({
    *
-   *       mixins: [
-   *         someMixinObject
+   *       behaviors: [
+   *         someBehaviorObject
    *       ]
    *
    *       ...
    *
    *     });
    *
-   * @class base feature: mixins
+   * @class base feature: behaviors
    */
 
   Polymer.Base._addFeature({
@@ -30,22 +43,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     behaviors: [],
 
     _prepBehaviors: function() {
-      this._prepEffects();
       this._prepBehavior(this);
       this.behaviors.forEach(function(b) {
         this._mixinBehavior(b);
         this._prepBehavior(b);
       }, this);
-      this._prepBindings();
     },
 
     _mixinBehavior: function(b) {
       Object.getOwnPropertyNames(b).forEach(function(n) {
         switch (n) {
+          case 'registered':
           case 'accessors':
           case 'listeners':
           case 'keyPresses':
           case 'hostAttributes':
+          case 'created':
+          case 'attached':
+          case 'detached':
+          case 'attributeChanged':
+          case 'configure':
+          case 'ready':
             break;
           default:
             this.copyOwnProperty(n, b, this);
@@ -55,28 +73,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _doBehavior: function(name, args) {
-      this._invokeBehavior(this);
-      this.behaviors.forEach(this._invokeBehavior, this);
+      this.behaviors.forEach(function(b) {
+        this._invokeBehavior(b, name, args);
+      }, this);
+      this._invokeBehavior(this, name, args);
     },
 
-    _invokeBehavior: function(b, args) {
-      var fn = b[fn];
+    _invokeBehavior: function(b, name, args) {
+      var fn = b[name];
       if (fn) {
         fn.apply(this, args || Polymer.nar);
       }
     },
 
     _marshalBehaviors: function() {
-      this._marshalBehavior(this);
       this.behaviors.forEach(function(b) {
         this._marshalBehavior(b);
       }, this);
-    },
-
-    _marshalBehavior: function(b) {
-      this._installHostAttributes(b.hostAttributes);
-      this._listenListeners(b.listeners);
-      this._listenKeyPresses(b.keyPresses);
+      this._marshalBehavior(this);
     }
 
   });
