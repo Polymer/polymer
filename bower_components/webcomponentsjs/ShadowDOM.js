@@ -7,7 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-// @version 0.6.0
+// @version 0.6.1
 if (typeof WeakMap === "undefined") {
   (function() {
     var defineProperty = Object.defineProperty;
@@ -146,7 +146,7 @@ window.ShadowDOMPolyfill = {};
     return /^on[a-z]+$/.test(name);
   }
   function isIdentifierName(name) {
-    return /^\w[a-zA-Z_0-9]*$/.test(name);
+    return /^[a-zA-Z_$][a-zA-Z_$0-9]*$/.test(name);
   }
   function getGetter(name) {
     return hasEval && isIdentifierName(name) ? new Function("return this.__impl4cf1e782hg__." + name) : function() {
@@ -302,6 +302,7 @@ window.ShadowDOMPolyfill = {};
   scope.defineGetter = defineGetter;
   scope.defineWrapGetter = defineWrapGetter;
   scope.forwardMethodsToWrapper = forwardMethodsToWrapper;
+  scope.isIdentifierName = isIdentifierName;
   scope.isWrapper = isWrapper;
   scope.isWrapperFor = isWrapperFor;
   scope.mixin = mixin;
@@ -2040,10 +2041,10 @@ window.ShadowDOMPolyfill = {};
     return index;
   }
   function shimSelector(selector) {
-    return String(selector).replace(/\/deep\/|::shadow/g, " ");
+    return String(selector).replace(/\/deep\/|::shadow|>>>/g, " ");
   }
   function shimMatchesSelector(selector) {
-    return String(selector).replace(/:host\(([^\s]+)\)/g, "$1").replace(/([^\s]):host/g, "$1").replace(":host", "*").replace(/\^|\/shadow\/|\/shadow-deep\/|::shadow|\/deep\/|::content/g, " ");
+    return String(selector).replace(/:host\(([^\s]+)\)/g, "$1").replace(/([^\s]):host/g, "$1").replace(":host", "*").replace(/\^|\/shadow\/|\/shadow-deep\/|::shadow|\/deep\/|::content|>>>/g, " ");
   }
   function findOne(node, selector) {
     var m, el = node.firstElementChild;
@@ -3275,92 +3276,6 @@ window.ShadowDOMPolyfill = {};
 
 (function(scope) {
   "use strict";
-  var registerWrapper = scope.registerWrapper;
-  var setWrapper = scope.setWrapper;
-  var unsafeUnwrap = scope.unsafeUnwrap;
-  var unwrap = scope.unwrap;
-  var unwrapIfNeeded = scope.unwrapIfNeeded;
-  var wrap = scope.wrap;
-  var OriginalRange = window.Range;
-  function Range(impl) {
-    setWrapper(impl, this);
-  }
-  Range.prototype = {
-    get startContainer() {
-      return wrap(unsafeUnwrap(this).startContainer);
-    },
-    get endContainer() {
-      return wrap(unsafeUnwrap(this).endContainer);
-    },
-    get commonAncestorContainer() {
-      return wrap(unsafeUnwrap(this).commonAncestorContainer);
-    },
-    setStart: function(refNode, offset) {
-      unsafeUnwrap(this).setStart(unwrapIfNeeded(refNode), offset);
-    },
-    setEnd: function(refNode, offset) {
-      unsafeUnwrap(this).setEnd(unwrapIfNeeded(refNode), offset);
-    },
-    setStartBefore: function(refNode) {
-      unsafeUnwrap(this).setStartBefore(unwrapIfNeeded(refNode));
-    },
-    setStartAfter: function(refNode) {
-      unsafeUnwrap(this).setStartAfter(unwrapIfNeeded(refNode));
-    },
-    setEndBefore: function(refNode) {
-      unsafeUnwrap(this).setEndBefore(unwrapIfNeeded(refNode));
-    },
-    setEndAfter: function(refNode) {
-      unsafeUnwrap(this).setEndAfter(unwrapIfNeeded(refNode));
-    },
-    selectNode: function(refNode) {
-      unsafeUnwrap(this).selectNode(unwrapIfNeeded(refNode));
-    },
-    selectNodeContents: function(refNode) {
-      unsafeUnwrap(this).selectNodeContents(unwrapIfNeeded(refNode));
-    },
-    compareBoundaryPoints: function(how, sourceRange) {
-      return unsafeUnwrap(this).compareBoundaryPoints(how, unwrap(sourceRange));
-    },
-    extractContents: function() {
-      return wrap(unsafeUnwrap(this).extractContents());
-    },
-    cloneContents: function() {
-      return wrap(unsafeUnwrap(this).cloneContents());
-    },
-    insertNode: function(node) {
-      unsafeUnwrap(this).insertNode(unwrapIfNeeded(node));
-    },
-    surroundContents: function(newParent) {
-      unsafeUnwrap(this).surroundContents(unwrapIfNeeded(newParent));
-    },
-    cloneRange: function() {
-      return wrap(unsafeUnwrap(this).cloneRange());
-    },
-    isPointInRange: function(node, offset) {
-      return unsafeUnwrap(this).isPointInRange(unwrapIfNeeded(node), offset);
-    },
-    comparePoint: function(node, offset) {
-      return unsafeUnwrap(this).comparePoint(unwrapIfNeeded(node), offset);
-    },
-    intersectsNode: function(node) {
-      return unsafeUnwrap(this).intersectsNode(unwrapIfNeeded(node));
-    },
-    toString: function() {
-      return unsafeUnwrap(this).toString();
-    }
-  };
-  if (OriginalRange.prototype.createContextualFragment) {
-    Range.prototype.createContextualFragment = function(html) {
-      return wrap(unsafeUnwrap(this).createContextualFragment(html));
-    };
-  }
-  registerWrapper(window.Range, Range, document.createRange());
-  scope.wrappers.Range = Range;
-})(window.ShadowDOMPolyfill);
-
-(function(scope) {
-  "use strict";
   var GetElementsByInterface = scope.GetElementsByInterface;
   var ParentNodeInterface = scope.ParentNodeInterface;
   var SelectorsInterface = scope.SelectorsInterface;
@@ -3427,6 +3342,123 @@ window.ShadowDOMPolyfill = {};
     }
   });
   scope.wrappers.ShadowRoot = ShadowRoot;
+})(window.ShadowDOMPolyfill);
+
+(function(scope) {
+  "use strict";
+  var registerWrapper = scope.registerWrapper;
+  var setWrapper = scope.setWrapper;
+  var unsafeUnwrap = scope.unsafeUnwrap;
+  var unwrap = scope.unwrap;
+  var unwrapIfNeeded = scope.unwrapIfNeeded;
+  var wrap = scope.wrap;
+  var getTreeScope = scope.getTreeScope;
+  var OriginalRange = window.Range;
+  var ShadowRoot = scope.wrappers.ShadowRoot;
+  function getHost(node) {
+    var root = getTreeScope(node).root;
+    if (root instanceof ShadowRoot) {
+      return root.host;
+    }
+    return null;
+  }
+  function hostNodeToShadowNode(refNode, offset) {
+    if (refNode.shadowRoot) {
+      offset = Math.min(refNode.childNodes.length - 1, offset);
+      var child = refNode.childNodes[offset];
+      if (child) {
+        var insertionPoint = scope.getDestinationInsertionPoints(child);
+        if (insertionPoint.length > 0) {
+          var parentNode = insertionPoint[0].parentNode;
+          if (parentNode.nodeType == Node.ELEMENT_NODE) {
+            refNode = parentNode;
+          }
+        }
+      }
+    }
+    return refNode;
+  }
+  function shadowNodeToHostNode(node) {
+    node = wrap(node);
+    return getHost(node) || node;
+  }
+  function Range(impl) {
+    setWrapper(impl, this);
+  }
+  Range.prototype = {
+    get startContainer() {
+      return shadowNodeToHostNode(unsafeUnwrap(this).startContainer);
+    },
+    get endContainer() {
+      return shadowNodeToHostNode(unsafeUnwrap(this).endContainer);
+    },
+    get commonAncestorContainer() {
+      return shadowNodeToHostNode(unsafeUnwrap(this).commonAncestorContainer);
+    },
+    setStart: function(refNode, offset) {
+      refNode = hostNodeToShadowNode(refNode, offset);
+      unsafeUnwrap(this).setStart(unwrapIfNeeded(refNode), offset);
+    },
+    setEnd: function(refNode, offset) {
+      refNode = hostNodeToShadowNode(refNode, offset);
+      unsafeUnwrap(this).setEnd(unwrapIfNeeded(refNode), offset);
+    },
+    setStartBefore: function(refNode) {
+      unsafeUnwrap(this).setStartBefore(unwrapIfNeeded(refNode));
+    },
+    setStartAfter: function(refNode) {
+      unsafeUnwrap(this).setStartAfter(unwrapIfNeeded(refNode));
+    },
+    setEndBefore: function(refNode) {
+      unsafeUnwrap(this).setEndBefore(unwrapIfNeeded(refNode));
+    },
+    setEndAfter: function(refNode) {
+      unsafeUnwrap(this).setEndAfter(unwrapIfNeeded(refNode));
+    },
+    selectNode: function(refNode) {
+      unsafeUnwrap(this).selectNode(unwrapIfNeeded(refNode));
+    },
+    selectNodeContents: function(refNode) {
+      unsafeUnwrap(this).selectNodeContents(unwrapIfNeeded(refNode));
+    },
+    compareBoundaryPoints: function(how, sourceRange) {
+      return unsafeUnwrap(this).compareBoundaryPoints(how, unwrap(sourceRange));
+    },
+    extractContents: function() {
+      return wrap(unsafeUnwrap(this).extractContents());
+    },
+    cloneContents: function() {
+      return wrap(unsafeUnwrap(this).cloneContents());
+    },
+    insertNode: function(node) {
+      unsafeUnwrap(this).insertNode(unwrapIfNeeded(node));
+    },
+    surroundContents: function(newParent) {
+      unsafeUnwrap(this).surroundContents(unwrapIfNeeded(newParent));
+    },
+    cloneRange: function() {
+      return wrap(unsafeUnwrap(this).cloneRange());
+    },
+    isPointInRange: function(node, offset) {
+      return unsafeUnwrap(this).isPointInRange(unwrapIfNeeded(node), offset);
+    },
+    comparePoint: function(node, offset) {
+      return unsafeUnwrap(this).comparePoint(unwrapIfNeeded(node), offset);
+    },
+    intersectsNode: function(node) {
+      return unsafeUnwrap(this).intersectsNode(unwrapIfNeeded(node));
+    },
+    toString: function() {
+      return unsafeUnwrap(this).toString();
+    }
+  };
+  if (OriginalRange.prototype.createContextualFragment) {
+    Range.prototype.createContextualFragment = function(html) {
+      return wrap(unsafeUnwrap(this).createContextualFragment(html));
+    };
+  }
+  registerWrapper(window.Range, Range, document.createRange());
+  scope.wrappers.Range = Range;
 })(window.ShadowDOMPolyfill);
 
 (function(scope) {
@@ -3883,7 +3915,7 @@ window.ShadowDOMPolyfill = {};
       return wrap(unsafeUnwrap(this).focusNode);
     },
     addRange: function(range) {
-      unsafeUnwrap(this).addRange(unwrap(range));
+      unsafeUnwrap(this).addRange(unwrapIfNeeded(range));
     },
     collapse: function(node, index) {
       unsafeUnwrap(this).collapse(unwrapIfNeeded(node), index);

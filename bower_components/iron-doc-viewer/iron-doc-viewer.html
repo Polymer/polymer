@@ -7,8 +7,9 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="../hydrolysis/hydrolysis-analyzer.html">
+<link rel="import" href="../paper-styles/typography.html">
 <link rel="import" href="../polymer/polymer.html">
-<link rel="import" href="../hydrolysis/hydrolysis.html">
 <link rel="import" href="../prism-highlighter/prism-highlighter.html">
 
 <link rel="import" href="iron-doc-element.html">
@@ -28,13 +29,14 @@ you want to document:
 
   <template>
     <prism-highlighter></prism-highlighter>
+    <hydrolysis-analyzer src="[[src]]" transitive="[[transitive]]" clean analyzer="{{_analyzer}}" loading="{{_loading}}"></hydrolysis-analyzer>
 
-    <iron-doc-element id="page" descriptor="{{_activeElement}}"></iron-doc-element>
+    <iron-doc-element id="page" descriptor="[[_activeElement]]"></iron-doc-element>
     <nav>
       <ul on-tap="_onTapNavItem">
         <!-- Polymer features are crazy special cased as `Polymer.Base`. -->
-        <template is="x-repeat" items="{{_elements}}">
-          <li class="paper-font-code1" abstract$="{{item.abstract}}">{{item.is}}</li>
+        <template is="x-repeat" items="[[_elements]]">
+          <li abstract$="[[item.abstract]]">[[item.is]]</li>
         </template>
       </ul>
     </nav>
@@ -50,6 +52,8 @@ var hydrolysis = require('hydrolysis');
 
     is: 'iron-doc-viewer',
 
+    enableCustomStyleProperties: true,
+
     properties: {
 
       /**
@@ -62,22 +66,19 @@ var hydrolysis = require('hydrolysis');
        * If you change this value after the `<iron-doc-viewer>` has been
        * instantiated, you must call `load()`.
        */
-      src: {
-        type: String,
-      },
+      src: String,
 
       /**
-       * The root URL to evaluate imports under. Any imports that are referenced
-       * outside of this root will be _ignored_.
+       * Whether _all_ dependencies should be loaded and documented.
        *
-       * If you do not specify a root, this defaults to the directory that
-       * contains `src`.
-       *
-       * If you change this value after the `<iron-doc-viewer>` has been
-       * instantiated, you must call `load()`.
+       * Turning this on will probably slow down the load process dramatically.
        */
-      rootUrl: {
-        type: String,
+      transitive: Boolean,
+
+      /** The Hydrolysis element descripotrs being rendered. */
+      _elements: {
+        type:     Array,
+        observer: '_elementsChanged',
       },
 
       /**
@@ -87,123 +88,62 @@ var hydrolysis = require('hydrolysis');
        */
       _activeElement: Object,
 
+      /**
+       * The hydrolysis analyzer.
+       *
+       * @type {!hydrolysis.Analyzer}
+       */
+      _analyzer: {
+        observer: '_analyzerChanged',
+      },
+
+      /** Whether the analyzer is loading source. */
+      _loading: {
+        type:     Boolean,
+        observer: '_loadingChanged',
+      },
+
     },
 
     ready: function() {
-      this.load();
+      var elements = this._loadJson();
+      if (!elements) return;
+      this._elements = elements;
+      this._loading  = false;
     },
 
     /**
-     * Begins loading the imports referenced by `src`.
+     * Loads a hydrolysis element descriptor (as JSON) from the text content of
+     * this element, if present.
      *
-     * If you make changes to `src` or `rootUrl`, you must call this to view
-     * their results.
+     * @return {hydrolysis.ElementDescriptor} The parsed descriptor, or `null`.
      */
-    load: function() {
-      if (!this.src) {
-        console.error('Expected src to be set for', this);
-        return;
+    _loadJson: function() {
+      var textContent = '';
+      Array.prototype.forEach.call(Polymer.dom(this).childNodes, function(node) {
+        textContent = textContent + node.textContent;
+      });
+      textContent = textContent.trim();
+      if (textContent === '') return null;
+
+      try {
+        return JSON.parse(textContent);
+      } catch(error) {
+        console.error('Failure when parsing JSON:', textContent, error);
+        throw error;
       }
-
-      var baseUri = this.ownerDocument.baseURI;
-      var srcUrl  = new URL(this.src, baseUri).toString();
-      var rootUrl;
-      if (this.rootUrl) {
-        rootUrl = new URL(this.rootUrl).toString();
-      } else {
-        rootUrl = new URL('.', srcUrl).toString();
-      }
-
-      this._loader = new hydrolysis.Loader();
-      this._loader.addResolver(new hydrolysis.XHRResolver());
-      // The *last* resolver is the most specific.
-      this._loader.addResolver(new hydrolysis.NoopResolver({
-        test: function(uri) {
-          var fullUrl = new URL(uri, baseUri).toString();
-          return fullUrl.indexOf(rootUrl) !== 0;
-        },
-      }));
-
-      this._analyzer = new hydrolysis.Analyzer(false, this._loader);
-      this._analyzer.metadataTree(srcUrl.toString())
-          .then(this._processRoot.bind(this))
-          .catch(function(error) {
-            console.error('Failed to load source at:', this.src, error);
-          }.bind(this));
     },
 
-    /**
-     * Extracts elements from a materialized Hydrolysis import tree.
-     *
-     * @param {!hydrolysis.ImportDescriptor} root
-     */
-    _processRoot: function(root) {
-      this._root = root;
-
-      var elements = this._findElements(root);
-      elements.forEach(hydrolysis.docs.annotateElement);
-
-      var features = this._findFeatures(root);
-      if (features.length > 0) {
-        features.forEach(hydrolysis.docs.annotateFeature);
-        elements.unshift(this._featureElement(features));
-      }
-
-      this._elements      = elements;
-      this._activeElement = this._elements[0];
-
-      this.classList.add('loaded');
+    _elementsChanged: function() {
+      this._activeElement = (this._elements || [])[0];
     },
 
-    /**
-     * Recursively finds all elements declared by `node` and its dependencies.
-     *
-     * @param {!hydrolysis.ImportDescriptor} node
-     * @return {!Array<hydrolysis.ElementDescriptor>}
-     */
-    _findElements: function(node) {
-      return (node.imports || []).reduce(function(elements, childNode) {
-        return elements.concat(this._findElements(childNode));
-      }.bind(this), node.elements || []);
+    _loadingChanged: function() {
+      this.toggleClass('loaded', !this._loading);
     },
 
-    /**
-     * Recursively finds all features declared by `node` and its dependencies.
-     *
-     * @param {!hydrolysis.ImportDescriptor} node
-     * @return {!Array<hydrolysis.FeatureDescriptor>}
-     */
-    _findFeatures: function(node) {
-      return (node.imports || []).reduce(function(features, childNode) {
-        return features.concat(this._findFeatures(childNode));
-      }.bind(this), node.features || []);
-    },
-
-    /**
-     * Builds a fake Hydrolysis element from a collection of Polymer features.
-     *
-     * @param {!Array<hydrolysis.FeatureDescriptor>}
-     * @return {!hydrolysis.ElementDescriptor}
-     */
-    _featureElement: function(features) {
-      if (features.length === 0) return [];
-
-      var properties = features.reduce(function(result, feature) {
-        return result.concat(feature.properties);
-      }, []);
-
-      return {
-        is:         'Polymer.Base',
-        abstract:   true,
-        properties: properties,
-        desc: '`Polymer.Base` acts as a base prototype for all Polymer ' +
-              'elements. It is composed via various calls to ' +
-              '`Polymer.Base.addFeature()`.\n' +
-              '\n' +
-              'The properties reflected here are the combined view of all ' +
-              'features found in this library. There may be more properties ' +
-              'added via other libraries, as well.',
-      };
+    _analyzerChanged: function() {
+      this._elements = this._analyzer ? this._analyzer.elements : [];
     },
 
     /**
@@ -219,6 +159,22 @@ var hydrolysis = require('hydrolysis');
           return;
         }
       }
+    },
+
+    /**
+     * Renders this element into static HTML for offline use.
+     *
+     * This is mostly useful for debugging and one-off documentation generation.
+     * If you want to integrate doc generation into your build process, you
+     * probably want to be calling `hydrolysis.Analyzer.analyze()` directly.
+     *
+     * @return {string} The HTML for this element with all state baked in.
+     */
+    marshal: function() {
+      var jsonText = JSON.stringify(this._elements || [], null, '  ');
+      return '<' + this.is + '>\n' +
+             jsonText.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '\n' +
+             '</' + this.is + '>';
     },
 
   });

@@ -92,9 +92,32 @@ function getAttachedComment(node) {
   return comments[comments.length - 1].value;
 }
 
+/**
+ * Converts a parse5 Property AST node into its Hydrolysis representation.
+ *
+ * @param {Node} node
+ * @return {PropertyDescriptor}
+ */
+function toPropertyDescriptor(node) {
+  var result = {
+    name: objectKeyToString(node.key),
+    type: closureType(node.value),
+    desc: getAttachedComment(node),
+  };
+
+  if (node.value.type === 'FunctionExpression') {
+    result.params = (node.value.params || []).map(function(param) {
+      return {name: param.name};
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   closureType:           closureType,
   getAttachedComment:    getAttachedComment,
   matchesCallExpression: matchesCallExpression,
   objectKeyToString:     objectKeyToString,
+  toPropertyDescriptor:  toPropertyDescriptor,
 };

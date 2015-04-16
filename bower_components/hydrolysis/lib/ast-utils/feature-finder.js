@@ -47,13 +47,7 @@ module.exports = function featureFinder(attachAST) {
       }
       if (!featureNode.properties) return;
 
-      feature.properties = featureNode.properties.map(function(property) {
-        return {
-          name: esutil.objectKeyToString(property.key),
-          type: esutil.closureType(property.value),
-          desc: esutil.getAttachedComment(property),
-        }
-      });
+      feature.properties = featureNode.properties.map(esutil.toPropertyDescriptor);
     },
 
   };

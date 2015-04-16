@@ -15,9 +15,13 @@ require("setimmediate");
 // jshint +W079
 
 var dom5 = require('dom5');
-var jsParse = require('./ast-utils/js-parse');
-var importParse = require('./ast-utils/import-parse');
 var url = require('url');
+
+var docs = require('./ast-utils/docs');
+var FileLoader = require('./loader/file-loader');
+var importParse = require('./ast-utils/import-parse');
+var jsParse = require('./ast-utils/js-parse');
+var NoopResolver = require('./loader/noop-resolver');
 
 function reduceMetadata(m1, m2) {
   return {
@@ -80,11 +84,11 @@ var Analyzer = function Analyzer(attachAST,
   this.attachAST = attachAST;
   this.loader = loader;
 
-  /**
-   * Elements by tag name.
-   * @type {Object<string,ElementDescriptor>}
-   */
-  this.elements = {};
+  /** @type {Array<ElementDescriptor>} */
+  this.elements = [];
+
+  /** @type {Object<key, ElementDescriptor>} */
+  this.elementsByTagName = {};
 
   /** @type {Array<FeatureDescriptor>} */
   this.features = [];
@@ -95,6 +99,63 @@ var Analyzer = function Analyzer(attachAST,
    */
   this.html = {};
 };
+
+/**
+ * @typedef {Object} LoadOptions
+ * @property {boolean} attachAST Whether underlying AST data should be included.
+ * @property {boolean} noAnnotations Whether `annotate()` should be skipped.
+ * @property {boolean} clean Whether the generated descriptors should be cleaned
+ *     of redundant data.
+ * @property {function(string): boolean} filter A predicate function that
+ *     indicates which files should be ignored by the loader. By default all
+ *     files not located under the dirname of `href` will be ignored.
+ */
+
+/**
+ * Shorthand for transitively loading and processing all imports beginning at
+ * `href`.
+ *
+ * In order to properly filter paths, `href` _must_ be an absolute URI.
+ *
+ * @param {string} href The root import to begin loading from.
+ * @param {LoadOptions=} options Any additional options for the load.
+ * @return {Promise<Analyzer>} A promise that will resolve once `href` and its
+ *     dependencies have been loaded and analyzed.
+ */
+Analyzer.analyze = function analyze(href, options) {
+  options = options || {};
+  options.filter = options.filter || _defaultFilter(href);
+
+  var loader = new FileLoader();
+  var primaryResolver = typeof window === 'undefined'
+                      ? require('./loader/fs-resolver')
+                      : require('./loader/xhr-resolver');
+  loader.addResolver(new primaryResolver());
+  loader.addResolver(new NoopResolver({test: options.filter}));
+
+  var analyzer = new this(options.attachAST, loader);
+  return analyzer.metadataTree(href).then(function(root) {
+    if (!options.noAnnotations) {
+      analyzer.annotate();
+    }
+    if (options.clean) {
+      analyzer.clean();
+    }
+    return Promise.resolve(analyzer);
+  });
+}
+
+/**
+ * @param {string} href
+ * @return {function(string): boolean}
+ */
+function _defaultFilter(href) {
+  // Everything up to the last `/` or `\`.
+  var base = href.match(/^(.*?)[^\/\\]*$/)[1];
+  return function(uri) {
+    return uri.indexOf(base) !== 0;
+  }
+}
 
 Analyzer.prototype.load = function load(href) {
   return this.loader.request(href).then(function(content) {
@@ -188,10 +249,11 @@ Analyzer.prototype._processScript = function _processScript(script, href) {
     parsedJs = jsParse(script.childNodes[0].value, this.attachAST);
     if (parsedJs.elements) {
       parsedJs.elements.forEach(function(element) {
-        if (element.is in this.elements) {
-          throw new Error('Duplicate element definition: ' + element.is);
+        this.elements.push(element);
+        if (element.is in this.elementsByTagName) {
+          console.warn('Ignoring duplicate element definition: ' + element.is);
         } else {
-          this.elements[element.is] = element;
+          this.elementsByTagName[element.is] = element;
         }
       }.bind(this));
     }
@@ -213,6 +275,32 @@ Analyzer.prototype._processScript = function _processScript(script, href) {
     return Promise.resolve(EMPTY_METADATA);
   }
 };
+
+/**
+ * List all the html dependencies for the document at `href`.
+ * @param  {string} href     The href to get dependencies for.
+ * @return {Array.<string>}  A list of all the html dependencies.
+ */
+Analyzer.prototype.dependencies = function dependencies(href) {
+  return this.metadataTree(href).then(function(metadata) {
+    var deps = {};
+    var queue = [metadata];
+    while (queue.length > 0) {
+      var node = queue.shift();
+      if (!node.imports) {
+        continue;
+      }
+      node.imports.forEach(function(htmlImport) {
+        if (htmlImport.href in deps) {
+          return;
+        }
+        deps[htmlImport.href] = true;
+        queue.push(htmlImport);
+      });
+    }
+    return Object.keys(deps);
+  });
+}
 
 /**
  * Returns a promise that resolves to a POJO representation of the import
@@ -270,6 +358,15 @@ Analyzer.prototype._metadataTree = function _metadataTree(htmlMonomer,
   }.bind(this));
 };
 
+/** Annotates all loaded metadata with its documentation. */
+Analyzer.prototype.annotate = function annotate() {
+  if (this.features.length > 0) {
+    this.elements.unshift(docs.featureElement(this.features));
+  }
+
+  this.elements.forEach(docs.annotateElement);
+};
+
 function attachDomModule(parsedImport, element) {
   var domModules = parsedImport['dom-module'];
   for (var i = 0, domModule; i < domModules.length; i++) {
@@ -280,5 +377,10 @@ function attachDomModule(parsedImport, element) {
     }
   }
 }
+
+/** Removes redundant properties from the collected descriptors. */
+Analyzer.prototype.clean = function clean() {
+  this.elements.forEach(docs.cleanElement);
+};
 
 module.exports = Analyzer;

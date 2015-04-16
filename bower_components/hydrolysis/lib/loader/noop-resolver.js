@@ -12,12 +12,8 @@
 'use strict';
 
 /**
- * A resolver that no-ops files unless they match a particular criteria.
- *
- * `test` is provided the uri. If it returns true, the request is handled (and
- * no-opped). Otherwise the resolver passes the request on.
- *
- * @param {{test: function(string): boolean}} config
+ * A resolver that resolves to null any uri matching config.
+ * @param {string} config
  */
 function NoopResolver(config) {
   this.config = config;
@@ -26,13 +22,17 @@ function NoopResolver(config) {
 NoopResolver.prototype = {
 
   /**
-   * @param {string} uri The URI being requested **relative to baseURI!**
+   * @param {string} uri The absolute URI being requested.
    * @param {!Deferred} deferred The deferred promise that should be resolved if
    *     this resolver handles the URI.
    * @return {boolean} Whether the URI is handled by this resolver.
    */
   accept: function(uri, deferred) {
-    if (!this.config.test(uri)) return false;
+    if (!this.config.test) {
+      if (uri.search(this.config) == -1) {
+        return false;
+      }
+    } else if (!this.config.test(uri)) return false;
 
     deferred.resolve('');
     return true;

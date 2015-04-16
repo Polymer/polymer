@@ -113,6 +113,12 @@ suite('Loader', function() {
       assert.ok(noop.accept);
     });
 
+    test('accepts a string', function() {
+      var noop = new NoopResolver("foo");
+      var actual = noop.accept('foo', {resolve:function(){}});
+      assert.isTrue(actual);
+    });
+
     test('accepts a regex', function() {
       var noop = new NoopResolver(/./);
       var actual = noop.accept('foo', {resolve:function(){}});

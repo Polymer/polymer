@@ -45,10 +45,9 @@ var elementFinder = function elementFinder() {
       }
       for (var i = 0; i < node.properties.length; i++) {
         var property = node.properties[i];
-        var prop = {published: true};
-        prop.name = esutil.objectKeyToString(property.key);
-        prop.desc = esutil.getAttachedComment(property);
-        prop.type = esutil.closureType(property.value);
+        var prop = esutil.toPropertyDescriptor(property);
+        prop.published = true;
+
         if (prop.type) {
           element.properties.push(prop);
           continue;
@@ -134,11 +133,7 @@ var elementFinder = function elementFinder() {
             propertyHandlers[name](prop.value);
             continue;
           }
-          var property = {};
-          property.name = name;
-          property.desc = esutil.getAttachedComment(prop);
-          property.type = esutil.closureType(prop.value);
-          element.properties.push(property);
+          element.properties.push(esutil.toPropertyDescriptor(prop));
         }
         return estraverse.VisitorOption.Skip;
       }

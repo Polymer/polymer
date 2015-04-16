@@ -326,10 +326,6 @@ var components = {
 			"title": "Wiki markup",
 			"require": "markup",
 			"owner": "Golmote"
-		},
-		"yaml": {
-			"title": "YAML",
-			"owner": "hason"
 		}
 	},
 	"plugins": {

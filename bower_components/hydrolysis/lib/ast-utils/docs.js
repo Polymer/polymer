@@ -15,9 +15,34 @@ var jsdoc = require('./jsdoc');
 
 var serialize = require('dom5').serialize;
 
+/** Properties on element prototypes that are purely configuration. */
+var ELEMENT_CONFIGURATION = [
+  'attached',
+  'attributeChanged',
+  'configure',
+  'constructor',
+  'created',
+  'detached',
+  'enableCustomStyleProperties',
+  'extends',
+  'hostAttributes',
+  'is',
+  'listeners',
+  'mixins',
+  'observers',
+  'properties',
+  'ready',
+];
+
+/** Tags understood by the annotation process, to be removed during `clean`. */
+var HANDLED_TAGS = [
+  'param',
+  'return',
+  'type',
+]
+
 /**
- * Annotates Hydrolysis descriptors, recursively processing any `desc`
- * properties as JSDoc.
+ * Annotates Hydrolysis descriptors, processing any `desc` properties as JSDoc.
  *
  * You probably want to use a more specialized version of this, such as
  * `annotateElement`.
@@ -25,7 +50,7 @@ var serialize = require('dom5').serialize;
  * Processed JSDoc values will be made available via the `jsdoc` property on a
  * descriptor node.
  *
- * @param {Object} descriptor The descriptor node to recursively process.
+ * @param {Object} descriptor The descriptor node to process.
  * @return {Object} The descriptor that was given.
  */
 function annotate(descriptor) {
@@ -33,16 +58,10 @@ function annotate(descriptor) {
 
   if (typeof descriptor.desc === 'string') {
     descriptor.jsdoc = jsdoc.parseJsdoc(descriptor.desc);
+    // We want to present the normalized form of a descriptor.
+    descriptor.jsdoc.orig = descriptor.desc;
+    descriptor.desc       = descriptor.jsdoc.body;
   }
-
-  Object.keys(descriptor).forEach(function(key) {
-    var value = descriptor[key];
-    if (value && typeof value === 'object') {
-      // Don't annotate parse5 nodes.
-      if ('nodeName' in value) return;
-      annotate(value);
-    }
-  });
 
   return descriptor;
 }
@@ -57,34 +76,165 @@ function annotate(descriptor) {
  * @return {Object} The descriptor that was given.
  */
 function annotateElement(descriptor) {
-  descriptor.desc = _findElementDocs(descriptor.is, descriptor.domModule);
-  if (descriptor.desc) {
-    descriptor.desc  = _unindent(descriptor.desc);
-    descriptor.jsdoc = annotate(descriptor.desc);
-  }
+  descriptor.desc = descriptor.desc || _findElementDocs(descriptor.is, descriptor.domModule);
+  annotate(descriptor);
+
+  // The `<dom-module>` is too low level for most needs, and it is _not_
+  // serializable. So we drop it now that we've extracted all the useful bits
+  // from it.
+  delete descriptor.domModule;
 
   // Descriptors that should have their `desc` properties parsed as JSDoc.
-  descriptor.properties.forEach(annotate);
+  descriptor.properties.forEach(annotateProperty);
+  // It may seem like overkill to always sort, but we have an assumption that
+  // these properties are typically being consumed by user-visible tooling.
+  // As such, it's good to have consistent output/ordering to aid the user.
+  descriptor.properties.sort(function(a, b) {
+    // Private properties are always last.
+    if (a.private && !b.private) {
+      return 1;
+    } else if (!a.private && b.private) {
+      return -1;
+    // Otherwise, we're just sorting alphabetically.
+    } else {
+      return a.name.localeCompare(b.name);
+    }
+  });
 
   return descriptor;
 }
 
 /**
- * Annotates documentation found within a Hydrolysis feature descriptor.
+ * Annotates documentation found about a Hydrolysis property descriptor.
  *
- * @param {Object} descriptor The feature descriptor.
- * @return {Object} The descriptor that was given.
+ * @param {Object} descriptor The property descriptor.
+ * @return {Object} The descriptior that was given.
  */
-function annotateFeature(descriptor) {
-  if (descriptor.desc) {
-    descriptor.desc  = _unindent(descriptor.desc);
-    descriptor.jsdoc = annotate(descriptor.desc);
+function annotateProperty(descriptor) {
+  annotate(descriptor);
+  if (descriptor.name[0] === '_' || jsdoc.hasTag(descriptor.jsdoc, 'private')) {
+    descriptor.private = true;
   }
 
-  // Descriptors that should have their `desc` properties parsed as JSDoc.
-  descriptor.properties.forEach(annotate);
+  if (ELEMENT_CONFIGURATION.indexOf(descriptor.name) !== -1) {
+    descriptor.private       = true;
+    descriptor.configuration = true;
+  }
+
+  // JSDoc wins.
+  descriptor.type = jsdoc.getTag(descriptor.jsdoc, 'type', 'type') || descriptor.type;
+
+  if (descriptor.type.match(/^function/i)) {
+    _annotateFunctionProperty(descriptor)
+  }
 
   return descriptor;
+}
+
+/** @param {Object} descriptor */
+function _annotateFunctionProperty(descriptor) {
+  descriptor.function = true;
+
+  var returnTag = jsdoc.getTag(descriptor.jsdoc, 'return');
+  if (returnTag) {
+    descriptor.return = {
+      type: returnTag.type,
+      desc: returnTag.body,
+    };
+  }
+
+  var paramsByName = {};
+  (descriptor.params || []).forEach(function(param) {
+    paramsByName[param.name] = param;
+  });
+  (descriptor.jsdoc && descriptor.jsdoc.tags || []).forEach(function(tag) {
+    if (tag.tag !== 'param') return;
+    var param = paramsByName[tag.name];
+    if (!param) {
+      // TODO(nevir): Plumb source locations through...
+      console.warn('The JSDoc tag', tag.name, 'is not a param of', descriptor);
+      return;
+    }
+
+    param.type = tag.type || param.type;
+    param.desc = tag.body;
+  });
+}
+
+/**
+ * Converts raw features into an abstract `Polymer.Base` element.
+ *
+ * Note that docs on this element _are not processed_. You must call
+ * `annotateElement` on it yourself if you wish that.
+ *
+ * @param {Array<FeatureDescriptor>} features
+ * @return {ElementDescriptor}
+ */
+function featureElement(features) {
+  var properties = features.reduce(function(result, feature) {
+    return result.concat(feature.properties);
+  }, []);
+
+  return {
+    is:         'Polymer.Base',
+    abstract:   true,
+    properties: properties,
+    desc: '`Polymer.Base` acts as a base prototype for all Polymer ' +
+          'elements. It is composed via various calls to ' +
+          '`Polymer.Base.addFeature()`.\n' +
+          '\n' +
+          'The properties reflected here are the combined view of all ' +
+          'features found in this library. There may be more properties ' +
+          'added via other libraries, as well.',
+  };
+}
+
+/**
+ * Cleans redundant properties from a descriptor, assuming that you have already
+ * called `annotate`.
+ *
+ * @param {Object} descriptor
+ */
+function clean(descriptor) {
+  if (!descriptor.jsdoc) return;
+  // The doctext was written to `descriptor.desc`
+  delete descriptor.jsdoc.body;
+  delete descriptor.jsdoc.orig;
+
+  var cleanTags = [];
+  (descriptor.jsdoc.tags || []).forEach(function(tag) {
+    // Drop any tags we've consumed.
+    if (HANDLED_TAGS.indexOf(tag.tag) !== -1) return;
+    cleanTags.push(tag);
+  });
+
+  if (cleanTags.length === 0) {
+    // No tags? no docs left!
+    delete descriptor.jsdoc;
+  } else {
+    descriptor.jsdoc.tags = cleanTags;
+  }
+}
+
+/**
+ * Cleans redundant properties from an element, assuming that you have already
+ * called `annotateElement`.
+ *
+ * @param {ElementDescriptor} element
+ */
+function cleanElement(element) {
+  clean(element);
+  element.properties.forEach(cleanProperty);
+}
+
+/**
+ * Cleans redundant properties from a property, assuming that you have already
+ * called `annotateProperty`.
+ *
+ * @param {PropertyDescriptor} property
+ */
+function cleanProperty(property) {
+  clean(property);
 }
 
 /**
@@ -125,7 +275,7 @@ function _findElementDocs(elementId, domModule) {
   }
 
   if (!found.length) return null;
-  return found.map(_unindent).join('\n');
+  return found.map(jsdoc.unindent).join('\n');
 }
 
 function _findLastChildNamed(name, parent) {
@@ -135,19 +285,6 @@ function _findLastChildNamed(name, parent) {
     if (child.nodeName === name) return child;
   }
   return null;
-}
-
-function _unindent(docText) {
-  var lines  = docText.replace(/\t/g, '  ').split('\n');
-  var indent = lines.reduce(function(prev, line) {
-    if (/^\s*$/.test(line)) return prev;  // Completely ignore blank lines.
-
-    var lineIndent = line.match(/^(\s*)/)[0].length;
-    if (prev === null) return lineIndent;
-    return lineIndent < prev ? lineIndent : prev;
-  }, null);
-
-  return lines.map(function(l) { return l.substr(indent); }).join('\n');
 }
 
 // TODO(nevir): parse5-utils!
@@ -163,5 +300,7 @@ function _getNodeAttribute(node, name) {
 module.exports = {
   annotate:        annotate,
   annotateElement: annotateElement,
-  annotateFeature: annotateFeature,
+  clean:           clean,
+  cleanElement:    cleanElement,
+  featureElement:  featureElement,
 };

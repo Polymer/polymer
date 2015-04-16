@@ -8,7 +8,7 @@ Prism.hooks.add('after-highlight', function (env) {
 	var linesNum = (1 + env.code.split('\n').length);
 	var lineNumbersWrapper;
 
-	var lines = new Array(linesNum);
+	lines = new Array(linesNum);
 	lines = lines.join('<span></span>');
 
 	lineNumbersWrapper = document.createElement('span');

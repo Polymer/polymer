@@ -40,7 +40,7 @@ var JsdocTag;
  */
 var JsdocAnnotation;
 
-var LINE_PREFIX  = /^[ \t]*\*?[ \t]?/;
+var IS_TAG_LINE  = /^[ \t]*@/;
 var DOC_SPLITTER = /(?=[ \t]*\*?[ \t]?@)/;
 
 /**
@@ -58,7 +58,7 @@ function parseJsdoc(docs) {
   // appropriately (as body or tags).
   function flushContent(content) {
     if (content === '') return;
-    if (body === null && content[0] !== '@') {
+    if (body === null && !IS_TAG_LINE.test(content)) {
       body = content;
     } else {
       tags = tags.concat(parseTag(content));
@@ -68,24 +68,36 @@ function parseJsdoc(docs) {
   // We split the JSDoc string into the body text and each block tag section.
   var buffer = '';
   docs.split(/\r?\n/).forEach(function(line) {
-    var prefix  = line.match(LINE_PREFIX)[0];
-    var content = line.substr(prefix.length);
+    line = _stripPrefix(line);
     // Hit a block tag; flush the previous buffer.
-    if (content[0] === '@') {
+    if (IS_TAG_LINE.test(line)) {
       flushContent(buffer);
       buffer = '';
     }
-    buffer = buffer + (buffer && '\n' || '') + content;
+    buffer = buffer + (buffer && '\n' || '') + line;
   });
   flushContent(buffer);
 
+  body = unindent(body);
   return {
     body: body === '' ? null : body,
     tags: tags,
   };
 }
 
-var SPLIT_BLOCK_TAGS  = /^(@\S+(?:[\s\n]+@\S+)*)+([\s\S]*)$/m;
+/**
+ * Removes a leading `*` character, and whitespace before it.
+ *
+ * @param {string} line
+ * @return {string}
+ */
+function _stripPrefix(line) {
+  var match = line.match(/^[ \t]*\*(.*)$/);
+  if (!match) return line;
+  return match[1];
+}
+
+var SPLIT_BLOCK_TAGS  = /^[ \t]*(@\S+(?:[\s\n]+@\S+)*)+([\s\S]*)$/m;
 // Note that the content (match[2] above) will always have leading whitespace,
 // or be an empty string.
 //
@@ -114,7 +126,58 @@ function parseTag(source) {
   });
 }
 
+// Utility
+
+/**
+ * @param {JsdocAnnotation} jsdoc
+ * @param {string} tagName
+ * @return {boolean}
+ */
+function hasTag(jsdoc, tagName) {
+  if (!jsdoc || !jsdoc.tags) return false;
+  return jsdoc.tags.some(function(tag) { return tag.tag === tagName; });
+}
+
+/**
+ * Finds the first JSDoc tag matching `name` and returns its value at `key`.
+ *
+ * @param {JsdocAnnotation} jsdoc
+ * @param {string} tagName
+ * @param {string=} key If omitted, the entire tag object is returned.
+ * @return {?string|Object}
+ */
+function getTag(jsdoc, tagName, key) {
+  if (!jsdoc || !jsdoc.tags) return false;
+  for (var i = 0, tag; tag = jsdoc.tags[i]; i++) {
+    if (tag.tag === tagName) {
+      return key ? tag[key] : tag;
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {?string} text
+ * @return {?string}
+ */
+function unindent(text) {
+  if (!text) return text;
+  var lines  = text.replace(/\t/g, '  ').split('\n');
+  var indent = lines.reduce(function(prev, line) {
+    if (/^\s*$/.test(line)) return prev;  // Completely ignore blank lines.
+
+    var lineIndent = line.match(/^(\s*)/)[0].length;
+    if (prev === null) return lineIndent;
+    return lineIndent < prev ? lineIndent : prev;
+  }, null);
+
+  return lines.map(function(l) { return l.substr(indent); }).join('\n');
+}
+
 module.exports = {
+  getTag:     getTag,
+  hasTag:     hasTag,
   parseJsdoc: parseJsdoc,
   parseTag:   parseTag,
+  unindent:   unindent,
 };

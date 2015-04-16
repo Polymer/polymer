@@ -86,7 +86,7 @@ describe('jsdoc', function() {
       expect(parsed).to.deep.eq({
         body: null,
         tags: [
-          {tag: 'do',      type: 'a',  name: 'thing', body: 'with\nstuff'},
+          {tag: 'do',      type: 'a',  name: 'thing', body: 'with\n stuff'},
           {tag: 'another', type: null, name: 'thing', body: null},
         ],
       });
@@ -97,7 +97,7 @@ describe('jsdoc', function() {
       expect(parsed).to.deep.eq({
         body: null,
         tags: [
-          {tag: 'do', type: 'a', name: 'thing', body: 'with\nstuff'},
+          {tag: 'do', type: 'a', name: 'thing', body: 'with\n stuff'},
         ],
       });
     });
@@ -115,10 +115,12 @@ describe('jsdoc', function() {
 
     it('preserves indentation for the body', function() {
       var parsed = jsdoc.parseJsdoc('*   The desc.\n* thing');
-      expect(parsed).to.deep.eq({
-        body: '  The desc.\nthing',
-        tags: [],
-      });
+      expect(parsed.body).to.deep.eq('  The desc.\nthing');
+    });
+
+    it('handles empty lines', function() {
+      var parsed = jsdoc.parseJsdoc('*\n *\n * Foo\n   *\n * Bar');
+      expect(parsed.body).to.eq('Foo\n\nBar');
     });
 
   });

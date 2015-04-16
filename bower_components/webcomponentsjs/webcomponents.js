@@ -7,7 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-// @version 0.6.0
+// @version 0.6.1
 window.WebComponents = window.WebComponents || {};
 
 (function(scope) {
@@ -26,7 +26,7 @@ window.WebComponents = window.WebComponents || {};
         }
       }
     }
-    if (flags.log) {
+    if (flags.log && flags.log.split) {
       var parts = flags.log.split(",");
       flags.log = {};
       parts.forEach(function(f) {
@@ -188,7 +188,7 @@ if (WebComponents.flags.shadow) {
       return /^on[a-z]+$/.test(name);
     }
     function isIdentifierName(name) {
-      return /^\w[a-zA-Z_0-9]*$/.test(name);
+      return /^[a-zA-Z_$][a-zA-Z_$0-9]*$/.test(name);
     }
     function getGetter(name) {
       return hasEval && isIdentifierName(name) ? new Function("return this.__impl4cf1e782hg__." + name) : function() {
@@ -344,6 +344,7 @@ if (WebComponents.flags.shadow) {
     scope.defineGetter = defineGetter;
     scope.defineWrapGetter = defineWrapGetter;
     scope.forwardMethodsToWrapper = forwardMethodsToWrapper;
+    scope.isIdentifierName = isIdentifierName;
     scope.isWrapper = isWrapper;
     scope.isWrapperFor = isWrapperFor;
     scope.mixin = mixin;
@@ -2072,10 +2073,10 @@ if (WebComponents.flags.shadow) {
       return index;
     }
     function shimSelector(selector) {
-      return String(selector).replace(/\/deep\/|::shadow/g, " ");
+      return String(selector).replace(/\/deep\/|::shadow|>>>/g, " ");
     }
     function shimMatchesSelector(selector) {
-      return String(selector).replace(/:host\(([^\s]+)\)/g, "$1").replace(/([^\s]):host/g, "$1").replace(":host", "*").replace(/\^|\/shadow\/|\/shadow-deep\/|::shadow|\/deep\/|::content/g, " ");
+      return String(selector).replace(/:host\(([^\s]+)\)/g, "$1").replace(/([^\s]):host/g, "$1").replace(":host", "*").replace(/\^|\/shadow\/|\/shadow-deep\/|::shadow|\/deep\/|::content|>>>/g, " ");
     }
     function findOne(node, selector) {
       var m, el = node.firstElementChild;
@@ -3281,91 +3282,6 @@ if (WebComponents.flags.shadow) {
   })(window.ShadowDOMPolyfill);
   (function(scope) {
     "use strict";
-    var registerWrapper = scope.registerWrapper;
-    var setWrapper = scope.setWrapper;
-    var unsafeUnwrap = scope.unsafeUnwrap;
-    var unwrap = scope.unwrap;
-    var unwrapIfNeeded = scope.unwrapIfNeeded;
-    var wrap = scope.wrap;
-    var OriginalRange = window.Range;
-    function Range(impl) {
-      setWrapper(impl, this);
-    }
-    Range.prototype = {
-      get startContainer() {
-        return wrap(unsafeUnwrap(this).startContainer);
-      },
-      get endContainer() {
-        return wrap(unsafeUnwrap(this).endContainer);
-      },
-      get commonAncestorContainer() {
-        return wrap(unsafeUnwrap(this).commonAncestorContainer);
-      },
-      setStart: function(refNode, offset) {
-        unsafeUnwrap(this).setStart(unwrapIfNeeded(refNode), offset);
-      },
-      setEnd: function(refNode, offset) {
-        unsafeUnwrap(this).setEnd(unwrapIfNeeded(refNode), offset);
-      },
-      setStartBefore: function(refNode) {
-        unsafeUnwrap(this).setStartBefore(unwrapIfNeeded(refNode));
-      },
-      setStartAfter: function(refNode) {
-        unsafeUnwrap(this).setStartAfter(unwrapIfNeeded(refNode));
-      },
-      setEndBefore: function(refNode) {
-        unsafeUnwrap(this).setEndBefore(unwrapIfNeeded(refNode));
-      },
-      setEndAfter: function(refNode) {
-        unsafeUnwrap(this).setEndAfter(unwrapIfNeeded(refNode));
-      },
-      selectNode: function(refNode) {
-        unsafeUnwrap(this).selectNode(unwrapIfNeeded(refNode));
-      },
-      selectNodeContents: function(refNode) {
-        unsafeUnwrap(this).selectNodeContents(unwrapIfNeeded(refNode));
-      },
-      compareBoundaryPoints: function(how, sourceRange) {
-        return unsafeUnwrap(this).compareBoundaryPoints(how, unwrap(sourceRange));
-      },
-      extractContents: function() {
-        return wrap(unsafeUnwrap(this).extractContents());
-      },
-      cloneContents: function() {
-        return wrap(unsafeUnwrap(this).cloneContents());
-      },
-      insertNode: function(node) {
-        unsafeUnwrap(this).insertNode(unwrapIfNeeded(node));
-      },
-      surroundContents: function(newParent) {
-        unsafeUnwrap(this).surroundContents(unwrapIfNeeded(newParent));
-      },
-      cloneRange: function() {
-        return wrap(unsafeUnwrap(this).cloneRange());
-      },
-      isPointInRange: function(node, offset) {
-        return unsafeUnwrap(this).isPointInRange(unwrapIfNeeded(node), offset);
-      },
-      comparePoint: function(node, offset) {
-        return unsafeUnwrap(this).comparePoint(unwrapIfNeeded(node), offset);
-      },
-      intersectsNode: function(node) {
-        return unsafeUnwrap(this).intersectsNode(unwrapIfNeeded(node));
-      },
-      toString: function() {
-        return unsafeUnwrap(this).toString();
-      }
-    };
-    if (OriginalRange.prototype.createContextualFragment) {
-      Range.prototype.createContextualFragment = function(html) {
-        return wrap(unsafeUnwrap(this).createContextualFragment(html));
-      };
-    }
-    registerWrapper(window.Range, Range, document.createRange());
-    scope.wrappers.Range = Range;
-  })(window.ShadowDOMPolyfill);
-  (function(scope) {
-    "use strict";
     var GetElementsByInterface = scope.GetElementsByInterface;
     var ParentNodeInterface = scope.ParentNodeInterface;
     var SelectorsInterface = scope.SelectorsInterface;
@@ -3431,6 +3347,122 @@ if (WebComponents.flags.shadow) {
       }
     });
     scope.wrappers.ShadowRoot = ShadowRoot;
+  })(window.ShadowDOMPolyfill);
+  (function(scope) {
+    "use strict";
+    var registerWrapper = scope.registerWrapper;
+    var setWrapper = scope.setWrapper;
+    var unsafeUnwrap = scope.unsafeUnwrap;
+    var unwrap = scope.unwrap;
+    var unwrapIfNeeded = scope.unwrapIfNeeded;
+    var wrap = scope.wrap;
+    var getTreeScope = scope.getTreeScope;
+    var OriginalRange = window.Range;
+    var ShadowRoot = scope.wrappers.ShadowRoot;
+    function getHost(node) {
+      var root = getTreeScope(node).root;
+      if (root instanceof ShadowRoot) {
+        return root.host;
+      }
+      return null;
+    }
+    function hostNodeToShadowNode(refNode, offset) {
+      if (refNode.shadowRoot) {
+        offset = Math.min(refNode.childNodes.length - 1, offset);
+        var child = refNode.childNodes[offset];
+        if (child) {
+          var insertionPoint = scope.getDestinationInsertionPoints(child);
+          if (insertionPoint.length > 0) {
+            var parentNode = insertionPoint[0].parentNode;
+            if (parentNode.nodeType == Node.ELEMENT_NODE) {
+              refNode = parentNode;
+            }
+          }
+        }
+      }
+      return refNode;
+    }
+    function shadowNodeToHostNode(node) {
+      node = wrap(node);
+      return getHost(node) || node;
+    }
+    function Range(impl) {
+      setWrapper(impl, this);
+    }
+    Range.prototype = {
+      get startContainer() {
+        return shadowNodeToHostNode(unsafeUnwrap(this).startContainer);
+      },
+      get endContainer() {
+        return shadowNodeToHostNode(unsafeUnwrap(this).endContainer);
+      },
+      get commonAncestorContainer() {
+        return shadowNodeToHostNode(unsafeUnwrap(this).commonAncestorContainer);
+      },
+      setStart: function(refNode, offset) {
+        refNode = hostNodeToShadowNode(refNode, offset);
+        unsafeUnwrap(this).setStart(unwrapIfNeeded(refNode), offset);
+      },
+      setEnd: function(refNode, offset) {
+        refNode = hostNodeToShadowNode(refNode, offset);
+        unsafeUnwrap(this).setEnd(unwrapIfNeeded(refNode), offset);
+      },
+      setStartBefore: function(refNode) {
+        unsafeUnwrap(this).setStartBefore(unwrapIfNeeded(refNode));
+      },
+      setStartAfter: function(refNode) {
+        unsafeUnwrap(this).setStartAfter(unwrapIfNeeded(refNode));
+      },
+      setEndBefore: function(refNode) {
+        unsafeUnwrap(this).setEndBefore(unwrapIfNeeded(refNode));
+      },
+      setEndAfter: function(refNode) {
+        unsafeUnwrap(this).setEndAfter(unwrapIfNeeded(refNode));
+      },
+      selectNode: function(refNode) {
+        unsafeUnwrap(this).selectNode(unwrapIfNeeded(refNode));
+      },
+      selectNodeContents: function(refNode) {
+        unsafeUnwrap(this).selectNodeContents(unwrapIfNeeded(refNode));
+      },
+      compareBoundaryPoints: function(how, sourceRange) {
+        return unsafeUnwrap(this).compareBoundaryPoints(how, unwrap(sourceRange));
+      },
+      extractContents: function() {
+        return wrap(unsafeUnwrap(this).extractContents());
+      },
+      cloneContents: function() {
+        return wrap(unsafeUnwrap(this).cloneContents());
+      },
+      insertNode: function(node) {
+        unsafeUnwrap(this).insertNode(unwrapIfNeeded(node));
+      },
+      surroundContents: function(newParent) {
+        unsafeUnwrap(this).surroundContents(unwrapIfNeeded(newParent));
+      },
+      cloneRange: function() {
+        return wrap(unsafeUnwrap(this).cloneRange());
+      },
+      isPointInRange: function(node, offset) {
+        return unsafeUnwrap(this).isPointInRange(unwrapIfNeeded(node), offset);
+      },
+      comparePoint: function(node, offset) {
+        return unsafeUnwrap(this).comparePoint(unwrapIfNeeded(node), offset);
+      },
+      intersectsNode: function(node) {
+        return unsafeUnwrap(this).intersectsNode(unwrapIfNeeded(node));
+      },
+      toString: function() {
+        return unsafeUnwrap(this).toString();
+      }
+    };
+    if (OriginalRange.prototype.createContextualFragment) {
+      Range.prototype.createContextualFragment = function(html) {
+        return wrap(unsafeUnwrap(this).createContextualFragment(html));
+      };
+    }
+    registerWrapper(window.Range, Range, document.createRange());
+    scope.wrappers.Range = Range;
   })(window.ShadowDOMPolyfill);
   (function(scope) {
     "use strict";
@@ -3884,7 +3916,7 @@ if (WebComponents.flags.shadow) {
         return wrap(unsafeUnwrap(this).focusNode);
       },
       addRange: function(range) {
-        unsafeUnwrap(this).addRange(unwrap(range));
+        unsafeUnwrap(this).addRange(unwrapIfNeeded(range));
       },
       collapse: function(node, index) {
         unsafeUnwrap(this).collapse(unwrapIfNeeded(node), index);
@@ -4632,8 +4664,8 @@ if (WebComponents.flags.shadow) {
         }
       }
     };
-    var selectorRe = /([^{]*)({[\s\S]*?})/gim, cssCommentRe = /\/\*[^*]*\*+([^\/*][^*]*\*+)*\//gim, cssCommentNextSelectorRe = /\/\*\s*@polyfill ([^*]*\*+([^\/*][^*]*\*+)*\/)([^{]*?){/gim, cssContentNextSelectorRe = /polyfill-next-selector[^}]*content\:[\s]*?['"](.*?)['"][;\s]*}([^{]*?){/gim, cssCommentRuleRe = /\/\*\s@polyfill-rule([^*]*\*+([^\/*][^*]*\*+)*)\//gim, cssContentRuleRe = /(polyfill-rule)[^}]*(content\:[\s]*['"](.*?)['"])[;\s]*[^}]*}/gim, cssCommentUnscopedRuleRe = /\/\*\s@polyfill-unscoped-rule([^*]*\*+([^\/*][^*]*\*+)*)\//gim, cssContentUnscopedRuleRe = /(polyfill-unscoped-rule)[^}]*(content\:[\s]*['"](.*?)['"])[;\s]*[^}]*}/gim, cssPseudoRe = /::(x-[^\s{,(]*)/gim, cssPartRe = /::part\(([^)]*)\)/gim, polyfillHost = "-shadowcsshost", polyfillHostContext = "-shadowcsscontext", parenSuffix = ")(?:\\((" + "(?:\\([^)(]*\\)|[^)(]*)+?" + ")\\))?([^,{]*)";
-    var cssColonHostRe = new RegExp("(" + polyfillHost + parenSuffix, "gim"), cssColonHostContextRe = new RegExp("(" + polyfillHostContext + parenSuffix, "gim"), selectorReSuffix = "([>\\s~+[.,{:][\\s\\S]*)?$", colonHostRe = /\:host/gim, colonHostContextRe = /\:host-context/gim, polyfillHostNoCombinator = polyfillHost + "-no-combinator", polyfillHostRe = new RegExp(polyfillHost, "gim"), polyfillHostContextRe = new RegExp(polyfillHostContext, "gim"), shadowDOMSelectorsRe = [ /\^\^/g, /\^/g, /\/shadow\//g, /\/shadow-deep\//g, /::shadow/g, /\/deep\//g, /::content/g ];
+    var selectorRe = /([^{]*)({[\s\S]*?})/gim, cssCommentRe = /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim, cssCommentNextSelectorRe = /\/\*\s*@polyfill ([^*]*\*+([^/*][^*]*\*+)*\/)([^{]*?){/gim, cssContentNextSelectorRe = /polyfill-next-selector[^}]*content\:[\s]*?['"](.*?)['"][;\s]*}([^{]*?){/gim, cssCommentRuleRe = /\/\*\s@polyfill-rule([^*]*\*+([^/*][^*]*\*+)*)\//gim, cssContentRuleRe = /(polyfill-rule)[^}]*(content\:[\s]*['"](.*?)['"])[;\s]*[^}]*}/gim, cssCommentUnscopedRuleRe = /\/\*\s@polyfill-unscoped-rule([^*]*\*+([^/*][^*]*\*+)*)\//gim, cssContentUnscopedRuleRe = /(polyfill-unscoped-rule)[^}]*(content\:[\s]*['"](.*?)['"])[;\s]*[^}]*}/gim, cssPseudoRe = /::(x-[^\s{,(]*)/gim, cssPartRe = /::part\(([^)]*)\)/gim, polyfillHost = "-shadowcsshost", polyfillHostContext = "-shadowcsscontext", parenSuffix = ")(?:\\((" + "(?:\\([^)(]*\\)|[^)(]*)+?" + ")\\))?([^,{]*)";
+    var cssColonHostRe = new RegExp("(" + polyfillHost + parenSuffix, "gim"), cssColonHostContextRe = new RegExp("(" + polyfillHostContext + parenSuffix, "gim"), selectorReSuffix = "([>\\s~+[.,{:][\\s\\S]*)?$", colonHostRe = /\:host/gim, colonHostContextRe = /\:host-context/gim, polyfillHostNoCombinator = polyfillHost + "-no-combinator", polyfillHostRe = new RegExp(polyfillHost, "gim"), polyfillHostContextRe = new RegExp(polyfillHostContext, "gim"), shadowDOMSelectorsRe = [ />>>/g, /::shadow/g, /::content/g, /\/deep\//g, /\/shadow\//g, /\/shadow-deep\//g, /\^\^/g, /\^/g ];
     function stylesToCssText(styles, preserveComments) {
       var cssText = "";
       Array.prototype.forEach.call(styles, function(s) {
@@ -5209,6 +5241,9 @@ if (WebComponents.flags.shadow) {
     parse.call(this, input, null, base);
   }
   jURL.prototype = {
+    toString: function() {
+      return this.href;
+    },
     get href() {
       if (this._isInvalid) return this._url;
       var authority = "";
@@ -5304,6 +5339,305 @@ if (WebComponents.flags.shadow) {
     };
   }
   scope.URL = jURL;
+})(this);
+
+(function(global) {
+  var registrationsTable = new WeakMap();
+  var setImmediate;
+  if (/Trident|Edge/.test(navigator.userAgent)) {
+    setImmediate = setTimeout;
+  } else if (window.setImmediate) {
+    setImmediate = window.setImmediate;
+  } else {
+    var setImmediateQueue = [];
+    var sentinel = String(Math.random());
+    window.addEventListener("message", function(e) {
+      if (e.data === sentinel) {
+        var queue = setImmediateQueue;
+        setImmediateQueue = [];
+        queue.forEach(function(func) {
+          func();
+        });
+      }
+    });
+    setImmediate = function(func) {
+      setImmediateQueue.push(func);
+      window.postMessage(sentinel, "*");
+    };
+  }
+  var isScheduled = false;
+  var scheduledObservers = [];
+  function scheduleCallback(observer) {
+    scheduledObservers.push(observer);
+    if (!isScheduled) {
+      isScheduled = true;
+      setImmediate(dispatchCallbacks);
+    }
+  }
+  function wrapIfNeeded(node) {
+    return window.ShadowDOMPolyfill && window.ShadowDOMPolyfill.wrapIfNeeded(node) || node;
+  }
+  function dispatchCallbacks() {
+    isScheduled = false;
+    var observers = scheduledObservers;
+    scheduledObservers = [];
+    observers.sort(function(o1, o2) {
+      return o1.uid_ - o2.uid_;
+    });
+    var anyNonEmpty = false;
+    observers.forEach(function(observer) {
+      var queue = observer.takeRecords();
+      removeTransientObserversFor(observer);
+      if (queue.length) {
+        observer.callback_(queue, observer);
+        anyNonEmpty = true;
+      }
+    });
+    if (anyNonEmpty) dispatchCallbacks();
+  }
+  function removeTransientObserversFor(observer) {
+    observer.nodes_.forEach(function(node) {
+      var registrations = registrationsTable.get(node);
+      if (!registrations) return;
+      registrations.forEach(function(registration) {
+        if (registration.observer === observer) registration.removeTransientObservers();
+      });
+    });
+  }
+  function forEachAncestorAndObserverEnqueueRecord(target, callback) {
+    for (var node = target; node; node = node.parentNode) {
+      var registrations = registrationsTable.get(node);
+      if (registrations) {
+        for (var j = 0; j < registrations.length; j++) {
+          var registration = registrations[j];
+          var options = registration.options;
+          if (node !== target && !options.subtree) continue;
+          var record = callback(options);
+          if (record) registration.enqueue(record);
+        }
+      }
+    }
+  }
+  var uidCounter = 0;
+  function JsMutationObserver(callback) {
+    this.callback_ = callback;
+    this.nodes_ = [];
+    this.records_ = [];
+    this.uid_ = ++uidCounter;
+  }
+  JsMutationObserver.prototype = {
+    observe: function(target, options) {
+      target = wrapIfNeeded(target);
+      if (!options.childList && !options.attributes && !options.characterData || options.attributeOldValue && !options.attributes || options.attributeFilter && options.attributeFilter.length && !options.attributes || options.characterDataOldValue && !options.characterData) {
+        throw new SyntaxError();
+      }
+      var registrations = registrationsTable.get(target);
+      if (!registrations) registrationsTable.set(target, registrations = []);
+      var registration;
+      for (var i = 0; i < registrations.length; i++) {
+        if (registrations[i].observer === this) {
+          registration = registrations[i];
+          registration.removeListeners();
+          registration.options = options;
+          break;
+        }
+      }
+      if (!registration) {
+        registration = new Registration(this, target, options);
+        registrations.push(registration);
+        this.nodes_.push(target);
+      }
+      registration.addListeners();
+    },
+    disconnect: function() {
+      this.nodes_.forEach(function(node) {
+        var registrations = registrationsTable.get(node);
+        for (var i = 0; i < registrations.length; i++) {
+          var registration = registrations[i];
+          if (registration.observer === this) {
+            registration.removeListeners();
+            registrations.splice(i, 1);
+            break;
+          }
+        }
+      }, this);
+      this.records_ = [];
+    },
+    takeRecords: function() {
+      var copyOfRecords = this.records_;
+      this.records_ = [];
+      return copyOfRecords;
+    }
+  };
+  function MutationRecord(type, target) {
+    this.type = type;
+    this.target = target;
+    this.addedNodes = [];
+    this.removedNodes = [];
+    this.previousSibling = null;
+    this.nextSibling = null;
+    this.attributeName = null;
+    this.attributeNamespace = null;
+    this.oldValue = null;
+  }
+  function copyMutationRecord(original) {
+    var record = new MutationRecord(original.type, original.target);
+    record.addedNodes = original.addedNodes.slice();
+    record.removedNodes = original.removedNodes.slice();
+    record.previousSibling = original.previousSibling;
+    record.nextSibling = original.nextSibling;
+    record.attributeName = original.attributeName;
+    record.attributeNamespace = original.attributeNamespace;
+    record.oldValue = original.oldValue;
+    return record;
+  }
+  var currentRecord, recordWithOldValue;
+  function getRecord(type, target) {
+    return currentRecord = new MutationRecord(type, target);
+  }
+  function getRecordWithOldValue(oldValue) {
+    if (recordWithOldValue) return recordWithOldValue;
+    recordWithOldValue = copyMutationRecord(currentRecord);
+    recordWithOldValue.oldValue = oldValue;
+    return recordWithOldValue;
+  }
+  function clearRecords() {
+    currentRecord = recordWithOldValue = undefined;
+  }
+  function recordRepresentsCurrentMutation(record) {
+    return record === recordWithOldValue || record === currentRecord;
+  }
+  function selectRecord(lastRecord, newRecord) {
+    if (lastRecord === newRecord) return lastRecord;
+    if (recordWithOldValue && recordRepresentsCurrentMutation(lastRecord)) return recordWithOldValue;
+    return null;
+  }
+  function Registration(observer, target, options) {
+    this.observer = observer;
+    this.target = target;
+    this.options = options;
+    this.transientObservedNodes = [];
+  }
+  Registration.prototype = {
+    enqueue: function(record) {
+      var records = this.observer.records_;
+      var length = records.length;
+      if (records.length > 0) {
+        var lastRecord = records[length - 1];
+        var recordToReplaceLast = selectRecord(lastRecord, record);
+        if (recordToReplaceLast) {
+          records[length - 1] = recordToReplaceLast;
+          return;
+        }
+      } else {
+        scheduleCallback(this.observer);
+      }
+      records[length] = record;
+    },
+    addListeners: function() {
+      this.addListeners_(this.target);
+    },
+    addListeners_: function(node) {
+      var options = this.options;
+      if (options.attributes) node.addEventListener("DOMAttrModified", this, true);
+      if (options.characterData) node.addEventListener("DOMCharacterDataModified", this, true);
+      if (options.childList) node.addEventListener("DOMNodeInserted", this, true);
+      if (options.childList || options.subtree) node.addEventListener("DOMNodeRemoved", this, true);
+    },
+    removeListeners: function() {
+      this.removeListeners_(this.target);
+    },
+    removeListeners_: function(node) {
+      var options = this.options;
+      if (options.attributes) node.removeEventListener("DOMAttrModified", this, true);
+      if (options.characterData) node.removeEventListener("DOMCharacterDataModified", this, true);
+      if (options.childList) node.removeEventListener("DOMNodeInserted", this, true);
+      if (options.childList || options.subtree) node.removeEventListener("DOMNodeRemoved", this, true);
+    },
+    addTransientObserver: function(node) {
+      if (node === this.target) return;
+      this.addListeners_(node);
+      this.transientObservedNodes.push(node);
+      var registrations = registrationsTable.get(node);
+      if (!registrations) registrationsTable.set(node, registrations = []);
+      registrations.push(this);
+    },
+    removeTransientObservers: function() {
+      var transientObservedNodes = this.transientObservedNodes;
+      this.transientObservedNodes = [];
+      transientObservedNodes.forEach(function(node) {
+        this.removeListeners_(node);
+        var registrations = registrationsTable.get(node);
+        for (var i = 0; i < registrations.length; i++) {
+          if (registrations[i] === this) {
+            registrations.splice(i, 1);
+            break;
+          }
+        }
+      }, this);
+    },
+    handleEvent: function(e) {
+      e.stopImmediatePropagation();
+      switch (e.type) {
+       case "DOMAttrModified":
+        var name = e.attrName;
+        var namespace = e.relatedNode.namespaceURI;
+        var target = e.target;
+        var record = new getRecord("attributes", target);
+        record.attributeName = name;
+        record.attributeNamespace = namespace;
+        var oldValue = e.attrChange === MutationEvent.ADDITION ? null : e.prevValue;
+        forEachAncestorAndObserverEnqueueRecord(target, function(options) {
+          if (!options.attributes) return;
+          if (options.attributeFilter && options.attributeFilter.length && options.attributeFilter.indexOf(name) === -1 && options.attributeFilter.indexOf(namespace) === -1) {
+            return;
+          }
+          if (options.attributeOldValue) return getRecordWithOldValue(oldValue);
+          return record;
+        });
+        break;
+
+       case "DOMCharacterDataModified":
+        var target = e.target;
+        var record = getRecord("characterData", target);
+        var oldValue = e.prevValue;
+        forEachAncestorAndObserverEnqueueRecord(target, function(options) {
+          if (!options.characterData) return;
+          if (options.characterDataOldValue) return getRecordWithOldValue(oldValue);
+          return record;
+        });
+        break;
+
+       case "DOMNodeRemoved":
+        this.addTransientObserver(e.target);
+
+       case "DOMNodeInserted":
+        var changedNode = e.target;
+        var addedNodes, removedNodes;
+        if (e.type === "DOMNodeInserted") {
+          addedNodes = [ changedNode ];
+          removedNodes = [];
+        } else {
+          addedNodes = [];
+          removedNodes = [ changedNode ];
+        }
+        var previousSibling = changedNode.previousSibling;
+        var nextSibling = changedNode.nextSibling;
+        var record = getRecord("childList", e.target.parentNode);
+        record.addedNodes = addedNodes;
+        record.removedNodes = removedNodes;
+        record.previousSibling = previousSibling;
+        record.nextSibling = nextSibling;
+        forEachAncestorAndObserverEnqueueRecord(e.relatedNode, function(options) {
+          if (!options.childList) return;
+          return record;
+        });
+      }
+      clearRecords();
+    }
+  };
+  global.JsMutationObserver = JsMutationObserver;
+  if (!global.MutationObserver) global.MutationObserver = JsMutationObserver;
 })(this);
 
 window.HTMLImports = window.HTMLImports || {
@@ -6093,13 +6427,10 @@ CustomElements.addModule(function(scope) {
       root = root.olderShadowRoot;
     }
   }
-  var processingDocuments;
   function forDocumentTree(doc, cb) {
-    processingDocuments = [];
-    _forDocumentTree(doc, cb);
-    processingDocuments = null;
+    _forDocumentTree(doc, cb, []);
   }
-  function _forDocumentTree(doc, cb) {
+  function _forDocumentTree(doc, cb, processingDocuments) {
     doc = wrap(doc);
     if (processingDocuments.indexOf(doc) >= 0) {
       return;
@@ -6108,7 +6439,7 @@ CustomElements.addModule(function(scope) {
     var imports = doc.querySelectorAll("link[rel=" + IMPORT_LINK_TYPE + "]");
     for (var i = 0, l = imports.length, n; i < l && (n = imports[i]); i++) {
       if (n.import) {
-        _forDocumentTree(n.import, cb);
+        _forDocumentTree(n.import, cb, processingDocuments);
       }
     }
     cb(doc);
@@ -6374,8 +6705,9 @@ CustomElements.addModule(function(scope) {
 });
 
 CustomElements.addModule(function(scope) {
+  var isIE11OrOlder = scope.isIE11OrOlder;
   var upgradeDocumentTree = scope.upgradeDocumentTree;
-  var upgrade = scope.upgrade;
+  var upgradeAll = scope.upgradeAll;
   var upgradeWithDefinition = scope.upgradeWithDefinition;
   var implementPrototype = scope.implementPrototype;
   var useNative = scope.useNative;
@@ -6525,14 +6857,8 @@ CustomElements.addModule(function(scope) {
     }
     return element;
   }
-  function cloneNode(deep) {
-    var n = domCloneNode.call(this, deep);
-    upgrade(n);
-    return n;
-  }
   var domCreateElement = document.createElement.bind(document);
   var domCreateElementNS = document.createElementNS.bind(document);
-  var domCloneNode = Node.prototype.cloneNode;
   var isInstance;
   if (!Object.__proto__ && !useNative) {
     isInstance = function(obj, ctor) {
@@ -6550,21 +6876,16 @@ CustomElements.addModule(function(scope) {
       return obj instanceof base;
     };
   }
-  document.registerElement = register;
-  document.createElement = createElement;
-  document.createElementNS = createElementNS;
-  Node.prototype.cloneNode = cloneNode;
-  scope.registry = registry;
-  scope.instanceof = isInstance;
-  scope.reservedTagList = reservedTagList;
-  scope.getRegisteredDefinition = getRegisteredDefinition;
-  document.register = document.registerElement;
-});
-
-(function(scope) {
-  var useNative = scope.useNative;
-  var initializeModules = scope.initializeModules;
-  var isIE11OrOlder = /Trident/.test(navigator.userAgent);
+  function wrapDomMethodToForceUpgrade(obj, methodName) {
+    var orig = obj[methodName];
+    obj[methodName] = function() {
+      var n = orig.apply(this, arguments);
+      upgradeAll(n);
+      return n;
+    };
+  }
+  wrapDomMethodToForceUpgrade(Node.prototype, "cloneNode");
+  wrapDomMethodToForceUpgrade(document, "importNode");
   if (isIE11OrOlder) {
     (function() {
       var importNode = document.importNode;
@@ -6580,6 +6901,20 @@ CustomElements.addModule(function(scope) {
       };
     })();
   }
+  document.registerElement = register;
+  document.createElement = createElement;
+  document.createElementNS = createElementNS;
+  scope.registry = registry;
+  scope.instanceof = isInstance;
+  scope.reservedTagList = reservedTagList;
+  scope.getRegisteredDefinition = getRegisteredDefinition;
+  document.register = document.registerElement;
+});
+
+(function(scope) {
+  var useNative = scope.useNative;
+  var initializeModules = scope.initializeModules;
+  var isIE11OrOlder = /Trident/.test(navigator.userAgent);
   if (useNative) {
     var nop = function() {};
     scope.watchShadow = nop;
@@ -6640,6 +6975,7 @@ CustomElements.addModule(function(scope) {
     var loadEvent = window.HTMLImports && !HTMLImports.ready ? "HTMLImportsLoaded" : "DOMContentLoaded";
     window.addEventListener(loadEvent, bootstrap);
   }
+  scope.isIE11OrOlder = isIE11OrOlder;
 })(window.CustomElements);
 
 (function(scope) {
