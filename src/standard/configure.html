@@ -12,11 +12,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /*
     Process inputs efficiently via a configure lifecycle callback.
-    Configure is called top-down, host before local dom. Users should 
-    implement configure to supply a set of default values for the element by 
+    Configure is called top-down, host before local dom. Users should
+    implement configure to supply a set of default values for the element by
     returning an object containing the properties and values to set.
 
-    Configured values are not immediately set, instead they are set when 
+    Configured values are not immediately set, instead they are set when
     an element becomes ready, after its local dom is ready. This ensures
     that any user change handlers are not called before ready time.
 
@@ -28,7 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Configured values are collected into _config. At ready time, properties
   are set to the values in _config. This ensures properties are set child
   before host and change handlers are called only at ready time. The host
-  will reset a value already propagated to a child, but this is not 
+  will reset a value already propagated to a child, but this is not
   inefficient because of dirty checking at the set point.
 
   Bind notification events are sent when properties are set at ready time
@@ -36,12 +36,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   in property updates and this triggers side effects, handling notifications
   is deferred until ready time.
 
-  In general, events can be heard before an element is ready. This may occur 
+  In general, events can be heard before an element is ready. This may occur
   when a user sends an event in a change handler or listens to a data event
   directly (on-foo-changed).
   */
 
-  Polymer.Base.addFeature({
+  Polymer.Base._addFeature({
 
     // storage for configuration
     _setupConfigure: function(initialConfig) {
@@ -64,19 +64,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _configure: function() {
       this._configureAnnotationReferences();
       var i;
-      // get individual default values from property config
+      // get individual default values from property configs
       var config = {};
-      for (i in this.properties) {
-        var c = this.properties[i];
-        if (c.value !== undefined) {
-          if (typeof c.value == 'function') {
-            config[i] = c.value.call(this, this._config);
-          } else {
-            config[i] = c.value;
-          }
-        }
-      }
-      // get add'l default values from central configure 
+      this._configureProperties(this.properties, config);
+      this.behaviors.forEach(function(b) {
+        this._configureProperties(b.accessors, config);
+      }, this);
+      // get add'l default values from central configure
       this.simpleMixin(config, this.configure(this._config));
       // combine defaults returned from configure with inputs in _config
       this.simpleMixin(config, this._config);
@@ -84,6 +78,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._config = config;
       // pass configuration data to bindings
       this._distributeConfig(this._config);
+    },
+
+    _configureProperties: function(properties, config) {
+      for (i in properties) {
+        var c = properties[i];
+        if (c.value !== undefined) {
+          var value = c.value;
+          if (typeof value == 'function') {
+            value = value.call(this, this._config);
+          }
+          config[i] = value;
+        }
+      }
     },
 
     simpleMixin: function(a, b) {
@@ -120,8 +127,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._flushHandlers();
     },
 
-    // NOTE: values are already propagated to children via 
-    // _distributeConfig so propagation triggered by effects here is 
+    // NOTE: values are already propagated to children via
+    // _distributeConfig so propagation triggered by effects here is
     // redundant, but safe due to dirty checking
     _applyConfig: function(config) {
       for (var n in config) {
