@@ -7,25 +7,25 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="dom-api-innerHTML.html">
 <script>
 
 (function() {
 
   var saveLightChildrenIfNeeded = Polymer.DomApi.saveLightChildrenIfNeeded;
   var getComposedChildren = Polymer.DomApi.getComposedChildren;
-  var getInnerHTML = Polymer.DomApi.getInnerHTML;
 
-  var nativeShadow = Polymer.Settings.useNativeShadow;
+  var nativeShadow = Polymer.Settings.useShadow;
 
-  var log = false;
+  var excluded = [document, document.head, document.body];
 
+  window.patched = 0;
   // experimental: support patching selected native api.
   Polymer.DomApi.ctor.prototype.patch = function() {
-    if (nativeShadow || this.node.__patched) {
+    if (nativeShadow || this.node.__patched || 
+      (excluded.indexOf(this.node) >= 0)) {
       return;
     }
-    this.node.__patched = true;
+    patched++;
     saveLightChildrenIfNeeded(this.node);
     getComposedChildren(this.node);
     if (!this.node.lightParent) {
@@ -34,93 +34,145 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (!this.node._composedParent) {
       this.node._composedParent = this.node.parentNode;
     }
-    
-    var self = this;
-    // methods
-    this.node.appendChild = function(node) {
-      log && console.log('appendChild', self.node, node);
-      return self.appendChild(node);
-    };
-    this.node.insertBefore = function(node, ref_node) {
-      log && console.log('insertBefore', self.node, node, ref_node);
-      return self.insertBefore(node, ref_node);
-    };
-    this.node.removeChild = function(node) {
-      log && console.log('removeChild', self.node, node);
-      return self.removeChild(node);
-    };
-    //
-    
-    this.node.querySelector = function(selector) {
-      return self.querySelector(selector);
-    };
+    // this.node._specialParent = this.node.lightParent || 
+    //   (this.node.parentNode && this.node.parentNode.__patched);
 
-    this.node.querySelectorAll = function(selector) {
-      return self.querySelectorAll(selector);
-    };
-
-    // accessors
-    Object.defineProperty(this.node, 'childNodes', {
-      get: function() {
-        log && console.log('childNodes', self.node, self.childNodes.length);
-        return self.childNodes;
-      },
-      configurable: true
-    });
-    
-    Object.defineProperty(this.node, 'children', {
-      get: function() {
-        return self.children;
-      },
-      configurable: true
-    });
+    patchify.patch(this.node);
+    this.node.__patched = true;
     
     // TODO(sorvell): conditional due to problem in Safari.
-    if (this.node.lightParent || 
-      (this.node.parentNode && this.node.parentNode.__patched)) {
-      Object.defineProperty(this.node, 'parentNode', {
+    // var self = this;
+    
+    // if (this.node.lightParent || 
+    //   (this.node.parentNode && this.node.parentNode.__patched)) {
+    //   Object.defineProperty(this.node, 'parentNode', {
+    //     get: function() {
+    //       console.log('parentNode', self.node.localName);
+    //       return self.parentNode;
+    //     },
+    //     configurable: true
+    //   });
+    // }
+
+  };
+
+  Polymer.DomApi.ctor.prototype.unpatch = function() {
+    patchify.unpatch(this.node);
+  };
+
+  var log = false;
+
+  var patchify = {
+    
+    hasPrototypeDescriptors: Boolean(Object.getOwnPropertyDescriptor(
+      Node.prototype, 'childNodes')),
+    
+    methods: ['appendChild', 'insertBefore', 'removeChild', 'replaceChild',
+      'querySelector', 'querySelectorAll', 'getDestinationInsertionPoints'],
+    // <content>: getDistributedNodes
+    
+    accessors: ['childNodes', 'children', 'parentNode', 'parentElement'],
+    
+    writableAccessors: ['textContent', 'innerHTML'],
+
+    protoCache: {},
+    
+    patch: function(node) {
+      log && console.warn('patch node', node);
+      if (this.hasPrototypeDescriptors) {
+        this.patchPrototype(node);
+      } else {
+        this.patchObject(node, true);
+      }
+    },
+
+    patchPrototype: function(node) {
+      var name = node.localName;
+      var proto = this.protoCache[name];
+      if (!proto) {
+        proto = this.protoCache[name] = this.createPatchedPrototype(node);
+      }
+      node.__proto__ = proto;
+    },
+
+    createPatchedPrototype: function(node) {
+      var sourceProto = node.__proto__;
+      var newProto = Object.create(sourceProto);
+      newProto.__sourceProto__ = sourceProto;
+      this.patchObject(newProto);
+      return newProto;
+    },
+
+    patchObject: function(obj, cacheAccesors) {
+      this.methods.forEach(function(m) {
+        this.patchMethod(obj, m);
+      }, this);
+      this.accessors.forEach(function(n) {
+        this.patchAccessor(obj, n, false, cacheAccesors);
+      }, this);
+      this.writableAccessors.forEach(function(n) {
+        this.patchAccessor(obj, n, true, cacheAccesors);
+      }, this);
+    },
+
+    patchMethod: function(obj, name) {
+      var orig = obj[name];
+      obj[name] = function() {
+        log && console.log(this, name, arguments);
+        return this.__domApi[name].apply(this.__domApi, arguments);
+      };
+    },
+
+    patchAccessor: function(obj, name, writable, shouldCache) {
+      if (shouldCache) {
+        this.cacheAccessor(obj, name);
+      }
+      var info = {
         get: function() {
-          log && console.log('parentNode', self.node, self.parentNode);
-          return self.parentNode;
+          log && console.log(this, name);
+          return this.__domApi[name];
         },
         configurable: true
-      });
+      };
+      if (writable) {
+        info.set = function(value) {
+          this.__domApi[name] = value;
+        };
+      }
+      Object.defineProperty(obj, name, info);
+    },
+
+    cacheAccessor: function(obj, name) {
+      var cache = obj.__descriptorCache = obj.__descriptorCache || {};
+      cache[name] = Object.getOwnPropertyDescriptor(obj, name);
+    },
+
+    unpatch: function(obj) {
+      console.warn('unpatch object', obj);
+      if (obj.__sourceProto__) {
+        obj.__proto__ = obj.__sourceProto__;
+      } else {
+        this.methods.forEach(function(m) {
+          this.unpatchMethod(obj, m);
+        }, this);
+        this.accessors.forEach(function(n) {
+          this.unpatchAccessor(obj, n);
+        }, this);
+        this.writableAccessors.forEach(function(n) {
+          this.unpatchAccessor(obj, n);
+        }, this);
+      }
+      obj.__patched = false;
+    },
+
+    unpatchMethod: function(obj, name) {
+      delete obj[name];
+    },
+
+    unpatchAccessor: function(obj, name) {
+      var info = obj.__descriptorCache[name];
+      Object.defineProperty(obj, name, info);
     }
-
-    // textContent / innerHTML
-    Object.defineProperty(this.node, 'textContent', {
-      get: function() {
-        return Array.prototype.map.call(self.childNodes, function(c) {
-          return c.textContent;
-        }).join('');
-      },
-      set: function(text) {
-        self._clear();
-        if (text) {
-          self.appendChild(document.createTextNode(text));
-        }
-      },
-      configurable: true
-    });
-
-    Object.defineProperty(this.node, 'innerHTML', {
-      get: function() {
-        return getInnerHTML(self.node);
-      },
-      set: function(value) {
-        self._clear();
-        var d = document.createElement('div');
-        d.innerHTML = value;
-        for (var e=d.firstChild; e; e=e.nextSibling) {
-          self.appendChild(e);
-        }
-      },
-      configurable: true
-    });
-
-    self.node.getComposedInnerHTML = function() {
-      return getInnerHTML(self.node, true);
-    };
     
   };
 

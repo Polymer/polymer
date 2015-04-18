@@ -9,30 +9,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <link rel="import" href="settings.html">
 <link rel="import" href="event-api.html">
+<link rel="import" href="dom-innerHTML.html">
 <script>
 
   Polymer.DomApi = (function() {
 
-    var Debounce = Polymer.Debounce;
     var Settings = Polymer.Settings;
+    var getInnerHTML = Polymer.domInnerHTML.getInnerHTML;
 
     var nativeInsertBefore = Element.prototype.insertBefore;
     var nativeRemoveChild = Element.prototype.removeChild;
     var nativeAppendChild = Element.prototype.appendChild;
-    var nativeQuerySelector = Element.prototype.querySelector;
-    var nativeQuerySelectorAll = Element.prototype.querySelectorAll;
 
     var dirtyRoots = [];
 
-    var DomApi = function(node, shouldPatch) {
+    var DomApi = function(node) {
       this.node = node;
-      //return;
-      // TODO(sorvell): eeek.
-      if (this.node === document || this.node === document.head) {
-        return;
-      }
       if (this.patch) {
-        this.patch(shouldPatch);
+        this.patch();
       }
     };
 
@@ -414,6 +408,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       };
 
       
+    } else {
+
+      // textContent / innerHTML
+      Object.defineProperty(DomApi.prototype, 'textContent', {
+        
+        get: function() {
+          return Array.prototype.map.call(this.childNodes, function(c) {
+            return c.textContent;
+          }).join('');
+        },
+
+        set: function(text) {
+          this._clear();
+          if (text) {
+            this.appendChild(document.createTextNode(text));
+          }
+        },
+
+        configurable: true
+
+      });
+
+      Object.defineProperty(DomApi.prototype, 'innerHTML', {
+
+        get: function() {
+          return getInnerHTML(this.node);
+        },
+
+        set: function(value) {
+          this._clear();
+          var d = document.createElement('div');
+          d.innerHTML = value;
+          for (var e=d.firstChild; e; e=e.nextSibling) {
+            this.appendChild(e);
+          }
+        },
+
+        configurable: true
+
+      });
+
+      DomApi.prototype._getComposedInnerHTML = function() {
+        return getInnerHTML(this.node, true);
+      };
+
     }
 
     var CONTENT = 'content';
