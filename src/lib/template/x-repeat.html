@@ -155,9 +155,9 @@ Then the `observe` property should be configured as follows:
       Polymer.Templatizer
     ],
 
-    observers: {
-      'items.*': '_itemsChanged'
-    },
+    observers: [
+      '_itemsChanged(items.*)'
+    ],
 
     created: function() {
       this.boundCollectionObserver = this.render.bind(this);
@@ -177,15 +177,21 @@ Then the `observe` property should be configured as follows:
     },
 
     _sortChanged: function() {
+      var dataHost = this._getRootDataHost();
       this._sortFn = this.sort && (typeof this.sort == 'function' ? 
-        this.sort : this.host[this.sort].bind(this.host));
-      this.debounce('render', this.render);
+        this.sort : dataHost[this.sort].bind(this.host));
+      if (this.items) {
+        this.debounce('render', this.render);
+      }
     },
 
     _filterChanged: function() {
+      var dataHost = this._getRootDataHost();
       this._filterFn = this.filter && (typeof this.filter == 'function' ? 
-        this.filter : this.host[this.filter].bind(this.host));
-      this.debounce('render', this.render);
+        this.filter : dataHost[this.filter].bind(this.host));
+      if (this.items) {
+        this.debounce('render', this.render);
+      }
     },
 
     _observeChanged: function() {
@@ -193,18 +199,16 @@ Then the `observe` property should be configured as follows:
         this.observe.replace('.*', '.').split(' ');
     },
 
-    _itemsChanged: function(items, old, path) {
-      if (path) {
-        this._forwardItemPath(path, items);
-        this._checkObservedPaths(path);
-      } else {
-        if (old) {
-          this._unobserveCollection(old);
-        }
-        if (items) {
-          this._observeCollection(items);
+    _itemsChanged: function(change) {
+      if (change.path == 'items') {
+        this._unobserveCollection();
+        if (change.value) {
+          this._observeCollection(change.value);
           this.debounce('render', this.render);
-        }        
+        }
+      } else {
+        this._forwardItemPath(change.path, change.value);
+        this._checkObservedPaths(change.path);
       }
     },
 
@@ -226,9 +230,10 @@ Then the `observe` property should be configured as follows:
       this.collection.observe(this.boundCollectionObserver);
     },
 
-    _unobserveCollection: function(items) {
-      var collection = Polymer.Collection.get(items);
-      collection.unobserve(this.boundCollectionObserver);
+    _unobserveCollection: function() {
+      if (this.collection) {
+        this.collection.unobserve(this.boundCollectionObserver);
+      }
     },
 
     render: function(splices) {
@@ -518,7 +523,7 @@ Then the `observe` property should be configured as follows:
       while (el && !el._templateInstance) {
         el = el.parentNode;
       }
-      return el._templateInstance;
+      return el && el._templateInstance;
     },
 
     /**
