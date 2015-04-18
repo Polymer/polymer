@@ -1557,7 +1557,7 @@ EXPERIMENTAL - API MAY CHANGE
 
 Elements can be conditionally stamped based on a boolean property by wrapping them in a custom `HTMLTemplateElement` type extension called `x-if`.  The `x-if` template stamps itself into the DOM only when its `if` property becomes truthy.
 
-If the `if` property becomes falsy again, by default all stamped elements will be hidden (but will remain in DOM) for fater performance should the `if` property become truthy again.  This behavior may be defeated by setting the `restamp` property, which results in slower `if` switching behavior as the elements are destroyed and re-stamped each time.
+If the `if` property becomes falsy again, by default all stamped elements will be hidden (but will remain in DOM) for faster performance should the `if` property become truthy again.  This behavior may be defeated by setting the `restamp` property, which results in slower `if` switching behavior as the elements are destroyed and re-stamped each time.
 
 Note, to reach the outer parent scope, all bindings in an `x-if` template must be prefixed with `parent.<property>`, as shown below.
 
