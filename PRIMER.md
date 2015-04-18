@@ -825,9 +825,9 @@ Polymer({
     user: Object
   },
 
-  observers: {
+  observers: [
     'userManagerChanged(user.manager)'
-  },
+  ],
 
   userManagerChanged: function(user) {
     console.log('new manager name is ' + user.name);
@@ -853,9 +853,9 @@ Polymer({
     user: Object
   },
 
-  observers: {
+  observers: [
     'userManagerChanged(user.manager.*)'
-  },
+  ],
 
   userManagerChanged: function(changeRecord) {
     if (changeRecord.path == 'user.manager') {
