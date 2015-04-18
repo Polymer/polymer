@@ -955,7 +955,7 @@ Polymer supports cooperative two-way binding between elements, allowing elements
 
 When a Polymer elements changes a property that was configured in `properties` with the `notify` flag set to true, it automatically fires a non-bubbling DOM event to indicate those changes to interested hosts.  These events follow a naming convention of `<property>-changed`, and contain a `value` property in the `event.detail` object indicating the new value.
 
-As such, one could attach an `on-<property>-changed` listener to an element to be notified of changes to such properties, set the `event.detail.value` to a property on itself, and take necessary actions based on the new value.  However, given this is a common pattern, bindings using "curly-braces" (e.g. `{{property}}`) will automatically perform this upwards binding automatically without the user needing to perform those tasks.  This can be defeated by using "square-brace" syntax (e.g. `[[property]]`), which results in only one-way (downward) data-binding.
+As such, one could attach an `on-<property>-changed` listener to an element to be notified of changes to such properties, set the `event.detail.value` to a property on itself, and take necessary actions based on the new value.  However, given this is a common pattern, bindings using "curly-braces" (e.g. `{{property}}`) will automatically perform this upwards binding automatically without the user needing to perform those tasks.  This can be disabled by using "square-brace" syntax (e.g. `[[property]]`), which results in only one-way (downward) data-binding.
 
 To summarize, two-way data-binding is achieved when both the host and the child agree to participate, satisfying these three conditions:
 
@@ -1557,7 +1557,7 @@ EXPERIMENTAL - API MAY CHANGE
 
 Elements can be conditionally stamped based on a boolean property by wrapping them in a custom `HTMLTemplateElement` type extension called `x-if`.  The `x-if` template stamps itself into the DOM only when its `if` property becomes truthy.
 
-If the `if` property becomes falsy again, by default all stamped elements will be hidden (but will remain in DOM) for faster performance should the `if` property become truthy again.  This behavior may be defeated by setting the `restamp` property, which results in slower `if` switching behavior as the elements are destroyed and re-stamped each time.
+If the `if` property becomes falsy again, by default all stamped elements will be hidden (but will remain in DOM) for faster performance should the `if` property become truthy again.  This behavior may be disabled by setting the `restamp` property, which results in slower `if` switching behavior as the elements are destroyed and re-stamped each time.
 
 Note, to reach the outer parent scope, all bindings in an `x-if` template must be prefixed with `parent.<property>`, as shown below.
 
