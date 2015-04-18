@@ -31,8 +31,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // `archetype` is the prototype of the anonymous
       // class created by the templatizer 
       var archetype = Object.create(Polymer.Base);
-      var rootDataHost = this._getRootDataHost();
-      archetype._rootDataHost = rootDataHost;
       // normally Annotations.parseAnnotations(template) but
       // archetypes do special caching
       this.customPrepAnnotations(archetype, template);
@@ -40,8 +38,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       archetype._prepEffects();
       // forward parent properties to archetype
       this._prepParentProperties(archetype);
-      // late-binds archetype.listen to host.listen; h.l doesn't exist yet
-      archetype.listen = rootDataHost.listen.bind(rootDataHost);
 
       // boilerplate code
       archetype._notifyPath = this._notifyPathImpl;
@@ -126,9 +122,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             var parentProp = '_parent_' + prop;
             var effects = [{
               kind: 'function',
-              effect: { function: function(prop, source, value) {
-                this._forwardParentProp(prop, value);
-              }.bind(this, prop)}
+              effect: { function: this._createForwardPropEffector(prop) }
             }];
             Polymer.Bind._createAccessors(proto, parentProp, effects);
           }
@@ -136,9 +130,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Instance setup
         if (this._templatized != this) {
           Polymer.Bind.prepareInstance(this._templatized);
+          this._templatized._forwardParentProp =
+            this._forwardParentProp.bind(this);
         }
         this._extendTemplate(this._templatized, proto);
       }
+    },
+
+    _createForwardPropEffector: function(prop) {
+      return function(source, value) {
+        this._forwardParentProp(prop, value);
+      };
     },
 
     // Similar to Polymer.Base.extend, but retains any previously set instance
@@ -186,6 +188,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _constructorImpl: function(model, host) {
+      var rootDataHost = host._getRootDataHost();
+      this.listen = rootDataHost.listen.bind(rootDataHost);
+      this._rootDataHost = rootDataHost;
       this._setupConfigure(model);
       this._pushHost(host);
       this.root = this.instanceTemplate(this._template);
