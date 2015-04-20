@@ -607,28 +607,6 @@ Polymer({
 
 });
 ```
-
-
-<!--
-<a name="configure-method"></a>
-## Configure callback
-
-The `configure` method is part of an element's lifecycle and is automatically called 'top-down' and should be used to initialize default values for properties.  The function must return an object containing key/value pairs that will be used to set properties (keys) to default values.
-
-Example:
-
-```js
-configure: function() {
-  // return default values of properties
-  return {
-      mode: 'auto',
-      employees: []
-  };
-}
-```
-In general, the configure method should only return the object containing default values, and not cause any side-effects on `this` that may interact with children, as these will still be in an un-configured state at this point.  Such actions should be done in the [ready callback](#ready-method).
--->
-
 <a name="ready-method"></a>
 ## Ready callback
 
