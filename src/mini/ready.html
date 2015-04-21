@@ -37,12 +37,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.Base._addFeature({
 
     hostStack: [],
-    _readied: false,
-    _attachedPending: false,
-
-    // for overriding
-    configure: function() {
-    },
 
     // for overriding
     ready: function() {
@@ -114,21 +108,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.Base.hostStack.pop();
     },
 
-    _canReady: function() {
-      return !this._readied && (!this.dataHost || this.dataHost._readied);
+    _tryReady: function() {
+      if (this._canReady()) {
+        this._ready();
+      }
     },
 
-    _initializeContent: function() {
+    _canReady: function() {
+      return !this.dataHost || this.dataHost._clientsReadied;
+    },
+
+    _ready: function() {
+      // extension point
+      this._beforeClientsReady();
+      this._readyClients();
+      // extension point
+      this._afterClientsReady();
+      this._readySelf();
+    },
+
+    _readyClients: function() {
       // prepare root
       this._setupRoot();
       // logically distribute self
       this._beginDistribute();
-      // send data configuration signal
-      this._configure();
       // now fully prepare localChildren
       var c$ = this._clients;
       for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
-        c._initializeContent();
+        c._ready();
       }
       // perform actual dom composition
       this._finishDistribute();
@@ -138,34 +145,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // if (!Polymer.Settings.useNativeCustomElements) {
       //   CustomElements.takeRecords();
       // }
-      // send ready signal
-      this._ready();
+      //
+      this._clientsReadied = true;
+    },
+
+    // mark readied and call `ready`
+    // note: called localChildren -> host
+    _readySelf: function() {
+      this._doBehavior('ready');
+      this._readied = true;
+      if (this._attachedPending) {
+        this._attachedPending = false;
+        this.attachedCallback();
+      }
       // reset _host as it needs to be established by local dom after data
       // configuration
       this.host = null;
       this._clients = null;
     },
 
-    // calls `configure`
-    // note: called host -> localChild
-    _configure: function() {
-      this.configure();
-    },
-
-    // mark readied and call `ready`
-    // note: called localChildren -> host
-    _ready: function() {
-      this._readied = true;
-      this._beforeReady();
-      this._doBehavior('ready');
-      if (this._attachedPending) {
-        this._attachedPending = false;
-        this.attachedCallback();
-      }
-    },
-
     // for system overriding
-    _beforeReady: function() {},
+    _beforeClientsReady: function() {},
+    _afterClientsReady: function() {},
 
     // normalize lifecycle: ensure attached occurs only after ready.
     attachedCallback: function() {

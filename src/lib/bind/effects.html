@@ -12,21 +12,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.Base.extend(Polymer.Bind, {
 
-    _shouldAddListener: function(info) {
-      return info.name &&
-             info.mode === '{' &&
-             !info.negate &&
-             info.kind != 'attribute'
+    _shouldAddListener: function(effect) {
+      return effect.name &&
+             effect.mode === '{' &&
+             !effect.negate &&
+             effect.kind != 'attribute'
              ;
     },
 
-    annotationEffect: function(source, value, info) {
-      if (source != info.value) {
-        value = this.getPathValue(info.value);
-        this._data[info.value] = value;
+    annotationEffect: function(source, value, effect) {
+      if (source != effect.value) {
+        value = this.getPathValue(effect.value);
+        this._data[effect.value] = value;
       }
-      var calc = info.negate ? !value : value;
-      return this._applyEffectValue(calc, info);
+      var calc = effect.negate ? !value : value;
+      return this._applyEffectValue(calc, effect);
     },
 
     reflectEffect: function(source) {
@@ -37,50 +37,67 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._notifyChange(source);
     },
 
-    // Raw effect for extension; info.function is an actual function
-    functionEffect: function(source, value, info, old) {
-      info.function.call(this, source, value, info, old);
+    // Raw effect for extension; effect.function is an actual function
+    functionEffect: function(source, value, effect, old) {
+      effect.function.call(this, source, value, effect, old);
     },
 
-    observerEffect: function(source, value, info, old) {
-      //console.log(value, info);
-      if (info.property) {
-        this[info.method](value, old);
-      } else {
-        var args = Polymer.Bind._marshalArgs(this._data, info.properties);
-        if (args) {
-          this[info.method].apply(this, args);
-        }
-      }
+    observerEffect: function(source, value, effect, old) {
+      this[effect.method](value, old);
     },
 
-    computeEffect: function(source, value, info) {
-      var args = Polymer.Bind._marshalArgs(this._data, info.args);
+    complexObserverEffect: function(source, value, effect) {
+      var args = Polymer.Bind._marshalArgs(this._data, effect, source, value);
       if (args) {
-        this[info.property] = this[info.methodName].apply(this, args);
+        this[effect.method].apply(this, args);
       }
     },
 
-    annotatedComputationEffect: function(source, value, info) {
-      var args = Polymer.Bind._marshalArgs(this._data, info.args);
+    computeEffect: function(source, value, effect) {
+      var args = Polymer.Bind._marshalArgs(this._data, effect, source, value);
+      if (args) {
+        this[effect.property] = this[effect.method].apply(this, args);
+      }
+    },
+
+    annotatedComputationEffect: function(source, value, effect) {
+      var args = Polymer.Bind._marshalArgs(this._data, effect, source, value);
       if (args) {
         var computedHost = this._rootDataHost || this;
         var computedvalue = 
-          computedHost[info.methodName].apply(computedHost, args);
-        this._applyEffectValue(computedvalue, info);
+          computedHost[effect.method].apply(computedHost, args);
+        this._applyEffectValue(computedvalue, effect);
       }
     },
 
-    _marshalArgs: function(model, properties) {
-      var a=[];
-      for (var i=0, l=properties.length, v; i<l; i++) {
-        v = model[properties[i]];
+    // path & value are used to fill in wildcard descriptor when effect is
+    // being called as a result of a path notification
+    _marshalArgs: function(model, effect, path, value) {
+      var values = [];
+      var args = effect.args;
+      for (var i=0, l=args.length; i<l; i++) {
+        var arg = args[i];
+        var name = arg.name;
+        var v = arg.structured ?
+          Polymer.Base.getPathValue(name, model) : model[name];
         if (v === undefined) {
           return;
         }
-        a[i] = v;
+        if (arg.wildcard) {
+          // Only send the actual path changed info if the change that
+          // caused the observer to run matched the wildcard
+          var baseChanged = (name.indexOf(path + '.') === 0);
+          var matches = (effect.arg.name.indexOf(name) === 0 && !baseChanged);
+          values[i] = {
+            path: matches ? path : name,
+            value: matches ? value : v,
+            base: v
+          };
+        } else {
+          values[i] = v;
+        }
       }
-      return a;
+      return values;
     }
 
   });

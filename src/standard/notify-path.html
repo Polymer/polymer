@@ -126,15 +126,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return prop[last];
     },
 
-    addPathObserver: function(path, method) {
-      var fx$ = this._pathEffects || (this._pathEffects = []);
-      var match = path.indexOf('.*') == (path.length-2);
-      if (match) {
-        path = path.slice(0, -2);
-      }
-      fx$.push({path: path, match: match, method: method});
-    },
-
     // TODO(kschaaf): This machine can be optimized to memoize compiled path
     // effectors as new paths are notified for performance, since it involves
     // a fair amount of runtime lookup
@@ -145,20 +136,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var fx$ = this._propertyEffects[model];
       if (fx$) {
         fx$.forEach(function(fx) {
-          if (fx.kind === 'annotation') {
-            // locate the bound node
-            var n = this._nodeForBinding(fx.effect);
-            if (n) {
-              // perform the effect
-              this._performAnnotationPathEffect(n, path, value, fx.effect);
-            }
+          var fxFn = this[fx.kind + 'PathEffect'];
+          if (fxFn) {
+            fxFn.call(this, path, value, fx.effect);
           }
-        }, this);
-      }
-      // iterate and perform _pathEffects matching path
-      if (this._pathEffects) {
-        this._pathEffects.forEach(function(fx) {
-          this._performPathEffect(path, value, fx);
         }, this);
       }
       // notify runtime-bound paths
@@ -167,34 +148,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _nodeForBinding: function(info) {
-      return info.id ? this.$[info.id] : this._nodes[info.index];
-    },
-
-    _performAnnotationPathEffect: function(node, path, value, effect) {
+    annotationPathEffect: function(path, value, effect) {
       if (effect.value === path || effect.value.indexOf(path + '.') === 0) {
         // TODO(sorvell): ideally the effect function is on this prototype
         // so we don't have to call it like this.
         Polymer.Bind.annotationEffect.call(this, path, value, effect);
-        // path == item.stuff.count
-        // value == item.stuff
-        // name == zizz
-        // calls effect n.notifyPath for zizz.count
-      } else if ((path.indexOf(effect.value + '.') === 0) &&
-                  node.notifyPath && !effect.negate) {
-        var p = this._fixPath(effect.name , effect.value, path);
-        node.notifyPath(p, value, true);
+      } else if ((path.indexOf(effect.value + '.') === 0) && !effect.negate) {
+        // locate the bound node
+        var node = this._nodes[effect.index];
+        if (node && node.notifyPath) {
+          var p = this._fixPath(effect.name , effect.value, path);
+          node.notifyPath(p, value, true);
+        }
       }
     },
 
-    _performPathEffect: function(path, value, fx) {
-      if (fx.path == path || (fx.match && path.indexOf(fx.path) === 0)) {
-        var fn = this[fx.method];
-        if (fn) {
-          // TODO(kschaaf): sending null for old; no good way to get it?
-          fn.call(this, value, null, path);
-        }
+    complexObserverPathEffect: function(path, value, effect) {
+      if (this._pathMatchesEffect(path, effect)) {
+        Polymer.Bind.complexObserverEffect.call(this, path, value, effect);
       }
+    },
+
+    computePathEffect: function(path, value, effect) {
+      if (this._pathMatchesEffect(path, effect)) {
+        Polymer.Bind.computeEffect.call(this, path, value, effect);
+      }
+    },
+
+    annotatedComputationPathEffect: function(path, value, effect) {
+      if (this._pathMatchesEffect(path, effect)) {
+        Polymer.Bind.annotatedComputationEffect.call(this, path, value, effect);
+      }
+    },
+
+    _pathMatchesEffect: function(path, effect) {
+      var effectArg = effect.arg.name;
+      return (effectArg == path) || 
+        (effectArg.indexOf(path + '.') === 0) ||
+        (effect.arg.wildcard && path.indexOf(effectArg) === 0);
     },
 
     bindPaths: function(to, from) {

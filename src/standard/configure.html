@@ -59,6 +59,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._config[name] = value;
     },
 
+    // Override polymer-mini thunk
+    _beforeClientsReady: function() {
+      this._configure();
+    },
+
     // configure: returns user supplied default property values
     // combines with _config to create final property values
     _configure: function() {
@@ -71,9 +76,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._configureProperties(b.accessors, config);
       }, this);
       // get add'l default values from central configure
-      this.simpleMixin(config, this.configure(this._config));
       // combine defaults returned from configure with inputs in _config
-      this.simpleMixin(config, this._config);
+      this._mixinConfigure(config, this._config);
       // this is the new _config, which are the final values to be applied
       this._config = config;
       // pass configuration data to bindings
@@ -94,9 +98,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    simpleMixin: function(a, b) {
-      for (var i in b) {
-        a[i] = b[i];
+    _mixinConfigure: function(a, b) {
+      for (var prop in b) {
+        if (!this.isReadOnlyProperty(prop)) {
+          a[prop] = b[prop];
+        }
       }
     },
 
@@ -123,7 +129,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _beforeReady: function() {
+    // Override polymer-mini thunk
+    _afterClientsReady: function() {
       this._applyConfig(this._config);
       this._flushHandlers();
     },
@@ -135,7 +142,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var n in config) {
         // Don't stomp on values that may have been set by other side effects
         if (this[n] === undefined) {
-          this[n] = config[n];
+          // Call _propertySet for any properties with accessors, which will
+          // initialize read-only properties also
+          // TODO(kschaaf): consider passing fromAbove here to prevent
+          // unnecessary notify for: 1) possible perf, 2) debuggability
+          var effects = this._propertyEffects[n];
+          if (effects) {
+            this._propertySet(n, config[n], effects);
+          } else {
+            this[n] = config[n];
+          }
         }
       }
     },
@@ -145,7 +161,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // effects and side effects must not be processed before ready time,
     // handling is queue/defered until then.
     _notifyListener: function(fn, e) {
-      if (!this._readied) {
+      if (!this._clientsReadied) {
         this._queueHandler([fn, e, e.target]);
       } else {
         return fn.call(this, e, e.target);
