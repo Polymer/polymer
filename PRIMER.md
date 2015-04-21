@@ -756,7 +756,7 @@ Polymer({
 
 Note that property change observation is achieved in Polymer by installing setters on the custom element prototype for properties with registered interest (as opposed to observation via Object.observe or dirty checking, for example).
 
-### Multipe property observation
+### Multiple property observation
 
 Observing changes to multiple properties is supported via the `observers` array on the prototype, using a string containing a method signature that includes any dependent arguments.  Once all properties are defined (`!== undefined`), the observer method will be called once for each change to a dependent property.  The current values of the dependent properties will be passed as arguments to the observer method in the order defined in the `observers` method signature.
 
