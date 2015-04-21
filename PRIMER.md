@@ -232,7 +232,7 @@ See the [section on configuring elements](#configuring-elements) for a more in-d
 
 Placing an object-valued `properties` property on your prototype allows you to define metadata regarding your Custom Element's properties, which can then be accessed via an API for use by other Polymer features.
 
-By itself, the `properties` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see featues below for details).
+By itself, the `properties` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see features below for details).
 
 Example:
 
