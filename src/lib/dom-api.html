@@ -63,9 +63,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       flush: function() {
         for (var i=0, host; i<dirtyRoots.length; i++) {
           host = dirtyRoots[i];
-          if (host.__distribute) {
-            host.__distribute.complete();
-          }
+          host.flushDebouncer('_distribute');
         }
         dirtyRoots = [];
       },
@@ -77,8 +75,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // TODO(sorvell): optimize debounce so it does less work by default
         // and then remove these checks...
         // need to dirty distribution once.
-        if (!host.__distribute || !host.__distribute.finish) {
-          host._debounce('__distribute', host._distributeContent);
+        if (!host.isDebouncerActive('_distribute')) {
+          host.debounce('_distribute', host._distributeContent);
           dirtyRoots.push(host);
         }
       },
@@ -86,7 +84,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // cases in which we may not be able to just do standard appendChild
       // 1. container has a shadyRoot (needsDistribution IFF the shadyRoot
       // has an insertion point)
-      // 2. container is a shadyRoot (don't distribute, instead set 
+      // 2. container is a shadyRoot (don't distribute, instead set
       // container to container.host.
       // 3. node is <content> (host of container needs distribution)
       appendChild: function(node) {
@@ -131,7 +129,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (!distributed) {
           // if ref_node is <content> replace with first distributed node
-          ref_node = ref_node.localName === CONTENT ? 
+          ref_node = ref_node.localName === CONTENT ?
             this._firstComposedNode(ref_node) : ref_node;
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
@@ -177,7 +175,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           } else {
             var parent = Polymer.dom(node).parentNode;
             if (parent) {
-              root = parent._isShadyRoot ? parent : 
+              root = parent._isShadyRoot ? parent :
                 this._ownerShadyRootForNode(parent);
             } else {
              root = null;
@@ -186,7 +184,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           node._ownerShadyRoot = root;
         }
         return node._ownerShadyRoot;
-        
+
       },
 
       _maybeDistribute: function(node, parent, host) {
@@ -205,7 +203,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _updateInsertionPoints: function(host) {
         host.shadyRoot._insertionPoints =
           factory(host.shadyRoot).querySelectorAll(CONTENT);
-      }, 
+      },
 
       _nodeIsInLogicalTree: function(node) {
         return Boolean(node._isShadyRoot ||
@@ -215,7 +213,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // note: a node is its own host
       _hostForNode: function(node) {
-        var root = node.shadyRoot || (node._isShadyRoot ? 
+        var root = node.shadyRoot || (node._isShadyRoot ?
           node : this._ownerShadyRootForNode(node));
         return root && root.host;
       },
@@ -224,12 +222,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return parent.shadyRoot && hasInsertionPoint(parent.shadyRoot);
       },
 
-      // TODO(sorvell): technically we should check non-fragment nodes for 
+      // TODO(sorvell): technically we should check non-fragment nodes for
       // <content> children but since this case is assumed to be exceedingly
       // rare, we avoid the cost and will address with some specific api
       // when the need arises.
       _nodeNeedsDistribution: function(node) {
-        return (node.localName === CONTENT) || 
+        return (node.localName === CONTENT) ||
           ((node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
             node.querySelector(CONTENT));
       },
@@ -246,7 +244,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _addNodeToHost: function(node) {
-        var checkNode = node.nodeType === Node.DOCUMENT_FRAGMENT_NODE ? 
+        var checkNode = node.nodeType === Node.DOCUMENT_FRAGMENT_NODE ?
           node.firstChild : node;
         var root = this._ownerShadyRootForNode(checkNode);
         if (root) {
@@ -274,7 +272,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // NOTE: in general, we expect contents of the lists here to be small-ish
       // and therefore indexOf to be nbd. Other optimizations can be made
-      // for larger lists (linked list) 
+      // for larger lists (linked list)
       _removeLogicalInfo: function(node, container) {
         var children = factory(container).childNodes;
         var index = children.indexOf(node);
@@ -290,7 +288,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node._ownerShadyRoot = undefined;
       },
 
-      // TODO(sorvell): This will fail if distribution that affects this 
+      // TODO(sorvell): This will fail if distribution that affects this
       // question is pending; this is expected to be exceedingly rare, but if
       // the issue comes up, we can force a flush in this case.
       _firstComposedNode: function(content) {
@@ -312,7 +310,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       querySelectorAll: function(selector) {
         return this._query(function(n) {
           return matchesSelector.call(n, selector);
-        }, this.node);  
+        }, this.node);
       },
 
       _query: function(matcher, node) {
@@ -345,7 +343,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       /*
-        Returns a list of nodes distributed within this element. These can be 
+        Returns a list of nodes distributed within this element. These can be
         dom children or elements distributed to children that are insertion
         points.
       */
@@ -365,7 +363,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _distributedFilter: function(selector, list, results) {
         results = results || [];
         for (var i=0, l=list.length, d; (i<l) && (d=list[i]); i++) {
-          if ((d.nodeType === Node.ELEMENT_NODE) && 
+          if ((d.nodeType === Node.ELEMENT_NODE) &&
             (d.localName !== CONTENT) &&
             matchesSelector.call(d, selector)) {
             results.push(d);
@@ -373,8 +371,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return results;
       }
-            
-    }; 
+
+    };
 
     if (Settings.useShadow) {
 
@@ -404,7 +402,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return n$ ? Array.prototype.slice.call(n$) : [];
       };
 
-      
+
     }
 
     var CONTENT = 'content';
@@ -436,7 +434,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     function saveLightChildrenIfNeeded(node) {
       // Capture the list of light children. It's important to do this before we
       // start transforming the DOM into "rendered" state.
-      // 
+      //
       // Children may be added to this list dynamically. It will be treated as the
       // source of truth for the light children of the element. This element's
       // actual children will be treated as the rendered state once lightChildren
