@@ -23,7 +23,7 @@ Below is a description of the current Polymer features, followed by individual f
 | [Configure properties](#property-config) | properties: { … }
 | [Attribute deserialization to property](#attribute-deserialization) | properties: { \<property>: \<Type> }
 | [Static attributes on host](#host-attributes) | hostAttributes: { \<attribute>: \<value> }
-| [Prototype mixins](#prototype-mixins) | mixins: [ … ]
+| [Behavior mixins](#behaviors) | behaviors: [ … ]
 
 <a name="polymer-mini"></a>
 **Template stamped into "local DOM" and tree lifecycle**
@@ -68,6 +68,7 @@ Below is a description of the current Polymer features, followed by individual f
 |---------|-------
 | [Template repeater](#x-repeat) | \<template is="x-repeat" items="{{arr}}">
 | [Array selector](#x-array-selector) | \<x-array-selector items="{{arr}}" selected="{{selected}}">
+| [Conditional template](#x-if) | \<template is="x-if">
 | [Auto-binding template](#x-autobind) | \<template is="x-autobind">
 | [Cross-scope styling](#xscope-styling) | --custom-prop: value, var(--custom-prop), mixin(--custom-mixin)
 | [Custom element for styling features](#x-style) | \<style is="x-style">
@@ -357,47 +358,57 @@ Results in:
 <x-custom role="button" aria-disabled tabindex="0"></x-custom>
 ```
 
-<a name="prototype-mixins"></a>
-## Prototype mixins
+<a name="behaviors"></a>
+## Behaviors
 
-Polymer will "mixin" objects specified in a `mixin` array into the prototype.  This can be useful for adding common code between multiple elements.
+Polymer supports extending custom element prototypes with shared code modules called "behaviors".
 
-The current mixin feature in 0.8 is basic; it simply loops over properties in the provided object and adds property descriptors for those on the prototype (such that `set`/`get` accessors are copied in addition to properties and functions).  Note that there is currently no support for configuring properties or hooking lifecycle callbacks directly via mixins.  The general pattern is for the mixin to supply functions to be called by the target element as part of its usage contract (and should be documented as such).  These limitations will likely be revisited in the future.
+A behavior is simply an object that looks very similar to a typical Polymer prototype.  It may define lifecycle callbacks, `properties`, `hostAttributes`, or other features described later in this document like `observers` and `listeners`.  To add a behavior to a Polymer element definition, include it in a `behaviors` array on the prototype.
 
+Lifecycle callbacks will be called on the base prototype first, then for each behavior in the order given in the `behaviors` array.   Additionally, any non-lifecycle functions on the behavior object are mixed into the base prototype (and will overwrite the function on the prototype, if they exist); these may be useful for adding API or implementing observer or event listener callbacks defined by the behavior, for example.
 
-Example: `fun-mixin.html`
+Example: `highlight-behavior.html`
 
 ```js
-FunMixin = {
+HighlightBehavior = {
 
-    funCreatedCallback: function() {
-      this.makeElementFun();
-    },
-
-    makeElementFun: function() {
-      this.style.border = 'border: 20px dotted fuchsia;';
+  properties: {
+    isHighlighted: {
+      type: Boolean,
+      value: false,
+      notify: true,
+      observer: '_highlightChanged'
     }
-  };
+  },
+  
+  listeners: {
+    click: '_toggleHighlight'
+  },
+  
+  created: function() {
+    console.log('Highlighting for ', this, + 'enabled!');
+  },
 
-});
+  _toggleHighlight: function() {
+    this.isHighlighted = !this.isHighlighted;
+  },
+  
+  _highlightChanged: function(value) {
+    this.toggleClass('highlighted', value);
+  }
+
+};
 ```
 
 Example: `my-element.html`
 
 ```html
-<link rel="import" href="fun-mixin.html">
+<link rel="import" href="highlight-behavior.html">
 
 <script>
   Polymer({
-
     is: 'my-element',
-
-    mixins: [FunMixin],
-
-    created: function() {
-      this.funCreatedCallback();
-    }
-
+    behaviors: [HighlightBehavior]
   });
 </script>
 ```
