@@ -41,7 +41,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   directly (on-foo-changed).
   */
 
-  Polymer.Base.addFeature({
+  Polymer.Base._addFeature({
 
     // storage for configuration
     _setupConfigure: function(initialConfig) {
@@ -68,19 +68,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // combines with _config to create final property values
     _configure: function() {
       this._configureAnnotationReferences();
-      var i;
-      // get individual default values from property config
+      // get individual default values from property configs
       var config = {};
-      for (i in this.properties) {
-        var c = this.properties[i];
-        if (c.value !== undefined) {
-          if (typeof c.value == 'function') {
-            config[i] = c.value.call(this, this._config);
-          } else {
-            config[i] = c.value;
-          }
-        }
-      }
+      this._configureProperties(this.properties, config);
+      // behave!
+      this.behaviors.forEach(function(b) {
+        this._configureProperties(b.properties, config);
+      }, this);
+      // get add'l default values from central configure
       // combine defaults returned from configure with inputs in _config
       this._mixinConfigure(config, this._config);
       // this is the new _config, which are the final values to be applied
@@ -89,9 +84,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._distributeConfig(this._config);
     },
 
+    _configureProperties: function(properties, config) {
+      for (i in properties) {
+        var c = properties[i];
+        if (c.value !== undefined) {
+          var value = c.value;
+          if (typeof value == 'function') {
+            // pass existing config values (this._config) to value function
+            value = value.call(this, this._config);
+          }
+          config[i] = value;
+        }
+      }
+    },
+
     _mixinConfigure: function(a, b) {
       for (var prop in b) {
-        if (!this.isReadOnlyProperty(prop)) {
+        if (!this.getPropertyInfo(prop).readOnly) {
           a[prop] = b[prop];
         }
       }

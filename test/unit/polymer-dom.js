@@ -172,7 +172,7 @@ suite('Polymer.dom', function() {
     var childCount = 5;
     for (var i=0; i < childCount; i++) {
       var s = document.createElement('span');
-      s.textContent = i; 
+      s.textContent = i;
       fragment.appendChild(s);
     }
     Polymer.dom(rere.root).appendChild(fragment);
@@ -191,7 +191,7 @@ suite('Polymer.dom', function() {
     var childCount = 5;
     for (var i=0; i < childCount; i++) {
       var s = document.createElement('span');
-      s.textContent = i; 
+      s.textContent = i;
       fragment.appendChild(s);
     }
     var l = document.createElement('span');
@@ -300,7 +300,7 @@ suite('Polymer.dom', function() {
 });
 
 suite('Polymer.dom non-distributed elements', function() {
-  
+
   var nd;
 
   before(function() {

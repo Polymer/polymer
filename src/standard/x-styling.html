@@ -13,7 +13,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../lib/style-defaults.html">
 <script>
   (function() {
-    
+
     var baseAttachedCallback = Polymer.Base.attachedCallback;
     var baseSerializeValueToAttribute = Polymer.Base.serializeValueToAttribute;
 
@@ -21,11 +21,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // TODO(sorvell): consider if calculating properties and applying
     // styles with properties should be separate modules.
-    Polymer.Base.addFeature({
+    Polymer.Base._addFeature({
 
       attachedCallback: function() {
         baseAttachedCallback.call(this);
-        if (this.enableCustomStyleProperties && !this._xScopeSelector) {
+        if (!this._xScopeSelector) {
           this._updateOwnStyles();
         }
       },
@@ -39,8 +39,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _computeStyleProperties: function() {
         var props = {};
-        this.simpleMixin(props, this._computeStylePropertiesFromHost());        
-        this.simpleMixin(props, this._computeOwnStyleProperties());
+        this.mixin(props, this._computeStylePropertiesFromHost());
+        this.mixin(props, this._computeOwnStyleProperties());
         this._reifyCustomProperties(props);
         return props;
       },
@@ -57,15 +57,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           props = Object.create(host._styleProperties);
           styles = host._styles;
         }
-        this.simpleMixin(props,
+        this.mixin(props,
           this._customPropertiesFromStyles(styles, host));
         return props;
-        
+
       },
 
       _computeOwnStyleProperties: function() {
         var props = {};
-        this.simpleMixin(props, this._customPropertiesFromStyles(this._styles));
+        this.mixin(props, this._customPropertiesFromStyles(this._styles));
         if (this.styleProperties) {
           for (var i in this.styleProperties) {
             props[i] = this.styleProperties[i];
@@ -85,7 +85,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return props;
       },
 
-      // test if a rule matches the given node and if so, 
+      // test if a rule matches the given node and if so,
       // collect any custom properties
       // TODO(sorvell): support custom variable assignment within mixins
       _customPropertiesFromRule: function(props, hostNode, rule) {
@@ -108,7 +108,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           properties[m[1]] = m[2].trim();
         }
       },
-   
+
       _reifyCustomProperties: function(props) {
         for (var i in props) {
           props[i] = this._valueForCustomProperty(props[i], props);
@@ -117,7 +117,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _valueForCustomProperty: function(property, props) {
         var cv;
-        while ((typeof property === 'string') && 
+        while ((typeof property === 'string') &&
           (cv = property.match(CUSTOM_VAR_VALUE))) {
           property = props[cv[1]];
         }
@@ -134,7 +134,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (!style) {
             var cssText = this._generateCustomStyleCss(bag, s$);
             style = cssText ? this._applyCustomCss(cssText) : {};
-            cacheStyle(this.is, style, this._xScopeSelector, 
+            cacheStyle(this.is, style, this._xScopeSelector,
               this._styleProperties, s$);
           } else if (nativeShadow) {
             this._applyCustomCss(style.textContent);
@@ -162,17 +162,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _generateCustomStyleCss: function(properties, styles) {
         var b = this._applyPropertiesToRule.bind(this, properties);
         var cssText = '';
-        // TODO(sorvell): don't redo parsing work each time as below; 
+        // TODO(sorvell): don't redo parsing work each time as below;
         // instead create a sheet with just custom properties
         for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-          cssText += this._transformCss(s.textContent, b) + '\n\n'; 
+          cssText += this._transformCss(s.textContent, b) + '\n\n';
         }
         return cssText.trim();
       },
 
       _transformCss: function(cssText, callback) {
         return nativeShadow ?
-          Polymer.StyleUtil.toCssText(cssText, callback) : 
+          Polymer.StyleUtil.toCssText(cssText, callback) :
           Polymer.StyleTransformer.css(cssText, this.is, this.extends, callback,
             this._scopeCssViaAttr);
       },
@@ -180,7 +180,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _xScopeCount: 0,
 
       _ensureScopeSelector: function(selector) {
-        selector = selector || (this.is + '-' + 
+        selector = selector || (this.is + '-' +
           (Object.getPrototypeOf(this)._xScopeCount++));
         this._xScopeSelector = selector;
       },
@@ -189,7 +189,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._customStyle) {
           this._customStyle.textContent = cssText;
         } else if (cssText) {
-          this._customStyle = Polymer.StyleUtil.applyCss(cssText, 
+          this._customStyle = Polymer.StyleUtil.applyCss(cssText,
             this._xScopeSelector,
             nativeShadow ? this.root : null);
         }
@@ -261,8 +261,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _scopeElementClass: function(element, selector) {
         if (!nativeShadow && !this._scopeCssViaAttr) {
-          selector += (selector ? ' ' : '') + SCOPE_NAME + ' ' + this.is + 
-            (element._xScopeSelector ? ' ' +  XSCOPE_NAME + ' ' + 
+          selector += (selector ? ' ' : '') + SCOPE_NAME + ' ' + this.is +
+            (element._xScopeSelector ? ' ' +  XSCOPE_NAME + ' ' +
             element._xScopeSelector : '');
         }
         return selector;
@@ -272,12 +272,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       serializeValueToAttribute: function(value, attribute, node) {
         if (attribute === 'class') {
           // host needed to scope styling.
-          // styling may occur when not in dom so fallback to dataHost in that case.
-          var host = node.domHost || node.dataHost;
-          if (!host) {
-            var root = Polymer.dom(node).getOwnerRoot();
-            host = root && root.host;
-          }
+          var host = node === this ?
+            Polymer.dom(this).getOwnerRoot() || this.dataHost :
+            this;
           if (host) {
             value = host._scopeElementClass(node, value);
           }
@@ -291,17 +288,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       updateHostStyles: function() {
-        if (this.domHost) {
-          this.domHost.updateStyles();
+        var host = Polymer.dom(this).getOwnerRoot() || this.dataHost;
+        if (host) {
+          host.updateStyles();
         } else {
           this._updateRootStyles(document);
         }
       },
 
       _updateRootStyles: function(root) {
-        // TODO(sorvell): temporary way to find local dom that needs 
+        // TODO(sorvell): temporary way to find local dom that needs
         // x-scope styling.
-        var scopeSelector = this._scopeCssViaAttr ? 
+        var scopeSelector = this._scopeCssViaAttr ?
           '[' + SCOPE_NAME + '~=' + XSCOPE_NAME + ']' : '.' + XSCOPE_NAME;
         var c$ = Polymer.dom(root).querySelectorAll(scopeSelector);
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
@@ -312,7 +310,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     });
-    
+
     var styleCache = {};
     function cacheStyle(is, style, scope, bag, styles) {
       style._scope = scope;
@@ -327,8 +325,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (styles) {
         for (var i=0, s; i < styles.length; i++) {
           s = styles[i];
-          if (objectsEqual(bag, s._properties) && 
-            objectsEqual(checkStyles,  s._styles)) { 
+          if (objectsEqual(bag, s._properties) &&
+            objectsEqual(checkStyles,  s._styles)) {
             return s;
           }
         }
