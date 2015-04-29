@@ -9,12 +9,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <link rel="import" href="settings.html">
 <link rel="import" href="event-api.html">
+<link rel="import" href="dom-innerHTML.html">
 <script>
 
   Polymer.DomApi = (function() {
 
-    var Debounce = Polymer.Debounce;
     var Settings = Polymer.Settings;
+    var getInnerHTML = Polymer.domInnerHTML.getInnerHTML;
 
     var nativeInsertBefore = Element.prototype.insertBefore;
     var nativeRemoveChild = Element.prototype.removeChild;
@@ -22,43 +23,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var dirtyRoots = [];
 
-    var DomApi = function(node, patch) {
+    var DomApi = function(node) {
       this.node = node;
-      if (patch) {
+      if (this.patch) {
         this.patch();
       }
     };
 
     DomApi.prototype = {
-
-      // experimental: support patching selected native api.
-      patch: function() {
-        var self = this;
-        this.node.appendChild = function(node) {
-          return self.appendChild(node);
-        };
-        this.node.insertBefore = function(node, ref_node) {
-          return self.insertBefore(node, ref_node);
-        };
-        this.node.removeChild = function(node) {
-          return self.removeChild(node);
-        };
-      },
-
-      get childNodes() {
-        var c$ = getLightChildren(this.node);
-        return Array.isArray(c$) ? c$ : Array.prototype.slice.call(c$);
-      },
-
-      get children() {
-        return Array.prototype.filter.call(this.childNodes, function(n) {
-          return (n.nodeType === Node.ELEMENT_NODE);
-        });
-      },
-
-      get parentNode() {
-        return this.node.lightParent || this.node.parentNode;
-      },
 
       flush: function() {
         for (var i=0, host; i<dirtyRoots.length; i++) {
@@ -102,6 +74,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeAppendChild.call(container, node);
+          addToComposedParent(container, node);
         }
         return node;
       },
@@ -134,6 +107,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeInsertBefore.call(container, node, ref_node);
+          addToComposedParent(container, node, ref_node);
         }
         return node;
       },
@@ -153,6 +127,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // if removing from a shadyRoot, remove form host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           nativeRemoveChild.call(container, node);
+          removeFromComposedParent(container, node);
         }
         return node;
       },
@@ -168,6 +143,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _ownerShadyRootForNode: function(node) {
+        if (!node) {
+          return;
+        }
         if (node._ownerShadyRoot === undefined) {
           var root;
           if (node._isShadyRoot) {
@@ -205,8 +183,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           factory(host.shadyRoot).querySelectorAll(CONTENT);
       },
 
+      // a node is in a shadyRoot, is a shadyRoot, 
+      // or has a lightParent
       _nodeIsInLogicalTree: function(node) {
-        return Boolean(node._isShadyRoot ||
+        return Boolean(node.lightParent || node._isShadyRoot ||
           this._ownerShadyRootForNode(node) ||
           node.shadyRoot);
       },
@@ -258,11 +238,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         index = index === undefined ? children.length : index;
         // handle document fragments
         if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-          var n = node.firstChild;
-          while (n) {
+          // NOTE: the act of setting this info can affect patched nodes
+          // getters; therefore capture childNodes before patching.
+          var c$ = Array.prototype.slice.call(node.childNodes);
+          for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
             children.splice(index++, 0, n);
             n.lightParent = container;
-            n = n.nextSibling;
           }
         } else {
           children.splice(index, 0, node);
@@ -370,17 +351,169 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         return results;
+      },
+
+      _clear: function() {
+        while (this.childNodes.length) {
+          this.removeChild(this.childNodes[0]);
+        }
       }
 
     };
 
-    if (Settings.useShadow) {
+    // changes and accessors...
+    if (!Settings.useShadow) {
+
+      Object.defineProperties(DomApi.prototype, {
+
+        childNodes: {
+          get: function() {
+            var c$ = getLightChildren(this.node);
+            return Array.isArray(c$) ? c$ : Array.prototype.slice.call(c$);
+          },
+          configurable: true
+        },
+
+        children: {
+          get: function() {
+            return Array.prototype.filter.call(this.childNodes, function(n) {
+              return (n.nodeType === Node.ELEMENT_NODE);
+            });
+          },
+          configurable: true  
+        },
+
+        parentNode: {
+          get: function() {
+            return this.node.lightParent || 
+              (this.node.__patched ? this.node._composedParent :
+              this.node.parentNode);
+          },
+          configurable: true  
+        },
+
+        firstChild: {
+          get: function() {
+            return this.childNodes[0];
+          },
+          configurable: true  
+        },
+
+        lastChild: {
+          get: function() {
+            var c$ = this.childNodes;
+            return c$[c$.length-1];
+          },
+          configurable: true  
+        },
+
+        nextSibling: {
+          get: function() {
+            var c$ = this.parentNode && factory(this.parentNode).childNodes;
+            if (c$) {
+              return c$[Array.prototype.indexOf.call(c$, this.node) + 1];
+            }
+          },
+          configurable: true  
+        },
+
+        previousSibling: {
+          get: function() {
+            var c$ = this.parentNode && factory(this.parentNode).childNodes;
+            if (c$) {
+              return c$[Array.prototype.indexOf.call(c$, this.node) - 1];
+            }
+          },
+          configurable: true  
+        },
+
+        firstElementChild: {
+          get: function() {
+            return this.children[0];
+          },
+          configurable: true  
+        },
+
+        lastElementChild: {
+          get: function() {
+            var c$ = this.children;
+            return c$[c$.length-1];
+          },
+          configurable: true  
+        },
+
+        nextElementSibling: {
+          get: function() {
+            var c$ = this.parentNode && factory(this.parentNode).children;
+            if (c$) {
+              return c$[Array.prototype.indexOf.call(c$, this.node) + 1];
+            }
+          },
+          configurable: true  
+        },
+
+        previousElementSibling: {
+          get: function() {
+            var c$ = this.parentNode && factory(this.parentNode).children;
+            if (c$) {
+              return c$[Array.prototype.indexOf.call(c$, this.node) - 1];
+            }
+          },
+          configurable: true  
+        },
+
+        // textContent / innerHTML
+        textContent: {
+          get: function() {
+            if (this.node.nodeType === Node.TEXT_NODE) {
+              return this.node.textContent;
+            } else {
+              return Array.prototype.map.call(this.childNodes, function(c) {
+                return c.textContent;
+              }).join('');
+            }
+          },
+          set: function(text) {
+            this._clear();
+            if (text) {
+              this.appendChild(document.createTextNode(text));
+            }
+          },
+          configurable: true  
+        },
+
+        innerHTML: {
+          get: function() {
+            if (this.node.nodeType === Node.TEXT_NODE) {
+              return null;
+            } else {
+              return getInnerHTML(this.node);
+            }
+          },
+          set: function(text) {
+            if (this.node.nodeType !== Node.TEXT_NODE) {
+              this._clear();
+              var d = document.createElement('div');
+              d.innerHTML = text;
+              for (var e=d.firstChild; e; e=e.nextSibling) {
+                this.appendChild(e);
+              }
+            }
+          },
+          configurable: true  
+        }
+
+      });
+
+      DomApi.prototype._getComposedInnerHTML = function() {
+        return getInnerHTML(this.node, true);
+      };
+
+    } else {
 
       DomApi.prototype.querySelectorAll = function(selector) {
         return Array.prototype.slice.call(this.node.querySelectorAll(selector));
       };
-
-      DomApi.prototype.patch = function() {};
 
       DomApi.prototype.getOwnerRoot = function() {
         var n = this.node;
@@ -402,6 +535,57 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return n$ ? Array.prototype.slice.call(n$) : [];
       };
 
+      Object.defineProperties(DomApi.prototype, {
+
+        childNodes: {
+          get: function() {
+            return Array.prototype.slice.call(this.node.childNodes);
+          },
+          configurable: true
+        },
+
+        children: {
+          get: function() {
+            return Array.prototype.slice.call(this.node.children);
+          },
+          configurable: true  
+        },
+
+        // textContent / innerHTML
+        textContent: {
+          get: function() {
+            return this.node.textContent;
+          },
+          set: function(value) {
+            return this.node.textContent = value;
+          },
+          configurable: true  
+        },
+
+        innerHTML: {
+          get: function() {
+            return this.node.innerHTML;
+          },
+          set: function(value) {
+            return this.node.innerHTML = value;
+          },
+          configurable: true  
+        }
+
+      });
+
+      var forwards = ['parentNode', 'firstChild', 'lastChild', 'nextSibling', 
+      'previousSibling', 'firstElementChild', 'lastElementChild', 
+      'nextElementSibling', 'previousElementSibling'];
+
+      forwards.forEach(function(name) {
+        Object.defineProperty(DomApi.prototype, name, {
+          get: function() {
+            return this.node[name];
+          },
+          configurable: true  
+        });
+      });
 
     }
 
@@ -431,6 +615,47 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return children ? children : node.childNodes;
     }
 
+    function getComposedChildren(node) {
+      if (!node._composedChildren) {
+        node._composedChildren = Array.prototype.slice.call(node.childNodes);
+      }
+      return node._composedChildren;
+    }
+
+    function addToComposedParent(parent, node, ref_node) {
+      var children = getComposedChildren(parent);
+      var i = ref_node ? children.indexOf(ref_node) : -1;
+      if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        var fragChildren = getComposedChildren(node);
+        fragChildren.forEach(function(c) {
+          addNodeToComposedChildren(c, parent, children, i);
+        });
+      } else {
+        addNodeToComposedChildren(node, parent, children, i);
+      }
+      
+    }
+
+    function addNodeToComposedChildren(node, parent, children, i) {
+      node._composedParent = parent;
+      if (i >= 0) {
+        children.splice(i, 0, node);
+      } else {
+        children.push(node);
+      }
+    }
+
+    function removeFromComposedParent(parent, node) {
+      node._composedParent = null;
+      if (parent) {
+        var children = getComposedChildren(parent);
+        var i = children.indexOf(node);
+        if (i >= 0) {
+          children.splice(i, 1);
+        }
+      }
+    }
+
     function saveLightChildrenIfNeeded(node) {
       // Capture the list of light children. It's important to do this before we
       // start transforming the DOM into "rendered" state.
@@ -440,12 +665,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // actual children will be treated as the rendered state once lightChildren
       // is populated.
       if (!node.lightChildren) {
-        var children = [];
-        for (var child = node.firstChild; child; child = child.nextSibling) {
-          children.push(child);
+        var c$ = Array.prototype.slice.call(node.childNodes);
+        for (var i=0, l=c$.length, child; (i<l) && (child=c$[i]); i++) {
           child.lightParent = child.lightParent || node;
         }
-        node.lightChildren = children;
+        node.lightChildren = c$;
       }
     }
 
@@ -460,9 +684,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return {
       getLightChildren: getLightChildren,
+      getComposedChildren: getComposedChildren,
+      removeFromComposedParent: removeFromComposedParent,
       saveLightChildrenIfNeeded: saveLightChildrenIfNeeded,
       matchesSelector: matchesSelector,
       hasInsertionPoint: hasInsertionPoint,
+      ctor: DomApi,
       factory: factory
     };
 

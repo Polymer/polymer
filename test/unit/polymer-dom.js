@@ -219,28 +219,20 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom(rere).querySelector('#light'), s);
     assert.equal(Polymer.dom(s).parentNode, rere);
     if (rere.shadyRoot) {
-      assert.notEqual(s.parentNode, rere);
+      assert.notEqual(s._composedParent, rere);
     }
     Polymer.dom(test).flush();
     if (rere.shadyRoot) {
-      assert.equal(s.parentNode, p);
+      assert.equal(s._composedParent, p);
     }
     Polymer.dom(rere).removeChild(s);
     if (rere.shadyRoot) {
-      assert.equal(s.parentNode, p);
+      assert.equal(s._composedParent, p);
     }
     Polymer.dom(test).flush();
     if (rere.shadyRoot) {
-      assert.equal(s.parentNode, null);
+      assert.equal(s._composedParent, null);
     }
-  });
-
-  test('parentNode', function() {
-    var test = document.querySelector('x-test');
-    var rere = Polymer.dom(test.root).querySelector('x-rereproject');
-    var projected = Polymer.dom(test.root).querySelector('#projected');
-    assert.equal(Polymer.dom(test).parentNode, wrap(document.body));
-    assert.equal(Polymer.dom(projected).parentNode, rere);
   });
 
   test('queryDistributedElements', function() {
@@ -293,10 +285,111 @@ suite('Polymer.dom', function() {
     assert.equal(eventHandled, 2);
   });
 
-  test('Polymer.dom.childNodes is an array', function() {
-    assert.isTrue(Array.isArray(Polymer.dom(document.body).childNodes));
+  test('parentNode', function() {
+    var test = document.querySelector('x-test');
+    var rere = Polymer.dom(test.root).querySelector('x-rereproject');
+    var projected = Polymer.dom(test.root).querySelector('#projected');
+    assert.equal(Polymer.dom(test).parentNode, wrap(document.body));
+    assert.equal(Polymer.dom(projected).parentNode, rere);
   });
 
+  test('Polymer.dom.childNodes is an array', function() {
+    assert.isTrue(Array.isArray(Polymer.dom(document.body).childNodes));
+  });  
+
+});
+
+suite('Polymer.dom accessors', function() {
+  var noDistribute, distribute;
+
+  before(function() {
+    noDistribute = document.querySelector('.accessors x-test-no-distribute');
+    distribute = document.querySelector('.accessors x-project');
+  });
+
+  test('Polymer.dom node accessors (no distribute)', function() {
+    var child = Polymer.dom(noDistribute).children[0];
+    assert.isTrue(child.classList.contains('child'), 'test node could not be found')
+    var before = document.createElement('div');
+    var after = document.createElement('div');
+    Polymer.dom(noDistribute).insertBefore(before, child);
+    Polymer.dom(noDistribute).appendChild(after);
+    assert.equal(Polymer.dom(noDistribute).firstChild, before, 'firstChild incorrect');
+    assert.equal(Polymer.dom(noDistribute).lastChild, after, 'lastChild incorrect');
+    assert.equal(Polymer.dom(before).nextSibling, child, 'nextSibling incorrect');
+    assert.equal(Polymer.dom(child).nextSibling, after, 'nextSibling incorrect');
+    assert.equal(Polymer.dom(after).previousSibling, child, 'previousSibling incorrect');
+    assert.equal(Polymer.dom(child).previousSibling, before, 'previousSibling incorrect');
+  });
+
+  test('Polymer.dom node accessors (distribute)', function() {
+    var child = Polymer.dom(distribute).children[0];
+    assert.isTrue(child.classList.contains('child'), 'test node could not be found')
+    var before = document.createElement('div');
+    var after = document.createElement('div');
+    Polymer.dom(distribute).insertBefore(before, child);
+    Polymer.dom(distribute).appendChild(after);
+    assert.equal(Polymer.dom(distribute).firstChild, before, 'firstChild incorrect');
+    assert.equal(Polymer.dom(distribute).lastChild, after, 'lastChild incorrect');
+    assert.equal(Polymer.dom(before).nextSibling, child, 'nextSibling incorrect');
+    assert.equal(Polymer.dom(child).nextSibling, after, 'nextSibling incorrect');
+    assert.equal(Polymer.dom(after).previousSibling, child, 'previousSibling incorrect');
+    assert.equal(Polymer.dom(child).previousSibling, before, 'previousSibling incorrect');
+  });
+
+  test('Polymer.dom element accessors (no distribute)', function() {
+    var parent = document.createElement('x-test-no-distribute');
+    var child = document.createElement('div');
+    Polymer.dom(parent).appendChild(child);
+    var before = document.createElement('div');
+    var after = document.createElement('div');
+    Polymer.dom(parent).insertBefore(before, child);
+    Polymer.dom(parent).appendChild(after);
+    assert.equal(Polymer.dom(parent).firstElementChild, before, 'firstElementChild incorrect');
+    assert.equal(Polymer.dom(parent).lastElementChild, after, 'lastElementChild incorrect');
+    assert.equal(Polymer.dom(before).nextElementSibling, child, 'nextElementSibling incorrect');
+    assert.equal(Polymer.dom(child).nextElementSibling, after, 'nextElementSibling incorrect');
+    assert.equal(Polymer.dom(after).previousElementSibling, child, 'previousElementSibling incorrect');
+    assert.equal(Polymer.dom(child).previousElementSibling, before, 'previousElementSibling incorrect');
+  });
+
+  test('Polymer.dom element accessors (distribute)', function() {
+    var parent = document.createElement('x-project');
+    var child = document.createElement('div');
+    Polymer.dom(parent).appendChild(child);
+    var before = document.createElement('div');
+    var after = document.createElement('div');
+    Polymer.dom(parent).insertBefore(before, child);
+    Polymer.dom(parent).appendChild(after);
+    assert.equal(Polymer.dom(parent).firstElementChild, before, 'firstElementChild incorrect');
+    assert.equal(Polymer.dom(parent).lastElementChild, after, 'lastElementChild incorrect');
+    assert.equal(Polymer.dom(before).nextElementSibling, child, 'nextElementSibling incorrect');
+    assert.equal(Polymer.dom(child).nextElementSibling, after, 'nextElementSibling incorrect');
+    assert.equal(Polymer.dom(after).previousElementSibling, child, 'previousElementSibling incorrect');
+    assert.equal(Polymer.dom(child).previousElementSibling, before, 'previousElementSibling incorrect');
+  });
+
+  test('Polymer.dom textContent', function() {
+    var test = document.createElement('x-project');
+    Polymer.dom(test).textContent = 'Hello World';
+    assert.equal(Polymer.dom(test).textContent, 'Hello World', 'textContent getter incorrect');
+    if (test.shadyRoot) {
+      Polymer.dom.flush();
+      assert.equal(test._composedChildren[1].textContent, 'Hello World', 'text content setter incorrect');
+    }
+  });
+
+  test('Polymer.dom innerHTML', function() {
+    var test = document.createElement('x-project');
+    Polymer.dom(test).innerHTML = '<div>Hello World</div>';
+    var added = Polymer.dom(test).firstChild;
+    assert(added.textContent , 'Hello World', 'innerHTML setter incorrect');
+    assert(Polymer.dom(test).innerHTML , '<div>Hello World</div>', 'innerHTML getter incorrect');
+    if (test.shadyRoot) {
+      Polymer.dom.flush();
+      assert.equal(test._composedChildren[1], added, 'innerHTML setter composed incorrectly');
+    }
+  });
 });
 
 suite('Polymer.dom non-distributed elements', function() {
@@ -304,7 +397,7 @@ suite('Polymer.dom non-distributed elements', function() {
   var nd;
 
   before(function() {
-    nd = document.querySelector('x-test-no-distribute');
+    nd = document.querySelector('#noDistribute');
   });
 
   test('Polymer.dom finds undistributed child', function() {
@@ -340,13 +433,13 @@ suite('Polymer.dom non-distributed elements', function() {
     function testNoAttr() {
       assert.equal(Polymer.dom(child).getDestinationInsertionPoints()[0], d.$.notTestContent, 'child not distributed logically');
       if (shady) {
-        assert.equal(child.parentNode, d.$.notTestContainer, 'child not rendered in composed dom');
+        assert.equal(child._composedParent, d.$.notTestContainer, 'child not rendered in composed dom');
       }
     }
     function testWithAttr() {
       assert.equal(Polymer.dom(child).getDestinationInsertionPoints()[0], d.$.testContent, 'child not distributed logically');
       if (shady) {
-        assert.equal(child.parentNode, d.$.testContainer, 'child not rendered in composed dom');
+        assert.equal(child._composedParent, d.$.testContainer, 'child not rendered in composed dom');
       }
     }
     // test with x-distribute

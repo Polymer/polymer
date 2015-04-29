@@ -42,13 +42,14 @@ function testRender(descr, hostInnerHtml, shadowRootHtml, expectedHtml) {
     // Create an instance of the test element.
     var host = document.createElement('x-content-test');
     // Populate the initial pool of light DOM children.
-    host.innerHTML = hostInnerHtml;
+    //host.innerHTML = hostInnerHtml;
+    setInnerHTML(host, hostInnerHtml);
     syncLightDOM(host);
     // Pretend we're stamping the template contents.
     setRootInnerHTML(host.shadyRoot, shadowRootHtml);
     // Invoke distribution and verify the resulting tree.
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, expectedHtml);
+    assert.strictEqual(getComposedHTML(host), expectedHtml);
   });
 }
 
@@ -99,18 +100,22 @@ suite('render content', function() {
 test('Reproject', function() {
   registerTestElement();
   var host = document.createElement('x-content-test');
-  host.innerHTML = '<a></a>';
-  var a = host.firstChild;
+  setInnerHTML(host, '<a></a>');
+  // pre-distirbution grab first composed node.
+  var a = getComposedChildAtIndex(host, 0);
   syncLightDOM(host);
   setRootInnerHTML(host.shadyRoot, '<x-content-test id="p"></x-content-test>');
+  // force upgrade on polyfilled browsers
   var p = host.shadyRoot.firstChild;
-  p.innerHTML = '<b></b><content></content>';
+  CustomElements.upgrade(p);
+  setInnerHTML(p, '<b></b><content></content>');
+  syncLightDOM(p);
+  //p.innerHTML = '<b></b><content></content>';
   updateRootInsertionPoints(host.shadyRoot);
   var b = p.firstChild;
   var content = p.lastChild;
 
-  // force upgrade on polyfilled browsers
-  CustomElements.upgrade(p);
+  
 
   syncLightDOM(p);
   setRootInnerHTML(p.shadyRoot,
@@ -126,7 +131,7 @@ test('Reproject', function() {
     // NOTE: needed only for this imperative test that needs
     // to simulate distribution from `shadyRoot`
     p.distributeContent();
-    assert.strictEqual(host.innerHTML,
+    assert.strictEqual(getComposedHTML(host),
         '<x-content-test id="p">a: <a></a>b: <b></b></x-content-test>');
 
     assertArrayEqual(host.lightChildren, [a]);
@@ -148,253 +153,253 @@ test('Reproject', function() {
 suite('Mutate light DOM', function() {
   test('removeAllChildNodes - mutate host', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content>fallback</content>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     host.firstChild.textContent = '';
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a></a>');
+    assert.strictEqual(getComposedHTML(host), '<a></a>');
 
     host.lightChildren = [];
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, 'fallback');
+    assert.strictEqual(getComposedHTML(host), 'fallback');
   });
 
 
   test('removeAllChildNodes - mutate shadow', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content><b>after</b>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a><b>after</b>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b>after</b>');
 
     host.shadyRoot.lightChildren[1].textContent = '';
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
 
     host.shadyRoot.lightChildren = [];
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '');
+    assert.strictEqual(getComposedHTML(host), '');
   });
 
   test('removeAllChildNodes - mutate shadow fallback', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content select="xxx"><b>fallback</b></content>');
     var b = host.shadyRoot.firstChild.firstChild;
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<b>fallback</b>');
+    assert.strictEqual(getComposedHTML(host), '<b>fallback</b>');
 
     b.textContent = '';
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<b></b>');
+    assert.strictEqual(getComposedHTML(host), '<b></b>');
 
     host.shadyRoot.firstChild.lightChildren = [];
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '');
+    assert.strictEqual(getComposedHTML(host), '');
 
     host.shadyRoot.lightChildren = [];
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '');
+    assert.strictEqual(getComposedHTML(host), '');
   });
 
   test('removeChild - mutate host', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content>fallback</content>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     host.firstChild.removeChild(host.firstChild.firstChild);
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a></a>');
+    assert.strictEqual(getComposedHTML(host), '<a></a>');
 
     host.lightChildren = [];
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, 'fallback');
+    assert.strictEqual(getComposedHTML(host), 'fallback');
   });
 
   test('removeChild - mutate host 2', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a></a><b></b>';
-    var a = host.firstChild;
-    var b = a.nextSibling;
+    setInnerHTML(host, '<a></a><b></b>');
+    var a = getComposedChildAtIndex(host, 0);
+    var b = getComposedChildAtIndex(host, 1);
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content>fallback</content>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a></a><b></b>');
+    assert.strictEqual(getComposedHTML(host), '<a></a><b></b>');
 
     Polymer.dom(host).removeChild(b);
     Polymer.dom.flush();
-    assert.strictEqual(host.innerHTML, '<a></a>');
+    assert.strictEqual(getComposedHTML(host), '<a></a>');
 
     Polymer.dom(host).removeChild(a);
     Polymer.dom.flush();
-    assert.strictEqual(host.innerHTML, 'fallback');
+    assert.strictEqual(getComposedHTML(host), 'fallback');
   });
 
   test('removeChild - mutate shadow', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content><b>after</b>');
     var b = host.shadyRoot.lastChild;
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a><b>after</b>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b>after</b>');
 
     b.removeChild(b.firstChild);
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
 
     host.shadyRoot.lightChildren.splice(1, 1); // remove b
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     host.shadyRoot.lightChildren = []; // remove a
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '');
+    assert.strictEqual(getComposedHTML(host), '');
   });
 
   test('setAttribute select', function() {
     // TODO(arv): DOM bindings for select.
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a><b>World</b>';
+    setInnerHTML(host, '<a>Hello</a><b>World</b>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content select="b">fallback b</content>' +
                             '<content select="a">fallback a</content>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<b>World</b><a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<b>World</b><a>Hello</a>');
 
     host.shadyRoot.firstChild.setAttribute('select', 'xxx');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, 'fallback b<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), 'fallback b<a>Hello</a>');
 
     host.shadyRoot.firstChild.setAttribute('select', '');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a><b>World</b>fallback a');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b>World</b>fallback a');
   });
 
   test('appendChild - mutate host', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     var b = document.createElement('b');
     Polymer.dom(host).appendChild(b);
     Polymer.dom.flush();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
   });
 
   test('appendChild - mutate shadow', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     var b = document.createElement('b');
     Polymer.dom(host.shadyRoot).appendChild(b);
     Polymer.dom.flush();
     //host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a><b></b>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
   });
 
   test('insertBefore - mutate host', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
-    var a = host.firstChild;
+    setInnerHTML(host, '<a>Hello</a>');
+    var a = getComposedChildAtIndex(host, 0);
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     var b = document.createElement('b');
     Polymer.dom(host).insertBefore(b, a);
     Polymer.dom.flush();
-    assert.strictEqual(host.innerHTML, '<b></b><a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<b></b><a>Hello</a>');
   });
 
   test('insertBefore - mutate shadow', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content>');
     var content = host.shadyRoot.firstChild;
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     var b = document.createElement('b');
     Polymer.dom(host.shadyRoot).insertBefore(b, content);
     Polymer.dom.flush();
-    assert.strictEqual(host.innerHTML, '<b></b><a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<b></b><a>Hello</a>');
   });
 
   test('replaceChild - mutate host', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
     var a = host.firstChild;
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content>');
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     var b = document.createElement('b');
     host.lightChildren[0] = b;
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<b></b>');
+    assert.strictEqual(getComposedHTML(host), '<b></b>');
   });
 
   test('replaceChild - mutate shadow', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<a>Hello</a>';
+    setInnerHTML(host, '<a>Hello</a>');
 
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content>');
     var content = host.shadyRoot.firstChild;
     host.distributeContent();
-    assert.strictEqual(host.innerHTML, '<a>Hello</a>');
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     var b = document.createElement('b');
     Polymer.dom(host.shadyRoot).replaceChild(b, content);
-    //host.distributeContent();
     Polymer.dom.flush();
-    assert.strictEqual(host.innerHTML, '<b></b>');
+    assert.strictEqual(getComposedHTML(host), '<b></b>');
   });
 
   test('querySelectorAll (shadyRoot)', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<div id="main"></div>';
+    setInnerHTML(host, '<div id="main"></div>');
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content><span id="main"></span>' +
       '<x-content-test></x-content-test>');
-    var hostLocalMain = host.shadyRoot.firstChild.nextSibling;
-    var child = host.shadyRoot.lastChild;
+    var hostLocalMain = getComposedChildAtIndex(host.shadyRoot, 1);
+    var child = getComposedChildAtIndex(host.shadyRoot, 100);
     // force upgrade on polyfilled browsers
     CustomElements.upgrade(child);
-    child.innerHTML = '<div id="sub"></div>';
-    var childLightSub = child.firstChild;
+    setInnerHTML(child, '<div id="sub"></div>');
+    var childLightSub = getComposedChildAtIndex(child, 0);
     syncLightDOM(child);
     setRootInnerHTML(child.shadyRoot, '<content></content><span id="sub"></span>');
     var childLocalSub = child.shadyRoot.lastChild;
@@ -410,16 +415,16 @@ suite('Mutate light DOM', function() {
 
   test('querySelectorAll (light dom)', function() {
     var host = document.createElement('x-content-test');
-    host.innerHTML = '<div id="main"></div>';
-    var hostLightMain = host.firstChild;
+    setInnerHTML(host, '<div id="main"></div>');
+    var hostLightMain = getComposedChildAtIndex(host, 0);
     syncLightDOM(host);
     setRootInnerHTML(host.shadyRoot, '<content></content><span id="main"></span>' +
       '<x-content-test></x-content-test>');
-    var child = host.shadyRoot.lastChild;
+    var child = getComposedChildAtIndex(host.shadyRoot, 100);
     // force upgrade on polyfilled browsers
     CustomElements.upgrade(child);
-    child.innerHTML = '<div id="sub"></div>';
-    var childLightSub = child.lastChild;
+    setInnerHTML(child, '<div id="sub"></div>');
+    var childLightSub = getComposedChildAtIndex(child, 100) ;
     syncLightDOM(child);
     setRootInnerHTML(child.shadyRoot, '<content></content><span id="sub"></span>');
     host.distributeContent();
@@ -432,33 +437,55 @@ suite('Mutate light DOM', function() {
 
 function syncLightDOM(n) {
   if (n.lightChildren) {
-    for (var e=n.firstChild; e; e=e.nextSibling) {
-      if (n.lightChildren.indexOf(e) < 0) {
-        e.lightParent = n;
-        n.lightChildren.push(e);
+    var c$ = n.__patched ? n._composedChildren || [] : Array.prototype.slice.call(n.childNodes);
+    c$.forEach(function(c) {
+      if (n.lightChildren.indexOf(c) < 0) {
+        c.lightParent = n;
+        n.lightChildren.push(c);
       }
-    }
+    });
   }
 }
 
+var nativeAppendChild = Element.prototype.appendChild;
+
 function setInnerHTML(node, value) {
   node.textContent = '';
+  if (node._composedChildren) {
+    node._composedChildren = [];
+  }
   var temp = node.ownerDocument.createElement('div');
   temp.innerHTML = value;
   var firstChild;
   while (firstChild = temp.firstChild) {
-    node.appendChild(firstChild);
+    nativeAppendChild.call(node, firstChild);
+    if (node._composedChildren) {
+      node._composedChildren.push(firstChild);
+    }
   }
 }
 
 function setRootInnerHTML(root, value) {
   setInnerHTML(root, value);
-  updateRootInsertionPoints(root);
   syncLightDOM(root);
+  updateRootInsertionPoints(root);
 }
 
 function updateRootInsertionPoints(root) {
   root._insertionPoints = root.querySelectorAll('content');
+}
+
+function getComposedHTML(node) {
+  return node.__patched ? Polymer.domInnerHTML.getInnerHTML(node, true) : node.innerHTML;
+}
+
+function getComposedChildAtIndex(node, index) {
+  var c$ = node._composedChildren || node.childNodes;
+  if (c$) {
+    index = index || 0;
+    index = Math.max(0, Math.min(index, c$.length-1));
+    return c$[index];
+  }
 }
 
 function assertArrayEqual(a, b, msg) {
