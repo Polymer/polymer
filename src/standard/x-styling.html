@@ -16,12 +16,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var baseAttachedCallback = Polymer.Base.attachedCallback;
     var baseSerializeValueToAttribute = Polymer.Base.serializeValueToAttribute;
+    var prepTemplate = Polymer.Base._prepTemplate;
 
     var nativeShadow = Polymer.Settings.useNativeShadow;
 
     // TODO(sorvell): consider if calculating properties and applying
     // styles with properties should be separate modules.
     Polymer.Base._addFeature({
+
+      _prepTemplate: function() {
+        prepTemplate.call(this);
+        // determine if element contains x-scope styling
+        this._hasXScopeStyles = this._styles && this._styles.some(function(s) {
+          return s.textContent.match(CUSTOM_RULE_RX);
+        });
+      },
 
       attachedCallback: function() {
         baseAttachedCallback.call(this);
@@ -31,7 +40,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _updateOwnStyles: function() {
-        if (this.enableCustomStyleProperties) {
+        if (this._hasXScopeStyles) {
           this._styleProperties = this._computeStyleProperties();
           this._applyStyleProperties(this._styleProperties);
         }
@@ -50,7 +59,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var props = {}, styles = [Polymer.StyleDefaults.defaultSheet];
         var host = this.domHost;
         if (host) {
-          // enable finding styles in hosts without `enableStyleCustomProperties`
           if (!host._styleProperties) {
             host._styleProperties = host._computeStyleProperties();
           }
@@ -92,7 +100,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         hostNode = hostNode || this;
         // TODO(sorvell): file crbug, ':host' does not match element.
         if (this.elementMatches(rule.selector) ||
-          ((hostNode === this) && (rule.selector === ':host'))) {
+          ((hostNode === this) && 
+          (rule.selector === HOST || rule.selector === ROOT))) {
           // --g: var(--b); or --g: 5;
           this._collectPropertiesFromRule(rule, CUSTOM_VAR_ASSIGN, props);
           // --g: { ... }
@@ -115,13 +124,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      // given: --bar: red; --foo: var(--bar);
+      // make: --foo: red;
       _valueForCustomProperty: function(property, props) {
         var cv;
-        while ((typeof property === 'string') &&
-          (cv = property.match(CUSTOM_VAR_VALUE))) {
-          property = props[cv[1]];
+        if (property.match(';')) {
+          var parts = property.split(';');
+          for (var i=0; i<parts.length; i++) {
+            if (parts[i].match(CUSTOM_RULE_RX)) {
+              parts[i] = this._applyPropertiesToText(parts[i], props);
+            }
+          }
+          return parts.join(';');
+        } else {
+          while ((typeof property === 'string') &&
+            (cv = property.match(CUSTOM_VAR_VALUE))) {
+            property = props[cv[1]];
+          }
+          return property;
         }
-        return property;
       },
 
       // apply styles
@@ -299,9 +320,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _updateRootStyles: function(root) {
         // TODO(sorvell): temporary way to find local dom that needs
         // x-scope styling.
-        var scopeSelector = this._scopeCssViaAttr ?
-          '[' + SCOPE_NAME + '~=' + XSCOPE_NAME + ']' : '.' + XSCOPE_NAME;
-        var c$ = Polymer.dom(root).querySelectorAll(scopeSelector);
+        // var scopeSelector = this._scopeCssViaAttr ?
+        //   '[' + SCOPE_NAME + '~=' + XSCOPE_NAME + ']' : '.' + XSCOPE_NAME;
+        // var c$ = Polymer.dom(root).querySelectorAll(scopeSelector);
+        var c$ = Polymer.dom(root).querySelectorAll('[is-host]');
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
           if (c.updateStyles) {
             c.updateStyles();
@@ -310,6 +332,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     });
+
+    /**
+     * Force all custom elements using cross scope custom properties,
+     * to update styling.
+     */
+    Polymer.updateStyles = function() {
+      Polymer.Base._updateRootStyles(document);
+    };
 
     var styleCache = {};
     function cacheStyle(is, style, scope, bag, styles) {
@@ -347,6 +377,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return true;
     }
 
+    var HOST = ':host';
+    var ROOT = ':root';
     var SCOPE_NAME= Polymer.StyleTransformer.SCOPE_NAME;
     var XSCOPE_NAME = 'x-scope';
     var SCOPE_PREFIX = '[' + SCOPE_NAME + '~=';
