@@ -18,7 +18,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * When `if` becomes falsey, the stamped content is hidden but not
    * removed from dom. When `if` subsequently becomes truthy again, the content
    * is simply re-shown. This approach is used due to its favorable performance
-   * characteristics: the expense of creating template content is paid only 
+   * characteristics: the expense of creating template content is paid only
    * once and lazily.
    *
    * Set the `restamp` property to true to force the stamped content to be
@@ -48,24 +48,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     ],
 
     observers: [
-      'render(if, restamp)'
+      '_render(if, restamp)'
     ],
 
+    _render: function() {
+      this.debounce('render', this.render);
+    },
+
+    detached: function() {
+      // TODO(kschaaf): add logic to re-stamp in attached?
+      this._teardownInstance();
+    },
+
     render: function() {
-      this.debounce('render', function() {
-        if (this.if) {
-          if (!this.ctor) {
-            this._wrapTextNodes(this._content);
-            this.templatize(this);
-          }
-          this._ensureInstance();
-        } else if (this.restamp) {
-          this._teardownInstance();
+      this.flushDebouncer('render');
+      if (this.if) {
+        if (!this.ctor) {
+          this._wrapTextNodes(this._content || this.content);
+          this.templatize(this);
         }
-        if (!this.restamp && this._instance) {
-          this._showHideInstance(this.if);
-        }
-      });
+        this._ensureInstance();
+      } else if (this.restamp) {
+        this._teardownInstance();
+      }
+      if (!this.restamp && this._instance) {
+        this._showHideInstance(this.if);
+      }
     },
 
     _ensureInstance: function() {
@@ -73,7 +81,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // TODO(sorvell): pickup stamping logic from x-repeat
         this._instance = this.stamp();
         var root = this._instance.root;
-        this._instance._children = Array.prototype.slice.call(root.childNodes);
         // TODO(sorvell): this incantation needs to be simpler.
         var parent = Polymer.dom(Polymer.dom(this).parentNode);
         parent.insertBefore(root, this);
@@ -82,10 +89,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _teardownInstance: function() {
       if (this._instance) {
-        var parent = Polymer.dom(Polymer.dom(this).parentNode);
-        this._instance._children.forEach(function(n) {
-          parent.removeChild(n);
-        });
+        var c = this._instance._children;
+        if (c) {
+          // use first child parent, for case when x-if may have been detached
+          var parent = Polymer.dom(Polymer.dom(c[0]).parentNode);
+          c.forEach(function(n) {
+            parent.removeChild(n);
+          });
+        }
         this._instance = null;
       }
     },
@@ -104,7 +115,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // Implements extension point from Templatizer mixin
     _getStampedChildren: function() {
-      return this._instance._children;
+      return this._instance ? this._instance._children : [];
     },
 
     _showHideInstance: function(showing) {

@@ -1,0 +1,322 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+  <link rel="import" href="x-if-elements.html">
+</head>
+<body>
+
+  <x-nested-if-configured id="configured"></x-nested-if-configured>
+
+  <template is="x-autobind" id="unconfigured">
+    <x-nested-if id="unconfigured1"></x-nested-if>
+    <x-nested-if id="unconfigured2"></x-nested-if>
+  </template>
+
+  <div id="inDocumentContainer">
+    <template id="inDocumentIf" is="x-if" items="{{items}}">
+      <x-foo prop="{{prop}}"
+             item-prop="{{item.prop}}">
+      </x-foo>
+      <template is="x-if" items="{{item.items}}">
+        <x-foo prop="{{prop}}"
+               item-prop="{{item.prop}}"
+               parent-prop="{{parent.prop}}"
+               parent-item-prop="{{parent.item.prop}}">
+        </x-foo>
+        <template is="x-if" items="{{item.items}}">
+          <x-foo prop="{{prop}}"
+                 item-prop="{{item.prop}}"
+                 parent-prop="{{parent.prop}}"
+                 parent-item-prop="{{parent.item.prop}}"
+                 parent-parent-prop="{{parent.parent.prop}}"
+                 parent-parent-item-prop="{{parent.parent.item.prop}}">
+          </x-foo>
+        </template>
+      </template>
+    </template>
+  </div>
+
+  <script>
+
+    suite('nested pre-configured x-if', function() {
+
+      test('parent scope binding', function(done) {
+        setTimeout(function() {
+          var stamped = Polymer.dom(configured.root).querySelectorAll('*:not(template):not(span)');
+          assert.equal(stamped.length, 3, 'total stamped count incorrect');
+          assert.equal(stamped[0].parentProp, 'outer');
+          assert.equal(stamped[0].parentItemProp, 'outerItem');
+          assert.equal(stamped[1].parentParentProp, 'outer');
+          assert.equal(stamped[1].parentParentItemProp, 'outerItem');
+          assert.equal(stamped[2].parentParentParentProp, 'outer');
+          assert.equal(stamped[2].parentParentParentItemProp, 'outerItem');
+          done();
+        });
+      });
+
+      test('parent scope downward notification', function() {
+        var stamped = Polymer.dom(configured.root).querySelectorAll('*:not(template):not(span)');
+        configured.prop = 'yes';
+        assert.equal(stamped[0].parentProp, 'yes');
+        assert.equal(stamped[1].parentParentProp, 'yes');
+        assert.equal(stamped[2].parentParentParentProp, 'yes');
+        configured.setPathValue('item.prop', 'yay');
+        assert.equal(stamped[0].parentItemProp, 'yay');
+        assert.equal(stamped[1].parentParentItemProp, 'yay');
+        assert.equal(stamped[2].parentParentParentItemProp, 'yay');
+      });
+
+      test('parent upward upward notification', function() {
+        var stamped = Polymer.dom(configured.root).querySelectorAll('*:not(template):not(span)');
+        stamped[2].parentParentParentProp = 'nice';
+        assert.equal(configured.prop, 'nice');
+        assert.equal(stamped[0].parentProp, 'nice');
+        assert.equal(stamped[1].parentParentProp, 'nice');
+        assert.equal(stamped[2].parentParentParentProp, 'nice');
+      });
+
+      test('anonymous scope binding', function() {
+        var stamped = Polymer.dom(configured.root).querySelectorAll('*:not(template):not(span)');
+        stamped[1].$.bar.parentProp = 'changed';
+        assert.equal(stamped[0].prop, 'changed');
+        assert.equal(stamped[1].parentProp, 'changed');
+        assert.equal(stamped[2].parentParentProp, 'changed');
+      });
+
+    });
+
+    suite('nested un-configured x-if in document', function() {
+
+      test('if=false: nothing rendered', function() {
+        var stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 0, 'total stamped count incorrect');
+      });
+
+      test('if=true: everything rendered and visible', function() {
+        // first x-if
+        inDocumentIf.if = true;
+        inDocumentIf.render();
+        var stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 1, 'total stamped count incorrect');
+
+        // second x-if
+        var xif = inDocumentContainer.querySelector('template[is=x-if]');
+        xif.if = true;
+        xif.render();
+        stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 2, 'total stamped count incorrect');
+
+        // third x-if
+        xif = inDocumentContainer.querySelector('template[is=x-if]');
+        xif.if = true;
+        xif.render();
+        stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 3, 'total stamped count incorrect');
+
+        stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template)');
+        stamped.forEach(function(n) {
+          assert(!!n.offsetParent, 'node was hidden but should not have been');
+        });
+      });
+
+      test('if=false, restamp=false: everything hidden', function() {
+        inDocumentIf.if = false;
+        inDocumentIf.render();
+        var stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 3, 'total stamped count incorrect');
+        stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template)');
+        stamped.forEach(function(n) {
+          assert(!n.offsetParent, 'node was not hidden but should have been');
+        });
+      });
+
+      test('if=true, restamp=true, everything rendered and visible', function() {
+        inDocumentIf.restamp = true;
+        inDocumentIf.if = true;
+        inDocumentIf.render();
+        var stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 3, 'total stamped count incorrect');
+        stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template)');
+        stamped.forEach(function(n) {
+          assert(!n.offsetParent, 'node was not hidden but should have been');
+        });
+      });
+
+      test('if=false, restamp=true, everything gone', function() {
+        inDocumentIf.restamp = true;
+        inDocumentIf.if = false;
+        inDocumentIf.render();
+        var stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 0, 'total stamped count incorrect');
+      });
+
+      // repeat, just to get everything rendered again...
+      test('if=true: everything rendered and visible', function() {
+        // first x-if
+        inDocumentIf.if = true;
+        inDocumentIf.render();
+        var stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 1, 'total stamped count incorrect');
+
+        // second x-if
+        var xif = inDocumentContainer.querySelector('template[is=x-if]');
+        xif.if = true;
+        xif.render();
+        stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 2, 'total stamped count incorrect');
+
+        // third x-if
+        xif = inDocumentContainer.querySelector('template[is=x-if]');
+        xif.if = true;
+        xif.render();
+        stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 3, 'total stamped count incorrect');
+
+        stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template)');
+        stamped.forEach(function(n) {
+          assert(!!n.offsetParent, 'node was hidden but should not have been');
+        });
+      });
+
+      test('parent scope binding', function(done) {
+        var stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        stamped[0].prop = 'outer';
+        assert.equal(stamped[1].parentProp, 'outer');
+        assert.equal(stamped[2].parentParentProp, 'outer');
+        done();
+      });
+
+      test('anonymous scope binding', function() {
+        var stamped = Polymer.dom(inDocumentContainer).querySelectorAll('*:not(template):not(span)');
+        stamped[1].$.bar.prop = 'changed';
+        assert.equal(stamped[2].parentProp, 'changed');
+      });
+
+    });
+
+    suite('nested un-configured x-if', function() {
+
+      test('if=false: nothing rendered', function() {
+        var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 0, 'total stamped count incorrect');
+      });
+
+      test('if=true: everything rendered and visible', function(done) {
+        unconfigured1.shouldStamp = true;
+        unconfigured2.shouldStamp = true;
+        setTimeout(function() {
+          var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+          assert.equal(stamped.length, 3, 'total stamped count incorrect');
+          stamped[0].prop = 'outer';
+          done();
+        });
+      });
+
+      test('if=false, restamp=false: everything hidden', function() {
+        unconfigured1.shouldStamp = false;
+        unconfigured1.$['if-1'].render();
+        var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 3, 'total stamped count incorrect');
+        stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        stamped.forEach(function(n) {
+          assert(!n.offsetParent, 'node was not hidden but should have been');
+        });
+      });
+
+      test('if=true, restamp=true, everything rendered and visible', function() {
+        unconfigured1.$['if-1'].restamp = true;
+        unconfigured1.shouldStamp = true;
+        unconfigured1.$['if-1'].render();
+        var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped.length, 3, 'total stamped count incorrect');
+        stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        stamped.forEach(function(n) {
+          assert(!n.offsetParent, 'node was not hidden but should have been');
+        });
+      });
+
+      test('if=false, restamp=true, everything gone', function() {
+        unconfigured1.$['if-1'].restamp = true;
+        unconfigured1.shouldStamp = false;
+        unconfigured1.$['if-1'].render();
+        var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 0, 'total stamped count incorrect');
+      });
+
+      // repeat, just to get everything rendered again...
+        test('if=true: everything rendered and visible', function(done) {
+        unconfigured1.shouldStamp = true;
+        unconfigured2.shouldStamp = true;
+        setTimeout(function() {
+          var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+          assert.equal(stamped.length, 3, 'total stamped count incorrect');
+          stamped[0].prop = 'outer';
+          done();
+        });
+      });
+
+      test('parent scope binding', function() {
+        var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+        assert.equal(stamped[1].parentProp, 'outer');
+        assert.equal(stamped[2].parentParentProp, 'outer');
+      });
+
+      test('parent upward upward notification', function() {
+        var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+        stamped[2].parentParentProp = 'nice';
+        assert.equal(stamped[0].prop, 'nice');
+        assert.equal(stamped[1].parentProp, 'nice');
+      });
+
+      test('anonymous scope binding', function() {
+        var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+        stamped[1].$.bar.prop = 'changed';
+        assert.equal(stamped[2].parentProp, 'changed');
+      });
+
+      test('event handlers', function() {
+        var stamped = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+        stamped[0].fire('test1');
+        assert.equal(unconfigured1.testHandler1Count, 1);
+        stamped[1].fire('test2');
+        assert.equal(unconfigured1.testHandler2Count, 1);
+        stamped[2].fire('test3');
+        assert.equal(unconfigured1.testHandler3Count, 1);
+      });
+
+    });
+
+    suite('notification between two x-ifs', function() {
+
+      test('change to one scope doesn\'t affect other x-if', function() {
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template):not(span)');
+        var stamped2 = Polymer.dom(unconfigured2.root).querySelectorAll('*:not(template):not(span)');
+
+        unconfigured1.prop = 'foo';
+        unconfigured2.prop = 'bar';
+        assert.equal(stamped1[0].parentProp, 'foo');
+        assert.equal(stamped1[1].parentParentProp, 'foo');
+        assert.equal(stamped1[2].parentParentParentProp, 'foo');
+        assert.equal(stamped2[0].parentProp, 'bar');
+        assert.equal(stamped2[1].parentParentProp, 'bar');
+        assert.equal(stamped2[2].parentParentParentProp, 'bar');
+      });
+    });
+
+  </script>
+
+</body>
+</html>
