@@ -9,7 +9,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <script>
 
+/**
+ * Experimental import that patches elements that interacts with Shady DOM 
+ * such that tree traversal and mutation apis act like they would under
+ * Shadow DOM.
+ *
+ * This import enables interaction with Shady DOM powered custom elements mostly
+ * without the need to use `Polymer.dom` and can therefore enable better 
+ * interoperation with 3rd party code, libraries, and frameworks that use DOM
+ * tree manipulation apis.
+ */
+
 (function() {
+
+  var baseFinishDistribute = Polymer.Base._finishDistribute;
+
+  Polymer.Base._finishDistribute = function() {
+    baseFinishDistribute.call(this);
+    if (!this.__patched) {
+      Polymer.dom(this);
+      Polymer.dom(this.root);
+      Array.prototype.forEach.call(this.childNodes, function(c) {
+        Polymer.dom(c);
+      });
+    }
+  };
+
 
   var saveLightChildrenIfNeeded = Polymer.DomApi.saveLightChildrenIfNeeded;
   var getComposedChildren = Polymer.DomApi.getComposedChildren;
@@ -18,13 +43,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var excluded = [document, document.head, document.body];
 
-
-  var shouldPatch = Polymer.Settings.patch;
-
-  window.patched = 0;
+  Polymer.telemetry.patched = 0;
+  
   // experimental: support patching selected native api.
   Polymer.DomApi.ctor.prototype.patch = function() {
-    if (!shouldPatch || nativeShadow || this.node.__patched || 
+    if (nativeShadow || this.node.__patched || 
       (excluded.indexOf(this.node) >= 0)) {
       return;
     }
@@ -41,12 +64,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return;
     }
     patchify.patch(this.node);
-    // if (!this.node.__prepatched) {
-    //   patchify.patch(this.node);
-    // } else {
-    //    patchify.patchAccessor(this.node, 'childNodes');
-    //    patchify.patchAccessor(this.node, 'parentNode');
-    // }
     this.node.__patched = true;
   };
 
@@ -92,7 +109,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     protoCache: {},
     
     patch: function(node) {
-      patched++;
+      Polymer.telemetry.patched++;
       log && console.warn('patch node', node);
       if (this.hasPrototypeDescriptors) {
         this.patchPrototype(node);
@@ -176,7 +193,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     unpatch: function(obj) {
-      console.warn('unpatch object', obj);
       if (obj.__sourceProto__) {
         obj.__proto__ = obj.__sourceProto__;
       } else {
@@ -203,11 +219,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     
   };
-
-  // if (shouldPatch) {
-  //   patchify.prePatchObject(Polymer.Base);
-  //   Polymer.Base.__prepatched = true;
-  // }
 
 })();
 
