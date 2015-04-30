@@ -302,7 +302,7 @@ suite('Polymer.dom', function() {
 suite('Polymer.dom accessors', function() {
   var noDistribute, distribute;
 
-  before(function() {
+  suiteSetup(function() {
     noDistribute = document.querySelector('.accessors x-test-no-distribute');
     distribute = document.querySelector('.accessors x-project');
   });
@@ -396,7 +396,7 @@ suite('Polymer.dom non-distributed elements', function() {
 
   var nd;
 
-  before(function() {
+  suiteSetup(function() {
     nd = document.querySelector('#noDistribute');
   });
 
