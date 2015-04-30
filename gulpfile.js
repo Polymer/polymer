@@ -12,6 +12,7 @@ function vulcanize(filename, dstdir, excludes) {
     });
     cmd = cmd + ' --implicit-strip';
   }
+  cmd = cmd + ' --strip-comments';
   cmd = cmd + ' ' + filename + ' > ' + dstdir + '/' + filename;
   return cmd
 }
@@ -27,8 +28,6 @@ gulp.task('max', shell.task(vulcanize(max, 'dist', [mini, micro])));
 gulp.task('strip', ['micro', 'mini', 'max'], function() {
   return gulp.src('dist/*.html')
     .pipe(polyclean.cleanJsComments())
-    // Get rid of erroneous html comments
-    .pipe(replace(/<!--((?!@license)[^])*?-->/g, ''))
     // Reduce script tags
     .pipe(replace(/<\/script>\s*<script>/g, '\n'))
     // Collapse newlines
