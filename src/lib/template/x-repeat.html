@@ -85,7 +85,6 @@ Then the `observe` property should be configured as follows:
 -->
 
 <link rel="import" href="templatizer.html">
-<link rel="import" href="../array-observe.html">
 <link rel="import" href="../collection.html">
 
 <script>
@@ -204,21 +203,27 @@ Then the `observe` property should be configured as follows:
     },
 
     _itemsChanged: function(change) {
+      // console.log(change);
       if (change.path == 'items') {
-        this._unobserveCollection();
         if (change.value) {
-          this._observeCollection(change.value);
+          this.collection = Polymer.Collection.get(change.value);
           this._debounceTemplate(this._render);
+        } else {
+          this.collection = null;
         }
+      } else if (change.path == 'items.splices') {
+        this.render(change.value.keySplices);
       } else {
-        this._forwardItemPath(change.path, change.value);
-        this._checkObservedPaths(change.path);
+        // 'items.'.length == 6
+        var subpath = change.path.slice(6);
+        this._forwardItemPath(subpath, change.value);
+        this._checkObservedPaths(subpath);
       }
     },
 
     _checkObservedPaths: function(path) {
-      if (this._observePaths && path.indexOf('items.') === 0) {
-        path = path.substring(path.indexOf('.', 6) + 1);
+      if (this._observePaths) {
+        path = path.substring(path.indexOf('.') + 1);
         var paths = this._observePaths;
         for (var i=0; i<paths.length; i++) {
           if (path.indexOf(paths[i]) === 0) {
@@ -233,22 +238,12 @@ Then the `observe` property should be configured as follows:
       }
     },
 
-    _observeCollection: function(items) {
-      this.collection = Array.isArray(items) ? Polymer.Collection.get(items) : items;
-      this.collection.observe(this.boundCollectionObserver);
-    },
-
-    _unobserveCollection: function() {
-      if (this.collection) {
-        this.collection.unobserve(this.boundCollectionObserver);
-      }
-    },
-
     render: function() {
       this._flushTemplates();
     },
 
     _render: function(splices) {
+      this.flushDebouncer('render');
       var c = this.collection;
       if (splices) {
         if (this._sortFn || splices[0].index == null) {
@@ -320,7 +315,7 @@ Then the `observe` property should be configured as follows:
           }
         }
         // Collect all added keys
-        for (i=0; i<s.added.length; i++) {
+        for (var i=0; i<s.added.length; i++) {
           addedKeys.push(s.added[i]);
         }
       }, this);
@@ -328,7 +323,7 @@ Then the `observe` property should be configured as follows:
         // Sort removed rows idx's
         removedRows.sort();
         // Remove keys and pool rows (backwards, so we don't invalidate rowForKey)
-        for (i=removedRows.length-1; i>=0 ; i--) {
+        for (var i=removedRows.length-1; i>=0 ; i--) {
           var idx = removedRows[i];
           pool.push(this._detachRow(idx));
           rows.splice(idx, 1);
@@ -348,7 +343,7 @@ Then the `observe` property should be configured as follows:
         }, this);
         // Insert new rows using sort (from pool or newly created)
         var start = 0;
-        for (i=0; i<addedKeys.length; i++) {
+        for (var i=0; i<addedKeys.length; i++) {
           start = this._insertRowIntoViewSort(start, addedKeys[i], pool);
         }
       }
@@ -410,7 +405,7 @@ Then the `observe` property should be configured as follows:
         keys.splice.apply(keys, args);
         // Insert new rows (from pool or newly created)
         var addedRows = [];
-        for (i=0; i<s.added.length; i++) {
+        for (var i=0; i<s.added.length; i++) {
           addedRows.push(this._insertRow(idx + i, pool));
         }
         args = [s.index, 0].concat(addedRows);
@@ -498,9 +493,8 @@ Then the `observe` property should be configured as follows:
     // responsible for notifying item.<path> changes to row for key
     _forwardItemPath: function(path, value) {
       if (this._rowForKey) {
-        // 'items.'.length == 6
-        var dot = path.indexOf('.', 6);
-        var key = path.substring(6, dot < 0 ? path.length : dot);
+        var dot = path.indexOf('.');
+        var key = path.substring(0, dot < 0 ? path.length : dot);
         var idx = this._rowForKey[key];
         var row = this.rows[idx];
         if (row) {

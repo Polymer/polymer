@@ -89,34 +89,63 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     /**
-      Convienence method for setting a value to a path and calling
-      notify path
+      Converts a path to an array of path parts.  A path may be specified
+      as a dotted string or an array of one or more dotted strings (or numbers,
+      for number-valued keys).
     */
-    setPathValue: function(path, value) {
-      var parts = path.split('.');
-      if (parts.length > 1) {
-        var last = parts.pop();
-        var prop = this;
-        while (parts.length) {
-          prop = prop[parts.shift()];
-          if (!prop) {
-            return;
+    _getPathParts: function(path) {
+      if (Array.isArray(path)) {
+        parts = [];
+        for (var i=0; i<path.length; i++) {
+          var args = path[i].toString().split('.');
+          for (var j=0; j<args.length; j++) {
+            parts.push(args[j]);
           }
         }
-        // TODO(kschaaf): want dirty-check here?
-        // if (prop[last] !== value) {
-          prop[last] = value;
-          this.notifyPath(path, value);
-        // }
+        return parts;
       } else {
-        this[path] = value;
+        return path.toString().split('.');
       }
     },
 
-    getPathValue: function(path, root) {
-      var parts = path.split('.');
-      var last = parts.pop();
+    /**
+      Convienence method for setting a value to a path and calling
+      notify path (when the path is to a nested property).  If any part
+      in the path except for the last is undefined, does nothing.
+    */
+    setPathValue: function(path, value, root) {
       var prop = root || this;
+      var parts = this._getPathParts(path);
+      var array;
+      var last = parts[parts.length-1];
+      if (parts.length > 1) {
+        for (var i=0; i<parts.length-1; i++) {
+          prop = prop[parts[i]];
+          if (array) {
+            parts[i] = Polymer.Collection.get(array).getKey(prop);
+          }
+          if (!prop) {
+            return;
+          }
+          array = Array.isArray(prop) ? prop : null;
+        }
+        prop[last] = value;
+        if (!root) {
+          this.notifyPath(parts.join('.'), value);
+        }
+      } else {
+        prop[path] = value;
+      }
+    },
+
+    /**
+      Convienence method for reading a value from a path.  Returns undefined
+      if any part in the path is undefined.
+    */
+    getPathValue: function(path, root) {
+      var prop = root || this;
+      var parts = this._getPathParts(path);
+      var last = parts.pop();
       while (parts.length) {
         prop = prop[parts.shift()];
         if (!prop) {
@@ -126,9 +155,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return prop[last];
     },
 
-    // TODO(kschaaf): This machine can be optimized to memoize compiled path
-    // effectors as new paths are notified for performance, since it involves
-    // a fair amount of runtime lookup
     _pathEffector: function(path, value) {
       // get root property
       var model = this._modelForPath(path);
@@ -245,6 +271,96 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _EVENT_CHANGED: '-changed',
+
+    _notifySplice: function(array, path, index, added, removed) {
+      var splices = [{
+        index: index,
+        addedCount: added,
+        removed: removed,
+        object: array,
+        type: 'splice'
+      }];
+      this.notifyPath(path + '.splices', {
+        keySplices: this._getKeySplices(array, splices),
+        indexSplices: splices
+      });
+    },
+
+    _getKeySplices: function(array, splices) {
+      var coll = Polymer.Collection.get(array);
+      var keySplices = [];
+      for (var i=0; i<splices.length; i++) {
+        var j, o, key, s = splices[i];
+        // Removed keys
+        var removed = [];
+        for (j=0; j<s.removed.length; j++) {
+          o = s.removed[j];
+          key = coll.remove(o);
+          removed.push(key);
+        }
+        // Added keys
+        var added = [];
+        for (j=0; j<s.addedCount; j++) {
+          o = array[s.index + j];
+          key = coll.add(o);
+          added.push(key);
+        }
+        // Record splice
+        keySplices.push({
+          index: s.index,
+          removed: removed,
+          added: added
+        });
+      }
+      return keySplices;
+    },
+
+    push: function(path) {
+      'use strict';
+      var array = this.getPathValue(path);
+      var args = Array.prototype.slice.call(arguments, 1);
+      var len = array.length;
+      var ret = array.push.apply(array, args);
+      this._notifySplice(array, path, len, args.length, []);
+      return ret;
+    },
+
+    pop: function(path) {
+      'use strict';
+      var array = this.getPathValue(path);
+      var args = Array.prototype.slice.call(arguments, 1);
+      var ret = array.pop.apply(array, args);
+      this._notifySplice(array, path, array.length, 0, array.slice(-1));
+      return ret;
+    },
+
+    splice: function(path, start, deleteCount) {
+      'use strict';
+      var array = this.getPathValue(path);
+      var args = Array.prototype.slice.call(arguments, 1);
+      var rem = array.slice(start, start + deleteCount);
+      var ret = array.splice.apply(array, args);
+      this._notifySplice(array, path, start, args.length - 2, rem);
+      return ret;
+    },
+
+    shift: function(path) {
+      'use strict';
+      var array = this.getPathValue(path);
+      var args = Array.prototype.slice.call(arguments, 1);
+      var ret = array.shift.apply(array, args);
+      this._notifySplice(array, path, 0, 0, ret);
+      return ret;
+    },
+
+    unshift: function(path) {
+      'use strict';
+      var array = this.getPathValue(path);
+      var args = Array.prototype.slice.call(arguments, 1);
+      var ret = array.unshift.apply(array, args);
+      this._notifySplice(array, path, 0, args.length, []);
+      return ret;
+    }
 
   });
 
