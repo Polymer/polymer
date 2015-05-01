@@ -158,10 +158,6 @@ Then the `observe` property should be configured as follows:
       '_itemsChanged(items.*)'
     ],
 
-    created: function() {
-      this.boundCollectionObserver = this._render.bind(this);
-    },
-
     detached: function() {
       if (this.rows) {
         for (var i=0; i<this.rows.length; i++) {
@@ -207,12 +203,14 @@ Then the `observe` property should be configured as follows:
       if (change.path == 'items') {
         if (change.value) {
           this.collection = Polymer.Collection.get(change.value);
+          this._splices = [];
           this._debounceTemplate(this._render);
         } else {
           this.collection = null;
         }
       } else if (change.path == 'items.splices') {
-        this.render(change.value.keySplices);
+        this._splices = this._splices.concat(change.value.keySplices);
+        this._debounceTemplate(this._render);
       } else {
         // 'items.'.length == 6
         var subpath = change.path.slice(6);
@@ -242,15 +240,17 @@ Then the `observe` property should be configured as follows:
       this._flushTemplates();
     },
 
-    _render: function(splices) {
+    _render: function() {
       this.flushDebouncer('render');
       var c = this.collection;
-      if (splices) {
-        if (this._sortFn || splices[0].index == null) {
-          this._applySplicesViewSort(splices);
+      // Update insert/remove any changes and update sort/filter
+      if (this._splices.length) {
+        if (this._sortFn) {
+          this._applySplicesViewSort(this._splices);
         } else {
-          this._applySplicesArraySort(splices);
+          this._applySplicesArraySort(this._splices);
         }
+        this._splices = [];
       } else {
         this._sortAndFilter();
       }
