@@ -127,6 +127,12 @@
           POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
         }
       }
+      // only handle the first finger
+      if (type.slice(5) === 'touch') {
+        if (POINTERSTATE.touch.id !== ev.changedTouches[0].touchIdentifier) {
+          return;
+        }
+      }
       handled = ev[HANDLED_OBJ];
       if (handled.skip) {
         return;
