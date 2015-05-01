@@ -12,8 +12,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.Templatizer = {
 
+    properties: {
+      _hideTemplateChildren: {
+        observer: '_hideTemplateChildrenChanged'
+      }
+    },
+
+    // Intentionally static object
+    _templatizerStatic: {
+      count: 0,
+      callbacks: {},
+      debouncer: null
+    },
+
+    created: function() {
+      // id used for consolidated debouncer
+      this._templatizerId = this._templatizerStatic.count++;
+    },
+
     templatize: function(template) {
-      this._templatized = template;
       // TODO(sjmiles): supply _alternate_ content reference missing from root
       // templates (not nested). `_content` exists to provide content sharing
       // for nested templates.
@@ -25,7 +42,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.ctor = template._content._ctor;
         //console.log('Templatizer.templatize: using memoized archetype');
         // forward parent properties to archetype
-        this._prepParentProperties(this.ctor.prototype);
+        this._prepParentProperties(this.ctor.prototype, template);
         return;
       }
       // `archetype` is the prototype of the anonymous
@@ -41,7 +58,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       archetype._prepBindings();
 
       // forward parent properties to archetype
-      this._prepParentProperties(archetype);
+      this._prepParentProperties(archetype, template);
 
       // boilerplate code
       archetype._notifyPath = this._notifyPathImpl;
@@ -64,18 +81,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return (this.dataHost && this.dataHost._rootDataHost) || this.dataHost;
     },
 
-    _getAllStampedChildren: function(children) {
-      children = children || [];
-      if (this._getStampedChildren) {
-        var c$ = this._getStampedChildren();
-        for (var i=0, c; c = c$[i]; i++) {
-          children.push(c);
-          if (c._getAllStampedChildren) {
-            c._getAllStampedChildren(children);
-          }
-        }
+    _hideTemplateChildrenChanged: function(hidden) {
+      if (this._hideChildren) {
+        // Extension point for Templatizer sub-classes
+        // TODO(kschaaf): remove once element protos can override behaviors
+        this._hideChildren(hidden);
       }
-      return children;
+    },
+
+    _debounceTemplate: function(fn) {
+      this._templatizerStatic.callbacks[this._templatizerId] = fn.bind(this);
+      this._templatizerStatic.debouncer =
+        Polymer.Debounce(this._templatizerStatic.debouncer,
+          this._flushTemplates.bind(this, true));
+    },
+
+    _flushTemplates: function(debouncerExpired) {
+      var db = this._templatizerStatic.debouncer;
+      // completely flush any re-queued callbacks resulting from stamping
+      while (debouncerExpired || (db && db.finish)) {
+        db.stop();
+        var cbs = this._templatizerStatic.callbacks;
+        this._templatizerStatic.callbacks = {};
+        for (var id in cbs) {
+          cbs[id]();
+        }
+        debouncerExpired = false;
+      }
     },
 
     customPrepAnnotations: function(archetype, template) {
@@ -107,14 +139,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // API that should be implemented by Templatizer users to get parent
     // properties to their template instances.  These accessors are memoized
     // on the archetype and copied to instances.
-    _prepParentProperties: function(archetype) {
+    _prepParentProperties: function(archetype, template) {
       var parentProps = this._parentProps = archetype._parentProps;
       if (this._forwardParentProp && parentProps) {
         // Prototype setup (memoized on archetype)
         var proto = archetype._parentPropProto;
         if (!proto) {
           proto = archetype._parentPropProto = Object.create(null);
-          if (this._templatized != this) {
+          if (template != this) {
             // Assumption: if `this` isn't the template being templatized,
             // assume that the template is not a Poylmer.Base, so prep it
             // for binding
@@ -133,12 +165,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         // Instance setup
-        if (this._templatized != this) {
-          Polymer.Bind.prepareInstance(this._templatized);
-          this._templatized._forwardParentProp =
+        if (template != this) {
+          Polymer.Bind.prepareInstance(template);
+          template._forwardParentProp =
             this._forwardParentProp.bind(this);
         }
-        this._extendTemplate(this._templatized, proto);
+        this._extendTemplate(template, proto);
       }
     },
 
