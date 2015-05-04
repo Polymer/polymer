@@ -18,6 +18,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return {
 
+      // decorate rules with property info: whether it produces or consumes them
+      decorateRules: function(rules) {
+        if (rules.properties) {
+          return;
+        }
+        var pp = {};
+        var self = this;
+        Polymer.StyleUtil.forEachStyleRule(rules, function(rule) {
+          var p = self.decorateRule(rule);
+          pp.consumes = pp.consumes || p.consumes;
+          pp.produces = pp.produces || p.produces;
+        });
+        rules.properties = pp;
+      },
+
+      // decorate a single rule with property info
+      decorateRule: function(rule) {
+        if (rule.properties) {
+          return;
+        }
+        var cssText = rule.parsedCssText;
+        var rx = this.rx;
+        // NOTE: we support consumption inside mixin assignment
+        // but not production, so strip out {...}
+        var cleanCss = cssText.replace(rx.BRACKETED, '');
+        var p = rule.properties = {
+          produces: cssText.match(rx.VAR_ASSIGN),
+          consumes: cleanCss.match(rx.VAR_USE) || cleanCss.match(rx.MIXIN_USE)
+        };
+        // TODO(sorvell): workaround parser seeing mixins as additional rules
+        if (p.produces) {
+          rule.rules = null;
+        }
+        return p;
+      },
+
       // collects the custom properties from a rule's cssText
       collect: function(rule, properties) {
         if (rule.properties.produces) {
@@ -37,40 +73,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i in props) {
           props[i] = this.valueForProperty(props[i], props);
         }
-      },
-
-      decorateRules: function(rules) {
-        if (rules.properties) {
-          return;
-        }
-        var pp = {};
-        var self = this;
-        Polymer.StyleUtil.forEachStyleRule(rules, function(rule) {
-          var p = self.decorateRule(rule);
-          pp.consumes = pp.consumes || p.consumes;
-          pp.produces = pp.produces || p.produces;
-        });
-        rules.properties = pp;
-      },
-
-      decorateRule: function(rule) {
-        if (rule.properties) {
-          return;
-        }
-        var cssText = rule.parsedCssText;
-        var rx = this.rx;
-        // NOTE: we support consumption inside mixin assignment
-        // but not production, so strip out {...}
-        var cleanCss = cssText.replace(rx.BRACKETED, '');
-        var p = rule.properties = {
-          produces: cssText.match(rx.VAR_ASSIGN),
-          consumes: cleanCss.match(rx.VAR_USE) || cleanCss.match(rx.MIXIN_USE)
-        };
-        // TODO(sorvell): workaround parser seeing mixins as additional rules
-        if (p.produces) {
-          rule.rules = null;
-        }
-        return p;
       },
 
       // given a property value, returns the reified value
@@ -119,11 +121,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return parts.join(';');
       },
 
+      // TODO(srovell): make this go away by pre-processing rules
+      // to contain specifically only the css that consumes properties 
+      // for use here.
+      //
       // returns cssText with properties applied;
       // if no properties apply, returns nothing
       applyProperties: function(rule, props) {
         var cssText = rule.parsedCssText;
         var output = '';
+        // dynamically added sheets may not be decorated so ensure they are.
         if (!rule.properties) {
           this.decorateRule(rule);
         }
