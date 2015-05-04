@@ -27,15 +27,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // declaration-y
       _prepTemplate: function() {
         prepTemplate.call(this);
-        var port = Polymer.DomModule.import(this.is);
-        if (this._encapsulateStyle === undefined) {
-          this._encapsulateStyle = 
-            Boolean(port && !nativeShadow);
-        }
         // scope css
-        // NOTE: dom scoped via annotations
-        if (nativeShadow || this._encapsulateStyle) {
-          this._scopeCss();
+        this._styles = this._prepareStyles();
+        var cssText = this._transformStyles(this._styles);
+        if (this._encapsulateStyle === undefined) {
+          this._encapsulateStyle = !nativeShadow && 
+            Boolean(this._template);
+        }
+        if (cssText && this._template) {
+          Polymer.StyleUtil.applyCss(cssText, this.is, 
+            nativeShadow ? this._template.content : null, true);
         }
       },
 
@@ -45,11 +46,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._scopeCssViaAttr);
         }
         prepElement.call(this, element);
-      },
-
-      _scopeCss: function() {
-        this._styles = this._prepareStyles();
-        this._scopeStyles(this._styles);
       },
 
       // search for extra style modules via `styleModules`
@@ -79,8 +75,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var e$ = Array.prototype.slice.call(m.querySelectorAll('style'));
           this._unapplyStyles(e$);
           e$ = e$.concat(Array.prototype.map.call(
+            //TODO(sorvell): add test for 404'ing import
             m.querySelectorAll(REMOTE_SHEET_SELECTOR), function(l) {
-              return l.import.body;
+              return l.import && l.import.body;
             }));
           m._cssText = this._cssFromStyles(e$);
         }
@@ -105,21 +102,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      _scopeStyles: function(styles) {
-        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-          // transform style if necessary and place in correct place
-          if (nativeShadow) {
-            if (this._template) {
-              this._template.content.appendChild(s);
-            }
-          } else {
-            var rules = this._rulesForStyle(s);
-            Polymer.StyleUtil.applyCss(
-              Polymer.StyleTransformer.css(rules, this.is, this.extends, 
-              null, this._scopeCssViaAttr), 
-              this.is, null, true);
-          }
+      _transformStyles: function(styles, callback) {
+        var cssText = '';
+        for (var i=0, l=styles.length, s, text; (i<l) && (s=styles[i]); i++) {
+          var rules = this._rulesForStyle(s);
+          cssText += nativeShadow ?
+            Polymer.StyleUtil.toCssText(rules, callback) :
+            Polymer.StyleTransformer.css(rules, this.is, this.extends, callback,
+            this._scopeCssViaAttr) + '\n\n';
         }
+        return cssText.trim();
       },
 
       _rulesForStyle: function(style) {
@@ -127,6 +119,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           style.__cssRules = Polymer.StyleUtil.parser.parse(style.textContent);
         }
         return style.__cssRules;
+      },
+
+      _forRulesInStyles: function(styles, cb) {
+        if (styles) {
+          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+            Polymer.StyleUtil.forEachStyleRule(this._rulesForStyle(s), cb);
+          }
+        }
       },
 
       // instance-y

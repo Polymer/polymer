@@ -69,6 +69,7 @@ Note, all features of `custom-style` are available when defining styles as part 
 (function() {
 
   var nativeShadow = Polymer.Settings.useNativeShadow;
+  var propertyUtils = Polymer.StyleProperties;
 
   Polymer({
 
@@ -76,18 +77,14 @@ Note, all features of `custom-style` are available when defining styles as part 
     extends: 'style',
 
     created: function() {
-      if (this.parentNode.localName === 'dom-module') {
-        this._inert = true;
-      } else {
-        var rules = Polymer.StyleUtil.parser.parse(this.textContent);
-        this._rulesToDefaultProperties(rules);
-      }
-    },
-
-    attached: function() {
-      // go async to give a chance to collect properties into the StyleDefaults
-      // before applying
-      if (!this._inert) {
+      this._appliesToDocument = (this.parentNode.localName !== 'dom-module');
+      if (this._appliesToDocument) {
+        var e = this.__appliedElement || this;
+        this.__cssRules = Polymer.StyleUtil.parser.parse(e.textContent);
+        propertyUtils.decorateRules(this.__cssRules);
+        this._rulesToDefaultProperties(this.__cssRules);
+        // NOTE: go async to give a chance to collect properties into 
+        // the StyleDefaults before applying
         this.async(this._applyStyle);
       }
     },
@@ -95,17 +92,22 @@ Note, all features of `custom-style` are available when defining styles as part 
     // polyfill this style with root scoping and 
     // apply custom properties!
     _applyStyle: function() {
-      var e = this._appliedElement || this;
+      var e = this.__appliedElement || this;
       var props = this._styleProperties = this._computeStyleProperties();
       var self = this;
-      e.textContent = Polymer.StyleUtil.toCssText(e.textContent, 
+      e.textContent = Polymer.StyleUtil.toCssText(this.__cssRules, 
         function(rule) {
           // polyfill lack of support for :root
           if (rule.selector === ':root') {
             rule.selector = 'body';
           }
-          if (rule.cssText.match(CUSTOM_RULE_RX)) {
-            rule.cssText = self._applyPropertiesToText(rule.cssText, props);
+          var css = rule.cssText = rule.parsedCssText;
+          if (rule.properties.consumes) {
+            // TODO(sorvell): factor better
+            // remove property assignments so next function isn't confused
+            css = css.replace(propertyUtils.rx.VAR_ASSIGN, '');
+            // replace with reified properties, scenario is same as mixin
+            rule.cssText = propertyUtils.valueForMixin(css, props);
           }
           if (!nativeShadow) {
             Polymer.StyleTransformer.rootRule(rule);
@@ -114,23 +116,20 @@ Note, all features of `custom-style` are available when defining styles as part 
     },
 
     _rulesToDefaultProperties: function(rules) {
-      var cssText = '';
+      // produce css containing only property assignments.
       Polymer.StyleUtil.forEachStyleRule(rules, function(rule) {
-        if (rule.cssText.match(CUSTOM_RULE)) {
-          // TODO(sorvell): use parser.stringify, it needs an option not to
-          // strip custom properties.
-          cssText += rule.selector + ' {\n' + rule.cssText + '\n}\n';
+        if (!rule.properties.produces) {
+          rule.cssText = '';
         }
       });
+      // tell parser to emit css that includes properties.
+      var cssText = Polymer.StyleUtil.parser.stringify(rules, true);
       if (cssText) {
         Polymer.StyleDefaults.applyCss(cssText);
       }
     }
 
   });
-
-  var CUSTOM_RULE_RX = /^(?![{}])(mixin|var)/m;
-  var CUSTOM_RULE = /--[^;{'"]*\:/;
 
 })();
 </script>

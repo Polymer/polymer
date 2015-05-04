@@ -7,8 +7,7 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="../lib/style-util.html">
-<link rel="import" href="../lib/style-transformer.html">
+<link rel="import" href="../lib/style-properties.html">
 <link rel="import" href="../lib/settings.html">
 <link rel="import" href="../lib/style-defaults.html">
 <script>
@@ -18,33 +17,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var baseSerializeValueToAttribute = Polymer.Base.serializeValueToAttribute;
     var prepTemplate = Polymer.Base._prepTemplate;
 
+    var propertyUtils = Polymer.StyleProperties;
+
     var nativeShadow = Polymer.Settings.useNativeShadow;
 
-    // TODO(sorvell): consider if calculating properties and applying
-    // styles with properties should be separate modules.
     Polymer.Base._addFeature({
 
+      // TODO(sorvell): consider tracking which rules have properties so that
+      // instances can skip those that don't.
       _prepTemplate: function() {
         prepTemplate.call(this);
         // determine if element contains x-scope styling
-        this._hasXScopeStyles = this._styles && this._styles.some(function(s) {
-          return this._styleHasCustomRules(s);
-        }, this);
-      },
-
-      _styleHasCustomRules: function(style) {
-        return style.textContent.match(CUSTOM_RULE_RX);
+        var consumes;
+        if (this._styles) {
+          this._styles.forEach(function(s) {
+            var rules = this._rulesForStyle(s);
+            propertyUtils.decorateRules(rules);
+            if (rules.properties.consumes) {
+              consumes = true;
+            }
+          }, this);
+        }
+        this._usesStyleProperties = consumes;
       },
 
       attachedCallback: function() {
         baseAttachedCallback.call(this);
+        // note: do this once automatically,
+        // then requires calling `updateStyles`
         if (!this._xScopeSelector) {
           this._updateOwnStyles();
         }
       },
 
       _updateOwnStyles: function() {
-        if (this._hasXScopeStyles) {
+        if (this._usesStyleProperties) {
           this._styleProperties = this._computeStyleProperties();
           this._applyStyleProperties(this._styleProperties);
         }
@@ -52,101 +59,52 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _computeStyleProperties: function() {
         var props = {};
-        this.mixin(props, this._computeStylePropertiesFromHost());
+        // properties come from host/defaults
+        this.mixin(props, this._computeScopeStyleProperties());
         this.mixin(props, this._computeOwnStyleProperties());
-        this._reifyCustomProperties(props);
+        propertyUtils.reify(props);
         return props;
       },
 
-      _computeStylePropertiesFromHost: function() {
-        // TODO(sorvell): experimental feature, global defaults!
-        var props = {}, styles = [Polymer.StyleDefaults.defaultSheet];
+      _computeScopeStyleProperties: function() {
         var host = this.domHost;
-        if (host) {
-          if (!host._styleProperties) {
-            host._styleProperties = host._computeStyleProperties();
-          }
-          props = Object.create(host._styleProperties);
-          styles = host._styles;
+        // ensure host has styleProperties
+        if (host && !host._styleProperties) {
+          host._styleProperties = host._computeStyleProperties();
         }
-        this.mixin(props,
-          this._customPropertiesFromStyles(styles, host));
+        // get props and styles from host or defaults
+        var styles = host ? host._styles : Polymer.StyleDefaults.styles;
+        var props = Object.create(host ? host._styleProperties : 
+          Polymer.StyleDefaults.getProperties());
+        // now match this element in these styles and add those properties
+        var cb = this._elementCustomPropertiesFromRule.bind(this, props, this);
+        this._forRulesInStyles(styles, cb);
         return props;
-
       },
 
       _computeOwnStyleProperties: function() {
         var props = {};
-        this.mixin(props, this._customPropertiesFromStyles(this._styles));
-        if (this.styleProperties) {
-          for (var i in this.styleProperties) {
-            props[i] = this.styleProperties[i];
-          }
-        }
+        var cb = this._rootCustomPropertiesFromRule.bind(this, props);
+        this._forRulesInStyles(this._styles, cb);
         return props;
       },
 
-      _customPropertiesFromStyles: function(styles, hostNode) {
-        var props = {};
-        var p = this._customPropertiesFromRule.bind(this, props, hostNode);
-        if (styles) {
-          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-            Polymer.StyleUtil.forEachStyleRule(this._rulesForStyle(s), p);
-          }
-        }
-        return props;
-      },
-
-      // test if a rule matches the given node and if so,
-      // collect any custom properties
-      // TODO(sorvell): support custom variable assignment within mixins
-      _customPropertiesFromRule: function(props, hostNode, rule) {
-        hostNode = hostNode || this;
-        // TODO(sorvell): file crbug, ':host' does not match element.
-        if (this.elementMatches(rule.selector) ||
-          ((hostNode === this) && 
-          (rule.selector === HOST || rule.selector === ROOT))) {
-          // --g: var(--b); or --g: 5;
-          this._collectPropertiesFromRule(rule, CUSTOM_VAR_ASSIGN, props);
-          // --g: { ... }
-          this._collectPropertiesFromRule(rule, CUSTOM_MIXIN_ASSIGN, props);
+      // Test if a rule matches the given `element` and if so,
+      // collect any custom properties into `props`.
+      _elementCustomPropertiesFromRule: function(props, element, rule) {
+        if (element && this.elementMatches(rule.selector, element)) {
+          propertyUtils.collect(rule, props);
         }
       },
 
-      // given a rule and rx that matches key and value, set key in properties
-      // to value
-      _collectPropertiesFromRule: function(rule, rx, properties) {
-        var m;
-        while (m = rx.exec(rule.cssText)) {
-          properties[m[1]] = m[2].trim();
-        }
-      },
-
-      _reifyCustomProperties: function(props) {
-        for (var i in props) {
-          props[i] = this._valueForCustomProperty(props[i], props);
-        }
-      },
-
-      // given: --bar: red; --foo: var(--bar);
-      // make: --foo: red;
-      _valueForCustomProperty: function(property, props) {
-        var cv;
-        if (property.match(';')) {
-          var parts = property.split(';');
-          for (var i=0; i<parts.length; i++) {
-            if (parts[i].match(CUSTOM_RULE_RX)) {
-              // remove trailing ;return
-              parts[i] = this._applyPropertiesToText(parts[i], props).slice(0, -2);
-            }
-          }
-          return parts.join(';');
-        } else {
-          while ((typeof property === 'string') &&
-            (cv = property.match(CUSTOM_VAR_VALUE))) {
-            property = props[cv[1]];
-          }
-          return property;
+      // Test if a rule matches root crteria (:host or :root) and if so,
+      // collect any custom properties into `props`.
+      // these rules may already be shimmed and it's $ to reparse, 
+      // so we check `is` value as a fallback
+      _rootCustomPropertiesFromRule: function(props, rule) {
+        var s = rule.parsedSelector;
+        if (s === HOST || s === ROOT) {
+          propertyUtils.collect(rule, props);
         }
       },
 
@@ -158,7 +116,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var old = this._xScopeSelector;
           this._ensureScopeSelector(style ? style._scope : null);
           if (!style) {
-            var cssText = this._generateCustomStyleCss(bag, s$);
+            var cb = this._applyPropertiesToRule.bind(this, bag);
+            var cssText = this._transformStyles(s$, cb);
             style = cssText ? this._applyCustomCss(cssText) : {};
             cacheStyle(this.is, style, this._xScopeSelector,
               this._styleProperties, s$);
@@ -169,6 +128,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._applyXScopeSelector(this._xScopeSelector, old);
           }
         }
+      },
+
+      _applyPropertiesToRule: function(properties, rule) {
+        propertyUtils.applyProperties(rule, properties);
+        if (rule.cssText && !nativeShadow) {
+          this._scopifyRule(rule);
+        }
+      },
+
+      // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
+      // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
+      // host selector: x-foo.wide -> x-foo.x-foo-42.wide
+      _scopifyRule: function(rule) {
+        rule.transformedSelector = rule.transformedSelector || rule.selector;
+        var selector = rule.transformedSelector;
+        var host = this.is;
+        var rx = new RegExp(HOST_SELECTOR_PREFIX + host + HOST_SELECTOR_SUFFIX);
+        var parts = selector.split(',');
+        var scope = this._scopeCssViaAttr ?
+          SCOPE_PREFIX + this._xScopeSelector + SCOPE_SUFFIX :
+          '.' + this._xScopeSelector;
+        for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
+          parts[i] = p.match(rx) ?
+            p.replace(host, host + scope) :
+            scope + ' ' + p;
+        }
+        rule.selector = parts.join(',');
       },
 
       _applyXScopeSelector: function(selector, old) {
@@ -183,24 +169,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this.className = v;
           }
         }
-      },
-
-      _generateCustomStyleCss: function(properties, styles) {
-        var b = this._applyPropertiesToRule.bind(this, properties);
-        var cssText = '';
-        // TODO(sorvell): don't redo parsing work each time as below;
-        // instead create a sheet with just custom properties
-        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-          cssText += this._transformCss(s.textContent, b) + '\n\n';
-        }
-        return cssText.trim();
-      },
-
-      _transformCss: function(cssText, callback) {
-        return nativeShadow ?
-          Polymer.StyleUtil.toCssText(cssText, callback) :
-          Polymer.StyleTransformer.css(cssText, this.is, this.extends, callback,
-            this._scopeCssViaAttr);
       },
 
       _xScopeCount: 0,
@@ -220,69 +188,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             nativeShadow ? this.root : null);
         }
         return this._customStyle;
-      },
-
-      _applyPropertiesToRule: function(properties, rule) {
-        if (!nativeShadow) {
-          this._scopifyRule(rule);
-        }
-        if (rule.cssText.match(CUSTOM_RULE_RX)) {
-          rule.cssText = this._applyPropertiesToText(rule.cssText, properties);
-        } else {
-          rule.cssText = '';
-        }
-        //console.log(rule.cssText);
-      },
-
-      _applyPropertiesToText: function(cssText, props) {
-        var output = '';
-        var m, v;
-        // e.g. color: var(--color);
-        while (m = CUSTOM_VAR_USE.exec(cssText)) {
-          v = props[m[2]];
-          if (v) {
-            output += '\t' + m[1].trim() + ': ' + this._propertyToCss(v);
-          }
-        }
-        // e.g. mixin(--stuff);
-        while (m = CUSTOM_MIXIN_USE.exec(cssText)) {
-          v = m[1];
-          if (v) {
-            var parts = v.split(' ');
-            for (var i=0, p; i < parts.length; i++) {
-              p = props[parts[i].trim()];
-              if (p) {
-                output += '\t' + this._propertyToCss(p);
-              }
-            }
-          }
-        }
-        return output;
-      },
-
-      _propertyToCss: function(property) {
-        var p = property.trim();
-        p = p[p.length-1] === ';' ? p : p + ';';
-        return p + '\n';
-      },
-
-      // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
-      // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
-      // host selector: x-foo.wide -> x-foo.x-foo-42.wide
-      _scopifyRule: function(rule) {
-        var selector = rule.selector;
-        var host = this.is;
-        var rx = new RegExp(HOST_SELECTOR_PREFIX + host + HOST_SELECTOR_SUFFIX);
-        var parts = selector.split(',');
-        var scope = this._scopeCssViaAttr ?
-          SCOPE_PREFIX + this._xScopeSelector + SCOPE_SUFFIX :
-          '.' + this._xScopeSelector;
-        for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
-          parts[i] = p.match(rx) ?
-            p.replace(host, host + scope) :
-            scope + ' ' + p;
-        }
-        rule.selector = parts.join(',');
       },
 
       _scopeElementClass: function(element, selector) {
@@ -323,12 +228,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _updateRootStyles: function(root) {
-        // TODO(sorvell): temporary way to find local dom that needs
-        // x-scope styling.
-        // var scopeSelector = this._scopeCssViaAttr ?
-        //   '[' + SCOPE_NAME + '~=' + XSCOPE_NAME + ']' : '.' + XSCOPE_NAME;
-        // var c$ = Polymer.dom(root).querySelectorAll(scopeSelector);
-        var c$ = Polymer.dom(root).querySelectorAll('[is-host]');
+        root = root || this.root;
+        var c$ = Polymer.dom(root)._query(function(e) {
+          return e.shadyRoot || e.shadowRoot;
+        });
         for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
           if (c.updateStyles) {
             c.updateStyles();
@@ -390,12 +293,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var SCOPE_SUFFIX = ']';
     var HOST_SELECTOR_PREFIX = '(?:^|[^.])';
     var HOST_SELECTOR_SUFFIX = '($|[.:[\\s>+~])';
-    var CUSTOM_RULE_RX = /mixin|var/;
-    var CUSTOM_VAR_ASSIGN = /(--[^\:;]*?):\s*?([^;{]*?);/g;
-    var CUSTOM_MIXIN_ASSIGN = /(--[^\:;]*?):[^{;]*?{([^}]*?)};?/g;
-    var CUSTOM_VAR_VALUE = /^var\(([^)]*?)\);?/;
-    var CUSTOM_VAR_USE = /(?:^|[;}\s])([^;{}]*?):[\s]*?var\(([^)]*)?\)/gim;
-    var CUSTOM_MIXIN_USE = /mixin\(([^)]*)\);?/gim;
+    // in order to tell if a rule uses a custom property, match
+      // ([\s\S]*var|@apply) and pass if there's not a { in the match
+    var CUSTOM_RULE_RX = /@apply|var/;
 
   })();
 </script>
