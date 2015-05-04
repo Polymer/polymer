@@ -128,7 +128,7 @@
         }
       }
       // only handle the first finger
-      if (type.slice(5) === 'touch') {
+      if (type.slice(0, 5) === 'touch') {
         if (POINTERSTATE.touch.id !== ev.changedTouches[0].touchIdentifier) {
           return;
         }
@@ -272,6 +272,7 @@
 
     info: {
       state: 'start',
+      started: 'true',
       moves: [],
       addMove: function(move) {
         if (this.moves.length > 5) {
@@ -283,6 +284,7 @@
 
     clearInfo: function() {
       this.info.state = 'start';
+      this.info.started = false;
       this.info.moves = [];
     },
 
@@ -291,10 +293,11 @@
       var self = this;
       var movefn = function movefn(e) {
         // first move is 'start', subsequent moves are 'move', mouseup is 'end'
-        self.info.state = e.type === 'mouseup' ? 'end' : 'track';
+        self.info.state = self.info.started ? (e.type === 'mouseup' ? 'end' : 'track') : 'start';
         self.info.addMove({x: e.clientX, y: e.clientY});
         self.fire(t, e);
         e.preventDefault();
+        self.info.started = true;
       };
       var upfn = function upfn(e) {
         if (self.info.state !== 'start') {
