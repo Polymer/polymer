@@ -101,7 +101,8 @@ Then the `observe` property should be configured as follows:
        * to stamp and that that each template instance should bind to.
        */
       items: {
-        type: Array
+        type: Array,
+        observer: '_itemsChanged'
       },
 
       /**
@@ -155,7 +156,7 @@ Then the `observe` property should be configured as follows:
     ],
 
     observers: [
-      '_itemsChanged(items.*)'
+      '_itemsPathChanged(items.*)'
     ],
 
     detached: function() {
@@ -164,12 +165,13 @@ Then the `observe` property should be configured as follows:
           this._detachRow(i);
         }
       }
+      this.rows = null;
     },
 
     ready: function() {
       // Templatizing (generating the instance constructor) needs to wait
-      // until attached, since it may not have its template content handed
-      // back to it until then, following its host template stamping
+      // until ready, since won't have its template content handed back to
+      // it until then
       if (!this.ctor) {
         this.templatize(this);
       }
@@ -179,6 +181,7 @@ Then the `observe` property should be configured as follows:
       var dataHost = this._getRootDataHost();
       this._sortFn = this.sort && (typeof this.sort == 'function' ?
         this.sort : dataHost[this.sort].bind(dataHost));
+      this._fullRefresh = true;
       if (this.items) {
         this._debounceTemplate(this._render);
       }
@@ -188,6 +191,7 @@ Then the `observe` property should be configured as follows:
       var dataHost = this._getRootDataHost();
       this._filterFn = this.filter && (typeof this.filter == 'function' ?
         this.filter : dataHost[this.filter].bind(dataHost));
+      this._fullRefresh = true;
       if (this.items) {
         this._debounceTemplate(this._render);
       }
@@ -198,20 +202,18 @@ Then the `observe` property should be configured as follows:
         this.observe.replace('.*', '.').split(' ');
     },
 
-    _itemsChanged: function(change) {
-      // console.log(change);
-      if (change.path == 'items') {
-        if (change.value) {
-          this.collection = Polymer.Collection.get(change.value);
-          this._splices = [];
-          this._debounceTemplate(this._render);
-        } else {
-          this.collection = null;
-        }
-      } else if (change.path == 'items.splices') {
+    _itemsChanged: function(items) {
+      this.collection = items ? Polymer.Collection.get(items) : null;
+      this._splices = [];
+      this._fullRefresh = true;
+      this._debounceTemplate(this._render);
+    },
+
+    _itemsPathChanged: function(change) {
+      if (change.path == 'items.splices') {
         this._splices = this._splices.concat(change.value.keySplices);
         this._debounceTemplate(this._render);
-      } else {
+      } else if (change.path != 'items') {
         // 'items.'.length == 6
         var subpath = change.path.slice(6);
         this._forwardItemPath(subpath, change.value);
@@ -241,19 +243,25 @@ Then the `observe` property should be configured as follows:
     },
 
     _render: function() {
-      this.flushDebouncer('render');
       var c = this.collection;
       // Update insert/remove any changes and update sort/filter
-      if (this._splices.length) {
+      if (!this._fullRefresh) {
         if (this._sortFn) {
           this._applySplicesViewSort(this._splices);
         } else {
-          this._applySplicesArraySort(this._splices);
+          if (this._filterFn) {
+            // TODK(kschaaf): Filtering using array sort takes slow path
+            this._fullRefresh = true;
+          } else {
+            this._applySplicesArraySort(this._splices);
+          }
         }
-        this._splices = [];
-      } else {
-        this._sortAndFilter();
       }
+      if (this._fullRefresh) {
+        this._sortAndFilter();
+        this._fullRefresh = false;
+      }
+      this._splices = [];
       var rowForKey = this._rowForKey = {};
       var keys = this._orderedKeys;
       // Assign items and keys
@@ -279,14 +287,25 @@ Then the `observe` property should be configured as follows:
 
     _sortAndFilter: function() {
       var c = this.collection;
-      this._orderedKeys = c.getKeys();
-      // Filter
+      // For array-based sort, key order comes from array
+      if (!this._sortFn) {
+        this._orderedKeys = [];
+        var items = this.items;
+        if (items) {
+          for (var i=0; i<items.length; i++) {
+            this._orderedKeys.push(c.getKey(items[i]));
+          }
+        }
+      } else {
+        this._orderedKeys = c ? c.getKeys() : [];
+      }
+      // Apply user filter to keys
       if (this._filterFn) {
         this._orderedKeys = this._orderedKeys.filter(function(a) {
           return this._filterFn(c.getItem(a));
         }, this);
       }
-      // Sort
+      // Apply user sort to keys
       if (this._sortFn) {
         this._orderedKeys.sort(function(a, b) {
           return this._sortFn(c.getItem(a), c.getItem(b));
@@ -339,8 +358,8 @@ Then the `observe` property should be configured as follows:
         }
         // Sort added keys
         addedKeys.sort(function(a, b) {
-          return this.sortFn(c.getItem(a), c.getItem(b));
-        }, this);
+          return this._sortFn(c.getItem(a), c.getItem(b));
+        }.bind(this));
         // Insert new rows using sort (from pool or newly created)
         var start = 0;
         for (var i=0; i<addedKeys.length; i++) {
@@ -374,42 +393,31 @@ Then the `observe` property should be configured as follows:
       }
       // Insert key & row at insertion point
       this._orderedKeys.splice(idx, 0, key);
-      this.rows.splice(idx, 0, this._insertRow(idx, pool));
+      this.rows.splice(idx, 0, this._insertRow(idx, pool, c.getItem(key)));
       return idx;
     },
 
     _applySplicesArraySort: function(splices) {
       var keys = this._orderedKeys;
       var pool = [];
+      // Remove & pool rows first, to ensure we can fully reuse removed rows
       splices.forEach(function(s) {
-        // Remove & pool rows first, to ensure we can fully reuse removed rows
         for (var i=0; i<s.removed.length; i++) {
           pool.push(this._detachRow(s.index + i));
         }
         this.rows.splice(s.index, s.removed.length);
       }, this);
       var c = this.collection;
-      var filterDelta = 0;
       splices.forEach(function(s) {
-        // Filter added keys
-        var addedKeys = s.added;
-        if (this._filterFn) {
-          addedKeys = addedKeys.filter(function(a) {
-            return this._filterFn(c.getItem(a));
-          }, this);
-          filterDelta += (s.added.length - addedKeys.length);
-        }
-        var idx = s.index - filterDelta;
         // Apply splices to keys
-        var args = [idx, s.removed.length].concat(addedKeys);
+        var args = [s.index, s.removed.length].concat(s.added);
         keys.splice.apply(keys, args);
         // Insert new rows (from pool or newly created)
-        var addedRows = [];
         for (var i=0; i<s.added.length; i++) {
-          addedRows.push(this._insertRow(idx + i, pool));
+          var item = c.getItem(s.added[i]);
+          var row = this._insertRow(s.index + i, pool, item);
+          this.rows.splice(s.index + i, 0, row);
         }
-        args = [s.index, 0].concat(addedRows);
-        this.rows.splice.apply(this.rows, args);
       }, this);
     },
 
