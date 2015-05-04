@@ -1,0 +1,184 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="style-transformer.html">
+
+<script>
+
+  Polymer.StyleProperties = (function() {
+
+    var nativeShadow = Polymer.Settings.useNativeShadow;
+
+    return {
+
+      // decorate rules with property info: whether it produces or consumes them
+      decorateRules: function(rules) {
+        if (rules.properties) {
+          return;
+        }
+        var pp = {};
+        var self = this;
+        Polymer.StyleUtil.forEachStyleRule(rules, function(rule) {
+          var p = self.decorateRule(rule);
+          pp.consumes = pp.consumes || p.consumes;
+          pp.produces = pp.produces || p.produces;
+        });
+        rules.properties = pp;
+      },
+
+      // decorate a single rule with property info
+      decorateRule: function(rule) {
+        if (rule.properties) {
+          return;
+        }
+        var cssText = rule.parsedCssText;
+        var rx = this.rx;
+        // NOTE: we support consumption inside mixin assignment
+        // but not production, so strip out {...}
+        var cleanCss = cssText.replace(rx.BRACKETED, '');
+        var p = rule.properties = {
+          produces: cssText.match(rx.VAR_ASSIGN),
+          consumes: cleanCss.match(rx.VAR_USE) || cleanCss.match(rx.MIXIN_USE)
+        };
+        // TODO(sorvell): workaround parser seeing mixins as additional rules
+        if (p.produces) {
+          rule.rules = null;
+        }
+        return p;
+      },
+
+      // collects the custom properties from a rule's cssText
+      collect: function(rule, properties) {
+        if (rule.properties.produces) {
+          var m, rx = this.rx.VAR_ASSIGN;
+          // cssText may be modified but in this case
+          // raw version is saved for processing
+          var cssText = rule.parsedCssText;
+          while (m = rx.exec(cssText)) {
+            // note: group 2 is var, 3 is mixin
+            properties[m[1]] = (m[2] || m[3]).trim();
+          }
+        }
+      },
+
+      // turns custom properties into realized values.
+      reify: function(props) {
+        for (var i in props) {
+          props[i] = this.valueForProperty(props[i], props);
+        }
+      },
+
+      // given a property value, returns the reified value
+      // a property value may be:
+      // (1) a literal value like: red or 5px;
+      // (2) a variable value like: var(--a), var(--a, red), or var(--a, --b);
+      // (3) a literal mixin value like { properties }. Each of these properties
+      // can have values that are: (a) literal, (b) variables, (c) @apply mixins.
+      valueForProperty: function(property, props) {
+        // case (1) default
+        // case (3) defines a mixin and we have to reify the internals
+        if (property && property.indexOf(';') >=0) {
+          property = this.valueForMixin(property, props);
+        } else {
+          // case (2) variable
+          var m = property && property.match(this.rx.VAR_VALUE);
+          if (m) {
+            var value = m[1], def = m[2];
+            property = this.valueForProperty(props[value], props) ||
+              (props[def] ? this.valueForProperty(props[def], props) : def);
+          }
+        }
+        return property && property.trim();
+      },
+      
+      // note: we do not yet support mixin within mixin
+      valueForMixin: function(property, props) {
+        var parts = property.split(';');
+        for (var i=0, p, m; (i<parts.length) && (p=parts[i]); i++) {
+          m = p.match(this.rx.MIXIN_MATCH);
+          if (m) {
+            p = this.valueForProperty(props[m[1]], props);
+          } else {
+            var pp = p.split(':');
+            if (pp[1]) {
+              pp[1] = pp[1].trim();
+              pp[1] = this.valueForProperty(pp[1], props) || pp[1];
+            }
+            p = pp.join(': ');
+          }
+          parts[i] = (p && p.lastIndexOf(';') === p.length - 1) ? 
+            // strip trailing ;
+            p.slice(0, -1) :
+            p || '';
+        }
+        return parts.join(';');
+      },
+
+      // TODO(srovell): make this go away by pre-processing rules
+      // to contain specifically only the css that consumes properties 
+      // for use here.
+      //
+      // returns cssText with properties applied;
+      // if no properties apply, returns nothing
+      applyProperties: function(rule, props) {
+        var cssText = rule.parsedCssText;
+        var output = '';
+        // dynamically added sheets may not be decorated so ensure they are.
+        if (!rule.properties) {
+          this.decorateRule(rule);
+        }
+        if (rule.properties.consumes) {
+          var m, v;
+          // cssText including {...} will confuse this function so we lim it
+          cssText = cssText.replace(this.rx.BRACKETED, '');
+          // e.g. color: var(--color);
+          while (m = this.rx.VAR_USE.exec(cssText)) {
+            v = this.valueForProperty(m[2], props);
+            if (v) {
+              output += '\t' + m[1].trim() + ': ' + this.propertyToCss(v);
+            }
+          }
+          // e.g. @apply(--stuff);
+          while (m = this.rx.MIXIN_USE.exec(cssText)) {
+            v = m[1];
+            if (v) {
+              var parts = v.split(' ');
+              for (var i=0, p; i < parts.length; i++) {
+                p = props[parts[i].trim()];
+                if (p) {
+                  output += '\t' + this.propertyToCss(p);
+                }
+              }
+            }
+          }
+        }
+        rule.cssText = output;
+      },
+
+      propertyToCss: function(property) {
+        var p = property.trim();
+        p = p[p.length-1] === ';' ? p : p + ';';
+        return p + '\n';
+      },
+
+      rx: {
+        VAR_ASSIGN: /(?:^|;\s*)(--[^\:;]*?):\s*?(?:([^;{]*?)|{([^}]*)})(?=;)/gim,
+        VAR_VALUE: /^var\([\s]*([^,)]*)[\s]*,?[\s]*([^,)]*)[\s]*?\);?/,
+        VAR_USE: /(?:^|[;}\s])([^;{}]*?):[\s]*?(var\([^)]*?\))/gim,
+        MIXIN_USE: /@apply\(([^)]*)\);?/gim, 
+        MIXIN_MATCH: /@apply\(([^)]*)\);?/im, 
+        BRACKETED: /\{[^}]*\}/g
+      }
+    };
+
+
+  })();
+
+</script>

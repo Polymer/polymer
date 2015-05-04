@@ -55,14 +55,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // add selectors/cssText to node tree
   function parseCss(node, text) {
     var t = text.substring(node.start, node.end-1);
-    node.cssText = t.trim();
+    node.parsedCssText = node.cssText = t.trim();
     if (node.parent) {
       var ss = node.previous ? node.previous.end : node.parent.start;
       t = text.substring(ss, node.start-1);
       // TODO(sorvell): ad hoc; make selector include only after last ;
       // helps with mixin syntax
       t = t.substring(t.lastIndexOf(';')+1);
-      node.selector = t.trim();
+      node.parsedSelector = node.selector = t.trim();
     }
     var r$ = node.rules;
     if (r$) {
@@ -74,18 +74,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   // stringify parsed css.
-  function stringify(node, text) {
+  function stringify(node, preserveProperties, text) {
     text = text || '';
     // calc rule cssText
     var cssText = '';
     if (node.cssText || node.rules) {
       var r$ = node.rules;
-      if (r$ && !hasMixinRules(r$)) {
+      if (r$ && (preserveProperties || !hasMixinRules(r$))) {
         for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
-          cssText = stringify(r, cssText);
+          cssText = stringify(r, preserveProperties, cssText);
         }  
       } else {
-        cssText = removeCustomProps(node.cssText).trim();
+        cssText = preserveProperties ? node.cssText : 
+          removeCustomProps(node.cssText);  
+        cssText = cssText.trim();
         if (cssText) {
           cssText = '  ' + cssText + '\n';
         }
@@ -125,8 +127,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
     port: /@import[^;]*;/gim,
     customProp: /--[^;{]*?:[^{};]*?;/gim,
-    mixinProp: /--[^;{]*?:[^{;]*?{[^}]*?}/gim,
-    mixinApply: /@mixin[\s]*\([^)]*?\)[\s]*;/gim
+    mixinProp: /--[^;{]*?:[^{;]*?{[^}]*?};?/gim,
+    mixinApply: /@apply[\s]*\([^)]*?\)[\s]*;/gim
   };
 
   // exports 
