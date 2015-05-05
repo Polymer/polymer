@@ -8,115 +8,71 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="array-observe.html">
 <link rel="import" href="debounce.html">
 
 <script>
 
   Polymer._collections = new WeakMap();
 
-  Polymer.Collection = function(userArray, noObserve) {
+  Polymer.Collection = function(userArray) {
     Polymer._collections.set(userArray, this);
     this.userArray = userArray;
     this.store = userArray.slice();
-    this.callbacks = [];
-    this.debounce = null;
-    this.map = null;
-    this.added = [];
-    this.removed = [];
-    if (!noObserve) {
-      Polymer.ArrayObserve.observe(userArray, this.applySplices.bind(this));
-      this.initMap();
-    }
+    this.initMap();
   };
 
   Polymer.Collection.prototype = {
+
     constructor: Polymer.Collection,
 
     initMap: function() {
-      var map = this.map = new WeakMap();
+      var omap = this.omap = new WeakMap();
+      var pmap = this.pmap = {};
       var s = this.store;
-      var u = this.userArray;
       for (var i=0; i<s.length; i++) {
-        var v = s[i];
-        if (v) {
-          switch (typeof v) {
-            case 'string':
-              v = s[i] = u[i]= new String(v);
-              break;
-            case 'number':
-              v = s[i] = u[i]= new Number(v);
-              break;          
-            case 'boolean':
-              v = s[i] = u[i]= new Boolean(v);
-              break;          
-          }
-        map.set(v, i);
+        var item = s[i];
+        if (item && typeof item == 'object') {
+          omap.set(item, i);
+        } else {
+          pmap[item] = i;
         }
       }
     },
 
-    add: function(item, squelch) {
+    add: function(item) {
       var key = this.store.push(item) - 1;
-      if (item != null && this.map) {
-        this.map.set(item, key);
-      }
-      if (!squelch) {
-        this.added.push(key);
-        this.debounce = Polymer.Debounce(this.debounce, this.notify.bind(this));
+      if (item && typeof item == 'object') {
+        this.omap.set(item, key);
+      } else {
+        this.pmap[item] = key;
       }
       return key;
     },
 
     removeKey: function(key) {
-      if (this.map) {
-        this.map.delete(this.store[key]);
-      }
+      this._removeFromMap(this.store[key]);
       delete this.store[key];
-      this.removed.push(key);
-      this.debounce = Polymer.Debounce(this.debounce, this.notify.bind(this));
     },
 
-    remove: function(item, squelch) {
+    _removeFromMap: function(item) {
+      if (typeof item == 'object') {
+        this.omap.delete(item);
+      } else {
+        delete this.pmap[item];
+      }
+    },
+
+    remove: function(item) {
       var key = this.getKey(item);
-      if (item != null && this.map) {
-        this.map.delete(item);
-      }
-      delete this.store[key];
-      if (!squelch) {
-        this.removed.push(key);
-        this.debounce = Polymer.Debounce(this.debounce, this.notify.bind(this));
-      }
+      this.removeKey(key);
       return key;
     },
 
-    notify: function(splices) {
-      if (!splices) {
-        splices = [{
-          added: this.added,
-          removed: this.removed
-        }];
-        this.added = [];
-        this.removed = [];
-      }
-      this.callbacks.forEach(function(cb) {
-        cb(splices);
-      }, this);
-    },
-
-    observe: function(callback) {
-      this.callbacks.push(callback);
-    },
-
-    unobserve: function(callback) {
-      this.callbacks.splice(this.callbacks.indexOf(callback), 1);
-    },
-
     getKey: function(item) {
-      if (item != null && this.map) {
-        return this.map.get(item);
+      if (typeof item == 'object') {
+        return this.omap.get(item);
       } else {
-        return this.store.indexOf(item);      
+        return this.pmap[item];
       }
     },
 
@@ -141,7 +97,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     applySplices: function(splices) {
-      var map = this.map;
       var keySplices = [];
       for (var i=0; i<splices.length; i++) {
         var j, o, key, s = splices[i];
@@ -149,31 +104,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var removed = [];
         for (j=0; j<s.removed.length; j++) {
           o = s.removed[j];
-          key = this.remove(o, true);
+          key = this.remove(o);
           removed.push(key);
         }
         // Added keys
         var added = [];
         for (j=0; j<s.addedCount; j++) {
           o = this.userArray[s.index + j];
-          key = this.add(o, true);
+          key = this.add(o);
           added.push(key);
         }
         // Record splice
         keySplices.push({
           index: s.index,
           removed: removed,
+          removedItems: s.removed,
           added: added
         });
       }
-      this.notify(keySplices);
+      return keySplices;
     }
 
   };
 
-  Polymer.Collection.get = function(userArray, noObserve) {
-    return Polymer._collections.get(userArray) 
-      || new Polymer.Collection(userArray, noObserve);
+  Polymer.Collection.get = function(userArray) {
+    return Polymer._collections.get(userArray)
+      || new Polymer.Collection(userArray);
   };
 
 </script>

@@ -49,7 +49,7 @@ Below is a description of the current Polymer features, followed by individual f
 | [Annotated property binding](#property-binding) | \<element prop=”{{property\|path}}”>
 | [Property change notification](#property-notification) | properties: { \<prop>: { notify: true } }
 | [Binding to structured data](#path-binding) | \<element prop=”{{obj.sub.path}}”>
-| [Path change notification](#set-path) | setPathValue(\<path>, \<value>)
+| [Path change notification](#set-path) | set(\<path>, \<value>)
 | [Declarative attribute binding](#attribute-binding) | \<element attr$=”{{property\|path}}”>
 | [Binding to native element attributes](#native-binding) | class$="{{...}}", style$="{{...}}">
 | [Reflecting properties to attributes](#attribute-reflection) | properties: \<prop>: { reflectToAttribute: true } }
@@ -380,11 +380,11 @@ HighlightBehavior = {
       observer: '_highlightChanged'
     }
   },
-  
+
   listeners: {
     click: '_toggleHighlight'
   },
-  
+
   created: function() {
     console.log('Highlighting for ', this, + 'enabled!');
   },
@@ -392,7 +392,7 @@ HighlightBehavior = {
   _toggleHighlight: function() {
     this.isHighlighted = !this.isHighlighted;
   },
-  
+
   _highlightChanged: function(value) {
     this.toggleClass('highlighted', value);
   }
@@ -456,7 +456,7 @@ Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutori
 ```html
 
 <dom-module id="my-element">
-  
+
   <style>
     :host {
       display: block;
@@ -472,12 +472,12 @@ Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutori
       background: orange;
     }
   </style>
-  
+
   <template>
     <div id="child-element">In local Dom!</div>
     <div class="content-wrapper"><content></content></div>
   </template>
-  
+
 </dom-module>
 
 <script>
@@ -600,20 +600,20 @@ Example:
 Polymer({
 
   is: 'x-custom',
-   
+
   properties: {
-  
+
     mode: {
       type: String,
       value: 'auto'
     },
-    
+
     data: {
       type: Object,
       notify: true,
       value: function() { return {}; }
     }
-  
+
   }
 
 });
@@ -825,7 +825,7 @@ Polymer({
 });
 ```
 
-*Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPathValue`](#set-path) API, which provides the required notification to elements with registered interest.*
+*Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`set`](#set-path) API, which provides the required notification to elements with registered interest.*
 
 ### Deep path observation
 
@@ -1112,9 +1112,9 @@ Example:
 </template>
 ```
 
-As with change handlers for paths, bindings to paths (object sub-properties) are dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`setPathValue`](#set-path) API, which provides the required notification to elements with registered interest, as discussed below.
+As with change handlers for paths, bindings to paths (object sub-properties) are dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`set`](#set-path) API, which provides the required notification to elements with registered interest, as discussed below.
 
-Note that path bindings are distinct from property bindings in a subtle way: when a property's value changes, an assignment must occur for the value to propagate to the property on the element at the other side of the binding.  However, if two elements are bound to the same path of a shared object and the value at that path changes (via a property binding or via `setPathValue`), the value seen by both elements actually changes with no additional assignment necessary, by virtue of it being a property on a shared object reference.  In this case, the element who changed the path must notify the system so that other elements who have registered interest in the same path may take side effects.  However, there is no concept of one-way binding in this case, since there is no concept of propagation.  That is, all bindings and change handlers for the same path will always be notified and update when the value of the path changes.
+Note that path bindings are distinct from property bindings in a subtle way: when a property's value changes, an assignment must occur for the value to propagate to the property on the element at the other side of the binding.  However, if two elements are bound to the same path of a shared object and the value at that path changes (via a property binding or via `set`), the value seen by both elements actually changes with no additional assignment necessary, by virtue of it being a property on a shared object reference.  In this case, the element who changed the path must notify the system so that other elements who have registered interest in the same path may take side effects.  However, there is no concept of one-way binding in this case, since there is no concept of propagation.  That is, all bindings and change handlers for the same path will always be notified and update when the value of the path changes.
 
 <a name="set-path"></a>
 ### Path change notification
@@ -1123,7 +1123,7 @@ Two-way data-binding and observation of paths in Polymer is achieved using a sim
 
 This system "just works" to the extent that changes to object sub-properties occur as a result of being bound to a notifying custom element property that changed.  However, sometimes imperative code needs to "poke" at an object's sub-properties directly.  As we avoid more sophisticated observation mechanisms such as Object.observe or dirty-checking in order to achieve the best startup and runtime performance cross-platform for the most common use cases, changing an object's sub-properties directly requires cooperation from the user.
 
-Specifically, Polymer provides two API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `setPathValue(path, value)`.
+Specifically, Polymer provides two API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `set(path, value)`.
 
 Example:
 
@@ -1149,11 +1149,11 @@ Example:
 </script>
 ```
 
-Since in the majority of cases, notifyPath will be called directly after an assignment, a convenience function `setPathValue` is provided that performs both actions:
+Since in the majority of cases, notifyPath will be called directly after an assignment, a convenience function `set` is provided that performs both actions:
 
 ```js
 reassignManager: function(newManager) {
-  this.setPathValue('user.manager', newManager);
+  this.set('user.manager', newManager);
 }
 ```
 
@@ -1297,7 +1297,7 @@ Polymer supports virtual properties whose values are calculated from other prope
         // when `first` or `last` changes `computeFullName` is called once
         // (asynchronously) and the value it returns is stored as `fullName`
         computed: 'computeFullName(first, last)'
-      } 
+      }
 
     },
 
@@ -1341,7 +1341,7 @@ Example:
       first: String,
 
       last: String
-      
+
     },
 
     computeFullName: function(first, last) {
@@ -1415,7 +1415,7 @@ Document-level global Polymer settings can be set before loading by setting a `P
 <body>
 
   ...
-    
+
 ```
 
 Settings can also be switched on the URL query string:
@@ -1465,7 +1465,7 @@ Elements in a template can be automatically repeated and bound to array items us
   </script>
 
 </dom-module>
-``` 
+```
 
 Notifications for changes to items sub-properties will be forwarded to template instances, which will update via the normal [structured data notification system](#path-binding).
 
@@ -1486,7 +1486,7 @@ isEngineer: function(item) {
 Then the `observe` property should be configured as follows:
 
 ```html
-<template is="x-repeat" items="{{employees}}" 
+<template is="x-repeat" items="{{employees}}"
           filter="isEngineer" observe="type manager.type">
 ```
 
@@ -1509,15 +1509,15 @@ Keeping structured data in sync requires that Polymer understand the path associ
         <div>Last name: <span>{{item.last}}</span></div>
         <button on-click="toggleSelection">Select</button>
     </template>
-    
+
     <x-array-selector id="selector" items="{{employees}}" selected="{{selected}}" multi toggle></x-array-selector>
-    
+
     <div> Selected employees: </div>
     <template is="x-repeat" items="{{selected}}">
         <div>First name: <span>{{item.first}}</span></div>
         <div>Last name: <span>{{item.last}}</span></div>
     </template>
-    
+
   </template>
 
   <script>
@@ -1538,7 +1538,7 @@ Keeping structured data in sync requires that Polymer understand the path associ
   </script>
 
 </dom-module>
-``` 
+```
 
 <a name="x-if"></a>
 ## Conditional template
@@ -1568,7 +1568,7 @@ Example:
     </template>
 
   </template>
-  
+
   <script>
     Polymer({
       is: 'user-page',
@@ -1577,7 +1577,7 @@ Example:
       }
     });
   </script>
-  
+
 </dom-module>
 ```
 
@@ -1610,13 +1610,13 @@ In order to use Polymer bindings without defining a new custom element, you may 
   <!-- Wrap elements in with auto-binding template to -->
   <!-- allow use of Polymer bindings main document -->
   <template is="x-autobind">
-    
+
     <core-ajax url="http://..." lastresponse="{{data}}"></core-ajax>
-    
+
     <template is="x-repeat" items="{{data}}">
         <div><span>{{item.first}}</span> <span>{{item.last}}</span></div>
     </template>
-    
+
   </template>
 
 </body>
@@ -1633,7 +1633,7 @@ Shadow DOM (and its approximation via Shady DOM) bring much needed benefits of s
 
 This is great for *protecting* scopes from unwanted style leakage.  But what about when you intentionally want to *customize* the style of a custom element's local DOM, as the user of an element?  This often comes up under the umbrella of "theming".  For example a "custom-checkbox" element that may interally use a `.checked` class can protect itself from being affected by CSS from other components that may also happen to use a `.checked` class.  However, as the user of the checkbox you may wish to intentionally change the color of the check to match your product's branding, for example.  The "protection" that Shadow DOM provides at the same time introduces a practical barrier to "theming" use cases.
 
-One solution the Shadow DOM spec authors provided to address the theming problem are the `/deep/` and `::shadow` combinators, which allow writing rules that pierce through the Shadow DOM encapsulation boundary.  Although Polymer 0.5 promoted this mechanism for theming, it was ultimately unsatisfying for several reasons: 
+One solution the Shadow DOM spec authors provided to address the theming problem are the `/deep/` and `::shadow` combinators, which allow writing rules that pierce through the Shadow DOM encapsulation boundary.  Although Polymer 0.5 promoted this mechanism for theming, it was ultimately unsatisfying for several reasons:
 
 * Using `/deep/` and `::shadow` for theming leaks details of an otherwise encapsulated element to the user, leading to brittle selectors piercing into the internal details of an element's Shadow DOM that are prone to breakage when the internal implementation changes.  As a result, the structure of of an element's Shadow DOM inadvertently becomes API surface subject to breakage, diminishing the practical effectiveness of Shadow DOM as an encapsulation primitive.
 * Although Shadow DOM's style encapsulation *improves* the predictability of style recalc performance since the side effects of a style change are limited to a small subset of the document, using `/deep/` and `::shadow` re-open the style invalidation area and reduce Shadow DOM's effectiveness as a performance primitive.
@@ -1664,11 +1664,11 @@ Example:
       color: var(--my-toolbar-title-color);
     }
   </style>
-  
+
   <template>
     <span class="title">{{title}}</span>
   </template>
-  
+
   <script>
     Polymer({
       is: 'my-toolbar',
@@ -1701,14 +1701,14 @@ Example usage of `my-toolbar`:
     }
 
   </style>
-  
+
   <template>
-  
+
     <my-toolbar title="This one is green."></my-toolbar>
     <my-toolbar title="This one is green too."></my-toolbar>
 
     <my-toolbar class="warning" title="This one is red."></my-toolbar>
-  
+
   </template>
 
 </dom-module>
@@ -1735,13 +1735,13 @@ Example:
       mixin(--my-toolbar-title-theme);
     }
   </style>
-  
+
   <template>
     <span class="title">{{title}}</span>
   </template>
-  
+
   ...
-  
+
 </dom-module>
 ```
 
@@ -1773,14 +1773,14 @@ Example usage of `my-toolbar`:
     }
 
   </style>
-  
+
   <template>
-  
+
     <my-toolbar title="This one is green."></my-toolbar>
     <my-toolbar title="This one is green too."></my-toolbar>
 
     <my-toolbar class="warning" title="This one is red."></my-toolbar>
-  
+
   </template>
 
 </dom-module>
@@ -1790,7 +1790,7 @@ Example usage of `my-toolbar`:
 
 Experimental cross-platform support for custom properties is provided in Polymer by a Javascript library that approximates the capabilities of the CSS Variables specification  *for the specific use case of theming custom elements*, while also extending it to add the mixin capability described above.  **It is important to note that this is not a full polyfill**, as doing so would be prohibitively expensive; rather this is a shim that is inspired by that specification and trades off aspects of the full dynamism possible in CSS with practicality and performance.
 
-Below are current limitations of this experimental system.  Improvements to performance and dynamism will continue to be explored. 
+Below are current limitations of this experimental system.  Improvements to performance and dynamism will continue to be explored.
 
 * As this feature is still experimental, custom properties are not currently applied to elements by default.  To enable *usage* of custom properties, set an `enableCustomStyleProperties: true` property on the Polymer element prototype.
 
@@ -1801,7 +1801,7 @@ Below are current limitations of this experimental system.  Improvements to perf
       <x-foo class="a"></x-foo>
     </div>
     ```
-    
+
     ```css
     /* applies */
     x-foo.a {
@@ -1818,7 +1818,7 @@ Below are current limitations of this experimental system.  Improvements to perf
     ```
 * Re-evaluation of custom property styles does not currently occur as a result of changes to the DOM.  Re-evaluation can be forced by calling `this.updateStyles()` on a Polymer element.  For example, if class `b` was added to `x-foo` above, the scope must call `this.updateStyles()` to apply the styling. This re-calcs/applies styles down the tree from this point.
 
-* Dynamic effects are reflected at the point of a variable’s application, but not its definition.  
+* Dynamic effects are reflected at the point of a variable’s application, but not its definition.
 
     For the following example, adding/removing the `highlighted` class on the `#title` element will have the desired effect, since the dynamism is related to *application* of a custom property.
 
@@ -1831,9 +1831,9 @@ Below are current limitations of this experimental system.  Improvements to perf
       background-color: var(--title-background-highlighted);
     }
     ```
-    
+
     However, the shim does not currently support dynamism at the point of *definition* of a custom property.  In the following example, `this.updateStyles()` would be required to update the value of `--title-background` being applied to `#title` when the `highlighted` class was added or removed.
-    
+
     ```css
     #title {
       --title-background: gray;
@@ -1864,22 +1864,22 @@ Example:
   <link rel="import" href="components/polymer/polymer.html">
 
   <style is="x-style">
-    
+
     /* Will be prevented from affecting local DOM of Polymer elements */
     * {
       box-sizing: border-box;
     }
-    
+
     /* Can use /deep/ and ::shadow combinators */
     body /deep/ .my-special-view::shadow #thing-inside {
       background: yellow;
     }
-    
+
     /* Custom properties that inherit down the document tree may be defined */
     * {
       --my-toolbar-title-color: green;
     }
-    
+
   </style>
 
 </head>
@@ -1908,11 +1908,11 @@ Example:
 
   <!-- special import with type=css used to load remote CSS -->
   <link rel="import" type="css" href="my-awesome-button.css">
-  
+
   <template>
     ...
   </template>
-  
+
   <script>
     Polymer({
       is: 'my-awesome-button',
@@ -1974,19 +1974,19 @@ Current limitations that are on the backlog for evaluation/improvement are liste
 
 * Sub-textContent/property binding
     * You cannot currrently do any of the following:
-    
+
       ```html
       <div> stuff here: {{stuff}}</div>
       <div class$="{{thing}} {{another}}"></div>
       <x-custom prop="{{thing}} {{another}}"></x-custom>
       ```
-    
+
     * Instead, use `<span>`'s to break up textContent into discrete elements:
 
       ```html
       <div> stuff here: <span>{{stuff}}</span></div>
       ```
-      
+
     * Use computed properties for concatenating into properties/attributes:
 
       ```html
@@ -2005,10 +2005,10 @@ Current limitations that are on the backlog for evaluation/improvement are liste
 
 ## Structured data and path notification
 
-To notify non-bound structured data changes, use `setPathValue` and `notifyPath`:
+To notify non-bound structured data changes, use `set` and `notifyPath`:
 
 ```js
-this.setPathValue('user.manager', 'Matt');
+this.set('user.manager', 'Matt');
 ```
 
 Which is equivalent to:

@@ -18,13 +18,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 </head>
 <body>
 
+  <h4>x-nested-repeat-configured</h4>
   <x-nested-repeat-configured id="configured"></x-nested-repeat-configured>
 
   <template is="x-autobind" id="unconfigured">
+    <h4>x-nested-repeat unconfigured1</h4>
     <x-nested-repeat id="unconfigured1" items="{{items}}"></x-nested-repeat>
+    <h4>x-nested-repeat unconfigured2</h4>
     <x-nested-repeat id="unconfigured2" items="{{items}}"></x-nested-repeat>
   </template>
 
+  <h4>inDocumentRepeater</h4>
   <div id="inDocumentContainer">
     <template id="inDocumentRepeater" is="x-repeat">
       <x-foo prop="{{prop}}"
@@ -117,7 +121,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(stamped[1].parentParentProp, 'yes');
         assert.equal(stamped[2].parentParentParentProp, 'yes');
         assert.equal(stamped[38].parentParentParentProp, 'yes');
-        configured.setPathValue('item.prop', 'yay');
+        configured.set('item.prop', 'yay');
         assert.equal(stamped[0].parentItemProp, 'yay');
         assert.equal(stamped[1].parentParentItemProp, 'yay');
         assert.equal(stamped[2].parentParentParentItemProp, 'yay');
@@ -356,7 +360,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(stamped[1].parentParentProp, 'yes');
         assert.equal(stamped[2].parentParentParentProp, 'yes');
         assert.equal(stamped[38].parentParentParentProp, 'yes');
-        unconfigured1.setPathValue('item.prop', 'yay');
+        unconfigured1.set('item.prop', 'yay');
         assert.equal(stamped[0].parentItemProp, 'yay');
         assert.equal(stamped[1].parentParentItemProp, 'yay');
         assert.equal(stamped[2].parentParentParentItemProp, 'yay');
@@ -410,29 +414,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(stamped2[0].itemProp, 'prop-1');
         stamped1[0].$.bar.itemProp = 'changed';
         assert.equal(stamped2[0].itemProp, 'changed');
-        stamped2[0].$.bar.itemProp = 'back';
-        assert.equal(stamped1[0].itemProp, 'back');
+        stamped2[0].$.bar.itemProp = 'prop-1';
+        assert.equal(stamped1[0].itemProp, 'prop-1');
 
         assert.equal(stamped1[1].itemProp, 'prop-1-1');
         assert.equal(stamped2[1].itemProp, 'prop-1-1');
         stamped1[1].$.bar.itemProp = 'changed';
         assert.equal(stamped2[1].itemProp, 'changed');
-        stamped2[1].$.bar.itemProp = 'back';
-        assert.equal(stamped1[1].itemProp, 'back');
+        stamped2[1].$.bar.itemProp = 'prop-1-1';
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
 
         assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
         assert.equal(stamped2[2].itemProp, 'prop-1-1-1');
         stamped1[2].$.bar.itemProp = 'changed';
         assert.equal(stamped2[2].itemProp, 'changed');
-        stamped2[2].$.bar.itemProp = 'back';
-        assert.equal(stamped1[2].itemProp, 'back');
+        stamped2[2].$.bar.itemProp = 'prop-1-1-1';
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
 
         assert.equal(stamped1[38].itemProp, 'prop-3-3-3');
         assert.equal(stamped2[38].itemProp, 'prop-3-3-3');
         stamped1[38].$.bar.itemProp = 'changed';
         assert.equal(stamped2[38].itemProp, 'changed');
-        stamped2[38].$.bar.itemProp = 'back';
-        assert.equal(stamped1[38].itemProp, 'back');
+        stamped2[38].$.bar.itemProp = 'prop-3-3-3';
+        assert.equal(stamped1[38].itemProp, 'prop-3-3-3');
       });
 
       test('change to non-item scope doesn\'t affect other x-repeat', function() {
@@ -449,6 +453,989 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(stamped2[2].parentParentParentProp, 'bar');
 
         stamped1[1].$.bar.prop = 'bar';
+      });
+
+    });
+
+    suite('reacting to changes, array sort', function() {
+
+      var removed;
+
+      test('push', function() {
+        unconfigured.push('items', {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[38].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[39].itemProp, 'new-1');
+        assert.equal(stamped1[40].itemProp, 'new-2');
+        assert.equal(stamped1[41], undefined);
+        assert.equal(stamped2[38].itemProp, 'prop-3-3-3');
+        assert.equal(stamped2[39].itemProp, 'new-1');
+        assert.equal(stamped2[40].itemProp, 'new-2');
+        assert.equal(stamped2[41], undefined);
+      });
+
+      test('undo: push (using splice)', function() {
+        unconfigured.splice('items', 3, 2);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[38].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[39], undefined);
+        assert.equal(stamped2[38].itemProp, 'prop-3-3-3');
+        assert.equal(stamped2[39], undefined);
+      });
+
+      test('pop', function() {
+        removed = unconfigured.pop('items');
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[25].itemProp, 'prop-2-3-3');
+        assert.equal(stamped1[26], undefined);
+        assert.equal(stamped2[25].itemProp, 'prop-2-3-3');
+        assert.equal(stamped2[26], undefined);
+      });
+
+      test('undo: pop (using splice)', function() {
+        unconfigured.splice('items', 2, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[38].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[39], undefined);
+        assert.equal(stamped2[38].itemProp, 'prop-3-3-3');
+        assert.equal(stamped2[39], undefined);
+      });
+
+      test('unshift', function() {
+        unconfigured.unshift('items', {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'new-1');
+        assert.equal(stamped1[1].itemProp, 'new-2');
+        assert.equal(stamped1[2].itemProp, 'prop-1');
+        assert.equal(stamped2[0].itemProp, 'new-1');
+        assert.equal(stamped2[1].itemProp, 'new-2');
+        assert.equal(stamped2[2].itemProp, 'prop-1');
+      });
+
+      test('undo: unshift (using splice)', function() {
+        unconfigured.splice('items', 0, 2);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped2[0].itemProp, 'prop-1');
+        assert.equal(stamped2[1].itemProp, 'prop-1-1');
+      });
+
+      test('shift', function() {
+        removed = unconfigured.shift('items');
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-2');
+        assert.equal(stamped1[1].itemProp, 'prop-2-1');
+        assert.equal(stamped1[2].itemProp, 'prop-2-1-1');
+        assert.equal(stamped2[0].itemProp, 'prop-2');
+        assert.equal(stamped2[1].itemProp, 'prop-2-1');
+        assert.equal(stamped2[2].itemProp, 'prop-2-1-1');
+      });
+
+      test('undo: shift (using splice)', function() {
+        unconfigured.splice('items', 0, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped2[0].itemProp, 'prop-1');
+        assert.equal(stamped2[1].itemProp, 'prop-1-1');
+        assert.equal(stamped2[2].itemProp, 'prop-1-1-1');
+      });
+
+      test('splice - remove from middle', function() {
+        removed = unconfigured.splice('items', 1, 1)[0];
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'prop-3');
+        assert.equal(stamped1[14].itemProp, 'prop-3-1');
+        assert.equal(stamped1[15].itemProp, 'prop-3-1-1');
+        assert.equal(stamped2[0].itemProp, 'prop-1');
+        assert.equal(stamped2[1].itemProp, 'prop-1-1');
+        assert.equal(stamped2[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped2[13].itemProp, 'prop-3');
+        assert.equal(stamped2[14].itemProp, 'prop-3-1');
+        assert.equal(stamped2[15].itemProp, 'prop-3-1-1');
+      });
+
+      test('undo: splice - remove from middle (using splice)', function() {
+        unconfigured.splice('items', 1, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'prop-2');
+        assert.equal(stamped1[14].itemProp, 'prop-2-1');
+        assert.equal(stamped1[15].itemProp, 'prop-2-1-1');
+        assert.equal(stamped2[0].itemProp, 'prop-1');
+        assert.equal(stamped2[1].itemProp, 'prop-1-1');
+        assert.equal(stamped2[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped2[13].itemProp, 'prop-2');
+        assert.equal(stamped2[14].itemProp, 'prop-2-1');
+        assert.equal(stamped2[15].itemProp, 'prop-2-1-1');
+      });
+
+      test('splice - add to middle', function() {
+        unconfigured.splice('items', 1, 0, {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'new-1');
+        assert.equal(stamped1[14].itemProp, 'new-2');
+        assert.equal(stamped1[15].itemProp, 'prop-2');
+        assert.equal(stamped1[16].itemProp, 'prop-2-1');
+        assert.equal(stamped1[17].itemProp, 'prop-2-1-1');
+        assert.equal(stamped2[0].itemProp, 'prop-1');
+        assert.equal(stamped2[1].itemProp, 'prop-1-1');
+        assert.equal(stamped2[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped2[13].itemProp, 'new-1');
+        assert.equal(stamped2[14].itemProp, 'new-2');
+        assert.equal(stamped2[15].itemProp, 'prop-2');
+        assert.equal(stamped2[16].itemProp, 'prop-2-1');
+        assert.equal(stamped2[17].itemProp, 'prop-2-1-1');
+      });
+
+      test('undo: splice - add to middle (using splice)', function() {
+        unconfigured.splice('items', 1, 2);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'prop-2');
+        assert.equal(stamped1[14].itemProp, 'prop-2-1');
+        assert.equal(stamped1[15].itemProp, 'prop-2-1-1');
+        assert.equal(stamped2[0].itemProp, 'prop-1');
+        assert.equal(stamped2[1].itemProp, 'prop-1-1');
+        assert.equal(stamped2[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped2[13].itemProp, 'prop-2');
+        assert.equal(stamped2[14].itemProp, 'prop-2-1');
+        assert.equal(stamped2[15].itemProp, 'prop-2-1-1');
+      });
+
+      test('splice - replace in middle', function() {
+        removed = unconfigured.splice('items', 1, 2, {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 2 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'new-1');
+        assert.equal(stamped1[14].itemProp, 'new-2');
+        assert.equal(stamped1[15], undefined);
+        assert.equal(stamped2[0].itemProp, 'prop-1');
+        assert.equal(stamped2[1].itemProp, 'prop-1-1');
+        assert.equal(stamped2[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped2[13].itemProp, 'new-1');
+        assert.equal(stamped2[14].itemProp, 'new-2');
+        assert.equal(stamped2[15], undefined);
+      });
+
+      test('undo: splice - replace in middle (using splice)', function() {
+        unconfigured.splice('items', 1, 2, removed[0], removed[1]);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        var stamped2 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'prop-2');
+        assert.equal(stamped1[14].itemProp, 'prop-2-1');
+        assert.equal(stamped1[15].itemProp, 'prop-2-1-1');
+        assert.equal(stamped2[0].itemProp, 'prop-1');
+        assert.equal(stamped2[1].itemProp, 'prop-1-1');
+        assert.equal(stamped2[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped2[13].itemProp, 'prop-2');
+        assert.equal(stamped2[14].itemProp, 'prop-2-1');
+        assert.equal(stamped2[15].itemProp, 'prop-2-1-1');
+      });
+
+    });
+
+    suite('reacting to changes, array sort with filter', function() {
+
+      var removed;
+
+      test('push', function() {
+        unconfigured1.$.repeater.filter = function(o) {
+          return o.prop.indexOf('2') < 0;
+        };
+        unconfigured.push('items', {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 1 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26].itemProp, 'new-1');
+        assert.equal(stamped1[27], undefined);
+      });
+
+      test('undo: push (using splice)', function() {
+        unconfigured.splice('items', 3, 2);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('pop', function() {
+        removed = unconfigured.pop('items');
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[10].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[11].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[12].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[13], undefined);
+      });
+
+      test('undo: pop (using splice)', function() {
+        unconfigured.splice('items', 2, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('unshift', function() {
+        unconfigured.unshift('items', {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 1 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'new-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1');
+        assert.equal(stamped1[3].itemProp, 'prop-1-1-1');
+      });
+
+      test('undo: unshift (using splice)', function() {
+        unconfigured.splice('items', 0, 2);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('shift', function() {
+        removed = unconfigured.shift('items');
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[10].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[11].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[12].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[13], undefined);
+      });
+
+      test('undo: shift (using splice)', function() {
+        unconfigured.splice('items', 0, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('splice - remove from middle', function() {
+        removed = unconfigured.splice('items', 1, 1)[0];
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('undo: splice - remove from middle (using splice)', function() {
+        unconfigured.splice('items', 1, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('splice - add to middle', function() {
+        unconfigured.splice('items', 1, 0, {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 1 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'new-1');
+        assert.equal(stamped1[14].itemProp, 'prop-3');
+        assert.equal(stamped1[15].itemProp, 'prop-3-1');
+        assert.equal(stamped1[16].itemProp, 'prop-3-1-1');
+      });
+
+      test('undo: splice - add to middle (using splice)', function() {
+        unconfigured.splice('items', 1, 2);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('splice - replace in middle', function() {
+        removed = unconfigured.splice('items', 1, 2, {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 1 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'new-1');
+        assert.equal(stamped1[14], undefined);
+      });
+
+      test('undo: splice - replace in middle (using splice)', function() {
+        unconfigured.splice('items', 1, 2, removed[0], removed[1]);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-3-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-3-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+    });
+
+    suite('reacting to changes, view sort', function() {
+
+      var removed, a, m, z;
+
+      test('push', function() {
+        unconfigured1.$.repeater.filter = null;
+        unconfigured1.$.repeater.sort = function(a, b) {
+          return b.prop == a.prop ? 0 : b.prop < a.prop ? -1 : 1;
+        };
+        unconfigured.push('items', a={prop: 'a'}, m={prop: 'prop-1*'}, z={prop: 'z'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'z');
+        assert.equal(stamped1[1].itemProp, 'prop-3');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1');
+        assert.equal(stamped1[3].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[27].itemProp, 'prop-1*');
+        assert.equal(stamped1[40].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[41].itemProp, 'a');
+      });
+
+      test('undo: push (using arrayDelete)', function() {
+        unconfigured.arrayDelete('items', a);
+        unconfigured.arrayDelete('items', m);
+        unconfigured.arrayDelete('items', z);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[36].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[37].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[38].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[39], undefined);
+      });
+
+      test('pop', function() {
+        removed = unconfigured.pop('items');
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('undo: pop (using splice)', function() {
+        unconfigured.splice('items', 2, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[36].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[37].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[38].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[39], undefined);
+      });
+
+      test('unshift', function() {
+        unconfigured.unshift('items', a={prop: 'a'}, m={prop: 'prop-1*'}, z={prop: 'z'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'z');
+        assert.equal(stamped1[1].itemProp, 'prop-3');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1');
+        assert.equal(stamped1[3].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[27].itemProp, 'prop-1*');
+        assert.equal(stamped1[40].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[41].itemProp, 'a');
+      });
+
+      test('undo: unshift (using arrayDelete)', function() {
+        unconfigured.arrayDelete('items', a);
+        unconfigured.arrayDelete('items', m);
+        unconfigured.arrayDelete('items', z);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[36].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[37].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[38].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[39], undefined);
+      });
+
+      test('shift', function() {
+        removed = unconfigured.shift('items');
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-2-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-2-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-2-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('undo: shift (using splice)', function() {
+        unconfigured.splice('items', 0, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[36].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[37].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[38].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[39], undefined);
+      });
+
+      test('splice - remove from middle', function() {
+        removed = unconfigured.splice('items', 1, 1)[0];
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[13].itemProp, 'prop-1');
+        assert.equal(stamped1[14].itemProp, 'prop-1-1');
+        assert.equal(stamped1[15].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('undo: splice - remove from middle (using splice)', function() {
+        unconfigured.splice('items', 1, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[13].itemProp, 'prop-2');
+        assert.equal(stamped1[14].itemProp, 'prop-2-1');
+        assert.equal(stamped1[15].itemProp, 'prop-2-1-1');
+        assert.equal(stamped1[36].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[37].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[38].itemProp, 'prop-1-3-3');
+      });
+
+      test('splice - add to middle', function() {
+        unconfigured.splice('items', 1, 0, a={prop: 'a'}, m={prop: 'prop-1*'}, z={prop: 'z'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'z');
+        assert.equal(stamped1[1].itemProp, 'prop-3');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1');
+        assert.equal(stamped1[3].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[27].itemProp, 'prop-1*');
+        assert.equal(stamped1[40].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[41].itemProp, 'a');
+      });
+
+      test('undo: splice - add to middle (using arrayDelete)', function() {
+        unconfigured.arrayDelete('items', a);
+        unconfigured.arrayDelete('items', m);
+        unconfigured.arrayDelete('items', z);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[36].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[37].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[38].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[39], undefined);
+      });
+
+      test('splice - replace in middle', function() {
+        removed = unconfigured.splice('items', 1, 2, a={prop: 'a'}, m={prop: 'prop-1*'}, z={prop: 'z'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'z');
+        assert.equal(stamped1[1].itemProp, 'prop-1*');
+        assert.equal(stamped1[2].itemProp, 'prop-1');
+        assert.equal(stamped1[3].itemProp, 'prop-1-1');
+        assert.equal(stamped1[4].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[15].itemProp, 'a');
+        assert.equal(stamped1[16], undefined);
+      });
+
+      test('undo: splice - replace in middle (using splice)', function() {
+        unconfigured.arrayDelete('items', a);
+        unconfigured.arrayDelete('items', m);
+        unconfigured.arrayDelete('items', z);
+        unconfigured.splice('items', 1, 2, removed[0], removed[1]);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[36].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[37].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[38].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[39], undefined);
+      });
+
+    });
+
+    suite('reacting to changes, view sort with filter', function() {
+
+      var removed, a, m, z;
+
+      test('push', function() {
+        unconfigured1.$.repeater.sort = function(a, b) {
+          return b.prop == a.prop ? 0 : b.prop < a.prop ? -1 : 1;
+        };
+        unconfigured1.$.repeater.filter = function(o) {
+          return o.prop.indexOf('2') < 0;
+        };
+        unconfigured.push('items', a={prop: 'a'}, m={prop: 'item*2'}, z={prop: 'z'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'z');
+        assert.equal(stamped1[1].itemProp, 'prop-3');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1');
+        assert.equal(stamped1[3].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[26].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[27].itemProp, 'a');
+        assert.equal(stamped1[28], undefined);
+      });
+
+      test('undo: push (using splice)', function() {
+        unconfigured.arrayDelete('items', a);
+        unconfigured.arrayDelete('items', m);
+        unconfigured.arrayDelete('items', z);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('pop', function() {
+        removed = unconfigured.pop('items');
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-1');
+        assert.equal(stamped1[1].itemProp, 'prop-1-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[12].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[13], undefined);
+      });
+
+      test('undo: pop (using splice)', function() {
+        unconfigured.splice('items', 2, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('unshift', function() {
+        unconfigured.unshift('items', a={prop: 'a'}, m={prop: 'item*2'}, z={prop: 'z'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'z');
+        assert.equal(stamped1[1].itemProp, 'prop-3');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1');
+        assert.equal(stamped1[3].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[26].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[27].itemProp, 'a');
+        assert.equal(stamped1[28], undefined);
+      });
+
+      test('undo: unshift (using splice)', function() {
+        unconfigured.splice('items', 0, 3);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('shift', function() {
+        removed = unconfigured.shift('items');
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[12].itemProp, 'prop-3-3-3');
+        assert.equal(stamped1[13], undefined);
+      });
+
+      test('undo: shift (using splice)', function() {
+        unconfigured.splice('items', 0, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('splice - remove from middle', function() {
+        removed = unconfigured.splice('items', 1, 1)[0];
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[13].itemProp, 'prop-1');
+        assert.equal(stamped1[14].itemProp, 'prop-1-1');
+        assert.equal(stamped1[15].itemProp, 'prop-1-1-1');
+      });
+
+      test('undo: splice - remove from middle (using splice)', function() {
+        unconfigured.splice('items', 1, 0, removed);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('splice - add to middle', function() {
+        unconfigured.splice('items', 1, 0, a={prop: 'a'}, m={prop: 'item*2'}, z={prop: 'z'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'z');
+        assert.equal(stamped1[1].itemProp, 'prop-3');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1');
+        assert.equal(stamped1[3].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[26].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[27].itemProp, 'a');
+        assert.equal(stamped1[28], undefined);
+      });
+
+      test('undo: splice - add to middle (using splice)', function() {
+        unconfigured.splice('items', 1, 3);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
+      });
+
+      test('splice - replace in middle', function() {
+        removed = unconfigured.splice('items', 1, 2, a={prop: 'a'}, m={prop: 'item*2'}, z={prop: 'z'});
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'z');
+        assert.equal(stamped1[1].itemProp, 'prop-1');
+        assert.equal(stamped1[2].itemProp, 'prop-1-1');
+        assert.equal(stamped1[3].itemProp, 'prop-1-1-1');
+        assert.equal(stamped1[13].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[14].itemProp, 'a');
+        assert.equal(stamped1[15], undefined);
+      });
+
+      test('undo: splice - replace in middle (using splice)', function() {
+        unconfigured.splice('items', 1, 3, removed[0], removed[1]);
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+        var stamped1 = Polymer.dom(unconfigured1.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped1[0].itemProp, 'prop-3');
+        assert.equal(stamped1[1].itemProp, 'prop-3-1');
+        assert.equal(stamped1[2].itemProp, 'prop-3-1-1');
+        assert.equal(stamped1[23].itemProp, 'prop-1-3-1');
+        assert.equal(stamped1[24].itemProp, 'prop-1-3-2');
+        assert.equal(stamped1[25].itemProp, 'prop-1-3-3');
+        assert.equal(stamped1[26], undefined);
       });
 
     });
