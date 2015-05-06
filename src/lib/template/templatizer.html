@@ -118,10 +118,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _customPrepEffects: function(archetype) {
       var parentProps = archetype._parentProps;
       for (var prop in parentProps) {
-        if (!(prop in this._instanceProps)) {
-          archetype._addPropertyEffect(prop, 'function',
-            this._createHostPropEffector(prop));
-        }
+        archetype._addPropertyEffect(prop, 'function',
+          this._createHostPropEffector(prop));
       }
     },
 
@@ -159,7 +157,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this._forwardParentProp && parentProps) {
         // Prototype setup (memoized on archetype)
         var proto = archetype._parentPropProto;
+        var prop;
         if (!proto) {
+          for (prop in this._instanceProps) {
+            delete parentProps[prop];
+          }
           proto = archetype._parentPropProto = Object.create(null);
           if (template != this) {
             // Assumption: if `this` isn't the template being templatized,
@@ -170,17 +172,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // Create accessors for each parent prop that forward the property
           // to template instances through abstract _forwardParentProp API
           // that should be implemented by Templatizer users
-          for (var prop in parentProps) {
-            if (!(prop in this._instanceProps)) {
-              var parentProp = '_parent_' + prop;
-              var effects = [{
-                kind: 'function',
-                effect: this._createForwardPropEffector(prop)
-              }, {
-                kind: 'notify'
-              }];
-              Polymer.Bind._createAccessors(proto, parentProp, effects);
-            }
+          for (prop in parentProps) {
+            var parentProp = '_parent_' + prop;
+            var effects = [{
+              kind: 'function',
+              effect: this._createForwardPropEffector(prop)
+            }, {
+              kind: 'notify'
+            }];
+            Polymer.Bind._createAccessors(proto, parentProp, effects);
           }
         }
         // Instance setup
@@ -218,14 +218,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     },
 
+    // Extension point for Templatizer sub-classes
+    _forwardInstancePath: function(inst, path, value) { },
+
     _notifyPathImpl: function(path, value) {
       var dataHost = this.dataHost;
       var dot = path.indexOf('.');
       var root = dot < 0 ? path : path.slice(0, dot);
-      // Extension point for Templatizer sub-classes
-      if (dataHost._forwardInstancePath &&
-          !dataHost._forwardInstancePath.call(dataHost, this, path, value) &&
-          !(root in dataHost._instanceProps)) {
+      // Call extension point for Templatizer sub-classes
+      dataHost._forwardInstancePath.call(dataHost, this, path, value);
+      if (root in dataHost._parentProps) {
         dataHost.notifyPath('_parent_' + path, value);
       }
     },
@@ -287,9 +289,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       model = model || {};
       if (this._parentProps) {
         for (var prop in this._parentProps) {
-          if (!(prop in this._instanceProps)) {
-            model[prop] = this['_parent_' + prop];
-          }
+          model[prop] = this['_parent_' + prop];
         }
       }
       return new this.ctor(model, this);
