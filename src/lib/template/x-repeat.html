@@ -105,6 +105,25 @@ Then the `observe` property should be configured as follows:
       },
 
       /**
+       * The name of the variable to add to the binding scope for the array
+       * element associated with a given template instance.
+       */
+      as: {
+        type: String,
+        value: 'item'
+      },
+
+      /**
+       * The name of the variable to add to the binding scope with the index
+       * for the row.  If `sort` is provided, the index will reflect the
+       * sorted order (rather than the original array order).
+       */
+      indexAs: {
+        type: String,
+        value: 'index'
+      },
+
+      /**
        * A function that should determine the sort order of the items.  This
        * property should either be provided as a string, indicating a method
        * name on the element's host, or else be an actual function.  The
@@ -168,6 +187,12 @@ Then the `observe` property should be configured as follows:
     },
 
     ready: function() {
+      // Template instance props that should be excluded from forwarding
+      this._instanceProps = {
+        __key__: true
+      };
+      this._instanceProps[this.as] = true;
+      this._instanceProps[this.indexAs] = true;
       // Templatizing (generating the instance constructor) needs to wait
       // until ready, since won't have its template content handed back to
       // it until then
@@ -271,9 +296,9 @@ Then the `observe` property should be configured as follows:
         if (!row) {
           this.rows.push(row = this._insertRow(i, null, item));
         }
-        row.item = item;
-        row.key = key;
-        row.index = i;
+        row[this.as] = item;
+        row.__key__ = key;
+        row[this.indexAs] = i;
       }
       // Remove extra
       for (; i<this.rows.length; i++) {
@@ -438,11 +463,12 @@ Then the `observe` property should be configured as follows:
     },
 
     _generateRow: function(idx, item) {
-      var row = this.stamp({
-        index: idx,
-        key: this.collection.getKey(item),
-        item: item
-      });
+      var model = {
+        __key__: this.collection.getKey(item)
+      };
+      model[this.as] = item;
+      model[this.indexAs] = idx;
+      var row = this.stamp(model);
       return row;
     },
 
@@ -465,9 +491,11 @@ Then the `observe` property should be configured as follows:
     // Implements extension point from Templatizer
     // Called as a side effect of a template instance path change, responsible
     // for notifying items.<key-for-row>.<path> change up to host
-    _forwardInstancePath: function(row, root, subPath, value) {
-      if (root == 'item') {
-        this.notifyPath('items.' + row.key + '.' + subPath, value);
+    _forwardInstancePath: function(row, path, value) {
+      if (path.indexOf(this.as + '.') === 0) {
+        this.notifyPath('items.' + row.__key__ + '.' +
+          path.slice(this.as.length + 1), value);
+        return true;
       }
     },
 
@@ -477,8 +505,7 @@ Then the `observe` property should be configured as follows:
     _forwardParentProp: function(prop, value) {
       if (this.rows) {
         this.rows.forEach(function(row) {
-          row.parent[prop] = value;
-          row.notifyPath('parent.' + prop, value, true);
+          row[prop] = value;
         }, this);
       }
     },
@@ -489,7 +516,7 @@ Then the `observe` property should be configured as follows:
     _forwardParentPath: function(path, value) {
       if (this.rows) {
         this.rows.forEach(function(row) {
-          row.notifyPath('parent.' + path, value, true);
+          row.notifyPath(path, value, true);
         }, this);
       }
     },
@@ -504,10 +531,10 @@ Then the `observe` property should be configured as follows:
         var row = this.rows[idx];
         if (row) {
           if (dot >= 0) {
-            path = 'item.' + path.substring(dot+1);
+            path = this.as + '.' + path.substring(dot+1);
             row.notifyPath(path, value, true);
           } else {
-            row.item = value;
+            row[this.as] = value;
           }
         }
       }
@@ -535,16 +562,17 @@ Then the `observe` property should be configured as follows:
      */
     keyForElement: function(el) {
       var instance = this._instanceForElement(el);
-      return instance && instance.key;
+      return instance && instance.__key__;
     },
 
     /**
-     * Returns the index in `items` associated with a given element
-     * stamped by this `x-repeat`.
+     * Returns the row index for a given element stamped by this `x-repeat`.
+     * If `sort` is provided, the index will reflect the sorted order (rather
+     * than the original array order).
      */
     indexForElement: function(el) {
       var instance = this._instanceForElement(el);
-      return this.rows.indexOf(instance);
+      return instance && instance[this.indexAs];
     }
 
   });

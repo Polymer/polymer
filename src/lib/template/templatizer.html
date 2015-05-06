@@ -25,6 +25,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       debouncer: null
     },
 
+    // Extension point for overrides
+    _instanceProps: Polymer.nob,
+
     created: function() {
       // id used for consolidated debouncer
       this._templatizerId = this._templatizerStatic.count++;
@@ -50,10 +53,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var archetype = Object.create(Polymer.Base);
       // normally Annotations.parseAnnotations(template) but
       // archetypes do special caching
-      this.customPrepAnnotations(archetype, template);
+      this._customPrepAnnotations(archetype, template);
 
       // setup accessors
       archetype._prepEffects();
+      this._customPrepEffects(archetype);
       archetype._prepBehaviors();
       archetype._prepBindings();
 
@@ -111,7 +115,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    customPrepAnnotations: function(archetype, template) {
+    _customPrepEffects: function(archetype) {
+      var parentProps = archetype._parentProps;
+      for (var prop in parentProps) {
+        archetype._addPropertyEffect(prop, 'function',
+          this._createHostPropEffector(prop));
+      }
+    },
+
+    _customPrepAnnotations: function(archetype, template) {
       if (template) {
         archetype._template = template;
         var c = template._content;
@@ -145,7 +157,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this._forwardParentProp && parentProps) {
         // Prototype setup (memoized on archetype)
         var proto = archetype._parentPropProto;
+        var prop;
         if (!proto) {
+          for (prop in this._instanceProps) {
+            delete parentProps[prop];
+          }
           proto = archetype._parentPropProto = Object.create(null);
           if (template != this) {
             // Assumption: if `this` isn't the template being templatized,
@@ -156,11 +172,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // Create accessors for each parent prop that forward the property
           // to template instances through abstract _forwardParentProp API
           // that should be implemented by Templatizer users
-          for (var prop in parentProps) {
+          for (prop in parentProps) {
             var parentProp = '_parent_' + prop;
             var effects = [{
               kind: 'function',
-              effect: { function: this._createForwardPropEffector(prop) }
+              effect: this._createForwardPropEffector(prop)
+            }, {
+              kind: 'notify'
             }];
             Polymer.Bind._createAccessors(proto, parentProp, effects);
           }
@@ -181,6 +199,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       };
     },
 
+    _createHostPropEffector: function(prop) {
+      return function(source, value) {
+        this.dataHost['_parent_' + prop] = value;
+      };
+    },
+
     // Similar to Polymer.Base.extend, but retains any previously set instance
     // values (_propertySet back on instance once accessor is installed)
     _extendTemplate: function(template, proto) {
@@ -194,24 +218,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     },
 
+    // Extension point for Templatizer sub-classes
+    _forwardInstancePath: function(inst, path, value) { },
+
     _notifyPathImpl: function(path, value) {
-      var p = path.match(/([^.]*)\.(([^.]*).*)/);
-                          // 'root.sub.path'
-      var root = p[1];    // 'root'
-      var sub = p[3];     // 'sub'
-      var subPath = p[2]; // 'sub.path'
-      // Notify host of parent.* path/property changes
       var dataHost = this.dataHost;
-      if (root == 'parent') {
-        if (sub == subPath) {
-          dataHost.dataHost[sub] = value;
-        } else {
-          dataHost.notifyPath('_parent_' + subPath, value);
-        }
-      }
-      // Extension point for Templatizer sub-classes
-      if (dataHost._forwardInstancePath) {
-        dataHost._forwardInstancePath.call(dataHost, this, root, subPath, value);
+      var dot = path.indexOf('.');
+      var root = dot < 0 ? path : path.slice(0, dot);
+      // Call extension point for Templatizer sub-classes
+      dataHost._forwardInstancePath.call(dataHost, this, path, value);
+      if (root in dataHost._parentProps) {
+        dataHost.notifyPath('_parent_' + path, value);
       }
     },
 
@@ -271,11 +288,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     stamp: function(model) {
       model = model || {};
       if (this._parentProps) {
-        // TODO(kschaaf): Maybe this is okay
-        // model.parent = this.dataHost;
-        model.parent = model.parent || {};
         for (var prop in this._parentProps) {
-          model.parent[prop] = this['_parent_' + prop];
+          model[prop] = this['_parent_' + prop];
         }
       }
       return new this.ctor(model, this);
