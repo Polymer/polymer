@@ -61,6 +61,11 @@ Below is a description of current Polymer features, followed by individual featu
 | [Array mutation](#array-mutation) | push, pop, shift, unshift, splice
 | [Declarative attribute binding](#attribute-binding) | \<element attr$=”{{property\|path}}”>
 | [Binding to native element attributes](#native-binding) | class$="{{...}}", style$="{{...}}">
+
+**Advanced property configuration**
+
+| Feature | Usage
+|---------|-------
 | [Reflecting properties to attributes](#attribute-reflection) | properties: \<prop>: { reflectToAttribute: true } }
 | [Computed properties](#computed-properties) | computed: { \<property>: ‘computeFn(dep1, dep2)’ }
 | [Annotated computed properties](#annotated-computed) | \<span>{{computeFn(dep1, dep2)}}\</span>
