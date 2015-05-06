@@ -1,4 +1,4 @@
-# Polymer 0.8 Primer
+# Polymer Primer
 
 Table of Contents:
 
@@ -157,7 +157,7 @@ var el = new MyElement(42, 'octopus');
 <a name="type-extension"></a>
 ## Native HTML element extension
 
-Polymer 0.8 currently only supports extending native HTML elements (e.g. `input`, `button`, etc., as opposed to [extending other custom elements](#todo-inheritance)).  To extend a native HTML element, set the `extends` property to the tag name of the element to extend.
+Polymer currently only supports extending native HTML elements (e.g. `input`, `button`, etc., as opposed to [extending other custom elements](#todo-inheritance)).  To extend a native HTML element, set the `extends` property to the tag name of the element to extend.
 
 
 Example:
@@ -449,7 +449,7 @@ in the same html file or in separate files.
 <a name="scoped-styling"></a>
 ## Scoped styling
 
-Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutorials/webcomponents/shadowdom-201/)" for providing scoped styling of the element's local DOM.  Scoped styles should be provided via `<style>` tags placed inside the `<dom-module>` for an element (but not inside the `<template>` -- note this is a slight deviation from typical Shadow DOM rules).
+Polymer uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutorials/webcomponents/shadowdom-201/)" for providing scoped styling of the element's local DOM.  Scoped styles should be provided via `<style>` tags placed inside the `<dom-module>` for an element (but not inside the `<template>` -- note this is a slight deviation from typical Shadow DOM rules).
 
 ```html
 
@@ -1435,7 +1435,7 @@ For the reasons above, the Polymer team is currently exploring other options for
 <a name="xscope-styling-details"></a>
 ### Custom CSS properties
 
-Polymer 0.8 includes a shim for custom CSS properties inspired by (and compatible with) the future W3C [CSS Custom Properties for Cascading Variables](http://dev.w3.org/csswg/css-variables/) specification (see [explainer on MDN here](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_variables)).
+Polymer includes a shim for custom CSS properties inspired by (and compatible with) the future W3C [CSS Custom Properties for Cascading Variables](http://dev.w3.org/csswg/css-variables/) specification (see [explainer on MDN here](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_variables)).
 
 Rather than exposing the details of an element's internal implementation for theming, instead an element author would define one or more custom CSS properties as part of the element's API which it would consume to style internals of the element deemed important for theming by the element's author.  These custom properties can be defined similar to other standard CSS properties and will inherit from the point of definition down the DOM tree (into local DOM), similar to the effect of `color` and `font-family`.  There are some important [limitations](x-styling-limitations) of the shim; see details below.
 
@@ -1650,7 +1650,7 @@ Below are current limitations of this system.  Improvements to performance and d
          color: var(--custom-color);
        }
      </style>
-     
+
      <template>
        <div class="container">
          <div class="child">I will be red</div>
@@ -1972,7 +1972,7 @@ In order to use Polymer bindings without defining a new custom element, you may 
 <a name="feature-layering"></a>
 ## Feature layering
 
-Polymer 0.8 is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extent that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
+Polymer is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extent that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
 
 Higher layers depend on lower layers, and elements requiring lower layers will actually be imbued with features of the highest-level version of Polymer used on the page (those elements would simply not use/take advantage of those features).  This provides a good tradeoff between element authors being able to avoid direct dependencies on unused features when their element is used standalone, while also allowing end users to mix-and-match elements created with different layers on the same page.
 
