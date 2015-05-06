@@ -755,6 +755,8 @@ Example:
 
 Polymer will generate and fire a custom "gesture" event for certain user interactions automatically when a declarative listener is added for the event type.  These events will fire consistenly on both touch and mouse environments, and so it is advised to listen for these events rather than their mouse- or touch-specific event counterparts for interoperability with both touch and desktop/mouse environments.  For example, `tap` should be used instead of `click` for the most reliable cross-platform results.
 
+Certain gestures will be able to control scrolling direction for touch input. For example, nodes with a listener for the `track` event will prevent scrolling by default. Elements can be override scroll direction with `this.setScrollDirection(direction, node)`, where `direction` is one of `'x'`, `'y'`, `'none'`, or `'all'`, and `node` defaults to `this`.
+
 The following are the gesture event types supported, with a short description and list of detail properties available on `event.detail` for each type:
 
 * **down** - finger/button went down
@@ -803,6 +805,48 @@ Example:
   Polymer({
 
     is: 'drag-me',
+
+    handleTrack: function(e) {
+      switch(e.detail.state) {
+        case 'start':
+          this.message = 'Tracking started!';
+          break;
+        case 'track':
+          this.message = 'Tracking in progress... ' +
+            e.detail.x + ', ' + e.detail.y;
+          break;
+        case 'end':
+          this.message = 'Tracking ended!';
+          break;
+      }
+    }
+
+  });
+
+</script>
+```
+Example with `listeners`:
+
+```html
+<style>
+  drag-me {
+    width: 500px;
+    height: 500px;
+    background: gray;
+  }
+</style>
+<dom-module id="drag-me">
+</dom-module>
+
+<script>
+
+  Polymer({
+
+    is: 'drag-me',
+
+    listeners: {
+      track: 'handleTrack'
+    },
 
     handleTrack: function(e) {
       switch(e.detail.state) {
