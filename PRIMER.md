@@ -56,24 +56,22 @@ Below is a description of the current Polymer features, followed by individual f
 | [Computed properties](#computed-properties) | computed: { \<property>: ‘computeFn(dep1, dep2)’ }
 | [Annotated computed properties](#annotated-computed) | \<span>{{computeFn(dep1, dep2)}}\</span>
 | [Read-only properties](#read-only) |  properties: { \<prop>: { readOnly: true } }
-| [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
+| [Cross-scope styling](#xscope-styling) | --custom-prop: value, var(--custom-prop), mixin(--custom-mixin)
+| [External stylesheets](#external-stylesheets) | \<link rel="import" type="css" href="...">
 | [General polymer settings](#settings) | \<script> Polymer = { ... }; \</script>
+| [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
+| [Polymer feature layers](#feature-layering) | polymer-micro.html, polymer-mini.html, polymer.html
 
-<a name="polymer-experimental"></a>
-**Experimental elements and features**
-
-**<span style="color:red">These features are experimental and there is a higher liklihood for future API change.</span>**  Names for custom elements starting with `x-` are placeholders while in experimental status; these will be renamed prior to 1.0.
+<a name="polymer-elements"></a>
+**Helper Custom Elements**
 
 | Feature | Usage
 |---------|-------
-| [Template repeater](#x-repeat) | \<template is="x-repeat" items="{{arr}}">
-| [Array selector](#x-array-selector) | \<x-array-selector items="{{arr}}" selected="{{selected}}">
-| [Conditional template](#x-if) | \<template is="x-if">
-| [Auto-binding template](#x-autobind) | \<template is="x-autobind">
-| [Cross-scope styling](#xscope-styling) | --custom-prop: value, var(--custom-prop), mixin(--custom-mixin)
-| [Custom element for styling features](#x-style) | \<style is="x-style">
-| [External stylesheets](#external-stylesheets) | \<link rel="import" type="css" href="...">
-| [Polymer feature layers](#feature-layering) | polymer-micro.html, polymer-mini.html, polymer.html
+| [Template repeater](#dom-repeat) | \<template is="dom-repeat" items="{{arr}}">
+| [Array selector](#array-selector) | \<array-selector items="{{arr}}" selected="{{selected}}">
+| [Conditional template](#dom-if) | \<template is="dom-if">
+| [Auto-binding template](#dom-bind) | \<template is="dom-bind">
+| [Custom element for styling features](#custom-style) | \<style is="custom-style">
 
 # Bare-minum Custom Element sugaring
 
@@ -489,7 +487,7 @@ Polymer 0.8 uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutori
 </script>
 ```
 
-Loading external stylesheets (as opposed to defining them inline in HTML) for styling local DOM is currently supported via an [experimental feature](#external-stylesheets).
+Loading external stylesheets (as opposed to defining them inline in HTML) for styling local DOM is currently supported via a special [`<link rel="import" type="css">`](#external-stylesheets) import tag (as opposed to a `<link rel="stylesheet">`).
 
 <a name="dom-distribution"></a>
 ## DOM (re-)distribution
@@ -1123,7 +1121,7 @@ Two-way data-binding and observation of paths in Polymer is achieved using a sim
 
 This system "just works" to the extent that changes to object sub-properties occur as a result of being bound to a notifying custom element property that changed.  However, sometimes imperative code needs to "poke" at an object's sub-properties directly.  As we avoid more sophisticated observation mechanisms such as Object.observe or dirty-checking in order to achieve the best startup and runtime performance cross-platform for the most common use cases, changing an object's sub-properties directly requires cooperation from the user.
 
-Specifically, Polymer provides two API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `set(path, value)`.
+Specifically, Polymer provides several API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `set(path, value)`, as well as a full set of array mutation API's (`push`, `pop(path)`, `unshift(path, ...)`, `shift(path)`, `splice(path, ...)`).
 
 Example:
 
@@ -1149,12 +1147,46 @@ Example:
 </script>
 ```
 
-Since in the majority of cases, notifyPath will be called directly after an assignment, a convenience function `set` is provided that performs both actions:
+Since in the majority of cases, `notifyPath` will be called directly after an assignment, a convenience function `set` is provided that performs both the assignment and notify actions:
 
 ```js
 reassignManager: function(newManager) {
   this.set('user.manager', newManager);
 }
+```
+
+When modifying arrays, a set of array mutation API's are provided on Polymer
+element prototypes which mimic `Array.prototype` API's, with the exception that
+they take a `path` API as the first argument.  The `path` argument identifies
+an array on the element to mutate, with the following arguments matching those
+of the native `Array` methods.  These methods perform the mutation action on
+the array, and then notify other elements that may be bound to the same
+array of the changes.  Using these methods when mutating arrays is required
+to ensure elements that deal with arrays are kept in sync.
+
+```html
+<dom-module id="custom-element">
+  <template>
+    <template is="dom-repeat">{{users}}</div>
+  </template>
+</dom-module>
+
+<script>
+  Polymer({
+
+    is: 'custom-element',
+
+    addUser: function(user) {
+      this.push('users', user);
+    },
+
+    removeUser: function(user) {
+      var index = this.users.indexOf(user);
+      this.splice('users', index, 1);
+    }
+
+  });
+</script>
 ```
 
 ### Expressions in binding annotations
@@ -1354,8 +1386,6 @@ Example:
 </script>
 ```
 
-
-
 <a name="read-only"></a>
 ## Read-only properties
 
@@ -1385,247 +1415,8 @@ When a property only "produces" data and never consumes data, this can be made e
 
 Generally, read-only properties should also be set to `notify: true` such that their changes are observable from above.
 
-<a name="utility-functions"></a>
-## Utility Functions
-
-Polymer's Base prototype provides a set of useful convenience/utility functions for instances to use.  See API documentation for more details.
-
-* toggleClass: function(name, bool, [node])
-* toggleAttribute: function(name, bool, [node])
-* attributeFollows: function(name, neo, old)
-* fire: function(type, [detail], [onNode], [bubbles], [cancelable])
-* async: function(method)
-* transform: function(node, transform)
-* translate3d: function(node, x, y, z)
-* importHref: function(href, onload, onerror)
-
-<a name="settings"></a>
-## Global Polymer settings
-
-Document-level global Polymer settings can be set before loading by setting a `Polymer` object on window as the first script in the main document:
-
-```html
-<html>
-<head>
-  <meta charset="utf-8">
-  <script> Polymer = { dom: 'shadow' }; </script>
-  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
-  <link rel="import" href="components/my-app.html">
-</head>
-<body>
-
-  ...
-
-```
-
-Settings can also be switched on the URL query string:
-
-```
-http://myserver.com/test-app/index.html?dom=shadow
-```
-
-Available settings:
-
-* `dom` - options:
-    * `shady` - all local DOM will be rendered using Shady DOM (even where shadow-DOM supported (current default)
-    * `shadow` - local DOM will be rendered using Shadow DOM where supported (this will be made default soon)
-
-# Experimental Features & Elements
-
-<a name="x-repeat"></a>
-## Template repeater (x-repeat)
-EXPERIMENTAL - API MAY CHANGE
-
-Elements in a template can be automatically repeated and bound to array items using a custom `HTMLTemplateElement` type extension called `x-repeat`.  `x-repeat` accepts an `items` property, and one instance of the template is stamped for each item into the DOM at the location of the `x-repeat` element.  The `item` property will be set on each instance's binding scope, thus templates should bind to sub-properties of `item`.  Example:
-
-```html
-<dom-module id="employee-list">
-
-  <template>
-
-    <div> Employee list: </div>
-    <template is="x-repeat" items="{{employees}}">
-        <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{item.last}}</span></div>
-    </template>
-
-  </template>
-
-  <script>
-    Polymer({
-      is: 'employee-list',
-      ready: function() {
-        this.employees = [
-            {first: 'Bob', last: 'Smith'},
-            {first: 'Sally', last: 'Johnson'},
-            ...
-        ];
-      }
-    });
-  </script>
-
-</dom-module>
-```
-
-Notifications for changes to items sub-properties will be forwarded to template instances, which will update via the normal [structured data notification system](#path-binding).
-
-Mutations to the `items` array itself (`push`, `pop`, `splice`, `shift`, `unshift`) are observed via `Array.observe` (where supported, or an experimental shim of this API on unsupported browsers), and template instances are kept in sync with the data in the array.
-
-A view-specific filter/sort may be applied to each `x-repeat` by supplying a `filter` and/or `sort` property.  This may be a string that names a function on the host, or a function may be assigned to the property directly.  The functions should implemented following the standard `Array` filter/sort API.
-
-In order to re-run the filter or sort functions based on changes to sub-fields of `items`, the `observe` property may be set as a space-separated list of `item` sub-fields that should cause a re-filter/sort when modified.
-
-For example, for an `x-repeat` with a filter of the following:
-
-```js
-isEngineer: function(item) {
-    return item.type == 'engineer' || item.manager.type == 'engineer';
-}
-```
-
-Then the `observe` property should be configured as follows:
-
-```html
-<template is="x-repeat" items="{{employees}}"
-          filter="isEngineer" observe="type manager.type">
-```
-
-Note, to reach the outer parent scope, bindings in an `x-repeat` template may be prefixed with `parent.<property>`.
-
-<a name="x-array-selector"></a>
-## Array selector (x-array-selector)
-EXPERIMENTAL - API MAY CHANGE
-
-Keeping structured data in sync requires that Polymer understand the path associations of data being bound.  The `x-array-selector` element ensures path linkage when selecting specific items from an array (either single or multiple).  The `items` property accepts an array of user data, and via the `select(item)` and `deselect(item)` API, updates the `selected` property which may be bound to other parts of the application, and any changes to sub-fields of `selected` item(s) will be kept in sync with items in the `items` array.  When `multi` is false, `selected` is a property representing the last selected item.  When `multi` is true, `selected` is an array of multiply selected items.
-
-```html
-<dom-module id="employee-list">
-
-  <template>
-
-    <div> Employee list: </div>
-    <template is="x-repeat" id="employeeList" items="{{employees}}">
-        <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{item.last}}</span></div>
-        <button on-click="toggleSelection">Select</button>
-    </template>
-
-    <x-array-selector id="selector" items="{{employees}}" selected="{{selected}}" multi toggle></x-array-selector>
-
-    <div> Selected employees: </div>
-    <template is="x-repeat" items="{{selected}}">
-        <div>First name: <span>{{item.first}}</span></div>
-        <div>Last name: <span>{{item.last}}</span></div>
-    </template>
-
-  </template>
-
-  <script>
-    Polymer({
-      is: 'employee-list',
-      ready: function() {
-        this.employees = [
-            {first: 'Bob', last: 'Smith'},
-            {first: 'Sally', last: 'Johnson'},
-            ...
-        ];
-      },
-      toggleSelection: function(e) {
-        var item = this.$.employeeList.itemForElement(e.target);
-        this.$.selector.select(item);
-      }
-    });
-  </script>
-
-</dom-module>
-```
-
-<a name="x-if"></a>
-## Conditional template
-EXPERIMENTAL - API MAY CHANGE
-
-Elements can be conditionally stamped based on a boolean property by wrapping them in a custom `HTMLTemplateElement` type extension called `x-if`.  The `x-if` template stamps itself into the DOM only when its `if` property becomes truthy.
-
-If the `if` property becomes falsy again, by default all stamped elements will be hidden (but will remain in DOM) for faster performance should the `if` property become truthy again.  This behavior may be disabled by setting the `restamp` property, which results in slower `if` switching behavior as the elements are destroyed and re-stamped each time.
-
-Note, to reach the outer parent scope, all bindings in an `x-if` template must be prefixed with `parent.<property>`, as shown below.
-
-Example:
-
-**Note, this is a simple example for illustrative purposes only.  Read below for guidance on recommended usage of conditional templates.**
-
-```html
-<dom-module id="user-page">
-
-  <template>
-
-    All users will see this:
-    <div>{{user.name}}</div>
-
-    <template is="x-if" if="{{user.isAdmin}}">
-      Only admins will see this.
-      <div>{{parent.user.secretAdminStuff}}</div>
-    </template>
-
-  </template>
-
-  <script>
-    Polymer({
-      is: 'user-page',
-      properties: {
-        user: Object
-      }
-    });
-  </script>
-
-</dom-module>
-```
-
-Note, since it is generally much faster to hide/show elements rather than create/destroy them, conditional templates are only useful to save initial creation cost when the elements being stamped are relatively heavyweight and the conditional may rarely (or never) be true in given useages.  Otherwise, liberal use of conditional templates can actually *add* significant runtime performance overhead.
-
-Consider an app with 4 screens, plus an optional admin screen.  If most users will use all 4 screens during normal use of the app, it is generally better to incur the cost of stamping those elements once at startup (where some app initialization time is expected) and simply hide/show the screens as the user navigates through the app, rather than re-create and destroy all the elements of each screen as the user navigates.  Using a conditional template here may be a poor choice, since although it may save time at startup by stamping only the first screen, that saved time gets shifted to runtime latency for each user interaction, since the time to show the second screen will be *slower* as it must create the second screen from scratch rather than simply showing that screen.  Hiding/showing elements is as simple as attribute-binding to the `hidden` attribute (e.g. `<div hidden$="{{!shouldShow}}">`), and does not require conditional templating at all.
-
-However, using a conditional template may be appropriate in the case of an admin screen that should only be shown to admin users of an app.  Since most users would not be admins, there may be performance benefits to not burdening most of the users with the cost of stamping the elements for the admin page, especially if it is relatively heavyweight.
-
-<a name="x-autobind"></a>
-## Auto-binding template
-EXPERIMENTAL - API MAY CHANGE
-
-Polymer's binding features are only available within templates that are managed by Polymer.  As such, these features are available in templates used to define Polymer elements, for example, but not for elements placed directly in the main document.
-
-In order to use Polymer bindings without defining a new custom element, you may wrap the elements utilizing bindings with a custom template extension called `x-autobind`.  This template will immediately stamp itself into the main document and bind elements to the template itself as the binding scope.
-
-```html
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <script src="components/webcomponentsjs/webcomponents-lite.js"></script>
-  <link rel="import" href="components/polymer/polymer.html">
-  <link rel="import" href="components/core-ajax/core-ajax.html">
-
-</head>
-<body>
-
-  <!-- Wrap elements in with auto-binding template to -->
-  <!-- allow use of Polymer bindings main document -->
-  <template is="x-autobind">
-
-    <core-ajax url="http://..." lastresponse="{{data}}"></core-ajax>
-
-    <template is="x-repeat" items="{{data}}">
-        <div><span>{{item.first}}</span> <span>{{item.last}}</span></div>
-    </template>
-
-  </template>
-
-</body>
-</html>
-```
-
 <a name="xscope-styling"></a>
 ## Cross-scope styling
-EXPERIMENTAL - API MAY CHANGE
 
 ### Background
 
@@ -1644,9 +1435,9 @@ For the reasons above, the Polymer team is currently exploring other options for
 <a name="xscope-styling-details"></a>
 ### Custom CSS properties
 
-Polymer 0.8 includes a highly experimental and opt-in shim for custom CSS properties inspired by (and compatible with) the future W3C [CSS Custom Properties for Cascading Variables](http://dev.w3.org/csswg/css-variables/) specification (see [explainer on MDN here](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_variables)).
+Polymer 0.8 includes a shim for custom CSS properties inspired by (and compatible with) the future W3C [CSS Custom Properties for Cascading Variables](http://dev.w3.org/csswg/css-variables/) specification (see [explainer on MDN here](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_variables)).
 
-Rather than exposing the details of an element's internal implementation for theming, instead an element author would define one or more custom CSS properties as part of the element's API which it would consume to style internals of the element deemed important for theming by the element's author.  These custom properties can be defined similar to other standard CSS properties and will inherit from the point of definition down the composed DOM tree, similar to the effect of `color` and `font-family`.
+Rather than exposing the details of an element's internal implementation for theming, instead an element author would define one or more custom CSS properties as part of the element's API which it would consume to style internals of the element deemed important for theming by the element's author.  These custom properties can be defined similar to other standard CSS properties and will inherit from the point of definition down the DOM tree (into local DOM), similar to the effect of `color` and `font-family`.  There are some important [limitations](x-styling-limitations) of the shim; see details below.
 
 In the simple example below, the author of `my-toolbar` identified the need for users of the toolbar to be able to change the color of the toolbar title.  The author exposed a custom property called `--my-toolbar-title-color` which is assigned to the `color` property of the selector for the title element.  Users of the toolbar may define this variable in a CSS rule anywhere up the tree, and the value of the property will inherit down to the toolbar where it is used if defined, similar to other standard inheriting CSS properties.
 
@@ -1674,9 +1465,7 @@ Example:
       is: 'my-toolbar',
       properties: {
         title: String
-      },
-      // The custom properties shim is currently an opt-in feature
-      enableCustomStyleProperties: true
+      }
     });
   </script>
 
@@ -1718,7 +1507,7 @@ The `--my-toolbar-title-color` property will only affect the color of the title 
 
 Thus, custom CSS properties introduce a powerful way for element authors to expose a theming API to their users in a way that naturally fits right alongside normal CSS styling and avoids the problems with `/deep/` and `::shadow`, and is already on a standards track with shipping implementation by Mozilla and planned support by Chrome.
 
-However, it may be tedious (or impossible) for an element author to anticipate and expose every possible CSS property that may be important for theming an element as individual CSS properties (for example, what if a user needed to adjust the `opacity` of the toolbar title?).  For this reason, the custom properties shim included in Polymer includes an experimental extension allowing a bag of CSS properties to be defined as a custom property and allowing all properties in the bag to be applied to a specific CSS rule in an element's local DOM.  For this, we introduce a `mixin` capability that is analogous to `var`, but allows an entire bag of properties to be mixed in.
+However, it may be tedious (or impossible) for an element author to anticipate and expose every possible CSS property that may be important for theming an element as individual CSS properties (for example, what if a user needed to adjust the `opacity` of the toolbar title?).  For this reason, the custom properties shim included in Polymer includes an extension allowing a bag of CSS properties to be defined as a custom property and allowing all properties in the bag to be applied to a specific CSS rule in an element's local DOM.  For this, we introduce a `mixin` capability that is analogous to `var`, but allows an entire bag of properties to be mixed in.
 
 Example:
 
@@ -1786,13 +1575,12 @@ Example usage of `my-toolbar`:
 </dom-module>
 ```
 
+<a name="x-styling-limitations"></a>
 ### Custom Properties Shim - Limitations and API details
 
-Experimental cross-platform support for custom properties is provided in Polymer by a Javascript library that approximates the capabilities of the CSS Variables specification  *for the specific use case of theming custom elements*, while also extending it to add the mixin capability described above.  **It is important to note that this is not a full polyfill**, as doing so would be prohibitively expensive; rather this is a shim that is inspired by that specification and trades off aspects of the full dynamism possible in CSS with practicality and performance.
+Cross-platform support for custom properties is provided in Polymer by a Javascript library that approximates the capabilities of the CSS Variables specification  *for the specific use case of theming custom elements*, while also extending it to add the mixin capability described above.  **It is important to note that this is not a full polyfill**, as doing so would be prohibitively expensive; rather this is a shim that is inspired by that specification and trades off aspects of the full dynamism possible in CSS with practicality and performance.
 
-Below are current limitations of this experimental system.  Improvements to performance and dynamism will continue to be explored.
-
-* As this feature is still experimental, custom properties are not currently applied to elements by default.  To enable *usage* of custom properties, set an `enableCustomStyleProperties: true` property on the Polymer element prototype.
+Below are current limitations of this system.  Improvements to performance and dynamism will continue to be explored.
 
 * Only rules which match the element at *creation time* are applied. Any dynamic changes that update variable values are not applied automatically.
 
@@ -1816,7 +1604,7 @@ Below are current limitations of this experimental system.  Improvements to perf
       --nog: blue;
     }
     ```
-* Re-evaluation of custom property styles does not currently occur as a result of changes to the DOM.  Re-evaluation can be forced by calling `this.updateStyles()` on a Polymer element.  For example, if class `b` was added to `x-foo` above, the scope must call `this.updateStyles()` to apply the styling. This re-calcs/applies styles down the tree from this point.
+* Re-evaluation of custom property styles does not currently occur as a result of changes to the DOM.  Re-evaluation can be forced by calling `this.updateStyles()` on a Polymer element (or `Polymer.updateStyles()` to update all element styles).  For example, if class `b` was added to `x-foo` above, the scope must call `this.updateStyles()` to apply the styling. This re-calcs/applies styles down the tree from this point.
 
 * Dynamic effects are reflected at the point of a variable’s application, but not its definition.
 
@@ -1843,16 +1631,42 @@ Below are current limitations of this experimental system.  Improvements to perf
       --title-background: yellow;
     }
     ```
+* Unlike normal CSS inheritance which flows from parent to child, custom properties in Polymer's shim can only change when inherited by a custom element from rules that set properties in scope(s) above it, or in a `:host` rule for that scope.  Within a given element's local DOM scope, a custom property can only have a single value.  Calculating property changes within a scope would be prohibitvely expensive for the shim and are not required to achieve cross-scope styling for custom elements, which is the primary goal of the shim.
 
-<a name="x-style"></a>
-## Custom element for document styling (x-style)
-EXPERIMENTAL - API MAY CHANGE
+   ```html
+   <dom-module>
+     <style>
+       :host {
+         --custom-color: red;
+       }
+       .container {
+         /* Setting the custom property here will not change */
+         /* the value of the property for other elements in  */
+         /* this scope.                                      */
+         --custom-color: blue;
+       }
+       .child {
+         /* This will be always be red. */
+         color: var(--custom-color);
+       }
+     </style>
+     
+     <template>
+       <div class="container">
+         <div class="child">I will be red</div>
+       </div>
+     </template>
+   </dom-module>
+   ```
 
-An experimental `<style is="x-style">` custom element is provided for defining styles in the main document that can take advantage of several special features of Polymer's styling system:
+<a name="custom-style"></a>
+## Custom element for document styling (custom-style)
 
-* Document styles defined in an `x-style` will be shimmed to ensure they do not leak into local DOM when running on browsers without non-native Shadow DOM.
+The `<style is="custom-style">` custom element is provided for defining styles in the main document that can take advantage of several special features of Polymer's styling system:
+
+* Document styles defined in an `custom-style` will be shimmed to ensure they do not leak into local DOM when running on browsers without non-native Shadow DOM.
 * Shadow DOM-specific `/deep/` and `::shadow` combinators will be shimmed on browsers without non-native Shadow DOM.
-* Custom properties used by Polymer's experimental [shim for cross-scope styling](#xscope-styling-details) may be defined in an `x-style`.
+* Custom properties used by Polymer's [shim for cross-scope styling](#xscope-styling-details) may be defined in an `custom-style`.
 
 Example:
 
@@ -1863,7 +1677,7 @@ Example:
   <script src="components/webcomponentsjs/webcomponents-lite.js"></script>
   <link rel="import" href="components/polymer/polymer.html">
 
-  <style is="x-style">
+  <style is="custom-style">
 
     /* Will be prevented from affecting local DOM of Polymer elements */
     * {
@@ -1891,13 +1705,12 @@ Example:
 </html>
 ```
 
-Note, all features of `x-style` are available when defining styles as part of Polymer elements (e.g. `<style>` elements within `<dom-module>`'s used for defining Polymer elements. The `x-style` extension should only be used for defining document styles, outside of a custom element's local DOM.
+Note, all features of `custom-style` are available when defining styles as part of Polymer elements (e.g. `<style>` elements within `<dom-module>`'s used for defining Polymer elements. The `custom-style` extension should only be used for defining document styles, outside of a custom element's local DOM.
 
 <a name="external-stylesheets"></a>
 ## External stylesheets
-EXPERIMENTAL - API MAY CHANGE
 
-Polymer includes an experimental feature to support loading external stylesheets that will be applied to the local DOM of an element.  This is typically convenient for developers who like to separate styles, share common styles between elements, or use style pre-processing tools.  The syntax is slightly different from how stylesheets are typically loaded, as the feature leverages HTML Imports (or the HTML Imports polyfill, where appropriate) to load the stylesheet text such that it may be properly shimmed and/or injected as an inline style.
+Polymer leverages HTML Imports to support loading external stylesheets that will be applied to the local DOM of an element.  This is typically convenient for developers who like to separate styles, share common styles between elements, or use style pre-processing tools.  The syntax is slightly different from how stylesheets are typically loaded, as the feature leverages HTML Imports (or the HTML Imports polyfill, where appropriate) to load the stylesheet text such that it may be properly shimmed and/or injected as an inline style.
 
 To include a remote stylesheet that applies to your Polymer element's local DOM, place a special HTML import `<link>` tag with `type="css"` in your `<dom-module>` that refers to the external stylesheet to load.
 
@@ -1923,9 +1736,241 @@ Example:
 </dom-module>
 ```
 
+<a name="utility-functions"></a>
+## Utility Functions
+
+Polymer's Base prototype provides a set of useful convenience/utility functions for instances to use.  See API documentation for more details.
+
+* toggleClass: function(name, bool, [node])
+* toggleAttribute: function(name, bool, [node])
+* attributeFollows: function(name, neo, old)
+* fire: function(type, [detail], [onNode], [bubbles], [cancelable])
+* async: function(method)
+* transform: function(node, transform)
+* translate3d: function(node, x, y, z)
+* importHref: function(href, onload, onerror)
+
+<a name="settings"></a>
+## Global Polymer settings
+
+Document-level global Polymer settings can be set before loading by setting a `Polymer` object on window as the first script in the main document:
+
+```html
+<html>
+<head>
+  <meta charset="utf-8">
+  <script> Polymer = { dom: 'shadow' }; </script>
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <link rel="import" href="components/my-app.html">
+</head>
+<body>
+
+  ...
+
+```
+
+Settings can also be switched on the URL query string:
+
+```
+http://myserver.com/test-app/index.html?dom=shadow
+```
+
+Available settings:
+
+* `dom` - options:
+    * `shady` - all local DOM will be rendered using Shady DOM (even where shadow-DOM supported (current default)
+    * `shadow` - local DOM will be rendered using Shadow DOM where supported (this will be made default soon)
+
+<a name="polymer-elements"></a>
+# Helper Custom Elements
+
+The following useful helper custom elements are shipped with Polymer.
+
+<a name="dom-repeat"></a>
+## Template repeater (dom-repeat)
+
+Elements in a template can be automatically repeated and bound to array items using a custom `HTMLTemplateElement` type extension called `dom-repeat`.  `dom-repeat` accepts an `items` property, and one instance of the template is stamped for each item into the DOM at the location of the `dom-repeat` element.  The `item` property will be set on each instance's binding scope, thus templates should bind to sub-properties of `item`.  Example:
+
+```html
+<dom-module id="employee-list">
+
+  <template>
+
+    <div> Employee list: </div>
+    <template is="dom-repeat" items="{{employees}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
+    </template>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: 'employee-list',
+      ready: function() {
+        this.employees = [
+            {first: 'Bob', last: 'Smith'},
+            {first: 'Sally', last: 'Johnson'},
+            ...
+        ];
+      }
+    });
+  </script>
+
+</dom-module>
+```
+
+Notifications for changes to items sub-properties will be forwarded to template instances, which will update via the normal [structured data notification system](#path-binding).
+
+Mutations to the `items` array itself (`push`, `pop`, `splice`, `shift`, `unshift`) must be performed using methods provided on Polymer elements, such that the changes are observable to any elements bound to the same array in the tree.  See
+
+A view-specific filter/sort may be applied to each `dom-repeat` by supplying a `filter` and/or `sort` property.  This may be a string that names a function on the host, or a function may be assigned to the property directly.  The functions should implemented following the standard `Array` filter/sort API.
+
+In order to re-run the filter or sort functions based on changes to sub-fields of `items`, the `observe` property may be set as a space-separated list of `item` sub-fields that should cause a re-filter/sort when modified.
+
+For example, for an `dom-repeat` with a filter of the following:
+
+```js
+isEngineer: function(item) {
+    return item.type == 'engineer' || item.manager.type == 'engineer';
+}
+```
+
+Then the `observe` property should be configured as follows:
+
+```html
+<template is="dom-repeat" items="{{employees}}"
+          filter="isEngineer" observe="type manager.type">
+```
+
+<a name="array-selector"></a>
+## Array selector (array-selector)
+
+Keeping structured data in sync requires that Polymer understand the path associations of data being bound.  The `array-selector` element ensures path linkage when selecting specific items from an array (either single or multiple).  The `items` property accepts an array of user data, and via the `select(item)` and `deselect(item)` API, updates the `selected` property which may be bound to other parts of the application, and any changes to sub-fields of `selected` item(s) will be kept in sync with items in the `items` array.  When `multi` is false, `selected` is a property representing the last selected item.  When `multi` is true, `selected` is an array of multiply selected items.
+
+```html
+<dom-module id="employee-list">
+
+  <template>
+
+    <div> Employee list: </div>
+    <template is="dom-repeat" id="employeeList" items="{{employees}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
+        <button on-click="toggleSelection">Select</button>
+    </template>
+
+    <array-selector id="selector" items="{{employees}}" selected="{{selected}}" multi toggle></array-selector>
+
+    <div> Selected employees: </div>
+    <template is="dom-repeat" items="{{selected}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
+    </template>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: 'employee-list',
+      ready: function() {
+        this.employees = [
+            {first: 'Bob', last: 'Smith'},
+            {first: 'Sally', last: 'Johnson'},
+            ...
+        ];
+      },
+      toggleSelection: function(e) {
+        var item = this.$.employeeList.itemForElement(e.target);
+        this.$.selector.select(item);
+      }
+    });
+  </script>
+
+</dom-module>
+```
+
+<a name="dom-if"></a>
+## Conditional template
+
+Elements can be conditionally stamped based on a boolean property by wrapping them in a custom `HTMLTemplateElement` type extension called `dom-if`.  The `dom-if` template stamps itself into the DOM only when its `if` property becomes truthy.
+
+If the `if` property becomes falsy again, by default all stamped elements will be hidden (but will remain in DOM) for faster performance should the `if` property become truthy again.  This behavior may be disabled by setting the `restamp` property, which results in slower `if` switching behavior as the elements are destroyed and re-stamped each time.
+
+Example:
+
+**Note, this is a simple example for illustrative purposes only.  Read below for guidance on recommended usage of conditional templates.**
+
+```html
+<dom-module id="user-page">
+
+  <template>
+
+    All users will see this:
+    <div>{{user.name}}</div>
+
+    <template is="dom-if" if="{{user.isAdmin}}">
+      Only admins will see this.
+      <div>{{user.secretAdminStuff}}</div>
+    </template>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: 'user-page',
+      properties: {
+        user: Object
+      }
+    });
+  </script>
+
+</dom-module>
+```
+
+Note, since it is generally much faster to hide/show elements rather than create/destroy them, conditional templates are only useful to save initial creation cost when the elements being stamped are relatively heavyweight and the conditional may rarely (or never) be true in given useages.  Otherwise, liberal use of conditional templates can actually *add* significant runtime performance overhead.
+
+Consider an app with 4 screens, plus an optional admin screen.  If most users will use all 4 screens during normal use of the app, it is generally better to incur the cost of stamping those elements once at startup (where some app initialization time is expected) and simply hide/show the screens as the user navigates through the app, rather than re-create and destroy all the elements of each screen as the user navigates.  Using a conditional template here may be a poor choice, since although it may save time at startup by stamping only the first screen, that saved time gets shifted to runtime latency for each user interaction, since the time to show the second screen will be *slower* as it must create the second screen from scratch rather than simply showing that screen.  Hiding/showing elements is as simple as attribute-binding to the `hidden` attribute (e.g. `<div hidden$="{{!shouldShow}}">`), and does not require conditional templating at all.
+
+However, using a conditional template may be appropriate in the case of an admin screen that should only be shown to admin users of an app.  Since most users would not be admins, there may be performance benefits to not burdening most of the users with the cost of stamping the elements for the admin page, especially if it is relatively heavyweight.
+
+<a name="dom-bind"></a>
+## Auto-binding template
+
+Polymer's binding features are only available within templates that are managed by Polymer.  As such, these features are available in templates used to define Polymer elements, for example, but not for elements placed directly in the main document.
+
+In order to use Polymer bindings without defining a new custom element, you may wrap the elements utilizing bindings with a custom template extension called `dom-bind`.  This template will immediately stamp itself into the main document and bind elements to the template itself as the binding scope.
+
+```html
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="components/webcomponentsjs/webcomponents-lite.js"></script>
+  <link rel="import" href="components/polymer/polymer.html">
+  <link rel="import" href="components/core-ajax/core-ajax.html">
+
+</head>
+<body>
+
+  <!-- Wrap elements in with auto-binding template to -->
+  <!-- allow use of Polymer bindings main document -->
+  <template is="dom-bind">
+
+    <core-ajax url="http://..." lastresponse="{{data}}"></core-ajax>
+
+    <template is="dom-repeat" items="{{data}}">
+        <div><span>{{item.first}}</span> <span>{{item.last}}</span></div>
+    </template>
+
+  </template>
+
+</body>
+</html>
+```
+
 <a name="feature-layering"></a>
 ## Feature layering
-EXPERIMENTAL - API MAY CHANGE
 
 Polymer 0.8 is currently layered into 3 sets of features provided as 3 discrete HTML imports, such that an individual element developer can depend on a version of Polymer whose feature set matches their tastes/needs.  For authors who opt out of the more opinionated local DOM or data-binding features, their element's dependencies would not be payload- or runtime-burdened by these higher-level features, to the extent that a user didn't depend on other elements using those features on that page.  That said, all features are designed to have low runtime cost when unused by a given element.
 
@@ -1933,114 +1978,6 @@ Higher layers depend on lower layers, and elements requiring lower layers will a
 
 * polymer-micro.html: [Polymer micro features](#polymer-micro) (bare-minum Custom Element sugaring)
 * polymer-mini.html: [Polymer mini features](#polymer-mini) (template stamped into "local DOM" and tree lifecycle)
-* polymer.html: [Polymer standard features](#polymer-standard) (all other features: declarative data binding and event handlers, property nofication, computed properties, and experimental features)
+* polymer.html: [Polymer standard features](#polymer-standard) (all other features: declarative data binding and event handlers, property nofication, computed properties, and the set of helper custom elements provided with Polymer)
 
 This layering is subject to change in the future and the number of layers may be reduced.
-
----
-
-<a name="migration-notes"></a>
-# Migration Notes
-
-This section covers how to deal with yet-unimplemented and/or de-scoped features in Polymer 0.8 as compared to 0.5.  Many of these are simply un-implemented; that is, we will likely have a final "solution" that addresses the need, we just haven't tackled that feature yet as we address items in priority order.  Other solutions in 0.8 may be lower-level as compared to 0.5, and will be explained here.
-
-As the final 0.8 API solidifies, this section will be updated accordingly.  As such, this section should be considered answers "how do I solve problem xyz <em>TODAY</em>", rather than a representation of the final Polymer 0.8 API.
-
-## Property casing
-
-TL;DR: When binding to camel-cased properties, use "dash-case" attribute names to indicate the "camelCase" property to bind to.
-
-Example: bind `this.myValue` to `<x-foo>.thatValue`:
-
-BEFORE: 0.5
-
-```html
-<x-foo thatValue="{{myValue}}"></x-foo>
-```
-
-AFTER: 0.8
-
-```html
-<x-foo that-value="{{myValue}}"></x-foo>
-```
-
-In 0.5, binding annotations were allowed to mixed-case properties (despite the fact that attribute names always get converted to lower-case by the HTML parser), and the Node.bind implementation at the "receiving end" of the binding automatically inferred the mixed-case property it was assumed to refer to at instance time.
-
-In 0.8, "binding" is done at prorotype time before the type of the element being bound to is known, hence knowing the exact JS property to bind to allows better efficiency.
-
-## Binding limitations
-
-Current limitations that are on the backlog for evaluation/improvement are listed below, with current workarounds:
-
-* Sub-textContent/property binding
-    * You cannot currrently do any of the following:
-
-      ```html
-      <div> stuff here: {{stuff}}</div>
-      <div class$="{{thing}} {{another}}"></div>
-      <x-custom prop="{{thing}} {{another}}"></x-custom>
-      ```
-
-    * Instead, use `<span>`'s to break up textContent into discrete elements:
-
-      ```html
-      <div> stuff here: <span>{{stuff}}</span></div>
-      ```
-
-    * Use computed properties for concatenating into properties/attributes:
-
-      ```html
-      <div class$="{{computeDivClass(thing, another)}}"></div>
-      <x-custom prop="{{computeCustomProp(thing, another}}"></x-custom>
-      ```
-
-* CSS class binding:
-    * May bind entire class list from one property to `class` _attribute_:
-      `<div class$="{{classes}}">`
-    * Otherwise, `this.classList.add/remove` from change handlers
-* CSS inline-style binding:
-    * May bind entire inline style from one property to `style` _attribute_:
-      `<div style$="{{styles}}">`
-    * Otherwise, assign `this.style.props` from change handlers
-
-## Structured data and path notification
-
-To notify non-bound structured data changes, use `set` and `notifyPath`:
-
-```js
-this.set('user.manager', 'Matt');
-```
-
-Which is equivalent to:
-
-```js
-this.user.manager = 'Matt';
-this.notifyPath('user.manager', this.user.manager);
-```
-
-## Repeating elements
-
-Repeating templates is moved to a custom element (HTMLTemplateElement type extension called `x-repeat`):
-
-```html
-<template is="x-repeat" items="{{users}}">
-  <div>{{item.name}}</div>
-</template>
-```
-
-## Array notification
-
-This area is in high flux.  Arrays bound to `x-repeat` are currently observed using `Array.observe` (or equivalent shim) and `x-repeat` will reflect changes to array mutations (push, pop, shift, unshift, splice) asynchronously.
-
-**In-place sort of array is not supported**.  Sorting/filtering will likely be provided as a feature of `x-repeat` (and possibly other array-aware elements such as `x-list`) in the future.
-
-Implementation and usage details will likely change, stay tuned.
-
-<a name="todo-inheritance"></a>
-## Mixins / Inheritance
-
-TODO - use composition for now
-
-## Gesture support
-
-TODO - use standard DOM for now until gesture support is ported
