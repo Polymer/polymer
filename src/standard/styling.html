@@ -27,15 +27,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // declaration-y
       _prepTemplate: function() {
         prepTemplate.call(this);
-        var port = Polymer.DomModule.import(this.is);
-        if (this._encapsulateStyle === undefined) {
-          this._encapsulateStyle = 
-            Boolean(port && !nativeShadow);
-        }
         // scope css
-        // NOTE: dom scoped via annotations
-        if (nativeShadow || this._encapsulateStyle) {
-          this._scopeCss();
+        this._styles = this._prepareStyles();
+        var cssText = this._transformStyles(this._styles);
+        if (this._encapsulateStyle === undefined) {
+          this._encapsulateStyle = !nativeShadow && 
+            Boolean(this._template);
+        }
+        if (cssText && this._template) {
+          Polymer.StyleUtil.applyCss(cssText, this.is, 
+            nativeShadow ? this._template.content : null, true);
         }
       },
 
@@ -47,12 +48,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         prepElement.call(this, element);
       },
 
-      _scopeCss: function() {
-        this._styles = this._prepareStyles();
-        this._scopeStyles(this._styles);
-      },
-
       // search for extra style modules via `styleModules`
+      // TODO(sorvell): consider dropping support for `styleModules`
       _prepareStyles: function() {
         var cssText = '', m$ = this.styleModules;
         if (m$) {
@@ -76,50 +73,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var m = Polymer.DomModule.import(moduleId);
         if (m && !m._cssText) {
           var cssText = '';
-          var e$ = Array.prototype.slice.call(m.querySelectorAll('style'));
-          this._unapplyStyles(e$);
-          e$ = e$.concat(Array.prototype.map.call(
-            m.querySelectorAll(REMOTE_SHEET_SELECTOR), function(l) {
-              return l.import.body;
-            }));
-          m._cssText = this._cssFromStyles(e$);
+          var e$ = Array.prototype.slice.call(
+            m.querySelectorAll(STYLES_SELECTOR));
+          for (var i=0, e; i < e$.length; i++) {
+            e = e$[i];
+            // style elements inside dom-modules will apply to the main document
+            // we don't want this, so we remove them here.
+            if (e.localName === 'style') {
+              // get style element applied to main doc via HTMLImports polyfill
+              e = e.__appliedElement || e;
+              e.parentNode.removeChild(e);
+            // it's an import, assume this is a text file of css content.
+            } else {
+              e = e.import && e.import.body;
+            }
+            // adjust paths in css.
+            if (e) {
+              cssText += 
+                Polymer.ResolveUrl.resolveCss(e.textContent, e.ownerDocument);
+            }
+          }
+          m._cssText = cssText;
         }
         return m && m._cssText || '';
       },
 
-      _cssFromStyles: function(styles) {
+      _transformStyles: function(styles, callback) {
         var cssText = '';
-        for (var i=0, l=styles.length, s; (i<l) && (s = styles[i]); i++) {
-          if (s && s.textContent) {
-            cssText += 
-              Polymer.ResolveUrl.resolveCss(s.textContent, s.ownerDocument);
-          }
+        for (var i=0, l=styles.length, s, text; (i<l) && (s=styles[i]); i++) {
+          var rules = this._rulesForStyle(s);
+          cssText += nativeShadow ?
+            Polymer.StyleUtil.toCssText(rules, callback) :
+            Polymer.StyleTransformer.css(rules, this.is, this.extends, callback,
+            this._scopeCssViaAttr) + '\n\n';
         }
-        return cssText;
-      },
-
-      _unapplyStyles: function(styles) {
-        for (var i=0, l=styles.length, s; (i<l) && (s = styles[i]); i++) {
-          s = s.__appliedElement || s;
-          s.parentNode.removeChild(s);
-        }
-      },
-
-      _scopeStyles: function(styles) {
-        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-          // transform style if necessary and place in correct place
-          if (nativeShadow) {
-            if (this._template) {
-              this._template.content.appendChild(s);
-            }
-          } else {
-            var rules = this._rulesForStyle(s);
-            Polymer.StyleUtil.applyCss(
-              Polymer.StyleTransformer.css(rules, this.is, this.extends, 
-              null, this._scopeCssViaAttr), 
-              this.is, null, true);
-          }
-        }
+        return cssText.trim();
       },
 
       _rulesForStyle: function(style) {
@@ -127,6 +115,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           style.__cssRules = Polymer.StyleUtil.parser.parse(style.textContent);
         }
         return style.__cssRules;
+      },
+
+      _forRulesInStyles: function(styles, cb) {
+        if (styles) {
+          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+            Polymer.StyleUtil.forEachStyleRule(this._rulesForStyle(s), cb);
+          }
+        }
       },
 
       // instance-y
@@ -188,7 +184,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     });
 
-    var REMOTE_SHEET_SELECTOR = 'link[rel=import][type~=css]';
+    var STYLES_SELECTOR = 'style, link[rel=import][type~=css]';
 
   })();
 
