@@ -4,7 +4,7 @@
 Below is a description of current Polymer features, followed by individual feature guides.
 
 <a name="polymer-micro"></a>
-**Minimal Custom Element sugaring**
+**Basic Custom Element sugaring**
 
 | Feature | Usage
 |---------|-------
@@ -97,7 +97,7 @@ Below is a description of current Polymer features, followed by individual featu
 | [Self-binding template](#dom-bind) | \<template is="dom-bind">
 | [Custom element for styling features](#custom-style) | \<style is="custom-style">
 
-# Minimal Custom Element sugaring
+# Basic Custom Element sugaring
 
 <a name="element-constructor"></a>
 ## Custom Element Constructor
