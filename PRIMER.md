@@ -776,10 +776,10 @@ The following are the gesture event types supported, with a short description an
       * `end` - fired when tracking ends
   * `x` - clientX coordinate for event
   * `y` - clientY coordinate for event
-  * `dx` - change in pixels horizontally since last track event
-  * `dy` - change in pixels vertically since last track event
-  * `ddx` - change in pixels horizontally over last two track events
-  * `ddy` - change in pixels vertically over last two track events
+  * `dx` - change in pixels horizontally since the first track event
+  * `dy` - change in pixels vertically since the first track event
+  * `ddx` - change in pixels horizontally since last track event
+  * `ddy` - change in pixels vertically since last track event
   * `hover()` - a function that may be called to determine the element currently being hovered
 
 Example:
