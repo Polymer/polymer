@@ -1,17 +1,10 @@
 # Polymer Primer
 
-Table of Contents:
-
-* [Feature list](#feature-list)
-* [Migration notes](#migration-notes)
-
-# Feature list
-
 <a name="feature-list"></a>
-Below is a description of the current Polymer features, followed by individual feature guides.
+Below is a description of current Polymer features, followed by individual feature guides.
 
 <a name="polymer-micro"></a>
-**Bare-minum Custom Element sugaring**
+**Minimal Custom Element sugaring**
 
 | Feature | Usage
 |---------|-------
@@ -20,7 +13,7 @@ Below is a description of the current Polymer features, followed by individual f
 | [Bespoke constructor support](#bespoke-constructor) | factoryImpl: function() { … }
 | [Basic lifecycle callbacks](#basic-callbacks) | created, attached, detached, attributeChanged
 | [Native HTML element extension](#type-extension) | extends: ‘…’
-| [Configure properties](#property-config) | properties: { … }
+| [Property configuration](#property-config) | properties: { … }
 | [Attribute deserialization to property](#attribute-deserialization) | properties: { \<property>: \<Type> }
 | [Static attributes on host](#host-attributes) | hostAttributes: { \<attribute>: \<value> }
 | [Behavior mixins](#behaviors) | behaviors: [ … ]
@@ -38,26 +31,52 @@ Below is a description of the current Polymer features, followed by individual f
 | [Bottom-up callback after configuration](#ready-method) | ready: function() { … }
 
 <a name="polymer-standard"></a>
-**Declarative data binding, events, and property effects**
+**Node marshaling and events**
 
 | Feature | Usage
 |---------|-------
-| [Local node marshalling](#node-marshalling) | this.$.\<id>
+| [Local node marshaling](#node-marshaling) | this.$.\<id>
 | [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
 | [Annotated event listener setup](#annotated-listeners) | \<element on-[event]=”function”>
-| [Property change callbacks](#change-callbacks) | properties: \<prop>: { observer: ‘function’ }
+| [Gesture event support](#gesture-events) | \<element on-[gesture-event]=”function”>
+
+**Data observation**
+
+| Feature | Usage
+|---------|-------
+| [Property change observers](#change-callbacks) | properties: \<prop>: { observer: ‘observerFn’ }
+| [Multiple-property observation](#multiple-observation) | observers: [ 'observerFn(a, b)' ]
+| [Path observation](#path-observation) | observers: [ 'observerFn(object.prop)' ]
+| [Deep path observation](#deep-observation) | observers: [ 'observerFn(object.*)' ]
+| [Array observation](#array-observation) | observers: [ 'observerFn(array.splices)' ]
+
+**Data binding**
+
+| Feature | Usage
+|---------|-------
 | [Annotated property binding](#property-binding) | \<element prop=”{{property\|path}}”>
 | [Property change notification](#property-notification) | properties: { \<prop>: { notify: true } }
 | [Binding to structured data](#path-binding) | \<element prop=”{{obj.sub.path}}”>
 | [Path change notification](#set-path) | set(\<path>, \<value>)
+| [Array mutation](#array-mutation) | push, pop, shift, unshift, splice
 | [Declarative attribute binding](#attribute-binding) | \<element attr$=”{{property\|path}}”>
 | [Binding to native element attributes](#native-binding) | class$="{{...}}", style$="{{...}}">
 | [Reflecting properties to attributes](#attribute-reflection) | properties: \<prop>: { reflectToAttribute: true } }
 | [Computed properties](#computed-properties) | computed: { \<property>: ‘computeFn(dep1, dep2)’ }
 | [Annotated computed properties](#annotated-computed) | \<span>{{computeFn(dep1, dep2)}}\</span>
 | [Read-only properties](#read-only) |  properties: { \<prop>: { readOnly: true } }
-| [Cross-scope styling](#xscope-styling) | --custom-prop: value, var(--custom-prop), mixin(--custom-mixin)
+
+**Advanced styling features**
+
+| Feature | Usage
+|---------|-------
+| [Cross-scope styling](#xscope-styling) | --custom-prop: value; prop: var(--custom-prop); @apply(--custom-property-set);
 | [External stylesheets](#external-stylesheets) | \<link rel="import" type="css" href="...">
+
+**Settings, utility functions, and layering**
+
+| Feature | Usage
+|---------|-------
 | [General polymer settings](#settings) | \<script> Polymer = { ... }; \</script>
 | [Utility functions](#utility-functions) | toggleClass, toggleAttribute, fire, async, …
 | [Polymer feature layers](#feature-layering) | polymer-micro.html, polymer-mini.html, polymer.html
@@ -70,10 +89,10 @@ Below is a description of the current Polymer features, followed by individual f
 | [Template repeater](#dom-repeat) | \<template is="dom-repeat" items="{{arr}}">
 | [Array selector](#array-selector) | \<array-selector items="{{arr}}" selected="{{selected}}">
 | [Conditional template](#dom-if) | \<template is="dom-if">
-| [Auto-binding template](#dom-bind) | \<template is="dom-bind">
+| [Self-binding template](#dom-bind) | \<template is="dom-bind">
 | [Custom element for styling features](#custom-style) | \<style is="custom-style">
 
-# Bare-minum Custom Element sugaring
+# Minimal Custom Element sugaring
 
 <a name="element-constructor"></a>
 ## Custom Element Constructor
@@ -356,6 +375,8 @@ Results in:
 <x-custom role="button" aria-disabled tabindex="0"></x-custom>
 ```
 
+*Note that setting the `class` attribute on a host from within the host using `hostAttributes` is considered an anti-pattern, as this would override any class set in markup by the user of the element, and would also interfere with Polymer's scoped styling system used in non-native Shadow DOM environments.  As such, any `class` value set in `hostAttributes` is discarded and will not be set on the host.  If setting a class on the host element is unavoidable, users may manually use `classList.add` from within the `created` callback.*
+
 <a name="behaviors"></a>
 ## Behaviors
 
@@ -631,8 +652,8 @@ ready: function() {
 
 # Declarative data binding, event handlers, and property effects
 
-<a name="node-marshalling"></a>
-## Local node marshalling
+<a name="node-marshaling"></a>
+## Local node marshaling
 
 Polymer automatically builds a map of instance nodes stamped into its local DOM, to provide convenient access to frequently used nodes without the need to query for (and memoize) them manually.  Any node specified in the element's template with an `id` is stored on the `this.$` hash by `id`.
 
@@ -724,6 +745,80 @@ Example:
 </script>
 ```
 
+<a name="gesture-events"></a>
+## Gesture events
+
+Polymer will generate and fire a custom "gesture" event for certain user interactions automatically when a declarative listener is added for the event type.  These events will fire consistenly on both touch and mouse environments, and so it is advised to listen for these events rather than their mouse- or touch-specific event counterparts for interoperability with both touch and desktop/mouse environments.  For example, `tap` should be used instead of `click` for the most reliable cross-platform results.
+
+The following are the gesture event types supported, with a short description and list of detail properties available on `event.detail` for each type:
+
+* **down** - finger/button went down
+  * `x` - clientX coordinate for event
+  * `y` - clientY coordinate for event
+  * `sourceEvent` - the original DOM event that caused the `down` action
+* **up** - finger/button went up
+  * `x` - clientX coordinate for event
+  * `y` - clientY coordinate for event
+  * `sourceEvent` - the original DOM event that caused the `up` action
+* **tap** - down & up occurred
+  * `x` - clientX coordinate for event
+  * `y` - clientY coordinate for event
+  * `sourceEvent` - the original DOM event that caused the `tap` action
+* **track** - moving while finger/button is down
+  * `state` - a string indicating the tracking state:
+      * `start` - fired when tracking is first detected (finger/button down and moved past a pre-set distance threshold)
+      * `track` - fired while tracking
+      * `end` - fired when tracking ends
+  * `x` - clientX coordinate for event
+  * `y` - clientY coordinate for event
+  * `dx` - change in pixels horizontally since last track event
+  * `dy` - change in pixels vertically since last track event
+  * `ddx` - change in pixels horizontally over last two track events
+  * `ddy` - change in pixels vertically over last two track events
+  * `hover()` - a function that may be called to determine the element currently being hovered
+
+Example:
+
+```html
+<dom-module id="drag-me">
+  <style>
+    #dragme {
+      width: 500px;
+      height: 500px;
+      background: gray;
+    }
+  </style>
+  <template>
+    <div id="dragme" on-track="handleTrack">{{message}}</div>
+  </template>
+</dom-module>
+
+<script>
+
+  Polymer({
+
+    is: 'drag-me',
+
+    handleTrack: function(e) {
+      switch(e.detail.state) {
+        case 'start':
+          this.message = 'Tracking started!';
+          break;
+        case 'track':
+          this.message = 'Tracking in progress... ' +
+            e.detail.x + ', ' + e.detail.y;
+          break;
+        case 'end':
+          this.message = 'Tracking ended!';
+          break;
+      }
+    }
+
+  });
+
+</script>
+```
+
 <a name="change-callbacks"></a>
 ## Property change callbacks (observers)
 
@@ -765,11 +860,12 @@ Polymer({
 
 Note that property change observation is achieved in Polymer by installing setters on the custom element prototype for properties with registered interest (as opposed to observation via Object.observe or dirty checking, for example).
 
+<a name="multiple-observation"></a>
 ### Multiple property observation
 
 Observing changes to multiple properties is supported via the `observers` array on the prototype, using a string containing a method signature that includes any dependent arguments.  Once all properties are defined (`!== undefined`), the observer method will be called once for each change to a dependent property.  The current values of the dependent properties will be passed as arguments to the observer method in the order defined in the `observers` method signature.
 
-*Note, computing functions will only be called once all dependent properties are defined (`!=undefined`).  If one or more of the properties are optional, they would need default `value`'s defined in `properties` to ensure the observer is called.*
+*Note, multiple-property observers will only be called once all dependent properties are defined (`!== undefined`).  If one or more of the properties are optional, they would need default `value`'s defined in `properties` to ensure the observer is called.*
 
 *Note that any observers defined in the `observers` array will not receive `old` values as arguments, only new values.  Only single-property observers defined in the `properties` object received both `old` and `new` values.*
 
@@ -797,6 +893,7 @@ Polymer({
 });
 ```
 
+<a name="path-observation"></a>
 ### Path observation
 
 Observing changes to object sub-properties is also supported via the same `observers` array, by specifying a path (e.g. `user.manager.name`).
@@ -823,8 +920,9 @@ Polymer({
 });
 ```
 
-*Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a Polymer [property binding](#property-binding) to another element, or the value was changed using the [`set`](#set-path) API, which provides the required notification to elements with registered interest.*
+*Note that observing changes to paths (object sub-properties) is dependent on one of two requirements: either the value at the path in question changed via a two-way Polymer [property binding](#property-binding) to another element, or the value was changed using the [`set`](#set-path) API, which provides the required notification to elements with registered interest.*
 
+<a name="deep-observation"></a>
 ### Deep path observation
 
 Additionally, wildcard matching of path changes is also supported via the `observers` array, which allows notification when any (deep) sub-property of an object changes.  Note that the argument passed for a path with a wildcard is a change record object containing the `path` that changed, the new `value` of the path that changed, and the `base` value of the wildcard expression.
@@ -851,6 +949,65 @@ Polymer({
     } else {
       // sub-property of user.manager changed
       console.log(changeRecord.path + ' changed to ' + changeRecord.value);
+    }
+  }
+
+});
+```
+
+<a name="array-observation"></a>
+### Array observation
+
+Finally, mutations to arrays (e.g. changes resulting from calls to `push`, `pop`, `shift`, `unshift`, and `splice`, generally referred to as "splices") may be observed via the `observers` array by giving a path to an array followd by `.splices` as an argument to the observer function.  The value received by the observer for the `splices` path of an array will be a change record containing `indexSplices` and `keySplices` arrays listing the set of changes that occurred to the array, either in terms of array indicies or "keys" used by Polymer for identifying array elements.  Each `indexSplices` record contains a start `index`, array of `removed` items, and `addedCount` of items inserted.  Each `keySplices` record contains an array of `added` and `removed` keys).
+
+```js
+Polymer({
+
+  is: 'x-custom',
+
+  properties: {
+    users: Array
+  },
+
+  observers: [
+    'usersAddedOrRemoved(users.splices)'
+  ],
+
+  usersAddedOrRemoved: function(changeRecord) {
+    changeRecord.indexSplices.forEach(function(s) {
+      s.removed.forEach(function(user) {
+        console.log(user.name + ' was removed');
+      });
+      console.log(s.addedCount + ' users were added');
+    }, this);
+  }
+
+});
+```
+
+*Note that observing changes to arrays is dependent on the change to the array being made through one of the [array mutation API's](#array-mutation) provided on Polymer elements, which provides the required notification to elements with registered interest.*
+
+Note that an observer for a wildcard path of an array will be called for both splices as well as array element sub-property changes.  Hence, the observer in the following example will be called for all additions, removals, and deep changes that occur in the array:
+
+```js
+Polymer({
+
+  is: 'x-custom',
+
+  properties: {
+    users: Array
+  },
+
+  observers: [
+    'usersChanged(users.*)'
+  ],
+
+  usersChanged: function(changeRecord) {
+    if (changeRecord.path == 'users.splices') {
+      // a user was added or removed
+    } else {
+      // an individual user or its sub-properties changed
+      // check `changeRecord.path` to determine what changed
     }
   }
 
@@ -1121,7 +1278,7 @@ Two-way data-binding and observation of paths in Polymer is achieved using a sim
 
 This system "just works" to the extent that changes to object sub-properties occur as a result of being bound to a notifying custom element property that changed.  However, sometimes imperative code needs to "poke" at an object's sub-properties directly.  As we avoid more sophisticated observation mechanisms such as Object.observe or dirty-checking in order to achieve the best startup and runtime performance cross-platform for the most common use cases, changing an object's sub-properties directly requires cooperation from the user.
 
-Specifically, Polymer provides several API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `set(path, value)`, as well as a full set of array mutation API's (`push`, `pop(path)`, `unshift(path, ...)`, `shift(path)`, `splice(path, ...)`).
+Specifically, Polymer provides several API's that allow such changes to be notified to the system: `notifyPath(path, value)` and `set(path, value)`, as well as a full set of [array mutation API's](#array-mutation).
 
 Example:
 
@@ -1155,6 +1312,9 @@ reassignManager: function(newManager) {
 }
 ```
 
+<a name="array-mutation"></a>
+### Array mutation
+
 When modifying arrays, a set of array mutation API's are provided on Polymer
 element prototypes which mimic `Array.prototype` API's, with the exception that
 they take a `path` API as the first argument.  The `path` argument identifies
@@ -1163,6 +1323,16 @@ of the native `Array` methods.  These methods perform the mutation action on
 the array, and then notify other elements that may be bound to the same
 array of the changes.  Using these methods when mutating arrays is required
 to ensure elements that deal with arrays are kept in sync.
+
+Every Polymer element has the following array mutation API's available:
+
+* `push(path, item1, [..., itemN])`
+* `pop(path)`
+* `unshift(path, item1, [..., itemN])`
+* `shift(path)`
+* `splice(path, index, removeCount, [item1, ..., itemN]`
+
+Example:
 
 ```html
 <dom-module id="custom-element">
@@ -1343,7 +1513,7 @@ Polymer supports virtual properties whose values are calculated from other prope
 </script>
 ```
 
-Note: Only direct properties of the element (as opposed to sub-properties of an object) can be used as dependencies at this time.
+Note that arguments to computing functions may be simple properties on the element, as well as all of the arguments types supported by `observers`, including [paths](#path-observation), [paths with wildcards](#deep-observation), and [paths to array splices](#array-observation).  The arguments received in the comuting function will match those described in the sections referenced above.
 
 <a name="annotated-computed"></a>
 ## Annotated computed properties
@@ -1507,7 +1677,7 @@ The `--my-toolbar-title-color` property will only affect the color of the title 
 
 Thus, custom CSS properties introduce a powerful way for element authors to expose a theming API to their users in a way that naturally fits right alongside normal CSS styling and avoids the problems with `/deep/` and `::shadow`, and is already on a standards track with shipping implementation by Mozilla and planned support by Chrome.
 
-However, it may be tedious (or impossible) for an element author to anticipate and expose every possible CSS property that may be important for theming an element as individual CSS properties (for example, what if a user needed to adjust the `opacity` of the toolbar title?).  For this reason, the custom properties shim included in Polymer includes an extension allowing a bag of CSS properties to be defined as a custom property and allowing all properties in the bag to be applied to a specific CSS rule in an element's local DOM.  For this, we introduce a `mixin` capability that is analogous to `var`, but allows an entire bag of properties to be mixed in.
+However, it may be tedious (or impossible) for an element author to anticipate and expose every possible CSS property that may be important for theming an element as individual CSS properties (for example, what if a user needed to adjust the `opacity` of the toolbar title?).  For this reason, the custom properties shim included in Polymer includes an extension allowing a bag of CSS properties to be defined as a custom property and allowing all properties in the bag to be applied to a specific CSS rule in an element's local DOM.  For this, we introduce an `@apply` capability that is analogous to `var`, but allows an entire set of properties to be mixed in to the rule.
 
 Example:
 
@@ -1518,10 +1688,10 @@ Example:
     :host {
       padding: 4px;
       background-color: gray;
-      mixin(--my-toolbar-theme);
+      @apply(--my-toolbar-theme);
     }
     .title {
-      mixin(--my-toolbar-title-theme);
+      @apply(--my-toolbar-title-theme);
     }
   </style>
 
@@ -1534,7 +1704,7 @@ Example:
 </dom-module>
 ```
 
-Example usage of `my-toolbar`:
+Example usage of `my-toolbar`.
 
 ```html
 <dom-module id="my-element">
@@ -1543,6 +1713,8 @@ Example usage of `my-toolbar`:
 
     /* Apply custom theme to toolbars */
     :host {
+      /* the value of a custom property can be a set of properties
+         that will inherit down to the point of application */
       --my-toolbar-theme: {
         background-color: green;
         border-radius: 4px;
@@ -1578,7 +1750,7 @@ Example usage of `my-toolbar`:
 <a name="x-styling-limitations"></a>
 ### Custom Properties Shim - Limitations and API details
 
-Cross-platform support for custom properties is provided in Polymer by a Javascript library that approximates the capabilities of the CSS Variables specification  *for the specific use case of theming custom elements*, while also extending it to add the mixin capability described above.  **It is important to note that this is not a full polyfill**, as doing so would be prohibitively expensive; rather this is a shim that is inspired by that specification and trades off aspects of the full dynamism possible in CSS with practicality and performance.
+Cross-platform support for custom properties is provided in Polymer by a Javascript library that approximates the capabilities of the CSS Variables specification  *for the specific use case of theming custom elements*, while also extending it to add the capability to mixin property sets to rules as described above.  **It is important to note that this is not a full polyfill**, as doing so would be prohibitively expensive; rather this is a shim that is inspired by that specification and trades off aspects of the full dynamism possible in CSS with practicality and performance.
 
 Below are current limitations of this system.  Improvements to performance and dynamism will continue to be explored.
 
@@ -1935,7 +2107,7 @@ Consider an app with 4 screens, plus an optional admin screen.  If most users wi
 However, using a conditional template may be appropriate in the case of an admin screen that should only be shown to admin users of an app.  Since most users would not be admins, there may be performance benefits to not burdening most of the users with the cost of stamping the elements for the admin page, especially if it is relatively heavyweight.
 
 <a name="dom-bind"></a>
-## Auto-binding template
+## Self-binding template
 
 Polymer's binding features are only available within templates that are managed by Polymer.  As such, these features are available in templates used to define Polymer elements, for example, but not for elements placed directly in the main document.
 
