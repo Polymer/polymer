@@ -1530,7 +1530,7 @@ Polymer supports virtual properties whose values are calculated from other prope
   <template>
     My name is <span>{{fullName}}</span>
   </template>
-<dom-module id="x-custom">
+</dom-module>
 
 <script>
   Polymer({
@@ -1580,7 +1580,7 @@ Example:
   <template>
     My name is <span>{{computeFullName(first, last)}}</span>
   </template>
-<dom-module id="x-custom">
+</dom-module>
 
 <script>
   Polymer({
