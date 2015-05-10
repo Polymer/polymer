@@ -51,10 +51,23 @@ Example:
 Notifications for changes to items sub-properties will be forwarded to template
 instances, which will update via the normal structured data notification system.
 
-Mutations to the `items` array itself (`push`, `pop`, `splice`, `shift`,
-`unshift`) are observed via `Array.observe` (where supported, or an
-shim of this API on unsupported browsers), and template instances are kept in
-sync with the data in the array.
+Mutations to the `items` array itself should me made using the Array
+mutation API's on `Polymer.Base` (`push`, `pop`, `splice`, `shift`,
+`unshift`), and template instances will be kept in sync with the data in the
+array.
+
+Events caught by event handlers within the `dom-repeat` template will be
+decorated with a `model` property, which represents the binding scope for
+each template instance.  The model is an instance of Polymer.Base, and should
+be used to manipulate data on the instance, for example
+`event.model.set('item.checked', true);`.
+
+Alternatively, the model for a template instance for an element stamped by
+a `dom-repeat` can be obtained using the `modelForElement` API on the
+`dom-repeat` that stamped it, for example
+`this.$.domRepeat.modelForElement(event.target).set('item.checked', true);`.
+This may be useful for manipulating instance data of event targets obtained
+by event handlers on parents of the `dom-repeat` (event delegation).
 
 A view-specific filter/sort may be applied to each `dom-repeat` by supplying a
 `filter` and/or `sort` property.  This may be a string that names a function on
@@ -209,8 +222,9 @@ Then the `observe` property should be configured as follows:
 
     _sortChanged: function() {
       var dataHost = this._getRootDataHost();
-      this._sortFn = this.sort && (typeof this.sort == 'function' ?
-        this.sort : dataHost[this.sort].bind(dataHost));
+      var sort = this.sort;
+      this._sortFn = sort && (typeof sort == 'function' ? sort :
+        function() { return dataHost[sort].apply(dataHost, arguments); });
       this._fullRefresh = true;
       if (this.items) {
         this._debounceTemplate(this._render);
@@ -219,8 +233,9 @@ Then the `observe` property should be configured as follows:
 
     _filterChanged: function() {
       var dataHost = this._getRootDataHost();
-      this._filterFn = this.filter && (typeof this.filter == 'function' ?
-        this.filter : dataHost[this.filter].bind(dataHost));
+      var filter = this.filter;
+      this._filterFn = filter && (typeof filter == 'function' ? filter :
+        function() { return dataHost[filter].apply(dataHost, arguments); });
       this._fullRefresh = true;
       if (this.items) {
         this._debounceTemplate(this._render);
@@ -547,28 +562,73 @@ Then the `observe` property should be configured as follows:
       }
     },
 
-    _instanceForElement: function(el) {
-      while (el && !el._templateInstance) {
-        el = el.parentNode;
+    /**
+     * Returns the template "model" associated with a given element, which
+     * serves as the binding scope for the template instance the element is
+     * contained in. A template model is an instance of `Polymer.Base`, and
+     * should be used to manipulate data associated with this template instance.
+     *
+     * Example:
+     *
+     *   var model = modelForElement(el);
+     *   if (model.index < 10) {
+     *     model.set('item.checked', true);
+     *   }
+     *
+     * @method modelForElement
+     * @param {HTMLElement} el Element for which to return a template model.
+     * @return {Object<Polymer.Base>} Model representing the binding scope for
+     *   the element.
+     */
+    modelForElement: function(el) {
+      var model;
+      while (el) {
+        // An element with a _templateInstance marks the top boundary
+        // of a scope; walk up until we find one, and then ensure that
+        // its dataHost matches `this`, meaning this dom-repeat stamped it
+        if (model = el._templateInstance) {
+          // Found an element stamped by another template; keep walking up
+          // from its dataHost
+          if (model.dataHost != this) {
+            el = model.dataHost;
+          } else {
+            return model;
+          }
+        } else {
+          // Still in a template scope, keep going up until
+          // a _templateInstance is found
+          el = el.parentNode;
+        }
       }
-      return el && el._templateInstance;
     },
 
     /**
      * Returns the item associated with a given element stamped by
      * this `dom-repeat`.
+     *
+     * Note, to modify sub-properties of the item,
+     * `modelForElement(el).set('item.<sub-prop>', value)`
+     * should be used.
+     *
+     * @method itemForElement
+     * @param {HTMLElement} el Element for which to return the item.
+     * @return {any} Item associated with the element.
      */
     itemForElement: function(el) {
-      var instance = this._instanceForElement(el);
-      return instance && instance.item;
+      var instance = this.modelForElement(el);
+      return instance && instance[this.as];
     },
 
     /**
      * Returns the `Polymer.Collection` key associated with a given
      * element stamped by this `dom-repeat`.
+     *
+     * @method keyForElement
+     * @param {HTMLElement} el Element for which to return the key.
+     * @return {any} Key associated with the element.
      */
     keyForElement: function(el) {
-      var instance = this._instanceForElement(el);
+      var instance = this.modelForElement(el);
       return instance && instance.__key__;
     },
 
@@ -576,9 +636,14 @@ Then the `observe` property should be configured as follows:
      * Returns the row index for a given element stamped by this `dom-repeat`.
      * If `sort` is provided, the index will reflect the sorted order (rather
      * than the original array order).
+     *
+     * @method indexForElement
+     * @param {HTMLElement} el Element for which to return the index.
+     * @return {any} Row index associated with the element (note this may
+     *   not correspond to the array index if a user `sort` is applied).
      */
     indexForElement: function(el) {
-      var instance = this._instanceForElement(el);
+      var instance = this.modelForElement(el);
       return instance && instance[this.indexAs];
     }
 
