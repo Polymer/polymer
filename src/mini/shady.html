@@ -72,15 +72,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Force this element to distribute its children to its local dom.
        * A user should call `distributeContent` if distribution has been
        * invalidated due to changes to selectors on child elements that
-       * effect distribution. For example, if an element contains an
-       * insertion point with <content select=".foo"> and a `foo` class is
-       * added to a child, then `distributeContent` must be called to update
+       * effect distribution that were not made via `Polymer.dom`. 
+       * For example, if an element contains an insertion point with 
+       * <content select=".foo"> and a `foo` class is added to a child, 
+       * then `distributeContent` must be called to update
        * local dom distribution.
        */
       distributeContent: function() {
-        if (this._useContent) {
-          this.shadyRoot._distributionClean = false;
-          this._distributeContent();
+        if (this.shadyRoot) {
+          var dom = Polymer.dom(this);
+          var list = getRedistributingHosts(this);
+          list.push(this);
+          for (var i=0; i < list.length; i++) {
+            dom._lazyDistribute(list[i]);
+          }
         }
       },
 
@@ -150,6 +155,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var child = children[i];
           if (child._destinationInsertionPoints) {
             child._destinationInsertionPoints = undefined;
+          }
+          if (isInsertionPoint(child)) {
+            clearDistributedDestinationInsertionPoints(child);
           }
         }
         // insertion points
@@ -328,11 +336,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var points = child._destinationInsertionPoints;
       if (!points) {
         child._destinationInsertionPoints = [insertionPoint];
-      // TODO(sorvell): _destinationInsertionPoints may not be cleared when
-      // nodes are dynamically added/removed, therefore test before adding
-      // insertion points.
-      } else if (points.indexOf(insertionPoint) < 0) {
+      } else {
         points.push(insertionPoint);
+      }
+    }
+
+    function clearDistributedDestinationInsertionPoints(insertionPoint) {
+      var e$ = insertionPoint._distributedNodes;
+      for (var i=0; i < e$.length; i++) {
+        var d = e$[i]._destinationInsertionPoints;
+        if (d) {
+           d.splice(d.indexOf(insertionPoint)+1, d.length);
+        }
       }
     }
 
@@ -379,6 +394,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     function getComposedParent(node) {
       return node.__patched ? node._composedParent : node.parentNode;
     }
+
+    // return this host's like of redistributing hosts.
+    function getRedistributingHosts(host) {
+      var list = [];
+      while (host && hostNeedsRedistribution(host)) {
+        host = host.domHost;
+        // order from top-bottom for efficiency
+        if (host) {
+          list.unshift(host);
+        }
+      }
+      return list;
+    }
+
+    // Return true if a host's children includes 
+    // an insertion point that selects selectively
+    function hostNeedsRedistribution(host) {
+      var c$ = Polymer.dom(host).children;
+      for (var i=0, c; i < c$.length; i++) {
+        c = c$[i];
+        if (c.localName === 'content') {
+          var s = c.getAttribute('select');
+          if (s && s !== '*') {
+            return true;
+          }
+        }
+      }
+    }
+
   })();
 
 </script>
