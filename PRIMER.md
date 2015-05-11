@@ -549,7 +549,7 @@ The following methods are provided:
   * `Polymer.dom(node).parentNode`
   * `Polymer.dom(contentElement).getDistributedNodes()`
   * `Polymer.dom(node).getDestinationInsertionPoints()`
-  * `Polymer.dom.flush()` - The insert, append, and remove operations are trasnacted lazily in certain cases for performance.  In order to interrogate the dom (e.g. `offsetHeight`, `getComputedStyle`, etc.) immediately after one of these operations, call `Polymer.dom.flush()` first.
+  * `Polymer.dom.flush()` - The insert, append, and remove operations are transacted lazily in certain cases for performance.  In order to interrogate the dom (e.g. `offsetHeight`, `getComputedStyle`, etc.) immediately after one of these operations, call `Polymer.dom.flush()` first.
 
 Calling `append`/`insertBefore` where `parent` is a custom Polymer element adds the node to the light DOM of the element.  In order to insert/append into the shadow root of a custom element, use `this.root` as the parent.
 
