@@ -33,7 +33,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._styles.forEach(function(s) {
             var rules = this._rulesForStyle(s);
             propertyUtils.decorateRules(rules);
-            if (rules.properties.consumes) {
+            if (rules.propertyInfo.cssText) {
               consumes = true;
             }
           }, this);
@@ -52,8 +52,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _updateOwnStyles: function() {
         if (this._usesStyleProperties) {
-          this._styleProperties = this._computeStyleProperties();
-          this._applyStyleProperties(this._styleProperties);
+          this._computeStyleProperties();
+          this._applyStyleProperties();
         }
       },
 
@@ -63,14 +63,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.mixin(props, this._computeScopeStyleProperties());
         this.mixin(props, this._computeOwnStyleProperties());
         propertyUtils.reify(props);
-        return props;
+        this._styleProperties = props;
       },
 
       _computeScopeStyleProperties: function() {
         var host = this.domHost;
         // ensure host has styleProperties
         if (host && !host._styleProperties) {
-          host._styleProperties = host._computeStyleProperties();
+          host._computeStyleProperties();
         }
         // get props and styles from host or defaults
         var styles = host ? host._styles : Polymer.StyleDefaults.styles;
@@ -82,24 +82,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return props;
       },
 
+      // own style properties are computed once per prototype.
       _computeOwnStyleProperties: function() {
-        var props = {};
-        var cb = this._rootCustomPropertiesFromRule.bind(this, props);
-        this._forRulesInStyles(this._styles, cb);
-        return props;
+        if (!this._styles._ownStyleProperties) {
+          var props = {};
+          var cb = this._rootCustomPropertiesFromRule.bind(this, props);
+          this._forRulesInStyles(this._styles, cb);
+          this._styles._ownStyleProperties = props;
+        }
+        return this._styles._ownStyleProperties;
       },
 
       // Test if a rule matches the given `element` and if so,
       // collect any custom properties into `props`.
       _elementCustomPropertiesFromRule: function(props, element, rule) {
         if (element && this.elementMatches(rule.selector, element)) {
-          propertyUtils.collect(rule, props);
+          propertyUtils.collectProperties(rule, props);
         }
       },
 
-      // TODO(sorvell): optimization, this collection could
-      // be done at prototype time!
-      //
       // Test if a rule matches root crteria (:host or :root) and if so,
       // collect any custom properties into `props`.
       // these rules may already be shimmed and it's $ to reparse,
@@ -107,13 +108,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _rootCustomPropertiesFromRule: function(props, rule) {
         var s = rule.parsedSelector;
         if (s === HOST || s === ROOT) {
-          propertyUtils.collect(rule, props);
+          propertyUtils.collectProperties(rule, props);
         }
       },
 
       // apply styles
-      _applyStyleProperties: function(bag) {
-        var s$ = this._styles;
+      _applyStyleProperties: function() {
+        var bag = this._styleProperties, s$ = this._styles;
         if (s$) {
           var style = styleFromCache(this.is, bag, s$);
           var old = this._xScopeSelector;
