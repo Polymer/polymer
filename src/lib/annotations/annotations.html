@@ -161,11 +161,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // 1. Parse annotations from the template and memoize them on
     //    content._notes (recurses into nested templates)
-    // 2. Parse template bindings for parent.* properties and memoize them on
-    //    content._parentProps
-    // 3. Create bindings in current scope's annotation list to template for
-    //    parent props found in template
-    // 4. Remove template.content and store it in annotation list, where it
+    // 2. Remove template.content and store it in annotation list, where it
     //    will be the responsibility of the host to set it back to the template
     //    (this is both an optimization to avoid re-stamping nested template
     //    children and avoids a bug in Chrome where nested template children
@@ -176,53 +172,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var content = document.createDocumentFragment();
       content._notes = this.parseAnnotations(node);
       content.appendChild(node.content);
-      // Special-case treatment of 'parent.*' props for nested templates
-      // Automatically bind `prop` on host to `_parent_prop` on template
-      // for any `parent.prop`'s encountered in template binding; it is
-      // responsibility of the template implementation to forward
-      // these properties as appropriate
-      var bindings = [];
-      this._discoverTemplateParentProps(content);
-      for (var prop in content._parentProps) {
-        bindings.push({
-          index: index,
-          kind: 'property',
-          mode: '{',
-          name: '_parent_' + prop,
-          value: prop
-        });
-      }
       // TODO(sjmiles): using `nar` to avoid unnecessary allocation;
       // in general the handling of these arrays needs some cleanup
       // in this module
       list.push({
-        bindings: bindings,
+        bindings: Polymer.nar,
         events: Polymer.nar,
         templateContent: content,
         parent: parent,
         index: index
-      });
-    },
-
-    // Finds all bindings in template content and stores the path roots in
-    // the path members in content._parentProps. Each outer template merges
-    // inner _parentProps to propagate inner parent property needs to outer
-    // templates.
-    _discoverTemplateParentProps: function(content) {
-      var pp = content._parentProps = {};
-      content._notes.forEach(function(n) {
-        // Find all bindings to parent.* and spread them into _parentPropChain
-        n.bindings.forEach(function(b) {
-          var prop = b.value;
-          var dot = prop.indexOf('.');
-          prop = (dot < 0) ? prop : prop.slice(0, dot);
-          pp[prop] = true;
-        });
-        // Merge child _parentProps into this _parentProps
-        if (n.templateContent) {
-          var tpp = n.templateContent._parentProps;
-          Polymer.Base.mixin(pp, tpp);
-        }
       });
     },
 
