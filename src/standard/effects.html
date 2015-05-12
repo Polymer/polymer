@@ -33,10 +33,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.Base._addFeature({
 
     _addPropertyEffect: function(property, kind, effect) {
-     // TODO(sjmiles): everything to the right of the first '.' is lost, implies
-     // there is some duplicate information flow (not the only sign)
-     var model = property.split('.').shift();
-     Polymer.Bind.addPropertyEffect(this, model, kind, effect);
+     Polymer.Bind.addPropertyEffect(this, property, kind, effect);
     },
 
     // prototyping
@@ -79,13 +76,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (m) {
         return {
           method: m[1],
-          args: m[2].split(/[^\w.*]+/).map(this._parseArg)
+          args: m[2].split(/[^\w.*]+/).map(this._parseArg, this)
         };
       }
     },
 
     _parseArg: function(arg) {
-      var a = { name: arg };
+      var a = {
+        name: arg,
+        model: this._modelForPath(arg)
+      };
       a.structured = arg.indexOf('.') > 0;
       if (a.structured) {
         a.wildcard = (arg.slice(-2) == '.*');
@@ -99,7 +99,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _addComputedEffect: function(name, expression) {
       var sig = this._parseMethod(expression);
       sig.args.forEach(function(arg) {
-        this._addPropertyEffect(arg.name, 'compute', {
+        this._addPropertyEffect(arg.model, 'compute', {
           method: sig.method,
           args: sig.args,
           arg: arg,
@@ -126,7 +126,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _addComplexObserverEffect: function(observer) {
       var sig = this._parseMethod(observer);
       sig.args.forEach(function(arg) {
-        this._addPropertyEffect(arg.name, 'complexObserver', {
+        this._addPropertyEffect(arg.model, 'complexObserver', {
           method: sig.method,
           args: sig.args,
           arg: arg
@@ -154,22 +154,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Polymer.Bind._addAnnotatedListener(this, index,
           note.name, note.value, note.event);
       }
-      var sig = this._parseMethod(note.value);
-      if (sig) {
-        this._addAnnotatedComputationEffect(sig, note, index);
+      if (note.signature) {
+        this._addAnnotatedComputationEffect(note, index);
       } else {
         // capture the node index
         note.index = index;
-        // discover top-level property (model) from path
-        var model = note.value.split('.').shift();
         // add 'annotation' binding effect for property 'model'
-        this._addPropertyEffect(model, 'annotation', note);
+        this._addPropertyEffect(note.model, 'annotation', note);
       }
     },
 
-    _addAnnotatedComputationEffect: function(sig, note, index) {
+    _addAnnotatedComputationEffect: function(note, index) {
+      var sig = note.signature;
       sig.args.forEach(function(arg) {
-        this._addPropertyEffect(arg.name, 'annotatedComputation', {
+        this._addPropertyEffect(arg.model, 'annotatedComputation', {
           kind: note.kind,
           method: sig.method,
           args: sig.args,
