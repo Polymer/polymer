@@ -124,8 +124,68 @@ TODO(sjmiles): this module should produce either syntactic metadata
         // TODO(sorvell): ad hoc method of plugging behavior into Annotations
         Polymer.Annotations.prepElement = this._prepElement.bind(this);
         this._notes = Polymer.Annotations.parseAnnotations(this._template);
+        this._processAnnotations(this._notes);
         Polymer.Annotations.prepElement = null;
       }
+    },
+
+    _processAnnotations: function(notes) {
+      for (var i=0; i<notes.length; i++) {
+        var note = notes[i];
+        // Parse bindings for methods & path roots (models)
+        for (var j=0; j<note.bindings.length; j++) {
+          var b = note.bindings[j];
+          b.signature = this._parseMethod(b.value);
+          if (!b.signature) {
+            b.model = this._modelForPath(b.value);
+          }
+        }
+        // Recurse into nested templates & bind parent props
+        if (note.templateContent) {
+          this._processAnnotations(note.templateContent._notes);
+          var pp = note.templateContent._parentProps =
+            this._discoverTemplateParentProps(note.templateContent._notes);
+          var bindings = [];
+          for (var prop in pp) {
+            bindings.push({
+              index: note.index,
+              kind: 'property',
+              mode: '{',
+              name: '_parent_' + prop,
+              model: prop,
+              value: prop
+            });
+          }
+          note.bindings = note.bindings.concat(bindings);
+        }
+      }
+    },
+
+    // Finds all bindings in template content and stores the path roots in
+    // the path members in content._parentProps. Each outer template merges
+    // inner _parentProps to propagate inner parent property needs to outer
+    // templates.
+    _discoverTemplateParentProps: function(notes) {
+      var pp = {};
+      notes.forEach(function(n) {
+        // Find all bindings to parent.* and spread them into _parentPropChain
+        n.bindings.forEach(function(b) {
+          if (b.signature) {
+            var args = b.signature.args;
+            for (var k=0; k<args.length; k++) {
+              pp[args[k].model] = true;
+            }
+          } else {
+            pp[b.model] = true;
+          }
+        });
+        // Merge child _parentProps into this _parentProps
+        if (n.templateContent) {
+          var tpp = n.templateContent._parentProps;
+          Polymer.Base.mixin(pp, tpp);
+        }
+      });
+      return pp;
     },
 
     _prepElement: function(element) {
