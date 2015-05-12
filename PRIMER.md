@@ -994,7 +994,7 @@ Polymer({
   userManagerChanged: function(changeRecord) {
     if (changeRecord.path == 'user.manager') {
       // user.manager object itself changed
-      console.log('new manager name is ' + newValue.name);
+      console.log('new manager name is ' + changeRecord.base.name);
     } else {
       // sub-property of user.manager changed
       console.log(changeRecord.path + ' changed to ' + changeRecord.value);
