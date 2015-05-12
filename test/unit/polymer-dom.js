@@ -232,6 +232,38 @@ suite('Polymer.dom', function() {
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), []);
   });
 
+  test('re-distribution results in correct logical tree when outer host remove a node from pool of inner host', function() {
+    var r = document.querySelector('x-redistribute-a-b');
+    var rc = Polymer.dom(r.root).querySelectorAll('content');
+    var ec1 = Polymer.dom(r.$.echo1.root).querySelector('content');
+    var ec2 = Polymer.dom(r.$.echo2.root).querySelector('content');
+    var child = document.createElement('div');
+    child.className = 'a';
+    Polymer.dom(r).appendChild(child);
+    Polymer.dom.flush();
+    assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [rc[0], ec1]);
+    assert.deepEqual(Polymer.dom(rc[0]).getDistributedNodes(), [child]);
+    assert.deepEqual(Polymer.dom(rc[1]).getDistributedNodes(), []);
+    assert.deepEqual(Polymer.dom(ec1).getDistributedNodes(), [child]);
+    assert.deepEqual(Polymer.dom(ec2).getDistributedNodes(), []);
+    child.className = 'b';
+    r.distributeContent();
+    Polymer.dom.flush();
+    assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [rc[1], ec2]);
+    assert.deepEqual(Polymer.dom(rc[0]).getDistributedNodes(), []);
+    assert.deepEqual(Polymer.dom(rc[1]).getDistributedNodes(), [child]);
+    assert.deepEqual(Polymer.dom(ec1).getDistributedNodes(), []);
+    assert.deepEqual(Polymer.dom(ec2).getDistributedNodes(), [child]);
+    child.className = 'a';
+    r.distributeContent();
+    Polymer.dom.flush();
+    assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [rc[0], ec1]);
+    assert.deepEqual(Polymer.dom(rc[0]).getDistributedNodes(), [child]);
+    assert.deepEqual(Polymer.dom(rc[1]).getDistributedNodes(), []);
+    assert.deepEqual(Polymer.dom(ec1).getDistributedNodes(), [child]);
+    assert.deepEqual(Polymer.dom(ec2).getDistributedNodes(), []);
+  });
+
   test('appendChild (light)', function() {
     var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
     var s = document.createElement('span');

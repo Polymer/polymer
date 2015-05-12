@@ -191,6 +191,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var p$ = node._insertionPoints;
         for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
           this._distributeInsertionPoint(p, pool);
+          // provoke redistribution on insertion point parents
+          // must do this on all candidate hosts since distribution in this 
+          // scope invalidates their distribution.
+          maybeRedistributeParent(p, this);
         }
       },
 
@@ -210,13 +214,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             pool[i] = undefined;
             // since at least one node matched, we won't need fallback content
             anyDistributed = true;
-            var parent = content.lightParent;
-            // dirty a shadyRoot if a change may trigger reprojection!
-            if (parent && parent.shadyRoot &&
-              hasInsertionPoint(parent.shadyRoot)) {
-              parent.shadyRoot._distributionClean = false;
-              this.shadyRoot._dirtyRoots.push(parent);
-            }
           }
         }
         // Fallback content if nothing was distributed here
@@ -341,13 +338,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    function clearDistributedDestinationInsertionPoints(insertionPoint) {
-      var e$ = insertionPoint._distributedNodes;
+    function clearDistributedDestinationInsertionPoints(content) {
+      var e$ = content._distributedNodes;
       for (var i=0; i < e$.length; i++) {
         var d = e$[i]._destinationInsertionPoints;
         if (d) {
-           d.splice(d.indexOf(insertionPoint)+1, d.length);
+           // this is +1 because these insertion points are *not* in this scope
+           d.splice(d.indexOf(content)+1, d.length);
         }
+      }
+    }
+
+    // dirty a shadyRoot if a change may trigger reprojection!
+    function maybeRedistributeParent(content, host) {
+      var parent = content.lightParent;
+      if (parent && parent.shadyRoot &&
+          hasInsertionPoint(parent.shadyRoot) && 
+          parent.shadyRoot._distributionClean) {
+        parent.shadyRoot._distributionClean = false;
+        host.shadyRoot._dirtyRoots.push(parent);
       }
     }
 
@@ -415,10 +424,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var i=0, c; i < c$.length; i++) {
         c = c$[i];
         if (c.localName === 'content') {
-          var s = c.getAttribute('select');
-          if (s && s !== '*') {
-            return true;
-          }
+          return true;
         }
       }
     }
