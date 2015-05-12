@@ -13,6 +13,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
 
   Polymer.DomApi = (function() {
+    'use strict';
 
     var Settings = Polymer.Settings;
     var getInnerHTML = Polymer.domInnerHTML.getInnerHTML;
@@ -365,9 +366,57 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         while (this.childNodes.length) {
           this.removeChild(this.childNodes[0]);
         }
+      },
+
+      setAttribute: function(name, value) {
+        this.node.setAttribute(name, value);
+        this._distributeParent();
+      },
+
+      removeAttribute: function(name) {
+        this.node.removeAttribute(name);
+        this._distributeParent();
+      },
+
+      _distributeParent: function() {
+        if (this.parentNode && this.parentNode.shadyRoot) {
+          this._lazyDistribute(this.parentNode);
+        }
       }
 
     };
+
+    Object.defineProperty(DomApi.prototype, 'classList', {
+      get: function() {
+        if (!this._classList) {
+          this._classList = new DomApi.ClassList(this);
+        }
+        return this._classList;
+      },
+      configurable: true
+    });
+
+    DomApi.ClassList = function(host) {
+      this.domApi = host;
+      this.node = host.node;
+    }
+
+    DomApi.ClassList.prototype = {
+      add: function() {
+        this.node.classList.add.apply(this.node.classList, arguments);
+        this.domApi._distributeParent();
+      },
+
+      remove: function() {
+        this.node.classList.remove.apply(this.node.classList, arguments);
+        this.domApi._distributeParent();
+      },
+
+      toggle: function() {
+        this.node.classList.toggle.apply(this.node.classList, arguments);
+        this.domApi._distributeParent();
+      }
+    }
 
     // changes and accessors...
     if (!Settings.useShadow) {
@@ -517,6 +566,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return getInnerHTML(this.node, true);
       };
 
+
     } else {
 
       DomApi.prototype.querySelectorAll = function(selector) {
@@ -542,6 +592,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var n$ = this.node.getDistributedNodes();
         return n$ ? Array.prototype.slice.call(n$) : [];
       };
+
+      DomApi.prototype._distributeParent = function() {}
 
       Object.defineProperties(DomApi.prototype, {
 
