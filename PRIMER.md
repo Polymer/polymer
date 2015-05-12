@@ -365,8 +365,9 @@ Example:
 
     hostAttributes: {
       role: 'button',
-      'aria-disabled': true,
-      tabindex: 0
+      'aria-disabled': 'true',
+      tabindex: 0,
+      disabled: true
     }
 
   });
@@ -377,7 +378,7 @@ Example:
 Results in:
 
 ```html
-<x-custom role="button" aria-disabled tabindex="0"></x-custom>
+<x-custom role="button" aria-disabled="true" tabindex="0" disabled></x-custom>
 ```
 
 *Note that setting the `class` attribute on a host from within the host using `hostAttributes` is considered an anti-pattern, as this would override any class set in markup by the user of the element, and would also interfere with Polymer's scoped styling system used in non-native Shadow DOM environments.  As such, any `class` value set in `hostAttributes` is discarded and will not be set on the host.  If setting a class on the host element is unavoidable, users may manually use `classList.add` from within the `created` callback.*
