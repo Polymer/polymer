@@ -365,8 +365,9 @@ Example:
 
     hostAttributes: {
       role: 'button',
-      'aria-disabled': true
-      tabindex: 0
+      'aria-disabled': 'true',
+      tabindex: 0,
+      disabled: true
     }
 
   });
@@ -377,7 +378,7 @@ Example:
 Results in:
 
 ```html
-<x-custom role="button" aria-disabled tabindex="0"></x-custom>
+<x-custom role="button" aria-disabled="true" tabindex="0" disabled></x-custom>
 ```
 
 *Note that setting the `class` attribute on a host from within the host using `hostAttributes` is considered an anti-pattern, as this would override any class set in markup by the user of the element, and would also interfere with Polymer's scoped styling system used in non-native Shadow DOM environments.  As such, any `class` value set in `hostAttributes` is discarded and will not be set on the host.  If setting a class on the host element is unavoidable, users may manually use `classList.add` from within the `created` callback.*
@@ -549,7 +550,7 @@ The following methods are provided:
   * `Polymer.dom(node).parentNode`
   * `Polymer.dom(contentElement).getDistributedNodes()`
   * `Polymer.dom(node).getDestinationInsertionPoints()`
-  * `Polymer.dom.flush()` - The insert, append, and remove operations are trasnacted lazily in certain cases for performance.  In order to interrogate the dom (e.g. `offsetHeight`, `getComputedStyle`, etc.) immediately after one of these operations, call `Polymer.dom.flush()` first.
+  * `Polymer.dom.flush()` - The insert, append, and remove operations are transacted lazily in certain cases for performance.  In order to interrogate the dom (e.g. `offsetHeight`, `getComputedStyle`, etc.) immediately after one of these operations, call `Polymer.dom.flush()` first.
 
 Calling `append`/`insertBefore` where `parent` is a custom Polymer element adds the node to the light DOM of the element.  In order to insert/append into the shadow root of a custom element, use `this.root` as the parent.
 
@@ -994,7 +995,7 @@ Polymer({
   userManagerChanged: function(changeRecord) {
     if (changeRecord.path == 'user.manager') {
       // user.manager object itself changed
-      console.log('new manager name is ' + newValue.name);
+      console.log('new manager name is ' + changeRecord.base.name);
     } else {
       // sub-property of user.manager changed
       console.log(changeRecord.path + ' changed to ' + changeRecord.value);
