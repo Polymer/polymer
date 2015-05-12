@@ -72,15 +72,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Force this element to distribute its children to its local dom.
        * A user should call `distributeContent` if distribution has been
        * invalidated due to changes to selectors on child elements that
-       * effect distribution. For example, if an element contains an
-       * insertion point with <content select=".foo"> and a `foo` class is
-       * added to a child, then `distributeContent` must be called to update
+       * effect distribution that were not made via `Polymer.dom`. 
+       * For example, if an element contains an insertion point with 
+       * <content select=".foo"> and a `foo` class is added to a child, 
+       * then `distributeContent` must be called to update
        * local dom distribution.
        */
       distributeContent: function() {
-        if (this._useContent) {
-          this.shadyRoot._distributionClean = false;
-          this._distributeContent();
+        if (this.shadyRoot) {
+          // Distribute the host that's the top of this element's distribution
+          // tree. Distributing that host will *always* distibute this element.
+          var host = getTopDistributingHost(this);
+          Polymer.dom(this)._lazyDistribute(host);
         }
       },
 
@@ -151,6 +154,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (child._destinationInsertionPoints) {
             child._destinationInsertionPoints = undefined;
           }
+          if (isInsertionPoint(child)) {
+            clearDistributedDestinationInsertionPoints(child);
+          }
         }
         // insertion points
         var root = this.shadyRoot;
@@ -183,6 +189,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var p$ = node._insertionPoints;
         for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
           this._distributeInsertionPoint(p, pool);
+          // provoke redistribution on insertion point parents
+          // must do this on all candidate hosts since distribution in this 
+          // scope invalidates their distribution.
+          maybeRedistributeParent(p, this);
         }
       },
 
@@ -202,13 +212,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             pool[i] = undefined;
             // since at least one node matched, we won't need fallback content
             anyDistributed = true;
-            var parent = content.lightParent;
-            // dirty a shadyRoot if a change may trigger reprojection!
-            if (parent && parent.shadyRoot &&
-              hasInsertionPoint(parent.shadyRoot)) {
-              parent.shadyRoot._distributionClean = false;
-              this.shadyRoot._dirtyRoots.push(parent);
-            }
           }
         }
         // Fallback content if nothing was distributed here
@@ -328,11 +331,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var points = child._destinationInsertionPoints;
       if (!points) {
         child._destinationInsertionPoints = [insertionPoint];
-      // TODO(sorvell): _destinationInsertionPoints may not be cleared when
-      // nodes are dynamically added/removed, therefore test before adding
-      // insertion points.
-      } else if (points.indexOf(insertionPoint) < 0) {
+      } else {
         points.push(insertionPoint);
+      }
+    }
+
+    function clearDistributedDestinationInsertionPoints(content) {
+      var e$ = content._distributedNodes;
+      for (var i=0; i < e$.length; i++) {
+        var d = e$[i]._destinationInsertionPoints;
+        if (d) {
+           // this is +1 because these insertion points are *not* in this scope
+           d.splice(d.indexOf(content)+1, d.length);
+        }
+      }
+    }
+
+    // dirty a shadyRoot if a change may trigger reprojection!
+    function maybeRedistributeParent(content, host) {
+      var parent = content.lightParent;
+      if (parent && parent.shadyRoot &&
+          hasInsertionPoint(parent.shadyRoot) && 
+          parent.shadyRoot._distributionClean) {
+        parent.shadyRoot._distributionClean = false;
+        host.shadyRoot._dirtyRoots.push(parent);
       }
     }
 
@@ -379,6 +401,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     function getComposedParent(node) {
       return node.__patched ? node._composedParent : node.parentNode;
     }
+
+    // returns the host that's the top of this host's distribution tree
+    function getTopDistributingHost(host) {
+      while (host && hostNeedsRedistribution(host)) {
+        host = host.domHost;
+      }
+      return host;
+    }
+
+    // Return true if a host's children includes 
+    // an insertion point that selects selectively
+    function hostNeedsRedistribution(host) {
+      var c$ = Polymer.dom(host).children;
+      for (var i=0, c; i < c$.length; i++) {
+        c = c$[i];
+        if (c.localName === 'content') {
+          return host.domHost;
+        }
+      }
+    }
+
   })();
 
 </script>
