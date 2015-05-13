@@ -411,7 +411,7 @@ HighlightBehavior = {
   },
 
   created: function() {
-    console.log('Highlighting for ', this, + 'enabled!');
+    console.log('Highlighting for ', this, 'enabled!');
   },
 
   _toggleHighlight: function() {
