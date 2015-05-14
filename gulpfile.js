@@ -1,4 +1,5 @@
 var gulp = require('gulp');
+var audit = require('gulp-audit');
 var replace = require('gulp-replace');
 var shell = require('gulp-shell');
 var rename = require('gulp-rename');
@@ -98,4 +99,15 @@ gulp.task('switch', ['default'], function(cb) {
 
 gulp.task('restore', ['clean'], function(cb) {
   runseq('restore-build', 'restore-src', 'cleanup-switch', cb);
+});
+
+gulp.task('audit', function() {
+  return gulp.src([mini, micro, max])
+  .pipe(audit('build.log', {
+    repos: [
+      '.'
+    ]
+  }))
+  .pipe(gulp.dest('.'))
+  ;
 });
