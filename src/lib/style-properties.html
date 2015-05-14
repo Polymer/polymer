@@ -15,6 +15,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.StyleProperties = (function() {
 
     var nativeShadow = Polymer.Settings.useNativeShadow;
+    var matchesSelector = Polymer.DomApi.matchesSelector;
+    var styleUtil = Polymer.StyleUtil;
+    var styleTransformer = Polymer.StyleTransformer;
 
     return {
 
@@ -25,7 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         var info = {};
         var self = this;
-        Polymer.StyleUtil.forEachStyleRule(rules, function(rule) {
+        styleUtil.forEachStyleRule(rules, function(rule) {
           var p = self.decorateRule(rule);
           // TODO(sorvell): mix?
           info.cssText = info.cssText || p.cssText;
@@ -157,12 +160,137 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         rule.cssText = output;
       },
 
+      // Test if the rules in these styles matche the given `element` and if so,
+      // collect any custom properties into `props`.
+      propertiesFromStyles: function(styles, element) {
+        var props = {}, self = this;
+        styleUtil.forRulesInStyles(styles, function(rule) {
+          if (!rule.propertyInfo) {
+            self.decorateRule(rule);
+          }
+          if (element && rule.propertyInfo.properties &&
+              matchesSelector.call(element, rule.selector)) {
+            self.collectProperties(rule, props);
+          }
+        });
+        return props;
+      },
+
+      // Test if a rule matches root crteria (:host or :root) and if so,
+      // collect any custom properties into `props`.
+      // these rules may already be shimmed and it's $ to reparse,
+      // so we check `is` value as a fallback
+      rootPropertiesFromStyles: function(styles) {
+        if (!styles._ownStyleProperties) {
+          var props = {}, self = this;
+          styleUtil.forRulesInStyles(styles, function(rule) {
+            if (!rule.propertyInfo) {
+              self.decorateRule(rule);
+            }
+            var s = rule.parsedSelector;
+            if (s === self.HOST || s === self.ROOT) {
+              self.collectProperties(rule, props);
+            }
+          });
+          styles._ownStyleProperties = props;
+        }
+        return styles._ownStyleProperties;
+      },
+
+      transformStyles: function(element, properties, scopeSelector) {
+        var self = this;
+        var hostRx = new RegExp(this.rx.HOST_PREFIX + element.is + 
+          this.rx.HOST_SUFFIX);
+        return styleTransformer.elementStyles(element, function(rule) {
+          self.applyProperties(rule, properties);
+          if (rule.cssText && !nativeShadow) {
+            self._scopeSelector(rule, hostRx, element.is, 
+              element._scopeCssViaAttr, scopeSelector);
+          }
+        });
+      },
+
+      // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
+      // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
+      // host selector: x-foo.wide -> x-foo.x-foo-42.wide
+      _scopeSelector: function(rule, hostRx, is, viaAttr, scopeId) {
+        rule.transformedSelector = rule.transformedSelector || rule.selector;
+        var selector = rule.transformedSelector;
+        var scope = viaAttr ? '[' + styleTransformer.SCOPE_NAME + '~=' + 
+          scopeId + ']' : 
+          '.' + scopeId;
+        var parts = selector.split(',');
+        for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
+          parts[i] = p.match(hostRx) ?
+            p.replace(is, is + scope) :
+            scope + ' ' + p;
+        }
+        rule.selector = parts.join(',');
+      },
+
+      applyElementScopeSelector: function(element, selector, old, viaAttr) {
+        var c = viaAttr ? element.getAttribute(styleTransformer.SCOPE_NAME) :
+          element.className;
+        v = old ? c.replace(old, selector) :
+          (c ? c + ' ' : '') + this.XSCOPE_NAME + ' ' + selector;
+        if (c !== v) {
+          if (viaAttr) {
+            element.setAttribute(styleTransformer.SCOPE_NAME, v);
+          } else {
+            element.className = v;
+          }
+        }
+      },
+
+      applyElementStyle: function(element, properties, selector, style) {
+        // calculate cssText to apply
+        var cssText = style ? style.textContent || '' : 
+          this.transformStyles(element, properties, selector);  
+        // if shady and we have a cached style that is not style, decrement
+        var s = element._customStyle;
+        if (s && !nativeShadow && (s !== style)) {
+          s._useCount--;
+          if (s._useCount <= 0) {
+            s.parentNode.removeChild(s);
+          }
+        }
+        // apply styling always under native or if we generated style
+        // or the cached style is not in document(!)
+        if (nativeShadow || (!style || !style.parentNode)) {
+          // update existing style only under native
+          if (nativeShadow && element._customStyle) {
+            element._customStyle.textContent = cssText;
+            style = element._customStyle;
+          // otherwise, if we have css to apply, do so
+          } else if (cssText) {
+            // apply css after the scope style of the element to help with
+            // style predence rules.
+            style = styleUtil.applyCss(cssText, selector, 
+              nativeShadow ? element.root : null, element._scopeStyle);
+          }
+        }
+        // ensure this style is our custom style and increment its use count.
+        if (style) {
+          style._useCount = style._useCount || 0;
+          style._useCount++;
+          element._customStyle = style;
+        }
+        return style;
+      },
+
       rx: {
         VAR_ASSIGN: /(?:^|;\s*)(--[^\:;]*?):\s*?(?:([^;{]*?)|{([^}]*)})(?=;)/gim,
         MIXIN_MATCH: /(?:^|\W+)@apply[\s]*\(([^)]*)\);?/im, 
         VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*([^,)]*)[\s]*?\)/gim,
-        BRACKETED: /\{[^}]*\}/g
-      }
+        BRACKETED: /\{[^}]*\}/g,
+        HOST_PREFIX: '(?:^|[^.])',
+        HOST_SUFFIX: '($|[.:[\\s>+~])'
+      },
+
+      HOST: ':host',
+      ROOT: ':root',
+      XSCOPE_NAME: 'x-scope'
+
     };
 
   })();
