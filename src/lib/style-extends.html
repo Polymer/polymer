@@ -22,11 +22,11 @@ Polymer.StyleExtends = (function() {
     transform: function(cssText) {
       return Polymer.StyleUtil.toCssText(cssText, function(rule) {
         var map = this._mapRule(rule);
-        if (map) {
+        if (rule.parent) {
           var m;
           while (m = this.rx.EXTEND.exec(rule.cssText)) {
             var extend = m[1];
-            var extendor = map[extend];
+            var extendor = this._findExtendor(extend, rule);
             if (extendor) {
               this._extendRule(rule, extendor);
             }
@@ -48,7 +48,15 @@ Polymer.StyleExtends = (function() {
       }
     },
 
+    _findExtendor: function(extend, rule) {
+      return rule.parent && rule.parent.map && rule.parent.map[extend] ||
+        this._findExtendor(extend, rule.parent);
+    },
+
     _extendRule: function(target, source) {
+      if (target.parent !== source.parent) {
+        this._cloneAndRuleToParent(source, target.parent);
+      }
       target.extends = target.extends || (target.extends = []);
       target.extends.push(source);
       source.selector = source.selector + ',\n' + target.selector;
@@ -57,6 +65,15 @@ Polymer.StyleExtends = (function() {
           this._extendRule(target, e);
         }, this);
       }
+    },
+
+    _cloneAndRuleToParent: function(rule, parent) {
+      rule = Object.create(rule);
+      rule.parent = parent;
+      if (rule.extends) {
+        rule.extends = rule.extends.slice();
+      }
+      parent.rules.push(rule);
     },
 
     rx: {
