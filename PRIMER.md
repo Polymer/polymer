@@ -1991,10 +1991,10 @@ Document-level global Polymer settings can be set before loading by setting a `P
 
 ```
 
-Settings can also be switched on the URL query string:
+Settings can also be switched on the URL query string (settings must be prefixed with `polymer-...`):
 
 ```
-http://myserver.com/test-app/index.html?dom=shadow
+http://myserver.com/test-app/index.html?polymer-dom=shadow
 ```
 
 Available settings:
