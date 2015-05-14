@@ -13,6 +13,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 Polymer.StyleExtends = (function() {
 
+  var styleUtil = Polymer.StyleUtil;
+
   return {
     
     hasExtends: function(cssText) {
@@ -20,20 +22,28 @@ Polymer.StyleExtends = (function() {
     },
 
     transform: function(cssText) {
-      return Polymer.StyleUtil.toCssText(cssText, function(rule) {
-        var map = this._mapRule(rule);
+      var rules = styleUtil.parser.parse(cssText);
+      var self = this;
+      styleUtil.forEachStyleRule(rules, function(rule) {
+        var map = self._mapRule(rule);
         if (rule.parent) {
           var m;
-          while (m = this.rx.EXTEND.exec(rule.cssText)) {
+          while (m = self.rx.EXTEND.exec(rule.cssText)) {
             var extend = m[1];
-            var extendor = this._findExtendor(extend, rule);
+            var extendor = self._findExtendor(extend, rule);
             if (extendor) {
-              this._extendRule(rule, extendor);
+              self._extendRule(rule, extendor);
             }
           }
         }
-        rule.cssText = rule.cssText.replace(this.rx.EXTEND, '');
-      }.bind(this), true);
+        rule.cssText = rule.cssText.replace(self.rx.EXTEND, '');
+      });
+      // strip unused % selectors
+      return styleUtil.toCssText(rules, function(rule) {
+        if (rule.selector.match(self.rx.STRIP)) {
+          rule.cssText = '';
+        }
+      }, true);
     },
 
     _mapRule: function(rule) {
@@ -59,7 +69,9 @@ Polymer.StyleExtends = (function() {
       }
       target.extends = target.extends || (target.extends = []);
       target.extends.push(source);
-      source.selector = source.selector + ',\n' + target.selector;
+      source.selector = source.selector.replace(this.rx.STRIP, '');
+      source.selector = (source.selector && source.selector + ',\n') + 
+        target.selector;
       if (source.extends) {
         source.extends.forEach(function(e) {
           this._extendRule(target, e);
@@ -77,7 +89,8 @@ Polymer.StyleExtends = (function() {
     },
 
     rx: {
-      EXTEND: /@extends\(([^)]*)\)\s*?;/gim
+      EXTEND: /@extends\(([^)]*)\)\s*?;/gim,
+      STRIP: /%[^,]*$/
     }
 
   };
