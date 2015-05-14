@@ -17,7 +17,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var GESTURE_KEY = '__polymerGestures';
   var HANDLED_OBJ = '__polymerGesturesHandled';
   var TOUCH_ACTION = '__polymerGesturesTouchAction';
+  // radius for tap and track
   var TAP_DISTANCE = 25;
+  var TRACK_DISTANCE = 5;
+  // number of last N track positions to keep
+  var TRACK_LENGTH = 2;
 
   // Disabling "mouse" handlers for 500ms is enough
   var MOUSE_TIMEOUT = 500;
@@ -29,6 +33,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // disable mouse handlers for MOUSE_TIMEOUT ms after
   // a touchend to ignore synthetic mouse events
   var mouseCanceller = function(mouseEvent) {
+    // skip synthetic mouse events
     mouseEvent[HANDLED_OBJ] = {skip: true};
     // disable "ghost clicks"
     if (mouseEvent.type === 'click') {
@@ -44,6 +49,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
   function ignoreMouse(set) {
+    // manual debounce
+    if (set && POINTERSTATE.touch.mouseIgnoreId !== -1) {
+      return;
+    }
     for (var i = 0, en; i < MOUSE_EVENTS.length; i++) {
       en = MOUSE_EVENTS[i];
       if (set) {
@@ -54,9 +63,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     if (set) {
       // disable MOUSE_CANCELLER after MOUSE_TIMEOUT ms
-      setTimeout(ignoreMouse, MOUSE_TIMEOUT);
+      POINTERSTATE.mouse.mouseIgnoreId = setTimeout(ignoreMouse, MOUSE_TIMEOUT);
     } else {
       POINTERSTATE.mouse.target = null;
+      POINTERSTATE.touch.mouseIgnoreId = -1;
     }
   }
 
@@ -69,7 +79,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       x: 0,
       y: 0,
       id: -1,
-      scrollDecided: false
+      scrollDecided: false,
+      mouseIgnoreId: -1
     }
   };
 
@@ -94,6 +105,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       next = next.elementFromPoint(x, y);
       if (next) {
         node = next;
+        next = next.shadowRoot;
       }
     }
     return node;
@@ -114,27 +126,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       if (!ev[HANDLED_OBJ]) {
         ev[HANDLED_OBJ] = {};
-        if (type === 'touchstart') {
-          if (POINTERSTATE.touch.id === -1) {
-            POINTERSTATE.touch.id = ev.changedTouches[0].touchIdentifier;
+        if (type.slice(0, 5) === 'touch') {
+          var t = ev.changedTouches[0];
+          if (type === 'touchstart') {
+            // only handle the first finger
+            if (ev.touches.length === 1) {
+              POINTERSTATE.touch.id = t.identifier;
+            }
           }
-        }
-        if (!HAS_NATIVE_TA) {
-          if (type === 'touchstart' || type === 'touchmove') {
-            Gestures.handleTouchAction(ev);
+          if (POINTERSTATE.touch.id !== t.identifier) {
+            return;
           }
-        }
-        if (type === 'touchend') {
-          POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
-        }
-      }
-      // only handle the first finger
-      if (type.slice(0, 5) === 'touch') {
-        if (POINTERSTATE.touch.id !== ev.changedTouches[0].touchIdentifier) {
-          return;
+          if (!HAS_NATIVE_TA) {
+            if (type === 'touchstart' || type === 'touchmove') {
+              Gestures.handleTouchAction(ev);
+            }
+          }
+          if (type === 'touchend') {
+            POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
+            // ignore syntethic mouse events after a touch
+            ignoreMouse(true);
+          }
         }
       }
       handled = ev[HANDLED_OBJ];
+      // used to ignore synthetic mouse events
       if (handled.skip) {
         return;
       }
@@ -146,11 +162,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           handled[r.name] = true;
           r[type](ev);
         }
-      }
-      // ignore syntethic mouse events after a touch
-      if (type === 'touchend') {
-        POINTERSTATE.touch.id = -1;
-        ignoreMouse(true);
       }
     },
 
@@ -175,9 +186,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else if (ta === 'none') {
           prevent = true;
         } else if (ta === 'pan-x') {
-          prevent = dx >= dy;
-        } else if (ta === 'pan-y') {
           prevent = dy > dx;
+        } else if (ta === 'pan-y') {
+          prevent = dx > dy;
         }
         if (prevent) {
           ev.preventDefault();
@@ -268,16 +279,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Gestures.register({
     name: 'track',
     touchAction: 'none',
-    deps: ['mousedown', 'touchmove', 'touchend'],
+    deps: ['mousedown', 'touchstart', 'touchmove', 'touchend'],
     emits: ['track'],
 
     info: {
+      x: 0,
+      y: 0,
       state: 'start',
       started: false,
       moves: [],
       addMove: function(move) {
-        if (this.moves.length > 5) {
-          this.moves.splice(1, 1);
+        if (this.moves.length > TRACK_LENGTH) {
+          this.moves.shift();
         }
         this.moves.push(move);
       }
@@ -287,18 +300,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.info.state = 'start';
       this.info.started = false;
       this.info.moves = [];
+      this.info.x = 0;
+      this.info.y = 0;
+    },
+
+    hasMovedEnough: function(x, y) {
+      if (this.info.started) {
+        return true;
+      }
+      var dx = Math.abs(this.info.x - x);
+      var dy = Math.abs(this.info.y - y);
+      return (dx >= TRACK_DISTANCE || dy >= TRACK_DISTANCE);
     },
 
     mousedown: function(e) {
       var t = e.currentTarget;
       var self = this;
       var movefn = function movefn(e) {
-        // first move is 'start', subsequent moves are 'move', mouseup is 'end'
-        self.info.state = self.info.started ? (e.type === 'mouseup' ? 'end' : 'track') : 'start';
-        self.info.addMove({x: e.clientX, y: e.clientY});
-        self.fire(t, e);
-        e.preventDefault();
-        self.info.started = true;
+        var x = e.clientX, y = e.clientY;
+        if (self.hasMovedEnough(x, y)) {
+          // first move is 'start', subsequent moves are 'move', mouseup is 'end'
+          self.info.state = self.info.started ? (e.type === 'mouseup' ? 'end' : 'track') : 'start';
+          self.info.addMove({x: x, y: y});
+          self.fire(t, e);
+          e.preventDefault();
+          self.info.started = true;
+        }
       };
       var upfn = function upfn(e) {
         if (self.info.started) {
@@ -313,21 +340,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // add temporary document listeners as mouse retargets
       document.addEventListener('mousemove', movefn);
       document.addEventListener('mouseup', upfn);
+      this.info.x = e.clientX;
+      this.info.y = e.clientY;
+    },
+
+    touchstart: function(e) {
+      var ct = e.changedTouches[0];
+      this.info.x = ct.clientX;
+      this.info.y = ct.clientY;
     },
 
     touchmove: function(e) {
       var t = e.currentTarget;
       var ct = e.changedTouches[0];
-      this.info.addMove({x: ct.clientX, y: ct.clientY});
-      this.fire(t, ct);
-      this.info.state = 'track';
+      var x = ct.clientX, y = ct.clientY;
+      if (this.hasMovedEnough(x, y)) {
+        this.info.addMove({x: x, y: y});
+        this.fire(t, ct);
+        this.info.state = 'track';
+        this.info.started = true;
+      }
     },
 
     touchend: function(e) {
       var t = e.currentTarget;
       var ct = e.changedTouches[0];
       // only trackend if track was started and not aborted
-      if (this.info.state !== 'start') {
+      if (this.info.started) {
         // iff tracking, always prevent tap
         POINTERSTATE.tapPrevented = true;
         // reset started state on up
@@ -341,12 +380,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     fire: function(target, touch) {
       var secondlast = this.info.moves[this.info.moves.length - 2];
       var lastmove = this.info.moves[this.info.moves.length - 1];
-      var firstmove = this.info.moves[0];
-      var dx, dy = 0;
-      if (firstmove) {
-        dx = lastmove.x - firstmove.x;
-        dy = lastmove.y - firstmove.y;
-      }
+      var dx = lastmove.x - this.info.x;
+      var dy = lastmove.y - this.info.y;
       var ddx, ddy = 0;
       if (secondlast) {
         ddx = lastmove.x - secondlast.x;
