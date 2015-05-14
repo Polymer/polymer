@@ -108,6 +108,6 @@ gulp.task('audit', function() {
       '.'
     ]
   }))
-  .pipe(gulp.dest('.'))
+  .pipe(gulp.dest('dist'))
   ;
 });
