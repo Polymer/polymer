@@ -1,0 +1,311 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<script>
+
+  Polymer.Templatizer = {
+
+    properties: {
+      _hideTemplateChildren: {
+        observer: '_hideTemplateChildrenChanged'
+      }
+    },
+
+    // Intentionally static object
+    _templatizerStatic: {
+      count: 0,
+      callbacks: {},
+      debouncer: null
+    },
+
+    // Extension point for overrides
+    _instanceProps: Polymer.nob,
+
+    created: function() {
+      // id used for consolidated debouncer
+      this._templatizerId = this._templatizerStatic.count++;
+    },
+
+    templatize: function(template) {
+      // TODO(sjmiles): supply _alternate_ content reference missing from root
+      // templates (not nested). `_content` exists to provide content sharing
+      // for nested templates.
+      if (!template._content) {
+        template._content = template.content;
+      }
+      // fast path if template's anonymous class has been memoized
+      if (template._content._ctor) {
+        this.ctor = template._content._ctor;
+        //console.log('Templatizer.templatize: using memoized archetype');
+        // forward parent properties to archetype
+        this._prepParentProperties(this.ctor.prototype, template);
+        return;
+      }
+      // `archetype` is the prototype of the anonymous
+      // class created by the templatizer
+      var archetype = Object.create(Polymer.Base);
+      // normally Annotations.parseAnnotations(template) but
+      // archetypes do special caching
+      this._customPrepAnnotations(archetype, template);
+
+      // setup accessors
+      archetype._prepEffects();
+      this._customPrepEffects(archetype);
+      archetype._prepBehaviors();
+      archetype._prepBindings();
+
+      // forward parent properties to archetype
+      this._prepParentProperties(archetype, template);
+
+      // boilerplate code
+      archetype._notifyPath = this._notifyPathImpl;
+      archetype._scopeElementClass = this._scopeElementClassImpl;
+      archetype.listen = this._listenImpl;
+      // boilerplate code
+      var _constructor = this._constructorImpl;
+      var ctor = function TemplateInstance(model, host) {
+        _constructor.call(this, model, host);
+      };
+      // standard references
+      ctor.prototype = archetype;
+      archetype.constructor = ctor;
+      // TODO(sjmiles): constructor cache?
+      template._content._ctor = ctor;
+      // TODO(sjmiles): choose less general name
+      this.ctor = ctor;
+    },
+
+    _getRootDataHost: function() {
+      return (this.dataHost && this.dataHost._rootDataHost) || this.dataHost;
+    },
+
+    _hideTemplateChildrenChanged: function(hidden) {
+      if (this._hideChildren) {
+        // Extension point for Templatizer sub-classes
+        // TODO(kschaaf): remove once element protos can override behaviors
+        this._hideChildren(hidden);
+      }
+    },
+
+    _debounceTemplate: function(fn) {
+      this._templatizerStatic.callbacks[this._templatizerId] = fn.bind(this);
+      this._templatizerStatic.debouncer =
+        Polymer.Debounce(this._templatizerStatic.debouncer,
+          this._flushTemplates.bind(this, true));
+    },
+
+    _flushTemplates: function(debouncerExpired) {
+      var db = this._templatizerStatic.debouncer;
+      // completely flush any re-queued callbacks resulting from stamping
+      while (debouncerExpired || (db && db.finish)) {
+        db.stop();
+        var cbs = this._templatizerStatic.callbacks;
+        this._templatizerStatic.callbacks = {};
+        for (var id in cbs) {
+          cbs[id]();
+        }
+        debouncerExpired = false;
+      }
+    },
+
+    _customPrepEffects: function(archetype) {
+      var parentProps = archetype._parentProps;
+      for (var prop in parentProps) {
+        archetype._addPropertyEffect(prop, 'function',
+          this._createHostPropEffector(prop));
+      }
+    },
+
+    _customPrepAnnotations: function(archetype, template) {
+      archetype._template = template;
+      var c = template._content;
+      if (!c._notes) {
+        var rootDataHost = archetype._rootDataHost;
+        if (rootDataHost) {
+          Polymer.Annotations.prepElement =
+            rootDataHost._prepElement.bind(rootDataHost);
+        }
+        c._notes = Polymer.Annotations.parseAnnotations(template);
+        Polymer.Annotations.prepElement = null;
+        this._processAnnotations(c._notes);
+      }
+      archetype._notes = c._notes;
+      archetype._parentProps = c._parentProps;
+    },
+
+    // Sets up accessors on the template to call abstract _forwardParentProp
+    // API that should be implemented by Templatizer users to get parent
+    // properties to their template instances.  These accessors are memoized
+    // on the archetype and copied to instances.
+    _prepParentProperties: function(archetype, template) {
+      var parentProps = this._parentProps = archetype._parentProps;
+      if (this._forwardParentProp && parentProps) {
+        // Prototype setup (memoized on archetype)
+        var proto = archetype._parentPropProto;
+        var prop;
+        if (!proto) {
+          for (prop in this._instanceProps) {
+            delete parentProps[prop];
+          }
+          proto = archetype._parentPropProto = Object.create(null);
+          if (template != this) {
+            // Assumption: if `this` isn't the template being templatized,
+            // assume that the template is not a Poylmer.Base, so prep it
+            // for binding
+            Polymer.Bind.prepareModel(proto);
+          }
+          // Create accessors for each parent prop that forward the property
+          // to template instances through abstract _forwardParentProp API
+          // that should be implemented by Templatizer users
+          for (prop in parentProps) {
+            var parentProp = '_parent_' + prop;
+            var effects = [{
+              kind: 'function',
+              effect: this._createForwardPropEffector(prop)
+            }, {
+              kind: 'notify'
+            }];
+            Polymer.Bind._createAccessors(proto, parentProp, effects);
+          }
+        }
+        // Instance setup
+        if (template != this) {
+          Polymer.Bind.prepareInstance(template);
+          template._forwardParentProp =
+            this._forwardParentProp.bind(this);
+        }
+        this._extendTemplate(template, proto);
+      }
+    },
+
+    _createForwardPropEffector: function(prop) {
+      return function(source, value) {
+        this._forwardParentProp(prop, value);
+      };
+    },
+
+    _createHostPropEffector: function(prop) {
+      return function(source, value) {
+        this.dataHost['_parent_' + prop] = value;
+      };
+    },
+
+    // Similar to Polymer.Base.extend, but retains any previously set instance
+    // values (_propertySet back on instance once accessor is installed)
+    _extendTemplate: function(template, proto) {
+      Object.getOwnPropertyNames(proto).forEach(function(n) {
+        var val = template[n];
+        var pd = Object.getOwnPropertyDescriptor(proto, n);
+        Object.defineProperty(template, n, pd);
+        if (val !== undefined) {
+          template._propertySet(n, val);
+        }
+      });
+    },
+
+    // Extension point for Templatizer sub-classes
+    _forwardInstancePath: function(inst, path, value) { },
+
+    _notifyPathImpl: function(path, value) {
+      var dataHost = this.dataHost;
+      var dot = path.indexOf('.');
+      var root = dot < 0 ? path : path.slice(0, dot);
+      // Call extension point for Templatizer sub-classes
+      dataHost._forwardInstancePath.call(dataHost, this, path, value);
+      if (root in dataHost._parentProps) {
+        dataHost.notifyPath('_parent_' + path, value);
+      }
+    },
+
+    // Overrides Base notify-path module
+    _pathEffector: function(path, value, fromAbove) {
+      if (this._forwardParentPath) {
+        if (path.indexOf('_parent_') === 0) {
+          this._forwardParentPath(path.substring(8), value);
+        }
+      }
+      Polymer.Base._pathEffector.apply(this, arguments);
+    },
+
+    _constructorImpl: function(model, host) {
+      this._rootDataHost = host._getRootDataHost();
+      this._setupConfigure(model);
+      this._pushHost(host);
+      this.root = this.instanceTemplate(this._template);
+      this.root.__styleScoped = true;
+      this._popHost();
+      this._marshalAnnotatedNodes();
+      this._marshalInstanceEffects();
+      this._marshalAnnotatedListeners();
+      // each row is a document fragment which is lost when we appendChild,
+      // so we have to track each child individually
+      var children = [];
+      for (var n = this.root.firstChild; n; n=n.nextSibling) {
+        children.push(n);
+        n._templateInstance = this;
+      }
+      // Since archetype overrides Base/HTMLElement, Safari complains
+      // when accessing `children`
+      this._children = children;
+      // ready self and children
+      this._tryReady();
+    },
+
+    // Decorate events with model (template instance)
+    _listenImpl: function(node, eventName, methodName) {
+      var model = this;
+      var host = this._rootDataHost;
+      var handler = host._createEventHandler(node, eventName, methodName);
+      var decorated = function(e) {
+        e.model = model;
+        handler(e);
+      };
+      host._listen(node, eventName, decorated);
+    },
+
+    _scopeElementClassImpl: function(node, value) {
+      var host = this._rootDataHost;
+      if (host) {
+        return host._scopeElementClass(node, value);
+      }
+    },
+
+    stamp: function(model) {
+      model = model || {};
+      if (this._parentProps) {
+        for (var prop in this._parentProps) {
+          model[prop] = this['_parent_' + prop];
+        }
+      }
+      return new this.ctor(model, this);
+    }
+
+    // TODO(sorvell): note, using the template as host is ~5-10% faster if
+    // elements have no default values.
+    // _constructorImpl: function(model, host) {
+    //   this._setupConfigure(model);
+    //   host._beginHost();
+    //   this.root = this.instanceTemplate(this._template);
+    //   host._popHost();
+    //   this._marshalTemplateContent();
+    //   this._marshalAnnotatedNodes();
+    //   this._marshalInstanceEffects();
+    //   this._marshalAnnotatedListeners();
+    //   this._ready();
+    // },
+
+    // stamp: function(model) {
+    //   return new this.ctor(model, this.dataHost);
+    // }
+
+
+  };
+
+</script>

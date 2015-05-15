@@ -1,0 +1,653 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+
+The `dom-repeat` element is a custom `HTMLTemplateElement` type extension that
+automatically stamps and binds one instance of template content to each object
+in a user-provided array.  `dom-repeat` accepts an `items` property, and one
+instance of the template is stamped for each item into the DOM at the location
+of the `dom-repeat` element.  The `item` property will be set on each instance's
+binding scope, thus templates should bind to sub-properties of `item`.
+
+Example:
+
+```html
+<dom-module id="employee-list">
+
+  <template>
+
+    <div> Employee list: </div>
+    <template is="dom-repeat" items="{{employees}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
+    </template>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: 'employee-list',
+      ready: function() {
+        this.employees = [
+            {first: 'Bob', last: 'Smith'},
+            {first: 'Sally', last: 'Johnson'},
+            ...
+        ];
+      }
+    });
+  </script>
+
+</dom-module>
+```
+
+Notifications for changes to items sub-properties will be forwarded to template
+instances, which will update via the normal structured data notification system.
+
+Mutations to the `items` array itself should me made using the Array
+mutation API's on `Polymer.Base` (`push`, `pop`, `splice`, `shift`,
+`unshift`), and template instances will be kept in sync with the data in the
+array.
+
+Events caught by event handlers within the `dom-repeat` template will be
+decorated with a `model` property, which represents the binding scope for
+each template instance.  The model is an instance of Polymer.Base, and should
+be used to manipulate data on the instance, for example
+`event.model.set('item.checked', true);`.
+
+Alternatively, the model for a template instance for an element stamped by
+a `dom-repeat` can be obtained using the `modelForElement` API on the
+`dom-repeat` that stamped it, for example
+`this.$.domRepeat.modelForElement(event.target).set('item.checked', true);`.
+This may be useful for manipulating instance data of event targets obtained
+by event handlers on parents of the `dom-repeat` (event delegation).
+
+A view-specific filter/sort may be applied to each `dom-repeat` by supplying a
+`filter` and/or `sort` property.  This may be a string that names a function on
+the host, or a function may be assigned to the property directly.  The functions
+should implemented following the standard `Array` filter/sort API.
+
+In order to re-run the filter or sort functions based on changes to sub-fields
+of `items`, the `observe` property may be set as a space-separated list of
+`item` sub-fields that should cause a re-filter/sort when modified.
+
+For example, for an `dom-repeat` with a filter of the following:
+
+```js
+isEngineer: function(item) {
+    return item.type == 'engineer' || item.manager.type == 'engineer';
+}
+```
+
+Then the `observe` property should be configured as follows:
+
+```html
+<template is="dom-repeat" items="{{employees}}"
+          filter="isEngineer" observe="type manager.type">
+```
+
+-->
+
+<link rel="import" href="templatizer.html">
+<link rel="import" href="../collection.html">
+
+<script>
+
+  Polymer({
+
+    is: 'dom-repeat',
+    extends: 'template',
+
+    /**
+     * Fired whenever DOM is added or removed by this template (by
+     * default, rendering occurs lazily).  To force immediate rendering, call
+     * `render`.
+     *
+     * @event dom-change
+     */
+
+    properties: {
+
+      /**
+       * An array containing items determining how many instances of the template
+       * to stamp and that that each template instance should bind to.
+       */
+      items: {
+        type: Array
+      },
+
+      /**
+       * The name of the variable to add to the binding scope for the array
+       * element associated with a given template instance.
+       */
+      as: {
+        type: String,
+        value: 'item'
+      },
+
+      /**
+       * The name of the variable to add to the binding scope with the index
+       * for the row.  If `sort` is provided, the index will reflect the
+       * sorted order (rather than the original array order).
+       */
+      indexAs: {
+        type: String,
+        value: 'index'
+      },
+
+      /**
+       * A function that should determine the sort order of the items.  This
+       * property should either be provided as a string, indicating a method
+       * name on the element's host, or else be an actual function.  The
+       * function should match the sort function passed to `Array.sort`.
+       * Using a sort function has no effect on the underlying `items` array.
+       */
+      sort: {
+        type: Function,
+        observer: '_sortChanged'
+      },
+
+      /**
+       * A function that can be used to filter items out of the view.  This
+       * property should either be provided as a string, indicating a method
+       * name on the element's host, or else be an actual function.  The
+       * function should match the sort function passed to `Array.filter`.
+       * Using a filter function has no effect on the underlying `items` array.
+       */
+      filter: {
+        type: Function,
+        observer: '_filterChanged'
+      },
+
+      /**
+       * When using a `filter` or `sort` function, the `observe` property
+       * should be set to a space-separated list of the names of item
+       * sub-fields that should trigger a re-sort or re-filter when changed.
+       * These should generally be fields of `item` that the sort or filter
+       * function depends on.
+       */
+      observe: {
+        type: String,
+        observer: '_observeChanged'
+      },
+
+      /**
+       * When using a `filter` or `sort` function, the `delay` property
+       * determines a debounce time after a change to observed item
+       * properties that must pass before the filter or sort is re-run.
+       * This is useful in rate-limiting shuffing of the view when
+       * item changes may be frequent.
+       */
+      delay: Number
+    },
+
+    behaviors: [
+      Polymer.Templatizer
+    ],
+
+    observers: [
+      '_itemsChanged(items.*)'
+    ],
+
+    detached: function() {
+      if (this.rows) {
+        for (var i=0; i<this.rows.length; i++) {
+          this._detachRow(i);
+        }
+      }
+      this.rows = null;
+    },
+
+    ready: function() {
+      // Template instance props that should be excluded from forwarding
+      this._instanceProps = {
+        __key__: true
+      };
+      this._instanceProps[this.as] = true;
+      this._instanceProps[this.indexAs] = true;
+      // Templatizing (generating the instance constructor) needs to wait
+      // until ready, since won't have its template content handed back to
+      // it until then
+      if (!this.ctor) {
+        this.templatize(this);
+      }
+    },
+
+    _sortChanged: function() {
+      var dataHost = this._getRootDataHost();
+      var sort = this.sort;
+      this._sortFn = sort && (typeof sort == 'function' ? sort :
+        function() { return dataHost[sort].apply(dataHost, arguments); });
+      this._fullRefresh = true;
+      if (this.items) {
+        this._debounceTemplate(this._render);
+      }
+    },
+
+    _filterChanged: function() {
+      var dataHost = this._getRootDataHost();
+      var filter = this.filter;
+      this._filterFn = filter && (typeof filter == 'function' ? filter :
+        function() { return dataHost[filter].apply(dataHost, arguments); });
+      this._fullRefresh = true;
+      if (this.items) {
+        this._debounceTemplate(this._render);
+      }
+    },
+
+    _observeChanged: function() {
+      this._observePaths = this.observe &&
+        this.observe.replace('.*', '.').split(' ');
+    },
+
+    _itemsChanged: function(change) {
+      if (change.path == 'items') {
+        this.collection = this.items ? Polymer.Collection.get(this.items) : null;
+        this._splices = [];
+        this._fullRefresh = true;
+        this._debounceTemplate(this._render);
+      } else if (change.path == 'items.splices') {
+        this._splices = this._splices.concat(change.value.keySplices);
+        this._debounceTemplate(this._render);
+      } else {
+        // slice off 'items.' ('items.'.length == 6)
+        var subpath = change.path.slice(6);
+        this._forwardItemPath(subpath, change.value);
+        this._checkObservedPaths(subpath);
+      }
+    },
+
+    _checkObservedPaths: function(path) {
+      if (this._observePaths) {
+        path = path.substring(path.indexOf('.') + 1);
+        var paths = this._observePaths;
+        for (var i=0; i<paths.length; i++) {
+          if (path.indexOf(paths[i]) === 0) {
+            if (this.delay) {
+              this.debounce('render', this._render, this.delay);
+            } else {
+              this._debounceTemplate(this._render);
+            }
+            return;
+          }
+        }
+      }
+    },
+
+    render: function() {
+      this._flushTemplates();
+    },
+
+    _render: function() {
+      var c = this.collection;
+      // Update insert/remove any changes and update sort/filter
+      if (!this._fullRefresh) {
+        if (this._sortFn) {
+          this._applySplicesViewSort(this._splices);
+        } else {
+          if (this._filterFn) {
+            // TODK(kschaaf): Filtering using array sort takes slow path
+            this._fullRefresh = true;
+          } else {
+            this._applySplicesArraySort(this._splices);
+          }
+        }
+      }
+      if (this._fullRefresh) {
+        this._sortAndFilter();
+        this._fullRefresh = false;
+      }
+      this._splices = [];
+      var rowForKey = this._rowForKey = {};
+      var keys = this._orderedKeys;
+      // Assign items and keys
+      this.rows = this.rows || [];
+      for (var i=0; i<keys.length; i++) {
+        var key = keys[i];
+        var item = c.getItem(key);
+        var row = this.rows[i];
+        rowForKey[key] = i;
+        if (!row) {
+          this.rows.push(row = this._insertRow(i, null, item));
+        }
+        row[this.as] = item;
+        row.__key__ = key;
+        row[this.indexAs] = i;
+      }
+      // Remove extra
+      for (; i<this.rows.length; i++) {
+        this._detachRow(i);
+      }
+      this.rows.splice(keys.length, this.rows.length-keys.length);
+      this.fire('dom-change');
+    },
+
+    _sortAndFilter: function() {
+      var c = this.collection;
+      // For array-based sort, key order comes from array
+      if (!this._sortFn) {
+        this._orderedKeys = [];
+        var items = this.items;
+        if (items) {
+          for (var i=0; i<items.length; i++) {
+            this._orderedKeys.push(c.getKey(items[i]));
+          }
+        }
+      } else {
+        this._orderedKeys = c ? c.getKeys() : [];
+      }
+      // Apply user filter to keys
+      if (this._filterFn) {
+        this._orderedKeys = this._orderedKeys.filter(function(a) {
+          return this._filterFn(c.getItem(a));
+        }, this);
+      }
+      // Apply user sort to keys
+      if (this._sortFn) {
+        this._orderedKeys.sort(function(a, b) {
+          return this._sortFn(c.getItem(a), c.getItem(b));
+        }.bind(this));
+      }
+    },
+
+    _keySort: function(a, b) {
+      return this.collection.getKey(a) - this.collection.getKey(b);
+    },
+
+    _applySplicesViewSort: function(splices) {
+      var c = this.collection;
+      var keys = this._orderedKeys;
+      var rows = this.rows;
+      var removedRows = [];
+      var addedKeys = [];
+      var pool = [];
+      var sortFn = this._sortFn || this._keySort.bind(this);
+      splices.forEach(function(s) {
+        // Collect all removed row idx's
+        for (var i=0; i<s.removed.length; i++) {
+          var idx = this._rowForKey[s.removed[i]];
+          if (idx != null) {
+            removedRows.push(idx);
+          }
+        }
+        // Collect all added keys
+        for (var i=0; i<s.added.length; i++) {
+          addedKeys.push(s.added[i]);
+        }
+      }, this);
+      if (removedRows.length) {
+        // Sort removed rows idx's
+        removedRows.sort();
+        // Remove keys and pool rows (backwards, so we don't invalidate rowForKey)
+        for (var i=removedRows.length-1; i>=0 ; i--) {
+          var idx = removedRows[i];
+          pool.push(this._detachRow(idx));
+          rows.splice(idx, 1);
+          keys.splice(idx, 1);
+        }
+      }
+      if (addedKeys.length) {
+        // Filter added keys
+        if (this._filterFn) {
+          addedKeys = addedKeys.filter(function(a) {
+            return this._filterFn(c.getItem(a));
+          }, this);
+        }
+        // Sort added keys
+        addedKeys.sort(function(a, b) {
+          return this._sortFn(c.getItem(a), c.getItem(b));
+        }.bind(this));
+        // Insert new rows using sort (from pool or newly created)
+        var start = 0;
+        for (var i=0; i<addedKeys.length; i++) {
+          start = this._insertRowIntoViewSort(start, addedKeys[i], pool);
+        }
+      }
+    },
+
+    _insertRowIntoViewSort: function(start, key, pool) {
+      var c = this.collection;
+      var item = c.getItem(key);
+      var end = this.rows.length - 1;
+      var idx = -1;
+      var sortFn = this._sortFn || this._keySort.bind(this);
+      // Binary search for insertion point
+      while (start <= end) {
+        var mid = (start + end) >> 1;
+        var midKey = this._orderedKeys[mid];
+        var cmp = sortFn(c.getItem(midKey), item);
+        if (cmp < 0) {
+          start = mid + 1;
+        } else if (cmp > 0) {
+          end = mid - 1;
+        } else {
+          idx = mid;
+          break;
+        }
+      }
+      if (idx < 0) {
+        idx = end + 1;
+      }
+      // Insert key & row at insertion point
+      this._orderedKeys.splice(idx, 0, key);
+      this.rows.splice(idx, 0, this._insertRow(idx, pool, c.getItem(key)));
+      return idx;
+    },
+
+    _applySplicesArraySort: function(splices) {
+      var keys = this._orderedKeys;
+      var pool = [];
+      // Remove & pool rows first, to ensure we can fully reuse removed rows
+      splices.forEach(function(s) {
+        for (var i=0; i<s.removed.length; i++) {
+          pool.push(this._detachRow(s.index + i));
+        }
+        this.rows.splice(s.index, s.removed.length);
+      }, this);
+      var c = this.collection;
+      splices.forEach(function(s) {
+        // Apply splices to keys
+        var args = [s.index, s.removed.length].concat(s.added);
+        keys.splice.apply(keys, args);
+        // Insert new rows (from pool or newly created)
+        for (var i=0; i<s.added.length; i++) {
+          var item = c.getItem(s.added[i]);
+          var row = this._insertRow(s.index + i, pool, item);
+          this.rows.splice(s.index + i, 0, row);
+        }
+      }, this);
+    },
+
+    _detachRow: function(idx) {
+      var row = this.rows[idx];
+      var parentNode = Polymer.dom(this).parentNode;
+      for (var i=0; i<row._children.length; i++) {
+        var el = row._children[i];
+        Polymer.dom(row.root).appendChild(el);
+      }
+      return row;
+    },
+
+    _insertRow: function(idx, pool, item) {
+      var row = (pool && pool.pop()) || this._generateRow(idx, item);
+      var beforeRow = this.rows[idx];
+      var beforeNode = beforeRow ? beforeRow._children[0] : this;
+      var parentNode = Polymer.dom(this).parentNode;
+      Polymer.dom(parentNode).insertBefore(row.root, beforeNode);
+      return row;
+    },
+
+    _generateRow: function(idx, item) {
+      var model = {
+        __key__: this.collection.getKey(item)
+      };
+      model[this.as] = item;
+      model[this.indexAs] = idx;
+      var row = this.stamp(model);
+      return row;
+    },
+
+    // Implements extension point from Templatizer mixin
+    _hideChildren: function(hidden) {
+      if (this.rows) {
+        for (var i=0; i<this.rows.length; i++) {
+          var c$ = this.rows[i]._children;
+          for (var j=0; j<c$.length; j++) {
+            var c = c$[j];
+            if (c.style) {
+              c.style.display = hidden ? 'none' : '';
+            }
+            c._hideTemplateChildren = hidden;
+          }
+        }
+      }
+    },
+
+    // Implements extension point from Templatizer
+    // Called as a side effect of a template instance path change, responsible
+    // for notifying items.<key-for-row>.<path> change up to host
+    _forwardInstancePath: function(row, path, value) {
+      if (path.indexOf(this.as + '.') === 0) {
+        this.notifyPath('items.' + row.__key__ + '.' +
+          path.slice(this.as.length + 1), value);
+        return true;
+      }
+    },
+
+    // Implements extension point from Templatizer mixin
+    // Called as side-effect of a host property change, responsible for
+    // notifying parent path change on each row
+    _forwardParentProp: function(prop, value) {
+      if (this.rows) {
+        this.rows.forEach(function(row) {
+          row[prop] = value;
+        }, this);
+      }
+    },
+
+    // Implements extension point from Templatizer
+    // Called as side-effect of a host path change, responsible for
+    // notifying parent path change on each row
+    _forwardParentPath: function(path, value) {
+      if (this.rows) {
+        this.rows.forEach(function(row) {
+          row.notifyPath(path, value, true);
+        }, this);
+      }
+    },
+
+    // Called as a side effect of a host items.<key>.<path> path change,
+    // responsible for notifying item.<path> changes to row for key
+    _forwardItemPath: function(path, value) {
+      if (this._rowForKey) {
+        var dot = path.indexOf('.');
+        var key = path.substring(0, dot < 0 ? path.length : dot);
+        var idx = this._rowForKey[key];
+        var row = this.rows[idx];
+        if (row) {
+          if (dot >= 0) {
+            path = this.as + '.' + path.substring(dot+1);
+            row.notifyPath(path, value, true);
+          } else {
+            row[this.as] = value;
+          }
+        }
+      }
+    },
+
+    /**
+     * Returns the template "model" associated with a given element, which
+     * serves as the binding scope for the template instance the element is
+     * contained in. A template model is an instance of `Polymer.Base`, and
+     * should be used to manipulate data associated with this template instance.
+     *
+     * Example:
+     *
+     *   var model = modelForElement(el);
+     *   if (model.index < 10) {
+     *     model.set('item.checked', true);
+     *   }
+     *
+     * @method modelForElement
+     * @param {HTMLElement} el Element for which to return a template model.
+     * @return {Object<Polymer.Base>} Model representing the binding scope for
+     *   the element.
+     */
+    modelForElement: function(el) {
+      var model;
+      while (el) {
+        // An element with a _templateInstance marks the top boundary
+        // of a scope; walk up until we find one, and then ensure that
+        // its dataHost matches `this`, meaning this dom-repeat stamped it
+        if (model = el._templateInstance) {
+          // Found an element stamped by another template; keep walking up
+          // from its dataHost
+          if (model.dataHost != this) {
+            el = model.dataHost;
+          } else {
+            return model;
+          }
+        } else {
+          // Still in a template scope, keep going up until
+          // a _templateInstance is found
+          el = el.parentNode;
+        }
+      }
+    },
+
+    /**
+     * Returns the item associated with a given element stamped by
+     * this `dom-repeat`.
+     *
+     * Note, to modify sub-properties of the item,
+     * `modelForElement(el).set('item.<sub-prop>', value)`
+     * should be used.
+     *
+     * @method itemForElement
+     * @param {HTMLElement} el Element for which to return the item.
+     * @return {any} Item associated with the element.
+     */
+    itemForElement: function(el) {
+      var instance = this.modelForElement(el);
+      return instance && instance[this.as];
+    },
+
+    /**
+     * Returns the `Polymer.Collection` key associated with a given
+     * element stamped by this `dom-repeat`.
+     *
+     * @method keyForElement
+     * @param {HTMLElement} el Element for which to return the key.
+     * @return {any} Key associated with the element.
+     */
+    keyForElement: function(el) {
+      var instance = this.modelForElement(el);
+      return instance && instance.__key__;
+    },
+
+    /**
+     * Returns the row index for a given element stamped by this `dom-repeat`.
+     * If `sort` is provided, the index will reflect the sorted order (rather
+     * than the original array order).
+     *
+     * @method indexForElement
+     * @param {HTMLElement} el Element for which to return the index.
+     * @return {any} Row index associated with the element (note this may
+     *   not correspond to the array index if a user `sort` is applied).
+     */
+    indexForElement: function(el) {
+      var instance = this.modelForElement(el);
+      return instance && instance[this.indexAs];
+    }
+
+  });
+
+
+</script>

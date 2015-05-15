@@ -1,0 +1,301 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../lib/style-properties.html">
+<link rel="import" href="../lib/settings.html">
+<link rel="import" href="../lib/style-defaults.html">
+<script>
+  (function() {
+
+    var baseAttachedCallback = Polymer.Base.attachedCallback;
+    var baseSerializeValueToAttribute = Polymer.Base.serializeValueToAttribute;
+    var prepTemplate = Polymer.Base._prepTemplate;
+
+    var propertyUtils = Polymer.StyleProperties;
+
+    var nativeShadow = Polymer.Settings.useNativeShadow;
+
+    Polymer.Base._addFeature({
+
+      // TODO(sorvell): consider tracking which rules have properties so that
+      // instances can skip those that don't.
+      _prepTemplate: function() {
+        prepTemplate.call(this);
+        // determine if element contains x-scope styling
+        var consumes;
+        if (this._styles) {
+          this._styles.forEach(function(s) {
+            var rules = this._rulesForStyle(s);
+            propertyUtils.decorateRules(rules);
+            if (rules.properties.consumes) {
+              consumes = true;
+            }
+          }, this);
+        }
+        this._usesStyleProperties = consumes;
+      },
+
+      attachedCallback: function() {
+        baseAttachedCallback.call(this);
+        // note: do this once automatically,
+        // then requires calling `updateStyles`
+        if (!this._xScopeSelector) {
+          this._updateOwnStyles();
+        }
+      },
+
+      _updateOwnStyles: function() {
+        if (this._usesStyleProperties) {
+          this._styleProperties = this._computeStyleProperties();
+          this._applyStyleProperties(this._styleProperties);
+        }
+      },
+
+      _computeStyleProperties: function() {
+        var props = {};
+        // properties come from host/defaults
+        this.mixin(props, this._computeScopeStyleProperties());
+        this.mixin(props, this._computeOwnStyleProperties());
+        propertyUtils.reify(props);
+        return props;
+      },
+
+      _computeScopeStyleProperties: function() {
+        var host = this.domHost;
+        // ensure host has styleProperties
+        if (host && !host._styleProperties) {
+          host._styleProperties = host._computeStyleProperties();
+        }
+        // get props and styles from host or defaults
+        var styles = host ? host._styles : Polymer.StyleDefaults.styles;
+        var props = Object.create(host ? host._styleProperties :
+          Polymer.StyleDefaults.getProperties());
+        // now match this element in these styles and add those properties
+        var cb = this._elementCustomPropertiesFromRule.bind(this, props, this);
+        this._forRulesInStyles(styles, cb);
+        return props;
+      },
+
+      _computeOwnStyleProperties: function() {
+        var props = {};
+        var cb = this._rootCustomPropertiesFromRule.bind(this, props);
+        this._forRulesInStyles(this._styles, cb);
+        return props;
+      },
+
+      // Test if a rule matches the given `element` and if so,
+      // collect any custom properties into `props`.
+      _elementCustomPropertiesFromRule: function(props, element, rule) {
+        if (element && this.elementMatches(rule.selector, element)) {
+          propertyUtils.collect(rule, props);
+        }
+      },
+
+      // TODO(sorvell): optimization, this collection could
+      // be done at prototype time!
+      //
+      // Test if a rule matches root crteria (:host or :root) and if so,
+      // collect any custom properties into `props`.
+      // these rules may already be shimmed and it's $ to reparse,
+      // so we check `is` value as a fallback
+      _rootCustomPropertiesFromRule: function(props, rule) {
+        var s = rule.parsedSelector;
+        if (s === HOST || s === ROOT) {
+          propertyUtils.collect(rule, props);
+        }
+      },
+
+      // apply styles
+      _applyStyleProperties: function(bag) {
+        var s$ = this._styles;
+        if (s$) {
+          var style = styleFromCache(this.is, bag, s$);
+          var old = this._xScopeSelector;
+          this._ensureScopeSelector(style ? style._scope : null);
+          if (!style) {
+            var cb = this._applyPropertiesToRule.bind(this, bag);
+            var cssText = this._transformStyles(s$, cb);
+            style = cssText ? this._applyCustomCss(cssText) : {};
+            cacheStyle(this.is, style, this._xScopeSelector,
+              this._styleProperties, s$);
+          } else if (nativeShadow) {
+            this._applyCustomCss(style.textContent);
+          }
+          if (style.textContent || old /*&& !nativeShadow*/) {
+            this._applyXScopeSelector(this._xScopeSelector, old);
+          }
+        }
+      },
+
+      _applyPropertiesToRule: function(properties, rule) {
+        propertyUtils.applyProperties(rule, properties);
+        if (rule.cssText && !nativeShadow) {
+          this._scopifyRule(rule);
+        }
+      },
+
+      // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
+      // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
+      // host selector: x-foo.wide -> x-foo.x-foo-42.wide
+      _scopifyRule: function(rule) {
+        rule.transformedSelector = rule.transformedSelector || rule.selector;
+        var selector = rule.transformedSelector;
+        var host = this.is;
+        var rx = new RegExp(HOST_SELECTOR_PREFIX + host + HOST_SELECTOR_SUFFIX);
+        var parts = selector.split(',');
+        var scope = this._scopeCssViaAttr ?
+          SCOPE_PREFIX + this._xScopeSelector + SCOPE_SUFFIX :
+          '.' + this._xScopeSelector;
+        for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
+          parts[i] = p.match(rx) ?
+            p.replace(host, host + scope) :
+            scope + ' ' + p;
+        }
+        rule.selector = parts.join(',');
+      },
+
+      _applyXScopeSelector: function(selector, old) {
+        var c = this._scopeCssViaAttr ? this.getAttribute(SCOPE_NAME) :
+          this.className;
+        v = old ? c.replace(old, selector) :
+          (c ? c + ' ' : '') + XSCOPE_NAME + ' ' + selector;
+        if (c !== v) {
+          if (this._scopeCssViaAttr) {
+            this.setAttribute(SCOPE_NAME, v);
+          } else {
+            this.className = v;
+          }
+        }
+      },
+
+      _xScopeCount: 0,
+
+      _ensureScopeSelector: function(selector) {
+        selector = selector || (this.is + '-' +
+          (this.__proto__._xScopeCount++));
+        this._xScopeSelector = selector;
+      },
+
+      _applyCustomCss: function(cssText) {
+        if (this._customStyle) {
+          this._customStyle.textContent = cssText;
+        } else if (cssText) {
+          this._customStyle = Polymer.StyleUtil.applyCss(cssText,
+            this._xScopeSelector,
+            nativeShadow ? this.root : null);
+        }
+        return this._customStyle;
+      },
+
+      _scopeElementClass: function(element, selector) {
+        if (!nativeShadow && !this._scopeCssViaAttr) {
+          selector += (selector ? ' ' : '') + SCOPE_NAME + ' ' + this.is +
+            (element._xScopeSelector ? ' ' +  XSCOPE_NAME + ' ' +
+            element._xScopeSelector : '');
+        }
+        return selector;
+      },
+
+      // override to ensure whenever classes are set, we need to shim them.
+      serializeValueToAttribute: function(value, attribute, node) {
+        if (attribute === 'class') {
+          // host needed to scope styling.
+          var host = node === this ?
+            Polymer.dom(this).getOwnerRoot() || this.dataHost :
+            this;
+          if (host) {
+            value = host._scopeElementClass(node, value);
+          }
+        }
+        baseSerializeValueToAttribute.call(this, value, attribute, node);
+      },
+
+      updateStyles: function() {
+        this._updateOwnStyles();
+        this._updateRootStyles(this.root);
+      },
+
+      updateHostStyles: function() {
+        var host = Polymer.dom(this).getOwnerRoot() || this.dataHost;
+        if (host) {
+          host.updateStyles();
+        } else {
+          this._updateRootStyles(document);
+        }
+      },
+
+      _updateRootStyles: function(root) {
+        root = root || this.root;
+        var c$ = Polymer.dom(root)._query(function(e) {
+          return e.shadyRoot || e.shadowRoot;
+        });
+        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if (c.updateStyles) {
+            c.updateStyles();
+          }
+        }
+      }
+
+    });
+
+    /**
+     * Force all custom elements using cross scope custom properties,
+     * to update styling.
+     */
+    Polymer.updateStyles = function() {
+      Polymer.Base._updateRootStyles(document);
+    };
+
+    var styleCache = {};
+    function cacheStyle(is, style, scope, bag, styles) {
+      style._scope = scope;
+      style._properties = bag;
+      style._styles = styles;
+      var s$ = styleCache[is] = styleCache[is] || [];
+      s$.push(style);
+    }
+
+    function styleFromCache(is, bag, checkStyles) {
+      var styles = styleCache[is];
+      if (styles) {
+        for (var i=0, s; i < styles.length; i++) {
+          s = styles[i];
+          if (objectsEqual(bag, s._properties) &&
+            objectsEqual(checkStyles,  s._styles)) {
+            return s;
+          }
+        }
+      }
+    }
+
+    function objectsEqual(a, b) {
+      for (var i in a) {
+        if (a[i] !== b[i]) {
+          return false;
+        }
+      }
+      for (var i in b) {
+        if (a[i] !== b[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    var HOST = ':host';
+    var ROOT = ':root';
+    var SCOPE_NAME= Polymer.StyleTransformer.SCOPE_NAME;
+    var XSCOPE_NAME = 'x-scope';
+    var SCOPE_PREFIX = '[' + SCOPE_NAME + '~=';
+    var SCOPE_SUFFIX = ']';
+    var HOST_SELECTOR_PREFIX = '(?:^|[^.])';
+    var HOST_SELECTOR_SUFFIX = '($|[.:[\\s>+~])';
+
+  })();
+</script>

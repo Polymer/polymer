@@ -1,0 +1,135 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="debounce.html">
+
+<script>
+
+  Polymer._collections = new WeakMap();
+
+  Polymer.Collection = function(userArray) {
+    Polymer._collections.set(userArray, this);
+    this.userArray = userArray;
+    this.store = userArray.slice();
+    this.initMap();
+  };
+
+  Polymer.Collection.prototype = {
+
+    constructor: Polymer.Collection,
+
+    initMap: function() {
+      var omap = this.omap = new WeakMap();
+      var pmap = this.pmap = {};
+      var s = this.store;
+      for (var i=0; i<s.length; i++) {
+        var item = s[i];
+        if (item && typeof item == 'object') {
+          omap.set(item, i);
+        } else {
+          pmap[item] = i;
+        }
+      }
+    },
+
+    add: function(item) {
+      var key = this.store.push(item) - 1;
+      if (item && typeof item == 'object') {
+        this.omap.set(item, key);
+      } else {
+        this.pmap[item] = key;
+      }
+      return key;
+    },
+
+    removeKey: function(key) {
+      this._removeFromMap(this.store[key]);
+      delete this.store[key];
+    },
+
+    _removeFromMap: function(item) {
+      if (typeof item == 'object') {
+        this.omap.delete(item);
+      } else {
+        delete this.pmap[item];
+      }
+    },
+
+    remove: function(item) {
+      var key = this.getKey(item);
+      this.removeKey(key);
+      return key;
+    },
+
+    getKey: function(item) {
+      if (typeof item == 'object') {
+        return this.omap.get(item);
+      } else {
+        return this.pmap[item];
+      }
+    },
+
+    getKeys: function() {
+      return Object.keys(this.store);
+    },
+
+    setItem: function(key, value) {
+      this.store[key] = value;
+    },
+
+    getItem: function(key) {
+      return this.store[key];
+    },
+
+    getItems: function() {
+      var items = [], store = this.store;
+      for (var key in store) {
+        items.push(store[key]);
+      }
+      return items;
+    },
+
+    applySplices: function(splices) {
+      var keySplices = [];
+      for (var i=0; i<splices.length; i++) {
+        var j, o, key, s = splices[i];
+        // Removed keys
+        var removed = [];
+        for (j=0; j<s.removed.length; j++) {
+          o = s.removed[j];
+          key = this.remove(o);
+          removed.push(key);
+        }
+        // Added keys
+        var added = [];
+        for (j=0; j<s.addedCount; j++) {
+          o = this.userArray[s.index + j];
+          key = this.add(o);
+          added.push(key);
+        }
+        // Record splice
+        keySplices.push({
+          index: s.index,
+          removed: removed,
+          removedItems: s.removed,
+          added: added
+        });
+      }
+      return keySplices;
+    }
+
+  };
+
+  Polymer.Collection.get = function(userArray) {
+    return Polymer._collections.get(userArray)
+      || new Polymer.Collection(userArray);
+  };
+
+</script>

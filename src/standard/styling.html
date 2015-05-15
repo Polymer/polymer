@@ -1,0 +1,191 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../lib/style-util.html">
+<link rel="import" href="../lib/resolve-url.html">
+<link rel="import" href="../lib/style-transformer.html">
+<link rel="import" href="../lib/settings.html">
+
+<script>
+
+  (function() {
+
+    var prepTemplate = Polymer.Base._prepTemplate;
+    var prepElement = Polymer.Base._prepElement;
+    var baseStampTemplate = Polymer.Base._stampTemplate;
+    var nativeShadow = Polymer.Settings.useNativeShadow;
+
+    Polymer.Base._addFeature({
+
+      // declaration-y
+      _prepTemplate: function() {
+        prepTemplate.call(this);
+        // scope css
+        this._styles = this._prepareStyles();
+        var cssText = this._transformStyles(this._styles);
+        if (this._encapsulateStyle === undefined) {
+          this._encapsulateStyle = !nativeShadow && 
+            Boolean(this._template);
+        }
+        if (cssText && this._template) {
+          Polymer.StyleUtil.applyCss(cssText, this.is, 
+            nativeShadow ? this._template.content : null, true);
+        }
+      },
+
+      _prepElement: function(element) {
+        if (this._encapsulateStyle) {
+          Polymer.StyleTransformer.element(element, this.is,
+            this._scopeCssViaAttr);
+        }
+        prepElement.call(this, element);
+      },
+
+      // search for extra style modules via `styleModules`
+      // TODO(sorvell): consider dropping support for `styleModules`
+      _prepareStyles: function() {
+        var cssText = '', m$ = this.styleModules;
+        if (m$) {
+          for (var i=0, l=m$.length, m; (i<l) && (m=m$[i]); i++) {
+            cssText += this._cssFromModule(m);
+          }
+        }
+        cssText += this._cssFromModule(this.is);
+        var styles = [];
+        if (cssText) {
+          var s = document.createElement('style');
+          s.textContent = cssText;  
+          styles.push(s);
+        }
+        return styles;
+      },
+
+      // returns cssText of styles in a given module; also un-applies any
+      // styles that apply to the document.
+      _cssFromModule: function(moduleId) {
+        var m = Polymer.DomModule.import(moduleId);
+        if (m && !m._cssText) {
+          var cssText = '';
+          var e$ = Array.prototype.slice.call(
+            m.querySelectorAll(STYLES_SELECTOR));
+          for (var i=0, e; i < e$.length; i++) {
+            e = e$[i];
+            // style elements inside dom-modules will apply to the main document
+            // we don't want this, so we remove them here.
+            if (e.localName === 'style') {
+              // get style element applied to main doc via HTMLImports polyfill
+              e = e.__appliedElement || e;
+              e.parentNode.removeChild(e);
+            // it's an import, assume this is a text file of css content.
+            } else {
+              e = e.import && e.import.body;
+            }
+            // adjust paths in css.
+            if (e) {
+              cssText += 
+                Polymer.ResolveUrl.resolveCss(e.textContent, e.ownerDocument);
+            }
+          }
+          m._cssText = cssText;
+        }
+        return m && m._cssText || '';
+      },
+
+      _transformStyles: function(styles, callback) {
+        var cssText = '';
+        for (var i=0, l=styles.length, s, text; (i<l) && (s=styles[i]); i++) {
+          var rules = this._rulesForStyle(s);
+          cssText += nativeShadow ?
+            Polymer.StyleUtil.toCssText(rules, callback) :
+            Polymer.StyleTransformer.css(rules, this.is, this.extends, callback,
+            this._scopeCssViaAttr) + '\n\n';
+        }
+        return cssText.trim();
+      },
+
+      _rulesForStyle: function(style) {
+        if (!style.__cssRules) {
+          style.__cssRules = Polymer.StyleUtil.parser.parse(style.textContent);
+        }
+        return style.__cssRules;
+      },
+
+      _forRulesInStyles: function(styles, cb) {
+        if (styles) {
+          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+            Polymer.StyleUtil.forEachStyleRule(this._rulesForStyle(s), cb);
+          }
+        }
+      },
+
+      // instance-y
+      _stampTemplate: function() {
+        if (this._encapsulateStyle) {
+          Polymer.StyleTransformer.host(this, this.is);
+        }
+        baseStampTemplate.call(this);
+      },
+
+      // add scoping class whenever an element is added to localDOM
+      _elementAdd: function(node) {
+        if (this._encapsulateStyle && !node.__styleScoped) {
+          Polymer.StyleTransformer.dom(node, this.is, this._scopeCssViaAttr);
+        }
+      },
+
+      // remove scoping class whenever an element is removed from localDOM
+      _elementRemove: function(node) {
+        if (this._encapsulateStyle) {
+          Polymer.StyleTransformer.dom(node, this.is, this._scopeCssViaAttr, true);
+        }
+      },
+
+      /**
+       * Apply style scoping to the specified `container` and all its 
+       * descendants. If `shoudlObserve` is true, changes to the container are
+       * monitored via mutation observer and scoping is applied.
+       */
+      scopeSubtree: function(container, shouldObserve) {
+        if (nativeShadow) {
+          return;
+        }
+        var self = this;
+        var scopify = function(node) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            node.className = self._scopeElementClass(node, node.className);
+            var n$ = node.querySelectorAll('*');
+            Array.prototype.forEach.call(n$, function(n) {
+              n.className = self._scopeElementClass(n, n.className);
+            });
+          }
+        };
+        scopify(container);
+        if (shouldObserve) {
+          var mo = new MutationObserver(function(mxns) {
+            mxns.forEach(function(m) {
+              if (m.addedNodes) {
+                for (var i=0; i < m.addedNodes.length; i++) {
+                  scopify(m.addedNodes[i]);
+                }
+              }
+            });
+          });
+          mo.observe(container, {childList: true, subtree: true});
+          return mo;
+        }
+      }
+
+    });
+
+    var STYLES_SELECTOR = 'style, link[rel=import][type~=css]';
+
+  })();
+
+</script>

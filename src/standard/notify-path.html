@@ -1,0 +1,417 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../lib/case-map.html">
+<script>
+
+  /**
+   * Changes to an object sub-field (aka "path") via a binding
+   * (e.g. `<x-foo value="{{item.subfield}}"`) will notify other elements bound to
+   * the same object automatically.
+   *
+   * When modifying a sub-field of an object imperatively
+   * (e.g. `this.item.subfield = 42`), in order to have the new value propagated
+   * to other elements, a special `set(path, value)` API is provided.
+   * `set` sets the object field at the path specified, and then notifies the
+   * binding system so that other elements bound to the same path will update.
+   *
+   * Example:
+   *
+   *     Polymer({
+   *
+   *       is: 'x-date',
+   *
+   *       properties: {
+   *         date: {
+   *           type: Object,
+   *           notify: true
+   *          }
+   *       },
+   *
+   *       attached: function() {
+   *         this.date = {};
+   *         setInterval(function() {
+   *           var d = new Date();
+   *           // Required to notify elements bound to date of changes to sub-fields
+   *           // this.date.seconds = d.getSeconds(); <-- Will not notify
+   *           this.set('date.seconds', d.getSeconds());
+   *           this.set('date.minutes', d.getMinutes());
+   *           this.set('date.hours', d.getHours() % 12);
+   *         }.bind(this), 1000);
+   *       }
+   *
+   *     });
+   *
+   *  Allows bindings to `date` sub-fields to update on changes:
+   *
+   *     <x-date date="{{date}}"></x-date>
+   *
+   *     Hour: <span>{{date.hours}}</span>
+   *     Min:  <span>{{date.minutes}}</span>
+   *     Sec:  <span>{{date.seconds}}</span>
+   *
+   * @class data feature: path notification
+   */
+
+  (function() {
+    // Using strict here to ensure fast argument manipulation in array methods
+    'use strict';
+
+    Polymer.Base._addFeature({
+      /**
+        Notify that a path has changed. For example:
+
+            this.item.user.name = 'Bob';
+            this.notifyPath('item.user.name', this.item.user.name);
+
+        Returns true if notification actually took place, based on
+        a dirty check of whether the new value was already known
+      */
+      notifyPath: function(path, value, fromAbove) {
+        var old = this._propertySet(path, value);
+        // manual dirty checking for now...
+        if (old !== value) {
+          // console.group((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
+          // Take path effects at this level for exact path matches,
+          // and notify down for any bindings to a subset of this path
+          this._pathEffector(path, value);
+          // Send event to notify the path change upwards
+          // Optimization: don't notify up if we know the notification
+          // is coming from above already (avoid wasted event dispatch)
+          if (!fromAbove) {
+            // TODO(sorvell): should only notify if notify: true?
+            this._notifyPath(path, value);
+          }
+          // console.groupEnd((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
+        }
+      },
+
+      /**
+        Converts a path to an array of path parts.  A path may be specified
+        as a dotted string or an array of one or more dotted strings (or numbers,
+        for number-valued keys).
+      */
+      _getPathParts: function(path) {
+        if (Array.isArray(path)) {
+          var parts = [];
+          for (var i=0; i<path.length; i++) {
+            var args = path[i].toString().split('.');
+            for (var j=0; j<args.length; j++) {
+              parts.push(args[j]);
+            }
+          }
+          return parts;
+        } else {
+          return path.toString().split('.');
+        }
+      },
+
+      /**
+        Convienence method for setting a value to a path and calling
+        notify path (when the path is to a nested property).  If any part
+        in the path except for the last is undefined, does nothing.
+      */
+      set: function(path, value, root) {
+        var prop = root || this;
+        var parts = this._getPathParts(path);
+        var array;
+        var last = parts[parts.length-1];
+        if (parts.length > 1) {
+          for (var i=0; i<parts.length-1; i++) {
+            prop = prop[parts[i]];
+            if (array) {
+              parts[i] = Polymer.Collection.get(array).getKey(prop);
+            }
+            if (!prop) {
+              return;
+            }
+            array = Array.isArray(prop) ? prop : null;
+          }
+          prop[last] = value;
+          if (!root) {
+            this.notifyPath(parts.join('.'), value);
+          }
+        } else {
+          prop[path] = value;
+        }
+      },
+
+      /**
+        Convienence method for reading a value from a path.  Returns undefined
+        if any part in the path is undefined.
+      */
+      get: function(path, root) {
+        var prop = root || this;
+        var parts = this._getPathParts(path);
+        var last = parts.pop();
+        while (parts.length) {
+          prop = prop[parts.shift()];
+          if (!prop) {
+            return;
+          }
+        }
+        return prop[last];
+      },
+
+      _pathEffector: function(path, value) {
+        // get root property
+        var model = this._modelForPath(path);
+        // search property effects of the root property for 'annotation' effects
+        var fx$ = this._propertyEffects[model];
+        if (fx$) {
+          fx$.forEach(function(fx) {
+            var fxFn = this['_' + fx.kind + 'PathEffect'];
+            if (fxFn) {
+              fxFn.call(this, path, value, fx.effect);
+            }
+          }, this);
+        }
+        // notify runtime-bound paths
+        if (this._boundPaths) {
+          this._notifyBoundPaths(path, value);
+        }
+      },
+
+      _annotationPathEffect: function(path, value, effect) {
+        if (effect.value === path || effect.value.indexOf(path + '.') === 0) {
+          // TODO(sorvell): ideally the effect function is on this prototype
+          // so we don't have to call it like this.
+          Polymer.Bind._annotationEffect.call(this, path, value, effect);
+        } else if ((path.indexOf(effect.value + '.') === 0) && !effect.negate) {
+          // locate the bound node
+          var node = this._nodes[effect.index];
+          if (node && node.notifyPath) {
+            var p = this._fixPath(effect.name , effect.value, path);
+            node.notifyPath(p, value, true);
+          }
+        }
+      },
+
+      _complexObserverPathEffect: function(path, value, effect) {
+        if (this._pathMatchesEffect(path, effect)) {
+          Polymer.Bind._complexObserverEffect.call(this, path, value, effect);
+        }
+      },
+
+      _computePathEffect: function(path, value, effect) {
+        if (this._pathMatchesEffect(path, effect)) {
+          Polymer.Bind._computeEffect.call(this, path, value, effect);
+        }
+      },
+
+      _annotatedComputationPathEffect: function(path, value, effect) {
+        if (this._pathMatchesEffect(path, effect)) {
+          Polymer.Bind._annotatedComputationEffect.call(this, path, value, effect);
+        }
+      },
+
+      _pathMatchesEffect: function(path, effect) {
+        var effectArg = effect.arg.name;
+        return (effectArg == path) ||
+          (effectArg.indexOf(path + '.') === 0) ||
+          (effect.arg.wildcard && path.indexOf(effectArg) === 0);
+      },
+
+      linkPaths: function(to, from) {
+        this._boundPaths = this._boundPaths || {};
+        if (from) {
+          this._boundPaths[to] = from;
+          // this.set(to, this.get(from));
+        } else {
+          this.unbindPath(to);
+          // this.set(to, from);
+        }
+      },
+
+      unlinkPaths: function(path) {
+        if (this._boundPaths) {
+          delete this._boundPaths[path];
+        }
+      },
+
+      _notifyBoundPaths: function(path, value) {
+        var from, to;
+        for (var a in this._boundPaths) {
+          var b = this._boundPaths[a];
+          if (path.indexOf(a + '.') == 0) {
+            from = a;
+            to = b;
+            break;
+          }
+          if (path.indexOf(b + '.') == 0) {
+            from = b;
+            to = a;
+            break;
+          }
+        }
+        if (from && to) {
+          var p = this._fixPath(to, from, path);
+          this.notifyPath(p, value);
+        }
+      },
+
+      _fixPath: function(property, root, path) {
+        return property + path.slice(root.length);
+      },
+
+      _notifyPath: function(path, value) {
+        var rootName = this._modelForPath(path);
+        var dashCaseName = Polymer.CaseMap.camelToDashCase(rootName);
+        var eventName = dashCaseName + this._EVENT_CHANGED;
+        this.fire(eventName, {
+          path: path,
+          value: value
+        }, {bubbles: false});
+      },
+
+      _modelForPath: function(path) {
+        var dot = path.indexOf('.');
+        return (dot < 0) ? path : path.slice(0, dot);
+      },
+
+      _EVENT_CHANGED: '-changed',
+
+      _notifySplice: function(array, path, index, added, removed) {
+        var splices = [{
+          index: index,
+          addedCount: added,
+          removed: removed,
+          object: array,
+          type: 'splice'
+        }];
+        var change = {
+          keySplices: Polymer.Collection.get(array).applySplices(splices),
+          indexSplices: splices
+        };
+        this.set(path + '.splices', change);
+        // Null here to allow potentially large splice records to be GC'ed
+        change.keySplices = null;
+        change.indexSplices = null;
+      },
+
+      /**
+       * Adds items onto the end of the array at the path specified.
+       *
+       * The arguments after `path` and return value match that of
+       * `Array.prototype.push`.
+       *
+       * This method notifies other paths to the same array that a
+       * splice occurred to the array.
+       *
+       * @method push
+       * @param {String} path Path to array.
+       * @param {...any} var_args Items to push onto array
+       * @return {number} New length of the array.
+       */
+      push: function(path) {
+        var array = this.get(path);
+        var args = Array.prototype.slice.call(arguments, 1);
+        var len = array.length;
+        var ret = array.push.apply(array, args);
+        this._notifySplice(array, path, len, args.length, []);
+        return ret;
+      },
+
+      /**
+       * Removes an item from the end of array at the path specified.
+       *
+       * The arguments after `path` and return value match that of
+       * `Array.prototype.pop`.
+       *
+       * This method notifies other paths to the same array that a
+       * splice occurred to the array.
+       *
+       * @method pop
+       * @param {String} path Path to array.
+       * @return {any} Item that was removed.
+       */
+      pop: function(path) {
+        var array = this.get(path);
+        var args = Array.prototype.slice.call(arguments, 1);
+        var rem = array.slice(-1);
+        var ret = array.pop.apply(array, args);
+        this._notifySplice(array, path, array.length, 0, rem);
+        return ret;
+      },
+
+      /**
+       * Starting from the start index specified, removes 0 or more items
+       * from the array and inserts 0 or more new itms in their place.
+       *
+       * The arguments after `path` and return value match that of
+       * `Array.prototype.splice`.
+       *
+       * This method notifies other paths to the same array that a
+       * splice occurred to the array.
+       *
+       * @method splice
+       * @param {String} path Path to array.
+       * @param {number} start Index from which to start removing/inserting.
+       * @param {number} deleteCount Number of items to remove.
+       * @param {...any} var_args Items to insert into array.
+       * @return {number} New length of the array.
+       */
+      splice: function(path, start, deleteCount) {
+        var array = this.get(path);
+        var args = Array.prototype.slice.call(arguments, 1);
+        var rem = array.slice(start, start + deleteCount);
+        var ret = array.splice.apply(array, args);
+        this._notifySplice(array, path, start, args.length - 2, rem);
+        return ret;
+      },
+
+      /**
+       * Removes an item from the beginning of array at the path specified.
+       *
+       * The arguments after `path` and return value match that of
+       * `Array.prototype.pop`.
+       *
+       * This method notifies other paths to the same array that a
+       * splice occurred to the array.
+       *
+       * @method shift
+       * @param {String} path Path to array.
+       * @return {any} Item that was removed.
+       */
+      shift: function(path) {
+        var array = this.get(path);
+        var args = Array.prototype.slice.call(arguments, 1);
+        var ret = array.shift.apply(array, args);
+        this._notifySplice(array, path, 0, 0, [ret]);
+        return ret;
+      },
+
+      /**
+       * Adds items onto the beginning of the array at the path specified.
+       *
+       * The arguments after `path` and return value match that of
+       * `Array.prototype.push`.
+       *
+       * This method notifies other paths to the same array that a
+       * splice occurred to the array.
+       *
+       * @method unshift
+       * @param {String} path Path to array.
+       * @param {...any} var_args Items to insert info array
+       * @return {number} New length of the array.
+       */
+      unshift: function(path) {
+        var array = this.get(path);
+        var args = Array.prototype.slice.call(arguments, 1);
+        var ret = array.unshift.apply(array, args);
+        this._notifySplice(array, path, 0, args.length, []);
+        return ret;
+      }
+
+    });
+
+  })();
+
+
+</script>
