@@ -21,20 +21,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return {
 
-      // decorate rules with property info: whether it produces or consumes them
-      decorateRules: function(rules) {
-        if (rules.propertyInfo) {
-          return;
-        }
-        var info = {};
-        var self = this;
-        styleUtil.forEachStyleRule(rules, function(rule) {
-          var p = self.decorateRule(rule);
-          // TODO(sorvell): mix?
-          info.cssText = info.cssText || p.cssText;
-          info.properties = info.properties || p.properties;
+      // decorates styles with rule info and returns an array of used style
+      // property names
+      decorateStyles: function(styles) {
+        var self = this, props = {};
+        styleUtil.forRulesInStyles(styles, function(rule) {
+          self.decorateRule(rule);
+          self.collectPropertiesInCssText(rule.propertyInfo.cssText, props);
         });
-        rules.propertyInfo = info;
+        // return this list of property names *consumes* in these styles.
+        var names = [];
+        for (var i in props) {
+          names.push(i);
+        }
+        return names;
       },
 
       // decorate a single rule with property info
@@ -93,10 +93,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return customCssText;
       },
 
+      collectPropertiesInCssText: function(cssText, props) {
+        var m;
+        while (m = this.rx.VAR_CAPTURE.exec(cssText)) {
+          props[m[1]] = true;
+        }
+      },
+
       // turns custom properties into realized values.
       reify: function(props) {
-        for (var i in props) {
-          props[i] = this.valueForProperty(props[i], props);
+        // big perf optimization here: reify only *own* properties
+        // since this object has __proto__ of the element's scope properties
+        var names = Object.getOwnPropertyNames(props);
+        for (var i=0, n; i < names.length; i++) {
+          n = names[i];
+          props[n] = this.valueForProperty(props[n], props);
         }
       },
 
@@ -124,7 +135,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             property = property.replace(this.rx.VAR_MATCH, fn);
           }
         }
-        return property && property.trim();
+        return property && property.trim() || '';
       },
 
       // note: we do not yet support mixin within mixin
@@ -183,7 +194,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // these rules may already be shimmed and it's $ to reparse,
       // so we check `is` value as a fallback
       rootPropertiesFromStyles: function(styles) {
-        if (!styles._ownStyleProperties) {
+        if (!styles._rootStyleProperties) {
           var props = {}, self = this;
           styleUtil.forRulesInStyles(styles, function(rule) {
             if (!rule.propertyInfo) {
@@ -194,9 +205,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               self.collectProperties(rule, props);
             }
           });
-          styles._ownStyleProperties = props;
+          styles._rootStyleProperties = props;
         }
-        return styles._ownStyleProperties;
+        return styles._rootStyleProperties;
       },
 
       transformStyles: function(element, properties, scopeSelector) {
@@ -284,6 +295,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         VAR_ASSIGN: /(?:^|;\s*)(--[^\:;]*?):\s*?(?:([^;{]*?)|{([^}]*)})(?=;)/gim,
         MIXIN_MATCH: /(?:^|\W+)@apply[\s]*\(([^)]*)\);?/im, 
         VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*([^,)]*)[\s]*?\)/gim,
+        VAR_CAPTURE: /\([\s]*(--[^,\s)]*)(?:,[\s]*(--[^,\s)]*))?(?:\)|,)/gim,
         BRACKETED: /\{[^}]*\}/g,
         HOST_PREFIX: '(?:^|[^.])',
         HOST_SUFFIX: '($|[.:[\\s>+~])'

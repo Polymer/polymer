@@ -9,22 +9,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <script>
 
-  Polymer.StyleCache = function() {
+  Polymer.StyleCache = function(keyName) {
     this.cache = {};
+    if (keyName) {
+      this._keyName = keyName;
+    }
   }
 
   Polymer.StyleCache.prototype = {
     
     MAX: 100,
 
-    _prepare: function(style, scope, bag, styles) {
-      style._scope = scope;
-      style._styleProperties = bag;
-      style._styles = styles;
-    },
+    _keyName: '_cacheKey',
 
-    store: function(is, style, scope, bag, styles) {
-      this._prepare(style, scope, bag, styles);
+    store: function(is, style, keyProperties, keyStyles) {
+      style[this._keyName] = {
+        properties: keyProperties, 
+        styles: keyStyles
+      }
       var s$ = this.cache[is] = this.cache[is] || [];
       s$.push(style);
       if (s$.length > this.MAX) {
@@ -32,20 +34,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    retrieve: function(is, properties, styles) {
+    retrieve: function(is, keyProperties, keyStyles) {
       var cache = this.cache[is];
       if (cache) {
-        for (var i=0, s; i < cache.length; i++) {
+        // look through cache backwards as most recent push is last.
+        for (var i=cache.length-1, s; i >= 0; i--) {
           s = cache[i];
-          if (this._objectsEqual(properties, s._styleProperties) &&
-            this._objectsEqual(styles,  s._styles)) {
+          key = s[this._keyName];
+          if (this._objectsEqual(keyProperties, key.properties) &&
+            keyStyles === key.styles) {
             return s;
           }
         }
       }
     },
 
-    // TODO(sorvell): intentionally a weak check here, good enough?
+    clear: function() {
+      for (var i in this.cache) {
+        for (var j=0; j< this.cache[i].length; j++) {
+          this.cache[i][j][this._keyName] = null;
+        }
+      }
+      this.cache = {};
+    },
+
+    // note, intentionally a simple check here, should be good enough
     _objectsEqual: function(target, source) {
       for (var i in target) {
         if (target[i] !== source[i]) {
