@@ -24,8 +24,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var nativeShadow = Polymer.Settings.useNativeShadow;
 
-    var scopeCacheCount = 0;
-
     Polymer.Base._addFeature({
 
       _prepStyleProperties: function() {
@@ -47,20 +45,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       attachedCallback: function() {
-        attachedCallback.call(this);
         // note: do this once automatically,
         // then requires calling `updateStyles`
         if (!this._scopeSelector && this._needsStyleProperties()) {
           this._updateStyleProperties();
         }
+        attachedCallback.call(this);
       },
 
-      _updateStyleProperties: function(force) {
+      _updateStyleProperties: function() {
         var style, scope = this.domHost || styleDefaults;
         // install cache in host if it doesn't exist.
         if (!scope._styleCache) {
-          scope._styleCache = new Polymer.StyleCache('_scopeCache' + 
-            scopeCacheCount++);
+          scope._styleCache = new Polymer.StyleCache();
         }
         var scopeProps = propertyUtils
           .propertiesFromStyles(scope._styles, this);
@@ -69,14 +66,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._styles);
         // compute style properties (fast path, if cache hit)
         var scopeCached = Boolean(style);
-        if (style) {
+        if (scopeCached) {
+          // when scope cached, we can safely take style propertis out of the
+          // scope cache because they are only for this scope.
           this._styleProperties = style._styleProperties;
         } else {
-          this._computeStyleProperties(force, scopeProps);  
+          this._computeStyleProperties(scopeProps);  
         }
         this._computeOwnStyleProperties();
         // cache miss, do work!
-        if (!style) {
+        if (!scopeCached) {
           // and look in 2ndary global cache
           style = styleCache.retrieve(this.is, 
             this._ownStyleProperties, this._styles);
@@ -86,7 +85,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // is available.
         style = this._applyStyleProperties(style);
         // no cache so store in cache
-        //console.warn(this, scopeCached, globalCached);
+        //console.warn(this.is, scopeCached, globalCached);
         if (!scopeCached) {
           // decorate style
           style._scopeSelector = this._scopeSelector;
@@ -101,13 +100,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      _computeStyleProperties: function(force, scopeProps) {
+      _computeStyleProperties: function(scopeProps) {
         // get scope and make sure it has properties
         var scope = this.domHost || styleDefaults;
         // force scope to compute properties if they don't exist or if forcing
         // and it doesn't need properties
-        if (!scope._styleProperties || 
-          (force && !scope._needsStyleProperties())) {
+        if (!scope._styleProperties) {
           scope._computeStyleProperties();
         }
         // start with scope style properties
@@ -178,10 +176,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this.isAttached) {
           // skip applying properties to self if not used
           if (this._needsStyleProperties()) {
-            this._updateStyleProperties(true);
+            this._updateStyleProperties();
+          // when an element doesn't use style properties, its own properties
+          // should be invalidated so elements down the tree update ok.
+          } else {
+            this._styleProperties = null;
           }
-          // TODO(sorvell): could we only recurse and clear cache if 
-          // MY properties have changed?
           if (this._styleCache) {
             this._styleCache.clear();
           }
