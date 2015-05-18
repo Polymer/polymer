@@ -10,42 +10,50 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="style-util.html">
 <script>
 
-  (function() {
+  Polymer.StyleDefaults = (function() {
+
+    var styleProperties = Polymer.StyleProperties;
+    var styleUtil = Polymer.StyleUtil;
     
-    var style = document.createElement('style'); 
-    var properties;
+    var api = {
 
-    function applyCss(cssText) {
-      style.textContent += cssText;
-      properties = null;
-      // TODO(sorvell): make this lazy at the point of consumption
-      // or better yet, pass in pre-parsed rules here.
-      style.__cssRules =
-        Polymer.StyleUtil.parser.parse(style.textContent);
-      Polymer.StyleProperties.decorateRules(style.__cssRules);
-    }
+      style: document.createElement('style'),
 
-    function getProperties() {
-      if (!properties) {
-        properties = {};
-        Polymer.StyleUtil.forEachStyleRule(style.__cssRules, 
-          function(rule) {
-            Polymer.Base._rootCustomPropertiesFromRule(properties, rule);
-        });
-        Polymer.StyleProperties.reify(properties);
+      _properties: null,
+
+      applyCss: function(cssText) {
+        this.style.textContent += cssText;
+        this._properties = null;
+      },
+
+      // NOTE: this object can be used as a styling scope so it has an api
+      // similar to that of an element wrt style properties
+      get _styleProperties() {
+        if (!this._properties) {
+          // force rules to reparse since they may be out of date
+          styleUtil.clearStyleRules(this.style);
+          styleProperties.decorateStyles(this._styles);
+          // NOTE: reset cache for own properties; it may have been set when
+          // an element in an import applied styles (e.g. custom-style)
+          this._styles._rootStyleProperties = null;
+          this._properties = styleProperties
+            .rootPropertiesFromStyles(this._styles);
+        }
+        return this._properties;
+      },
+
+      _needsStyleProperties: function() {},
+
+      _computeStyleProperties: function() {
+        return this._styleProperties;
       }
-      return properties;
-    }
 
-    applyCss('');
+    };
+
+    api._styles = [api.style];
 
     // exports
-    Polymer.StyleDefaults = {
-      applyCss: applyCss,
-      style: style,
-      styles: [style],
-      getProperties: getProperties
-    };
+    return api;
 
   })();
 </script>
