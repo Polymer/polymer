@@ -71,26 +71,52 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    // method expressions are of the form: `name([arg1, arg2, .... argn])`
     _parseMethod: function(expression) {
       var m = expression.match(/(\w*)\((.*)\)/);
       if (m) {
         return {
           method: m[1],
-          args: m[2].split(/[^\w.*]+/).map(this._parseArg, this)
+          args: m[2].split(',').map(this._parseArg, this)
         };
       }
     },
 
-    _parseArg: function(arg) {
+    _parseArg: function(rawArg) {
+      // clean up string
+      var arg = String(rawArg).trim();
+      // basic argument descriptor
       var a = {
         name: arg,
         model: this._modelForPath(arg)
       };
+      // detect structured path (has dots)
       a.structured = arg.indexOf('.') > 0;
       if (a.structured) {
         a.wildcard = (arg.slice(-2) == '.*');
         if (a.wildcard) {
           a.name = arg.slice(0, -2);
+        }
+      } else {
+        // detect literal value (must be JSON)
+        var fc = arg[0];
+        if (fc >= '0' && fc <= '9') {
+          fc = '#';
+        }
+        switch(fc) {
+          // TODO(sjmiles): single-quote is invalid JSON
+          //case "'":
+          case '"':
+          case '{':
+          case '[':
+          case '#':
+            try {
+              a.value = JSON.parse(arg);
+              a.literal = true;
+            } catch(x) {
+              // warn?
+            }
+            break;
         }
       }
       return a;
