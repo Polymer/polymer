@@ -61,13 +61,13 @@ You can always fallback to using the low-level methods if you wish (iow, you cou
 
 ## Features
 
-By default, the default Polymer distribution include several features. Although `Polymer.Base` itself is tiny, if you examine `Polymer.Base` you will probably see several methods that have been plugged-in to that prototype by feature definitions. The next few sections will explain these features and why we include them in the default set. Keep in mind that it's entirely possible to construct custom feature sets, or even use a trivial, featureless form of `Polymer()`.
+By default, the default Polymer distribution includes several features. Although `Polymer.Base` itself is tiny, if you examine `Polymer.Base` you will probably see several methods that have been plugged-in to that prototype by feature definitions. The next few sections will explain these features and why we include them in the default set. Keep in mind that it's entirely possible to construct custom feature sets, or even use a trivial, featureless form of `Polymer()`.
 
 ### Feature: _property-config_
 
-The first feature implements support for the `properties` property. By placing a object-valued `properties` property on your prototype, let's you define various aspects of your custom-elements public API. 
+The first feature implements support for the `properties` property. Placing an object-valued `properties` property on your prototype, let's you define various aspects of your custom-elements public API. 
 
-By itself, the `properties` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see [link to docs] for details).
+By itself, the `properties` feature **doesn't do anything**. It only provides an API for asking questions about these special properties (see [link to docs] for details).
 
 ```js
 Polymer({
