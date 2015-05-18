@@ -388,9 +388,9 @@ Results in:
 
 Polymer supports extending custom element prototypes with shared code modules called "behaviors".
 
-A behavior is simply an object that looks very similar to a typical Polymer prototype.  It may define lifecycle callbacks, `properties`, `hostAttributes`, or other features described later in this document like `observers` and `listeners`.  To add a behavior to a Polymer element definition, include it in a `behaviors` array on the prototype.
+A behavior is simply an object that looks very similar to a typical Polymer prototype.  It may define lifecycle callbacks, `properties`, `hostAttributes`, or other features described later in this document like `observers` and `listeners`.  To add a behavior to a Polymer element definition, include it in a `behaviors` array on the prototype.  If multiple behaviors for the same element define the same function, only the last behavior's function is used.
 
-Lifecycle callbacks will be called on the base prototype first, then for each behavior in the order given in the `behaviors` array.   Additionally, any non-lifecycle functions on the behavior object are mixed into the base prototype (and will overwrite the function on the prototype, if they exist); these may be useful for adding API or implementing observer or event listener callbacks defined by the behavior, for example.
+Lifecycle callbacks will be called on the base prototype first, then for each behavior in the order given in the `behaviors` array.   Additionally, any non-lifecycle functions on the behavior object are mixed into the base prototype (unless they already exist on the base prototype, in which case the ones on the behavior are ignored); these may be useful for adding API or implementing observer or event listener callbacks defined by the behavior, for example.
 
 Example: `highlight-behavior.html`
 
