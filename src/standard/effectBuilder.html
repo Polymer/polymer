@@ -71,57 +71,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    // method expressions are of the form: `name([arg1, arg2, .... argn])`
-    _parseMethod: function(expression) {
-      var m = expression.match(/(\w*)\((.*)\)/);
-      if (m) {
-        return {
-          method: m[1],
-          args: m[2].split(',').map(this._parseArg, this)
-        };
-      }
-    },
-
-    _parseArg: function(rawArg) {
-      // clean up string
-      var arg = String(rawArg).trim();
-      // basic argument descriptor
-      var a = {
-        name: arg,
-        model: this._modelForPath(arg)
-      };
-      // detect structured path (has dots)
-      a.structured = arg.indexOf('.') > 0;
-      if (a.structured) {
-        a.wildcard = (arg.slice(-2) == '.*');
-        if (a.wildcard) {
-          a.name = arg.slice(0, -2);
-        }
-      } else {
-        // detect literal value (must be JSON)
-        var fc = arg[0];
-        if (fc >= '0' && fc <= '9') {
-          fc = '#';
-        }
-        switch(fc) {
-          // TODO(sjmiles): single-quote is invalid JSON
-          //case "'":
-          case '"':
-          case '{':
-          case '[':
-          case '#':
-            try {
-              a.value = JSON.parse(arg);
-              a.literal = true;
-            } catch(x) {
-              // warn?
-            }
-            break;
-        }
-      }
-      return a;
-    },
-
     _addComputedEffect: function(name, expression) {
       var sig = this._parseMethod(expression);
       sig.args.forEach(function(arg) {
@@ -192,17 +141,89 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addAnnotatedComputationEffect: function(note, index) {
       var sig = note.signature;
-      sig.args.forEach(function(arg) {
-        this._addPropertyEffect(arg.model, 'annotatedComputation', {
-          kind: note.kind,
-          method: sig.method,
-          args: sig.args,
-          trigger: arg,
-          property: note.name,
-          index: index,
-          negate: note.negate
-        });
+      if (sig.static) {
+        this.__addAnnotatedComputationEffect('__static__', index, note, sig, null);
+      } else {
+        sig.args.forEach(function(arg) {
+          if (!arg.literal) {
+            this.__addAnnotatedComputationEffect(arg.model, index, note, sig, arg);
+          }
+        }, this);
+      }
+    },
+
+    __addAnnotatedComputationEffect: function(property, index, note, sig, trigger) {
+      this._addPropertyEffect(property, 'annotatedComputation', {
+        index: index,
+        kind: note.kind,
+        property: note.name,
+        negate: note.negate,
+        method: sig.method,
+        args: sig.args,
+        trigger: trigger
+      });
+    },
+
+    // method expressions are of the form: `name([arg1, arg2, .... argn])`
+    _parseMethod: function(expression) {
+      var m = expression.match(/(\w*)\((.*)\)/);
+      if (m) {
+        return this._parseArgs({
+          method: m[1],
+          static: true
+        }, m[2].split(','));
+      }
+    },
+
+    _parseArgs: function(effect, argList) {
+      effect.args = argList.map(function(rawArg) {
+        var arg = this._parseArg(rawArg);
+        if (!arg.literal) {
+          effect.static = false;
+        }
+        return arg;
       }, this);
+      return effect;
+    },
+
+    _parseArg: function(rawArg) {
+      // clean up string
+      var arg = String(rawArg).trim();
+      // basic argument descriptor
+      var a = {
+        name: arg,
+        model: this._modelForPath(arg)
+      };
+      // detect structured path (has dots)
+      a.structured = arg.indexOf('.') > 0;
+      if (a.structured) {
+        a.wildcard = (arg.slice(-2) == '.*');
+        if (a.wildcard) {
+          a.name = arg.slice(0, -2);
+        }
+      } else {
+        // detect literal value (must be JSON)
+        var fc = arg[0];
+        if (fc >= '0' && fc <= '9') {
+          fc = '#';
+        }
+        switch(fc) {
+          // TODO(sjmiles): single-quote is invalid JSON
+          //case "'":
+          case '"':
+          case '{':
+          case '[':
+          case '#':
+            try {
+              a.value = JSON.parse(arg);
+              a.literal = true;
+            } catch(x) {
+              // warn?
+            }
+            break;
+        }
+      }
+      return a;
     },
 
     // instancing
@@ -228,6 +249,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           value = this._scopeElementClass(node, value);
         }
         return node[property] = value;
+      }
+    },
+
+    _executeStaticEffects: function() {
+      if (this._propertyEffects.__static__) {
+        this._effectEffects('__static__', null, this._propertyEffects.__static__);
       }
     }
 
