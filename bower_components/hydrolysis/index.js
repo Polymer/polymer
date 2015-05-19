@@ -9,6 +9,10 @@
  */
 'use strict';
 
+/**
+ * Static analysis for Polymer.
+ * @namespace hydrolysis
+ */
 module.exports = {
   Analyzer:     require('./lib/analyzer'),
   docs:         require('./lib/ast-utils/docs'),
