@@ -12,12 +12,15 @@ window.WebComponents = window.WebComponents || {};
 
 (function(scope) {
   var flags = scope.flags || {};
-  var file = "webcomponents.js";
+  var file = "webcomponents-lite.js";
   var script = document.querySelector('script[src*="' + file + '"]');
   if (!flags.noOpts) {
-    location.search.slice(1).split("&").forEach(function(o) {
-      o = o.split("=");
-      o[0] && (flags[o[0]] = o[1] || true);
+    location.search.slice(1).split("&").forEach(function(option) {
+      var parts = option.split("=");
+      var match;
+      if (parts[0] && (match = parts[0].match(/wc-(.+)/))) {
+        flags[match[1]] = parts[1] || true;
+      }
     });
     if (script) {
       for (var i = 0, a; a = script.attributes[i]; i++) {
@@ -26,7 +29,7 @@ window.WebComponents = window.WebComponents || {};
         }
       }
     }
-    if (flags.log && flags.log.split) {
+    if (flags.log) {
       var parts = flags.log.split(",");
       flags.log = {};
       parts.forEach(function(f) {

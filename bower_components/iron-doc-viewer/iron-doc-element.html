@@ -14,7 +14,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="iron-doc-property.html">
 
 <!--
-Renders documentation describing an element's API.
+Renders documentation describing an element's API. Also works for behaviors.
 
 `iron-doc-element` renders element descriptions as extracted by
 [Hydrolysis](https://github.com/PolymerLabs/hydrolysis). You can provide them
@@ -57,16 +57,16 @@ property.
       <a id="toggleCollapsed" on-tap="_toggleCollapsed">{{_collapseToggleLabel}}</a>
     </nav>
 
-    <section id="properties">
+    <section id="properties" hidden$="{{!_properties.length}}">
       <header>Properties</header>
-      <template is="x-repeat" items="{{_properties}}">
+      <template is="dom-repeat" items="{{_properties}}">
         <iron-doc-property descriptor="{{item}}"></iron-doc-property>
       </template>
     </section>
 
-    <section id="methods">
+    <section id="methods" hidden$="{{!_methods.length}}">
       <header>Methods</header>
-      <template is="x-repeat" items="{{_methods}}">
+      <template is="dom-repeat" items="{{_methods}}">
         <iron-doc-property descriptor="{{item}}"></iron-doc-property>
       </template>
     </section>
@@ -81,8 +81,6 @@ property.
   Polymer({
 
     is: 'iron-doc-element',
-
-    enableCustomStyleProperties: true,
 
     properties: {
 
@@ -122,11 +120,11 @@ property.
 
     },
 
-    configure: function(properties) {
+    ready: function() {
       var jsonDescriptor = this._loadJson();
       // Note that this is only an error during element creation. You are free
       // to stomp over the descriptor after it is ready.
-      if (jsonDescriptor && properties.descriptor) {
+      if (jsonDescriptor && this.descriptor) {
         console.error(
             this,
             'received both a bound descriptor:', this.descriptor,
@@ -136,9 +134,9 @@ property.
             '<iron-doc-element> accepts either a bound or JSON descriptor; not both');
       }
 
-      return {
-        descriptor: properties.descriptor || jsonDescriptor,
-      };
+      if (jsonDescriptor) {
+        this.descriptor = jsonDescriptor;
+      }
     },
 
     /**
@@ -148,8 +146,13 @@ property.
      * @return {hydrolysis.ElementDescriptor} The parsed descriptor, or `null`.
      */
     _loadJson: function() {
-      var textContent = this.textContent.trim();
+      var textContent = '';
+      Array.prototype.forEach.call(Polymer.dom(this).childNodes, function(node) {
+        textContent = textContent + node.textContent;
+      });
+      textContent = textContent.trim();
       if (textContent === '') return null;
+
       try {
         return JSON.parse(textContent);
       } catch(error) {
@@ -172,6 +175,7 @@ property.
       this._methods    = methods;
 
       this.toggleAttribute('abstract', this.descriptor.abstract);
+      this.setAttribute('type', this.descriptor.type);
     },
 
     _collapsedChanged: function() {

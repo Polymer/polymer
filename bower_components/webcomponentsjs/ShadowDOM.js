@@ -2249,7 +2249,14 @@ window.ShadowDOMPolyfill = {};
       return backwardsElement(this.previousSibling);
     }
   };
+  var NonElementParentNodeInterface = {
+    getElementById: function(id) {
+      if (/[ \t\n\r\f]/.test(id)) return null;
+      return this.querySelector('[id="' + id + '"]');
+    }
+  };
   scope.ChildNodeInterface = ChildNodeInterface;
+  scope.NonElementParentNodeInterface = NonElementParentNodeInterface;
   scope.ParentNodeInterface = ParentNodeInterface;
 })(window.ShadowDOMPolyfill);
 
@@ -2530,6 +2537,12 @@ window.ShadowDOMPolyfill = {};
   }
   var voidElements = makeSet([ "area", "base", "br", "col", "command", "embed", "hr", "img", "input", "keygen", "link", "meta", "param", "source", "track", "wbr" ]);
   var plaintextParents = makeSet([ "style", "script", "xmp", "iframe", "noembed", "noframes", "plaintext", "noscript" ]);
+  var XHTML_NS = "http://www.w3.org/1999/xhtml";
+  function needsSelfClosingSlash(node) {
+    if (node.namespaceURI !== XHTML_NS) return true;
+    var doctype = node.ownerDocument.doctype;
+    return doctype && doctype.publicId && doctype.systemId;
+  }
   function getOuterHTML(node, parentNode) {
     switch (node.nodeType) {
      case Node.ELEMENT_NODE:
@@ -2539,9 +2552,11 @@ window.ShadowDOMPolyfill = {};
       for (var i = 0, attr; attr = attrs[i]; i++) {
         s += " " + attr.name + '="' + escapeAttr(attr.value) + '"';
       }
-      s += ">";
-      if (voidElements[tagName]) return s;
-      return s + getInnerHTML(node) + "</" + tagName + ">";
+      if (voidElements[tagName]) {
+        if (needsSelfClosingSlash(node)) s += "/";
+        return s + ">";
+      }
+      return s + ">" + getInnerHTML(node) + "</" + tagName + ">";
 
      case Node.TEXT_NODE:
       var data = node.data;
@@ -3277,6 +3292,7 @@ window.ShadowDOMPolyfill = {};
 (function(scope) {
   "use strict";
   var GetElementsByInterface = scope.GetElementsByInterface;
+  var NonElementParentNodeInterface = scope.NonElementParentNodeInterface;
   var ParentNodeInterface = scope.ParentNodeInterface;
   var SelectorsInterface = scope.SelectorsInterface;
   var mixin = scope.mixin;
@@ -3285,6 +3301,7 @@ window.ShadowDOMPolyfill = {};
   mixin(DocumentFragment.prototype, ParentNodeInterface);
   mixin(DocumentFragment.prototype, SelectorsInterface);
   mixin(DocumentFragment.prototype, GetElementsByInterface);
+  mixin(DocumentFragment.prototype, NonElementParentNodeInterface);
   var Comment = registerObject(document.createComment(""));
   scope.wrappers.Comment = Comment;
   scope.wrappers.DocumentFragment = DocumentFragment;
@@ -3304,7 +3321,6 @@ window.ShadowDOMPolyfill = {};
   var unwrap = scope.unwrap;
   var shadowHostTable = new WeakMap();
   var nextOlderShadowTreeTable = new WeakMap();
-  var spaceCharRe = /[ \t\n\r\f]/;
   function ShadowRoot(hostWrapper) {
     var node = unwrap(unsafeUnwrap(hostWrapper).ownerDocument.createDocumentFragment());
     DocumentFragment.call(this, node);
@@ -3335,10 +3351,6 @@ window.ShadowDOMPolyfill = {};
     },
     elementFromPoint: function(x, y) {
       return elementFromPoint(this, this.ownerDocument, x, y);
-    },
-    getElementById: function(id) {
-      if (spaceCharRe.test(id)) return null;
-      return this.querySelector('[id="' + id + '"]');
     }
   });
   scope.wrappers.ShadowRoot = ShadowRoot;
@@ -3997,6 +4009,7 @@ window.ShadowDOMPolyfill = {};
   var GetElementsByInterface = scope.GetElementsByInterface;
   var Node = scope.wrappers.Node;
   var ParentNodeInterface = scope.ParentNodeInterface;
+  var NonElementParentNodeInterface = scope.NonElementParentNodeInterface;
   var Selection = scope.wrappers.Selection;
   var SelectorsInterface = scope.SelectorsInterface;
   var ShadowRoot = scope.wrappers.ShadowRoot;
@@ -4031,7 +4044,7 @@ window.ShadowDOMPolyfill = {};
       return wrap(original.apply(unsafeUnwrap(this), arguments));
     };
   }
-  [ "createComment", "createDocumentFragment", "createElement", "createElementNS", "createEvent", "createEventNS", "createRange", "createTextNode", "getElementById" ].forEach(wrapMethod);
+  [ "createComment", "createDocumentFragment", "createElement", "createElementNS", "createEvent", "createEventNS", "createRange", "createTextNode" ].forEach(wrapMethod);
   var originalAdoptNode = document.adoptNode;
   function adoptNodeNoRemove(node, doc) {
     originalAdoptNode.call(unsafeUnwrap(doc), unwrap(node));
@@ -4155,6 +4168,7 @@ window.ShadowDOMPolyfill = {};
   mixin(Document.prototype, GetElementsByInterface);
   mixin(Document.prototype, ParentNodeInterface);
   mixin(Document.prototype, SelectorsInterface);
+  mixin(Document.prototype, NonElementParentNodeInterface);
   mixin(Document.prototype, {
     get implementation() {
       var implementation = implementationTable.get(this);
@@ -4173,6 +4187,11 @@ window.ShadowDOMPolyfill = {};
   function DOMImplementation(impl) {
     setWrapper(impl, this);
   }
+  var originalCreateDocument = document.implementation.createDocument;
+  DOMImplementation.prototype.createDocument = function() {
+    arguments[2] = unwrap(arguments[2]);
+    return wrap(originalCreateDocument.apply(unsafeUnwrap(this), arguments));
+  };
   function wrapImplMethod(constructor, name) {
     var original = document.implementation[name];
     constructor.prototype[name] = function() {
@@ -4186,11 +4205,10 @@ window.ShadowDOMPolyfill = {};
     };
   }
   wrapImplMethod(DOMImplementation, "createDocumentType");
-  wrapImplMethod(DOMImplementation, "createDocument");
   wrapImplMethod(DOMImplementation, "createHTMLDocument");
   forwardImplMethod(DOMImplementation, "hasFeature");
   registerWrapper(window.DOMImplementation, DOMImplementation);
-  forwardMethodsToWrapper([ window.DOMImplementation ], [ "createDocumentType", "createDocument", "createHTMLDocument", "hasFeature" ]);
+  forwardMethodsToWrapper([ window.DOMImplementation ], [ "createDocument", "createDocumentType", "createHTMLDocument", "hasFeature" ]);
   scope.adoptNodeNoRemove = adoptNodeNoRemove;
   scope.wrappers.DOMImplementation = DOMImplementation;
   scope.wrappers.Document = Document;
