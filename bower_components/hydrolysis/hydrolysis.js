@@ -1090,7 +1090,7 @@ function featureElement(features) {
     properties: properties,
     desc: '`Polymer.Base` acts as a base prototype for all Polymer ' +
           'elements. It is composed via various calls to ' +
-          '`Polymer.Base.addFeature()`.\n' +
+          '`Polymer.Base._addFeature()`.\n' +
           '\n' +
           'The properties reflected here are the combined view of all ' +
           'features found in this library. There may be more properties ' +
@@ -1531,7 +1531,7 @@ module.exports = function featureFinder() {
   var visitors = {
 
     enterCallExpression: function enterCallExpression(node, parent) {
-      if (!esutil.matchesCallExpression(node.callee, ['Polymer', 'Base', 'addFeature'])) {
+      if (!esutil.matchesCallExpression(node.callee, ['Polymer', 'Base', '_addFeature'])) {
         return;
       }
       /** @type {!FeatureDescriptor} */
@@ -1550,7 +1550,7 @@ module.exports = function featureFinder() {
       var featureNode = node.arguments[0];
       if (featureNode.type !== 'ObjectExpression') {
         console.warn(
-            'Expected first argument to Polymer.Base.addFeature to be an object.',
+            'Expected first argument to Polymer.Base._addFeature to be an object.',
             'Got', featureNode.type, 'instead.');
         return;
       }
