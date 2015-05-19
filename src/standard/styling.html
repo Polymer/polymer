@@ -11,139 +11,83 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../lib/style-util.html">
 <link rel="import" href="../lib/resolve-url.html">
 <link rel="import" href="../lib/style-transformer.html">
+<link rel="import" href="../lib/style-extends.html">
 <link rel="import" href="../lib/settings.html">
 
 <script>
 
   (function() {
 
-    var prepTemplate = Polymer.Base._prepTemplate;
     var prepElement = Polymer.Base._prepElement;
-    var baseStampTemplate = Polymer.Base._stampTemplate;
     var nativeShadow = Polymer.Settings.useNativeShadow;
+
+    var styleUtil = Polymer.StyleUtil;
+    var styleTransformer = Polymer.StyleTransformer;
+    var styleExtends = Polymer.StyleExtends;
 
     Polymer.Base._addFeature({
 
-      // declaration-y
-      _prepTemplate: function() {
-        prepTemplate.call(this);
-        // scope css
-        this._styles = this._prepareStyles();
-        var cssText = this._transformStyles(this._styles);
-        if (this._encapsulateStyle === undefined) {
-          this._encapsulateStyle = !nativeShadow && 
-            Boolean(this._template);
-        }
-        if (cssText && this._template) {
-          Polymer.StyleUtil.applyCss(cssText, this.is, 
-            nativeShadow ? this._template.content : null, true);
-        }
-      },
-
       _prepElement: function(element) {
         if (this._encapsulateStyle) {
-          Polymer.StyleTransformer.element(element, this.is,
+          styleTransformer.element(element, this.is,
             this._scopeCssViaAttr);
         }
         prepElement.call(this, element);
       },
 
+      _prepStyles: function() {
+        if (this._encapsulateStyle === undefined) {
+          this._encapsulateStyle = !nativeShadow && 
+            Boolean(this._template);
+        }
+        this._styles = this._collectStyles();
+        var cssText = styleTransformer.elementStyles(this);
+        if (cssText && this._template) {
+          var style = styleUtil.applyCss(cssText, this.is, 
+            nativeShadow ? this._template.content : null);
+          // keep track of style when in document scope (polyfill) so we can
+          // attach property styles after it.
+          if (!nativeShadow) {
+            this._scopeStyle = style;
+          }
+        }
+      },
+
       // search for extra style modules via `styleModules`
       // TODO(sorvell): consider dropping support for `styleModules`
-      _prepareStyles: function() {
+      _collectStyles: function() {
+        var styles = [];
         var cssText = '', m$ = this.styleModules;
         if (m$) {
           for (var i=0, l=m$.length, m; (i<l) && (m=m$[i]); i++) {
-            cssText += this._cssFromModule(m);
+            cssText += styleUtil.cssFromModule(m);
           }
         }
-        cssText += this._cssFromModule(this.is);
-        var styles = [];
+        cssText += styleUtil.cssFromModule(this.is);
         if (cssText) {
-          var s = document.createElement('style');
-          s.textContent = cssText;  
-          styles.push(s);
+          var style = document.createElement('style');
+          style.textContent = cssText;  
+          // extends!!
+          if (styleExtends.hasExtends(style.textContent)) {
+            cssText = styleExtends.transform(style);
+          }
+          styles.push(style);
         }
         return styles;
       },
 
-      // returns cssText of styles in a given module; also un-applies any
-      // styles that apply to the document.
-      _cssFromModule: function(moduleId) {
-        var m = Polymer.DomModule.import(moduleId);
-        if (m && !m._cssText) {
-          var cssText = '';
-          var e$ = Array.prototype.slice.call(
-            m.querySelectorAll(STYLES_SELECTOR));
-          for (var i=0, e; i < e$.length; i++) {
-            e = e$[i];
-            // style elements inside dom-modules will apply to the main document
-            // we don't want this, so we remove them here.
-            if (e.localName === 'style') {
-              // get style element applied to main doc via HTMLImports polyfill
-              e = e.__appliedElement || e;
-              e.parentNode.removeChild(e);
-            // it's an import, assume this is a text file of css content.
-            } else {
-              e = e.import && e.import.body;
-            }
-            // adjust paths in css.
-            if (e) {
-              cssText += 
-                Polymer.ResolveUrl.resolveCss(e.textContent, e.ownerDocument);
-            }
-          }
-          m._cssText = cssText;
-        }
-        return m && m._cssText || '';
-      },
-
-      _transformStyles: function(styles, callback) {
-        var cssText = '';
-        for (var i=0, l=styles.length, s, text; (i<l) && (s=styles[i]); i++) {
-          var rules = this._rulesForStyle(s);
-          cssText += nativeShadow ?
-            Polymer.StyleUtil.toCssText(rules, callback) :
-            Polymer.StyleTransformer.css(rules, this.is, this.extends, callback,
-            this._scopeCssViaAttr) + '\n\n';
-        }
-        return cssText.trim();
-      },
-
-      _rulesForStyle: function(style) {
-        if (!style.__cssRules) {
-          style.__cssRules = Polymer.StyleUtil.parser.parse(style.textContent);
-        }
-        return style.__cssRules;
-      },
-
-      _forRulesInStyles: function(styles, cb) {
-        if (styles) {
-          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-            Polymer.StyleUtil.forEachStyleRule(this._rulesForStyle(s), cb);
-          }
-        }
-      },
-
       // instance-y
-      _stampTemplate: function() {
-        if (this._encapsulateStyle) {
-          Polymer.StyleTransformer.host(this, this.is);
-        }
-        baseStampTemplate.call(this);
-      },
-
       // add scoping class whenever an element is added to localDOM
       _elementAdd: function(node) {
         if (this._encapsulateStyle && !node.__styleScoped) {
-          Polymer.StyleTransformer.dom(node, this.is, this._scopeCssViaAttr);
+          styleTransformer.dom(node, this.is, this._scopeCssViaAttr);
         }
       },
 
       // remove scoping class whenever an element is removed from localDOM
       _elementRemove: function(node) {
         if (this._encapsulateStyle) {
-          Polymer.StyleTransformer.dom(node, this.is, this._scopeCssViaAttr, true);
+          styleTransformer.dom(node, this.is, this._scopeCssViaAttr, true);
         }
       },
 
@@ -183,8 +127,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     });
-
-    var STYLES_SELECTOR = 'style, link[rel=import][type~=css]';
 
   })();
 

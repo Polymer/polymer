@@ -12,7 +12,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script>
 
-  (function() {
+  Polymer.StyleTransformer = (function() {
+
+    var nativeShadow = Polymer.Settings.useNativeShadow;
+    var styleUtil = Polymer.StyleUtil;
 
     /* Transforms ShadowDOM styling into ShadyDOM styling
 
@@ -36,156 +39,185 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * :host-context(...): NOT SUPPORTED
 
     */
+    var api = {
 
-    // Given a node and scope name, add a scoping class to each node 
-    // in the tree. This facilitates transforming css into scoped rules. 
-    function transformDom(node, scope, useAttr, shouldRemoveScope) {
-      _transformDom(node, scope || '', useAttr, shouldRemoveScope);
-    }
+      // Given a node and scope name, add a scoping class to each node 
+      // in the tree. This facilitates transforming css into scoped rules. 
+      dom: function(node, scope, useAttr, shouldRemoveScope) {
+        this._transformDom(node, scope || '', useAttr, shouldRemoveScope);
+      },
 
-    function _transformDom(node, selector, useAttr, shouldRemoveScope) {
-      if (node.setAttribute) {
-        transformElement(node, selector, useAttr, shouldRemoveScope);
-      }
-      var c$ = Polymer.dom(node).childNodes;
-      for (var i=0; i<c$.length; i++) {
-        _transformDom(c$[i], selector, useAttr, shouldRemoveScope);
-      }
-    }
-
-    function transformElement(element, scope, useAttr, shouldRemoveScope) {
-      if (useAttr) {
-        if (shouldRemoveScope) {
-          element.removeAttribute(SCOPE_NAME);
-        } else {
-          element.setAttribute(SCOPE_NAME, scope);
+      _transformDom: function(node, selector, useAttr, shouldRemoveScope) {
+        if (node.setAttribute) {
+          this.element(node, selector, useAttr, shouldRemoveScope);
         }
-      } else {
-        // note: if using classes, we add both the general 'style-scope' class
-        // as well as the specific scope. This enables easy filtering of all
-        // `style-scope` elements
-        if (scope) {
+        var c$ = Polymer.dom(node).childNodes;
+        for (var i=0; i<c$.length; i++) {
+          this._transformDom(c$[i], selector, useAttr, shouldRemoveScope);
+        }
+      },
+
+      element: function(element, scope, useAttr, shouldRemoveScope) {
+        if (useAttr) {
           if (shouldRemoveScope) {
-            element.classList.remove(SCOPE_NAME);
-            element.classList.remove(scope);
+            element.removeAttribute(SCOPE_NAME);
           } else {
-            element.classList.add(SCOPE_NAME);
-            element.classList.add(scope);
+            element.setAttribute(SCOPE_NAME, scope);
+          }
+        } else {
+          // note: if using classes, we add both the general 'style-scope' class
+          // as well as the specific scope. This enables easy filtering of all
+          // `style-scope` elements
+          if (scope) {
+            // note: svg on IE does not have classList so fallback to class
+            if (element.classList) {
+              if (shouldRemoveScope) {
+                element.classList.remove(SCOPE_NAME);
+                element.classList.remove(scope);
+              } else {
+                element.classList.add(SCOPE_NAME);
+                element.classList.add(scope);
+              }
+            } else if (element.getAttribute) {
+              var c = element.getAttribute(CLASS);
+              if (shouldRemoveScope) {
+                element.setAttribute(CLASS, c.replace(SCOPE_NAME, '')
+                  .replace(scope, ''));
+              } else {
+                element.setAttribute(CLASS, c + (c ? ' ' : '') + 
+                  SCOPE_NAME + ' ' + scope);
+              }
+            }
           }
         }
-      }
-    }
+      },
 
-    function transformHost(host, scope) {
-    }
-
-    // Given a string of cssText and a scoping string (scope), returns
-    // a string of scoped css where each selector is transformed to include
-    // a class created from the scope. ShadowDOM selectors are also transformed
-    // (e.g. :host) to use the scoping selector.
-    function transformCss(rules, scope, ext, callback, useAttr) {
-      var hostScope = calcHostScope(scope, ext);
-      scope = calcElementScope(scope, useAttr);
-      return Polymer.StyleUtil.toCssText(rules, function(rule) {
-        if (!rule.isScoped) {
-          transformRule(rule, scope, hostScope);
-          rule.isScoped = true;
+      elementStyles: function(element, callback) {
+        var styles = element._styles;
+        var cssText = '';
+        for (var i=0, l=styles.length, s, text; (i<l) && (s=styles[i]); i++) {
+          var rules = styleUtil.rulesForStyle(s);
+          cssText += nativeShadow ?
+            styleUtil.toCssText(rules, callback) :
+            this.css(rules, element.is, element.extends, callback,
+            element._scopeCssViaAttr) + '\n\n';
         }
-        if (callback) {
-          callback(rule, scope, hostScope);
-        }
-      });
-    }
+        return cssText.trim();
+      },
 
-    function calcElementScope(scope, useAttr) {
-      if (scope) {
-        return useAttr ?
-          CSS_ATTR_PREFIX + scope + CSS_ATTR_SUFFIX :
-          CSS_CLASS_PREFIX + scope;
-      } else {
-        return '';
-      }
-    }
-
-    function calcHostScope(scope, ext) {
-      return ext ? '[is=' +  scope + ']' : scope;
-    }
-
-    function transformRule(rule, scope, hostScope) {
-      _transformRule(rule, transformComplexSelector,
-        scope, hostScope);
-    }
-
-    // transforms a css rule to a scoped rule.
-    function _transformRule(rule, transformer, scope, hostScope) {
-      var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
-      for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
-        p$[i] = transformer(p, scope, hostScope);
-      }
-      rule.selector = p$.join(COMPLEX_SELECTOR_SEP);
-    }
-
-    function transformComplexSelector(selector, scope, hostScope) {
-      var stop = false;
-      selector = selector.replace(SIMPLE_SELECTOR_SEP, function(m, c, s) {
-        if (!stop) {
-          var o = transformCompoundSelector(s, c, scope, hostScope);
-          if (o.stop) {
-            stop = true;
+      // Given a string of cssText and a scoping string (scope), returns
+      // a string of scoped css where each selector is transformed to include
+      // a class created from the scope. ShadowDOM selectors are also transformed
+      // (e.g. :host) to use the scoping selector.
+      css: function(rules, scope, ext, callback, useAttr) {
+        var hostScope = this._calcHostScope(scope, ext);
+        scope = this._calcElementScope(scope, useAttr);
+        var self = this;
+        return styleUtil.toCssText(rules, function(rule) {
+          if (!rule.isScoped) {
+            self.rule(rule, scope, hostScope);
+            rule.isScoped = true;
           }
-          c = o.combinator;
-          s = o.value;  
-        }
-        return c + s;
-      });
-      return selector;
-    }
-
-    function transformCompoundSelector(selector, combinator, scope, hostScope) {
-      // replace :host with host scoping class
-      var jumpIndex = selector.search(SCOPE_JUMP);
-      if (selector.indexOf(HOST) >=0) {
-        // :host(...)
-        selector = selector.replace(HOST_PAREN, function(m, host, paren) {
-          return hostScope + paren;
+          if (callback) {
+            callback(rule, scope, hostScope);
+          }
         });
-        // now normal :host
-        selector = selector.replace(HOST, hostScope);
-      // replace other selectors with scoping class
-      } else if (jumpIndex !== 0) {
-        selector = scope ? transformSimpleSelector(selector, scope) : selector;
-      }
-      // remove left-side combinator when dealing with ::content.
-      if (selector.indexOf(CONTENT) >= 0) {
-        combinator = '';
-      }
-      // process scope jumping selectors up to the scope jump and then stop
-      // e.g. .zonk ::content > .foo ==> .zonk.scope > .foo
-      var stop;
-      if (jumpIndex >= 0) {
-        selector = selector.replace(SCOPE_JUMP, ' ');
-        stop = true;
-      }
-      return {value: selector, combinator: combinator, stop: stop};
-    }
+      },
 
-    function transformSimpleSelector(selector, scope) {
-      var p$ = selector.split(PSEUDO_PREFIX);
-      p$[0] += scope;
-      return p$.join(PSEUDO_PREFIX);
-    }
+      _calcElementScope: function (scope, useAttr) {
+        if (scope) {
+          return useAttr ?
+            CSS_ATTR_PREFIX + scope + CSS_ATTR_SUFFIX :
+            CSS_CLASS_PREFIX + scope;
+        } else {
+          return '';
+        }
+      },
 
-    function transformRootRule(rule) {
-      _transformRule(rule, transformRootSelector);
-    }
+      _calcHostScope: function(scope, ext) {
+        return ext ? '[is=' +  scope + ']' : scope;
+      },
 
-    function transformRootSelector(selector) {
-      return selector.match(SCOPE_JUMP) ?
-        transformComplexSelector(selector) :
-        selector.trim() + SCOPE_ROOT_SELECTOR;
-    }
+      rule: function (rule, scope, hostScope) {
+        this._transformRule(rule, this._transformComplexSelector,
+          scope, hostScope);
+      },
 
-    var SCOPE_NAME = 'style-scope';
+      // transforms a css rule to a scoped rule.
+      _transformRule: function(rule, transformer, scope, hostScope) {
+        var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
+        for (var i=0, l=p$.length, p; (i<l) && (p=p$[i]); i++) {
+          p$[i] = transformer.call(this, p, scope, hostScope);
+        }
+        rule.selector = p$.join(COMPLEX_SELECTOR_SEP);
+      },
+
+      _transformComplexSelector: function(selector, scope, hostScope) {
+        var stop = false;
+        var self = this;
+        selector = selector.replace(SIMPLE_SELECTOR_SEP, function(m, c, s) {
+          if (!stop) {
+            var o = self._transformCompoundSelector(s, c, scope, hostScope);
+            if (o.stop) {
+              stop = true;
+            }
+            c = o.combinator;
+            s = o.value;  
+          }
+          return c + s;
+        });
+        return selector;
+      },
+
+      _transformCompoundSelector: function(selector, combinator, scope, hostScope) {
+        // replace :host with host scoping class
+        var jumpIndex = selector.search(SCOPE_JUMP);
+        if (selector.indexOf(HOST) >=0) {
+          // :host(...)
+          selector = selector.replace(HOST_PAREN, function(m, host, paren) {
+            return hostScope + paren;
+          });
+          // now normal :host
+          selector = selector.replace(HOST, hostScope);
+        // replace other selectors with scoping class
+        } else if (jumpIndex !== 0) {
+          selector = scope ? this._transformSimpleSelector(selector, scope) : 
+            selector;
+        }
+        // remove left-side combinator when dealing with ::content.
+        if (selector.indexOf(CONTENT) >= 0) {
+          combinator = '';
+        }
+        // process scope jumping selectors up to the scope jump and then stop
+        // e.g. .zonk ::content > .foo ==> .zonk.scope > .foo
+        var stop;
+        if (jumpIndex >= 0) {
+          selector = selector.replace(SCOPE_JUMP, ' ');
+          stop = true;
+        }
+        return {value: selector, combinator: combinator, stop: stop};
+      },
+
+      _transformSimpleSelector: function(selector, scope) {
+        var p$ = selector.split(PSEUDO_PREFIX);
+        p$[0] += scope;
+        return p$.join(PSEUDO_PREFIX);
+      },
+
+      rootRule: function(rule) {
+        this._transformRule(rule, this._transformRootSelector);
+      },
+
+      _transformRootSelector: function(selector) {
+        return selector.match(SCOPE_JUMP) ?
+          this._transformComplexSelector(selector) :
+          selector.trim() + SCOPE_ROOT_SELECTOR;
+      },
+
+      SCOPE_NAME: 'style-scope'
+    };
+
+    var SCOPE_NAME = api.SCOPE_NAME;
     var SCOPE_ROOT_SELECTOR = ':not([' + SCOPE_NAME + '])' + 
       ':not(.' + SCOPE_NAME + ')';
     var COMPLEX_SELECTOR_SEP = ',';
@@ -201,17 +233,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var CSS_ATTR_PREFIX = '[' + SCOPE_NAME + '~=';
     var CSS_ATTR_SUFFIX = ']';
     var PSEUDO_PREFIX = ':';
+    var CLASS = 'class';
 
     // exports
-    Polymer.StyleTransformer = {
-      element: transformElement,
-      dom: transformDom,
-      host: transformHost,
-      css: transformCss,
-      rule: transformRule,
-      rootRule: transformRootRule,
-      SCOPE_NAME: SCOPE_NAME
-    };
+    return api;
 
   })();
 

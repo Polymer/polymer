@@ -15,56 +15,104 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.StyleUtil = (function() {
 
     return {
-      toCssText: function(rules, callback) {
+
+      MODULE_STYLES_SELECTOR: 'style, link[rel=import][type~=css]',
+
+      toCssText: function(rules, callback, preserveProperties) {
         if (typeof rules === 'string') {
-          rules = Polymer.CssParse.parse(rules);
+          rules = this.parser.parse(rules);
         } 
         if (callback) {
           this.forEachStyleRule(rules, callback);
         }
-        return Polymer.CssParse.stringify(rules);
+        return this.parser.stringify(rules, preserveProperties);
       },
 
-      forEachStyleRule: function(node, cb) {
+      forRulesInStyles: function(styles, callback) {
+        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+          this.forEachStyleRule(this.rulesForStyle(s), callback);
+        }
+      },
+
+      rulesForStyle: function(style) {
+        if (!style.__cssRules) {
+          style.__cssRules = this.parser.parse(style.textContent);
+        }
+        return style.__cssRules;
+      },
+
+      clearStyleRules: function(style) {
+        style.__cssRules = null;
+      },
+
+      forEachStyleRule: function(node, callback) {
         var s = node.selector;
         var skipRules = false;
-        if (s) {
-          if ((s.indexOf(this.AT_RULE) !== 0) && (s.indexOf(this.MIXIN_SELECTOR) !== 0)) {
-            cb(node);
-          }
-          skipRules = (s.indexOf(this.KEYFRAME_RULE) >= 0) || 
-            (s.indexOf(this.MIXIN_SELECTOR) >= 0);
+        if (node.type === this.ruleTypes.STYLE_RULE) {
+          callback(node);
+        } else if (node.type === this.ruleTypes.KEYFRAMES_RULE || 
+            node.type === this.ruleTypes.MIXIN_RULE) {
+          skipRules = true;
         }
         var r$ = node.rules;
         if (r$ && !skipRules) {
           for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
-            this.forEachStyleRule(r, cb);
+            this.forEachStyleRule(r, callback);
           }
         }
       },
 
       // add a string of cssText to the document.
-      applyCss: function(cssText, moniker, target, lowPriority) {
+      applyCss: function(cssText, moniker, target, afterNode) {
         var style = document.createElement('style');
         if (moniker) {
           style.setAttribute('scope', moniker);
         }
         style.textContent = cssText;
         target = target || document.head;
-        if (lowPriority) {
+        if (!afterNode) {
           var n$ = target.querySelectorAll('style[scope]');
-          var ref = n$.length ? n$[n$.length-1].nextSibling : target.firstChild;
-          target.insertBefore(style, ref);
-       } else {
-          target.appendChild(style);
-        }
+          afterNode = n$[n$.length-1];
+        } 
+        target.insertBefore(style, 
+          (afterNode && afterNode.nextSibling) || target.firstChild);
         return style;
       },
 
-      AT_RULE: '@',
-      KEYFRAME_RULE: 'keyframe',
-      MIXIN_SELECTOR: '--',
-      parser: Polymer.CssParse
+      // returns cssText of styles in a given module; also un-applies any
+      // styles that apply to the document.
+      cssFromModule: function(moduleId) {
+        var m = Polymer.DomModule.import(moduleId);
+        if (m && !m._cssText) {
+          var cssText = '';
+          var e$ = Array.prototype.slice.call(
+            m.querySelectorAll(this.MODULE_STYLES_SELECTOR));
+          for (var i=0, e; i < e$.length; i++) {
+            e = e$[i];
+            // style elements inside dom-modules will apply to the main document
+            // we don't want this, so we remove them here.
+            if (e.localName === 'style') {
+              // get style element applied to main doc via HTMLImports polyfill
+              e = e.__appliedElement || e;
+              e.parentNode.removeChild(e);
+            // it's an import, assume this is a text file of css content.
+            } else {
+              e = e.import && e.import.body;
+            }
+            // adjust paths in css.
+            if (e) {
+              cssText += 
+                Polymer.ResolveUrl.resolveCss(e.textContent, e.ownerDocument);
+            }
+          }
+          m._cssText = cssText;
+        }
+        return m && m._cssText || '';
+      },
+
+      parser: Polymer.CssParse,
+      ruleTypes: Polymer.CssParse.types
+
     };
 
   })();
