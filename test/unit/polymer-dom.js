@@ -264,6 +264,19 @@ suite('Polymer.dom', function() {
     assert.deepEqual(Polymer.dom(ec2).getDistributedNodes(), []);
   });
 
+  test('setting hostAttributes/reflecting properties provokes distribution', function() {
+    var e = document.querySelector('x-select-attr');
+    var ip$ = Polymer.dom(e.root).querySelectorAll('content');
+    var c = Polymer.dom(e).firstElementChild;
+    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on host attribute');
+    c.foo = true;
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute')
+    c.foo = false;
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute')
+  });
+
   test('appendChild (light)', function() {
     var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
     var s = document.createElement('span');
