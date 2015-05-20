@@ -168,14 +168,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _parseMethod: function(expression) {
       var m = expression.match(/(\w*)\((.*)\)/);
       if (m) {
-        return this._parseArgs({
-          method: m[1],
-          static: true
-        }, m[2].split(','));
+        // replace escaped commas with comma entity, split on un-escaped commas
+        var args = m[2].replace(/\\,/g, '&comma;').split(',');
+        return this._parseArgs(args, { method: m[1], static: true });
       }
     },
 
-    _parseArgs: function(effect, argList) {
+    _parseArgs: function(argList, effect) {
       effect.args = argList.map(function(rawArg) {
         var arg = this._parseArg(rawArg);
         if (!arg.literal) {
@@ -187,40 +186,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _parseArg: function(rawArg) {
-      // clean up string
-      var arg = String(rawArg).trim();
+      // clean up whitespace
+      var arg = String(rawArg).trim()
+        // replace comma entity with comma
+        .replace(/&comma;/g, ',')
+        // repair escape sequences
+        .replace(/\\(.)/g, '\$1')
+        ;
       // basic argument descriptor
       var a = {
         name: arg,
         model: this._modelForPath(arg)
       };
-      // detect structured path (has dots)
-      a.structured = arg.indexOf('.') > 0;
-      if (a.structured) {
-        a.wildcard = (arg.slice(-2) == '.*');
-        if (a.wildcard) {
-          a.name = arg.slice(0, -2);
-        }
-      } else {
-        // detect literal value (must be JSON)
-        var fc = arg[0];
-        if (fc >= '0' && fc <= '9') {
-          fc = '#';
-        }
-        switch(fc) {
-          // TODO(sjmiles): single-quote is invalid JSON
-          //case "'":
-          case '"':
-          case '{':
-          case '[':
-          case '#':
-            try {
-              a.value = JSON.parse(arg);
-              a.literal = true;
-            } catch(x) {
-              // warn?
-            }
-            break;
+      // detect literal value (must be String or Number)
+      var fc = arg[0];
+      if (fc >= '0' && fc <= '9') {
+        fc = '#';
+      }
+      switch(fc) {
+        case "'":
+        case '"':
+          a.value = arg.slice(1, -1);
+          a.literal = true;
+          break;
+        case '#':
+          a.value = Number(arg);
+          a.literal = true;
+          break;
+      }
+      // if not literal, look for structured path
+      if (!a.literal) {
+        // detect structured path (has dots)
+        a.structured = arg.indexOf('.') > 0;
+        if (a.structured) {
+          a.wildcard = (arg.slice(-2) == '.*');
+          if (a.wildcard) {
+            a.name = arg.slice(0, -2);
+          }
         }
       }
       return a;
