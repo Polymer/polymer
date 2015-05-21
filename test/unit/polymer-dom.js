@@ -264,7 +264,7 @@ suite('Polymer.dom', function() {
     assert.deepEqual(Polymer.dom(ec2).getDistributedNodes(), []);
   });
 
-  test('setting hostAttributes/reflecting properties provokes distribution', function() {
+  test('without a host setting hostAttributes/reflecting properties provokes distribution', function() {
     var e = document.querySelector('x-select-attr');
     var ip$ = Polymer.dom(e.root).querySelectorAll('content');
     var c = Polymer.dom(e).firstElementChild;
@@ -275,6 +275,23 @@ suite('Polymer.dom', function() {
     c.foo = false;
     Polymer.dom.flush();
     assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute')
+  });
+
+  test('within a host setting hostAttributes/reflecting properties provokes distribution', function() {
+    var e = document.querySelector('x-compose-select-attr');
+    var ip$ = Polymer.dom(e.$.select.root).querySelectorAll('content');
+    var c1 = e.$.attr1;
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on host attribute');
+    c1.foo = true;
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute')
+    c1.foo = false;
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute')
+    var c2 = e.$.attr2;
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(c2).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on default value');
   });
 
   test('appendChild (light)', function() {
