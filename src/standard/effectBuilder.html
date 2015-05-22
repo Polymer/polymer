@@ -1,0 +1,277 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../lib/bind/accessors.html">
+<link rel="import" href="../lib/bind/effects.html">
+
+<script>
+
+  /**
+   * Support for property side effects.
+   *
+   * Key for effect objects:
+   *
+   * property | ann | anCmp | cmp | obs | cplxOb | description
+   * ---------|-----|-------|-----|-----|--------|----------------------------------------
+   * method   |     | X     | X   | X   | X      | function name to call on instance
+   * args     |     | X     | X   |     | X      | arg descriptors for triggers of fn
+   * trigger  |     | X     | X   |     | X      | describes triggering dependency (one of args)
+   * property |     |       | X   | X   |        | property for effect to set or get
+   * name     | X   |       |     |     |        | annotation value (text inside {{...}})
+   * kind     | X   | X     |     |     |        | binding type (property or attribute)
+   * index    | X   | X     |     |     |        | node index to set
+   *
+   */
+
+  Polymer.Base._addFeature({
+
+    _addPropertyEffect: function(property, kind, effect) {
+     Polymer.Bind.addPropertyEffect(this, property, kind, effect);
+    },
+
+    // prototyping
+
+    _prepEffects: function() {
+      Polymer.Bind.prepareModel(this);
+      this._addAnnotationEffects(this._notes);
+    },
+
+    _prepBindings: function() {
+      Polymer.Bind.createBindings(this);
+    },
+
+    _addPropertyEffects: function(properties) {
+      if (properties) {
+        for (var p in properties) {
+          var prop = properties[p];
+          if (prop.observer) {
+            this._addObserverEffect(p, prop.observer);
+          }
+          if (prop.computed) {
+            this._addComputedEffect(p, prop.computed);
+          }
+          if (prop.notify) {
+            this._addPropertyEffect(p, 'notify');
+          }
+          if (prop.reflectToAttribute) {
+            this._addPropertyEffect(p, 'reflect');
+          }
+          if (prop.readOnly) {
+            // Ensure accessor is created
+            Polymer.Bind.ensurePropertyEffects(this, p);
+          }
+        }
+      }
+    },
+
+    _addComputedEffect: function(name, expression) {
+      var sig = this._parseMethod(expression);
+      sig.args.forEach(function(arg) {
+        this._addPropertyEffect(arg.model, 'compute', {
+          method: sig.method,
+          args: sig.args,
+          trigger: arg,
+          property: name
+        });
+      }, this);
+    },
+
+    _addObserverEffect: function(property, observer) {
+      this._addPropertyEffect(property, 'observer', {
+        method: observer,
+        property: property
+      });
+    },
+
+    _addComplexObserverEffects: function(observers) {
+      if (observers) {
+        observers.forEach(function(observer) {
+          this._addComplexObserverEffect(observer);
+        }, this);
+      }
+    },
+
+    _addComplexObserverEffect: function(observer) {
+      var sig = this._parseMethod(observer);
+      sig.args.forEach(function(arg) {
+        this._addPropertyEffect(arg.model, 'complexObserver', {
+          method: sig.method,
+          args: sig.args,
+          trigger: arg
+        });
+      }, this);
+    },
+
+    _addAnnotationEffects: function(notes) {
+      // create a virtual annotation list, must be concretized at instance time
+      this._nodes = [];
+      // process annotations that have been parsed from template
+      notes.forEach(function(note) {
+        // where to find the node in the concretized list
+        var index = this._nodes.push(note) - 1;
+        note.bindings.forEach(function(binding) {
+          this._addAnnotationEffect(binding, index);
+        }, this);
+      }, this);
+    },
+
+    _addAnnotationEffect: function(note, index) {
+      // TODO(sjmiles): annotations have 'effects' proper and 'listener'
+      if (Polymer.Bind._shouldAddListener(note)) {
+        // <node>.on.<dash-case-property>-changed: <path> = e.detail.value
+        Polymer.Bind._addAnnotatedListener(this, index,
+          note.name, note.value, note.event);
+      }
+      if (note.signature) {
+        this._addAnnotatedComputationEffect(note, index);
+      } else {
+        // capture the node index
+        note.index = index;
+        // add 'annotation' binding effect for property 'model'
+        this._addPropertyEffect(note.model, 'annotation', note);
+      }
+    },
+
+    _addAnnotatedComputationEffect: function(note, index) {
+      var sig = note.signature;
+      if (sig.static) {
+        this.__addAnnotatedComputationEffect('__static__', index, note, sig, null);
+      } else {
+        sig.args.forEach(function(arg) {
+          if (!arg.literal) {
+            this.__addAnnotatedComputationEffect(arg.model, index, note, sig, arg);
+          }
+        }, this);
+      }
+    },
+
+    __addAnnotatedComputationEffect: function(property, index, note, sig, trigger) {
+      this._addPropertyEffect(property, 'annotatedComputation', {
+        index: index,
+        kind: note.kind,
+        property: note.name,
+        negate: note.negate,
+        method: sig.method,
+        args: sig.args,
+        trigger: trigger
+      });
+    },
+
+    // method expressions are of the form: `name([arg1, arg2, .... argn])`
+    _parseMethod: function(expression) {
+      var m = expression.match(/(\w*)\((.*)\)/);
+      if (m) {
+        var sig = { method: m[1], static: true };
+        if (m[2].trim()) {
+          // replace escaped commas with comma entity, split on un-escaped commas
+          var args = m[2].replace(/\\,/g, '&comma;').split(',');
+          return this._parseArgs(args, sig);
+        } else {
+          sig.args = Polymer.nar;
+          return sig;
+        }
+      }
+    },
+
+    _parseArgs: function(argList, sig) {
+      sig.args = argList.map(function(rawArg) {
+        var arg = this._parseArg(rawArg);
+        if (!arg.literal) {
+          sig.static = false;
+        }
+        return arg;
+      }, this);
+      return sig;
+    },
+
+    _parseArg: function(rawArg) {
+      // clean up whitespace
+      var arg = rawArg.trim()
+        // replace comma entity with comma
+        .replace(/&comma;/g, ',')
+        // repair extra escape sequences; note only commas strictly need
+        // escaping, but we allow any other char to be escaped since its
+        // likely users will do this
+        .replace(/\\(.)/g, '\$1')
+        ;
+      // basic argument descriptor
+      var a = {
+        name: arg,
+        model: this._modelForPath(arg)
+      };
+      // detect literal value (must be String or Number)
+      var fc = arg[0];
+      if (fc >= '0' && fc <= '9') {
+        fc = '#';
+      }
+      switch(fc) {
+        case "'":
+        case '"':
+          a.value = arg.slice(1, -1);
+          a.literal = true;
+          break;
+        case '#':
+          a.value = Number(arg);
+          a.literal = true;
+          break;
+      }
+      // if not literal, look for structured path
+      if (!a.literal) {
+        // detect structured path (has dots)
+        a.structured = arg.indexOf('.') > 0;
+        if (a.structured) {
+          a.wildcard = (arg.slice(-2) == '.*');
+          if (a.wildcard) {
+            a.name = arg.slice(0, -2);
+          }
+        }
+      }
+      return a;
+    },
+
+    // instancing
+
+    _marshalInstanceEffects: function() {
+      Polymer.Bind.prepareInstance(this);
+      Polymer.Bind.setupBindListeners(this);
+    },
+
+    _applyEffectValue: function(value, info) {
+      var node = this._nodes[info.index];
+      // TODO(sorvell): ideally, the info object is normalized for easy
+      // lookup here.
+      var property = info.property || info.name || 'textContent';
+      // special processing for 'class' and 'className'; 'class' handled
+      // when attr is serialized.
+      if (info.kind == 'attribute') {
+        this.serializeValueToAttribute(value, property, node);
+      } else {
+        // TODO(sorvell): consider pre-processing this step so we don't need
+        // this lookup.
+        if (property === 'className') {
+          value = this._scopeElementClass(node, value);
+        }
+        // Some browsers serialize `undefined` textContent to `"undefined"`
+        if (property === 'textContent') {
+          value = value == undefined ? '' : value;
+        }
+        return node[property] = value;
+      }
+    },
+
+    _executeStaticEffects: function() {
+      if (this._propertyEffects.__static__) {
+        this._effectEffects('__static__', null, this._propertyEffects.__static__);
+      }
+    }
+
+  });
+
+</script>
