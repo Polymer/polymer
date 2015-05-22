@@ -612,6 +612,14 @@ suite('Polymer.dom non-distributed elements', function() {
     Polymer.dom(nd).appendChild(b);
     Polymer.dom.flush();
     assert.equal(Polymer.dom(nd).children.length, 2, 'children length not incremented due to element addition');
+    var d = document.createElement('div');
+    d.innerHTML = 'added';
+    Polymer.dom(nd).insertBefore(d, b);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(nd).children.length, 3, 'children length not incremented due to element addition');
+    Polymer.dom(nd).removeChild(d);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(nd).children.length, 2, 'children length not decremented due to element removal');
   });
 
   test('Polymer.dom removes/adds between light and local dom', function() {
