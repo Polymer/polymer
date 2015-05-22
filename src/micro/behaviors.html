@@ -46,7 +46,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this.behaviors.length) {
         this.behaviors = this._flattenBehaviorsList(this.behaviors);
       }
-      this._prepAllBehaviors();
+      this._prepAllBehaviors(this.behaviors);
     },
 
     _flattenBehaviorsList: function(behaviors) {
@@ -54,35 +54,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       behaviors.forEach(function(b) {
         if (b instanceof Array) {
           flat = flat.concat(this._flattenBehaviorsList(b));
-        } else {
+        }
+        // filter out null entries so other iterators don't need to check
+        else if (b) {
           flat.push(b);
+        } else {
+          this._warn(this._logf('_flattenBehaviorsList', 'behavior is null, check for missing or 404 import'));
         }
       }, this);
       return flat;
     },
 
-    _prepAllBehaviors: function() {
-      // filter so other iterators don't need null check
-      this.behaviors = this.behaviors.filter(function(b) {
-        if (b) {
-          this._mixinBehavior(b);
-          this._prepBehavior(b);
-          return true;
-        }
-        this._warn(this._logf('_prepAllBehaviors', 'behavior is null, check for missing or 404 import'));
-      }, this);
+    _prepAllBehaviors: function(behaviors) {
+      // traverse the behaviors in _reverse_ order (youngest first) because
+      // `_mixinBehavior` has _first property wins_ behavior, this is done
+      // to optimize # of calls to `_copyOwnProperty`
+      for (var i=behaviors.length-1; i>=0; i--) {
+        this._mixinBehavior(behaviors[i]);
+      }
+      // we iterate a second time so that `_prepBehavior` goes in natural order
+      // otherwise, it's a tricky detail for implementors of `_prepBehavior`
+      for (var i=0, l=behaviors.length; i<l; i++) {
+        this._prepBehavior(behaviors[i]);
+      }
+      // prep our prototype-as-behavior
       this._prepBehavior(this);
     },
 
     _mixinBehavior: function(b) {
-      Object.getOwnPropertyNames(b).forEach(function(n) {
+       Object.getOwnPropertyNames(b).forEach(function(n) {
         switch (n) {
+          case 'hostAttributes':
           case 'registered':
           case 'properties':
           case 'observers':
           case 'listeners':
-          case 'keyPresses':
-          case 'hostAttributes':
           case 'created':
           case 'attached':
           case 'detached':
