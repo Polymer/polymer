@@ -411,7 +411,7 @@ HighlightBehavior = {
   },
 
   created: function() {
-    console.log('Highlighting for ', this, + 'enabled!');
+    console.log('Highlighting for ', this, 'enabled!');
   },
 
   _toggleHighlight: function() {
@@ -1769,10 +1769,10 @@ Example usage of `my-toolbar`.
         background-color: green;
         border-radius: 4px;
         border: 1px solid gray;
-      }
+      };
       --my-toolbar-title-theme: {
         color: green;
-      }
+      };
     }
 
     /* Make only toolbars with the .warning class red and bold */
