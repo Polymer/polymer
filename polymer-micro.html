@@ -6,7 +6,18 @@ The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
---><script>Polymer = {
+--><script>(function () {
+function resolve() {
+document.body.removeAttribute('unresolved');
+}
+if (window.WebComponents) {
+addEventListener('WebComponentsReady', resolve);
+} else {
+resolve();
+}
+}());
+
+Polymer = {
 Settings: function () {
 var user = window.Polymer || {};
 location.search.slice(1).split('&').forEach(function (o) {
@@ -208,39 +219,38 @@ _prepBehaviors: function () {
 if (this.behaviors.length) {
 this.behaviors = this._flattenBehaviorsList(this.behaviors);
 }
-this._prepAllBehaviors();
+this._prepAllBehaviors(this.behaviors);
 },
 _flattenBehaviorsList: function (behaviors) {
 var flat = [];
 behaviors.forEach(function (b) {
 if (b instanceof Array) {
-flat = flat.concat(b);
-} else {
+flat = flat.concat(this._flattenBehaviorsList(b));
+} else if (b) {
 flat.push(b);
+} else {
+this._warn(this._logf('_flattenBehaviorsList', 'behavior is null, check for missing or 404 import'));
 }
 }, this);
 return flat;
 },
-_prepAllBehaviors: function () {
-this.behaviors = this.behaviors.filter(function (b) {
-if (b) {
-this._mixinBehavior(b);
-this._prepBehavior(b);
-return true;
+_prepAllBehaviors: function (behaviors) {
+for (var i = behaviors.length - 1; i >= 0; i--) {
+this._mixinBehavior(behaviors[i]);
 }
-this._warn(this._logf('_prepAllBehaviors', 'behavior is null, check for missing or 404 import'));
-}, this);
+for (var i = 0, l = behaviors.length; i < l; i++) {
+this._prepBehavior(behaviors[i]);
+}
 this._prepBehavior(this);
 },
 _mixinBehavior: function (b) {
 Object.getOwnPropertyNames(b).forEach(function (n) {
 switch (n) {
+case 'hostAttributes':
 case 'registered':
 case 'properties':
 case 'observers':
 case 'listeners':
-case 'keyPresses':
-case 'hostAttributes':
 case 'created':
 case 'attached':
 case 'detached':
@@ -378,13 +388,16 @@ return g[0] + '-' + g[1].toLowerCase();
 };
 
 Polymer.Base._addFeature({
-_marshalAttributes: function () {
-this._takeAttributes();
+_prepAttributes: function () {
+this._aggregatedAttributes = {};
 },
-_installHostAttributes: function (attributes) {
+_addHostAttributes: function (attributes) {
 if (attributes) {
-this._applyAttributes(this, attributes);
+this.mixin(this._aggregatedAttributes, attributes);
 }
+},
+_marshalHostAttributes: function () {
+this._applyAttributes(this, this._aggregatedAttributes);
 },
 _applyAttributes: function (node, attr$) {
 for (var n in attr$) {
@@ -393,7 +406,7 @@ this.serializeValueToAttribute(attr$[n], n, this);
 }
 }
 },
-_takeAttributes: function () {
+_marshalAttributes: function () {
 this._takeAttributesToModel(this);
 },
 _takeAttributesToModel: function (model) {
@@ -500,17 +513,19 @@ debouncer.stop();
 Polymer.Base._addFeature({
 _registerFeatures: function () {
 this._prepIs();
+this._prepAttributes();
 this._prepBehaviors();
 this._prepExtends();
 this._prepConstructor();
 },
-_prepBehavior: function () {
-},
-_initFeatures: function () {
-this._setupDebouncers();
-this._marshalBehaviors();
+_prepBehavior: function (b) {
+this._addHostAttributes(b.hostAttributes);
 },
 _marshalBehavior: function (b) {
-this._installHostAttributes(b.hostAttributes);
+},
+_initFeatures: function () {
+this._marshalHostAttributes();
+this._setupDebouncers();
+this._marshalBehaviors();
 }
 });</script>

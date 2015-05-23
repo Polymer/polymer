@@ -61,12 +61,12 @@ return !this.dataHost || this.dataHost._clientsReadied;
 },
 _ready: function () {
 this._beforeClientsReady();
+this._setupRoot();
 this._readyClients();
 this._afterClientsReady();
 this._readySelf();
 },
 _readyClients: function () {
-this._setupRoot();
 this._beginDistribute();
 var c$ = this._clients;
 for (var i = 0, l = c$.length, c; i < l && (c = c$[i]); i++) {
@@ -88,8 +88,11 @@ _beforeClientsReady: function () {
 },
 _afterClientsReady: function () {
 },
+_beforeAttached: function () {
+},
 attachedCallback: function () {
 if (this._readied) {
+this._beforeAttached();
 baseAttachedCallback.call(this);
 } else {
 this._attachedPending = true;
@@ -447,10 +450,8 @@ host.flushDebouncer('_distribute');
 dirtyRoots = [];
 },
 _lazyDistribute: function (host) {
-if (host.shadyRoot) {
+if (host.shadyRoot && host.shadyRoot._distributionClean) {
 host.shadyRoot._distributionClean = false;
-}
-if (!host.isDebouncerActive('_distribute')) {
 host.debounce('_distribute', host._distributeContent);
 dirtyRoots.push(host);
 }
@@ -466,7 +467,7 @@ if (host) {
 distributed = this._maybeDistribute(node, this.node, host);
 }
 }
-if (!distributed) {
+if (!distributed && !this._tryRemoveUndistributedNode(node)) {
 var container = this.node._isShadyRoot ? this.node.host : this.node;
 nativeAppendChild.call(container, node);
 addToComposedParent(container, node);
@@ -493,7 +494,7 @@ if (host) {
 distributed = this._maybeDistribute(node, this.node, host);
 }
 }
-if (!distributed) {
+if (!distributed && !this._tryRemoveUndistributedNode(node)) {
 ref_node = ref_node.localName === CONTENT ? this._firstComposedNode(ref_node) : ref_node;
 var container = this.node._isShadyRoot ? this.node.host : this.node;
 nativeInsertBefore.call(container, node, ref_node);
@@ -502,6 +503,9 @@ addToComposedParent(container, node, ref_node);
 return node;
 },
 removeChild: function (node) {
+if (factory(node).parentNode !== this.node) {
+console.warn('The node to be removed is not a child of this node', node);
+}
 var distributed;
 if (this._nodeIsInLogicalTree(this.node)) {
 var host = this._hostForNode(this.node);
@@ -510,8 +514,10 @@ this._removeNodeFromHost(node);
 }
 if (!distributed) {
 var container = this.node._isShadyRoot ? this.node.host : this.node;
+if (container === node.parentNode) {
 nativeRemoveChild.call(container, node);
 removeFromComposedParent(container, node);
+}
 }
 return node;
 },
@@ -554,6 +560,14 @@ this._lazyDistribute(host);
 }
 return distribute;
 },
+_tryRemoveUndistributedNode: function (node) {
+if (this.node.shadyRoot) {
+if (node.parentNode) {
+nativeRemoveChild.call(node.parentNode, node);
+}
+return true;
+}
+},
 _updateInsertionPoints: function (host) {
 host.shadyRoot._insertionPoints = factory(host.shadyRoot).querySelectorAll(CONTENT);
 },
@@ -565,7 +579,7 @@ var root = node.shadyRoot || (node._isShadyRoot ? node : this._ownerShadyRootFor
 return root && root.host;
 },
 _parentNeedsDistribution: function (parent) {
-return parent.shadyRoot && hasInsertionPoint(parent.shadyRoot);
+return parent && parent.shadyRoot && hasInsertionPoint(parent.shadyRoot);
 },
 _nodeNeedsDistribution: function (node) {
 return node.localName === CONTENT || node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && node.querySelector(CONTENT);
@@ -697,7 +711,7 @@ this.node.removeAttribute(name);
 this._distributeParent();
 },
 _distributeParent: function () {
-if (this.parentNode && this.parentNode.shadyRoot) {
+if (this._parentNeedsDistribution(this.parentNode)) {
 this._lazyDistribute(this.parentNode);
 }
 }
@@ -1029,6 +1043,9 @@ saveLightChildrenIfNeeded(this);
 _setupRoot: function () {
 if (this._useContent) {
 this._createLocalRoot();
+if (!this.dataHost) {
+upgradeLightChildren(this.lightChildren);
+}
 }
 },
 _createLocalRoot: function () {
@@ -1295,6 +1312,14 @@ return host.domHost;
 }
 }
 }
+var needsUpgrade = window.CustomElements && !CustomElements.useNative;
+function upgradeLightChildren(children) {
+if (needsUpgrade && children) {
+for (var i = 0; i < children.length; i++) {
+CustomElements.upgrade(children[i]);
+}
+}
+}
 }());
 
 if (Polymer.Settings.useShadow) {
@@ -1321,24 +1346,26 @@ Polymer.DomModule = document.createElement('dom-module');
 Polymer.Base._addFeature({
 _registerFeatures: function () {
 this._prepIs();
+this._prepAttributes();
 this._prepBehaviors();
 this._prepExtends();
 this._prepConstructor();
 this._prepTemplate();
 this._prepShady();
 },
-_prepBehavior: function () {
+_prepBehavior: function (b) {
+this._addHostAttributes(b.hostAttributes);
 },
 _initFeatures: function () {
 this._poolContent();
 this._pushHost();
 this._stampTemplate();
 this._popHost();
+this._marshalHostAttributes();
 this._setupDebouncers();
 this._marshalBehaviors();
 this._tryReady();
 },
 _marshalBehavior: function (b) {
-this._installHostAttributes(b.hostAttributes);
 }
 });</script>
