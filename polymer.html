@@ -152,7 +152,7 @@ customEvent: customEvent
 }
 },
 _localSubTree: function (node, host) {
-return node === host ? node.childNodes : node.lightChildren || node.childNodes;
+return node === host ? node.childNodes : node._lightChildren || node.childNodes;
 },
 findAnnotatedNode: function (root, annote) {
 var parent = annote.parent && Polymer.Annotations.findAnnotatedNode(root, annote.parent);
@@ -2375,7 +2375,8 @@ property = this.valueForProperties(property, props);
 } else {
 var self = this;
 var fn = function (all, prefix, value, fallback) {
-return prefix + (self.valueForProperty(props[value], props) || (props[fallback] ? self.valueForProperty(props[fallback], props) : fallback));
+var propertyValue = self.valueForProperty(props[value], props) || (props[fallback] ? self.valueForProperty(props[fallback], props) : fallback);
+return prefix + (propertyValue || '');
 };
 property = property.replace(this.rx.VAR_MATCH, fn);
 }
@@ -2428,21 +2429,32 @@ properties: props,
 key: o
 };
 },
-rootPropertiesFromStyles: function (styles) {
-if (!styles._rootStyleProperties) {
+scopePropertiesFromStyles: function (styles) {
+if (!styles._scopeStyleProperties) {
+styles._scopeStyleProperties = this.selectedPropertiesFromStyles(styles, this.SCOPE_SELECTORS);
+}
+return styles._scopeStyleProperties;
+},
+hostPropertiesFromStyles: function (styles) {
+if (!styles._hostStyleProperties) {
+styles._hostStyleProperties = this.selectedPropertiesFromStyles(styles, this.HOST_SELECTORS);
+}
+return styles._hostStyleProperties;
+},
+selectedPropertiesFromStyles: function (styles, selectors) {
 var props = {}, self = this;
 styleUtil.forRulesInStyles(styles, function (rule) {
 if (!rule.propertyInfo) {
 self.decorateRule(rule);
 }
-var s = rule.parsedSelector;
-if (s === self.HOST || s === self.ROOT) {
+for (var i = 0; i < selectors.length; i++) {
+if (rule.parsedSelector === selectors[i]) {
 self.collectProperties(rule, props);
+return;
+}
 }
 });
-styles._rootStyleProperties = props;
-}
-return styles._rootStyleProperties;
+return props;
 },
 transformStyles: function (element, properties, scopeSelector) {
 var self = this;
@@ -2504,14 +2516,14 @@ return style;
 rx: {
 VAR_ASSIGN: /(?:^|;\s*)(--[^\:;]*?):\s*?(?:([^;{]*?)|{([^}]*)})(?=;)/gim,
 MIXIN_MATCH: /(?:^|\W+)@apply[\s]*\(([^)]*)\);?/im,
-VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*([^,)]*)[\s]*?\)/gim,
+VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,)]*)|(?:[^;]*\([^;)]*\)))[\s]*?\)/gim,
 VAR_CAPTURE: /\([\s]*(--[^,\s)]*)(?:,[\s]*(--[^,\s)]*))?(?:\)|,)/gim,
 BRACKETED: /\{[^}]*\}/g,
 HOST_PREFIX: '(?:^|[^.])',
 HOST_SUFFIX: '($|[.:[\\s>+~])'
 },
-HOST: ':host',
-ROOT: ':root',
+HOST_SELECTORS: [':host'],
+SCOPE_SELECTORS: [':root'],
 XSCOPE_NAME: 'x-scope'
 };
 function addToBitMask(n, bits) {
@@ -2537,8 +2549,8 @@ this._properties = null;
 get _styleProperties() {
 if (!this._properties) {
 styleProperties.decorateStyles(this._styles);
-this._styles._rootStyleProperties = null;
-this._properties = styleProperties.rootPropertiesFromStyles(this._styles);
+this._styles._scopeStyleProperties = null;
+this._properties = styleProperties.scopePropertiesFromStyles(this._styles);
 }
 return this._properties;
 },
@@ -2636,8 +2648,12 @@ info = styleCache.retrieve(this.is, this._ownStyleProperties, this._styles);
 var globalCached = Boolean(info) && !scopeCached;
 style = this._applyStyleProperties(info);
 if (!scopeCached) {
+var cacheableStyle = style;
+if (nativeShadow) {
+cacheableStyle = style.cloneNode ? style.cloneNode(true) : Object.create(style || null);
+}
 info = {
-style: nativeShadow ? style.cloneNode(true) : style,
+style: cacheableStyle,
 _scopeSelector: this._scopeSelector,
 _styleProperties: this._styleProperties
 };
@@ -2653,9 +2669,10 @@ if (!scope._styleProperties) {
 scope._computeStyleProperties();
 }
 var props = Object.create(scope._styleProperties);
+this.mixin(props, propertyUtils.hostPropertiesFromStyles(this._styles));
 scopeProps = scopeProps || propertyUtils.propertyDataFromStyles(scope._styles, this).properties;
 this.mixin(props, scopeProps);
-this.mixin(props, propertyUtils.rootPropertiesFromStyles(this._styles));
+this.mixin(props, propertyUtils.scopePropertiesFromStyles(this._styles));
 this.mixin(props, this.customStyle);
 propertyUtils.reify(props);
 this._styleProperties = props;
