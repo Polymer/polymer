@@ -1,51 +1,63 @@
+/**
+ * @license
+ * Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+ * This code may only be used under the BSD style license found at http:polymer.github.io/LICENSE.txt
+ * The complete set of authors may be found at http:polymer.github.io/AUTHORS.txt
+ * The complete set of contributors may be found at http:polymer.github.io/CONTRIBUTORS.txt
+ * Code distributed by Google as part of the polymer project is also
+ * subject to an additional IP rights grant found at http:polymer.github.io/PATENTS.txt
+ */
+
+// jshint node: true
+'use strict';
+
 var gulp = require('gulp');
 var audit = require('gulp-audit');
 var replace = require('gulp-replace');
-var shell = require('gulp-shell');
 var rename = require('gulp-rename');
+var vulcanize = require('gulp-vulcanize');
 var runseq = require('run-sequence');
+var lazypipe = require('lazypipe');
+var polyclean = require('polyclean');
 var del = require('del');
+
 var fs = require('fs');
 var path = require('path');
-
-var polyclean = require('polyclean');
-
-function vulcanize(filename, dstdir, excludes) {
-  var cmd = path.join('node_modules', '.bin', 'vulcanize');
-  if (excludes && excludes.length > 0) {
-    excludes.forEach(function(exclude) {
-      cmd = cmd + ' --exclude ' + exclude;
-    });
-  }
-  cmd = cmd + ' --strip-comments';
-  cmd = cmd + ' ' + filename + ' > ' + path.join(dstdir, filename);
-  return cmd;
-}
 
 var micro = "polymer-micro.html";
 var mini = "polymer-mini.html";
 var max = "polymer.html";
 var workdir = 'dist';
 
-gulp.task('micro', ['mkdir'], shell.task(vulcanize(micro, workdir)));
-gulp.task('mini', ['mkdir'], shell.task(vulcanize(mini, workdir, [micro])));
-gulp.task('max', ['mkdir'], shell.task(vulcanize(max, workdir, [mini, micro])));
+var distMicro = path.join(workdir, micro);
+var distMini = path.join(workdir, mini);
+var distMax = path.join(workdir, max);
 
-gulp.task('strip', ['micro', 'mini', 'max'], function() {
-  return gulp.src(['dist/' + micro, 'dist/' + mini, 'dist/' + max])
-    .pipe(polyclean.cleanJsComments())
-    // Collapse newlines
-    .pipe(replace(/\n\s*\n/g, '\n'))
-    // Reduce script tags
-    .pipe(replace(/<\/script>\s*<script>/g, '\n\n'))
-    .pipe(replace('<html><head><meta charset="UTF-8">', ''))
-    .pipe(replace('</head><body>\n</body></html>', ''))
-    // Collapse leading spaces+tabs.
-    .pipe(replace(/^[ \t]+/gm, ''))
-    // put the out
-    .pipe(gulp.dest('dist'))
-    ;
-});
+var cleanupPipe = lazypipe()
+  // Reduce script tags
+  .pipe(replace, /<\/script>\s*<script>/g, '\n\n')
+  // remove leading whitespace and comments
+  .pipe(polyclean.leftAlignJs)
+  // remove html wrapper
+  .pipe(replace, '<html><head><meta charset="UTF-8">', '')
+  .pipe(replace, '</head><body></body></html>', '')
+;
+
+function vulcanizeWithExcludes(target, excludes) {
+  return function() {
+    return gulp.src(target)
+      .pipe(vulcanize({
+        stripComments: true,
+        excludes: excludes
+      }))
+      .pipe(cleanupPipe())
+      .pipe(gulp.dest(workdir));
+  };
+}
+
+gulp.task('micro', ['mkdir'], vulcanizeWithExcludes(micro));
+gulp.task('mini', ['mkdir'], vulcanizeWithExcludes(mini, [micro]));
+gulp.task('max', ['mkdir'], vulcanizeWithExcludes(max, [mini, micro]));
 
 gulp.task('clean', function(cb) {
   del(workdir, cb);
@@ -53,7 +65,7 @@ gulp.task('clean', function(cb) {
 
 gulp.task('mkdir', ['clean'], function(cb) {
   fs.exists(workdir, function(exists) {
-    exists ? cb() : fs.mkdir(workdir, null, cb);
+    return exists ? cb() : fs.mkdir(workdir, null, cb);
   });
 });
 
@@ -63,25 +75,23 @@ gulp.task('copy-bower-json', ['mkdir'], function() {
 });
 
 // Default Task
-gulp.task('default', ['strip', 'copy-bower-json']);
+gulp.task('default', ['micro', 'mini', 'max', 'copy-bower-json']);
 
 // switch src and build for testing
 gulp.task('save-src', function() {
   return gulp.src([mini, micro, max])
-  .pipe(rename(function (p) {
-    p.extname += '.bak';
-  }))
-  .pipe(gulp.dest('.'))
-  ;
+    .pipe(rename(function(p) {
+      p.extname += '.bak';
+    }))
+    .pipe(gulp.dest('.'));
 });
 
 gulp.task('restore-src', function() {
   return gulp.src([mini + '.bak', micro + '.bak', max + '.bak'])
-  .pipe(rename(function (p) {
-    p.extname = '';
-  }))
-  .pipe(gulp.dest('.'))
-  ;
+    .pipe(rename(function(p) {
+      p.extname = '';
+    }))
+    .pipe(gulp.dest('.'));
 });
 
 gulp.task('cleanup-switch', function(cb) {
@@ -89,13 +99,13 @@ gulp.task('cleanup-switch', function(cb) {
 });
 
 gulp.task('switch-build', function() {
-  return gulp.src(['dist/' + mini, 'dist/' + micro, 'dist/' + max])
-  .pipe(gulp.dest('.'));
+  return gulp.src([distMini, distMicro, distMax])
+    .pipe(gulp.dest('.'));
 });
 
 gulp.task('restore-build', function() {
   return gulp.src([mini, micro, max])
-  .pipe(gulp.dest('dist'));
+    .pipe(gulp.dest('dist'));
 });
 
 gulp.task('switch', ['default'], function(cb) {
@@ -107,12 +117,15 @@ gulp.task('restore', ['clean'], function(cb) {
 });
 
 gulp.task('audit', function() {
-  return gulp.src(['dist/' + mini, 'dist/' + micro, 'dist/' + max])
-  .pipe(audit('build.log', {
-    repos: [
-      '.'
-    ]
-  }))
-  .pipe(gulp.dest('dist'))
-  ;
+  return gulp.src([distMini, distMicro, distMax])
+    .pipe(audit('build.log', {
+      repos: [
+        '.'
+      ]
+    }))
+    .pipe(gulp.dest('dist'));
+});
+
+gulp.task('release', function(cb) {
+  runseq('default', 'audit', cb);
 });
