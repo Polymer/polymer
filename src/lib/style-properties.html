@@ -127,10 +127,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // case (2) variable
             var self = this;
             var fn = function(all, prefix, value, fallback) {
-              return prefix + (self.valueForProperty(props[value], props) ||
+              var propertyValue = (self.valueForProperty(props[value], props) ||
                 (props[fallback] ? 
                 self.valueForProperty(props[fallback], props) : 
                 fallback));
+              return prefix + (propertyValue || '');
             };
             property = property.replace(this.rx.VAR_MATCH, fn);
           }
@@ -196,25 +197,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return {properties: props, key: o};
       },
 
-      // Test if a rule matches root crteria (:host or :root) and if so,
+      // Test if a rule matches scope crteria (* or :root) and if so,
       // collect any custom properties into `props`.
-      // these rules may already be shimmed and it's $ to reparse,
-      // so we check `is` value as a fallback
-      rootPropertiesFromStyles: function(styles) {
-        if (!styles._rootStyleProperties) {
-          var props = {}, self = this;
-          styleUtil.forRulesInStyles(styles, function(rule) {
-            if (!rule.propertyInfo) {
-              self.decorateRule(rule);
-            }
-            var s = rule.parsedSelector;
-            if (s === self.HOST || s === self.ROOT) {
-              self.collectProperties(rule, props);
-            }
-          });
-          styles._rootStyleProperties = props;
+      scopePropertiesFromStyles: function(styles) {
+        if (!styles._scopeStyleProperties) {
+          styles._scopeStyleProperties = 
+            this.selectedPropertiesFromStyles(styles, this.SCOPE_SELECTORS);
         }
-        return styles._rootStyleProperties;
+        return styles._scopeStyleProperties;
+      },
+
+      // Test if a rule matches host crteria (:host) and if so,
+      // collect any custom properties into `props`.
+      //
+      // TODO(sorvell): this should change to collecting properties from any
+      // :host(...) and then matching these against self.
+      hostPropertiesFromStyles: function(styles) {
+        if (!styles._hostStyleProperties) {
+          styles._hostStyleProperties = 
+            this.selectedPropertiesFromStyles(styles, this.HOST_SELECTORS);
+        }
+        return styles._hostStyleProperties;
+      },
+
+      selectedPropertiesFromStyles: function(styles, selectors) {
+        var props = {}, self = this;
+        styleUtil.forRulesInStyles(styles, function(rule) {
+          if (!rule.propertyInfo) {
+            self.decorateRule(rule);
+          }
+          for (var i=0; i < selectors.length; i++) {
+            if (rule.parsedSelector === selectors[i]) {
+              self.collectProperties(rule, props);
+              return;
+            }
+          }
+        });
+        return props;
       },
 
       transformStyles: function(element, properties, scopeSelector) {
@@ -304,15 +323,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       rx: {
         VAR_ASSIGN: /(?:^|;\s*)(--[^\:;]*?):\s*?(?:([^;{]*?)|{([^}]*)})(?=;)/gim,
         MIXIN_MATCH: /(?:^|\W+)@apply[\s]*\(([^)]*)\);?/im, 
-        VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*([^,)]*)[\s]*?\)/gim,
+        // note, this supports:
+        // var(--a)
+        // var(--a, --b)
+        // var(--a, fallback-literal)
+        // var(--a, fallback-literal(with-one-nested-parens))
+        VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,)]*)|(?:[^;]*\([^;)]*\)))[\s]*?\)/gim,
         VAR_CAPTURE: /\([\s]*(--[^,\s)]*)(?:,[\s]*(--[^,\s)]*))?(?:\)|,)/gim,
         BRACKETED: /\{[^}]*\}/g,
         HOST_PREFIX: '(?:^|[^.])',
         HOST_SUFFIX: '($|[.:[\\s>+~])'
       },
 
-      HOST: ':host',
-      ROOT: ':root',
+      HOST_SELECTORS: [':host'],
+      SCOPE_SELECTORS: [':root'],
       XSCOPE_NAME: 'x-scope'
 
     };
