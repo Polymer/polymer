@@ -107,7 +107,7 @@ gulp.task('restore', ['clean'], function(cb) {
 });
 
 gulp.task('audit', function() {
-  return gulp.src([mini, micro, max])
+  return gulp.src(['dist/' + mini, 'dist/' + micro, 'dist/' + max])
   .pipe(audit('build.log', {
     repos: [
       '.'
