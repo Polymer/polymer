@@ -78,7 +78,11 @@ gulp.task('copy-bower-json', ['mkdir'], function() {
 });
 
 // Default Task
-gulp.task('default', ['micro', 'mini', 'max', 'copy-bower-json']);
+gulp.task('default', ['copy-bower-json'], function(cb) {
+  // work around vulcanize not supporting concurrent builds
+  // Vulcanize bug: https://github.com/Polymer/vulcanize/issues/190
+  runseq('micro', 'mini', 'max', cb);
+});
 
 // switch src and build for testing
 gulp.task('save-src', function() {
