@@ -128,6 +128,6 @@ gulp.task('audit', function() {
     .pipe(gulp.dest('dist'));
 });
 
-gulp.task('release', ['copy-bower-json'], function(cb) {
-  runseq('default', 'audit', cb);
+gulp.task('release', function(cb) {
+  runseq('default', ['copy-bower-json', 'audit'], cb);
 });
