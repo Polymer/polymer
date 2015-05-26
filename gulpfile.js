@@ -66,7 +66,7 @@ gulp.task('clean', function(cb) {
   del(workdir, cb);
 });
 
-gulp.task('mkdir', ['clean'], function(cb) {
+gulp.task('mkdir', function(cb) {
   fs.exists(workdir, function(exists) {
     return exists ? cb() : fs.mkdir(workdir, null, cb);
   });
@@ -78,7 +78,7 @@ gulp.task('copy-bower-json', ['mkdir'], function() {
 });
 
 // Default Task
-gulp.task('default', ['copy-bower-json'], function(cb) {
+gulp.task('default', ['clean'], function(cb) {
   // work around vulcanize not supporting concurrent builds
   // Vulcanize bug: https://github.com/Polymer/vulcanize/issues/190
   runseq('micro', 'mini', 'max', cb);
@@ -110,17 +110,12 @@ gulp.task('switch-build', function() {
     .pipe(gulp.dest('.'));
 });
 
-gulp.task('restore-build', function() {
-  return gulp.src([mini, micro, max])
-    .pipe(gulp.dest('dist'));
-});
-
 gulp.task('switch', ['default'], function(cb) {
   runseq('save-src', 'switch-build', cb);
 });
 
 gulp.task('restore', ['clean'], function(cb) {
-  runseq('restore-build', 'restore-src', 'cleanup-switch', cb);
+  runseq('restore-src', 'cleanup-switch', cb);
 });
 
 gulp.task('audit', function() {
@@ -133,6 +128,6 @@ gulp.task('audit', function() {
     .pipe(gulp.dest('dist'));
 });
 
-gulp.task('release', function(cb) {
+gulp.task('release', ['copy-bower-json'], function(cb) {
   runseq('default', 'audit', cb);
 });
