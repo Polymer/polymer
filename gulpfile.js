@@ -44,6 +44,9 @@ var cleanupPipe = lazypipe()
 ;
 
 function vulcanizeWithExcludes(target, excludes) {
+  if (excludes) {
+    excludes = excludes.map(function(ex) { return path.resolve(ex); });
+  }
   return function() {
     return gulp.src(target)
       .pipe(vulcanize({
