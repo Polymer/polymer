@@ -33,9 +33,13 @@ var distMicro = path.join(workdir, micro);
 var distMini = path.join(workdir, mini);
 var distMax = path.join(workdir, max);
 
+var pkg = require('./package.json');
+
 var cleanupPipe = lazypipe()
   // Reduce script tags
   .pipe(replace, /<\/script>\s*<script>/g, '\n\n')
+  // Add real version number
+  .pipe(replace, /(Polymer.version = )'master'/, '$1"' + pkg.version + '"')
   // remove leading whitespace and comments
   .pipe(polyclean.leftAlignJs)
   // remove html wrapper
