@@ -1,328 +1,175 @@
-# Polymer 0.9 - Beta
+# Polymer
 
-## From The Ground Up
+Polymer lets you build encapsulated, re-usable elements that work just like HTML elements, to use in building web applications.
 
-Let us begin this tale with a short stroll through the layers that Polymer is
-built upon, and some of the rationale of how we got there.
+    <!-- Polyfill Web Components for older browsers -->
+    <script src="webcomponentsjs/webcomponents-lite.min.js"></script>
 
-### Raw Custom Elements
+    <1-- Import element -->
+    <link rel="import" href="google-map.html">
 
-Custom Elements are a powerful emerging web standard that allows developers to create their own elements by attaching a class to a tag-name. 
+    <!-- Use element -->
+    <google-map lat="37.790" long="-122.390"></google-map>
 
-#### document.registerElement
 
-The native API is very simple, it looks something like this:
+## Getting Started
 
-```js
-document.registerElement(<name String>, {prototype: Object[, extends: String]});
-```
+Check out [polymer-project.org](https://www.polymer-project.org) for all of the library documentation, including getting started guides, tutorials, developer reference, and more.
 
-#### Typical Boilerplate
+Or if you'd just like to download the library, check out our [releases page](https://github.com/polymer/polymer/releases).
 
-There is a little bit of work one has to do to set up the class with the right prototypes and so on to construct a Custom Element. Here is an typical example (using ES5 syntax):
+## Polymer in 1 Minute
 
-```js
-var ctor = function() {
-  return document.createElement('x-custom');
-};
-ctor.prototype = Object.create(HTMLElement.prototype);
-ctor.prototype.constructor = ctor;
-ctor.prototype.createdCallback = function() {
-  this.innerHTML = 'Hello World, I am a <b>Custom Element!</b>';
-}
-document.registerElement('x-custom', ctor);
-```
+The Polymer library is a lightweight sugaring layer on top of the [web components](http://webcomponents.org/articles/why-web-components/) API's to help in building your own web components. It adds convenient features to make it easy to build complex elements:
 
-### Reluctant Polymer() Abstraction
-
-By principle, Polymer team tries to avoid abstracting DOM APIs, especially new ones. But in this case we finally decided the ergonomic benefit was worth it. By wrapping `registerElement` in our own function, we can reduce the above boilerplate to:
+**Create and register a custom element**
 
 ```js
-var ctor = Polymer({
-  is: 'x-custom',
-  created: function() {
-    this.innerHTML = 'Hello World, I am a <b>Custom Element!</b>';
-  }
-});
-```
-
-### Polymer() Does a Bit More
-
-You might notice the `Polymer()` invocation defines `created` instead of `createdCallback`. This is a feature of `Polymer.Base`, a tiny prototype that `Polymer()` adds to your prototype chain as it's handling the boilerplate above. `Polymer.Base` hooks the standard Custom Element lifecycle callbacks to provide helper implementations. The hooks in turn call shorter-named lifecycle methods on your prototype.
-
-- `created` instead of `createdCallback`
-- `attached` instead of `attachedCallback`
-- `detached` instead of `detachedCallback`
-- `attributeChanged` instead of `attributeChangedCallback`
-
-You can always fallback to using the low-level methods if you wish (iow, you could simply implement `createdCallback` in your prototype).
-
-`Polymer.Base` also implements `registerCallback` on your prototype. `Polymer()` calls `registerCallback` which allows `Polymer.Base` to supply a layering system for Polymer abstractions so that no element needs to pay for features it doesn't use. 
-
-## Features
-
-By default, the default Polymer distribution include several features. Although `Polymer.Base` itself is tiny, if you examine `Polymer.Base` you will probably see several methods that have been plugged-in to that prototype by feature definitions. The next few sections will explain these features and why we include them in the default set. Keep in mind that it's entirely possible to construct custom feature sets, or even use a trivial, featureless form of `Polymer()`.
-
-### Feature: _property-config_
-
-The first feature implements support for the `properties` property. By placing a object-valued `properties` property on your prototype, let's you define various aspects of your custom-elements public API. 
-
-By itself, the `properties` feature **doesn't do anything**. It only provides API for asking questions about these special properties (see [link to docs] for details).
-
-```js
+/**
+ * A not-very-useful inline element
+ */
 Polymer({
-
-  is: 'x-custom',
-
-  properties: {
-    user: String,
-    isHappy: Boolean,
-    count: {
-      type: Number,
-      readOnly: true,
-      notify: true
-    }
-  },
-
-  created: function() {
-    this.innerHTML = 'Hello World, I am a <b>Custom Element!</b>';
-  }
-
+    is: 'my-element'
 });
 ```
 
-Remember that the fields assigned to `count`, such as `readOnly` and `notify` don't do anything by themselves, it requires other features to give them life.
+```html
+<!-- use the element -->
+<my-element></my-element>
+```
 
-### Feature: _attributes_
+**Add markup to your element**
 
-Many custom elements want to support configuration using HTML attributes. Custom Elements provides the `attributeChanged` callback gives us the raw API for this ability, but then we have to deal with initialization and type conversion (attributes are always strings). Here is an example of a custom element that supports a `user` attribute using the raw API.
+```html
+<!-- define the markup that your element will use -->
+<dom-module id="my-simple-namecard">
+  <div>
+    Hi! My name is <span>Jane</span>
+  </div>
+
+  <script>
+    Polymer({
+        is: 'my-simple-namecard'
+    });
+  </script>
+</dom-module>
+```
+
+**Configure properties on your element...**
 
 ```js
-  Polymer({
-
-    is: 'x-custom',
-
-    created: function() {
-      // handle any initial value
-      this.attributeChanged('user');
-      // render
-      this.innerHTML = 'Hello World, my user is ' + (this.user || 'nobody') + '.';
-    },
-
-    attributeChanged: function(name) {
-      switch(name) {
-        case 'user':
-          // pretty easy since user is a String, for other types
-          // we have to do more work
-          if (this.hasAttribute('user')) {
-            this.user = this.getAttribute('user');
-          }
-          break;
-      }
-    }
-
-  });
-```
-
-Although it's relatively simple, having to write this code becomes annoying when working with multiple attributes or non-String types. It's also not very DRY. 
-
-Instead, Polymer's `attributes` feature handles this work for you (using the `properties` feature data). If an attribute is set that matches a property listed in the `properties` object, the value is captured into the matching property. Strings are automatically converted to the specified type.
-
-The type system includes support for Object values expressed as JSON, or Date objects expressed as any Date-parsable string representation. Boolean properties are mapped to Boolean attributes, in other words, if the attribute exists at all, its value is true, regardless of its string-value (and the value is only false if the attribute does not exist).
-
-Here is the equivalent of the above code, taking advantage of the `attributes` feature.
-
-```html
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
+// Create an element that takes a property
+Polymer({
+    is: 'my-property-namecard',
     properties: {
-      user: String
+      myName: {
+        type: String
+      }
     },
-
-    created: function() {
-      // render
-      this.innerHTML = 'Hello World, my user is ' + (this.user || 'nobody') + '.';
+    ready: function() {
+      this.innerHTML = 'Hi! My name is' + this.myName;
     }
-
-  });
-
-</script>
-
-<x-custom user="Scott"></x-custom>
+});
 ```
 
-### [ToDoc] attributes:hostAttributes
-
-### Feature: _template_
-
-HTML templates are an emerging web standard that we like to consider part of the Web Components family. Templates are a great way to provide archetypal DOM content for your custom element, and this is where the `template` feature comes in.
-
-As usual, we started by writing basic template support by hand. It generally looks something like this:
+**...and have them set using declarative attributes**
 
 ```html
-<template>
-
-  Hello World from x-custom!
-
-  </template>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    created: function() {
-      var template = <find the template somehow>;
-      var instance = document.importNode(template.content, true);
-      this.appendChild(instance);
-    }
-
-  });
-
-</script>
+<!-- using the element -->
+<my-property-namecard my-name="Jim"></my-namecard>
 ```
 
-Again, it's simple, but it's a common pattern, so the `template` feature does it automatically. By default it looks for a template as the first element before the script, so our code can look like this:
+> Hi! My name is Jim.
+
+**Bind data into your element using the familiar mustache-syntax**
 
 ```html
-<template>
+<!-- define markup with bindings -->
+<dom-module id="my-bound-namecard">
+  <div>
+    Hi! My name is <span>{{myName}}</span>
+  </div>
 
-  Hello World from x-custom!
-
-</template>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom'
-
-  });
-
-</script>
+  <script>
+    Polymer({
+      is: 'my-bound-namecard',
+      properties: {
+        myName: {
+          type: String
+        }
+      }
+    });
+  </script>
+</dom-module>
 ```
-
-### Feature: _annotations_
-
-Most elements need to customize the DOM instanced from a template. For this reason, it's handy to encode markers into your template to indicate special nodes, attributes, or text. Polymer calls these markers _annotations_. The `annotations` feature scans the template (once per element, at registration time) and builds a data-structure into the prototype that identifies markers it finds in the DOM (see [link to docs] for details). Normally you do not need to work with this data directly, Polymer does it for you.
-
-### Feature: _annotations-nodes_
-
-Traditionally, modifying DOM is done by querying for elements to manipulate. Here is an example:
 
 ```html
-<template>
-
-  Hello World from <span id="name"></span>!
-
-</template>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    created: function() {
-      this.querySelector("#name").textContent = this.name;
-    }
-
-  });
-
-</script>
+<!-- using the element -->
+<my-bound-namecard my-name="Josh"></my-bound-namecard>
 ```
 
-This example is very simple. But in real projects, repeating queries is inefficient, so query results are often stored (memoized). Also, as DOM composition becomes more tricky, crafting correct queries can be difficult. For these reasons, automatically capturing nodes makes a good feature.
+> Hi! My name is Josh.
 
-The `annotations-nodes` feature builds a map of instance nodes by `id` in `this.$` (using the `annotations` feature data). Here is how the `annotations-nodes` feature simplifies the above example.
+**Style the internals of your element, without the style leaking out**
 
 ```html
-<template>
-
-  Hello World from <span id="name"></span>!
-
-</template>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    created: function() {
-      this.$.name.textContent = this.name;
+<!-- add style to your element -->
+<dom-module id="my-styled-namecard">
+  <style>
+    /* This would be crazy in non webcomponents. */
+    span {
+      font-weight: bold;
     }
+  </style>
+  <div>
+    Hi! My name is <span>{{myName}}</span>
+  </div>
 
-  });
-
-</script>
+  <script>
+    Polymer({
+      is: 'my-styled-namecard',
+      properties: {
+        myName: {
+          type: String
+        }
+      }
+    });
+  </script>
+</dom-module>
 ```
-
-### Feature: _annotations-events_
-
-Most elements also need to listen for events. The standard DOM method `addEventListener` provides the low-level support:
 
 ```html
-<template>
-
-  <button id="button">Kick Me</button>
-
-</template>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    created: function() {
-      this.$.button.addEventListener('click', function() {
-        alert('Ow!');
-      });
-    }
-
-  });
-
-</script>
+<!-- using the element -->
+<my-styled-namecard my-name="Jesse"></my-styled-namecard>
 ```
 
-Again, this is pretty simple, but it's so common that it's worth making even simpler. The `annotations-events` feature supports declaring event listeners directly in our template. 
+> Hi! My name is **Jesse**
 
-Declaring listeners in the template is convenient, and also helps us decouple view from behavior.
+**and so much more!**
 
-```html
-<template>
+Web components are an incredibly powerful new set of primitives baked into the web platform, and open up a whole new world of possibility when it comes to componentizing front-end code and easily creating powerful, immersive, app-like experiences on the web.
 
-  <button on-click="kickAction">Kick Me</button>
+By being based on Web Components, elements built with Polymer are:
 
-</template>
+* Built from the platform up
+* Self-contained
+* Don't require an overarching framework - are interoperable across frameworks
+* Re-usable
 
-<script>
+## Contributing
 
-  Polymer({
+The Polymer team loves contributions from the community! Take a look at our [contributing guide](CONTRIBUTING.md) for more information on how to contribute.
 
-    is: 'x-custom',
+## Communicating with the Polymer team
 
-    kickAction: function() {
-      alert('Ow!');
-    }
+Beyond Github, we try to have a variety of different lines of communication available:
 
-  });
+* [Blog](https://blog.polymer-project-org)
+* [Twitter](https://twitter.com/polymer)
+* [Google+ Community](https://plus.sandbox.google.com/u/0/communities/115626364525706131031?cfem=1)
+* [Mailing list](https://groups.google.com/forum/#!forum/polymer-dev)
+* [Slack channel](bit.ly/polymerslack)
 
-</script>
-```
+# License
 
-Notice that the `kickAction` method doesn't know anything about `button`. If we decided that kicking should be performed by a key-press, or a menu-item, the element code doesn't need to know. We can change the UI however we want. Also notice that by attaching the event declaratively, we have removed the need to give the button an id.
-
-### [ToDoc] events feature
-
-### [ToDoc] keys feature
-
-### [ToDoc] content feature
-
-
+The Polymer library uses a BSD-like license available [here](./polymer/blob/master/LICENSE.txt)
