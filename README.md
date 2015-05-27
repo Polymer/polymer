@@ -20,7 +20,7 @@ Or if you'd just like to download the library, check out our [releases page](htt
 
 ## Polymer in 1 Minute
 
-The Polymer library is a lightweight sugaring layer on top of the [web components](http://webcomponents.org/articles/why-web-components/) API's to help in building your own web components. It adds convenient features to make it easy to build complex elements:
+The Polymer library is a lightweight sugaring layer on top of the [web components](http://webcomponents.org/) API's to help in building your own web components. It adds convenient features to make it easy to build complex elements:
 
 **Create and register a custom element**
 
