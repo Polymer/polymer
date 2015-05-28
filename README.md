@@ -43,9 +43,11 @@ Polymer({
 ```html
 <!-- define the markup that your element will use -->
 <dom-module id="my-simple-namecard">
-  <div>
-    Hi! My name is <span>Jane</span>
-  </div>
+  <template>
+    <div>
+      Hi! My name is <span>Jane</span>
+    </div>
+  </template>
 
   <script>
     Polymer({
@@ -86,9 +88,11 @@ Polymer({
 ```html
 <!-- define markup with bindings -->
 <dom-module id="my-bound-namecard">
-  <div>
-    Hi! My name is <span>{{myName}}</span>
-  </div>
+  <template>
+    <div>
+      Hi! My name is <span>{{myName}}</span>
+    </div>
+  </template>
 
   <script>
     Polymer({
@@ -121,9 +125,11 @@ Polymer({
       font-weight: bold;
     }
   </style>
-  <div>
-    Hi! My name is <span>{{myName}}</span>
-  </div>
+  <template>
+    <div>
+      Hi! My name is <span>{{myName}}</span>
+    </div>
+  </template>
 
   <script>
     Polymer({
