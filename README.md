@@ -174,7 +174,7 @@ Beyond Github, we try to have a variety of different lines of communication avai
 * [Twitter](https://twitter.com/polymer)
 * [Google+ Community](https://plus.sandbox.google.com/u/0/communities/115626364525706131031?cfem=1)
 * [Mailing list](https://groups.google.com/forum/#!forum/polymer-dev)
-* [Slack channel](http://bit.ly/polymerslack)
+* [Slack channel](https://bit.ly/polymerslack)
 
 # License
 
