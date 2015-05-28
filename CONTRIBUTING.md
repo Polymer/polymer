@@ -18,7 +18,7 @@ Beyond Github, we try to have a variety of different lines of communication open
 
 Because of the component-based nature of the Polymer project, we tend to have lots of different repositories. Our main repository for the Polymer library itself is at [github.com/Polymer/polymer](https://github.com/polymer/polymer). File any issues or pull requests that have to do with the core library on that repository, and we'll take a look ASAP.
 
-We keep all of our element "product line" repos in the [PolymerElements](https://github.com/polymerelements) organization. For any element-specific issues or pull requests, file directly on the element's repository, such as the `paper-button` repository at [github.com/polymerelements/paper-button](https://github.com/polymerelements/paper-button).
+We keep all of the element "product lines" that the Polymer team maintains and distributes in the [PolymerElements](https://github.com/polymerelements) organization. For any element-specific issues or pull requests, file directly on the element's repository, such as the `paper-button` repository at [github.com/polymerelements/paper-button](https://github.com/polymerelements/paper-button). Of course, the elements built by the Polymer team are just a tiny fraction of all the Polymer-based elements out there - catalogs of other web components include [customelements.io](http://www.customelements.io) and [component.kitchen](http://www.component.kitchen).
 
 The GoogleWebComponents element product line is maintained by teams all across Google, and so is kept in a separate organization: the [GoogleWebComponents](https://github.com/googlewebcomponents) org. Feel free to file issues and PR's on those elements directly in that organization.
 
@@ -42,7 +42,7 @@ If you find an issue, please do file it on the repository. The [Polymer/polymer 
 
 For issues with elements the team maintains, please file directly on the element's repository. If you're not sure if a bug stems from the element or the library, air toward filing it on the element and we'll move the issue if necessary.
 
-We love examples for addressing issues - issues with a Plunkr, jsFiddle, or jsBin will be much easier for us to work on quickly.
+We love examples for addressing issues - issues with a Plunkr, jsFiddle, or jsBin will be much easier for us to work on quickly. You can start with [this jsbin](http://jsbin.com/cijadomupa/1/edit?html,output) which sets up the basics to demonstrate a Polymer element.
 
 Occasionally we'll close issues if they appear stale or are too vague - please don't take this personally! Please feel free to re-open issues we've closed if there's something we've missed and they still need to be addressed.
 
