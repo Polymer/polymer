@@ -78,7 +78,7 @@ Polymer({
 
 ```html
 <!-- using the element -->
-<my-property-namecard my-name="Jim"></my-namecard>
+<my-property-namecard my-name="Jim"></my-property-namecard>
 ```
 
 > Hi! My name is Jim.
