@@ -1,6 +1,6 @@
 # Polymer
 
-Polymer lets you build encapsulated, re-usable elements that work just like HTML elements, to use in building web applications.
+Polymer lets you build encapsulated, re-usable elements that work just like HTML elements, to use in building Web applications.
 
     <!-- Polyfill Web Components for older browsers -->
     <script src="webcomponentsjs/webcomponents-lite.min.js"></script>
@@ -168,7 +168,7 @@ The Polymer team loves contributions from the community! Take a look at our [con
 
 ## Communicating with the Polymer team
 
-Beyond Github, we try to have a variety of different lines of communication available:
+Beyond GitHub, we try to have a variety of different lines of communication available:
 
 * [Blog](https://blog.polymer-project-org)
 * [Twitter](https://twitter.com/polymer)
@@ -178,4 +178,4 @@ Beyond Github, we try to have a variety of different lines of communication avai
 
 # License
 
-The Polymer library uses a BSD-like license available [here](./polymer/blob/master/LICENSE.txt)
+The Polymer library uses a 3-clause BSD license available [here](https://github.com/Polymer/polymer/blob/master/LICENSE.txt)
