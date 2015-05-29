@@ -7,7 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-// @version 0.6.1
+// @version 0.7.2
 window.WebComponents = window.WebComponents || {};
 
 (function(scope) {
@@ -250,6 +250,9 @@ if (WebComponents.flags.shadow) {
       }
     }
     function register(nativeConstructor, wrapperConstructor, opt_instance) {
+      if (nativeConstructor == null) {
+        return;
+      }
       var nativePrototype = nativeConstructor.prototype;
       registerInternal(nativePrototype, wrapperConstructor, opt_instance);
       mixinStatics(wrapperConstructor, nativeConstructor);
@@ -4685,7 +4688,7 @@ if (WebComponents.flags.shadow) {
         }
       }
     };
-    var selectorRe = /([^{]*)({[\s\S]*?})/gim, cssCommentRe = /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim, cssCommentNextSelectorRe = /\/\*\s*@polyfill ([^*]*\*+([^/*][^*]*\*+)*\/)([^{]*?){/gim, cssContentNextSelectorRe = /polyfill-next-selector[^}]*content\:[\s]*?['"](.*?)['"][;\s]*}([^{]*?){/gim, cssCommentRuleRe = /\/\*\s@polyfill-rule([^*]*\*+([^/*][^*]*\*+)*)\//gim, cssContentRuleRe = /(polyfill-rule)[^}]*(content\:[\s]*['"](.*?)['"])[;\s]*[^}]*}/gim, cssCommentUnscopedRuleRe = /\/\*\s@polyfill-unscoped-rule([^*]*\*+([^/*][^*]*\*+)*)\//gim, cssContentUnscopedRuleRe = /(polyfill-unscoped-rule)[^}]*(content\:[\s]*['"](.*?)['"])[;\s]*[^}]*}/gim, cssPseudoRe = /::(x-[^\s{,(]*)/gim, cssPartRe = /::part\(([^)]*)\)/gim, polyfillHost = "-shadowcsshost", polyfillHostContext = "-shadowcsscontext", parenSuffix = ")(?:\\((" + "(?:\\([^)(]*\\)|[^)(]*)+?" + ")\\))?([^,{]*)";
+    var selectorRe = /([^{]*)({[\s\S]*?})/gim, cssCommentRe = /\/\*[^*]*\*+([^\/*][^*]*\*+)*\//gim, cssCommentNextSelectorRe = /\/\*\s*@polyfill ([^*]*\*+([^\/*][^*]*\*+)*\/)([^{]*?){/gim, cssContentNextSelectorRe = /polyfill-next-selector[^}]*content\:[\s]*?['"](.*?)['"][;\s]*}([^{]*?){/gim, cssCommentRuleRe = /\/\*\s@polyfill-rule([^*]*\*+([^\/*][^*]*\*+)*)\//gim, cssContentRuleRe = /(polyfill-rule)[^}]*(content\:[\s]*['"](.*?)['"])[;\s]*[^}]*}/gim, cssCommentUnscopedRuleRe = /\/\*\s@polyfill-unscoped-rule([^*]*\*+([^\/*][^*]*\*+)*)\//gim, cssContentUnscopedRuleRe = /(polyfill-unscoped-rule)[^}]*(content\:[\s]*['"](.*?)['"])[;\s]*[^}]*}/gim, cssPseudoRe = /::(x-[^\s{,(]*)/gim, cssPartRe = /::part\(([^)]*)\)/gim, polyfillHost = "-shadowcsshost", polyfillHostContext = "-shadowcsscontext", parenSuffix = ")(?:\\((" + "(?:\\([^)(]*\\)|[^)(]*)+?" + ")\\))?([^,{]*)";
     var cssColonHostRe = new RegExp("(" + polyfillHost + parenSuffix, "gim"), cssColonHostContextRe = new RegExp("(" + polyfillHostContext + parenSuffix, "gim"), selectorReSuffix = "([>\\s~+[.,{:][\\s\\S]*)?$", colonHostRe = /\:host/gim, colonHostContextRe = /\:host-context/gim, polyfillHostNoCombinator = polyfillHost + "-no-combinator", polyfillHostRe = new RegExp(polyfillHost, "gim"), polyfillHostContextRe = new RegExp(polyfillHostContext, "gim"), shadowDOMSelectorsRe = [ />>>/g, /::shadow/g, /::content/g, /\/deep\//g, /\/shadow\//g, /\/shadow-deep\//g, /\^\^/g, /\^/g ];
     function stylesToCssText(styles, preserveComments) {
       var cssText = "";
@@ -5000,6 +5003,8 @@ if (WebComponents.flags.shadow) {
           this._port = base._port;
           this._path = base._path.slice();
           this._query = base._query;
+          this._username = base._username;
+          this._password = base._password;
           break loop;
         } else if ("/" == c || "\\" == c) {
           if ("\\" == c) err("\\ is an invalid code point.");
@@ -5009,6 +5014,8 @@ if (WebComponents.flags.shadow) {
           this._port = base._port;
           this._path = base._path.slice();
           this._query = "?";
+          this._username = base._username;
+          this._password = base._password;
           state = "query";
         } else if ("#" == c) {
           this._host = base._host;
@@ -5016,6 +5023,8 @@ if (WebComponents.flags.shadow) {
           this._path = base._path.slice();
           this._query = base._query;
           this._fragment = "#";
+          this._username = base._username;
+          this._password = base._password;
           state = "fragment";
         } else {
           var nextC = input[cursor + 1];
@@ -5023,6 +5032,8 @@ if (WebComponents.flags.shadow) {
           if ("file" != this._scheme || !ALPHA.test(c) || nextC != ":" && nextC != "|" || EOF != nextNextC && "/" != nextNextC && "\\" != nextNextC && "?" != nextNextC && "#" != nextNextC) {
             this._host = base._host;
             this._port = base._port;
+            this._username = base._username;
+            this._password = base._password;
             this._path = base._path.slice();
             this._path.pop();
           }
@@ -5045,6 +5056,8 @@ if (WebComponents.flags.shadow) {
           if ("file" != this._scheme) {
             this._host = base._host;
             this._port = base._port;
+            this._username = base._username;
+            this._password = base._password;
           }
           state = "relative path";
           continue;
@@ -6015,7 +6028,7 @@ HTMLImports.addModule(function(scope) {
   var IMPORT_SELECTOR = "link[rel=" + IMPORT_LINK_TYPE + "]";
   var importParser = {
     documentSelectors: IMPORT_SELECTOR,
-    importsSelectors: [ IMPORT_SELECTOR, "link[rel=stylesheet]", "style", "script:not([type])", 'script[type="text/javascript"]' ].join(","),
+    importsSelectors: [ IMPORT_SELECTOR, "link[rel=stylesheet]", "style", "script:not([type])", 'script[type="application/javascript"]', 'script[type="text/javascript"]' ].join(","),
     map: {
       link: "parseLink",
       script: "parseScript",
@@ -6151,9 +6164,11 @@ HTMLImports.addModule(function(scope) {
           }
         }
         if (fakeLoad) {
-          elt.dispatchEvent(new CustomEvent("load", {
-            bubbles: false
-          }));
+          setTimeout(function() {
+            elt.dispatchEvent(new CustomEvent("load", {
+              bubbles: false
+            }));
+          });
         }
       }
     },
@@ -6857,6 +6872,12 @@ CustomElements.addModule(function(scope) {
     }
   }
   function createElement(tag, typeExtension) {
+    if (tag) {
+      tag = tag.toLowerCase();
+    }
+    if (typeExtension) {
+      typeExtension = typeExtension.toLowerCase();
+    }
     var definition = getRegisteredDefinition(typeExtension || tag);
     if (definition) {
       if (tag == definition.tag && typeExtension == definition.is) {

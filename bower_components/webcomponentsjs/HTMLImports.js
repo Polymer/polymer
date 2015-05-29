@@ -7,7 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-// @version 0.6.1
+// @version 0.7.2
 if (typeof WeakMap === "undefined") {
   (function() {
     var defineProperty = Object.defineProperty;
@@ -697,7 +697,7 @@ HTMLImports.addModule(function(scope) {
   var IMPORT_SELECTOR = "link[rel=" + IMPORT_LINK_TYPE + "]";
   var importParser = {
     documentSelectors: IMPORT_SELECTOR,
-    importsSelectors: [ IMPORT_SELECTOR, "link[rel=stylesheet]", "style", "script:not([type])", 'script[type="text/javascript"]' ].join(","),
+    importsSelectors: [ IMPORT_SELECTOR, "link[rel=stylesheet]", "style", "script:not([type])", 'script[type="application/javascript"]', 'script[type="text/javascript"]' ].join(","),
     map: {
       link: "parseLink",
       script: "parseScript",
@@ -833,9 +833,11 @@ HTMLImports.addModule(function(scope) {
           }
         }
         if (fakeLoad) {
-          elt.dispatchEvent(new CustomEvent("load", {
-            bubbles: false
-          }));
+          setTimeout(function() {
+            elt.dispatchEvent(new CustomEvent("load", {
+              bubbles: false
+            }));
+          });
         }
       }
     },

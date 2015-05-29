@@ -7,39 +7,41 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="../hydrolysis/hydrolysis-analyzer.html">
-<link rel="import" href="../paper-styles/typography.html">
+<link rel="import" href="../marked-element/marked-element.html">
+<link rel="import" href="../paper-styles/paper-styles.html">
+<link rel="import" href="../paper-button/paper-button.html">
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../prism-element/prism-highlighter.html">
 
-<link rel="import" href="iron-doc-element.html">
+<link rel="import" href="iron-doc-property.html">
 
 <!--
-We cheat a little and ensure that the viewer can, by default, expand to fit the
-entire page. This is by far the most common use of it, and these styles are
-pretty trivial to undo if you need something more fancy.
--->
-<style>
-html, body {
-  height: 100%;
-}
-body {
-  margin: 0;
-}
-</style>
+Renders documentation describing an element's API.
 
-<!--
-Renders documentation for all Polymer elements declared via an import.
+`iron-doc-viewer` renders element and behavior descriptions as extracted by
+[Hydrolysis](https://github.com/PolymerLabs/hydrolysis). You can provide them
+either via binding...
 
-Point it at an import that declares (or transitively imports) all the elments
-you want to document:
+    <iron-doc-viewer descriptor="{{elementDescriptor}}"></iron-doc-viewer>
 
-    <iron-doc-viewer src="my-elements.html"></iron-doc-viewer>
+...or by placing the element descriptor in JSON as the text content of an
+`iron-doc-viewer`:
 
-You may also omit `src`, and `<iron-doc-viewer>` will attempt to load an import
-with the same name as directory it is being served from.
+    <iron-doc-viewer>
+      {
+        "is": "awesome-sauce",
+        "properties": [
+          {"name": "isAwesome", "type": "boolean", "desc": "Is it awesome?"},
+        ]
+      }
+    </iron-doc-viewer>
 
-@see #src
+However, be aware that due to current limitations in Polymer 0.8, _changes_ to
+the text content will not be respected, only the initial value will be loaded.
+If you wish to update the documented element, please set it via the `descriptor`
+property.
+
+@demo demo/index.html Basic Demo
 -->
 <dom-module id="iron-doc-viewer">
 
@@ -47,57 +49,52 @@ with the same name as directory it is being served from.
 
   <template>
     <prism-highlighter></prism-highlighter>
-    <hydrolysis-analyzer id="analyzer" src="[[_srcUrl]]" transitive="[[transitive]]" clean analyzer="{{_analyzer}}" loading="{{_loading}}"></hydrolysis-analyzer>
 
-    <section id="content" activeContent$="[[_activeContentType]]">
-      <iron-doc-element id="page" descriptor="[[_activeElement]]"></iron-doc-element>
-      <template is="dom-if" if="{{!noDemo}}">
-        <iframe id="demo" src="[[_demoUrl]]"></iframe>
+    <section id="summary" class="card" hidden$="[[!descriptor.desc]]">
+      <header>Documentation</header>
+      <marked-element markdown="{{descriptor.desc}}"></marked-element>
+    </section>
+
+    <nav id="api">
+      <header>API Reference</header>
+      <paper-button id="togglePrivate"
+        on-tap="_togglePrivate">{{_privateToggleLabel}}</paper-button>
+    </nav>
+
+    <section id="properties" class="card" hidden$="{{_noneToShow(_showPrivate,_properties)}}">
+      <header>Properties</header>
+      <template is="dom-repeat" items="{{_properties}}" hidden$="{{!_properties.length}}">
+        <iron-doc-property descriptor="{{item}}"></iron-doc-property>
       </template>
     </section>
-    <nav>
-      <section hidden$="[[!_elements.length]]">
-        <header>Elements</header>
-        <ul collection="elements" on-tap="_onTapNavItem">
-          <!-- Polymer features are crazy special cased as `Polymer.Base`. -->
-          <template is="dom-repeat" items="[[_elements]]">
-            <li abstract$="[[item.abstract]]">[[item.is]]</li>
-          </template>
-        </ul>
-      </section>
 
-      <section hidden$="[[!_behaviors.length]]">
-        <header>Behaviors</header>
-        <ul collection="behaviors" on-tap="_onTapNavItem">
-          <template is="dom-repeat" items="[[_behaviors]]">
-            <li>[[item.is]]</li>
-          </template>
-        </ul>
-      </section>
+    <section id="methods" class="card"  hidden$="{{_noneToShow(_showPrivate,_methods)}}">
+      <header>Methods</header>
+      <template is="dom-repeat" items="{{_methods}}">
+        <iron-doc-property descriptor="{{item}}"></iron-doc-property>
+      </template>
+    </section>
 
-      <section hidden$="[[noDemo]]">
-        <ul>
-          <li class="demo" on-tap="_showDemo">Demo</li>
-        </ul>
-      </section>
-    </nav>
+    <section id="events" class="card" hidden$="{{_noneToShow(_showPrivate,_events)}}">
+      <header>Events</header>
+      <template is="dom-repeat" items="{{_events}}">
+        <iron-doc-property descriptor="{{item}}"></iron-doc-property>
+      </template>
+    </section>
+
+    <section id="behaviors" class="card" hidden$="{{_hideBehaviors(_behaviors)}}">
+      <header>Behaviors</header>
+      <template is="dom-repeat" items="{{_behaviors}}">
+        <p on-click="_broadcastBehavior">{{item}}</p>
+      </template>
+    </section>
+
   </template>
 
 </dom-module>
 
 <script>
 (function() {
-  var hydrolysis = require('hydrolysis');
-
-  /**
-   * @param {string} url
-   * @return {string} `url` stripped of a file name, if one is present. This
-   *     considers URLs like "example.com/foo" to already be a base (no `.` is)
-   *     present in the final path part).
-   */
-  function _baseUrl(url) {
-    return url.match(/^(.*?)\/?([^\/]+\.[^\/]+)?$/)[1] + '/';
-  }
 
   Polymer({
 
@@ -106,108 +103,61 @@ with the same name as directory it is being served from.
     properties: {
 
       /**
-       * The URL to an import that declares (or transitively imports) the
-       * elements that you wish to see documented.
+       * The [Hydrolysis](https://github.com/PolymerLabs/hydrolysis)-generated
+       * element descriptor to display details for.
        *
-       * If the URL is relative, it will be resolved relative to the master
-       * document.
+       * Alternatively, the element descriptor can be provided as JSON via the text content
+       * of this element.
        *
-       * If a `src` URL is not specified, it will resolve the name of the
-       * directory containing this element, followed by `dirname.html`. For
-       * example:
-       *
-       * `awesome-sauce/index.html`:
-       *
-       *     <iron-doc-viewer></iron-doc-viewer>
-       *
-       * Would implicitly have `src="awesome-sauce.html"`.
+       * @type {hydrolysis.ElementDescriptor}
        */
-      src: {
-        type:     String,
-        observer: '_srcChanged',
+      descriptor: {
+        type: Object,
+        observer: '_descriptorChanged',
       },
 
-      /**
-       * Whether _all_ dependencies should be loaded and documented.
-       *
-       * Turning this on will probably slow down the load process dramatically.
-       */
-      transitive: Boolean,
-
-      /** The URL path to this element's demo, relative to `src`. */
-      demoPath: {
-        type:     String,
-        value:    'demo/',
-        observer: '_updateDemoUrl',
-      },
-
-      /** Whether the Demo link should be omitted. */
-      noDemo: Boolean,
-
-      /** The Hydrolysis element descriptors being rendered. */
-      _elements: {
-        type:     Array,
-        observer: '_elementsChanged',
-      },
-
-      /**
-       * The currently displayed element.
-       *
-       * @type {!hydrolysis.ElementDescriptor}
-       */
-      _activeElement: Object,
-
-      /**
-       * The hydrolysis analyzer.
-       *
-       * @type {!hydrolysis.Analyzer}
-       */
-      _analyzer: {
-        observer: '_analyzerChanged',
-      },
-
-      /** Whether the analyzer is loading source. */
-      _loading: {
+      /** Whether private properties should be hidden or shown. */
+      _showPrivate: {
         type:     Boolean,
-        observer: '_loadingChanged',
+        value:    false,
+        observer: '_showPrivateChanged',
       },
 
-      /** The complete URL to this component's demo. */
-      _demoUrl: {
-        type: String,
-        value: '',
-      },
+      /** The label to show for the Private API toggle. */
+      _privateToggleLabel: String,
 
-      /** The complete URL to this component's source. */
-      _srcUrl: String,
-
-      /** The component type that should be rendered. */
-      _activeContentType: {
-        type:  String,
-        value: 'element',
-      },
-
+      /**
+       * Broadcast when another component is clicked on
+       * @param {String} detail name of the component
+       * iron-doc-viewer container should load component if possible
+       * @event iron-doc-viewer-component-selected
+       */
     },
 
     ready: function() {
-      var elements = this._loadJson();
-      if (elements) {
-        this._elements = elements;
-        this._loading  = false;
-      } else {
-        // Make sure our change handlers trigger in all cases.
-        if (!this.src) {
-          this._srcChanged();
-        }
+      var jsonDescriptor = this._loadJson();
+      // Note that this is only an error during element creation. You are free
+      // to stomp over the descriptor after it is ready.
+      if (jsonDescriptor && this.descriptor) {
+        console.error(
+            this,
+            'received both a bound descriptor:', this.descriptor,
+            'and JSON descriptor:', this._jsonDescriptor,
+            'Please provide only one');
+        throw new Error(
+            '<iron-doc-viewer> accepts either a bound or JSON descriptor; not both');
       }
 
+      if (jsonDescriptor) {
+        this.descriptor = jsonDescriptor;
+      }
     },
 
     /**
-     * Loads an array of hydrolysis element descriptors (as JSON) from the text
-     * content of this element, if present.
+     * Loads a hydrolysis element descriptor (as JSON) from the text content of
+     * this element, if present.
      *
-     * @return {Array<hydrolysis.ElementDescriptor>} The descriptors, or `null`.
+     * @return {hydrolysis.ElementDescriptor} The parsed descriptor, or `null`.
      */
     _loadJson: function() {
       var textContent = '';
@@ -218,98 +168,69 @@ with the same name as directory it is being served from.
       if (textContent === '') return null;
 
       try {
-        var json = JSON.parse(textContent);
-        if (!Array.isArray(json)) return [];
-        return json;
+        return JSON.parse(textContent);
       } catch(error) {
         console.error('Failure when parsing JSON:', textContent, error);
         throw error;
       }
     },
 
-    _srcChanged: function() {
-      var docUrl = this.ownerDocument.baseURI;
-      var srcUrl;
-      if (this.src) {
-        srcUrl = new URL(this.src, docUrl).toString();
-      } else {
-        var base = _baseUrl(docUrl);
-        srcUrl = new URL(base.match(/([^\/]*)\/$/)[1] + ".html", base).toString();
-      }
+    /** Converts `descriptor` into our template-friendly `_model`. */
+    _descriptorChanged: function() {
+      if (!this.descriptor) return;
 
-      // Rewrite gh-pages URLs to https://rawgit.com/
-      var match = srcUrl.match(/([^\/\.]+)\.github\.io\/([^\/]+)\/?([^\/]*)$/);
-      if (match) {
-        srcUrl = "https://cdn.rawgit.com/" + match[1] + "/" + match[2] + "/master/" + match[3];
-        // We'd love to support demos, but 99% of the time they require external
-        // dependencies ...so nope.
-        this.noDemo = true;
-      }
+      // Split the documented properties between functions and other types.
+      var properties = [];
+      var methods    = [];
 
-      this._baseUrl = _baseUrl(srcUrl);
-      this._srcUrl  = srcUrl;
-      this.$.analyzer.analyze();
-      this.async(this._updateDemoUrl);
+      for (var i = 0, property; property = this.descriptor.properties[i]; i++) {
+        (property.type === 'Function' ? methods : properties).push(property);
+      }
+      this._properties = properties;
+      this._methods    = methods;
+      this._events     = this.descriptor.events || [];
+      this._behaviors  = this.descriptor.behaviors || [];
+
+      this.toggleAttribute('abstract', this.descriptor.abstract);
     },
 
-    _updateDemoUrl: function() {
-      if (this.noDemo || !this._baseUrl || !this.demoPath) {
-        this._demoUrl = ''; // Because null serializes to "null".
-      } else {
-        this._demoUrl = new URL(this.demoPath, this._baseUrl).toString();
+    _collapsedChanged: function() {
+      this._collapseToggleLabel = this._collapsed ? 'expand' : 'collapse';
+
+      // Bound values aren't exposed to dom-repeat's scope.
+      var properties = this.querySelectorAll('iron-doc-property');
+      for (var i = 0, property; property = properties[i]; i++) {
+        property.collapsed = this._collapsed;
       }
     },
 
-    _elementsChanged: function() {
-      this._activeElement = (this._elements || [])[0];
+    _toggleCollapsed: function() {
+      this._collapsed = !this._collapsed;
     },
 
-    _loadingChanged: function() {
-      this.toggleClass('loaded', !this._loading);
+    _showPrivateChanged: function() {
+      this._privateToggleLabel = (this._showPrivate ? 'hide' : 'show') + ' private API';
+      this.toggleClass('show-private', this._showPrivate);
     },
 
-    _analyzerChanged: function() {
-      this._elements  = this._analyzer ? this._analyzer.elements  : [];
-      this._behaviors = this._analyzer ? this._analyzer.behaviors : [];
+    _togglePrivate: function() {
+      this._showPrivate = !this._showPrivate;
     },
 
-    /**
-     * Activates the element that the user selected.
-     *
-     * @param {!Event} event
-     */
-    _onTapNavItem: function(event) {
-      var name = event.target.textContent;
-      var collection = this['_' + event.target.parentNode.getAttribute('collection')];
-
-      for (var i = 0, descriptor; descriptor = collection[i]; i++) {
-        if (descriptor.is !== name) continue;
-        this._activeContentType = 'element';
-        this._activeElement = descriptor;
-        return; // First one wins.
+    _noneToShow: function(showPrivate, items) {
+      for (var i = 0; i < items.length; i++) {
+        if (showPrivate || !items[i].private) return false;
       }
+      return true;
     },
 
-    _showDemo: function(event) {
-      this._activeContentType = 'demo';
+    _hideBehaviors: function(behaviors) {
+      return behaviors === null || behaviors.length === 0;
     },
 
-    /**
-     * Renders this element into static HTML for offline use.
-     *
-     * This is mostly useful for debugging and one-off documentation generation.
-     * If you want to integrate doc generation into your build process, you
-     * probably want to be calling `hydrolysis.Analyzer.analyze()` directly.
-     *
-     * @return {string} The HTML for this element with all state baked in.
-     */
-    marshal: function() {
-      var jsonText = JSON.stringify(this._elements || [], null, '  ');
-      return '<' + this.is + '>\n' +
-             jsonText.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '\n' +
-             '</' + this.is + '>';
-    },
-
+    _broadcastBehavior: function(ev) {
+      this.fire('iron-doc-viewer-component-selected', ev.srcElement._templateInstance.item);
+    }
   });
 
 })();

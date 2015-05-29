@@ -7,7 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-// @version 0.6.1
+// @version 0.7.2
 window.WebComponents = window.WebComponents || {};
 
 (function(scope) {
@@ -204,6 +204,8 @@ window.WebComponents = window.WebComponents || {};
           this._port = base._port;
           this._path = base._path.slice();
           this._query = base._query;
+          this._username = base._username;
+          this._password = base._password;
           break loop;
         } else if ("/" == c || "\\" == c) {
           if ("\\" == c) err("\\ is an invalid code point.");
@@ -213,6 +215,8 @@ window.WebComponents = window.WebComponents || {};
           this._port = base._port;
           this._path = base._path.slice();
           this._query = "?";
+          this._username = base._username;
+          this._password = base._password;
           state = "query";
         } else if ("#" == c) {
           this._host = base._host;
@@ -220,6 +224,8 @@ window.WebComponents = window.WebComponents || {};
           this._path = base._path.slice();
           this._query = base._query;
           this._fragment = "#";
+          this._username = base._username;
+          this._password = base._password;
           state = "fragment";
         } else {
           var nextC = input[cursor + 1];
@@ -227,6 +233,8 @@ window.WebComponents = window.WebComponents || {};
           if ("file" != this._scheme || !ALPHA.test(c) || nextC != ":" && nextC != "|" || EOF != nextNextC && "/" != nextNextC && "\\" != nextNextC && "?" != nextNextC && "#" != nextNextC) {
             this._host = base._host;
             this._port = base._port;
+            this._username = base._username;
+            this._password = base._password;
             this._path = base._path.slice();
             this._path.pop();
           }
@@ -249,6 +257,8 @@ window.WebComponents = window.WebComponents || {};
           if ("file" != this._scheme) {
             this._host = base._host;
             this._port = base._port;
+            this._username = base._username;
+            this._password = base._password;
           }
           state = "relative path";
           continue;
@@ -1255,7 +1265,7 @@ HTMLImports.addModule(function(scope) {
   var IMPORT_SELECTOR = "link[rel=" + IMPORT_LINK_TYPE + "]";
   var importParser = {
     documentSelectors: IMPORT_SELECTOR,
-    importsSelectors: [ IMPORT_SELECTOR, "link[rel=stylesheet]", "style", "script:not([type])", 'script[type="text/javascript"]' ].join(","),
+    importsSelectors: [ IMPORT_SELECTOR, "link[rel=stylesheet]", "style", "script:not([type])", 'script[type="application/javascript"]', 'script[type="text/javascript"]' ].join(","),
     map: {
       link: "parseLink",
       script: "parseScript",
@@ -1391,9 +1401,11 @@ HTMLImports.addModule(function(scope) {
           }
         }
         if (fakeLoad) {
-          elt.dispatchEvent(new CustomEvent("load", {
-            bubbles: false
-          }));
+          setTimeout(function() {
+            elt.dispatchEvent(new CustomEvent("load", {
+              bubbles: false
+            }));
+          });
         }
       }
     },
@@ -2097,6 +2109,12 @@ CustomElements.addModule(function(scope) {
     }
   }
   function createElement(tag, typeExtension) {
+    if (tag) {
+      tag = tag.toLowerCase();
+    }
+    if (typeExtension) {
+      typeExtension = typeExtension.toLowerCase();
+    }
     var definition = getRegisteredDefinition(typeExtension || tag);
     if (definition) {
       if (tag == definition.tag && typeExtension == definition.is) {
@@ -2247,10 +2265,10 @@ if (typeof HTMLTemplateElement === "undefined") {
     HTMLTemplateElement.decorate = function(template) {
       if (!template.content) {
         template.content = template.ownerDocument.createDocumentFragment();
-        var child;
-        while (child = template.firstChild) {
-          template.content.appendChild(child);
-        }
+      }
+      var child;
+      while (child = template.firstChild) {
+        template.content.appendChild(child);
       }
     };
     HTMLTemplateElement.bootstrap = function(doc) {
@@ -2262,6 +2280,15 @@ if (typeof HTMLTemplateElement === "undefined") {
     addEventListener("DOMContentLoaded", function() {
       HTMLTemplateElement.bootstrap(document);
     });
+    var createElement = document.createElement;
+    document.createElement = function() {
+      "use strict";
+      var el = createElement.apply(document, arguments);
+      if (el.localName == "template") {
+        HTMLTemplateElement.decorate(el);
+      }
+      return el;
+    };
   })();
 }
 

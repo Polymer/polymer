@@ -7,7 +7,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-// @version 0.6.1
+// @version 0.7.2
 if (typeof WeakMap === "undefined") {
   (function() {
     var defineProperty = Object.defineProperty;
@@ -205,6 +205,9 @@ window.ShadowDOMPolyfill = {};
     }
   }
   function register(nativeConstructor, wrapperConstructor, opt_instance) {
+    if (nativeConstructor == null) {
+      return;
+    }
     var nativePrototype = nativeConstructor.prototype;
     registerInternal(nativePrototype, wrapperConstructor, opt_instance);
     mixinStatics(wrapperConstructor, nativeConstructor);
