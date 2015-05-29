@@ -1,0 +1,440 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../hydrolysis/hydrolysis-analyzer.html">
+<link rel="import" href="../iron-doc-viewer/iron-doc-viewer.html">
+<link rel="import" href="../iron-icons/iron-icons.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+<link rel="import" href="../iron-selector/iron-selector.html">
+<link rel="import" href="../paper-header-panel/paper-header-panel.html">
+<link rel="import" href="../paper-toolbar/paper-toolbar.html">
+<link rel="import" href="../paper-styles/paper-styles.html">
+
+<!--
+Loads Polymer element and behavior documentation using
+[Hydrolysis](https://github.com/PolymerLabs/hydrolysis) and renders a complete
+documentation page including demos (if available).
+-->
+<dom-module id="iron-component-page">
+  <link rel="import" type="css" href="iron-component-page.css">
+  <template>
+    <hydrolysis-analyzer id="analyzer" src="[[_srcUrl]]" transitive="[[transitive]]" clean analyzer="{{_hydroDesc}}" loading="{{_hydroLoading}}"></hydrolysis-analyzer>
+    <iron-ajax id="ajax" url="[[docSrc]]" handle-as="json" on-response="_handleAjaxResponse"></iron-ajax>
+
+    <paper-header-panel id="headerPanel" mode="waterfall">
+      <paper-toolbar catalog-hidden>
+        <div class="flex">
+          <!-- TODO: Replace with paper-dropdown-menu when available -->
+          <select id="active" value="{{active::change}}">
+            <template is="dom-repeat" items="[[docElements]]">
+              <option value="[[item.is]]">[[item.is]]</option>
+            </template>
+            <template is="dom-repeat" items="[[docBehaviors]]">
+              <option value="[[item.is]]">[[item.is]]</option>
+            </template>
+          </select>
+        </div>
+        <iron-selector attr-for-selected="view" selected="{{view}}" id="links" hidden$="[[!docDemos.length]]">
+          <a view="docs"><iron-icon icon="description"></iron-icon> Docs</a>
+          <a view="[[_demoView(docDemos.0.path)]]"><iron-icon icon="visibility"></iron-icon> <span>Demo</span></a>
+        </iron-selector>
+      </paper-toolbar>
+      <div id="content">
+        <iron-selector id="view" selected="[[_viewType(view)]]" attr-for-selected="id">
+          <div id="docs">
+            <div id="catalog-heading" catalog-only>
+              <h2><span>[[active]]</span> <span class="version" hidden$="[[!version]]">[[version]]</span></h2>
+            </div>
+            <iron-doc-viewer descriptor="{{_activeDescriptor}}"
+              on-iron-doc-viewer-component-selected="_handleComponentSelectedEvent"></iron-doc-viewer>
+            <div id="nodocs" hidden$="[[_activeDescriptor]]" class="layout fit horizontal center-center">
+              No documentation found.
+            </div>
+          </div>
+          <iframe id="demo" src="[[_frameSrc(view, base)]]"></iframe>
+        </iron-selector>
+      </div>
+    </paper-header-panel>
+  </template>
+</dom-module>
+
+<script>
+(function() {
+  // var hydrolysis = require('hydrolysis');
+
+  /**
+   * @param {string} url
+   * @return {string} `url` stripped of a file name, if one is present. This
+   *     considers URLs like "example.com/foo" to already be a base (no `.` is)
+   *     present in the final path part).
+   */
+  function _baseUrl(url) {
+    return url.match(/^(.*?)\/?([^\/]+\.[^\/]+)?$/)[1] + '/';
+  }
+
+  Polymer({
+    is: 'iron-component-page',
+    enableCustomStyleProperties: true,
+    properties: {
+      /**
+       * The URL to an import that declares (or transitively imports) the
+       * elements that you wish to see documented.
+       *
+       * If the URL is relative, it will be resolved relative to the master
+       * document.
+       *
+       * If a `src` URL is not specified, it will resolve the name of the
+       * directory containing this element, followed by `dirname.html`. For
+       * example:
+       *
+       * `awesome-sauce/index.html`:
+       *
+       *     <iron-doc-viewer></iron-doc-viewer>
+       *
+       * Would implicitly have `src="awesome-sauce.html"`.
+       */
+      src: {
+        type:     String,
+        observer: '_srcChanged',
+      },
+
+      /**
+       * The URL to a precompiled JSON descriptor. If you have precompiled
+       * and stored a documentation set using Hydrolysis, you can load the
+       * analyzer directly via AJAX by specifying this attribute.
+       *
+       * If a `doc-src` is not specified, it is ignored and the default
+       * rules according to the `src` attribute are used.
+       */
+      docSrc: {
+        type: String,
+        observer: '_srcChanged',
+      },
+
+      /**
+       * The relative root for determining paths to demos and default source
+       * detection.
+       */
+      base: {
+        type: String,
+        value: function() {
+          return this.ownerDocument.baseURI;
+        }
+      },
+
+      /**
+       * The element or behavior that will be displayed on the page. Defaults
+       * to the element matching the name of the source file.
+       */
+      active: {
+        type: String,
+        observer: '_activeChanged',
+        notify: true
+      },
+
+      /**
+       * The current view. Can be `docs` or `demo`.
+       */
+      view: {
+        type: String,
+        value: 'docs',
+        notify: true
+      },
+
+      /**
+       * Whether _all_ dependencies should be loaded and documented.
+       *
+       * Turning this on will probably slow down the load process dramatically.
+       */
+      transitive: {
+        type: Boolean,
+        value: false
+      },
+
+      /** The Hydrolysis element descriptors that have been loaded. */
+      docElements: {
+        type:     Array,
+        observer: '_descriptorsChanged',
+        notify: true,
+        readOnly: true
+      },
+
+      /** The Hydrolysis behavior descriptors that have been loaded. */
+      docBehaviors: {
+        type:     Array,
+        observer: '_descriptorsChanged',
+        notify: true,
+        readOnly: true
+      },
+
+      /**
+       * Demos for the currently selected element.
+       */
+      docDemos: {
+        type: Array,
+        notify: true,
+        readOnly: true
+      },
+
+      /**
+       * The currently displayed element.
+       *
+       * @type {!hydrolysis.ElementDescriptor}
+       */
+      _activeDescriptor: Object,
+
+      /**
+       * Toggle flag to be used when this element is being displayed in the
+       * Polymer Elements catalog.
+       */
+      _catalog: {
+        type: Boolean,
+        value: false,
+        reflectToAttribute: true
+      },
+      /**
+       * An optional version string.
+       */
+      version: String,
+
+      /**
+       * The hydrolysis analyzer.
+       *
+       * @type {!hydrolysis.Analyzer}
+       */
+      _analyzer: {
+        type: Object,
+        observer: '_analyzerChanged',
+      },
+      _hydroDesc: {
+        type: Object,
+        observer: '_detectAnalyzer'
+      },
+      _ajaxDesc: {
+        type: Object,
+        observer: '_detectAnalyzer'
+      },
+
+      /** Whether the analyzer is loading source. */
+      _loading: {
+        type:     Boolean,
+        observer: '_loadingChanged',
+      },
+      _hydroLoading: {
+        type: Boolean,
+        observer: '_detectLoading'
+      },
+      _ajaxLoading: {
+        type: Boolean,
+        observer: '_detectLoading'
+      },
+
+      /** The complete URL to this component's demo. */
+      _demoUrl: {
+        type: String,
+        value: '',
+      },
+
+      /** The complete URL to this component's source. */
+      _srcUrl: String,
+    },
+
+    ready: function() {
+      var elements = this._loadJson();
+      if (elements) {
+        this.docElements = elements;
+        this._loading  = false;
+      } else {
+        // Make sure our change handlers trigger in all cases.
+        if (!this.src && !this._catalog) {
+          this._srcChanged();
+        }
+      }
+    },
+
+    /**
+     * Loads an array of hydrolysis element descriptors (as JSON) from the text
+     * content of this element, if present.
+     *
+     * @return {Array<hydrolysis.ElementDescriptor>} The descriptors, or `null`.
+     */
+    _loadJson: function() {
+      var textContent = '';
+      Array.prototype.forEach.call(Polymer.dom(this).childNodes, function(node) {
+        textContent = textContent + node.textContent;
+      });
+      textContent = textContent.trim();
+      if (textContent === '') return null;
+
+      try {
+        var json = JSON.parse(textContent);
+        if (!Array.isArray(json)) return [];
+        return json;
+      } catch(error) {
+        console.error('Failure when parsing JSON:', textContent, error);
+        throw error;
+      }
+    },
+
+    _srcChanged: function() {
+      var srcUrl;
+      if (this.docSrc) {
+        if (!this.$.ajax.lastRequest || (this.docSrc !== this.$.ajax.lastRequest.url && this.docSrc !== this._lastDocSrc)) {
+          this._ajaxLoading = true;
+          this._ajaxDesc = null;
+          this._activeDescriptor = null;
+          this.$.ajax.generateRequest();
+        }
+        this._lastDocSrc = this.docSrc;
+        return;
+      } else if (this.src) {
+        srcUrl = new URL(this.src, this.base).toString();
+      } else {
+        var base = _baseUrl(this.base);
+        srcUrl = new URL(base.match(/([^\/]*)\/$/)[1] + ".html", base).toString();
+      }
+
+      // Rewrite gh-pages URLs to https://rawgit.com/
+      var match = srcUrl.match(/([^\/\.]+)\.github\.io\/([^\/]+)\/?([^\/]*)$/);
+      if (match) {
+        srcUrl = "https://cdn.rawgit.com/" + match[1] + "/" + match[2] + "/master/" + match[3];
+      }
+
+      this._baseUrl = _baseUrl(srcUrl);
+      this._srcUrl  = srcUrl;
+      if (!this._hydroLoading) this.$.analyzer.analyze();
+    },
+
+    _frameSrc: function(view) {
+      if (!view || view.indexOf("demo:") !== 0) return "about:blank";
+      var src = view.split(':')[1];
+      return new URL(src, this.base).toString();
+    },
+
+    _descriptorsChanged: function() {
+      if (this._findDescriptor(this.active)) {
+        this._activeChanged();
+        return;
+      }
+
+      if (this.docElements && this.docElements[0]) {
+        this.active = this.docElements[0].is;
+      } else if (this.docBehaviors && this.docBehaviors[0]) {
+        this.active = this.docBehaviors[0].is;
+      } else {
+        this.active = null;
+      }
+    },
+
+    _findDescriptor: function(name) {
+      if (!this._analyzer) return null;
+
+      var descriptor = this._analyzer.elementsByTagName[name];
+      if (descriptor) return descriptor;
+
+      for (var i = 0; i < this._analyzer.behaviors.length; i++) {
+        if (this._analyzer.behaviors[i].is === name) {
+          return this._analyzer.behaviors[i];
+        }
+      }
+      return null;
+    },
+
+    _activeChanged: function() {
+      this.async(function() { this.$.active.value = this.active; });
+      if (this._analyzer && this._analyzer.elementsByTagName) {
+        this.$.headerPanel.scroller.scrollTop = 0;
+        this._activeDescriptor = this._findDescriptor(this.active);
+        if (this._activeDescriptor) {
+          var hasDemo;
+          var demos = this._activeDescriptor.demos;
+          if (this.view && demos && demos.length) {
+            var parts = this.view.split(':');
+            if (parts[0] == 'demo') {
+              if (parts[1]) {
+                hasDemo = demos.some(function(d, i) {
+                  if (d.path == parts[1]) {
+                    return true;
+                  }
+                });
+              }
+              if (!hasDemo) {
+                this.view = 'demo:' + demos[0].path;
+                hasDemo = true;
+              }
+            }
+          }
+          if (!hasDemo == undefined) {
+            this.view = 'docs';
+          }
+          if (this._activeDescriptor.is && !document.title) {
+            document.title = this._activeDescriptor.is + " documentation";
+          }
+        }
+        this._setDocDemos(this._activeDescriptor ? this._activeDescriptor.demos : []);
+      }
+    },
+
+    _loadingChanged: function() {
+      this.toggleClass('loaded', !this._loading);
+    },
+    _detectLoading: function() {
+      this._loading = this.docSrc ? this._ajaxLoading : this._hydroLoading;
+    },
+
+    _analyzerChanged: function() {
+      this._setDocElements(this._analyzer ? this._analyzer.elements : []);
+      this._setDocBehaviors(this._analyzer ? this._analyzer.behaviors : []);
+    },
+    _detectAnalyzer: function() {
+      this._analyzer = this.docSrc ? this._ajaxDesc : this._hydroDesc;
+    },
+
+    _handleAjaxResponse: function(e, req) {
+      this._ajaxLoading = false;
+      this._ajaxLastUrl = req.url;
+      this._ajaxDesc = req.response;
+    },
+
+    _handleComponentSelectedEvent: function(ev) {
+      var descriptor = this._findDescriptor(ev.detail);
+      if (!descriptor) {
+        console.warn("Could not navigate to ", ev.detail);
+      }
+      else {
+        this.active = ev.detail;
+      }
+    },
+
+    /**
+     * Renders this element into static HTML for offline use.
+     *
+     * This is mostly useful for debugging and one-off documentation generation.
+     * If you want to integrate doc generation into your build process, you
+     * probably want to be calling `hydrolysis.Analyzer.analyze()` directly.
+     *
+     * @return {string} The HTML for this element with all state baked in.
+     */
+    marshal: function() {
+      var jsonText = JSON.stringify(this.docElements || [], null, '  ');
+      return '<' + this.is + '>\n' +
+             jsonText.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '\n' +
+             '</' + this.is + '>';
+    },
+
+    _demoView: function(path) {
+      return "demo:" + path;
+    },
+    _viewType: function(view) {
+      return view ? view.split(":")[0] : null;
+    }
+  });
+})();
+</script>
