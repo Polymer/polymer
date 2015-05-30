@@ -178,4 +178,4 @@ Beyond Github, we try to have a variety of different lines of communication avai
 
 # License
 
-The Polymer library uses a BSD-like license available [here](./polymer/blob/master/LICENSE.txt)
+The Polymer library uses a BSD-like license available [here](LICENSE.txt)
