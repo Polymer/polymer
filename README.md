@@ -5,7 +5,7 @@ Polymer lets you build encapsulated, re-usable elements that work just like HTML
     <!-- Polyfill Web Components for older browsers -->
     <script src="webcomponentsjs/webcomponents-lite.min.js"></script>
 
-    <1-- Import element -->
+    <!-- Import element -->
     <link rel="import" href="google-map.html">
 
     <!-- Use element -->
