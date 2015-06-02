@@ -48,13 +48,12 @@ Polymer({
       Hi! My name is <span>Jane</span>
     </div>
   </template>
-
-  <script>
-    Polymer({
-        is: 'my-simple-namecard'
-    });
-  </script>
 </dom-module>
+<script>
+  Polymer({
+      is: 'my-simple-namecard'
+  });
+</script>
 ```
 
 **Configure properties on your element...**
@@ -93,18 +92,17 @@ Polymer({
       Hi! My name is <span>{{myName}}</span>
     </div>
   </template>
-
-  <script>
-    Polymer({
-      is: 'my-bound-namecard',
-      properties: {
-        myName: {
-          type: String
-        }
-      }
-    });
-  </script>
 </dom-module>
+<script>
+  Polymer({
+    is: 'my-bound-namecard',
+    properties: {
+      myName: {
+        type: String
+      }
+    }
+  });
+</script>
 ```
 
 ```html
@@ -130,18 +128,17 @@ Polymer({
       Hi! My name is <span>{{myName}}</span>
     </div>
   </template>
-
-  <script>
-    Polymer({
-      is: 'my-styled-namecard',
-      properties: {
-        myName: {
-          type: String
-        }
-      }
-    });
-  </script>
 </dom-module>
+<script>
+  Polymer({
+    is: 'my-styled-namecard',
+    properties: {
+      myName: {
+        type: String
+      }
+    }
+  });
+</script>
 ```
 
 ```html
