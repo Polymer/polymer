@@ -24,6 +24,9 @@ var del = require('del');
 var fs = require('fs');
 var path = require('path');
 
+var browserSync = require('browser-sync');
+var reload = browserSync.reload;
+
 var micro = "polymer-micro.html";
 var mini = "polymer-mini.html";
 var max = "polymer.html";
@@ -134,4 +137,32 @@ gulp.task('audit', function() {
 
 gulp.task('release', function(cb) {
   runseq('default', ['copy-bower-json', 'audit'], cb);
+});
+
+// Serve for test development, console debugging etc, http://localhost:3000/test/unit/notify-path.html etc
+gulp.task('serve', [], function () {
+  browserSync({
+    notify: false,
+    // Run as an https by uncommenting 'https: true'
+    // Note: this uses an unsigned certificate which on first access
+    //       will present a certificate warning in the browser.
+    // https: true,
+    server: {
+      baseDir: ['./'],
+      routes: {
+        '/webcomponentsjs': 'node_modules/webcomponents.js',
+        '/web-component-tester': 'node_modules/web-component-tester',
+        '/mocha': 'node_modules/web-component-tester/bower_components/mocha',
+        '/async': 'node_modules/web-component-tester/node_modules/async',
+        '/stacky': 'node_modules/web-component-tester/node_modules/stacky',
+        '/lodash': 'node_modules/web-component-tester/bower_components/lodash',
+        '/chai': 'node_modules/web-component-tester/bower_components/chai',
+        '/sinonjs': 'node_modules/web-component-tester/bower_components/sinonjs',
+        '/sinon-chai': 'node_modules/web-component-tester/bower_components/sinon-chai'
+      }
+    }
+  });
+
+  gulp.watch(['src/**/*.html'], reload);
+  gulp.watch(['test/**/*.html'], reload);
 });
