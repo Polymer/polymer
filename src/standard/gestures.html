@@ -224,6 +224,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    // automate event listener removal for native events
+    remove: function(node, evType, handler) {
+      var recognizer = this.gestures[evType];
+      var deps = recognizer.deps;
+      var name = recognizer.name;
+      var gobj = node[GESTURE_KEY];
+      if (gobj) {
+        for (var i = 0, dep, gd; i < deps.length; i++) {
+          dep = deps[i];
+          gd = gobj[dep];
+          if (gd && gd[name]) {
+            gd[name] = (gd[name] || 1) - 1;
+            if (gd[name] === 0) {
+              node.removeEventListener(dep, this.handleNative);
+            }
+          }
+        }
+      }
+      node.removeEventListener(evType, handler);
+    },
+
     register: function(recog) {
       this.recognizers.push(recog);
       for (var i = 0; i < recog.emits.length; i++) {
@@ -474,6 +495,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Gestures.add(node, eventName, handler);
       } else {
         node.addEventListener(eventName, handler);
+      }
+    },
+    // override _unlisten to handle gestures
+    _unlisten: function(node, eventName, handler) {
+      if (Gestures.gestures[eventName]) {
+        Gestures.remove(node, eventName, handler);
+      } else {
+        node.removeEventListener(eventName, handler);
       }
     },
     /**
