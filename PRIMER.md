@@ -678,7 +678,7 @@ Example:
 
     is: 'x-custom',
 
-    created: function() {
+    ready: function() {
       this.$.name.textContent = this.name;
     }
 
