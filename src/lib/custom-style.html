@@ -72,6 +72,7 @@ Note, all features of `custom-style` are available when defining styles as part 
   var propertyUtils = Polymer.StyleProperties;
   var styleUtil = Polymer.StyleUtil;
   var styleDefaults = Polymer.StyleDefaults;
+  var styleTransformer = Polymer.StyleTransformer;
 
   Polymer({
 
@@ -79,30 +80,41 @@ Note, all features of `custom-style` are available when defining styles as part 
     extends: 'style',
 
     created: function() {
-      this._appliesToDocument = (this.parentNode && 
-        (this.parentNode.localName !== 'dom-module'));
-      if (this._appliesToDocument) {
-        // used applied element from HTMLImports polyfill or this
-        var e = this.__appliedElement || this;
-        styleDefaults.addStyle(e);
-        // we may not have any textContent yet due to parser yielding
-        // if so, wait until we do...
-        if (e.textContent) {
-          this._applyStyle();
-        } else {
-          var observer = new MutationObserver(function() {
-            observer.disconnect();
-            this._applyStyle();
-          }.bind(this));
-          observer.observe(e, {characterData: true, childList: true,
-            subtree: true});
+      this._tryApply();
+    },
+
+    attached: function() {
+      this._tryApply();
+    },
+
+    _tryApply: function() {
+      if (!this._hasApplied) {
+        // only apply variables iff this style is not inside a dom-module
+        this._shouldApply = (this.parentNode && 
+          (this.parentNode.localName !== 'dom-module'));
+        if (this._shouldApply) {
+          this._hasApplied = true;
+          // used applied element from HTMLImports polyfill or this
+          var e = this.__appliedElement || this;
+          styleDefaults.addStyle(e);
+          // we may not have any textContent yet due to parser yielding
+          // if so, wait until we do...
+          if (e.textContent) {
+            this._apply();
+          } else {
+            var observer = new MutationObserver(function() {
+              observer.disconnect();
+              this._apply();
+            }.bind(this));
+            observer.observe(e, {childList: true});
+          }
         }
       }
     },
 
     // polyfill this style with root scoping and 
     // apply custom properties!
-    _applyStyle: function() {
+    _apply: function() {
       // used applied element from HTMLImports polyfill or this
       var e = this.__appliedElement || this;
       this._computeStyleProperties();
@@ -110,10 +122,6 @@ Note, all features of `custom-style` are available when defining styles as part 
       var self = this;
       e.textContent = styleUtil.toCssText(styleUtil.rulesForStyle(e), 
         function(rule) {
-          // polyfill lack of support for :root
-          if (rule.selector === ':root') {
-            rule.selector = 'body';
-          }
           var css = rule.cssText = rule.parsedCssText;
           if (rule.propertyInfo && rule.propertyInfo.cssText) {
             // TODO(sorvell): factor better
@@ -122,11 +130,23 @@ Note, all features of `custom-style` are available when defining styles as part 
             // replace with reified properties, scenario is same as mixin
             rule.cssText = propertyUtils.valueForProperties(css, props);
           }
+          // TODO(sorvell): generalize this; we need to reset the selector
+          // here for transformation
+          rule.selector = rule.parsedSelector;
           if (!nativeShadow) {
-            Polymer.StyleTransformer.rootRule(rule);
+            styleTransformer.rootRule(rule);
+          } else {
+            // polyfill lack of support for :root
+            styleTransformer._normalizeRootSelector(rule);
           }
         }
       );
+    },
+
+    _rootRuleToBody: function(rule) {
+      if (rule.selector === ':root') {
+        rule.selector = 'body';
+      }
     }
 
   });
