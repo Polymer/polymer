@@ -80,6 +80,8 @@ Note, all features of `custom-style` are available when defining styles as part 
     extends: 'style',
 
     created: function() {
+      // NOTE: we cannot just check attached because custom elements in 
+      // HTMLImports do not get attached.
       this._tryApply();
     },
 
@@ -88,12 +90,10 @@ Note, all features of `custom-style` are available when defining styles as part 
     },
 
     _tryApply: function() {
-      if (!this._hasApplied) {
+      if (!(this._hasApplied || this._isApplying)) {
         // only apply variables iff this style is not inside a dom-module
-        this._shouldApply = (this.parentNode && 
-          (this.parentNode.localName !== 'dom-module'));
-        if (this._shouldApply) {
-          this._hasApplied = true;
+        if (this.parentNode && 
+          (this.parentNode.localName !== 'dom-module')) {
           // used applied element from HTMLImports polyfill or this
           var e = this.__appliedElement || this;
           styleDefaults.addStyle(e);
@@ -102,8 +102,10 @@ Note, all features of `custom-style` are available when defining styles as part 
           if (e.textContent) {
             this._apply();
           } else {
+            this._isApplying = true;
             var observer = new MutationObserver(function() {
               observer.disconnect();
+              this._isApplying = false;
               this._apply();
             }.bind(this));
             observer.observe(e, {childList: true});
@@ -115,6 +117,7 @@ Note, all features of `custom-style` are available when defining styles as part 
     // polyfill this style with root scoping and 
     // apply custom properties!
     _apply: function() {
+      this._hasApplied = true;
       // used applied element from HTMLImports polyfill or this
       var e = this.__appliedElement || this;
       this._computeStyleProperties();
