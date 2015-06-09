@@ -457,13 +457,13 @@ Example:
 ```html
 <dom-module id="x-foo">
   <template>I am x-foo!</template>
-</dom-module>
 
-<script>
-  Polymer({
-    is: 'x-foo'
-  });
-</script>
+  <script>
+    Polymer({
+      is: 'x-foo'
+    });
+  </script>
+</dom-module>
 ```
 
 We say that an element definition has an imperative and declarative portion. The imperative
@@ -503,15 +503,15 @@ Polymer uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutorials/
     <div class="content-wrapper"><content></content></div>
   </template>
 
+  <script>
+
+      Polymer({
+          is: 'my-element'
+      });
+
+  </script>
+
 </dom-module>
-
-<script>
-
-    Polymer({
-        is: 'my-element'
-    });
-
-</script>
 ```
 
 Loading external stylesheets (as opposed to defining them inline in HTML) for styling local DOM is currently supported via a special [`<link rel="import" type="css">`](#external-stylesheets) import tag (as opposed to a `<link rel="stylesheet">`).
@@ -544,9 +544,21 @@ The following methods are provided:
   * `Polymer.dom(parent).appendChild(node)`
   * `Polymer.dom(parent).insertBefore(node, beforeNode)`
   * `Polymer.dom(parent).removeChild(node)`
+  * `Polymer.dom(parent).replaceChild(oldNode, newNode)`
   * `Polymer.dom(parent).querySelector(selector)`
   * `Polymer.dom(parent).querySelectorAll(selector)`
   * `Polymer.dom(parent).childNodes`
+  * `Polymer.dom(parent).firstChild`
+  * `Polymer.dom(parent).lastChild`
+  * `Polymer.dom(node).previousSibling`
+  * `Polymer.dom(node).nextSibling`
+  * `Polymer.dom(parent).children`
+  * `Polymer.dom(parent).firstElementChild`
+  * `Polymer.dom(parent).lastElementChild`
+  * `Polymer.dom(node).previousElementSibling`
+  * `Polymer.dom(node).nextElementSibling`
+  * `Polymer.dom(node).textContent`
+  * `Polymer.dom(node).innerHTML`
   * `Polymer.dom(node).parentNode`
   * `Polymer.dom(contentElement).getDistributedNodes()`
   * `Polymer.dom(node).getDestinationInsertionPoints()`
@@ -670,21 +682,21 @@ Example:
   <template>
     Hello World from <span id="name"></span>!
   </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'x-custom',
+
+      ready: function() {
+        this.$.name.textContent = this.name;
+      }
+
+    });
+
+  </script>
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    ready: function() {
-      this.$.name.textContent = this.name;
-    }
-
-  });
-
-</script>
 ```
 
 <a name="event-listeners"></a>
@@ -701,25 +713,25 @@ Example:
     <div>to a click on</div>
     <div>any of my children!</div>
   </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'x-custom',
+
+      listeners: {
+        'click': 'handleClick'
+      },
+
+      handleClick: function(e) {
+        alert("Thank you for clicking");
+      }
+
+    });
+
+  </script>
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    listeners: {
-      'click': 'handleClick'
-    },
-
-    handleClick: function(e) {
-      alert("Thank you for clicking");
-    }
-
-  });
-
-</script>
 ```
 
 <a name="annotated-listeners"></a>
@@ -734,21 +746,21 @@ Example:
   <template>
     <button on-click="handleClick">Kick Me</button>
   </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'x-custom',
+
+      handleClick: function() {
+        alert('Ow!');
+      }
+
+    });
+
+  </script>
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    handleClick: function() {
-      alert('Ow!');
-    }
-
-  });
-
-</script>
 ```
 
 <a name="gesture-events"></a>
@@ -799,74 +811,74 @@ Example:
   <template>
     <div id="dragme" on-track="handleTrack">{{message}}</div>
   </template>
-</dom-module>
 
-<script>
+  <script>
 
-  Polymer({
+    Polymer({
 
-    is: 'drag-me',
+      is: 'drag-me',
 
-    handleTrack: function(e) {
-      switch(e.detail.state) {
-        case 'start':
-          this.message = 'Tracking started!';
-          break;
-        case 'track':
-          this.message = 'Tracking in progress... ' +
-            e.detail.x + ', ' + e.detail.y;
-          break;
-        case 'end':
-          this.message = 'Tracking ended!';
-          break;
+      handleTrack: function(e) {
+        switch(e.detail.state) {
+          case 'start':
+            this.message = 'Tracking started!';
+            break;
+          case 'track':
+            this.message = 'Tracking in progress... ' +
+              e.detail.x + ', ' + e.detail.y;
+            break;
+          case 'end':
+            this.message = 'Tracking ended!';
+            break;
+        }
       }
-    }
 
-  });
+    });
 
-</script>
+  </script>
+</dom-module>
 ```
 Example with `listeners`:
 
 ```html
-<style>
-  drag-me {
-    width: 500px;
-    height: 500px;
-    background: gray;
-  }
-</style>
 <dom-module id="drag-me">
-</dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'drag-me',
-
-    listeners: {
-      track: 'handleTrack'
-    },
-
-    handleTrack: function(e) {
-      switch(e.detail.state) {
-        case 'start':
-          this.message = 'Tracking started!';
-          break;
-        case 'track':
-          this.message = 'Tracking in progress... ' +
-            e.detail.x + ', ' + e.detail.y;
-          break;
-        case 'end':
-          this.message = 'Tracking ended!';
-          break;
-      }
+  <style>
+    :host {
+      width: 500px;
+      height: 500px;
+      background: gray;
     }
+  </style>
 
-  });
+  <script>
 
-</script>
+    Polymer({
+
+      is: 'drag-me',
+
+      listeners: {
+        track: 'handleTrack'
+      },
+
+      handleTrack: function(e) {
+        switch(e.detail.state) {
+          case 'start':
+            this.message = 'Tracking started!';
+            break;
+          case 'track':
+            this.message = 'Tracking in progress... ' +
+              e.detail.x + ', ' + e.detail.y;
+            break;
+          case 'end':
+            this.message = 'Tracking ended!';
+            break;
+        }
+      }
+
+    });
+
+  </script>
+</dom-module>
 ```
 
 <a name="change-callbacks"></a>
@@ -1075,33 +1087,34 @@ To bind to textContent, the binding annotation must currently span the entire co
 
 ```html
 <dom-module id="user-view">
-    <template>
+  <template>
 
-      <!-- Supported -->
-      First: <span>{{first}}</span><br>
-      Last: <span>{{last}}</span>
+    <!-- Supported -->
+    First: <span>{{first}}</span><br>
+    Last: <span>{{last}}</span>
 
-      <!-- Not currently supported! -->
-      <div>First: {{first}}</div>
-      <div>Last: {{last}}</div>
+    <!-- Not currently supported! -->
+    <div>First: {{first}}</div>
+    <div>Last: {{last}}</div>
 
-    </template>
+  </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'user-view',
+
+      properties: {
+        first: String,
+        last: String
+      }
+
+    });
+
+  </script>
+
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'user-view',
-
-    properties: {
-      first: String,
-      last: String
-    }
-
-  });
-
-</script>
 
 <user-view first="Samuel" last="Adams"></user-view>
 
@@ -1114,21 +1127,21 @@ To bind to properties, the binding annotation should be provided as the value to
   <template>
     <user-view first="{{user.first}}" last="{{user.last}}"></user-view>
   </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'main-view',
+
+      properties: {
+        user: Object
+      }
+
+    });
+
+  </script>
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'main-view',
-
-    properties: {
-      user: Object
-    }
-
-  });
-
-</script>
 ```
 
 As in the example above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
@@ -1337,21 +1350,21 @@ Example:
   <template>
     <div>{{user.manager.name}}</div>
   </template>
+
+  <script>
+    Polymer({
+
+      is: 'custom-element',
+
+      reassignManager: function(newManager) {
+        this.user.manager = newManager;
+        // Notification required for binding to update!
+        this.notifyPath('user.manager', this.user.manager);
+      }
+
+    });
+  </script>
 </dom-module>
-
-<script>
-  Polymer({
-
-    is: 'custom-element',
-
-    reassignManager: function(newManager) {
-      this.user.manager = newManager;
-      // Notification required for binding to update!
-      this.notifyPath('user.manager', this.user.manager);
-    }
-
-  });
-</script>
 ```
 
 Since in the majority of cases, `notifyPath` will be called directly after an assignment, a convenience function `set` is provided that performs both the assignment and notify actions:
@@ -1389,24 +1402,24 @@ Example:
   <template>
     <template is="dom-repeat">{{users}}</div>
   </template>
+
+  <script>
+    Polymer({
+
+      is: 'custom-element',
+
+      addUser: function(user) {
+        this.push('users', user);
+      },
+
+      removeUser: function(user) {
+        var index = this.users.indexOf(user);
+        this.splice('users', index, 1);
+      }
+
+    });
+  </script>
 </dom-module>
-
-<script>
-  Polymer({
-
-    is: 'custom-element',
-
-    addUser: function(user) {
-      this.push('users', user);
-    },
-
-    removeUser: function(user) {
-      var index = this.users.indexOf(user);
-      this.splice('users', index, 1);
-    }
-
-  });
-</script>
 ```
 
 ### Expressions in binding annotations
@@ -1531,36 +1544,36 @@ Polymer supports virtual properties whose values are calculated from other prope
   <template>
     My name is <span>{{fullName}}</span>
   </template>
-</dom-module>
 
-<script>
-  Polymer({
+  <script>
+    Polymer({
 
-    is: 'x-custom',
+      is: 'x-custom',
 
-    properties: {
+      properties: {
 
-      first: String,
+        first: String,
 
-      last: String,
+        last: String,
 
-      fullName: {
-        type: String,
-        // when `first` or `last` changes `computeFullName` is called once
-        // (asynchronously) and the value it returns is stored as `fullName`
-        computed: 'computeFullName(first, last)'
+        fullName: {
+          type: String,
+          // when `first` or `last` changes `computeFullName` is called once
+          // (asynchronously) and the value it returns is stored as `fullName`
+          computed: 'computeFullName(first, last)'
+        }
+
+      },
+
+      computeFullName: function(first, last) {
+        return first + ' ' + last;
       }
 
-    },
+      ...
 
-    computeFullName: function(first, last) {
-      return first + ' ' + last;
-    }
-
-    ...
-
-  });
-</script>
+    });
+  </script>
+</dom-module>
 ```
 
 Note that arguments to computing functions may be simple properties on the element, as well as all of the arguments types supported by `observers`, including [paths](#path-observation), [paths with wildcards](#deep-observation), and [paths to array splices](#array-observation).  The arguments received in the comuting function will match those described in the sections referenced above.
@@ -1581,29 +1594,64 @@ Example:
   <template>
     My name is <span>{{computeFullName(first, last)}}</span>
   </template>
+
+  <script>
+   Polymer({
+
+     is: 'x-custom',
+
+     properties: {
+
+       first: String,
+
+       last: String
+
+     },
+
+     computeFullName: function(first, last) {
+       return first + ' ' + last;
+     }
+
+     ...
+
+   });
+  </script>
+
 </dom-module>
+```
 
-<script>
-  Polymer({
+Note that literal strings and numbers may be used as arguments to annotated computed properties.  Strings may be either single- or double-quoted (taking care to use the opposite of the quotes used for the attribute value itself for attribute/property binding).  __Note that if the string includes commas, the _must_ be escaped using a `\`.__
 
-    is: 'x-custom',
+Example:
 
-    properties: {
+```html
+<dom-module id="x-custom">
+  <template>
+    <span>{{translate('Hello\, nice to meet you', first, last)}}</span>
+  </template>
+</dom-module>
+```
 
-      first: String,
+Finally, annotated computed properties may be argument-less, in which case they are evaluated once.
 
-      last: String
+```html
+<dom-module id="x-custom">
+  <template>
+    <span>{{doThisOnce()}}</span>
+  </template>
 
-    },
+  <script>
+   Polymer({
 
-    computeFullName: function(first, last) {
-      return first + ' ' + last;
-    }
+     is: 'x-custom',
 
-    ...
+     doThisOnce: function() {
+       return Math.random();
+     }
 
-  });
-</script>
+   });
+  </script>
+</dom-module>
 ```
 
 <a name="read-only"></a>
@@ -1635,7 +1683,7 @@ When a property only "produces" data and never consumes data, this can be made e
 
 Generally, read-only properties should also be set to `notify: true` such that their changes are observable from above.
 
-<a name="xscope-styling"></a>
+<a name="xscope-stadyling"></a>
 ## Cross-scope styling
 
 ### Background
@@ -1794,6 +1842,39 @@ Example usage of `my-toolbar`.
 
   </template>
 
+</dom-module>
+```
+
+### Custom Property API for Polymer Elements
+
+Polymer's custom property shim evaluates and applies custom property values once at element creation time.  In order to have an element (and its subtree) re-evaluate custom property values due to dynamic changes such as application of CSS classes, etc., the user should call `this.updateStyles()` on the element.  To update all elements on the page, you can also call `Polymer.updateStyles()`.
+
+The user can also directly modify a Polymer element's custom property by setting key-value pairs in `customStyle` on the element (analogous to setting `style`) and then calling `updateStyles()`.
+
+Example:
+
+```html
+<dom-module id="x-custom">
+  <style>
+    :host {
+      --my-toolbar-color: red;
+    }
+  </style>
+
+  <template>
+    <my-toolbar>My awesome app</my-toolbar>
+    <button on-tap="changeTheme">Change theme</button>
+  </template>
+  
+  <script>
+    Polymer({
+      is: 'x-custom',
+      changeTheme: function() {
+        this.customStyle['--my-toolbar-color'] = 'blue';
+        this.updateStyles();
+      }
+    });
+  </script>
 </dom-module>
 ```
 
