@@ -1,3 +1,4 @@
+
 suite('Polymer.dom', function() {
 
   var testElement;
@@ -494,7 +495,7 @@ suite('Polymer.dom', function() {
 
   test('Polymer.dom.childNodes is an array', function() {
     assert.isTrue(Array.isArray(Polymer.dom(document.body).childNodes));
-  });  
+  });
 
 });
 
@@ -742,6 +743,52 @@ suite('Polymer.dom non-distributed elements', function() {
     assert.equal(Polymer.dom(test).getOwnerRoot(), c2.root, 'getOwnerRoot not correctly reset when element moved to different root');
     Polymer.dom(c1).appendChild(test);
     assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect for child moved from a root to no root');
+  });
+
+});
+
+
+suite('dynamic content insertion', function() {
+
+  test('x-dynamic-content', function() {
+    var el = document.querySelector('x-dynamic-content');
+    if (el.shadyRoot) {
+      assert(!el.querySelector('#container .insert'));
+    }
+    el.$.domif.if = true;
+    el.$.domif.render();
+    Polymer.dom.flush();
+    if (el.shadyRoot) {
+      assert(!!el.querySelector('#container .insert'));
+    }
+  });
+
+  test('x-dynamic-content-wrapped', function() {
+    var el = document.querySelector('x-dynamic-content-wrapped');
+    if (el.shadyRoot) {
+      assert(!el.querySelector('#container'));
+    }
+    el.$.domif.if = true;
+    el.$.domif.render();
+    Polymer.dom.flush();
+    if (el.shadyRoot) {
+      assert(!!el.querySelector('#container .insert'));
+    }
+  });
+
+  test('x-dynamic-content-redist', function() {
+    var el = document.querySelector('x-dynamic-content-redist');
+    window.e = el;
+    if (el.shadyRoot) {
+      assert(!el.querySelector('#redistContainer .insert'));
+    }
+    el.$.redistDomif.if = true;
+    el.$.redistContainer.$.domif.if = true;
+    el.$.redistDomif.render();
+    Polymer.dom.flush();
+    if (el.shadyRoot) {
+      assert(!!el.querySelector('#redistContainer .insert'));
+    }
   });
 
 });
