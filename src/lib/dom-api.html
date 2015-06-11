@@ -171,34 +171,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // <content> children but since this case is assumed to be exceedingly
         // rare, we avoid the cost and will address with some specific api
         // when the need arises.
-        var isContent = (node.localName === CONTENT);
-        var hasContent = (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
+        var fragContent = (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
             node.querySelector(CONTENT);
-        // There are 2 possible cases where a host may need distribution:
+        var wrappedContent = fragContent &&
+          (fragContent.parentNode.nodeType !== Node.DOCUMENT_FRAGMENT_NODE);
+        var hasContent = fragContent || (node.localName === CONTENT);
+        // There are 2 possible cases where a distribution may need to occur:
         // 1. <content> being inserted (the host of the shady root where
         //    content is inserted needs distribution)
         // 2. children being inserted into parent with a shady root (parent
         //    needs distribution)
-        // Note that when 1 & 2 are both true (re-distribution), distributing the
-        // <content>'s host (1) will cause the parent to distribute as well (2)
-        var host;
-        if (isContent || hasContent) {
-          host = this._ownerShadyRootForNode(parent).host;
+        if (hasContent) {
+          var host = this._ownerShadyRootForNode(parent).host;
           this._updateInsertionPoints(host);
-        } else if (this._parentNeedsDistribution(parent)) {
-          host = parent;
-        }
-        if (host) {
           this._lazyDistribute(host);
+        }
+        var parentNeedsDist = this._parentNeedsDistribution(parent);
+        if (parentNeedsDist) {
+          this._lazyDistribute(parent);
         }
         // Return true when distribution will fully handle the composition
         // Note that if a content was being inserted that was wrapped by a node,
         // and the parent does not need distribution, return false to allow
         // the nodes to be added directly, after which children may be
         // distributed and composed into the wrapping node(s)
-        var wrappedContent = hasContent &&
-          (hasContent.parentNode.nodeType !== Node.DOCUMENT_FRAGMENT_NODE);
-        return host && (!wrappedContent || host == parent);
+        return false;// (parentNeedsDist && (!hasContent || !wrappedContent));
       },
 
       _tryRemoveUndistributedNode: function(node) {
