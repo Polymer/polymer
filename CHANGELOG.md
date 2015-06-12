@@ -6,9 +6,25 @@
 
 **Closed issues:**
 
+- Globally setting polymer to use shadow dom not working in firefix [\#1844](https://github.com/Polymer/polymer/issues/1844)
+
+- Styling local DOM [\#1842](https://github.com/Polymer/polymer/issues/1842)
+
+- Polymer bouded property not updating - or getting reset \(sometimes\) [\#1840](https://github.com/Polymer/polymer/issues/1840)
+
+- this.insertRule\("body /deep/ someclass", index\); error [\#1835](https://github.com/Polymer/polymer/issues/1835)
+
+- this.$ does not contain nodes with ids which are children of other elements with ids. [\#1833](https://github.com/Polymer/polymer/issues/1833)
+
+- Remove the undocumented "find nearest template" feature when registering [\#1827](https://github.com/Polymer/polymer/issues/1827)
+
 - Computed bindings are not updated when using polymer's this.push to add elements [\#1822](https://github.com/Polymer/polymer/issues/1822)
 
+- array-selector doesn't work with `multi` unless `toggle` is specified  [\#1810](https://github.com/Polymer/polymer/issues/1810)
+
 - Does version 1.0 support recursion? [\#1806](https://github.com/Polymer/polymer/issues/1806)
+
+- \<template is=dom-if\> fails to add rows to a table if they contain \<content\> [\#1800](https://github.com/Polymer/polymer/issues/1800)
 
 - Data binding causes infinite loop if value is NaN [\#1799](https://github.com/Polymer/polymer/issues/1799)
 
@@ -48,6 +64,8 @@
 
 - \[1.0.3\] Do not resolve hash-only urls used for routing [\#1757](https://github.com/Polymer/polymer/issues/1757)
 
+- Content nodes in `dom-if` template do not distribute correctly [\#1753](https://github.com/Polymer/polymer/issues/1753)
+
 - changing `items` of `dom-repeat` doesn't fully refresh the template [\#1746](https://github.com/Polymer/polymer/issues/1746)
 
 - nested dom-repeat with sort attribute shows duplicate entries when adding new items. [\#1744](https://github.com/Polymer/polymer/issues/1744)
@@ -64,6 +82,8 @@
 
 - custom-style sometimes does not apply variables [\#1637](https://github.com/Polymer/polymer/issues/1637)
 
+- \[0.9.4\] Dom-if template doesn't stamp when its content contains a wrapped insertion point [\#1631](https://github.com/Polymer/polymer/issues/1631)
+
 - \[0.9\] Array mutation API documentation [\#1609](https://github.com/Polymer/polymer/issues/1609)
 
 - \[0.9\] this.resolvePath\(\) missing in 0.8/0.9 [\#1530](https://github.com/Polymer/polymer/issues/1530)
@@ -72,9 +92,19 @@
 
 **Merged pull requests:**
 
+- Fix incorrect test for `toggle`. Fixes \#1810. [\#1841](https://github.com/Polymer/polymer/pull/1841) ([arthurevans](https://github.com/arthurevans))
+
+- Use var keyword when declaring local variable so it doesn't leak to global scope. [\#1838](https://github.com/Polymer/polymer/pull/1838) ([trevordixon](https://github.com/trevordixon))
+
+- No implicit template \(fixes \#1827\) [\#1837](https://github.com/Polymer/polymer/pull/1837) ([sjmiles](https://github.com/sjmiles))
+
 - Fix jsdoc for splice [\#1820](https://github.com/Polymer/polymer/pull/1820) ([jscissr](https://github.com/jscissr))
 
+- Fix dynamic insertion of wrapped or redistributing content. [\#1816](https://github.com/Polymer/polymer/pull/1816) ([kevinpschaaf](https://github.com/kevinpschaaf))
+
 - Handle NaN correctly in bindings [\#1811](https://github.com/Polymer/polymer/pull/1811) ([azakus](https://github.com/azakus))
+
+- Fix 1752 [\#1797](https://github.com/Polymer/polymer/pull/1797) ([sorvell](https://github.com/sorvell))
 
 - Do not apply/notify keySplices if array has not been Collectionified. Fixes \#1744 [\#1795](https://github.com/Polymer/polymer/pull/1795) ([kevinpschaaf](https://github.com/kevinpschaaf))
 
@@ -104,7 +134,7 @@
 
 - Paper-tabs in Flexbox [\#1730](https://github.com/Polymer/polymer/issues/1730)
 
-- When not including `webcomponentsjs`, a script in `<head\>` after imports will break `unresolved` attribute [\#1723](https://github.com/Polymer/polymer/issues/1723)
+- When not including `webcomponentsjs`, a script in `\<head\>` after imports will break `unresolved` attribute [\#1723](https://github.com/Polymer/polymer/issues/1723)
 
 - Create 1.0.x Release [\#1721](https://github.com/Polymer/polymer/issues/1721)
 
@@ -112,7 +142,7 @@
 
 - Uncaught TypeError When splicing an array into emptiness [\#1714](https://github.com/Polymer/polymer/issues/1714)
 
-- Paper-Button references <core-icon\> [\#1709](https://github.com/Polymer/polymer/issues/1709)
+- Paper-Button references \<core-icon\> [\#1709](https://github.com/Polymer/polymer/issues/1709)
 
 - Events for paper-menu or paper-item [\#1708](https://github.com/Polymer/polymer/issues/1708)
 
@@ -120,19 +150,19 @@
 
 - Evergreen browser incompatibility [\#1706](https://github.com/Polymer/polymer/issues/1706)
 
-- \[1.0\] shady dom inserts '<content\>' more than once [\#1704](https://github.com/Polymer/polymer/issues/1704)
+- \[1.0\] shady dom inserts '\<content\>' more than once [\#1704](https://github.com/Polymer/polymer/issues/1704)
 
 - Issue running Polymer Started Kit 1.0.0 [\#1703](https://github.com/Polymer/polymer/issues/1703)
 
 - iron-form body data malformed [\#1702](https://github.com/Polymer/polymer/issues/1702)
 
-- Might as well move <script /\> to outside of <dom-module /\> in README.md [\#1700](https://github.com/Polymer/polymer/issues/1700)
+- Might as well move \<script /\> to outside of \<dom-module /\> in README.md [\#1700](https://github.com/Polymer/polymer/issues/1700)
 
 - \[1.0\] Attached callback is differently resolved on chrome and ff [\#1699](https://github.com/Polymer/polymer/issues/1699)
 
 - Polymer 1.0 and WebComponents.js [\#1698](https://github.com/Polymer/polymer/issues/1698)
 
-- \[dom-if\] is not as inert as <template\> should be [\#1695](https://github.com/Polymer/polymer/issues/1695)
+- \[dom-if\] is not as inert as \<template\> should be [\#1695](https://github.com/Polymer/polymer/issues/1695)
 
 - can't use flex inside neon-animated-pages [\#1694](https://github.com/Polymer/polymer/issues/1694)
 
@@ -376,7 +406,7 @@
 
 - Iron-Input hint not turning into label on ChromeBook apps [\#1581](https://github.com/Polymer/polymer/issues/1581)
 
-- Binding text remains in <input value="{{value::input}}"\> on IE10 [\#1578](https://github.com/Polymer/polymer/issues/1578)
+- Binding text remains in \<input value="{{value::input}}"\> on IE10 [\#1578](https://github.com/Polymer/polymer/issues/1578)
 
 - \[0.9\] Extends delays/breaks polymer element setup [\#1575](https://github.com/Polymer/polymer/issues/1575)
 
@@ -388,7 +418,7 @@
 
 - Reposted from Angular Issue \#1723: Unable to define correct CSS @Rules when CSS shimming is enabled [\#1566](https://github.com/Polymer/polymer/issues/1566)
 
-- \[0.9.0\] Problem putting a dom-if template in a light DOM when the component's <content\> itself is wrapped in a dom-if [\#1565](https://github.com/Polymer/polymer/issues/1565)
+- \[0.9.0\] Problem putting a dom-if template in a light DOM when the component's \<content\> itself is wrapped in a dom-if [\#1565](https://github.com/Polymer/polymer/issues/1565)
 
 - hypergrid is a polymer custom component [\#1561](https://github.com/Polymer/polymer/issues/1561)
 
@@ -468,7 +498,7 @@
 
 - \[0.8\] x-repeat failing to stamp instances on safari [\#1443](https://github.com/Polymer/polymer/issues/1443)
 
-- \[0.8\] `<content select=".class"\>` and `hostAttributes` don't work together [\#1431](https://github.com/Polymer/polymer/issues/1431)
+- \[0.8\] `\<content select=".class"\>` and `hostAttributes` don't work together [\#1431](https://github.com/Polymer/polymer/issues/1431)
 
 - \[0.8\] Binding to "id" is not working [\#1426](https://github.com/Polymer/polymer/issues/1426)
 
@@ -586,7 +616,7 @@
 
 - \[0.9\] auto-binding, x-repeat template not working [\#1502](https://github.com/Polymer/polymer/issues/1502)
 
-- \[0.9\] if="{{ 1 < 2 }}" not supporded?! [\#1499](https://github.com/Polymer/polymer/issues/1499)
+- \[0.9\] if="{{ 1 \< 2 }}" not supporded?! [\#1499](https://github.com/Polymer/polymer/issues/1499)
 
 - \[0.9\] touch track fails on iPhone, .touchIdentifier vs .identifier [\#1496](https://github.com/Polymer/polymer/issues/1496)
 
@@ -668,7 +698,7 @@
 
 - \[0.8\] 'style-scope undefined' when combined with hostAttributes and x-if template [\#1400](https://github.com/Polymer/polymer/issues/1400)
 
-- \[0.8\] `<link rel="import" type="css"\>` styles are shimmed out of order [\#1349](https://github.com/Polymer/polymer/issues/1349)
+- \[0.8\] `\<link rel="import" type="css"\>` styles are shimmed out of order [\#1349](https://github.com/Polymer/polymer/issues/1349)
 
 - Polymer 0.5.2 release have version 0.5.1 [\#1033](https://github.com/Polymer/polymer/issues/1033)
 
@@ -740,7 +770,7 @@
 
 - 0.8 shim class [\#1397](https://github.com/Polymer/polymer/pull/1397) ([sorvell](https://github.com/sorvell))
 
-- <iron-doc-viewer\> based index for local dev [\#1395](https://github.com/Polymer/polymer/pull/1395) ([nevir](https://github.com/nevir))
+- \<iron-doc-viewer\> based index for local dev [\#1395](https://github.com/Polymer/polymer/pull/1395) ([nevir](https://github.com/nevir))
 
 - Add license to css-parse.html [\#1378](https://github.com/Polymer/polymer/pull/1378) ([garlicnation](https://github.com/garlicnation))
 
@@ -812,7 +842,7 @@
 
 - \[0.8-preview\] Throws exception if left-hand-side of a property binding contains a dash  [\#1161](https://github.com/Polymer/polymer/issues/1161)
 
-- Bindings in <style\> no longer work under polyfill [\#270](https://github.com/Polymer/polymer/issues/270)
+- Bindings in \<style\> no longer work under polyfill [\#270](https://github.com/Polymer/polymer/issues/270)
 
 **Closed issues:**
 
@@ -854,11 +884,11 @@
 
 - paper-autogrow-textarea bug [\#1255](https://github.com/Polymer/polymer/issues/1255)
 
-- <paper-input-decorator label=“birthday”\> [\#1251](https://github.com/Polymer/polymer/issues/1251)
+- \<paper-input-decorator label=“birthday”\> [\#1251](https://github.com/Polymer/polymer/issues/1251)
 
 - How addEventListener in nested template? [\#1250](https://github.com/Polymer/polymer/issues/1250)
 
-- <paper-input-decorator label="test" autoValidate?="{{autoValidate}}"\> [\#1249](https://github.com/Polymer/polymer/issues/1249)
+- \<paper-input-decorator label="test" autoValidate?="{{autoValidate}}"\> [\#1249](https://github.com/Polymer/polymer/issues/1249)
 
 - Installing with Bower not working [\#1246](https://github.com/Polymer/polymer/issues/1246)
 
@@ -1016,7 +1046,7 @@
 
 - Element with id="exports" results in uncaught "Observer is not defined" exception [\#1134](https://github.com/Polymer/polymer/issues/1134)
 
-- Data-binding in <template\> on objects attributes have strange behaviour \[bug?\] [\#1129](https://github.com/Polymer/polymer/issues/1129)
+- Data-binding in \<template\> on objects attributes have strange behaviour \[bug?\] [\#1129](https://github.com/Polymer/polymer/issues/1129)
 
 - tipAttribute is not working properly [\#1126](https://github.com/Polymer/polymer/issues/1126)
 
@@ -1142,7 +1172,7 @@
 
 - No field view on iOS 8 [\#986](https://github.com/Polymer/polymer/issues/986)
 
-- <meta name="layout" content="polymer or some other layout2"\> [\#959](https://github.com/Polymer/polymer/issues/959)
+- \<meta name="layout" content="polymer or some other layout2"\> [\#959](https://github.com/Polymer/polymer/issues/959)
 
 - Stoped to render on firefox after .35 update \(trying to fix jquery conflict\) [\#697](https://github.com/Polymer/polymer/issues/697)
 
@@ -1156,7 +1186,7 @@
 
 - 0.8 simplex [\#1028](https://github.com/Polymer/polymer/pull/1028) ([sorvell](https://github.com/sorvell))
 
-- Expands the `<content\>` element to remember logical DOM [\#1017](https://github.com/Polymer/polymer/pull/1017) ([jmesserly](https://github.com/jmesserly))
+- Expands the `\<content\>` element to remember logical DOM [\#1017](https://github.com/Polymer/polymer/pull/1017) ([jmesserly](https://github.com/jmesserly))
 
 ## [0.5.2](https://github.com/Polymer/polymer/tree/0.5.2) (2014-12-11)
 
@@ -1182,7 +1212,7 @@
 
 - www.polymer-project.org unusable in firefox [\#991](https://github.com/Polymer/polymer/issues/991)
 
-- <core-tooltip\> and paper-fab don't like each other. [\#988](https://github.com/Polymer/polymer/issues/988)
+- \<core-tooltip\> and paper-fab don't like each other. [\#988](https://github.com/Polymer/polymer/issues/988)
 
 - Weird bug in Firefox and Safari [\#984](https://github.com/Polymer/polymer/issues/984)
 
@@ -1206,7 +1236,7 @@
 
 - url relative path ../  not works for cross domain  link import [\#954](https://github.com/Polymer/polymer/issues/954)
 
-- Can't get a <core-menu-button\> component in <core-toolbar\> to show child nodes [\#951](https://github.com/Polymer/polymer/issues/951)
+- Can't get a \<core-menu-button\> component in \<core-toolbar\> to show child nodes [\#951](https://github.com/Polymer/polymer/issues/951)
 
 - paper-autogrow text not in bower update [\#949](https://github.com/Polymer/polymer/issues/949)
 
@@ -1302,11 +1332,11 @@
 
 - Ajax responseChanged return logged twice [\#900](https://github.com/Polymer/polymer/issues/900)
 
-- behavior difference between <my-component/\> and <my-component\></my-component\> [\#899](https://github.com/Polymer/polymer/issues/899)
+- behavior difference between \<my-component/\> and \<my-component\>\</my-component\> [\#899](https://github.com/Polymer/polymer/issues/899)
 
 - on-tap does not cause paper-input value to be committed [\#890](https://github.com/Polymer/polymer/issues/890)
 
-- <paper-item\> has 'iconSrc' attribute, should be 'src' like <paper-fab\>, <paper-icon-button\> and <paper-menu-button\> [\#889](https://github.com/Polymer/polymer/issues/889)
+- \<paper-item\> has 'iconSrc' attribute, should be 'src' like \<paper-fab\>, \<paper-icon-button\> and \<paper-menu-button\> [\#889](https://github.com/Polymer/polymer/issues/889)
 
 - paper-input documentation lacks details on field validation [\#888](https://github.com/Polymer/polymer/issues/888)
 
@@ -1446,7 +1476,7 @@
 
 - ShadowDOM renderer invalidated after insertion-point distribution [\#512](https://github.com/Polymer/polymer/issues/512)
 
-- Content inside `<template\>` breaks extending `<body\>` element. [\#421](https://github.com/Polymer/polymer/issues/421)
+- Content inside `\<template\>` breaks extending `\<body\>` element. [\#421](https://github.com/Polymer/polymer/issues/421)
 
 ## [0.4.0](https://github.com/Polymer/polymer/tree/0.4.0) (2014-08-28)
 
@@ -1460,7 +1490,7 @@
 
 - add component-laid-out lifecycle callback [\#434](https://github.com/Polymer/polymer/issues/434)
 
-- Allow creating <polymer-element\>s without Shadow DOM [\#222](https://github.com/Polymer/polymer/issues/222)
+- Allow creating \<polymer-element\>s without Shadow DOM [\#222](https://github.com/Polymer/polymer/issues/222)
 
 - Consider adding support for loading user selectable css resources per element [\#219](https://github.com/Polymer/polymer/issues/219)
 
@@ -1552,7 +1582,7 @@
 
 - Unable to extend iframe [\#580](https://github.com/Polymer/polymer/issues/580)
 
-- Custom element that performs dynamic HTML Import gets corrupted offesetWidth when used inside <template\> [\#554](https://github.com/Polymer/polymer/issues/554)
+- Custom element that performs dynamic HTML Import gets corrupted offesetWidth when used inside \<template\> [\#554](https://github.com/Polymer/polymer/issues/554)
 
 - Use gh-pages as default branch for single-branch repos [\#548](https://github.com/Polymer/polymer/issues/548)
 
@@ -1588,7 +1618,7 @@
 
 - HTML Imports polyfill is missing the .import property [\#471](https://github.com/Polymer/polymer/issues/471)
 
-- Pseudo-classes in <content\> select attribute [\#470](https://github.com/Polymer/polymer/issues/470)
+- Pseudo-classes in \<content\> select attribute [\#470](https://github.com/Polymer/polymer/issues/470)
 
 - Using a keyword in attribute name causes error in IE11 [\#466](https://github.com/Polymer/polymer/issues/466)
 
@@ -1610,7 +1640,7 @@
 
 - Generating an observe block in created or ready doesn't bind [\#448](https://github.com/Polymer/polymer/issues/448)
 
-- <polymer-ui-accordion\> doesn't always work with Shadow DOM polyfill [\#444](https://github.com/Polymer/polymer/issues/444)
+- \<polymer-ui-accordion\> doesn't always work with Shadow DOM polyfill [\#444](https://github.com/Polymer/polymer/issues/444)
 
 - Polymer breaks `instanceof` for native elements. [\#424](https://github.com/Polymer/polymer/issues/424)
 
@@ -1626,7 +1656,7 @@
 
 - Variable picked by `constructor` attribute is set after upgrade events. [\#398](https://github.com/Polymer/polymer/issues/398)
 
-- Exception when invoking super from ready when the node is created by <template repeat\> [\#397](https://github.com/Polymer/polymer/issues/397)
+- Exception when invoking super from ready when the node is created by \<template repeat\> [\#397](https://github.com/Polymer/polymer/issues/397)
 
 - automatic node finding within a template-if [\#387](https://github.com/Polymer/polymer/issues/387)
 
@@ -1662,7 +1692,7 @@
 
 - Declarative event discovery on custom elements [\#336](https://github.com/Polymer/polymer/issues/336)
 
-- test-button element class with extends="button" can't be instantiated with <test-button\> syntax [\#334](https://github.com/Polymer/polymer/issues/334)
+- test-button element class with extends="button" can't be instantiated with \<test-button\> syntax [\#334](https://github.com/Polymer/polymer/issues/334)
 
 - Page rendering issue - navigation [\#333](https://github.com/Polymer/polymer/issues/333)
 
@@ -1670,11 +1700,11 @@
 
 - Publish sub-projects on npm, add them to package.json. [\#326](https://github.com/Polymer/polymer/issues/326)
 
-- stack: "TypeError: Object \#<Object\> has no method 'getAttr [\#325](https://github.com/Polymer/polymer/issues/325)
+- stack: "TypeError: Object \#\<Object\> has no method 'getAttr [\#325](https://github.com/Polymer/polymer/issues/325)
 
 - Support angular/django style filters [\#323](https://github.com/Polymer/polymer/issues/323)
 
-- createElement-wrapped <img\> throws TypeError on <canvas\> drawImage [\#316](https://github.com/Polymer/polymer/issues/316)
+- createElement-wrapped \<img\> throws TypeError on \<canvas\> drawImage [\#316](https://github.com/Polymer/polymer/issues/316)
 
 - Databinding breaks after removing and reattaching an element to the DOM [\#311](https://github.com/Polymer/polymer/issues/311)
 
@@ -1714,7 +1744,7 @@
 
 - Polymer doesn't work on Iceweasel web browser [\#247](https://github.com/Polymer/polymer/issues/247)
 
-- It's confusing that you need to nest a <template repeat\> inside an outermost <template\>. [\#245](https://github.com/Polymer/polymer/issues/245)
+- It's confusing that you need to nest a \<template repeat\> inside an outermost \<template\>. [\#245](https://github.com/Polymer/polymer/issues/245)
 
 - http://www.polymer-project.org/tooling-strategy.html is a bit spare [\#244](https://github.com/Polymer/polymer/issues/244)
 
@@ -1746,9 +1776,9 @@
 
 **Closed issues:**
 
-- Internet explorer is not binding inside <select\> tag [\#692](https://github.com/Polymer/polymer/issues/692)
+- Internet explorer is not binding inside \<select\> tag [\#692](https://github.com/Polymer/polymer/issues/692)
 
-- <core-collapse\> syntax issue. [\#689](https://github.com/Polymer/polymer/issues/689)
+- \<core-collapse\> syntax issue. [\#689](https://github.com/Polymer/polymer/issues/689)
 
 - TemplateBinding.js Uncaught HierarchyRequestError [\#688](https://github.com/Polymer/polymer/issues/688)
 
@@ -1790,7 +1820,7 @@
 
 - Paper button keeps flashing [\#639](https://github.com/Polymer/polymer/issues/639)
 
-- <core-style\> should use an element that parses in plain text mode [\#637](https://github.com/Polymer/polymer/issues/637)
+- \<core-style\> should use an element that parses in plain text mode [\#637](https://github.com/Polymer/polymer/issues/637)
 
 - "Assertion Failed" unwrapping event [\#636](https://github.com/Polymer/polymer/issues/636)
 
@@ -1810,7 +1840,7 @@
 
 - Core-toolbar breaking material design speck [\#605](https://github.com/Polymer/polymer/issues/605)
 
-- <input list="x"\><datalist id="x"\> as a component used within another component [\#600](https://github.com/Polymer/polymer/issues/600)
+- \<input list="x"\>\<datalist id="x"\> as a component used within another component [\#600](https://github.com/Polymer/polymer/issues/600)
 
 - core-scroll-header-panel won't hide navigation bar on Android \(stable and beta\) [\#569](https://github.com/Polymer/polymer/issues/569)
 
@@ -1980,7 +2010,7 @@
 
 - minor documentation content issue [\#522](https://github.com/Polymer/polymer/issues/522)
 
-- `<content select=".test"\>` is not observing condition updates of child elements? [\#505](https://github.com/Polymer/polymer/issues/505)
+- `\<content select=".test"\>` is not observing condition updates of child elements? [\#505](https://github.com/Polymer/polymer/issues/505)
 
 ## [0.3.1](https://github.com/Polymer/polymer/tree/0.3.1) (2014-05-30)
 
@@ -1988,7 +2018,7 @@
 
 **Closed issues:**
 
-- Bind to `value` on `<input type="color"\>` [\#521](https://github.com/Polymer/polymer/issues/521)
+- Bind to `value` on `\<input type="color"\>` [\#521](https://github.com/Polymer/polymer/issues/521)
 
 - classList not working anymore [\#518](https://github.com/Polymer/polymer/issues/518)
 
@@ -2092,7 +2122,7 @@
 
 -  addEventListener beforeunload not working [\#445](https://github.com/Polymer/polymer/issues/445)
 
-- Having any <link rel="stylesheet"\> makes entire app fail to initialize [\#441](https://github.com/Polymer/polymer/issues/441)
+- Having any \<link rel="stylesheet"\> makes entire app fail to initialize [\#441](https://github.com/Polymer/polymer/issues/441)
 
 - Issues with platform version resolution with Bower and 0.2.1 [\#440](https://github.com/Polymer/polymer/issues/440)
 
@@ -2100,7 +2130,7 @@
 
 - Iterating over a member object [\#436](https://github.com/Polymer/polymer/issues/436)
 
-- <template if\> evaluating all expressions twice [\#433](https://github.com/Polymer/polymer/issues/433)
+- \<template if\> evaluating all expressions twice [\#433](https://github.com/Polymer/polymer/issues/433)
 
 - Remove support for applyAuthorStyles/resetStyleInheritance [\#425](https://github.com/Polymer/polymer/issues/425)
 
@@ -2190,7 +2220,7 @@
 
 **Closed issues:**
 
-- polymer-ajax is missing the "body" attribute in the <polymer-element\> declaration [\#395](https://github.com/Polymer/polymer/issues/395)
+- polymer-ajax is missing the "body" attribute in the \<polymer-element\> declaration [\#395](https://github.com/Polymer/polymer/issues/395)
 
 - this year is 2014 [\#394](https://github.com/Polymer/polymer/issues/394)
 
@@ -2260,7 +2290,7 @@
 
 **Closed issues:**
 
-- shim styling: need to support ^ and ^^ when they are defined outside of <polymer-element\> [\#354](https://github.com/Polymer/polymer/issues/354)
+- shim styling: need to support ^ and ^^ when they are defined outside of \<polymer-element\> [\#354](https://github.com/Polymer/polymer/issues/354)
 
 - Extensions to type extension custom elements must specify an extends property when registering [\#347](https://github.com/Polymer/polymer/issues/347)
 
@@ -2292,13 +2322,13 @@
 
 - CSS: only add \[is=..\] selector if element is type-extension [\#320](https://github.com/Polymer/polymer/issues/320)
 
-- Clarification on use of template repeat for <tr\> & <select\> [\#318](https://github.com/Polymer/polymer/issues/318)
+- Clarification on use of template repeat for \<tr\> & \<select\> [\#318](https://github.com/Polymer/polymer/issues/318)
 
 - Autofocus doesn't work with polymer-veilng. [\#317](https://github.com/Polymer/polymer/issues/317)
 
 - Polyfill: @polyfill @host rules are broken in an extended element [\#315](https://github.com/Polymer/polymer/issues/315)
 
-- Polyfill: Parent styles are not inherited if there's no <template\> in an extended class [\#314](https://github.com/Polymer/polymer/issues/314)
+- Polyfill: Parent styles are not inherited if there's no \<template\> in an extended class [\#314](https://github.com/Polymer/polymer/issues/314)
 
 **Merged pull requests:**
 
@@ -2346,7 +2376,7 @@
 
 - FAQ bug: polymer fails CSP because of inline script tags not XHR. [\#301](https://github.com/Polymer/polymer/issues/301)
 
-- <propertyName\>Changed may get called twice for a single property value change [\#298](https://github.com/Polymer/polymer/issues/298)
+- \<propertyName\>Changed may get called twice for a single property value change [\#298](https://github.com/Polymer/polymer/issues/298)
 
 - Two-way Binding doesn't work in canary [\#297](https://github.com/Polymer/polymer/issues/297)
 
@@ -2358,7 +2388,7 @@
 
 - Bindings in nested templates with named scopes fail to update correctly after initial population [\#285](https://github.com/Polymer/polymer/issues/285)
 
-- <content\> not being displayed if too deep. [\#283](https://github.com/Polymer/polymer/issues/283)
+- \<content\> not being displayed if too deep. [\#283](https://github.com/Polymer/polymer/issues/283)
 
 - polymer-element who to fire properties change？ [\#282](https://github.com/Polymer/polymer/issues/282)
 
@@ -2386,9 +2416,9 @@
 
 - Consider converting attributes with dashes into to camelCased properties [\#193](https://github.com/Polymer/polymer/issues/193)
 
-- \(IE only\) Last element created by <template repeat\> is unbound [\#187](https://github.com/Polymer/polymer/issues/187)
+- \(IE only\) Last element created by \<template repeat\> is unbound [\#187](https://github.com/Polymer/polymer/issues/187)
 
-- Can't bind to the value of a custom element that extends <input\> [\#186](https://github.com/Polymer/polymer/issues/186)
+- Can't bind to the value of a custom element that extends \<input\> [\#186](https://github.com/Polymer/polymer/issues/186)
 
 - Calling offsetWidth in a style-modifying forEach is slow [\#180](https://github.com/Polymer/polymer/issues/180)
 
@@ -2452,7 +2482,7 @@
 
 - HTML imports fail when url params contain '/' characters [\#238](https://github.com/Polymer/polymer/issues/238)
 
-- Unable to use the Sandbox on Chrome <= 28 [\#138](https://github.com/Polymer/polymer/issues/138)
+- Unable to use the Sandbox on Chrome \<= 28 [\#138](https://github.com/Polymer/polymer/issues/138)
 
 ## [v0.0.20130829](https://github.com/Polymer/polymer/tree/v0.0.20130829) (2013-08-28)
 
@@ -2598,7 +2628,7 @@
 
 - Commented @host rule style gets applied [\#67](https://github.com/Polymer/polymer/issues/67)
 
-- data: URLs are being rewritten to relative URLs in <style\> [\#66](https://github.com/Polymer/polymer/issues/66)
+- data: URLs are being rewritten to relative URLs in \<style\> [\#66](https://github.com/Polymer/polymer/issues/66)
 
 - Custom Element shim incorrectly handles @host rule [\#65](https://github.com/Polymer/polymer/issues/65)
 
@@ -2640,7 +2670,7 @@
 
 - Polymer.js fails to load with "ReferenceError: Can't find variable: Window" on Windows 7 Safari browser and iPad 1 iOS 5.1.1 [\#149](https://github.com/Polymer/polymer/issues/149)
 
-- Stylesheets in <element\> elements are emitted in incorrect order [\#148](https://github.com/Polymer/polymer/issues/148)
+- Stylesheets in \<element\> elements are emitted in incorrect order [\#148](https://github.com/Polymer/polymer/issues/148)
 
 - Web animations is not loaded by Polymer [\#140](https://github.com/Polymer/polymer/issues/140)
 
@@ -2662,7 +2692,7 @@
 
 - Attribute value that's a comma delineated list of numbers is converted to a property incorrectly [\#117](https://github.com/Polymer/polymer/issues/117)
 
-- Including toolkit.js on a page moves all <style\>s to  the <head\>. [\#114](https://github.com/Polymer/polymer/issues/114)
+- Including toolkit.js on a page moves all \<style\>s to  the \<head\>. [\#114](https://github.com/Polymer/polymer/issues/114)
 
 - PointerEvents registration fails in the presence of ShadowDOMPolyfill in some cases [\#111](https://github.com/Polymer/polymer/issues/111)
 
@@ -2714,7 +2744,7 @@
 
 - Fixes issue \#199 - adds support for resetStyleInheritance on prototype [\#200](https://github.com/Polymer/polymer/pull/200) ([ebidel](https://github.com/ebidel))
 
-- Switch to <polymer-element\> [\#192](https://github.com/Polymer/polymer/pull/192) ([azakus](https://github.com/azakus))
+- Switch to \<polymer-element\> [\#192](https://github.com/Polymer/polymer/pull/192) ([azakus](https://github.com/azakus))
 
 - 6/17 master -\> stable [\#184](https://github.com/Polymer/polymer/pull/184) ([azakus](https://github.com/azakus))
 
