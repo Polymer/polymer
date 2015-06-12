@@ -1,4 +1,3 @@
-
 suite('Polymer.dom', function() {
 
   var testElement;
