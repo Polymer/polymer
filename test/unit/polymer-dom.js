@@ -494,7 +494,7 @@ suite('Polymer.dom', function() {
 
   test('Polymer.dom.childNodes is an array', function() {
     assert.isTrue(Array.isArray(Polymer.dom(document.body).childNodes));
-  });  
+  });
 
 });
 
