@@ -30,8 +30,6 @@
 
 - bind attribute replacement [\#1790](https://github.com/Polymer/polymer/issues/1790)
 
-- Orphan elements when the data updates [\#1789](https://github.com/Polymer/polymer/issues/1789)
-
 - The Shadows sucks [\#1788](https://github.com/Polymer/polymer/issues/1788)
 
 - Is there a list of Polymer 1.0 elements in the documentations? as it used to be 0.5! [\#1782](https://github.com/Polymer/polymer/issues/1782)
@@ -41,12 +39,6 @@
 - Can I recover the contaminated DOM? [\#1779](https://github.com/Polymer/polymer/issues/1779)
 
 - \[1.0\] Data-binding: Is there any way to do this imperatively? [\#1778](https://github.com/Polymer/polymer/issues/1778)
-
-- property initialization/declaration order arbitrarily throws errors in computed value definitions using `this` [\#1776](https://github.com/Polymer/polymer/issues/1776)
-
-- Nuances involving async operations & the use of Polymer.dom.flush\(\) seemingly benefits having a code snippet provided \(DOM API Docs\)  [\#1775](https://github.com/Polymer/polymer/issues/1775)
-
-- Minor typo: Docs do not explicitly state the naming conventions they need to use for their Web Components to not be an HTMLUnkownElement [\#1774](https://github.com/Polymer/polymer/issues/1774)
 
 - DATA-BINDING [\#1772](https://github.com/Polymer/polymer/issues/1772)
 
@@ -66,29 +58,17 @@
 
 - Content nodes in `dom-if` template do not distribute correctly [\#1753](https://github.com/Polymer/polymer/issues/1753)
 
-- changing `items` of `dom-repeat` doesn't fully refresh the template [\#1746](https://github.com/Polymer/polymer/issues/1746)
-
 - nested dom-repeat with sort attribute shows duplicate entries when adding new items. [\#1744](https://github.com/Polymer/polymer/issues/1744)
 
 - `attached` handler executed in wrong order in chrome browser. [\#1743](https://github.com/Polymer/polymer/issues/1743)
 
 - \[1.0.2\] '$' is undefined when 'created' is being called  [\#1728](https://github.com/Polymer/polymer/issues/1728)
 
-- missing " [\#1662](https://github.com/Polymer/polymer/issues/1662)
-
-- Use consistent name for bower\_components folder [\#1651](https://github.com/Polymer/polymer/issues/1651)
-
 - Need Polymer.Base.unlisten to remove the event listener [\#1639](https://github.com/Polymer/polymer/issues/1639)
 
 - custom-style sometimes does not apply variables [\#1637](https://github.com/Polymer/polymer/issues/1637)
 
 - \[0.9.4\] Dom-if template doesn't stamp when its content contains a wrapped insertion point [\#1631](https://github.com/Polymer/polymer/issues/1631)
-
-- \[0.9\] Array mutation API documentation [\#1609](https://github.com/Polymer/polymer/issues/1609)
-
-- \[0.9\] this.resolvePath\(\) missing in 0.8/0.9 [\#1530](https://github.com/Polymer/polymer/issues/1530)
-
-- \[0.8\] Ready callback and element initialization [\#1467](https://github.com/Polymer/polymer/issues/1467)
 
 **Merged pull requests:**
 
@@ -122,8 +102,6 @@
 
 **Closed issues:**
 
-- paper-toolbar \[title\] conflicts with HTML \[title\] [\#1745](https://github.com/Polymer/polymer/issues/1745)
-
 - Bound data-\* attributes being stripped from template children [\#1737](https://github.com/Polymer/polymer/issues/1737)
 
 - Polymer.Base.splice and dom-repeat [\#1733](https://github.com/Polymer/polymer/issues/1733)
@@ -131,8 +109,6 @@
 - \[1.0.0\] Light DOM being replaced by shady DOM on ready [\#1732](https://github.com/Polymer/polymer/issues/1732)
 
 - \[1.0.2\] Databinding and nested objects [\#1731](https://github.com/Polymer/polymer/issues/1731)
-
-- Paper-tabs in Flexbox [\#1730](https://github.com/Polymer/polymer/issues/1730)
 
 - When not including `webcomponentsjs`, a script in `\<head\>` after imports will break `unresolved` attribute [\#1723](https://github.com/Polymer/polymer/issues/1723)
 
@@ -142,29 +118,17 @@
 
 - Uncaught TypeError When splicing an array into emptiness [\#1714](https://github.com/Polymer/polymer/issues/1714)
 
-- Paper-Button references \<core-icon\> [\#1709](https://github.com/Polymer/polymer/issues/1709)
-
-- Events for paper-menu or paper-item [\#1708](https://github.com/Polymer/polymer/issues/1708)
-
 - Why is there no javascript file? [\#1707](https://github.com/Polymer/polymer/issues/1707)
 
 - Evergreen browser incompatibility [\#1706](https://github.com/Polymer/polymer/issues/1706)
 
 - \[1.0\] shady dom inserts '\<content\>' more than once [\#1704](https://github.com/Polymer/polymer/issues/1704)
 
-- Issue running Polymer Started Kit 1.0.0 [\#1703](https://github.com/Polymer/polymer/issues/1703)
-
-- iron-form body data malformed [\#1702](https://github.com/Polymer/polymer/issues/1702)
-
-- Might as well move \<script /\> to outside of \<dom-module /\> in README.md [\#1700](https://github.com/Polymer/polymer/issues/1700)
-
 - \[1.0\] Attached callback is differently resolved on chrome and ff [\#1699](https://github.com/Polymer/polymer/issues/1699)
 
 - Polymer 1.0 and WebComponents.js [\#1698](https://github.com/Polymer/polymer/issues/1698)
 
 - \[dom-if\] is not as inert as \<template\> should be [\#1695](https://github.com/Polymer/polymer/issues/1695)
-
-- can't use flex inside neon-animated-pages [\#1694](https://github.com/Polymer/polymer/issues/1694)
 
 - Polymer::Attributes: couldn`t decode Array as JSON [\#1693](https://github.com/Polymer/polymer/issues/1693)
 
@@ -180,19 +144,13 @@
 
 - Element catalog, google-analytics, docs missing [\#1681](https://github.com/Polymer/polymer/issues/1681)
 
-- Weird Polymer Catalog Bug \(Md\) -- "paper-toast" [\#1678](https://github.com/Polymer/polymer/issues/1678)
-
 - Binding not working for open text [\#1677](https://github.com/Polymer/polymer/issues/1677)
 
 - Blog link in README.md and CONTRIBUTING.md is wrong [\#1676](https://github.com/Polymer/polymer/issues/1676)
 
 - Strange lines on polymer site menu [\#1675](https://github.com/Polymer/polymer/issues/1675)
 
-- Need to parameterize path to fonts [\#1674](https://github.com/Polymer/polymer/issues/1674)
-
 - How to add dynamic classes in dom-repeat 1.0 [\#1671](https://github.com/Polymer/polymer/issues/1671)
-
-- when i pass params in element is not readable inside the element  [\#1669](https://github.com/Polymer/polymer/issues/1669)
 
 - Array mutation without using helper methods [\#1666](https://github.com/Polymer/polymer/issues/1666)
 
@@ -200,29 +158,15 @@
 
 - dom-if template got rendered once even if the condition is false [\#1663](https://github.com/Polymer/polymer/issues/1663)
 
-- Cannot read property 'slice' of undefined on firebase update [\#1661](https://github.com/Polymer/polymer/issues/1661)
-
 - \[1.0.2\] Global leak found in \_marshalArgs [\#1660](https://github.com/Polymer/polymer/issues/1660)
 
-- \[1.0\] extends native element and "is" attribute [\#1659](https://github.com/Polymer/polymer/issues/1659)
-
 - \[1.0\] Changes in appendChild from 0.9 to 1.0? [\#1657](https://github.com/Polymer/polymer/issues/1657)
-
-- Using scroll header panel together with dialog will cause backdrop to cover up dialog [\#1656](https://github.com/Polymer/polymer/issues/1656)
-
-- Color Extraction [\#1654](https://github.com/Polymer/polymer/issues/1654)
 
 - using AngularJS with paper elements [\#1649](https://github.com/Polymer/polymer/issues/1649)
 
 - Gestures event issue - No offsets management [\#1646](https://github.com/Polymer/polymer/issues/1646)
 
-- \[0.9\] event on-blur does not work on paper-input [\#1634](https://github.com/Polymer/polymer/issues/1634)
-
 - \[0.9.4\] Nested dom-if templates show invalid content [\#1632](https://github.com/Polymer/polymer/issues/1632)
-
-- paper-slider input box overflow. [\#1611](https://github.com/Polymer/polymer/issues/1611)
-
-- \[0.9\] Documentation issue \(dom-repeat\) [\#1608](https://github.com/Polymer/polymer/issues/1608)
 
 - \[0.9\] Documentation issue \(unbind & dispose\) [\#1607](https://github.com/Polymer/polymer/issues/1607)
 
@@ -279,8 +223,6 @@
 - Wrong end tag name in README.md [\#1645](https://github.com/Polymer/polymer/issues/1645)
 
 - on-tap doesn't trigger on checkbox 0.5 [\#1586](https://github.com/Polymer/polymer/issues/1586)
-
-- \[0.8\] 'Polymer' undefined in Polymer.Base assignment [\#1408](https://github.com/Polymer/polymer/issues/1408)
 
 **Merged pull requests:**
 
@@ -416,17 +358,11 @@
 
 - Logical Operators doesn't work anymore in 0.9 [\#1568](https://github.com/Polymer/polymer/issues/1568)
 
-- Reposted from Angular Issue \#1723: Unable to define correct CSS @Rules when CSS shimming is enabled [\#1566](https://github.com/Polymer/polymer/issues/1566)
-
 - \[0.9.0\] Problem putting a dom-if template in a light DOM when the component's \<content\> itself is wrapped in a dom-if [\#1565](https://github.com/Polymer/polymer/issues/1565)
 
 - hypergrid is a polymer custom component [\#1561](https://github.com/Polymer/polymer/issues/1561)
 
-- Update comments for hostAttribute [\#1560](https://github.com/Polymer/polymer/issues/1560)
-
 - serializeValueToAttribute returns undefined [\#1559](https://github.com/Polymer/polymer/issues/1559)
-
-- Offsetting core drawer panel [\#1557](https://github.com/Polymer/polymer/issues/1557)
 
 - \[0.9\] How to dynamically import elements? [\#1554](https://github.com/Polymer/polymer/issues/1554)
 
@@ -441,8 +377,6 @@
 - \[0.9\] hidden$="{{isHidden}}" vs hidden=$"{{isHidden}}" [\#1548](https://github.com/Polymer/polymer/issues/1548)
 
 - seems that case sensitive properties doesn't work [\#1547](https://github.com/Polymer/polymer/issues/1547)
-
-- \[0.9\] documentation issue - horizontal scrolling broken on code views [\#1545](https://github.com/Polymer/polymer/issues/1545)
 
 - webcomponents loading order [\#1544](https://github.com/Polymer/polymer/issues/1544)
 
@@ -495,8 +429,6 @@
 - TODO in polymer.js references fixed bug [\#1457](https://github.com/Polymer/polymer/issues/1457)
 
 - \[0.8\] Self-closing p tag breaks template [\#1455](https://github.com/Polymer/polymer/issues/1455)
-
-- \[0.8\] x-repeat failing to stamp instances on safari [\#1443](https://github.com/Polymer/polymer/issues/1443)
 
 - \[0.8\] `\<content select=".class"\>` and `hostAttributes` don't work together [\#1431](https://github.com/Polymer/polymer/issues/1431)
 
@@ -1386,8 +1318,6 @@
 
 - Element stops working if taken off the DOM and put back in [\#782](https://github.com/Polymer/polymer/issues/782)
 
-- External CSS in Polymer Elements is ignored in Chrome Extensions [\#779](https://github.com/Polymer/polymer/issues/779)
-
 - paper drop down list showing in middle of screen first time. [\#776](https://github.com/Polymer/polymer/issues/776)
 
 - Template repeat index value is evaluated only after loop end [\#774](https://github.com/Polymer/polymer/issues/774)
@@ -1399,8 +1329,6 @@
 - problem accessing polymer properties from content script [\#753](https://github.com/Polymer/polymer/issues/753)
 
 - Polymer as UI only [\#752](https://github.com/Polymer/polymer/issues/752)
-
-- Polymers elements cannot go fullscreen [\#745](https://github.com/Polymer/polymer/issues/745)
 
 **Merged pull requests:**
 
@@ -1584,8 +1512,6 @@
 
 - Custom element that performs dynamic HTML Import gets corrupted offesetWidth when used inside \<template\> [\#554](https://github.com/Polymer/polymer/issues/554)
 
-- Use gh-pages as default branch for single-branch repos [\#548](https://github.com/Polymer/polymer/issues/548)
-
 - Wrap as UMD - Do not force window global [\#534](https://github.com/Polymer/polymer/issues/534)
 
 - Difference in inherited styles between Chrome & other browsers [\#531](https://github.com/Polymer/polymer/issues/531)
@@ -1635,8 +1561,6 @@
 - title attribute cause issue in firefox [\#451](https://github.com/Polymer/polymer/issues/451)
 
 - template bind="x as y" doesn't work on safari [\#450](https://github.com/Polymer/polymer/issues/450)
-
-- Invalid Link in Docs to ICONSET [\#449](https://github.com/Polymer/polymer/issues/449)
 
 - Generating an observe block in created or ready doesn't bind [\#448](https://github.com/Polymer/polymer/issues/448)
 
@@ -1724,8 +1648,6 @@
 
 - Type Convert Error when work with canvas [\#288](https://github.com/Polymer/polymer/issues/288)
 
-- DOM Spec Input - Virtual MutationRecords [\#281](https://github.com/Polymer/polymer/issues/281)
-
 - polymer animation not support ios [\#279](https://github.com/Polymer/polymer/issues/279)
 
 - Event.cancelBubble cannot be used for stopping event propagation in Polymer [\#275](https://github.com/Polymer/polymer/issues/275)
@@ -1810,8 +1732,6 @@
 
 - the BSD license link at the bottom of http://www.polymer-project.org/ is a 404 [\#655](https://github.com/Polymer/polymer/issues/655)
 
-- core-pages example missing a closing parenthesis [\#654](https://github.com/Polymer/polymer/issues/654)
-
 - Polymer breaks URL [\#653](https://github.com/Polymer/polymer/issues/653)
 
 - Cannot install polymer 0.3.4 [\#643](https://github.com/Polymer/polymer/issues/643)
@@ -1825,8 +1745,6 @@
 - "Assertion Failed" unwrapping event [\#636](https://github.com/Polymer/polymer/issues/636)
 
 - Rating Slider Knob goes outside boundaries [\#635](https://github.com/Polymer/polymer/issues/635)
-
-- post-service can't load when running demo app from Visual Studio / IIS [\#633](https://github.com/Polymer/polymer/issues/633)
 
 - typo on http://www.polymer-project.org/docs/elements/paper-elements.html\#paper-menu-button [\#632](https://github.com/Polymer/polymer/issues/632)
 
@@ -2045,8 +1963,6 @@
 - Content incorrectly rendered inside table. [\#503](https://github.com/Polymer/polymer/issues/503)
 
 - 404 on polymer-project.org/docs/start/customelements\#elementtypes  [\#499](https://github.com/Polymer/polymer/issues/499)
-
-- Chrome Packaged App: Refused to evaluate a string as JavaScript because 'unsafe-eval' .... [\#252](https://github.com/Polymer/polymer/issues/252)
 
 - on-\* event delegation \(other than on host node\) does not work with non-bubbling events [\#208](https://github.com/Polymer/polymer/issues/208)
 
