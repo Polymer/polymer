@@ -744,4 +744,16 @@ suite('Polymer.dom non-distributed elements', function() {
     assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect for child moved from a root to no root');
   });
 
+  test('add insertion point to initially un-upgraded element', function() {
+    var lazyContainer = document.querySelector('x-compose-lazy-no-dist');
+    var child = Polymer.dom(lazyContainer).firstElementChild;
+    Polymer({is: 'x-lazy-no-dist'});
+    var content = document.createElement('content');
+    Polymer.dom(lazyContainer.$.lazy.root).appendChild(content);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(content).getDistributedNodes()[1], child);
+    if (lazyContainer.shadyRoot) {
+      assert.equal(lazyContainer.$.lazy.lastElementChild, child);
+    }
+  });
 });
