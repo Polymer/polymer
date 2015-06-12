@@ -117,8 +117,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         var handled;
         if (this._nodeIsInLogicalTree(this.node)) {
-          handled = this._maybeDistribute(node, this.node);
           this._removeNodeFromHost(node);
+          handled = this._maybeDistribute(node, this.node);
         }
         if (!handled) {
           // if removing from a shadyRoot, remove form host instead
@@ -163,15 +163,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           node._ownerShadyRoot = root;
         }
         return node._ownerShadyRoot;
-
       },
 
       _maybeDistribute: function(node, parent) {
         // TODO(sorvell): technically we should check non-fragment nodes for
         // <content> children but since this case is assumed to be exceedingly
         // rare, we avoid the cost and will address with some specific api
-        // when the need arises.
-        var fragContent = (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
+        // when the need arises.  For now, the user must call
+        // distributeContent(true), which updates insertion points manually
+        // and forces distribution.
+       var fragContent = (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
             node.querySelector(CONTENT);
         var wrappedContent = fragContent &&
           (fragContent.parentNode.nodeType !== Node.DOCUMENT_FRAGMENT_NODE);
@@ -182,9 +183,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // 2. children being inserted into parent with a shady root (parent
         //    needs distribution)
         if (hasContent) {
-          var host = this._ownerShadyRootForNode(parent).host;
-          this._updateInsertionPoints(host);
-          this._lazyDistribute(host);
+          var root = this._ownerShadyRootForNode(parent);
+          if (root) {
+            var host = root.host;
+            this._updateInsertionPoints(host);
+            this._lazyDistribute(host);
+          }
         }
         var parentNeedsDist = this._parentNeedsDistribution(parent);
         if (parentNeedsDist) {
@@ -195,7 +199,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // and the parent does not need distribution, return false to allow
         // the nodes to be added directly, after which children may be
         // distributed and composed into the wrapping node(s)
-        return false;// (parentNeedsDist && (!hasContent || !wrappedContent));
+        return parentNeedsDist || (hasContent && !wrappedContent);
       },
 
       _tryRemoveUndistributedNode: function(node) {
@@ -225,14 +229,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _removeNodeFromHost: function(node) {
+        var hostNeedsDist;
+        var root;
         if (node._lightParent) {
-          var root = this._ownerShadyRootForNode(node);
+          root = this._ownerShadyRootForNode(node);
           if (root) {
             root.host._elementRemove(node);
+            hostNeedsDist = this._removeDistributedChildren(root, node);
           }
           this._removeLogicalInfo(node, node._lightParent);
         }
         this._removeOwnerShadyRoot(node);
+        if (root && hostNeedsDist) {
+          this._updateInsertionPoints(root.host);
+          this._lazyDistribute(root.host);
+        }
+      },
+
+      _removeDistributedChildren: function(root, container) {
+        var hostNeedsDist;
+        var ip$ = root._insertionPoints;
+        for (var i=0; i<ip$.length; i++) {
+          var content = ip$[i];
+          if (this._contains(container, content)) {
+            var dc$ = factory(content).getDistributedNodes();
+            for (var j=0; j<dc$.length; j++) {
+              hostNeedsDist = true;
+              var node = dc$[i];
+              var parent = node.parentNode;
+              if (parent) {
+                nativeRemoveChild.call(parent, node);
+                removeFromComposedParent(parent, node);
+              }
+            }
+          }
+        }
+        return hostNeedsDist;
+      },
+
+      _contains: function(container, node) {
+        while (node) {
+          if (node == container) {
+            return true;
+          }
+          node = factory(node).parentNode;
+        }
       },
 
       _addNodeToHost: function(node) {
