@@ -59,7 +59,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // 3. node is <content> (host of container needs distribution)
       appendChild: function(node) {
         var handled;
-        this._removeNodeFromHost(node);
+        this._removeNodeFromHost(node, true);
         if (this._nodeIsInLogicalTree(this.node)) {
           this._addLogicalInfo(node, this.node);
           this._addNodeToHost(node);
@@ -69,8 +69,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!handled && !this._tryRemoveUndistributedNode(node)) {
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
-          nativeAppendChild.call(container, node);
           addToComposedParent(container, node);
+          nativeAppendChild.call(container, node);
         }
         return node;
       },
@@ -80,7 +80,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return this.appendChild(node);
         }
         var handled;
-        this._removeNodeFromHost(node);
+        this._removeNodeFromHost(node, true);
         if (this._nodeIsInLogicalTree(this.node)) {
           saveLightChildrenIfNeeded(this.node);
           var children = this.childNodes;
@@ -100,8 +100,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._firstComposedNode(ref_node) : ref_node;
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
-          nativeInsertBefore.call(container, node, ref_node);
           addToComposedParent(container, node, ref_node);
+          nativeInsertBefore.call(container, node, ref_node);
         }
         return node;
       },
@@ -126,8 +126,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // not guaranteed to physically be in container; e.g.
           // undistributed nodes.
           if (container === node.parentNode) {
-            nativeRemoveChild.call(container, node);
             removeFromComposedParent(container, node);
+            nativeRemoveChild.call(container, node);
           }
         }
         return node;
@@ -228,10 +228,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return parent && parent.shadyRoot && hasInsertionPoint(parent.shadyRoot);
       },
 
-      _removeNodeFromHost: function(node) {
+      // NOTE: if `ensureComposedRemoval` is true then the node should be 
+      // removed from its composed parent. 
+      _removeNodeFromHost: function(node, ensureComposedRemoval) {
         var hostNeedsDist;
         var root;
-        if (node._lightParent) {
+        var parent = node._lightParent;
+        if (parent) {
           root = this._ownerShadyRootForNode(node);
           if (root) {
             root.host._elementRemove(node);
@@ -243,6 +246,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (root && hostNeedsDist) {
           this._updateInsertionPoints(root.host);
           this._lazyDistribute(root.host);
+        } else if (ensureComposedRemoval) {
+          removeFromComposedParent(parent || node.parentNode, node);
         }
       },
 
@@ -258,8 +263,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               var node = dc$[i];
               var parent = node.parentNode;
               if (parent) {
-                nativeRemoveChild.call(parent, node);
                 removeFromComposedParent(parent, node);
+                nativeRemoveChild.call(parent, node);
               }
             }
           }
@@ -724,6 +729,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function getLightChildren(node) {
       var children = node._lightChildren;
+      // TODO(sorvell): it's more correct to use _composedChildren instead of 
+      // childNodes here but any trivial failure to use Polymer.dom 
+      // will result in an error so we avoid using _composedChildren
       return children ? children : node.childNodes;
     }
 
@@ -739,9 +747,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var i = ref_node ? children.indexOf(ref_node) : -1;
       if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
         var fragChildren = getComposedChildren(node);
-        fragChildren.forEach(function(c) {
-          addNodeToComposedChildren(c, parent, children, i);
-        });
+        for (var j=0; j < fragChildren.length; j++) {
+          addNodeToComposedChildren(fragChildren[j], parent, children, i + j);
+        }
+        node._composedChildren = null;
       } else {
         addNodeToComposedChildren(node, parent, children, i);
       }
@@ -750,11 +759,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function addNodeToComposedChildren(node, parent, children, i) {
       node._composedParent = parent;
-      if (i >= 0) {
-        children.splice(i, 0, node);
-      } else {
-        children.push(node);
-      }
+      children.splice(i >= 0 ? i : children.length, 0, node);
     }
 
     function removeFromComposedParent(parent, node) {

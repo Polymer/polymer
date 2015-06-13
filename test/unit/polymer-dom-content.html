@@ -119,6 +119,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </script>
 </dom-module>
 
+<dom-module id="x-lazy-no-dist">
+  <template>
+    Lazy no dist!
+  </template>
+</dom-module>
+
+<dom-module id="x-compose-lazy-no-dist">
+  <template>
+    <x-lazy-no-dist id="lazy">
+      <content></content>
+    </x-lazy-no-dist>
+  </template>
+  <script>
+  HTMLImports.whenReady(function() {
+    Polymer({is: 'x-compose-lazy-no-dist'});
+  });
+  </script>
+</dom-module>
+
+<x-compose-lazy-no-dist><span>Child</span></x-compose-lazy-no-dist>
+
+
 <script>
 
   suite('appendChild & removeChild of <content>', function() {
@@ -670,6 +692,97 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.dom.flush();
       assert.equal(compose.$.dist.$.distWrapper.firstElementChild, null);
       document.body.removeChild(compose);
+    });
+
+    test('append content to initially un-upgraded element', function() {
+      var lazyContainer = document.querySelector('x-compose-lazy-no-dist');
+      var child = Polymer.dom(lazyContainer).firstElementChild;
+      Polymer({is: 'x-lazy-no-dist'});
+      var content = document.createElement('content');
+      Polymer.dom(lazyContainer.$.lazy.root).appendChild(content);
+      Polymer.dom.flush();
+      assert.equal(Polymer.dom(content).getDistributedNodes()[1], child);
+      if (lazyContainer.shadyRoot) {
+        assert.equal(lazyContainer.$.lazy.lastElementChild, child);
+      }
+    });
+
+    test('composed children distributed', function() {
+      var host = document.createElement('x-dist');
+      document.body.appendChild(host);
+      var s0 = document.createElement('span');
+      var frag = document.createDocumentFragment();
+      var s1 = document.createElement('span');
+      var s2 = document.createElement('span');
+      var s3 = document.createElement('span');
+      frag.appendChild(s1);
+      frag.appendChild(s2);
+      frag.appendChild(s3);
+      Polymer.dom(host).appendChild(s0);
+      Polymer.dom(host).insertBefore(frag, s0);
+      Polymer.dom.flush();
+      if (host.shadyRoot) {
+        assert.equal(host.$.distWrapper.children.length, 4);
+        assert.equal(host.$.distWrapper.children[0], s1);
+        assert.equal(host.$.distWrapper.children[1], s2);
+        assert.equal(host.$.distWrapper.children[2], s3);
+        assert.equal(host.$.distWrapper.children[3], s0);
+        var composedChildren = host.$.distWrapper._composedChildren;
+        assert.equal(composedChildren.length, 4);
+        assert.equal(composedChildren[0], s1);
+        assert.equal(composedChildren[1], s2);
+        assert.equal(composedChildren[2], s3);
+        assert.equal(composedChildren[3], s0);
+      }
+      Polymer.dom(host).removeChild(s1);
+      Polymer.dom(host).removeChild(s2);
+      Polymer.dom(host).removeChild(s3);
+      Polymer.dom.flush();
+      if (host.shadyRoot) {
+        assert.equal(host.$.distWrapper.children.length, 1);
+        var composedChildren = host.$.distWrapper._composedChildren;
+        assert.equal(composedChildren.length, 1);
+        assert.equal(composedChildren[0], s0);
+      }
+    });
+
+    test('composed children added but not distributed', function() {
+      var host = document.createElement('x-dist');
+      document.body.appendChild(host);
+      var s0 = document.createElement('span');
+      var frag = document.createDocumentFragment();
+      var s1 = document.createElement('span');
+      var s2 = document.createElement('span');
+      var s3 = document.createElement('span');
+      frag.appendChild(s1);
+      frag.appendChild(s2);
+      frag.appendChild(s3);
+      Polymer.dom(host.$.distWrapper).appendChild(s0);
+      Polymer.dom(host.$.distWrapper).insertBefore(frag, s0);
+      Polymer.dom.flush();
+      if (host.shadyRoot) {
+        assert.equal(host.$.distWrapper.children.length, 4);
+        assert.equal(host.$.distWrapper.children[0], s1);
+        assert.equal(host.$.distWrapper.children[1], s2);
+        assert.equal(host.$.distWrapper.children[2], s3);
+        assert.equal(host.$.distWrapper.children[3], s0);
+        var composedChildren = host.$.distWrapper._composedChildren;
+        assert.equal(composedChildren.length, 4);
+        assert.equal(composedChildren[0], s1);
+        assert.equal(composedChildren[1], s2);
+        assert.equal(composedChildren[2], s3);
+        assert.equal(composedChildren[3], s0);
+      }
+      Polymer.dom(host.$.distWrapper).removeChild(s1);
+      Polymer.dom(host.$.distWrapper).removeChild(s2);
+      Polymer.dom(host.$.distWrapper).removeChild(s3);
+      Polymer.dom.flush();
+      if (host.shadyRoot) {
+        assert.equal(host.$.distWrapper.children.length, 1);
+        var composedChildren = host.$.distWrapper._composedChildren;
+        assert.equal(composedChildren.length, 1);
+        assert.equal(composedChildren[0], s0);
+      }
     });
 
   });
