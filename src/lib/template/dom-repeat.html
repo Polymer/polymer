@@ -305,7 +305,7 @@ Then the `observe` property should be configured as follows:
     render: function() {
       // Queue this repeater, then flush all in order
       this._fullRefresh = true;
-      this.debounce('render', this._render);
+      this._debounceTemplate(this._render);
       this._flushTemplates();
     },
 
@@ -341,9 +341,9 @@ Then the `observe` property should be configured as follows:
         if (!row) {
           this.rows.push(row = this._insertRow(i, null, item));
         }
-        row[this.as] = item;
-        row.__key__ = key;
-        row[this.indexAs] = i;
+        row._propertySetFromAbove(this.as, item);
+        row._propertySetFromAbove('__key__', key);
+        row._propertySetFromAbove(this.indexAs, i);
       }
       // Remove extra
       for (; i<this.rows.length; i++) {
@@ -538,14 +538,13 @@ Then the `observe` property should be configured as follows:
     // for notifying items.<key-for-row> change up to host
     _forwardInstanceProp: function(row, prop, value) {
       if (prop == this.as) {
-        // TODO(kschaaf): the row may not have its index set yet, depending
-        // on the ordering of configuration during initial stamping; however
-        // in that case we can be sure that the item is in sync with items and
-        // no notification is necessary (and avoids extra work)
-        var idx = row[this.indexAs];
-        if (idx !== undefined) {
-          this.set('items.' + idx, value);
+        var idx;
+        if (this._sortFn || this._filterFn) {
+          idx = this.items.indexOf(this.collection.getItem(row.__key__));
+        } else {
+          idx = row[this.indexAs];
         }
+        this.set('items.' + idx, value);
       }
     },
 
@@ -565,7 +564,7 @@ Then the `observe` property should be configured as follows:
     _forwardParentProp: function(prop, value) {
       if (this.rows) {
         this.rows.forEach(function(row) {
-          row[prop] = value;
+          row._propertySetFromAbove(prop, value);
         }, this);
       }
     },
@@ -594,7 +593,7 @@ Then the `observe` property should be configured as follows:
             path = this.as + '.' + path.substring(dot+1);
             row.notifyPath(path, value, true);
           } else {
-            row[this.as] = value;
+            row._propertySetFromAbove(this.as, value);
           }
         }
       }
