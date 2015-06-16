@@ -70,7 +70,7 @@ Polymer({
       }
     },
     ready: function() {
-      this.innerHTML = 'Hi! My name is ' + this.myName;
+      this.textContent = 'Hi! My name is ' + this.myName;
     }
 });
 ```
