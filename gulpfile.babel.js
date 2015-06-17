@@ -9,30 +9,29 @@
  */
 
 // jshint node: true
-'use strict';
 
-var gulp = require('gulp');
-var audit = require('gulp-audit');
-var replace = require('gulp-replace');
-var rename = require('gulp-rename');
-var vulcanize = require('gulp-vulcanize');
-var runseq = require('run-sequence');
-var lazypipe = require('lazypipe');
-var polyclean = require('polyclean');
-var del = require('del');
+import gulp from 'gulp';
+import audit from 'gulp-audit';
+import replace from 'gulp-replace';
+import rename from 'gulp-rename';
+import vulcanize from 'gulp-vulcanize';
+import runseq from 'run-sequence';
+import lazypipe from 'lazypipe';
+import polyclean from 'polyclean';
+import del from 'del';
 
-var path = require('path');
+import path from 'path';
 
-var micro = "polymer-micro.html";
-var mini = "polymer-mini.html";
-var max = "polymer.html";
-var workdir = 'dist';
+const micro = "polymer-micro.html";
+const mini = "polymer-mini.html";
+const max = "polymer.html";
+const workdir = 'dist';
 
-var distMicro = path.join(workdir, micro);
-var distMini = path.join(workdir, mini);
-var distMax = path.join(workdir, max);
+const distMicro = path.join(workdir, micro);
+const distMini = path.join(workdir, mini);
+const distMax = path.join(workdir, max);
 
-var pkg = require('./package.json');
+const pkg = require('./package.json');
 
 var cleanupPipe = lazypipe()
   // Reduce script tags
@@ -65,22 +64,20 @@ gulp.task('micro', vulcanizeWithExcludes(micro));
 gulp.task('mini', vulcanizeWithExcludes(mini, [micro]));
 gulp.task('max', vulcanizeWithExcludes(max, [mini, micro]));
 
-gulp.task('clean', function(cb) {
-  del(workdir, cb);
-});
+gulp.task('clean', cb => del(workdir, cb));
 
 // copy bower.json into dist folder
-gulp.task('copy-bower-json', function() {
+gulp.task('copy-bower-json', () => {
   return gulp.src('bower.json').pipe(gulp.dest(workdir));
 });
 
 // Default Task
-gulp.task('default', function(cb) {
+gulp.task('default', cb => {
   runseq('clean', ['micro', 'mini', 'max'], cb);
 });
 
 // switch src and build for testing
-gulp.task('save-src', function() {
+gulp.task('save-src', () => {
   return gulp.src([mini, micro, max])
     .pipe(rename(function(p) {
       p.extname += '.bak';
@@ -88,7 +85,7 @@ gulp.task('save-src', function() {
     .pipe(gulp.dest('.'));
 });
 
-gulp.task('restore-src', function() {
+gulp.task('restore-src', () => {
   return gulp.src([mini + '.bak', micro + '.bak', max + '.bak'])
     .pipe(rename(function(p) {
       p.extname = '';
@@ -96,29 +93,29 @@ gulp.task('restore-src', function() {
     .pipe(gulp.dest('.'));
 });
 
-gulp.task('cleanup-switch', function(cb) {
+gulp.task('cleanup-switch', cb => {
   del([mini + '.bak', micro + '.bak', max + '.bak'], cb);
 });
 
-gulp.task('switch-build', function() {
+gulp.task('switch-build', () => {
   return gulp.src([distMini, distMicro, distMax])
     .pipe(gulp.dest('.'));
 });
 
-gulp.task('switch', function(cb) {
+gulp.task('switch', cb => {
   runseq('default', 'save-src', 'switch-build', cb);
 });
 
-gulp.task('restore', function(cb) {
+gulp.task('restore', cb => {
   runseq('restore-src', 'cleanup-switch', cb);
 });
 
-gulp.task('audit', function() {
+gulp.task('audit', () => {
   return gulp.src([distMini, distMicro, distMax])
     .pipe(audit('build.log', { repos: ['.'] }))
     .pipe(gulp.dest(workdir));
 });
 
-gulp.task('release', function(cb) {
+gulp.task('release', cb => {
   runseq('default', ['copy-bower-json', 'audit'], cb);
 });
