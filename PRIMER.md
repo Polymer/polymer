@@ -768,6 +768,8 @@ Example:
 
 Polymer will generate and fire a custom "gesture" event for certain user interactions automatically when a declarative listener is added for the event type.  These events will fire consistenly on both touch and mouse environments, and so it is advised to listen for these events rather than their mouse- or touch-specific event counterparts for interoperability with both touch and desktop/mouse environments.  For example, `tap` should be used instead of `click` for the most reliable cross-platform results.
 
+For convenience, calling `preventDefault` on gesture events will prevent the native event that generated that gesture. For example, calling `preventDefault` on a `tap` event will also call `preventDefault` on the `click` event that generated the `tap`.
+
 Certain gestures will be able to control scrolling direction for touch input. For example, nodes with a listener for the `track` event will prevent scrolling by default. Elements can be override scroll direction with `this.setScrollDirection(direction, node)`, where `direction` is one of `'x'`, `'y'`, `'none'`, or `'all'`, and `node` defaults to `this`.
 
 The following are the gesture event types supported, with a short description and list of detail properties available on `event.detail` for each type:
@@ -775,10 +777,12 @@ The following are the gesture event types supported, with a short description an
 * **down** - finger/button went down
   * `x` - clientX coordinate for event
   * `y` - clientY coordinate for event
+  * `prevent(type)` - a function that may be called to prevent the given gesture events. Currently supported gestures to prevent are `tap` and `track`.
   * `sourceEvent` - the original DOM event that caused the `down` action
 * **up** - finger/button went up
   * `x` - clientX coordinate for event
   * `y` - clientY coordinate for event
+  * `prevent(type)` - a function that may be called to prevent the given gesture events. Currently supported gestures to prevent are `tap` and `track`.
   * `sourceEvent` - the original DOM event that caused the `up` action
 * **tap** - down & up occurred
   * `x` - clientX coordinate for event
@@ -795,7 +799,7 @@ The following are the gesture event types supported, with a short description an
   * `dy` - change in pixels vertically since the first track event
   * `ddx` - change in pixels horizontally since last track event
   * `ddy` - change in pixels vertically since last track event
-  * `hover()` - a function that may be called to determine the element currently being hovered
+  * `hover()` - a function that may be called to determine the element currently being hovered over
 
 Example:
 
