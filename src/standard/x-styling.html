@@ -61,8 +61,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var scopeData = propertyUtils
           .propertyDataFromStyles(scope._styles, this);
         // look in scope cache
-        info = scope._styleCache.retrieve(this.is, scopeData.key,
-          this._styles);
+        scopeData.key.customStyle = this.customStyle;
+        info = scope._styleCache.retrieve(this.is, scopeData.key, this._styles);
         // compute style properties (fast path, if cache hit)
         var scopeCached = Boolean(info);
         if (scopeCached) {
@@ -84,7 +84,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // is available.
         var style = this._applyStyleProperties(info);
         // no cache so store in cache
-        //console.warn(this, scopeCached, globalCached, info && info._scopeSelector);
+        //console.warn(this.is, scopeCached, globalCached, info && info._scopeSelector);
         if (!scopeCached) {
           // create an info object for caching
           // TODO(sorvell): clone style node when using native Shadow DOM
@@ -94,13 +94,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var cacheableStyle = style;
           if (nativeShadow) {
             cacheableStyle = style.cloneNode ?
-            style.cloneNode(true) : Object.create(style || null);
+            style.cloneNode(true) : null;
           }
           info = {
             style: cacheableStyle,
             _scopeSelector: this._scopeSelector,
             _styleProperties: this._styleProperties
           }
+          scopeData.key.customStyle = {};
+          this.mixin(scopeData.key.customStyle, this.customStyle);
           scope._styleCache.store(this.is, info, scopeData.key, this._styles);
           if (!globalCached) {
             // save in global cache
@@ -129,7 +131,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // finally mixin properties inherent to this element
         this.mixin(props,
           propertyUtils.scopePropertiesFromStyles(this._styles));
-        this.mixin(props, this.customStyle);
+        propertyUtils.mixinCustomStyle(props, this.customStyle);
         // reify properties (note: only does own properties)
         propertyUtils.reify(props);
         this._styleProperties = props;
@@ -154,8 +156,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.is + '-' + this.__proto__._scopeCount++;
         var style = propertyUtils.applyElementStyle(this,
           this._styleProperties, this._scopeSelector, info && info.style);
-        // apply scope selector (iff we have some scoped css)
-        if ((style || oldScopeSelector) && !nativeShadow) {
+        // apply scope selector
+        if (!nativeShadow) {
           propertyUtils.applyElementScopeSelector(this, this._scopeSelector,
             oldScopeSelector, this._scopeCssViaAttr);
         }
@@ -197,9 +199,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * been made that affect the values of custom properties.
        *
        * @method updateStyles
+       * @param {Object=} properties Properties object which is mixed into 
+       * the element's `customStyle` property. This argument provides a shortcut
+       * for setting `customStyle` and then calling `updateStyles`.
       */
-      updateStyles: function() {
+      updateStyles: function(properties) {
         if (this.isAttached) {
+          if (properties) {
+            this.mixin(this.customStyle, properties);
+          }
           // skip applying properties to self if not used
           if (this._needsStyleProperties()) {
             this._updateStyleProperties();
@@ -234,9 +242,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Force all custom elements using cross scope custom properties,
      * to update styling.
      */
-    Polymer.updateStyles = function() {
+    Polymer.updateStyles = function(properties) {
       // update default/custom styles
-      styleDefaults.updateStyles();
+      styleDefaults.updateStyles(properties);
       // search the document for elements to update
       Polymer.Base._updateRootStyles(document);
     };
