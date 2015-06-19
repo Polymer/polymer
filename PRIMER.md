@@ -211,12 +211,11 @@ console.log(el2 instanceof HTMLInputElement); // true
 
 Polymer's Base prototype implements the standard Custom Element lifecycle callbacks to perform tasks necessary for Polymer's built-in features.  The hooks in turn call shorter-named lifecycle methods on your prototype.
 
-- `created` instead of `createdCallback`
-- `attached` instead of `attachedCallback`
-- `detached` instead of `detachedCallback`
-- `attributeChanged` instead of `attributeChangedCallback`
-
-You can always fallback to using the low-level methods if you wish (in other words, you could simply implement `createdCallback` in your prototype).
+- `created` - Called from `createdCallback` immediately after the element is created, before its template has been stamped.  Note that `properties` with side-effects (bindings, observers, computed property dependencies) must not be accessed during `created`.  In general, most lifecycle work should be performed in one of the other callbacks below.
+- `ready` (not available in `polymer-micro.html`) - Called 'bottom-up' after the element's template has been stamped and all elements inside the element's _local DOM_ have been configured (with values bound from parents, deserialized attributes, or else default values) and had their `ready` method called. Implement `ready` when it's necessary to manipulate an element's local DOM when the element is constructed.  Note that there is no guarantee of `ready` ordering between _light DOM_ parent/children, only between a host and its _local DOM_ children.
+- `attached` - Called from `attachedCallback` when the element (or one of its ancestors) has been attached to the main document.
+- `detached` - Called from `detachedCallback` when the element (or any of its ancestors) have been removed from the main document and are no longer attached.
+- `attributeChanged` - Called from `attributeChangedCallback` when an attribute changes.
 
 Example:
 
@@ -246,9 +245,6 @@ MyElement = Polymer({
 ```
 
 `Polymer.Base` also implements `registerCallback`, which will be called by `Polymer()` to allow `Polymer.Base` to supply a layering system for Polymer abstractions.
-
-See the [section on configuring elements](#configuring-elements) for a more in-depth description of the practical uses of each callback.
-
 
 <a name="property-config"></a>
 ## Configuring properties
