@@ -305,7 +305,7 @@ Then the `observe` property should be configured as follows:
     render: function() {
       // Queue this repeater, then flush all in order
       this._fullRefresh = true;
-      this.debounce('render', this._render);
+      this._debounceTemplate(this._render);
       this._flushTemplates();
     },
 
@@ -341,9 +341,9 @@ Then the `observe` property should be configured as follows:
         if (!row) {
           this.rows.push(row = this._insertRow(i, null, item));
         }
-        row[this.as] = item;
-        row.__key__ = key;
-        row[this.indexAs] = i;
+        row._setPropertyQuiet(this.as, item);
+        row._setPropertyQuiet('__key__', key);
+        row._setPropertyQuiet(this.indexAs, i);
       }
       // Remove extra
       for (; i<this.rows.length; i++) {
@@ -534,6 +534,25 @@ Then the `observe` property should be configured as follows:
       }
     },
 
+    // Called as a side effect of a template item change, responsible
+    // for notifying items.<key-for-row> change up to host
+    _forwardInstanceProp: function(row, prop, value) {
+      if (prop == this.as) {
+        var idx;
+        if (this._sortFn || this._filterFn) {
+          // Known slow lookup: when sorted/filtered, there is no way to
+          // efficiently memoize the array index and keep it in sync with array
+          // mutations, so we need to look the item up in the array
+          // This can happen e.g. when array of strings is repeated into inputs
+          idx = this.items.indexOf(this.collection.getItem(row.__key__));
+        } else {
+          // When there is no sort/filter, the view index is the array index
+          idx = row[this.indexAs];
+        }
+        this.set('items.' + idx, value);
+      }
+    },
+
     // Implements extension point from Templatizer
     // Called as a side effect of a template instance path change, responsible
     // for notifying items.<key-for-row>.<path> change up to host
@@ -541,7 +560,6 @@ Then the `observe` property should be configured as follows:
       if (path.indexOf(this.as + '.') === 0) {
         this.notifyPath('items.' + row.__key__ + '.' +
           path.slice(this.as.length + 1), value);
-        return true;
       }
     },
 
@@ -551,7 +569,7 @@ Then the `observe` property should be configured as follows:
     _forwardParentProp: function(prop, value) {
       if (this.rows) {
         this.rows.forEach(function(row) {
-          row[prop] = value;
+          row._setPropertyQuiet(prop, value);
         }, this);
       }
     },
@@ -580,7 +598,7 @@ Then the `observe` property should be configured as follows:
             path = this.as + '.' + path.substring(dot+1);
             row.notifyPath(path, value, true);
           } else {
-            row[this.as] = value;
+            row._setPropertyQuiet(this.as, value);
           }
         }
       }
