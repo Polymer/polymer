@@ -9,60 +9,62 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <script>
 
-Polymer.Async = (function() {
-  
-  var currVal = 0;
-  var lastVal = 0;
-  var callbacks = [];
-  var twiddle = document.createTextNode('');
+Polymer.Async = {
 
-  function runAsync(callback, waitTime) {
+  _currVal: 0,
+  _lastVal: 0,
+  _callbacks: [],
+  _twiddleContent: 0,
+  _twiddle: document.createTextNode(''),
+
+  run: function (callback, waitTime) {
     if (waitTime > 0) {
       return ~setTimeout(callback, waitTime);
     } else {
-      twiddle.textContent = currVal++;
-      callbacks.push(callback);
-      return currVal - 1;
+      this._twiddle.textContent = this._twiddleContent++;
+      this._callbacks.push(callback);
+      return this._currVal++;
     }
-  }
+  },
 
-  function cancelAsync(handle) {
+  cancel: function(handle) {
     if (handle < 0) {
       clearTimeout(~handle);
     } else {
-      var idx = handle - lastVal;
+      var idx = handle - this._lastVal;
       if (idx >= 0) {
-        if (!callbacks[idx]) {
+        if (!this._callbacks[idx]) {
           throw 'invalid async handle: ' + handle;
         }
-        callbacks[idx] = null;
+        this._callbacks[idx] = null;
       }
     }
-  }
+  },
 
-  function atEndOfMicrotask() {
-    var len = callbacks.length;
+  _atEndOfMicrotask: function() {
+    var len = this._callbacks.length;
     for (var i=0; i<len; i++) {
-      var cb = callbacks[i];
+      var cb = this._callbacks[i];
       if (cb) {
-        cb();
+        try {
+          cb();
+        } catch(e) {
+          // Clear queue up to this point & start over after throwing
+          i++;
+          this._callbacks.splice(0, i);
+          this._lastVal += i;
+          this._twiddle.textContent = this._twiddleContent++;
+          throw e;
+        }
       }
     }
-    callbacks.splice(0, len);
-    lastVal += len;
+    this._callbacks.splice(0, len);
+    this._lastVal += len;
   }
+};
 
-  new (window.MutationObserver || JsMutationObserver)(atEndOfMicrotask)
-    .observe(twiddle, {characterData: true})
-    ;
-  
-  // exports 
-
-  return {
-    run: runAsync,
-    cancel: cancelAsync
-  };
-  
-})();
+new (window.MutationObserver || JsMutationObserver)
+  (Polymer.Async._atEndOfMicrotask.bind(Polymer.Async))
+  .observe(Polymer.Async._twiddle, {characterData: true});
 
 </script>
