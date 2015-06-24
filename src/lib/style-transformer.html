@@ -36,7 +36,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
      * ::shadow, /deep/: processed simimlar to ::content
 
-     * :host-context(...): NOT SUPPORTED
+     * :host-context(...): scopeName..., ... scopeName
 
     */
     var api = {
@@ -156,13 +156,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _transformComplexSelector: function(selector, scope, hostScope) {
         var stop = false;
+        var hostContext = false;
         var self = this;
         selector = selector.replace(SIMPLE_SELECTOR_SEP, function(m, c, s) {
           if (!stop) {
             var o = self._transformCompoundSelector(s, c, scope, hostScope);
-            if (o.stop) {
-              stop = true;
-            }
+            stop = stop || o.stop;
+            hostContext = hostContext || o.hostContext;
             c = o.combinator;
             s = o.value;  
           } else {
@@ -170,14 +170,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           return c + s;
         });
+        if (hostContext) {
+          selector = selector.replace(CONTEXT_MARKER_MATCH, 
+            function(m, pre, paren, post) {
+              return pre + paren + ' ' + hostScope + post + 
+                COMPLEX_SELECTOR_SEP + ' ' + pre + hostScope + paren + post;
+             });
+        }
         return selector;
       },
 
       _transformCompoundSelector: function(selector, combinator, scope, hostScope) {
         // replace :host with host scoping class
         var jumpIndex = selector.search(SCOPE_JUMP);
-        if (selector.indexOf(HOST) >=0) {
-          // :host(...)
+        var hostContext = false;
+        if (selector.indexOf(HOST_CONTEXT) >=0) {
+          // :host-context(...) -> ##...##
+          selector = selector.replace(HOST_CONTEXT_PAREN, function(m, host, paren) {
+            hostContext = true;
+            return CONTEXT_MARKER + paren + CONTEXT_MARKER;
+          });
+        } else if (selector.indexOf(HOST) >=0) {
+          // :host(...) -> scopeName...
           selector = selector.replace(HOST_PAREN, function(m, host, paren) {
             return hostScope + paren;
           });
@@ -199,7 +213,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           selector = selector.replace(SCOPE_JUMP, ' ');
           stop = true;
         }
-        return {value: selector, combinator: combinator, stop: stop};
+        return {value: selector, combinator: combinator, stop: stop, 
+          hostContext: hostContext};
       },
 
       _transformSimpleSelector: function(selector, scope) {
@@ -243,6 +258,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // :host(:not([selected]), more general support requires
     // parsing which seems like overkill
     var HOST_PAREN = /(\:host)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
+    var HOST_CONTEXT = ':host-context';
+    var HOST_CONTEXT_PAREN = /(\:host-context)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
+    var CONTEXT_MARKER = '##';
+    var CONTEXT_MARKER_MATCH = /(.*)##(.*)##(.*)/;
     var CONTENT = '::content';
     var SCOPE_JUMP = /\:\:content|\:\:shadow|\/deep\//;
     var CSS_CLASS_PREFIX = '.';
