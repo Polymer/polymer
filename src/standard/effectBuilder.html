@@ -253,24 +253,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (info.kind == 'attribute') {
         this.serializeValueToAttribute(value, property, node);
       } else {
-        // TODO(sorvell): consider pre-processing the following two string
-        // comparisons in the hot path so this can be a boolean check
-        if (property === 'className') {
-          value = this._scopeElementClass(node, value);
-        }
-        // Some browsers serialize `undefined` to `"undefined"`
-        if (property === 'textContent' ||
-            (node.localName == 'input' && property == 'value')) {
-          value = value == undefined ? '' : value;
-        }
         // coerce undefined back to default
-        if (value === undefined && node._defaultValueForProp) {
-          value = node._defaultValueForProp(property);
+        // TODO(kschaaf): coersion could be done in one of three places:
+        // 1. property setter (any propety set to undefined bounces to default)
+        // 2. all bindings (when binding, coerce undefined to the node's default)
+        // 3. only path bindings (where undefined most likely & problematic)
+        // we choose (3) because it is the most limited change
+        if (value === undefined && (info.model != property) &&
+          node.resetProperty) {
+          node.resetProperty(property);
+        } else {
+          // TODO(sorvell): consider pre-processing the following two string
+          // comparisons in the hot path so this can be a boolean check
+          if (property === 'className') {
+            value = this._scopeElementClass(node, value);
+          }
+          // Some browsers serialize `undefined` to `"undefined"`
+          if (property === 'textContent' ||
+              (node.localName == 'input' && property == 'value')) {
+            value = value == undefined ? '' : value;
+          }
+          // TODO(kschaaf): Ideally we'd use `fromAbove: true`, but this
+          // breaks read-only properties
+          // this._setPropertyQuiet(property, value, node);
+          node[property] = value;
         }
-        // TODO(kschaaf): Ideally we'd use `fromAbove: true`, but this
-        // breaks read-only properties
-        // this._setProperty(property, value, true, node);
-        return node[property] = value;
       }
     },
 
