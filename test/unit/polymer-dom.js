@@ -191,7 +191,7 @@ suite('Polymer.dom', function() {
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), []);
   });
 
-  test('Polymer.dom.classListAdd/Remove/Toggle (reproject)', function() {
+  test('Polymer.dom.classListAdd/Remove/Toggle/Contains (reproject)', function() {
     var select = document.querySelector('x-select-class1');
     var child = Polymer.dom(select).firstElementChild;
     var c1 = Polymer.dom(select.root).querySelector('content');
@@ -203,31 +203,41 @@ suite('Polymer.dom', function() {
     var ip$ = [c1, c2, c3];
     assert.equal(Polymer.dom(child).getDestinationInsertionPoints().length, 0);
     Polymer.dom(child).classList.add('s1');
+    assert.isTrue(Polymer.dom(child).classList.contains('s1'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1]);
     Polymer.dom(child).classList.add('s2');
+    assert.isTrue(Polymer.dom(child).classList.contains('s2'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2]);
     Polymer.dom(child).classList.add('s3');
+    assert.isTrue(Polymer.dom(child).classList.contains('s3'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2, c3]);
     Polymer.dom(child).classList.toggle('s1');
+    assert.isFalse(Polymer.dom(child).classList.contains('s1'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), []);
     Polymer.dom(child).classList.toggle('s1');
+    assert.isTrue(Polymer.dom(child).classList.contains('s1'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2, c3]);
     Polymer.dom(child).classList.remove('s2');
+    assert.isFalse(Polymer.dom(child).classList.contains('s2'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1]);
     Polymer.dom(child).classList.toggle('s2');
+    assert.isTrue(Polymer.dom(child).classList.contains('s2'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2, c3]);
     Polymer.dom(child).classList.remove('s3');
+    assert.isFalse(Polymer.dom(child).classList.contains('s3'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2]);
     Polymer.dom(child).classList.remove('s2');
     Polymer.dom(child).classList.remove('s1');
+    assert.isFalse(Polymer.dom(child).classList.contains('s2'));
+    assert.isFalse(Polymer.dom(child).classList.contains('s1'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), []);
   });
