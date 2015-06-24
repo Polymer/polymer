@@ -1539,6 +1539,8 @@ Polymer supports virtual properties whose values are calculated from other prope
 
 *Note, computing functions will only be called once all dependent properties are defined (`!=undefined`).  If one or more of the properties are optional, they would need default `value`'s defined in `properties` to ensure the property is computed.*
 
+Computed properties are implicitly `readOnly`, and cannot be manually set.
+
 ```html
 <dom-module id="x-custom">
   <template>
@@ -1865,7 +1867,7 @@ Example:
     <my-toolbar>My awesome app</my-toolbar>
     <button on-tap="changeTheme">Change theme</button>
   </template>
-  
+
   <script>
     Polymer({
       is: 'x-custom',
