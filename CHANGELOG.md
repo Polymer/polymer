@@ -30,8 +30,6 @@
 
 - Annotated attribute binding issues [\#1874](https://github.com/Polymer/polymer/issues/1874)
 
-- styling: using var() splits a rule in two with different specificities, causes problems with shorthands [\#1761](https://github.com/Polymer/polymer/issues/1761)
-
 - Parsing compressed CSS does not work [\#1927](https://github.com/Polymer/polymer/issues/1927)
 
 ## [v1.0.4](https://github.com/Polymer/polymer/tree/v1.0.4) (2015-06-17)
