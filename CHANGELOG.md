@@ -4,29 +4,27 @@
 
 **Fixed issues:**
 
-- bindings to concrete types not propagating correctly from template to collection [\#1839](https://github.com/Polymer/polymer/issues/1839)
+- Bindings to concrete types not propagating correctly from template to collection [\#1839](https://github.com/Polymer/polymer/issues/1839)
 
-- setting individual array elements not working [\#1854](https://github.com/Polymer/polymer/issues/1854)
+- Setting individual array elements not working [\#1854](https://github.com/Polymer/polymer/issues/1854)
 
-- CustomStyle change has no effect [\#1851](https://github.com/Polymer/polymer/issues/1851)
+- `CustomStyle` change has no effect [\#1851](https://github.com/Polymer/polymer/issues/1851)
 
-- With Shady DOM, <content> doesn't get passed to another element inside dom-if [\#1902](https://github.com/Polymer/polymer/issues/1902)
+- With Shady DOM, `<content>` doesn't get passed to another element inside `dom-if` [\#1902](https://github.com/Polymer/polymer/issues/1902)
 
 - Provide a convenience method for setting `customStyle` and calling `updateStyles` [\#1915](https://github.com/Polymer/polymer/issues/1915)
 
-- With Shady DOM, <content> doesn't get passed to another element inside dom-if [\#1902](https://github.com/Polymer/polymer/issues/1902)
+- If an `async` callback throws an error, it's never removed from the callback list [\#1759](https://github.com/Polymer/polymer/issues/1759)
 
-- If an async callback throws an error, it's never removed from the callback list [\#1759](https://github.com/Polymer/polymer/issues/1759)
+- `dom-if`: undefined is considered falsy only once [\#1742](https://github.com/Polymer/polymer/issues/1742)
 
-- [1.0] dom-if : undefined is considered falsy only once [\#1742](https://github.com/Polymer/polymer/issues/1742)
+- Setting `readOnly` AND `computed` on properties [\#1925](https://github.com/Polymer/polymer/issues/1925)
 
-- Setting readOnly AND computed on properties [\#1925](https://github.com/Polymer/polymer/issues/1925)
+- `Uncaught TypeError: this.mixin is not a function` [\#1911](https://github.com/Polymer/polymer/issues/1911)
 
-- polymer 1.0 Uncaught TypeError: this.mixin is not a function [\#1911](https://github.com/Polymer/polymer/issues/1911)
+- `Polymer.Base.async` "infinite loop" condition [\#1933](https://github.com/Polymer/polymer/issues/1933)
 
-- Polymer.Base.async "infinite loop" condition [\#1933](https://github.com/Polymer/polymer/issues/1933)
-
-- custom property resolver tripping over some selectors? [\#1938](https://github.com/Polymer/polymer/issues/1938)
+- Custom property resolver tripping over some selectors? [\#1938](https://github.com/Polymer/polymer/issues/1938)
 
 - Annotated attribute binding issues [\#1874](https://github.com/Polymer/polymer/issues/1874)
 
