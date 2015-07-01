@@ -10,7 +10,7 @@ Polymer lets you build encapsulated, re-usable elements that work just like HTML
 <link rel="import" href="google-map.html">
 
 <!-- Use element -->
-<google-map lat="37.790" long="-122.390"></google-map>
+<google-map latitude="37.790" longitude="-122.390"></google-map>
 ```
 
 ## Getting Started
