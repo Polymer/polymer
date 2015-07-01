@@ -10,6 +10,53 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script>
 
+  /**
+   * The `Polymer.Templatizer` behavior adds methods to generate instances of
+   * templates that are each managed by an anonymous `Polymer.Base` instance.
+   *
+   * Example:
+   *
+   *     // Get a template from somewhere, e.g. light DOM
+   *     var template = Polymer.dom(this).querySelector('template');
+   *     // Prepare the template
+   *     this.templatize(template);
+   *     // Instance the template with an initial data model
+   *     var instance = this.stamp({myProp: 'initial'});
+   *     // Insert the instance's DOM somewhere, e.g. light DOM
+   *     Polymer.dom(this).appendChild(instance.root);
+   *     // Changing a property on the instance will propagate to bindings
+   *     // in the template
+   *     instance.myProp = 'new value';
+   *
+   * Users of `Templatizer` may need to implement the following abstract
+   * API's to determine how properties and paths from the host should be
+   * forwarded into to instances:
+   *
+   *     _forwardParentProp: function(prop, value)
+   *     _forwardParentPath: function(path, value)
+   *
+   * Likewise, users may implement these additional abstract API's to determine
+   * how instance-specific properties that change on the instance should be
+   * forwarded out to the host, if necessary.
+   *
+   *     _forwardInstanceProp: function(inst, prop, value)
+   *     _forwardInstancePath: function(inst, path, value)
+   *
+   * In order to determine which properties are instance-specific and require
+   * custom forwarding via `_forwardInstanceProp`/`_forwardInstancePath`,
+   * define an `_instanceProps` map containing keys for each instance prop,
+   * for example:
+   *
+   *     _instanceProps: {
+   *       item: true,
+   *       index: true
+   *     }
+   *
+   * Any properties used in the template that are not defined in _instanceProp
+   * will be forwarded out to the host automatically.
+   *
+   * @polymerBehavior
+   */
   Polymer.Templatizer = {
 
     properties: {
@@ -33,6 +80,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._templatizerId = this._templatizerStatic.count++;
     },
 
+    /**
+     * Prepares a template containing Polymer bindings by generating
+     * a constructor for an anonymous `Polymer.Base` subclass to serve as the
+     * binding context for the provided template.
+     *
+     * Use `this.stamp` to create instances of the template context containing
+     * a `root` fragment that may be stamped into the DOM.
+     *
+     * @method templatize
+     * @param {HTMLTemplateElement} template The template to process.
+     */
     templatize: function(template) {
       // TODO(sjmiles): supply _alternate_ content reference missing from root
       // templates (not nested). `_content` exists to provide content sharing
@@ -287,6 +345,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    /**
+     * Creates an instance of the template previously processed via
+     * a call to `templatize`.
+     *
+     * The object returned is an anonymous subclass of Polymer.Base that
+     * has accessors generated to manage data in the template.  The DOM for
+     * the instance is contained in a DocumentFragment called `root` on
+     * the instance returned and must be manually inserted into the DOM
+     * by the user.
+     *
+     * Note that a call to `templatize` must be called once before using
+     * `stamp`.
+     *
+     * @method stamp
+     * @param {Object} model An object containing key/values to serve as the
+     *   initial data configuration for the instance.  Note that properties
+     *   from the host used in the template are automatically copied into
+     *   the model.
+     * @param {Polymer.Base} The Polymer.Base instance to manage the template
+     *   instance.
+     */
     stamp: function(model) {
       model = model || {};
       if (this._parentProps) {
