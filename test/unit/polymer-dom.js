@@ -590,15 +590,28 @@ suite('Polymer.dom accessors', function() {
 
   test('Polymer.dom innerHTML', function() {
     var testElement = document.createElement('x-project');
-    Polymer.dom(testElement).innerHTML = '<div>Hello World</div>';
+    Polymer.dom(testElement).innerHTML = '<div>Hello World</div><div>2</div><div>3</div>';
     var added = Polymer.dom(testElement).firstChild;
-    assert(added.textContent , 'Hello World', 'innerHTML setter incorrect');
-    assert(Polymer.dom(testElement).innerHTML , '<div>Hello World</div>', 'innerHTML getter incorrect');
+    assert.equal(added.textContent , 'Hello World', 'innerHTML setter incorrect');
+    assert.equal(Polymer.dom(testElement).innerHTML , '<div>Hello World</div><div>2</div><div>3</div>', 'innerHTML getter incorrect');
     if (testElement.shadyRoot) {
       Polymer.dom.flush();
       assert.equal(testElement._composedChildren[1], added, 'innerHTML setter composed incorrectly');
+      assert.equal(testElement._composedChildren[2].textContent, '2', 'innerHTML setter composed incorrectly');
+      assert.equal(testElement._composedChildren[3].textContent, '3', 'innerHTML setter composed incorrectly');
     }
   });
+
+  test('Polymer.dom innerHTML (non-composed)', function() {
+    var testElement = document.createElement('div');
+    document.body.appendChild(testElement);
+    Polymer.dom(testElement).innerHTML = '<div>Hello World</div><div>2</div><div>3</div>';
+    var added = Polymer.dom(testElement).firstChild;
+    assert.equal(added.textContent , 'Hello World', 'innerHTML setter incorrect');
+    assert.equal(Polymer.dom(testElement).innerHTML , '<div>Hello World</div><div>2</div><div>3</div>', 'innerHTML getter incorrect');
+    assert.equal(testElement.children.length, 3);
+  });
+
 });
 
 suite('Polymer.dom non-distributed elements', function() {
