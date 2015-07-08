@@ -506,6 +506,50 @@ suite('Polymer.dom', function() {
     assert.isTrue(Array.isArray(Polymer.dom(document.body).childNodes));
   });
 
+  test('Polymer.dom cloneNode shallow', function() {
+    var a = document.createElement('div');
+    a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
+    var b = Polymer.dom(Polymer.dom(a).firstElementChild).cloneNode();
+    Polymer.dom(document.body).appendChild(b);
+    assert.equal(Polymer.dom(b).childNodes.length, 0, 'shallow copy has incorrect children');
+    if (b.shadyRoot) {
+      assert.equal(b.children.length, 2, 'shallow copy has incorrect composed children');
+    }
+  });
+
+  test('Polymer.dom cloneNode deep', function() {
+    var a = document.createElement('div');
+    a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
+    var b = Polymer.dom(a).cloneNode(true);
+    Polymer.dom(document.body).appendChild(b);
+    assert.equal(Polymer.dom(b.firstElementChild).childNodes.length, 2, 'deep copy has incorrect children');
+    if (b.shadyRoot) {
+      assert.equal(b.children.length, 4, 'deep copy has incorrect composed children');
+    }
+  });
+
+  test('Polymer.dom importNode shallow', function() {
+    var a = document.createElement('div');
+    a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
+    var b = Polymer.dom(document).importNode(Polymer.dom(a).firstElementChild);
+    Polymer.dom(document.body).appendChild(b);
+    assert.equal(Polymer.dom(b).childNodes.length, 0, 'shallow import has incorrect children');
+    if (b.shadyRoot) {
+      assert.equal(b.children.length, 2, 'shallow import has incorrect composed children');
+    }
+  });
+
+  test('Polymer.dom importNode deep', function() {
+    var a = document.createElement('div');
+    a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
+    var b = Polymer.dom(document).importNode(a, true);
+    Polymer.dom(document.body).appendChild(b);
+    assert.equal(Polymer.dom(b.firstElementChild).childNodes.length, 2, 'deep copy has incorrect children');
+    if (b.shadyRoot) {
+      assert.equal(b.children.length, 4, 'deep copy has incorrect composed children');
+    }
+  });
+
 });
 
 suite('Polymer.dom accessors', function() {

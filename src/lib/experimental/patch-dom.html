@@ -24,6 +24,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var baseFinishDistribute = Polymer.Base._finishDistribute;
 
+  // NOTE: any manipulation of a node must occur in a patched parent
+  // so that the parent can cleanup the node's composed and logical 
+  // information. We patch an element's parent's to make this rule more 
+  // likely to be satisfied.
+  // Also note that any use of qS/qSA must be done in a patched node.
   Polymer.Base._finishDistribute = function() {
     baseFinishDistribute.call(this);
     if (!this.__patched) {
@@ -32,6 +37,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Array.prototype.forEach.call(this.childNodes, function(c) {
         Polymer.dom(c);
       });
+      // TODO(sorvell): ensure top element's parents are wrapped (helped A2
+      // since it uses qSA on the fragment containing stamped custom elements)
+      // note that getOwnerRoot will patch all parents but there should be an 
+      // explicit easier way to do this. 
+      if (!this.dataHost) {
+        Polymer.dom(this).getOwnerRoot();
+      }
     }
   };
 
@@ -41,16 +53,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var nativeShadow = Polymer.Settings.useShadow;
 
-  var excluded = [document, document.head, document.body];
+  var excluded = ['head'];
 
   Polymer.telemetry.patched = 0;
   
   // experimental: support patching selected native api.
-  Polymer.DomApi.ctor.prototype.patch = function() {
+  Polymer.DomApi.ctor.prototype.patch = function(force) {
     if (nativeShadow || this.node.__patched || 
-      (excluded.indexOf(this.node) >= 0)) {
+      (this.node.localName && excluded.indexOf(this.node.localName) >= 0)) {
       return;
     }
+
     getComposedChildren(this.node);
     saveLightChildrenIfNeeded(this.node);
     if (!this.node._lightParent) {
@@ -59,12 +72,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (!this.node._composedParent) {
       this.node._composedParent = this.node.parentNode;
     }
-    // TODO(sorvell): correctly patch text nodes.
-    if (this.node.nodeType === Node.TEXT_NODE) {
-      return;
+    // TODO(sorvell): correctly patch non-element nodes.
+    if (this.node.nodeType !== Node.TEXT_NODE) {
+      this.node.__patched = true;
+      patchImpl.patch(this.node);
     }
-    patchImpl.patch(this.node);
-    this.node.__patched = true;
   };
 
   Polymer.DomApi.ctor.prototype.unpatch = function() {
@@ -88,7 +100,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Node.prototype, 'textContent')),
     
     methods: ['appendChild', 'insertBefore', 'removeChild', 'replaceChild',
-      'querySelector', 'querySelectorAll', 'getDestinationInsertionPoints'],
+      'querySelector', 'querySelectorAll', 'getDestinationInsertionPoints', 
+      'cloneNode', 'importNode'],
     // <content>: getDistributedNodes
 
     accessors: ['parentNode', 'childNodes', 
@@ -114,7 +127,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     patchPrototype: function(node) {
       var name = node.is || (node.getAttribute && node.getAttribute('is')) ||
-        node.localName;
+        node.localName || node.nodeType;
       var proto = this.protoCache[name];
       if (!proto) {
         proto = this.protoCache[name] = this.createPatchedPrototype(node);
@@ -144,6 +157,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     patchMethod: function(obj, name) {
       var orig = obj[name];
+      obj['_$' + name + '$_'] = orig;
       obj[name] = function() {
         log && console.log(this, name, arguments);
         return factory(this)[name].apply(this.__domApi, arguments);
@@ -201,6 +215,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     
   };
+
+  Polymer.DomApi.getLightChildren = function(node) {
+    var children = node._lightChildren;
+    return children ? children : Polymer.DomApi.getComposedChildren(node);
+  }
+
+  Polymer.Base.instanceTemplate = function(template) {
+    var m = document._$importNode$_ || document.importNode;
+    var dom =
+      m.call(document, template._content || template.content, true);
+    return dom;
+  }
 
   Polymer.DomApi.patchImpl = patchImpl;
 
