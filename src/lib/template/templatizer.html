@@ -65,7 +65,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.Templatizer = {
 
     properties: {
-      _hideTemplateChildren: {
+      __hideTemplateChildren__: {
         observer: '_showHideChildren'
       }
     },
@@ -131,6 +131,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       archetype._notifyPath = this._notifyPathImpl;
       archetype._scopeElementClass = this._scopeElementClassImpl;
       archetype.listen = this._listenImpl;
+      archetype._showHideChildren = this._showHideChildrenImpl;
       // boilerplate code
       var _constructor = this._constructorImpl;
       var ctor = function TemplateInstance(model, host) {
@@ -149,8 +150,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return (this.dataHost && this.dataHost._rootDataHost) || this.dataHost;
     },
 
-    // For overriding
-    _showHideChildren: function(hidden) {
+    _showHideChildrenImpl: function(hide) {
+      var c = this._children;
+      for (var i=0; i<c.length; i++) {
+        var n = c[i];
+        if (n.style) {
+          n.style.display = hide ? 'none' : '';
+          n.__hideTemplateChildren__ = hide;
+        }
+      }
     },
 
     _debounceTemplate: function(fn) {
@@ -282,8 +290,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     // Extension points for Templatizer sub-classes
+    _showHideChildren: function(hidden) { },
     _forwardInstancePath: function(inst, path, value) { },
     _forwardInstanceProp: function(inst, prop, value) { },
+    // Defined-check rather than thunk used to avoid unnecessary work for these:
+    // _forwardParentPath: function(path, value) { },
+    // _forwardParentProp: function(prop, value) { },
 
     _notifyPathImpl: function(path, value) {
       var dataHost = this.dataHost;
@@ -327,6 +339,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Since archetype overrides Base/HTMLElement, Safari complains
       // when accessing `children`
       this._children = children;
+      // Ensure newly stamped nodes reflect host's hidden state
+      if (host.__hideTemplateChildren__) {
+        this._showHideChildren(true);
+      }
       // ready self and children
       this._tryReady();
     },
