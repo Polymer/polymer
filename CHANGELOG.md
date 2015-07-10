@@ -1,5 +1,43 @@
 # Change Log
 
+## [v1.0.6](https://github.com/Polymer/polymer/tree/v1.0.6) (2015-07-09)
+
+**Fixed issues:**
+
+- Basic support for host-context [\#1895](https://github.com/Polymer/polymer/issues/1895)
+
+- custom property resolver tripping over some selectors? [\#1938](https://github.com/Polymer/polymer/issues/1938)
+
+- Parsing compressed CSS does not work [\#1927](https://github.com/Polymer/polymer/issues/1927)
+
+- Support Polymer.dom().classList.contains [\#1907](https://github.com/Polymer/polymer/issues/1907)
+
+- Add support for :host-context [\#1900](https://github.com/Polymer/polymer/issues/1900)
+
+- Grey overlay in mobile Safari [\#1970](https://github.com/Polymer/polymer/issues/1970)
+
+- `node.unlisten` removes native event listeners too often [\#1988](https://github.com/Polymer/polymer/issues/1988)
+
+- `notifyPath` doesn't return as its documentation says [\#1966](https://github.com/Polymer/polymer/issues/1966)
+
+- "TypeError: Cannot set property 'display' of undefined" when HTML comment is present inside a dom-if template that evaluates to truthy [\#1786](https://github.com/Polymer/polymer/issues/1786)
+
+- `dom-repeat` in a falsy `dom-if` should hide newly stamped children [\#1751](https://github.com/Polymer/polymer/issues/1751)
+
+- Typo in Polymer.mixin API documentation [\#2001](https://github.com/Polymer/polymer/issues/2001)
+
+- Low-level changes for `iron-list` integration (`fire` & `modelForElemennt`) [\#2003](https://github.com/Polymer/polymer/issues/2003)
+
+- Normalized event difference with ShadowDOM and Shady [\#1921](https://github.com/Polymer/polymer/issues/1921)
+
+- DOM API innerHTML adds only first element [\#1972](https://github.com/Polymer/polymer/issues/1972)
+
+- with Polymer\#1.05-update, style-sheets and custom-style-elements are not parsed in my project anymore [\#1974](https://github.com/Polymer/polymer/issues/1974)
+
+- Expected behavior for importNode,cloneNode [\#1888](https://github.com/Polymer/polymer/issues/1888)
+
+- \#1.0.5 computed property function name limitations? [\#2016](https://github.com/Polymer/polymer/issues/2016)
+
 ## [v1.0.5](https://github.com/Polymer/polymer/tree/v1.0.5) (2015-06-25)
 
 **Fixed issues:**
