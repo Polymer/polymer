@@ -24,8 +24,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var nativeCloneNode = Element.prototype.cloneNode;
     var nativeImportNode = Document.prototype.importNode;
 
-    var dirtyRoots = [];
-
     var DomApi = function(node) {
       this.node = node;
       if (this.patch) {
@@ -36,11 +34,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     DomApi.prototype = {
 
       flush: function() {
-        for (var i=0, host; i<dirtyRoots.length; i++) {
-          host = dirtyRoots[i];
-          host.flushDebouncer('_distribute');
-        }
-        dirtyRoots = [];
+        flush();
       },
 
       _lazyDistribute: function(host) {
@@ -48,8 +42,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // we don't distribute before initial distribution
         if (host.shadyRoot && host.shadyRoot._distributionClean) {
           host.shadyRoot._distributionClean = false;
-          host.debounce('_distribute', host._distributeContent);
-          dirtyRoots.push(host);
+          addDebouncer(host.debounce('_distribute', host._distributeContent));
         }
       },
 
@@ -773,8 +766,54 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     };
 
-    // make flush available directly.
-    Polymer.dom.flush = DomApi.prototype.flush;
+    // flush and debounce exposed as statics on Polymer.dom
+    var flush = Polymer.dom.flush = function() {
+      // first make any pending CE mutations that might trigger debouncer
+      // additions go...
+      flush.flushPolyfills();
+      // flush debouncers
+      for (var i=0; i < flush._debouncers.length; i++) {
+        flush._debouncers[i].complete();
+      }
+      // clear the list of debouncers
+      if (flush._finishDebouncer) {
+        flush._finishDebouncer.complete();
+      }
+      // again make any pending CE mutations that might trigger debouncer
+      // additions go...
+      flush.flushPolyfills();
+      // flush again if there are now any debouncers to process
+      if (flush._debouncers.length && flush.guard < flush.MAX) {
+        flush.guard++;
+        flush();
+      } else {
+        flush.guard = 0;
+      }
+    };
+
+    flush.guard = 0;
+    flush.MAX = 10;
+    flush._needsTakeRecords = !Polymer.Settings.useNativeCustomElements;
+    // TODO(sorvell): There is currently not a good way 
+    // to process all custom elements mutations under SD polyfill because
+    // these mutations may be inside shadowRoots. 
+    flush.flushPolyfills = function() {
+      if (this._needsTakeRecords) {
+        CustomElements.takeRecords();
+      }
+    }
+    flush._debouncers = [];
+    flush._finishDebouncer;
+    
+    var addDebouncer = Polymer.dom.addDebouncer = function(debouncer) {
+      flush._debouncers.push(debouncer);
+      // ensure the list of active debouncers is cleared when done.
+      flush._finishDebouncer = Polymer.Debounce(flush._finishDebouncer, 
+        function() {
+          flush._debouncers = [];
+        }
+      );
+    };
 
     function getLightChildren(node) {
       var children = node._lightChildren;
