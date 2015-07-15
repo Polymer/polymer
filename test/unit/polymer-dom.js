@@ -810,4 +810,14 @@ suite('Polymer.dom non-distributed elements', function() {
     Polymer.dom(c1).appendChild(test);
     assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect for child moved from a root to no root');
   });
+
+  test('getDistributedNodes on non-content element', function() {
+    assert.equal(Polymer.dom(document.createElement('div')).getDistributedNodes().length, 0);
+        assert.equal(Polymer.dom().getDistributedNodes().length, 0);
+  });
+
+  test('getDestinationInsertionPoints on non-distributable element', function() {
+    assert.equal(Polymer.dom(document.createElement('div')).getDestinationInsertionPoints().length, 0);
+    assert.equal(Polymer.dom(document).getDestinationInsertionPoints().length, 0);
+  });
 });
