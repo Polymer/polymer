@@ -550,6 +550,24 @@ suite('Polymer.dom', function() {
     }
   });
 
+  test('flush causes attached and re-flushes if necessary', function(done) {
+    var a = document.createElement('x-attach1');
+    Polymer.dom(document.body).appendChild(a);
+    Polymer.dom.flush();
+    function testHeight() {
+      assert.equal(a.offsetHeight, 540);
+      done();
+    }
+    // note: CustomElements.takeRecords doesn't process all mutations under
+    // SD polyfill and therefore we have no measurement guarantee in that case.
+    if (Polymer.Settings.useShadow && !Polymer.Settings.useNativeShadow) {
+      setTimeout(testHeight);
+    } else {
+      testHeight();
+    }
+    
+  });
+
 });
 
 suite('Polymer.dom accessors', function() {
