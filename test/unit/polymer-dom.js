@@ -531,7 +531,7 @@ suite('Polymer.dom', function() {
   test('Polymer.dom importNode shallow', function() {
     var a = document.createElement('div');
     a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
-    var b = Polymer.dom(document).importNode(Polymer.dom(a).firstElementChild);
+    var b = Polymer.dom(wrap(document)).importNode(Polymer.dom(a).firstElementChild);
     Polymer.dom(document.body).appendChild(b);
     assert.equal(Polymer.dom(b).childNodes.length, 0, 'shallow import has incorrect children');
     if (b.shadyRoot) {
@@ -542,7 +542,7 @@ suite('Polymer.dom', function() {
   test('Polymer.dom importNode deep', function() {
     var a = document.createElement('div');
     a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
-    var b = Polymer.dom(document).importNode(a, true);
+    var b = Polymer.dom(wrap(document)).importNode(a, true);
     Polymer.dom(document.body).appendChild(b);
     assert.equal(Polymer.dom(b.firstElementChild).childNodes.length, 2, 'deep copy has incorrect children');
     if (b.shadyRoot) {
