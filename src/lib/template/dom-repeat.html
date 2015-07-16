@@ -137,7 +137,7 @@ Then the `observe` property should be configured as follows:
 
       /**
        * The name of the variable to add to the binding scope with the index
-       * for the row.  If `sort` is provided, the index will reflect the
+       * for the inst.  If `sort` is provided, the index will reflect the
        * sorted order (rather than the original array order).
        */
       indexAs: {
@@ -199,20 +199,20 @@ Then the `observe` property should be configured as follows:
       '_itemsChanged(items.*)'
     ],
 
+    created: function() {
+      this._instances = [];
+    },
+
     detached: function() {
-      if (this.rows) {
-        for (var i=0; i<this.rows.length; i++) {
-          this._detachRow(i);
-        }
+      for (var i=0; i<this._instances.length; i++) {
+        this._detachRow(i);
       }
     },
 
     attached: function() {
-      if (this.rows) {
-        var parentNode = Polymer.dom(this).parentNode;
-        for (var i=0; i<this.rows.length; i++) {
-          Polymer.dom(parentNode).insertBefore(this.rows[i].root, this);
-        }
+      var parentNode = Polymer.dom(this).parentNode;
+      for (var i=0; i<this._instances.length; i++) {
+        Polymer.dom(parentNode).insertBefore(this._instances[i].root, this);
       }
     },
 
@@ -236,7 +236,7 @@ Then the `observe` property should be configured as follows:
       var sort = this.sort;
       this._sortFn = sort && (typeof sort == 'function' ? sort :
         function() { return dataHost[sort].apply(dataHost, arguments); });
-      this._fullRefresh = true;
+      this._needFullRefresh = true;
       if (this.items) {
         this._debounceTemplate(this._render);
       }
@@ -247,7 +247,7 @@ Then the `observe` property should be configured as follows:
       var filter = this.filter;
       this._filterFn = filter && (typeof filter == 'function' ? filter :
         function() { return dataHost[filter].apply(dataHost, arguments); });
-      this._fullRefresh = true;
+      this._needFullRefresh = true;
       if (this.items) {
         this._debounceTemplate(this._render);
       }
@@ -269,7 +269,7 @@ Then the `observe` property should be configured as follows:
             ' found', this.items));
         }
         this._splices = [];
-        this._fullRefresh = true;
+        this._needFullRefresh = true;
         this._debounceTemplate(this._render);
       } else if (change.path == 'items.splices') {
         this._splices = this._splices.concat(change.value.keySplices);
@@ -290,7 +290,7 @@ Then the `observe` property should be configured as follows:
           if (path.indexOf(paths[i]) === 0) {
             // TODO(kschaaf): interim solution: ideally this is just an incremental
             // insertion sort of the changed item
-            this._fullRefresh = true;
+            this._needFullRefresh = true;
             if (this.delay) {
               this.debounce('render', this._render, this.delay);
             } else {
@@ -304,119 +304,141 @@ Then the `observe` property should be configured as follows:
 
     render: function() {
       // Queue this repeater, then flush all in order
-      this._fullRefresh = true;
+      this._needFullRefresh = true;
       this._debounceTemplate(this._render);
       this._flushTemplates();
     },
 
     _render: function() {
       var c = this.collection;
-      // Update insert/remove any changes and update sort/filter
-      if (!this._fullRefresh) {
+      // Choose rendering path: full vs. incremental using splices
+      if (this._needFullRefresh) {
+        this._applyFullRefresh();
+        this._needFullRefresh = false;
+      } else {
         if (this._sortFn) {
-          this._applySplicesViewSort(this._splices);
+          this._applySplicesUserSort(this._splices);
         } else {
           if (this._filterFn) {
             // TODK(kschaaf): Filtering using array sort takes slow path
-            this._fullRefresh = true;
+            this._applyFullRefresh();
           } else {
-            this._applySplicesArraySort(this._splices);
+            this._applySplicesArrayOrder(this._splices);
           }
         }
       }
-      if (this._fullRefresh) {
-        this._sortAndFilter();
-        this._fullRefresh = false;
-      }
       this._splices = [];
-      var rowForKey = this._rowForKey = {};
-      var keys = this._orderedKeys;
-      // Assign items and keys
-      this.rows = this.rows || [];
-      for (var i=0; i<keys.length; i++) {
-        var key = keys[i];
-        var item = c.getItem(key);
-        var row = this.rows[i];
-        rowForKey[key] = i;
-        if (!row) {
-          this.rows.push(row = this._insertRow(i, null, item));
-        }
-        row.__setProperty(this.as, item, true);
-        row.__setProperty('__key__', key, true);
-        row.__setProperty(this.indexAs, i, true);
+      // Update final _keyToInstIdx and instance indices
+      var keyToIdx = this._keyToInstIdx = {};
+      for (var i=0; i<this._instances.length; i++) {
+        var inst = this._instances[i];
+        keyToIdx[inst.__key__] = i;
+        inst.__setProperty(this.indexAs, i, true);
       }
-      // Remove extra
-      for (; i<this.rows.length; i++) {
-        this._detachRow(i);
-      }
-      this.rows.splice(keys.length, this.rows.length-keys.length);
       this.fire('dom-change');
     },
 
-    _sortAndFilter: function() {
+    // Render method 1: full refesh
+    // ----
+    // Full list of keys is pulled from the collection, then sorted, filtered,
+    // and iterated to create (or reuse) existing instances
+    _applyFullRefresh: function() {
       var c = this.collection;
-      // For array-based sort, key order comes from array
-      if (!this._sortFn) {
-        this._orderedKeys = [];
+      // Start with unordered keys for user sort,
+      // or get them in array order for array order
+      var keys;
+      if (this._sortFn) {
+        keys = c ? c.getKeys() : [];
+      } else {
+        keys = [];
         var items = this.items;
         if (items) {
           for (var i=0; i<items.length; i++) {
-            this._orderedKeys.push(c.getKey(items[i]));
+            keys.push(c.getKey(items[i]));
           }
         }
-      } else {
-        this._orderedKeys = c ? c.getKeys() : [];
       }
       // Apply user filter to keys
       if (this._filterFn) {
-        this._orderedKeys = this._orderedKeys.filter(function(a) {
+        keys = keys.filter(function(a) {
           return this._filterFn(c.getItem(a));
         }, this);
       }
       // Apply user sort to keys
       if (this._sortFn) {
-        this._orderedKeys.sort(function(a, b) {
+        keys.sort(function(a, b) {
           return this._sortFn(c.getItem(a), c.getItem(b));
         }.bind(this));
       }
+      // Generate instances and assign items and keys
+      for (var i=0; i<keys.length; i++) {
+        var key = keys[i];
+        var inst = this._instances[i];
+        if (inst) {
+          inst.__setProperty('__key__', key, true);
+          inst.__setProperty(this.as, c.getItem(key), true);
+        } else {
+          this._instances.push(this._insertRow(i, key));
+        }
+      }
+      // Remove any extra instances from previous state
+      for (; i<this._instances.length; i++) {
+        this._detachRow(i);
+      }
+      this._instances.splice(keys.length, this._instances.length-keys.length);
     },
 
     _keySort: function(a, b) {
       return this.collection.getKey(a) - this.collection.getKey(b);
     },
 
-    _applySplicesViewSort: function(splices) {
+    // Render method 2: incremental update using splices with user sort applied
+    // ----
+    // Removed/added keys are deduped, all removed rows are detached and pooled
+    // first, and added rows are insertion-sorted into place using user sort
+    _applySplicesUserSort: function(splices) {
       var c = this.collection;
-      var keys = this._orderedKeys;
-      var rows = this.rows;
-      var removedRows = [];
-      var addedKeys = [];
+      var instances = this._instances;
+      var keyMap = {};
       var pool = [];
       var sortFn = this._sortFn || this._keySort.bind(this);
+      // Dedupe added and removed keys to a final added/removed map
       splices.forEach(function(s) {
-        // Collect all removed row idx's
         for (var i=0; i<s.removed.length; i++) {
-          var idx = this._rowForKey[s.removed[i]];
-          if (idx != null) {
-            removedRows.push(idx);
-          }
+          var key = s.removed[i];
+          keyMap[key] = keyMap[key] ? null : -1;
         }
-        // Collect all added keys
         for (var i=0; i<s.added.length; i++) {
-          addedKeys.push(s.added[i]);
+          var key = s.added[i];
+          keyMap[key] = keyMap[key] ? null : 1;
         }
       }, this);
-      if (removedRows.length) {
-        // Sort removed rows idx's
-        removedRows.sort();
-        // Remove keys and pool rows (backwards, so we don't invalidate rowForKey)
-        for (var i=removedRows.length-1; i>=0 ; i--) {
-          var idx = removedRows[i];
-          pool.push(this._detachRow(idx));
-          rows.splice(idx, 1);
-          keys.splice(idx, 1);
+      // Convert added/removed key map to added/removed arrays
+      var removedIdxs = [];
+      var addedKeys = [];
+      for (var key in keyMap) {
+        if (keyMap[key] === -1) {
+          removedIdxs.push(this._keyToInstIdx[key]);
+        }
+        if (keyMap[key] === 1) {
+          addedKeys.push(key);
         }
       }
+      // Remove & pool removed instances
+      if (removedIdxs.length) {
+        // Sort removed instances idx's then remove backwards,
+        // so we don't invalidate instance index
+        removedIdxs.sort();
+        for (var i=removedIdxs.length-1; i>=0 ; i--) {
+          var idx = removedIdxs[i];
+          // Removed idx may be undefined if item was previously filtered out
+          if (idx !== undefined) {
+            pool.push(this._detachRow(idx));
+            instances.splice(idx, 1);
+          }
+        }
+      }
+      // Add instances for added keys
       if (addedKeys.length) {
         // Filter added keys
         if (this._filterFn) {
@@ -428,24 +450,24 @@ Then the `observe` property should be configured as follows:
         addedKeys.sort(function(a, b) {
           return this._sortFn(c.getItem(a), c.getItem(b));
         }.bind(this));
-        // Insert new rows using sort (from pool or newly created)
+        // Insertion-sort new instances into place (from pool or newly created)
         var start = 0;
         for (var i=0; i<addedKeys.length; i++) {
-          start = this._insertRowIntoViewSort(start, addedKeys[i], pool);
+          start = this._insertRowUserSort(start, addedKeys[i], pool);
         }
       }
     },
 
-    _insertRowIntoViewSort: function(start, key, pool) {
+    _insertRowUserSort: function(start, key, pool) {
       var c = this.collection;
       var item = c.getItem(key);
-      var end = this.rows.length - 1;
+      var end = this._instances.length - 1;
       var idx = -1;
       var sortFn = this._sortFn || this._keySort.bind(this);
       // Binary search for insertion point
       while (start <= end) {
         var mid = (start + end) >> 1;
-        var midKey = this._orderedKeys[mid];
+        var midKey = this._instances[mid].__key__;
         var cmp = sortFn(c.getItem(midKey), item);
         if (cmp < 0) {
           start = mid + 1;
@@ -459,77 +481,94 @@ Then the `observe` property should be configured as follows:
       if (idx < 0) {
         idx = end + 1;
       }
-      // Insert key & row at insertion point
-      this._orderedKeys.splice(idx, 0, key);
-      this.rows.splice(idx, 0, this._insertRow(idx, pool, c.getItem(key)));
+      // Insert instance at insertion point
+      this._instances.splice(idx, 0, this._insertRow(idx, key, pool));
       return idx;
     },
 
-    _applySplicesArraySort: function(splices) {
-      var keys = this._orderedKeys;
+    // Render method 3: incremental update using splices with array order
+    // ----
+    // Splices are processed in order; removed rows are pooled, and added
+    // rows are as placeholders, and placeholders are updated to
+    // actual rows at the end to take full advantage of removed rows
+    _applySplicesArrayOrder: function(splices) {
       var pool = [];
-      // Remove & pool rows first, to ensure we can fully reuse removed rows
-      splices.forEach(function(s) {
-        for (var i=0; i<s.removed.length; i++) {
-          pool.push(this._detachRow(s.index + i));
-        }
-        this.rows.splice(s.index, s.removed.length);
-      }, this);
       var c = this.collection;
       splices.forEach(function(s) {
-        // Apply splices to keys
-        var args = [s.index, s.removed.length].concat(s.added);
-        keys.splice.apply(keys, args);
-        // Insert new rows (from pool or newly created)
+        // Detach & pool removed instances
+        for (var i=0; i<s.removed.length; i++) {
+          var inst = this._detachRow(s.index + i);
+          if (!inst.isPlaceholder) {
+            pool.push(inst);
+          }
+        }
+        this._instances.splice(s.index, s.removed.length);
+        // Insert placeholders for new rows
         for (var i=0; i<s.added.length; i++) {
-          var item = c.getItem(s.added[i]);
-          var row = this._insertRow(s.index + i, pool, item);
-          this.rows.splice(s.index + i, 0, row);
+          var inst = {
+            isPlaceholder: true,
+            key: s.added[i]
+          };
+          this._instances.splice(s.index + i, 0, inst);
         }
       }, this);
+      // Replace placeholders with actual instances (from pool or newly created)
+      // Iterate backwards to ensure insertBefore refrence is never a placeholder
+      for (var i=this._instances.length-1; i>=0; i--) {
+        var inst = this._instances[i];
+        if (inst.isPlaceholder) {
+          this._instances[i] = this._insertRow(i, inst.key, pool, true);
+        }
+      }
     },
 
     _detachRow: function(idx) {
-      var row = this.rows[idx];
-      var parentNode = Polymer.dom(this).parentNode;
-      for (var i=0; i<row._children.length; i++) {
-        var el = row._children[i];
-        Polymer.dom(row.root).appendChild(el);
+      var inst = this._instances[idx];
+      if (!inst.isPlaceholder) {
+        var parentNode = Polymer.dom(this).parentNode;
+        for (var i=0; i<inst._children.length; i++) {
+          var el = inst._children[i];
+          Polymer.dom(inst.root).appendChild(el);
+        }
       }
-      return row;
+      return inst;
     },
 
-    _insertRow: function(idx, pool, item) {
-      var row = (pool && pool.pop()) || this._generateRow(idx, item);
-      var beforeRow = this.rows[idx];
+    _insertRow: function(idx, key, pool, replace) {
+      var inst;
+      if (inst = pool && pool.pop()) {
+        inst.__setProperty(this.as, this.collection.getItem(key), true);
+        inst.__setProperty('__key__', key, true);
+      } else {
+        inst = this._generateRow(idx, key);
+      }
+      var beforeRow = this._instances[replace ? idx + 1 : idx];
       var beforeNode = beforeRow ? beforeRow._children[0] : this;
       var parentNode = Polymer.dom(this).parentNode;
-      Polymer.dom(parentNode).insertBefore(row.root, beforeNode);
-      return row;
+      Polymer.dom(parentNode).insertBefore(inst.root, beforeNode);
+      return inst;
     },
 
-    _generateRow: function(idx, item) {
+    _generateRow: function(idx, key) {
       var model = {
-        __key__: this.collection.getKey(item)
+        __key__: key
       };
-      model[this.as] = item;
+      model[this.as] = this.collection.getItem(key);
       model[this.indexAs] = idx;
-      var row = this.stamp(model);
-      return row;
+      var inst = this.stamp(model);
+      return inst;
     },
 
     // Implements extension point from Templatizer mixin
     _showHideChildren: function(hidden) {
-      if (this.rows) {
-        for (var i=0; i<this.rows.length; i++) {
-          this.rows[i]._showHideChildren(hidden);
-        }
+      for (var i=0; i<this._instances.length; i++) {
+        this._instances[i]._showHideChildren(hidden);
       }
     },
 
     // Called as a side effect of a template item change, responsible
-    // for notifying items.<key-for-row> change up to host
-    _forwardInstanceProp: function(row, prop, value) {
+    // for notifying items.<key-for-inst> change up to host
+    _forwardInstanceProp: function(inst, prop, value) {
       if (prop == this.as) {
         var idx;
         if (this._sortFn || this._filterFn) {
@@ -537,10 +576,10 @@ Then the `observe` property should be configured as follows:
           // efficiently memoize the array index and keep it in sync with array
           // mutations, so we need to look the item up in the array
           // This can happen e.g. when array of strings is repeated into inputs
-          idx = this.items.indexOf(this.collection.getItem(row.__key__));
+          idx = this.items.indexOf(this.collection.getItem(inst.__key__));
         } else {
           // When there is no sort/filter, the view index is the array index
-          idx = row[this.indexAs];
+          idx = inst[this.indexAs];
         }
         this.set('items.' + idx, value);
       }
@@ -548,50 +587,46 @@ Then the `observe` property should be configured as follows:
 
     // Implements extension point from Templatizer
     // Called as a side effect of a template instance path change, responsible
-    // for notifying items.<key-for-row>.<path> change up to host
-    _forwardInstancePath: function(row, path, value) {
+    // for notifying items.<key-for-inst>.<path> change up to host
+    _forwardInstancePath: function(inst, path, value) {
       if (path.indexOf(this.as + '.') === 0) {
-        this.notifyPath('items.' + row.__key__ + '.' +
+        this.notifyPath('items.' + inst.__key__ + '.' +
           path.slice(this.as.length + 1), value);
       }
     },
 
     // Implements extension point from Templatizer mixin
     // Called as side-effect of a host property change, responsible for
-    // notifying parent path change on each row
+    // notifying parent path change on each inst
     _forwardParentProp: function(prop, value) {
-      if (this.rows) {
-        this.rows.forEach(function(row) {
-          row.__setProperty(prop, value, true);
-        }, this);
-      }
+      this._instances.forEach(function(inst) {
+        inst.__setProperty(prop, value, true);
+      }, this);
     },
 
     // Implements extension point from Templatizer
     // Called as side-effect of a host path change, responsible for
-    // notifying parent path change on each row
+    // notifying parent path change on each inst
     _forwardParentPath: function(path, value) {
-      if (this.rows) {
-        this.rows.forEach(function(row) {
-          row.notifyPath(path, value, true);
-        }, this);
-      }
+      this._instances.forEach(function(inst) {
+        inst.notifyPath(path, value, true);
+      }, this);
     },
 
     // Called as a side effect of a host items.<key>.<path> path change,
-    // responsible for notifying item.<path> changes to row for key
+    // responsible for notifying item.<path> changes to inst for key
     _forwardItemPath: function(path, value) {
-      if (this._rowForKey) {
+      if (this._keyToInstIdx) {
         var dot = path.indexOf('.');
         var key = path.substring(0, dot < 0 ? path.length : dot);
-        var idx = this._rowForKey[key];
-        var row = this.rows[idx];
-        if (row) {
+        var idx = this._keyToInstIdx[key];
+        var inst = this._instances[idx];
+        if (inst) {
           if (dot >= 0) {
             path = this.as + '.' + path.substring(dot+1);
-            row.notifyPath(path, value, true);
+            inst.notifyPath(path, value, true);
           } else {
-            row.__setProperty(this.as, value, true);
+            inst.__setProperty(this.as, value, true);
           }
         }
       }
@@ -628,7 +663,7 @@ Then the `observe` property should be configured as follows:
     },
 
     /**
-     * Returns the row index for a given element stamped by this `dom-repeat`.
+     * Returns the inst index for a given element stamped by this `dom-repeat`.
      * If `sort` is provided, the index will reflect the sorted order (rather
      * than the original array order).
      *
