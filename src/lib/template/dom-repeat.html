@@ -374,11 +374,11 @@ Then the `observe` property should be configured as follows:
       for (var i=0; i<keys.length; i++) {
         var key = keys[i];
         var inst = this._instances[i];
-        if (!inst) {
-          this._instances.push(this._insertRow(i, key));
-        } else {
+        if (inst) {
           inst.__setProperty('__key__', key, true);
           inst.__setProperty(this.as, c.getItem(key), true);
+        } else {
+          this._instances.push(this._insertRow(i, key));
         }
       }
       // Remove any extra instances from previous state
@@ -505,21 +505,21 @@ Then the `observe` property should be configured as follows:
         this._instances.splice(s.index, s.removed.length);
         // Insert placeholders for new rows
         for (var i=0; i<s.added.length; i++) {
-          var beforeRow = this._instances[s.index + i];
           var inst = {
             isPlaceholder: true,
-            key: s.added[i],
-            _children: [beforeRow ? beforeRow._children[0] : this]
+            key: s.added[i]
           };
           this._instances.splice(s.index + i, 0, inst);
         }
       }, this);
       // Replace placeholders with actual instances (from pool or newly created)
-      this._instances.forEach(function(inst, idx) {
+      // Iterate backwards to ensure insertBefore refrence is never a placeholder
+      for (var i=this._instances.length-1; i>=0; i--) {
+        var inst = this._instances[i];
         if (inst.isPlaceholder) {
-          this._instances[idx] = this._insertRow(idx, inst.key, pool);
+          this._instances[i] = this._insertRow(i, inst.key, pool, true);
         }
-      }, this);
+      }
     },
 
     _detachRow: function(idx) {
@@ -534,7 +534,7 @@ Then the `observe` property should be configured as follows:
       return inst;
     },
 
-    _insertRow: function(idx, key, pool) {
+    _insertRow: function(idx, key, pool, replace) {
       var inst;
       if (inst = pool && pool.pop()) {
         inst.__setProperty(this.as, this.collection.getItem(key), true);
@@ -542,7 +542,7 @@ Then the `observe` property should be configured as follows:
       } else {
         inst = this._generateRow(idx, key);
       }
-      var beforeRow = this._instances[idx];
+      var beforeRow = this._instances[replace ? idx + 1 : idx];
       var beforeNode = beforeRow ? beforeRow._children[0] : this;
       var parentNode = Polymer.dom(this).parentNode;
       Polymer.dom(parentNode).insertBefore(inst.root, beforeNode);
