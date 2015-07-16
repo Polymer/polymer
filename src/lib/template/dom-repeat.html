@@ -341,6 +341,9 @@ Then the `observe` property should be configured as follows:
     },
 
     // Render method 1: full refesh
+    // ----
+    // Full list of keys is pulled from the collection, then sorted, filtered,
+    // and interated to create (or reuse) existing instances
     _applyFullRefresh: function() {
       var c = this.collection;
       // Start with unordered keys for view sort,
@@ -391,6 +394,10 @@ Then the `observe` property should be configured as follows:
       return this.collection.getKey(a) - this.collection.getKey(b);
     },
 
+    // Render method 2: incremental update using splices with user sort applied
+    // ----
+    // Removed/added keys are deduped, all removed rows are detached and pooled
+    // first, and added rows are insertion-sorted into place using user sort
     _applySplicesUserSort: function(splices) {
       var c = this.collection;
       var keys = this._keys;
@@ -484,6 +491,12 @@ Then the `observe` property should be configured as follows:
       return idx;
     },
 
+    // Render method 3: incremental update using splices with array sort
+    // ----
+    // Splices are processed in order; removed rows are pooled, and added
+    // rows are inserted based on splice index; placeholders are used when
+    // inserting rows when pool is empty, and placeholders are updated to
+    // actual rows at the end to take full advantage of removed rows
     _applySplicesArrayOrder: function(splices) {
       var keys = this._keys;
       var pool = [];
@@ -500,19 +513,14 @@ Then the `observe` property should be configured as follows:
           }
         }
         this._instances.splice(s.index, s.removed.length);
-        // Insert new instances (from pool or placeholder)
+        // Insert placeholders for new rows
         for (var i=0; i<s.added.length; i++) {
-          var inst;
-          if (pool.length) {
-            inst = this._insertRow(s.index + i, pool, s.added[i]);
-          } else {
-            var beforeRow = this._instances[s.index + i];
-            inst = {
-              isPlaceholder: true,
-              key: s.added[i],
-              _children: [beforeRow ? beforeRow._children[0] : null]
-            };
-          }
+          var beforeRow = this._instances[s.index + i];
+          var inst = {
+            isPlaceholder: true,
+            key: s.added[i],
+            _children: [beforeRow ? beforeRow._children[0] : this]
+          };
           this._instances.splice(s.index + i, 0, inst);
         }
       }, this);
