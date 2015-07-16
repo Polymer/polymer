@@ -330,11 +330,9 @@ Then the `observe` property should be configured as follows:
       this._splices = [];
       // Update final _keyToInstIdx and instance indices
       var keyToIdx = this._keyToInstIdx = {};
-      var keys = this._keys;
-      for (var i=0; i<keys.length; i++) {
-        var key = keys[i];
-        keyToIdx[key] = i;
+      for (var i=0; i<this._instances.length; i++) {
         var inst = this._instances[i];
+        keyToIdx[inst.__key__] = i;
         inst.__setProperty(this.indexAs, i, true);
       }
       this.fire('dom-change');
@@ -348,31 +346,31 @@ Then the `observe` property should be configured as follows:
       var c = this.collection;
       // Start with unordered keys for user sort,
       // or get them in array order for array order
+      var keys;
       if (this._sortFn) {
-        this._keys = c ? c.getKeys() : [];
+        keys = c ? c.getKeys() : [];
       } else {
-        this._keys = [];
+        keys = [];
         var items = this.items;
         if (items) {
           for (var i=0; i<items.length; i++) {
-            this._keys.push(c.getKey(items[i]));
+            keys.push(c.getKey(items[i]));
           }
         }
       }
       // Apply user filter to keys
       if (this._filterFn) {
-        this._keys = this._keys.filter(function(a) {
+        keys = keys.filter(function(a) {
           return this._filterFn(c.getItem(a));
         }, this);
       }
       // Apply user sort to keys
       if (this._sortFn) {
-        this._keys.sort(function(a, b) {
+        keys.sort(function(a, b) {
           return this._sortFn(c.getItem(a), c.getItem(b));
         }.bind(this));
       }
       // Generate instances and assign items and keys
-      var keys = this._keys;
       for (var i=0; i<keys.length; i++) {
         var key = keys[i];
         var inst = this._instances[i];
@@ -400,7 +398,6 @@ Then the `observe` property should be configured as follows:
     // first, and added rows are insertion-sorted into place using user sort
     _applySplicesUserSort: function(splices) {
       var c = this.collection;
-      var keys = this._keys;
       var instances = this._instances;
       var keyMap = {};
       var pool = [];
@@ -438,7 +435,6 @@ Then the `observe` property should be configured as follows:
           if (idx !== undefined) {
             pool.push(this._detachRow(idx));
             instances.splice(idx, 1);
-            keys.splice(idx, 1);
           }
         }
       }
@@ -471,7 +467,7 @@ Then the `observe` property should be configured as follows:
       // Binary search for insertion point
       while (start <= end) {
         var mid = (start + end) >> 1;
-        var midKey = this._keys[mid];
+        var midKey = this._instances[mid].__key__;
         var cmp = sortFn(c.getItem(midKey), item);
         if (cmp < 0) {
           start = mid + 1;
@@ -485,26 +481,20 @@ Then the `observe` property should be configured as follows:
       if (idx < 0) {
         idx = end + 1;
       }
-      // Insert key & inst at insertion point
-      this._keys.splice(idx, 0, key);
+      // Insert instance at insertion point
       this._instances.splice(idx, 0, this._insertRow(idx, key, pool));
       return idx;
     },
 
-    // Render method 3: incremental update using splices with array sort
+    // Render method 3: incremental update using splices with array order
     // ----
     // Splices are processed in order; removed rows are pooled, and added
-    // rows are inserted based on splice index; placeholders are used when
-    // inserting rows when pool is empty, and placeholders are updated to
+    // rows are as placeholders, and placeholders are updated to
     // actual rows at the end to take full advantage of removed rows
     _applySplicesArrayOrder: function(splices) {
-      var keys = this._keys;
       var pool = [];
       var c = this.collection;
       splices.forEach(function(s) {
-        // Apply splices to keys
-        var args = [s.index, s.removed.length].concat(s.added);
-        keys.splice.apply(keys, args);
         // Detach & pool removed instances
         for (var i=0; i<s.removed.length; i++) {
           var inst = this._detachRow(s.index + i);
