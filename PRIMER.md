@@ -886,7 +886,7 @@ Example with `listeners`:
 
 ### Single property observation
 
-Custom element properties may be observed for changes by specifying `observer` property in the `properties` for the property that gives the name of a funciton to call.  When the property changes, the change handler will be called with the new and old values as arguments.
+Custom element properties may be observed for changes by specifying `observer` property in the `properties` for the property that gives the name of a function to call.  When the property changes, the change handler will be called with the new and old values as arguments.
 
 Example:
 
