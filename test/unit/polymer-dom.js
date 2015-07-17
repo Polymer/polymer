@@ -630,6 +630,18 @@ suite('Polymer.dom accessors', function() {
       Polymer.dom.flush();
       assert.equal(testElement._composedChildren[1].textContent, 'Hello World', 'text content setter incorrect');
     }
+    testElement = document.createElement('x-commented');
+    assert.equal(Polymer.dom(testElement.root).textContent, '[]', 'text content getter with comment incorrect');
+
+    var textNode = document.createTextNode('foo');
+    assert.equal(Polymer.dom(textNode).textContent, 'foo', 'text content getter on textnode incorrect');
+    Polymer.dom(textNode).textContent = 'bar';
+    assert.equal(textNode.textContent, 'bar', 'text content setter on textnode incorrect');
+
+    var commentNode = document.createComment('foo');
+    assert.equal(Polymer.dom(commentNode).textContent, 'foo', 'text content getter on commentnode incorrect');
+    Polymer.dom(commentNode).textContent = 'bar';
+    assert.equal(commentNode.textContent, 'bar', 'text content setter on commentnode incorrect');
   });
 
   test('Polymer.dom innerHTML', function() {
