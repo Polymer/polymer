@@ -70,20 +70,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    // Intentionally static object
-    _templatizerStatic: {
-      count: 0,
-      callbacks: {},
-      debouncer: null
-    },
-
     // Extension point for overrides
     _instanceProps: Polymer.nob,
 
-    created: function() {
-      // id used for consolidated debouncer
-      this._templatizerId = this._templatizerStatic.count++;
-    },
+    _parentPropPrefix: '_parent_',
 
     /**
      * Prepares a template containing Polymer bindings by generating
@@ -162,24 +152,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _debounceTemplate: function(fn) {
-      this._templatizerStatic.callbacks[this._templatizerId] = fn.bind(this);
-      this._templatizerStatic.debouncer =
-        Polymer.Debounce(this._templatizerStatic.debouncer,
-          this._flushTemplates.bind(this, true));
+      Polymer.dom.addDebouncer(this.debounce('_debounceTemplate', fn));
     },
 
     _flushTemplates: function(debouncerExpired) {
-      var db = this._templatizerStatic.debouncer;
-      // completely flush any re-queued callbacks resulting from stamping
-      while (debouncerExpired || (db && db.finish)) {
-        db.stop();
-        var cbs = this._templatizerStatic.callbacks;
-        this._templatizerStatic.callbacks = {};
-        for (var id in cbs) {
-          cbs[id]();
-        }
-        debouncerExpired = false;
-      }
+      Polymer.dom.flush();
     },
 
     _customPrepEffects: function(archetype) {
@@ -236,7 +213,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // to template instances through abstract _forwardParentProp API
           // that should be implemented by Templatizer users
           for (prop in parentProps) {
-            var parentProp = '_parent_' + prop;
+            var parentProp = this._parentPropPrefix + prop;
             var effects = [{
               kind: 'function',
               effect: this._createForwardPropEffector(prop)
@@ -263,8 +240,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _createHostPropEffector: function(prop) {
+      var prefix = this._parentPropPrefix;
       return function(source, value) {
-        this.dataHost['_parent_' + prop] = value;
+        this.dataHost[prefix + prop] = value;
       };
     },
 
@@ -304,14 +282,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Call extension point for Templatizer sub-classes
       dataHost._forwardInstancePath.call(dataHost, this, path, value);
       if (root in dataHost._parentProps) {
-        dataHost.notifyPath('_parent_' + path, value);
+        dataHost.notifyPath(dataHost._parentPropPrefix + path, value);
       }
     },
 
     // Overrides Base notify-path module
     _pathEffector: function(path, value, fromAbove) {
       if (this._forwardParentPath) {
-        if (path.indexOf('_parent_') === 0) {
+        if (path.indexOf(this._parentPropPrefix) === 0) {
           this._forwardParentPath(path.substring(8), value);
         }
       }
@@ -391,7 +369,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       model = model || {};
       if (this._parentProps) {
         for (var prop in this._parentProps) {
-          model[prop] = this['_parent_' + prop];
+          model[prop] = this[this._parentPropPrefix + prop];
         }
       }
       return new this.ctor(model, this);

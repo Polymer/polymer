@@ -24,8 +24,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var nativeCloneNode = Element.prototype.cloneNode;
     var nativeImportNode = Document.prototype.importNode;
 
-    var dirtyRoots = [];
-
     var DomApi = function(node) {
       this.node = node;
       if (this.patch) {
@@ -36,11 +34,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     DomApi.prototype = {
 
       flush: function() {
-        for (var i=0, host; i<dirtyRoots.length; i++) {
-          host = dirtyRoots[i];
-          host.flushDebouncer('_distribute');
-        }
-        dirtyRoots = [];
+        Polymer.dom.flush();
       },
 
       _lazyDistribute: function(host) {
@@ -48,8 +42,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // we don't distribute before initial distribution
         if (host.shadyRoot && host.shadyRoot._distributionClean) {
           host.shadyRoot._distributionClean = false;
-          host.debounce('_distribute', host._distributeContent);
-          dirtyRoots.push(host);
+          Polymer.dom.addDebouncer(host.debounce('_distribute', 
+            host._distributeContent));
         }
       },
 
@@ -700,13 +694,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       DomApi.prototype.getDestinationInsertionPoints = function() {
-        var n$ = this.node.getDestinationInsertionPoints &&
+        var n$ = this.node.getDestinationInsertionPoints && 
           this.node.getDestinationInsertionPoints();
         return n$ ? Array.prototype.slice.call(n$) : [];
       };
 
       DomApi.prototype.getDistributedNodes = function() {
-        var n$ = this.node.getDistributedNodes &&
+        var n$ = this.node.getDistributedNodes && 
           this.node.getDistributedNodes();
         return n$ ? Array.prototype.slice.call(n$) : [];
       };
@@ -785,8 +779,61 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     };
 
-    // make flush available directly.
-    Polymer.dom.flush = DomApi.prototype.flush;
+    // add flush api...
+    Polymer.Base.extend(Polymer.dom, {
+      
+      _flushGuard: 0,
+      _FLUSH_MAX: 100,
+      _needsTakeRecords: !Polymer.Settings.useNativeCustomElements,
+      _debouncers: [],
+      _finishDebouncer: null,
+
+      // flush and debounce exposed as statics on Polymer.dom
+      flush: function() {
+        // flush debouncers
+        for (var i=0; i < this._debouncers.length; i++) {
+          this._debouncers[i].complete();
+        }
+        // clear the list of debouncers
+        if (this._finishDebouncer) {
+          this._finishDebouncer.complete();
+        }
+        // again make any pending CE mutations that might trigger debouncer
+        // additions go...
+        this._flushPolyfills();
+        // flush again if there are now any debouncers to process
+        if (this._debouncers.length && this._flushGuard < this._FLUSH_MAX) {
+          this._flushGuard++;
+          this.flush();
+        } else {
+          if (this._flushGuard >= this._FLUSH_MAX) {
+            console.warn('Polymer.dom.flush aborted. Flush may not be complete.')
+          }
+          this._flushGuard = 0;
+        }
+      },
+
+      // TODO(sorvell): There is currently not a good way 
+      // to process all custom elements mutations under SD polyfill because
+      // these mutations may be inside shadowRoots. 
+      _flushPolyfills: function() {
+        if (this._needsTakeRecords) {
+          CustomElements.takeRecords();
+        }
+      },
+
+      addDebouncer: function(debouncer) {
+        this._debouncers.push(debouncer);
+        // ensure the list of active debouncers is cleared when done.
+        this._finishDebouncer = Polymer.Debounce(this._finishDebouncer, 
+          this._finishFlush);
+      },
+
+      _finishFlush: function() {
+        Polymer.dom._debouncers = [];
+      }
+
+    });
 
     function getLightChildren(node) {
       var children = node._lightChildren;
