@@ -348,7 +348,7 @@ Note: Deserialization occurs both at create time, as well as at runtime, e.g. wh
 <a name="host-attributes"></a>
 ## Static attributes on host
 
-If a custom elements needs HTML attributes set on it at create-time, these may be declared in a `hostAttributes` property on the prototype, where keys are the attribtue name and values are the values to be assigned.  Values should typically be provided as strings, as HTML attributes can only be strings; however, the standard `serialize` method is used to convert values to strings, so `true` will serialize to an empty attribute, and `false` will result in no attribtue set, and so forth (see [here](#attribute-serialization) for more details).
+If a custom elements needs HTML attributes set on it at create-time, these may be declared in a `hostAttributes` property on the prototype, where keys are the attribute name and values are the values to be assigned.  Values should typically be provided as strings, as HTML attributes can only be strings; however, the standard `serialize` method is used to convert values to strings, so `true` will serialize to an empty attribute, and `false` will result in no attribute set, and so forth (see [here](#attribute-serialization) for more details).
 
 Example:
 
