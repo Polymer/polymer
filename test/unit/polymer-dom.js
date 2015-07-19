@@ -191,7 +191,7 @@ suite('Polymer.dom', function() {
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), []);
   });
 
-  test('Polymer.dom.classListAdd/Remove/Toggle (reproject)', function() {
+  test('Polymer.dom.classListAdd/Remove/Toggle/Contains (reproject)', function() {
     var select = document.querySelector('x-select-class1');
     var child = Polymer.dom(select).firstElementChild;
     var c1 = Polymer.dom(select.root).querySelector('content');
@@ -203,31 +203,41 @@ suite('Polymer.dom', function() {
     var ip$ = [c1, c2, c3];
     assert.equal(Polymer.dom(child).getDestinationInsertionPoints().length, 0);
     Polymer.dom(child).classList.add('s1');
+    assert.isTrue(Polymer.dom(child).classList.contains('s1'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1]);
     Polymer.dom(child).classList.add('s2');
+    assert.isTrue(Polymer.dom(child).classList.contains('s2'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2]);
     Polymer.dom(child).classList.add('s3');
+    assert.isTrue(Polymer.dom(child).classList.contains('s3'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2, c3]);
     Polymer.dom(child).classList.toggle('s1');
+    assert.isFalse(Polymer.dom(child).classList.contains('s1'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), []);
     Polymer.dom(child).classList.toggle('s1');
+    assert.isTrue(Polymer.dom(child).classList.contains('s1'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2, c3]);
     Polymer.dom(child).classList.remove('s2');
+    assert.isFalse(Polymer.dom(child).classList.contains('s2'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1]);
     Polymer.dom(child).classList.toggle('s2');
+    assert.isTrue(Polymer.dom(child).classList.contains('s2'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2, c3]);
     Polymer.dom(child).classList.remove('s3');
+    assert.isFalse(Polymer.dom(child).classList.contains('s3'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), [c1, c2]);
     Polymer.dom(child).classList.remove('s2');
     Polymer.dom(child).classList.remove('s1');
+    assert.isFalse(Polymer.dom(child).classList.contains('s2'));
+    assert.isFalse(Polymer.dom(child).classList.contains('s1'));
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(child).getDestinationInsertionPoints(), []);
   });
@@ -494,7 +504,69 @@ suite('Polymer.dom', function() {
 
   test('Polymer.dom.childNodes is an array', function() {
     assert.isTrue(Array.isArray(Polymer.dom(document.body).childNodes));
-  });  
+  });
+
+  test('Polymer.dom cloneNode shallow', function() {
+    var a = document.createElement('div');
+    a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
+    var b = Polymer.dom(Polymer.dom(a).firstElementChild).cloneNode();
+    Polymer.dom(document.body).appendChild(b);
+    assert.equal(Polymer.dom(b).childNodes.length, 0, 'shallow copy has incorrect children');
+    if (b.shadyRoot) {
+      assert.equal(b.children.length, 2, 'shallow copy has incorrect composed children');
+    }
+  });
+
+  test('Polymer.dom cloneNode deep', function() {
+    var a = document.createElement('div');
+    a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
+    var b = Polymer.dom(a).cloneNode(true);
+    Polymer.dom(document.body).appendChild(b);
+    assert.equal(Polymer.dom(b.firstElementChild).childNodes.length, 2, 'deep copy has incorrect children');
+    if (b.shadyRoot) {
+      assert.equal(b.children.length, 4, 'deep copy has incorrect composed children');
+    }
+  });
+
+  test('Polymer.dom importNode shallow', function() {
+    var a = document.createElement('div');
+    a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
+    var b = Polymer.dom(wrap(document)).importNode(Polymer.dom(a).firstElementChild);
+    Polymer.dom(document.body).appendChild(b);
+    assert.equal(Polymer.dom(b).childNodes.length, 0, 'shallow import has incorrect children');
+    if (b.shadyRoot) {
+      assert.equal(b.children.length, 2, 'shallow import has incorrect composed children');
+    }
+  });
+
+  test('Polymer.dom importNode deep', function() {
+    var a = document.createElement('div');
+    a.innerHTML = '<x-clonate><span>1</span><span>2</span></x-clonate>';
+    var b = Polymer.dom(wrap(document)).importNode(a, true);
+    Polymer.dom(document.body).appendChild(b);
+    assert.equal(Polymer.dom(b.firstElementChild).childNodes.length, 2, 'deep copy has incorrect children');
+    if (b.shadyRoot) {
+      assert.equal(b.children.length, 4, 'deep copy has incorrect composed children');
+    }
+  });
+
+  test('flush causes attached and re-flushes if necessary', function(done) {
+    var a = document.createElement('x-attach1');
+    Polymer.dom(document.body).appendChild(a);
+    Polymer.dom.flush();
+    function testHeight() {
+      assert.equal(a.offsetHeight, 540);
+      done();
+    }
+    // note: CustomElements.takeRecords doesn't process all mutations under
+    // SD polyfill and therefore we have no measurement guarantee in that case.
+    if (Polymer.Settings.useShadow && !Polymer.Settings.useNativeShadow) {
+      setTimeout(testHeight);
+    } else {
+      testHeight();
+    }
+    
+  });
 
 });
 
@@ -576,19 +648,44 @@ suite('Polymer.dom accessors', function() {
       Polymer.dom.flush();
       assert.equal(testElement._composedChildren[1].textContent, 'Hello World', 'text content setter incorrect');
     }
+    testElement = document.createElement('x-commented');
+    assert.equal(Polymer.dom(testElement.root).textContent, '[]', 'text content getter with comment incorrect');
+
+    var textNode = document.createTextNode('foo');
+    assert.equal(Polymer.dom(textNode).textContent, 'foo', 'text content getter on textnode incorrect');
+    Polymer.dom(textNode).textContent = 'bar';
+    assert.equal(textNode.textContent, 'bar', 'text content setter on textnode incorrect');
+
+    var commentNode = document.createComment('foo');
+    assert.equal(Polymer.dom(commentNode).textContent, 'foo', 'text content getter on commentnode incorrect');
+    Polymer.dom(commentNode).textContent = 'bar';
+    assert.equal(commentNode.textContent, 'bar', 'text content setter on commentnode incorrect');
   });
 
   test('Polymer.dom innerHTML', function() {
     var testElement = document.createElement('x-project');
-    Polymer.dom(testElement).innerHTML = '<div>Hello World</div>';
+    Polymer.dom(testElement).innerHTML = '<div>Hello World</div><div>2</div><div>3</div>';
     var added = Polymer.dom(testElement).firstChild;
-    assert(added.textContent , 'Hello World', 'innerHTML setter incorrect');
-    assert(Polymer.dom(testElement).innerHTML , '<div>Hello World</div>', 'innerHTML getter incorrect');
+    assert.equal(added.textContent , 'Hello World', 'innerHTML setter incorrect');
+    assert.equal(Polymer.dom(testElement).innerHTML , '<div>Hello World</div><div>2</div><div>3</div>', 'innerHTML getter incorrect');
     if (testElement.shadyRoot) {
       Polymer.dom.flush();
       assert.equal(testElement._composedChildren[1], added, 'innerHTML setter composed incorrectly');
+      assert.equal(testElement._composedChildren[2].textContent, '2', 'innerHTML setter composed incorrectly');
+      assert.equal(testElement._composedChildren[3].textContent, '3', 'innerHTML setter composed incorrectly');
     }
   });
+
+  test('Polymer.dom innerHTML (non-composed)', function() {
+    var testElement = document.createElement('div');
+    document.body.appendChild(testElement);
+    Polymer.dom(testElement).innerHTML = '<div>Hello World</div><div>2</div><div>3</div>';
+    var added = Polymer.dom(testElement).firstChild;
+    assert.equal(added.textContent , 'Hello World', 'innerHTML setter incorrect');
+    assert.equal(Polymer.dom(testElement).innerHTML , '<div>Hello World</div><div>2</div><div>3</div>', 'innerHTML getter incorrect');
+    assert.equal(testElement.children.length, 3);
+  });
+
 });
 
 suite('Polymer.dom non-distributed elements', function() {
@@ -744,4 +841,13 @@ suite('Polymer.dom non-distributed elements', function() {
     assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect for child moved from a root to no root');
   });
 
+  test('getDistributedNodes on non-content element', function() {
+    assert.equal(Polymer.dom(document.createElement('div')).getDistributedNodes().length, 0);
+        assert.equal(Polymer.dom().getDistributedNodes().length, 0);
+  });
+
+  test('getDestinationInsertionPoints on non-distributable element', function() {
+    assert.equal(Polymer.dom(document.createElement('div')).getDestinationInsertionPoints().length, 0);
+    assert.equal(Polymer.dom(document).getDestinationInsertionPoints().length, 0);
+  });
 });

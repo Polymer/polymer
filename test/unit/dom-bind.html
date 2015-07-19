@@ -30,6 +30,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <template is="dom-bind" id="decDomBind">
     <x-basic id="decEl1" value="{{value}}" notifyingvalue="{{nvalue}}" on-custom="handleEvent" computed="{{compute(dep)}}"></x-basic>
     <x-basic id="decEl2" value="{{value}}" notifyingvalue="{{nvalue}}"></x-basic>
+    <x-produce-a a={{z}}></x-produce-a>
+    <div id="z">{{z}}</div>
   </template>
 
   <div id="container">
@@ -88,6 +90,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         };
         domBind.dep = 5;
         assert.equal(el1.computed, 50);
+      });
+
+      test('initial value notifies to dom-bind', function() {
+        assert.equal(domBind.z, 'a');
+        assert.equal(z.textContent, 'a');
       });
 
     });
@@ -155,10 +162,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
 
       test('move dom-bind', function() {
-        domBind.parentElement.removeChild(domBind);
-        // TODO(kschaaf): detached/attached not called if takeRecords isn't
-        // called between remove & insert on polyfill... seems bad?
-        CustomElements.takeRecords();
         container.appendChild(domBind);
         CustomElements.takeRecords();
         assert.equal(container.firstElementChild, el1);
@@ -170,6 +173,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         CustomElements.takeRecords();
         assert(!document.body.contains(el1));
         assert(!document.body.contains(el2));
+      });
+
+      test('dom-bind distributed when inserted in element attached', function(done) {
+        var el = document.createElement('x-attach-dom-bind');
+        document.body.appendChild(el);
+        setTimeout(function() {
+          assert.equal(el.$.local.textContent, 'hey', 'dom-bind did not distribute');
+          document.body.removeChild(el);
+          done();
+        })
+      });
+
+      test('dom-bind distributed when inserted in element attached (flush)', function() {
+        var el = document.createElement('x-attach-dom-bind');
+        document.body.appendChild(el);
+        Polymer.dom.flush();
+        assert.equal(el.$.local.textContent, 'hey', 'dom-bind did not distribute');
+        document.body.removeChild(el);
+      });
+
+      test('dom-bind distributed when inserted dynamically', function(done) {
+        var el = document.createElement('x-compose');
+        document.body.appendChild(el);
+        Polymer.dom.flush();
+        setTimeout(function() {
+          var t = document.createElement('template', 'dom-bind'),
+          span = document.createElement('span');
+          span.innerHTML = '{{hello}}';
+          t.content.appendChild(span);
+          t.hello = 'hey';
+          Polymer.dom(el.$.local).appendChild(t);
+          setTimeout(function() {
+            assert.equal(el.textContent, 'hey', 'dom-bind did not distribute');
+            document.body.removeChild(el);
+            done();
+          });
+        });
       });
 
     });

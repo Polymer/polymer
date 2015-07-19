@@ -45,7 +45,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // storage for configuration
     _setupConfigure: function(initialConfig) {
-      this._config = initialConfig || {};
+      this._config = {};
+      // don't accept undefined values in intialConfig
+      for (var i in initialConfig) {
+        if (initialConfig[i] !== undefined) {
+          this._config[i] = initialConfig[i];    
+        }
+      }
       this._handlers = [];
     },
 
@@ -71,6 +77,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // e.g. hand template content stored in notes to children as part of
       // configure flow so templates have their content at ready time
       this._configureAnnotationReferences();
+      // save copy of configuration that came from above
+      this._aboveConfig = this.mixin({}, this._config);
       // get individual default values from property configs
       var config = {};
       // mixed-in behaviors
@@ -79,9 +87,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }, this);
       // prototypical behavior
       this._configureProperties(this.properties, config);
-      // get add'l default values from central configure
-      // combine defaults returned from configure with inputs in _config
-      this._mixinConfigure(config, this._config);
+      // override local configuration with configuration from above
+      this._mixinConfigure(config, this._aboveConfig);
       // this is the new _config, which are the final values to be applied
       this._config = config;
       // pass configuration data to bindings
@@ -91,6 +98,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _configureProperties: function(properties, config) {
       for (var i in properties) {
         var c = properties[i];
+        // don't accept undefined values
         if (c.value !== undefined) {
           var value = c.value;
           if (typeof value == 'function') {
@@ -137,27 +145,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _afterClientsReady: function() {
       // process static effects, e.g. computations that have only literal arguments
       this._executeStaticEffects();
-      this._applyConfig(this._config);
+      this._applyConfig(this._config, this._aboveConfig);
       this._flushHandlers();
     },
 
     // NOTE: values are already propagated to children via
     // _distributeConfig so propagation triggered by effects here is
     // redundant, but safe due to dirty checking
-    _applyConfig: function(config) {
+    _applyConfig: function(config, aboveConfig) {
       for (var n in config) {
         // Don't stomp on values that may have been set by other side effects
         if (this[n] === undefined) {
           // Call _propertySet for any properties with accessors, which will
-          // initialize read-only properties also
-          // TODO(kschaaf): consider passing fromAbove here to prevent
-          // unnecessary notify for: 1) possible perf, 2) debuggability
-          var effects = this._propertyEffects[n];
-          if (effects) {
-            this._propertySet(n, config[n], effects);
-          } else {
-            this[n] = config[n];
-          }
+          // initialize read-only properties also; set quietly if value was
+          // configured from above, as opposed to default
+          this.__setProperty(n, config[n], n in aboveConfig);
         }
       }
     },

@@ -21,7 +21,6 @@ var lazypipe = require('lazypipe');
 var polyclean = require('polyclean');
 var del = require('del');
 
-var fs = require('fs');
 var path = require('path');
 
 var micro = "polymer-micro.html";
@@ -62,30 +61,22 @@ function vulcanizeWithExcludes(target, excludes) {
   };
 }
 
-gulp.task('micro', ['mkdir'], vulcanizeWithExcludes(micro));
-gulp.task('mini', ['mkdir'], vulcanizeWithExcludes(mini, [micro]));
-gulp.task('max', ['mkdir'], vulcanizeWithExcludes(max, [mini, micro]));
+gulp.task('micro', vulcanizeWithExcludes(micro));
+gulp.task('mini', vulcanizeWithExcludes(mini, [micro]));
+gulp.task('max', vulcanizeWithExcludes(max, [mini, micro]));
 
 gulp.task('clean', function(cb) {
   del(workdir, cb);
 });
 
-gulp.task('mkdir', function(cb) {
-  fs.exists(workdir, function(exists) {
-    return exists ? cb() : fs.mkdir(workdir, null, cb);
-  });
-});
-
 // copy bower.json into dist folder
-gulp.task('copy-bower-json', ['mkdir'], function() {
+gulp.task('copy-bower-json', function() {
   return gulp.src('bower.json').pipe(gulp.dest(workdir));
 });
 
 // Default Task
-gulp.task('default', ['clean'], function(cb) {
-  // work around vulcanize not supporting concurrent builds
-  // Vulcanize bug: https://github.com/Polymer/vulcanize/issues/190
-  runseq('micro', 'mini', 'max', cb);
+gulp.task('default', function(cb) {
+  runseq('clean', ['micro', 'mini', 'max'], cb);
 });
 
 // switch src and build for testing
@@ -114,22 +105,18 @@ gulp.task('switch-build', function() {
     .pipe(gulp.dest('.'));
 });
 
-gulp.task('switch', ['default'], function(cb) {
-  runseq('save-src', 'switch-build', cb);
+gulp.task('switch', function(cb) {
+  runseq('default', 'save-src', 'switch-build', cb);
 });
 
-gulp.task('restore', ['clean'], function(cb) {
+gulp.task('restore', function(cb) {
   runseq('restore-src', 'cleanup-switch', cb);
 });
 
 gulp.task('audit', function() {
   return gulp.src([distMini, distMicro, distMax])
-    .pipe(audit('build.log', {
-      repos: [
-        '.'
-      ]
-    }))
-    .pipe(gulp.dest('dist'));
+    .pipe(audit('build.log', { repos: ['.'] }))
+    .pipe(gulp.dest(workdir));
 });
 
 gulp.task('release', function(cb) {

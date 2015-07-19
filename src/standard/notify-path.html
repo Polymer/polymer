@@ -65,18 +65,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     Polymer.Base._addFeature({
       /**
-        Notify that a path has changed. For example:
-
-            this.item.user.name = 'Bob';
-            this.notifyPath('item.user.name', this.item.user.name);
-
-        Returns true if notification actually took place, based on
-        a dirty check of whether the new value was already known
+       * Notify that a path has changed. For example:
+       *
+       *   this.item.user.name = 'Bob';
+       *   this.notifyPath('item.user.name', this.item.user.name);
+       *
+       * @param {string} path Path that should be notified.
+       * @param {*} value Value of the specified path.
+       * @param {boolean=} fromAbove When true, specifies that the change came
+       *   from above this element and thus upward notification is not
+       *   necessary.
+       * @return {boolean} Returns true if notification actually took place,
+       *   based on a dirty check of whether the new value was already known.
       */
       notifyPath: function(path, value, fromAbove) {
-        var old = this._propertySet(path, value);
+        var old = this._propertySetter(path, value);
         // manual dirty checking for now...
-        if (old !== value) {
+        // NaN is always not equal to itself,
+        // if old and value are both NaN we treat them as equal
+        // x === x is 10x faster, and equivalent to !isNaN(x)
+        if (old !== value && (old === old || value === value)) {
           // console.group((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
           // Take path effects at this level for exact path matches,
           // and notify down for any bindings to a subset of this path
@@ -89,6 +97,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._notifyPath(path, value);
           }
           // console.groupEnd((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
+          return true;
         }
       },
 
@@ -138,14 +147,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var last = parts[parts.length-1];
         if (parts.length > 1) {
           for (var i=0; i<parts.length-1; i++) {
-            prop = prop[parts[i]];
-            if (array) {
+            var part = parts[i];
+            prop = prop[part];
+            if (array && (parseInt(part) == part)) {
               parts[i] = Polymer.Collection.get(array).getKey(prop);
             }
             if (!prop) {
               return;
             }
             array = Array.isArray(prop) ? prop : null;
+          }
+          if (array && (parseInt(last) == last)) {
+            var coll = Polymer.Collection.get(array);
+            var old = prop[last];
+            var key = coll.getKey(old);
+            parts[i] = key;
+            coll.setItem(key, value);
           }
           prop[last] = value;
           if (!root) {
@@ -332,7 +349,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           type: 'splice'
         }];
         var change = {
-          keySplices: Polymer.Collection.get(array).applySplices(splices),
+          keySplices: Polymer.Collection.applySplices(array, splices),
           indexSplices: splices
         };
         this.set(path + '.splices', change);
@@ -404,14 +421,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {number} start Index from which to start removing/inserting.
        * @param {number} deleteCount Number of items to remove.
        * @param {...any} var_args Items to insert into array.
-       * @return {number} New length of the array.
+       * @return {Array} Array of removed items.
        */
       splice: function(path, start, deleteCount) {
         var array = this.get(path);
         var args = Array.prototype.slice.call(arguments, 1);
-        var rem = array.slice(start, start + deleteCount);
         var ret = array.splice.apply(array, args);
-        this._notifySplice(array, path, start, args.length - 2, rem);
+        this._notifySplice(array, path, start, args.length - 2, ret);
         return ret;
       },
 

@@ -27,6 +27,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var MOUSE_TIMEOUT = 2500;
   var MOUSE_EVENTS = ['mousedown', 'mousemove', 'mouseup', 'click'];
 
+  // Check for touch-only devices
+  var IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
+
   // touch will make synthetic mouse events
   // `preventDefault` on touchend will cancel them,
   // but this breaks `<input>` focus and link clicks
@@ -60,6 +63,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   function ignoreMouse() {
+    if (IS_TOUCH_ONLY) {
+      return;
+    }
     if (!POINTERSTATE.mouse.mouseIgnoreJob) {
       setupTeardownMouseCanceller(true);
     }
@@ -73,7 +79,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   var POINTERSTATE = {
-    tapPrevented: false,
     mouse: {
       target: null,
       mouseIgnoreJob: null
@@ -99,7 +104,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return ta;
   }
 
-
   var Gestures = {
     gestures: {},
     recognizers: [],
@@ -118,6 +122,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       return node;
+    },
+    // a cheaper check than Polymer.dom(ev).path[0];
+    findOriginalTarget: function(ev) {
+      // shadowdom
+      if (ev.path) {
+        return ev.path[0];
+      }
+      // shadydom
+      return ev.target;
     },
     handleNative: function(ev) {
       var handled;
@@ -211,12 +224,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       for (var i = 0, dep, gd; i < deps.length; i++) {
         dep = deps[i];
+        // don't add mouse handlers on iOS because they cause gray selection overlays
+        if (IS_TOUCH_ONLY && MOUSE_EVENTS.indexOf(dep) > -1) {
+          continue;
+        }
         gd = gobj[dep];
         if (!gd) {
-          gobj[dep] = gd = {};
+          gobj[dep] = gd = {_count: 0};
+        }
+        if (gd._count === 0) {
           node.addEventListener(dep, this.handleNative);
         }
         gd[name] = (gd[name] || 0) + 1;
+        gd._count = (gd._count || 0) + 1;
       }
       node.addEventListener(evType, handler);
       if (recognizer.touchAction) {
@@ -224,11 +244,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    // automate event listener removal for native events
+    remove: function(node, evType, handler) {
+      var recognizer = this.gestures[evType];
+      var deps = recognizer.deps;
+      var name = recognizer.name;
+      var gobj = node[GESTURE_KEY];
+      if (gobj) {
+        for (var i = 0, dep, gd; i < deps.length; i++) {
+          dep = deps[i];
+          gd = gobj[dep];
+          if (gd && gd[name]) {
+            gd[name] = (gd[name] || 1) - 1;
+            gd._count = (gd._count || 1) - 1;
+          }
+          if (gd._count === 0) {
+            node.removeEventListener(dep, this.handleNative);
+          }
+        }
+      }
+      node.removeEventListener(evType, handler);
+    },
+
     register: function(recog) {
       this.recognizers.push(recog);
       for (var i = 0; i < recog.emits.length; i++) {
         this.gestures[recog.emits[i]] = recog;
       }
+    },
+
+    findRecognizerByEvent: function(evName) {
+      for (var i = 0, r; i < this.recognizers.length; i++) {
+        r = this.recognizers[i];
+        for (var j = 0, n; j < r.emits.length; j++) {
+          n = r.emits[j];
+          if (n === evName) {
+            return r;
+          }
+        }
+      }
+      return null;
     },
 
     // set scrolling direction on node to check later on first move
@@ -241,12 +296,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     fire: function(target, type, detail) {
-      var ev = new CustomEvent(type, {
-        detail: detail,
+      var ev = Polymer.Base.fire(type, detail, {
+        node: target,
         bubbles: true,
         cancelable: true
       });
-      target.dispatchEvent(ev);
+
+      // forward `preventDefault` in a clean way
+      if (ev.defaultPrevented) {
+        var se = detail.sourceEvent;
+        // sourceEvent may be a touch, which is not preventable this way
+        if (se && se.preventDefault) {
+          se.preventDefault();
+        }
+      }
+    },
+
+    prevent: function(evName) {
+      var recognizer = this.findRecognizerByEvent(evName);
+      if (recognizer.info) {
+        recognizer.info.prevent = true;
+      }
     }
   };
 
@@ -256,7 +326,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     emits: ['down', 'up'],
 
     mousedown: function(e) {
-      var t = e.currentTarget;
+      var t = Gestures.findOriginalTarget(e);
       var self = this;
       var upfn = function upfn(e) {
         self.fire('up', t, e);
@@ -266,16 +336,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.fire('down', t, e);
     },
     touchstart: function(e) {
-      this.fire('down', e.currentTarget, e.changedTouches[0]);
+      this.fire('down', Gestures.findOriginalTarget(e), e.changedTouches[0]);
     },
     touchend: function(e) {
-      this.fire('up', e.currentTarget, e.changedTouches[0]);
+      this.fire('up', Gestures.findOriginalTarget(e), e.changedTouches[0]);
     },
     fire: function(type, target, event) {
+      var self = this;
       Gestures.fire(target, type, {
         x: event.clientX,
         y: event.clientY,
-        sourceEvent: event
+        sourceEvent: event,
+        prevent: Gestures.prevent.bind(Gestures)
       });
     }
   });
@@ -297,7 +369,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.moves.shift();
         }
         this.moves.push(move);
-      }
+      },
+      prevent: false
     },
 
     clearInfo: function() {
@@ -306,9 +379,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.info.moves = [];
       this.info.x = 0;
       this.info.y = 0;
+      this.info.prevent = false;
     },
 
     hasMovedEnough: function(x, y) {
+      if (this.info.prevent) {
+        return false;
+      }
       if (this.info.started) {
         return true;
       }
@@ -318,7 +395,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     mousedown: function(e) {
-      var t = e.currentTarget;
+      var t = Gestures.findOriginalTarget(e);
       var self = this;
       var movefn = function movefn(e) {
         var x = e.clientX, y = e.clientY;
@@ -327,13 +404,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           self.info.state = self.info.started ? (e.type === 'mouseup' ? 'end' : 'track') : 'start';
           self.info.addMove({x: x, y: y});
           self.fire(t, e);
-          e.preventDefault();
           self.info.started = true;
         }
       };
       var upfn = function upfn(e) {
         if (self.info.started) {
-          POINTERSTATE.tapPrevented = true;
+          Gestures.prevent('tap');
           movefn(e);
         }
         self.clearInfo();
@@ -355,7 +431,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     touchmove: function(e) {
-      var t = e.currentTarget;
+      var t = Gestures.findOriginalTarget(e);
       var ct = e.changedTouches[0];
       var x = ct.clientX, y = ct.clientY;
       if (this.hasMovedEnough(x, y)) {
@@ -367,12 +443,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     touchend: function(e) {
-      var t = e.currentTarget;
+      var t = Gestures.findOriginalTarget(e);
       var ct = e.changedTouches[0];
       // only trackend if track was started and not aborted
       if (this.info.started) {
         // iff tracking, always prevent tap
-        POINTERSTATE.tapPrevented = true;
+        Gestures.prevent('tap');
         // reset started state on up
         this.info.state = 'end';
         this.info.addMove({x: ct.clientX, y: ct.clientY});
@@ -412,30 +488,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     name: 'tap',
     deps: ['mousedown', 'click', 'touchstart', 'touchend'],
     emits: ['tap'],
-    start: {
+    info: {
       x: NaN,
-      y: NaN
+      y: NaN,
+      prevent: false
     },
     reset: function() {
-      this.start.x = NaN;
-      this.start.y = NaN;
+      this.info.x = NaN;
+      this.info.y = NaN;
+      this.info.prevent = false;
     },
     save: function(e) {
-      this.start.x = e.clientX;
-      this.start.y = e.clientY;
+      this.info.x = e.clientX;
+      this.info.y = e.clientY;
     },
 
     mousedown: function(e) {
-      POINTERSTATE.tapPrevented = false;
       this.save(e);
     },
-
     click: function(e) {
       this.forward(e);
     },
 
     touchstart: function(e) {
-      POINTERSTATE.tapPrevented = false;
       this.save(e.changedTouches[0]);
     },
     touchend: function(e) {
@@ -443,13 +518,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     forward: function(e) {
-      var dx = Math.abs(e.clientX - this.start.x);
-      var dy = Math.abs(e.clientY - this.start.y);
+      var dx = Math.abs(e.clientX - this.info.x);
+      var dy = Math.abs(e.clientY - this.info.y);
+      var t = Gestures.findOriginalTarget(e);
       // dx,dy can be NaN if `click` has been simulated and there was no `down` for `start`
       if (isNaN(dx) || isNaN(dy) || (dx <= TAP_DISTANCE && dy <= TAP_DISTANCE)) {
         // prevent taps from being generated if an event has canceled them
-        if (!POINTERSTATE.tapPrevented) {
-          Gestures.fire(e.target, 'tap', {
+        if (!this.info.prevent) {
+          Gestures.fire(t, 'tap', {
             x: e.clientX,
             y: e.clientY,
             sourceEvent: e
@@ -474,6 +550,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Gestures.add(node, eventName, handler);
       } else {
         node.addEventListener(eventName, handler);
+      }
+    },
+    // override _unlisten to handle gestures
+    _unlisten: function(node, eventName, handler) {
+      if (Gestures.gestures[eventName]) {
+        Gestures.remove(node, eventName, handler);
+      } else {
+        node.removeEventListener(eventName, handler);
       }
     },
     /**

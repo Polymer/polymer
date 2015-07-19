@@ -10,29 +10,82 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script>
 
+  /**
+   * The `Polymer.Templatizer` behavior adds methods to generate instances of
+   * templates that are each managed by an anonymous `Polymer.Base` instance.
+   *
+   * Example:
+   *
+   *     // Get a template from somewhere, e.g. light DOM
+   *     var template = Polymer.dom(this).querySelector('template');
+   *     // Prepare the template
+   *     this.templatize(template);
+   *     // Instance the template with an initial data model
+   *     var instance = this.stamp({myProp: 'initial'});
+   *     // Insert the instance's DOM somewhere, e.g. light DOM
+   *     Polymer.dom(this).appendChild(instance.root);
+   *     // Changing a property on the instance will propagate to bindings
+   *     // in the template
+   *     instance.myProp = 'new value';
+   *
+   * Users of `Templatizer` may need to implement the following abstract
+   * API's to determine how properties and paths from the host should be
+   * forwarded into to instances:
+   *
+   *     _forwardParentProp: function(prop, value)
+   *     _forwardParentPath: function(path, value)
+   *
+   * Likewise, users may implement these additional abstract API's to determine
+   * how instance-specific properties that change on the instance should be
+   * forwarded out to the host, if necessary.
+   *
+   *     _forwardInstanceProp: function(inst, prop, value)
+   *     _forwardInstancePath: function(inst, path, value)
+   *
+   * In order to determine which properties are instance-specific and require
+   * custom forwarding via `_forwardInstanceProp`/`_forwardInstancePath`,
+   * define an `_instanceProps` map containing keys for each instance prop,
+   * for example:
+   *
+   *     _instanceProps: {
+   *       item: true,
+   *       index: true
+   *     }
+   *
+   * Any properties used in the template that are not defined in _instanceProp
+   * will be forwarded out to the host automatically.
+   *
+   * Users should also implement the following abstract function to show or
+   * hide any DOM generated using `stamp`:
+   *
+   *     _showHideChildren: function(shouldHide)
+   *
+   * @polymerBehavior
+   */
   Polymer.Templatizer = {
 
     properties: {
-      _hideTemplateChildren: {
-        observer: '_hideTemplateChildrenChanged'
+      __hideTemplateChildren__: {
+        observer: '_showHideChildren'
       }
-    },
-
-    // Intentionally static object
-    _templatizerStatic: {
-      count: 0,
-      callbacks: {},
-      debouncer: null
     },
 
     // Extension point for overrides
     _instanceProps: Polymer.nob,
 
-    created: function() {
-      // id used for consolidated debouncer
-      this._templatizerId = this._templatizerStatic.count++;
-    },
+    _parentPropPrefix: '_parent_',
 
+    /**
+     * Prepares a template containing Polymer bindings by generating
+     * a constructor for an anonymous `Polymer.Base` subclass to serve as the
+     * binding context for the provided template.
+     *
+     * Use `this.stamp` to create instances of the template context containing
+     * a `root` fragment that may be stamped into the DOM.
+     *
+     * @method templatize
+     * @param {HTMLTemplateElement} template The template to process.
+     */
     templatize: function(template) {
       // TODO(sjmiles): supply _alternate_ content reference missing from root
       // templates (not nested). `_content` exists to provide content sharing
@@ -68,6 +121,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       archetype._notifyPath = this._notifyPathImpl;
       archetype._scopeElementClass = this._scopeElementClassImpl;
       archetype.listen = this._listenImpl;
+      archetype._showHideChildren = this._showHideChildrenImpl;
       // boilerplate code
       var _constructor = this._constructorImpl;
       var ctor = function TemplateInstance(model, host) {
@@ -86,33 +140,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return (this.dataHost && this.dataHost._rootDataHost) || this.dataHost;
     },
 
-    _hideTemplateChildrenChanged: function(hidden) {
-      if (this._hideChildren) {
-        // Extension point for Templatizer sub-classes
-        // TODO(kschaaf): remove once element protos can override behaviors
-        this._hideChildren(hidden);
+    _showHideChildrenImpl: function(hide) {
+      var c = this._children;
+      for (var i=0; i<c.length; i++) {
+        var n = c[i];
+        if (n.style) {
+          n.style.display = hide ? 'none' : '';
+          n.__hideTemplateChildren__ = hide;
+        }
       }
     },
 
     _debounceTemplate: function(fn) {
-      this._templatizerStatic.callbacks[this._templatizerId] = fn.bind(this);
-      this._templatizerStatic.debouncer =
-        Polymer.Debounce(this._templatizerStatic.debouncer,
-          this._flushTemplates.bind(this, true));
+      Polymer.dom.addDebouncer(this.debounce('_debounceTemplate', fn));
     },
 
     _flushTemplates: function(debouncerExpired) {
-      var db = this._templatizerStatic.debouncer;
-      // completely flush any re-queued callbacks resulting from stamping
-      while (debouncerExpired || (db && db.finish)) {
-        db.stop();
-        var cbs = this._templatizerStatic.callbacks;
-        this._templatizerStatic.callbacks = {};
-        for (var id in cbs) {
-          cbs[id]();
-        }
-        debouncerExpired = false;
-      }
+      Polymer.dom.flush();
     },
 
     _customPrepEffects: function(archetype) {
@@ -120,6 +164,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var prop in parentProps) {
         archetype._addPropertyEffect(prop, 'function',
           this._createHostPropEffector(prop));
+      }
+      for (var prop in this._instanceProps) {
+        archetype._addPropertyEffect(prop, 'function',
+          this._createInstancePropEffector(prop));
       }
     },
 
@@ -165,7 +213,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // to template instances through abstract _forwardParentProp API
           // that should be implemented by Templatizer users
           for (prop in parentProps) {
-            var parentProp = '_parent_' + prop;
+            var parentProp = this._parentPropPrefix + prop;
             var effects = [{
               kind: 'function',
               effect: this._createForwardPropEffector(prop)
@@ -192,26 +240,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _createHostPropEffector: function(prop) {
+      var prefix = this._parentPropPrefix;
       return function(source, value) {
-        this.dataHost['_parent_' + prop] = value;
+        this.dataHost[prefix + prop] = value;
+      };
+    },
+
+    _createInstancePropEffector: function(prop) {
+      return function(source, value, old, fromAbove) {
+        if (!fromAbove) {
+          this.dataHost._forwardInstanceProp(this, prop, value);
+        }
       };
     },
 
     // Similar to Polymer.Base.extend, but retains any previously set instance
-    // values (_propertySet back on instance once accessor is installed)
+    // values (_propertySetter back on instance once accessor is installed)
     _extendTemplate: function(template, proto) {
       Object.getOwnPropertyNames(proto).forEach(function(n) {
         var val = template[n];
         var pd = Object.getOwnPropertyDescriptor(proto, n);
         Object.defineProperty(template, n, pd);
         if (val !== undefined) {
-          template._propertySet(n, val);
+          template._propertySetter(n, val);
         }
       });
     },
 
-    // Extension point for Templatizer sub-classes
+    // Extension points for Templatizer sub-classes
+    _showHideChildren: function(hidden) { },
     _forwardInstancePath: function(inst, path, value) { },
+    _forwardInstanceProp: function(inst, prop, value) { },
+    // Defined-check rather than thunk used to avoid unnecessary work for these:
+    // _forwardParentPath: function(path, value) { },
+    // _forwardParentProp: function(prop, value) { },
 
     _notifyPathImpl: function(path, value) {
       var dataHost = this.dataHost;
@@ -220,14 +282,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Call extension point for Templatizer sub-classes
       dataHost._forwardInstancePath.call(dataHost, this, path, value);
       if (root in dataHost._parentProps) {
-        dataHost.notifyPath('_parent_' + path, value);
+        dataHost.notifyPath(dataHost._parentPropPrefix + path, value);
       }
     },
 
     // Overrides Base notify-path module
     _pathEffector: function(path, value, fromAbove) {
       if (this._forwardParentPath) {
-        if (path.indexOf('_parent_') === 0) {
+        if (path.indexOf(this._parentPropPrefix) === 0) {
           this._forwardParentPath(path.substring(8), value);
         }
       }
@@ -239,6 +301,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._setupConfigure(model);
       this._pushHost(host);
       this.root = this.instanceTemplate(this._template);
+      this.root.__noContent = !this._notes._hasContent;
       this.root.__styleScoped = true;
       this._popHost();
       this._marshalAnnotatedNodes();
@@ -254,6 +317,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Since archetype overrides Base/HTMLElement, Safari complains
       // when accessing `children`
       this._children = children;
+      // Ensure newly stamped nodes reflect host's hidden state
+      if (host.__hideTemplateChildren__) {
+        this._showHideChildren(true);
+      }
       // ready self and children
       this._tryReady();
     },
@@ -277,14 +344,75 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    /**
+     * Creates an instance of the template previously processed via
+     * a call to `templatize`.
+     *
+     * The object returned is an anonymous subclass of Polymer.Base that
+     * has accessors generated to manage data in the template.  The DOM for
+     * the instance is contained in a DocumentFragment called `root` on
+     * the instance returned and must be manually inserted into the DOM
+     * by the user.
+     *
+     * Note that a call to `templatize` must be called once before using
+     * `stamp`.
+     *
+     * @method stamp
+     * @param {Object} model An object containing key/values to serve as the
+     *   initial data configuration for the instance.  Note that properties
+     *   from the host used in the template are automatically copied into
+     *   the model.
+     * @param {Polymer.Base} The Polymer.Base instance to manage the template
+     *   instance.
+     */
     stamp: function(model) {
       model = model || {};
       if (this._parentProps) {
         for (var prop in this._parentProps) {
-          model[prop] = this['_parent_' + prop];
+          model[prop] = this[this._parentPropPrefix + prop];
         }
       }
       return new this.ctor(model, this);
+    },
+
+    /**
+     * Returns the template "model" associated with a given element, which
+     * serves as the binding scope for the template instance the element is
+     * contained in. A template model is an instance of `Polymer.Base`, and
+     * should be used to manipulate data associated with this template instance.
+     *
+     * Example:
+     *
+     *   var model = modelForElement(el);
+     *   if (model.index < 10) {
+     *     model.set('item.checked', true);
+     *   }
+     *
+     * @method modelForElement
+     * @param {HTMLElement} el Element for which to return a template model.
+     * @return {Object<Polymer.Base>} Model representing the binding scope for
+     *   the element.
+     */
+    modelForElement: function(el) {
+      var model;
+      while (el) {
+        // An element with a _templateInstance marks the top boundary
+        // of a scope; walk up until we find one, and then ensure that
+        // its dataHost matches `this`, meaning this dom-repeat stamped it
+        if (model = el._templateInstance) {
+          // Found an element stamped by another template; keep walking up
+          // from its dataHost
+          if (model.dataHost != this) {
+            el = model.dataHost;
+          } else {
+            return model;
+          }
+        } else {
+          // Still in a template scope, keep going up until
+          // a _templateInstance is found
+          el = el.parentNode;
+        }
+      }
     }
 
     // TODO(sorvell): note, using the template as host is ~5-10% faster if

@@ -23,10 +23,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _prepShady: function() {
         // Use this system iff localDom is needed.
         this._useContent = this._useContent || Boolean(this._template);
-        if (this._useContent) {
-          this._template._hasInsertionPoint =
-            this._template.content.querySelector('content');
-        }
       },
 
       // called as part of content initialization, prior to template stamping
@@ -57,8 +53,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.shadyRoot._isShadyRoot = true;
         this.shadyRoot._dirtyRoots = [];
         // capture insertion point list
-        // TODO(sorvell): it's faster to do this via native qSA than annotator.
-        this.shadyRoot._insertionPoints = this._template._hasInsertionPoint ?
+        this.shadyRoot._insertionPoints = !this._notes || 
+          this._notes._hasContent ?
           this.shadyRoot.querySelectorAll('content') : [];
         // save logical tree info for shadyRoot.
         saveLightChildrenIfNeeded(this.shadyRoot);
@@ -84,13 +80,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * `<content select=".foo">` and a `foo` class is added to a child,
        * then `distributeContent` must be called to update
        * local dom distribution.
+       * @method distributeContent
+       * @param {boolean} updateInsertionPoints Shady DOM does not detect
+       *   <content> insertion that is nested in a sub-tree being appended.
+       *   Set to true to distribute to newly added nested <content>'s.
        */
-      distributeContent: function() {
+      distributeContent: function(updateInsertionPoints) {
         if (this.shadyRoot) {
+          var dom = Polymer.dom(this);
+          if (updateInsertionPoints) {
+            dom._updateInsertionPoints(this);
+          }
           // Distribute the host that's the top of this element's distribution
           // tree. Distributing that host will *always* distibute this element.
           var host = getTopDistributingHost(this);
-          Polymer.dom(this)._lazyDistribute(host);
+          dom._lazyDistribute(host);
         }
       },
 
@@ -125,11 +129,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _finishDistribute: function() {
         // compose self
         if (this._useContent) {
+          // note: it's important to mark this clean before distribution
+          // so that attachment that provokes additional distribution (e.g. 
+          // adding something to your parentNode) works
+          this.shadyRoot._distributionClean = true;
           if (hasInsertionPoint(this.shadyRoot)) {
             this._composeTree();
           } else {
             if (!this.shadyRoot._hasDistributed) {
               this.textContent = '';
+              // reset composed children here in case they may have already
+              // been set (this shouldn't happen but can if dependency ordering
+              // is incorrect and as a result upgrade order is unexpected)
+              this._composedChildren = null;
               this.appendChild(this.shadyRoot);
             } else {
               // simplified non-tree walk composition
@@ -138,7 +150,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
           this.shadyRoot._hasDistributed = true;
-          this.shadyRoot._distributionClean = true;
         }
       },
 
@@ -353,11 +364,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function clearDistributedDestinationInsertionPoints(content) {
       var e$ = content._distributedNodes;
-      for (var i=0; i < e$.length; i++) {
-        var d = e$[i]._destinationInsertionPoints;
-        if (d) {
-           // this is +1 because these insertion points are *not* in this scope
-           d.splice(d.indexOf(content)+1, d.length);
+      if (e$) {
+        for (var i=0; i < e$.length; i++) {
+          var d = e$[i]._destinationInsertionPoints;
+          if (d) {
+            // this is +1 because these insertion points are *not* in this scope
+            d.splice(d.indexOf(content)+1, d.length);
+          }
         }
       }
     }

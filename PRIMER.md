@@ -211,12 +211,11 @@ console.log(el2 instanceof HTMLInputElement); // true
 
 Polymer's Base prototype implements the standard Custom Element lifecycle callbacks to perform tasks necessary for Polymer's built-in features.  The hooks in turn call shorter-named lifecycle methods on your prototype.
 
-- `created` instead of `createdCallback`
-- `attached` instead of `attachedCallback`
-- `detached` instead of `detachedCallback`
-- `attributeChanged` instead of `attributeChangedCallback`
-
-You can always fallback to using the low-level methods if you wish (in other words, you could simply implement `createdCallback` in your prototype).
+- `created` - Called from `createdCallback` immediately after the element is created, before its template has been stamped.  Note that `properties` with side-effects (bindings, observers, computed property dependencies) must not be accessed during `created`.  In general, most lifecycle work should be performed in one of the other callbacks below.
+- `ready` (not available in `polymer-micro.html`) - Called 'bottom-up' after the element's template has been stamped and all elements inside the element's _local DOM_ have been configured (with values bound from parents, deserialized attributes, or else default values) and had their `ready` method called. Implement `ready` when it's necessary to manipulate an element's local DOM when the element is constructed.  Note that there is no guarantee of `ready` ordering between _light DOM_ parent/children, only between a host and its _local DOM_ children.
+- `attached` - Called from `attachedCallback` when the element (or one of its ancestors) has been attached to the main document.
+- `detached` - Called from `detachedCallback` when the element (or any of its ancestors) have been removed from the main document and are no longer attached.
+- `attributeChanged` - Called from `attributeChangedCallback` when an attribute changes.
 
 Example:
 
@@ -246,9 +245,6 @@ MyElement = Polymer({
 ```
 
 `Polymer.Base` also implements `registerCallback`, which will be called by `Polymer()` to allow `Polymer.Base` to supply a layering system for Polymer abstractions.
-
-See the [section on configuring elements](#configuring-elements) for a more in-depth description of the practical uses of each callback.
-
 
 <a name="property-config"></a>
 ## Configuring properties
@@ -457,13 +453,13 @@ Example:
 ```html
 <dom-module id="x-foo">
   <template>I am x-foo!</template>
-</dom-module>
 
-<script>
-  Polymer({
-    is: 'x-foo'
-  });
-</script>
+  <script>
+    Polymer({
+      is: 'x-foo'
+    });
+  </script>
+</dom-module>
 ```
 
 We say that an element definition has an imperative and declarative portion. The imperative
@@ -503,15 +499,15 @@ Polymer uses "[Shadow DOM styling rules](http://www.html5rocks.com/en/tutorials/
     <div class="content-wrapper"><content></content></div>
   </template>
 
+  <script>
+
+      Polymer({
+          is: 'my-element'
+      });
+
+  </script>
+
 </dom-module>
-
-<script>
-
-    Polymer({
-        is: 'my-element'
-    });
-
-</script>
 ```
 
 Loading external stylesheets (as opposed to defining them inline in HTML) for styling local DOM is currently supported via a special [`<link rel="import" type="css">`](#external-stylesheets) import tag (as opposed to a `<link rel="stylesheet">`).
@@ -544,9 +540,21 @@ The following methods are provided:
   * `Polymer.dom(parent).appendChild(node)`
   * `Polymer.dom(parent).insertBefore(node, beforeNode)`
   * `Polymer.dom(parent).removeChild(node)`
+  * `Polymer.dom(parent).replaceChild(oldNode, newNode)`
   * `Polymer.dom(parent).querySelector(selector)`
   * `Polymer.dom(parent).querySelectorAll(selector)`
   * `Polymer.dom(parent).childNodes`
+  * `Polymer.dom(parent).firstChild`
+  * `Polymer.dom(parent).lastChild`
+  * `Polymer.dom(node).previousSibling`
+  * `Polymer.dom(node).nextSibling`
+  * `Polymer.dom(parent).children`
+  * `Polymer.dom(parent).firstElementChild`
+  * `Polymer.dom(parent).lastElementChild`
+  * `Polymer.dom(node).previousElementSibling`
+  * `Polymer.dom(node).nextElementSibling`
+  * `Polymer.dom(node).textContent`
+  * `Polymer.dom(node).innerHTML`
   * `Polymer.dom(node).parentNode`
   * `Polymer.dom(contentElement).getDistributedNodes()`
   * `Polymer.dom(node).getDestinationInsertionPoints()`
@@ -670,21 +678,21 @@ Example:
   <template>
     Hello World from <span id="name"></span>!
   </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'x-custom',
+
+      ready: function() {
+        this.$.name.textContent = this.name;
+      }
+
+    });
+
+  </script>
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    created: function() {
-      this.$.name.textContent = this.name;
-    }
-
-  });
-
-</script>
 ```
 
 <a name="event-listeners"></a>
@@ -701,25 +709,25 @@ Example:
     <div>to a click on</div>
     <div>any of my children!</div>
   </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'x-custom',
+
+      listeners: {
+        'click': 'handleClick'
+      },
+
+      handleClick: function(e) {
+        alert("Thank you for clicking");
+      }
+
+    });
+
+  </script>
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    listeners: {
-      'click': 'handleClick'
-    },
-
-    handleClick: function(e) {
-      alert("Thank you for clicking");
-    }
-
-  });
-
-</script>
 ```
 
 <a name="annotated-listeners"></a>
@@ -734,27 +742,29 @@ Example:
   <template>
     <button on-click="handleClick">Kick Me</button>
   </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'x-custom',
+
+      handleClick: function() {
+        alert('Ow!');
+      }
+
+    });
+
+  </script>
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'x-custom',
-
-    handleClick: function() {
-      alert('Ow!');
-    }
-
-  });
-
-</script>
 ```
 
 <a name="gesture-events"></a>
 ## Gesture events
 
 Polymer will generate and fire a custom "gesture" event for certain user interactions automatically when a declarative listener is added for the event type.  These events will fire consistenly on both touch and mouse environments, and so it is advised to listen for these events rather than their mouse- or touch-specific event counterparts for interoperability with both touch and desktop/mouse environments.  For example, `tap` should be used instead of `click` for the most reliable cross-platform results.
+
+For convenience, calling `preventDefault` on gesture events will prevent the native event that generated that gesture. For example, calling `preventDefault` on a `tap` event will also call `preventDefault` on the `click` event that generated the `tap`.
 
 Certain gestures will be able to control scrolling direction for touch input. For example, nodes with a listener for the `track` event will prevent scrolling by default. Elements can be override scroll direction with `this.setScrollDirection(direction, node)`, where `direction` is one of `'x'`, `'y'`, `'none'`, or `'all'`, and `node` defaults to `this`.
 
@@ -763,10 +773,12 @@ The following are the gesture event types supported, with a short description an
 * **down** - finger/button went down
   * `x` - clientX coordinate for event
   * `y` - clientY coordinate for event
+  * `prevent(type)` - a function that may be called to prevent the given gesture events. Currently supported gestures to prevent are `tap` and `track`.
   * `sourceEvent` - the original DOM event that caused the `down` action
 * **up** - finger/button went up
   * `x` - clientX coordinate for event
   * `y` - clientY coordinate for event
+  * `prevent(type)` - a function that may be called to prevent the given gesture events. Currently supported gestures to prevent are `tap` and `track`.
   * `sourceEvent` - the original DOM event that caused the `up` action
 * **tap** - down & up occurred
   * `x` - clientX coordinate for event
@@ -783,7 +795,7 @@ The following are the gesture event types supported, with a short description an
   * `dy` - change in pixels vertically since the first track event
   * `ddx` - change in pixels horizontally since last track event
   * `ddy` - change in pixels vertically since last track event
-  * `hover()` - a function that may be called to determine the element currently being hovered
+  * `hover()` - a function that may be called to determine the element currently being hovered over
 
 Example:
 
@@ -799,74 +811,74 @@ Example:
   <template>
     <div id="dragme" on-track="handleTrack">{{message}}</div>
   </template>
-</dom-module>
 
-<script>
+  <script>
 
-  Polymer({
+    Polymer({
 
-    is: 'drag-me',
+      is: 'drag-me',
 
-    handleTrack: function(e) {
-      switch(e.detail.state) {
-        case 'start':
-          this.message = 'Tracking started!';
-          break;
-        case 'track':
-          this.message = 'Tracking in progress... ' +
-            e.detail.x + ', ' + e.detail.y;
-          break;
-        case 'end':
-          this.message = 'Tracking ended!';
-          break;
+      handleTrack: function(e) {
+        switch(e.detail.state) {
+          case 'start':
+            this.message = 'Tracking started!';
+            break;
+          case 'track':
+            this.message = 'Tracking in progress... ' +
+              e.detail.x + ', ' + e.detail.y;
+            break;
+          case 'end':
+            this.message = 'Tracking ended!';
+            break;
+        }
       }
-    }
 
-  });
+    });
 
-</script>
+  </script>
+</dom-module>
 ```
 Example with `listeners`:
 
 ```html
-<style>
-  drag-me {
-    width: 500px;
-    height: 500px;
-    background: gray;
-  }
-</style>
 <dom-module id="drag-me">
-</dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'drag-me',
-
-    listeners: {
-      track: 'handleTrack'
-    },
-
-    handleTrack: function(e) {
-      switch(e.detail.state) {
-        case 'start':
-          this.message = 'Tracking started!';
-          break;
-        case 'track':
-          this.message = 'Tracking in progress... ' +
-            e.detail.x + ', ' + e.detail.y;
-          break;
-        case 'end':
-          this.message = 'Tracking ended!';
-          break;
-      }
+  <style>
+    :host {
+      width: 500px;
+      height: 500px;
+      background: gray;
     }
+  </style>
 
-  });
+  <script>
 
-</script>
+    Polymer({
+
+      is: 'drag-me',
+
+      listeners: {
+        track: 'handleTrack'
+      },
+
+      handleTrack: function(e) {
+        switch(e.detail.state) {
+          case 'start':
+            this.message = 'Tracking started!';
+            break;
+          case 'track':
+            this.message = 'Tracking in progress... ' +
+              e.detail.x + ', ' + e.detail.y;
+            break;
+          case 'end':
+            this.message = 'Tracking ended!';
+            break;
+        }
+      }
+
+    });
+
+  </script>
+</dom-module>
 ```
 
 <a name="change-callbacks"></a>
@@ -1075,33 +1087,34 @@ To bind to textContent, the binding annotation must currently span the entire co
 
 ```html
 <dom-module id="user-view">
-    <template>
+  <template>
 
-      <!-- Supported -->
-      First: <span>{{first}}</span><br>
-      Last: <span>{{last}}</span>
+    <!-- Supported -->
+    First: <span>{{first}}</span><br>
+    Last: <span>{{last}}</span>
 
-      <!-- Not currently supported! -->
-      <div>First: {{first}}</div>
-      <div>Last: {{last}}</div>
+    <!-- Not currently supported! -->
+    <div>First: {{first}}</div>
+    <div>Last: {{last}}</div>
 
-    </template>
+  </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'user-view',
+
+      properties: {
+        first: String,
+        last: String
+      }
+
+    });
+
+  </script>
+
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'user-view',
-
-    properties: {
-      first: String,
-      last: String
-    }
-
-  });
-
-</script>
 
 <user-view first="Samuel" last="Adams"></user-view>
 
@@ -1114,21 +1127,21 @@ To bind to properties, the binding annotation should be provided as the value to
   <template>
     <user-view first="{{user.first}}" last="{{user.last}}"></user-view>
   </template>
+
+  <script>
+
+    Polymer({
+
+      is: 'main-view',
+
+      properties: {
+        user: Object
+      }
+
+    });
+
+  </script>
 </dom-module>
-
-<script>
-
-  Polymer({
-
-    is: 'main-view',
-
-    properties: {
-      user: Object
-    }
-
-  });
-
-</script>
 ```
 
 As in the example above, paths to object sub-properties may also be specified in templates.  See [Binding to structured data](#path-binding) for details.
@@ -1337,21 +1350,21 @@ Example:
   <template>
     <div>{{user.manager.name}}</div>
   </template>
+
+  <script>
+    Polymer({
+
+      is: 'custom-element',
+
+      reassignManager: function(newManager) {
+        this.user.manager = newManager;
+        // Notification required for binding to update!
+        this.notifyPath('user.manager', this.user.manager);
+      }
+
+    });
+  </script>
 </dom-module>
-
-<script>
-  Polymer({
-
-    is: 'custom-element',
-
-    reassignManager: function(newManager) {
-      this.user.manager = newManager;
-      // Notification required for binding to update!
-      this.notifyPath('user.manager', this.user.manager);
-    }
-
-  });
-</script>
 ```
 
 Since in the majority of cases, `notifyPath` will be called directly after an assignment, a convenience function `set` is provided that performs both the assignment and notify actions:
@@ -1389,24 +1402,24 @@ Example:
   <template>
     <template is="dom-repeat">{{users}}</div>
   </template>
+
+  <script>
+    Polymer({
+
+      is: 'custom-element',
+
+      addUser: function(user) {
+        this.push('users', user);
+      },
+
+      removeUser: function(user) {
+        var index = this.users.indexOf(user);
+        this.splice('users', index, 1);
+      }
+
+    });
+  </script>
 </dom-module>
-
-<script>
-  Polymer({
-
-    is: 'custom-element',
-
-    addUser: function(user) {
-      this.push('users', user);
-    },
-
-    removeUser: function(user) {
-      var index = this.users.indexOf(user);
-      this.splice('users', index, 1);
-    }
-
-  });
-</script>
 ```
 
 ### Expressions in binding annotations
@@ -1526,41 +1539,43 @@ Polymer supports virtual properties whose values are calculated from other prope
 
 *Note, computing functions will only be called once all dependent properties are defined (`!=undefined`).  If one or more of the properties are optional, they would need default `value`'s defined in `properties` to ensure the property is computed.*
 
+Computed properties are implicitly `readOnly`, and cannot be manually set.
+
 ```html
 <dom-module id="x-custom">
   <template>
     My name is <span>{{fullName}}</span>
   </template>
-</dom-module>
 
-<script>
-  Polymer({
+  <script>
+    Polymer({
 
-    is: 'x-custom',
+      is: 'x-custom',
 
-    properties: {
+      properties: {
 
-      first: String,
+        first: String,
 
-      last: String,
+        last: String,
 
-      fullName: {
-        type: String,
-        // when `first` or `last` changes `computeFullName` is called once
-        // (asynchronously) and the value it returns is stored as `fullName`
-        computed: 'computeFullName(first, last)'
+        fullName: {
+          type: String,
+          // when `first` or `last` changes `computeFullName` is called once
+          // (asynchronously) and the value it returns is stored as `fullName`
+          computed: 'computeFullName(first, last)'
+        }
+
+      },
+
+      computeFullName: function(first, last) {
+        return first + ' ' + last;
       }
 
-    },
+      ...
 
-    computeFullName: function(first, last) {
-      return first + ' ' + last;
-    }
-
-    ...
-
-  });
-</script>
+    });
+  </script>
+</dom-module>
 ```
 
 Note that arguments to computing functions may be simple properties on the element, as well as all of the arguments types supported by `observers`, including [paths](#path-observation), [paths with wildcards](#deep-observation), and [paths to array splices](#array-observation).  The arguments received in the comuting function will match those described in the sections referenced above.
@@ -1581,29 +1596,64 @@ Example:
   <template>
     My name is <span>{{computeFullName(first, last)}}</span>
   </template>
+
+  <script>
+   Polymer({
+
+     is: 'x-custom',
+
+     properties: {
+
+       first: String,
+
+       last: String
+
+     },
+
+     computeFullName: function(first, last) {
+       return first + ' ' + last;
+     }
+
+     ...
+
+   });
+  </script>
+
 </dom-module>
+```
 
-<script>
-  Polymer({
+Note that literal strings and numbers may be used as arguments to annotated computed properties.  Strings may be either single- or double-quoted (taking care to use the opposite of the quotes used for the attribute value itself for attribute/property binding).  __Note that if the string includes commas, the _must_ be escaped using a `\`.__
 
-    is: 'x-custom',
+Example:
 
-    properties: {
+```html
+<dom-module id="x-custom">
+  <template>
+    <span>{{translate('Hello\, nice to meet you', first, last)}}</span>
+  </template>
+</dom-module>
+```
 
-      first: String,
+Finally, annotated computed properties may be argument-less, in which case they are evaluated once.
 
-      last: String
+```html
+<dom-module id="x-custom">
+  <template>
+    <span>{{doThisOnce()}}</span>
+  </template>
 
-    },
+  <script>
+   Polymer({
 
-    computeFullName: function(first, last) {
-      return first + ' ' + last;
-    }
+     is: 'x-custom',
 
-    ...
+     doThisOnce: function() {
+       return Math.random();
+     }
 
-  });
-</script>
+   });
+  </script>
+</dom-module>
 ```
 
 <a name="read-only"></a>
@@ -1635,7 +1685,7 @@ When a property only "produces" data and never consumes data, this can be made e
 
 Generally, read-only properties should also be set to `notify: true` such that their changes are observable from above.
 
-<a name="xscope-styling"></a>
+<a name="xscope-stadyling"></a>
 ## Cross-scope styling
 
 ### Background
@@ -1794,6 +1844,39 @@ Example usage of `my-toolbar`.
 
   </template>
 
+</dom-module>
+```
+
+### Custom Property API for Polymer Elements
+
+Polymer's custom property shim evaluates and applies custom property values once at element creation time.  In order to have an element (and its subtree) re-evaluate custom property values due to dynamic changes such as application of CSS classes, etc., the user should call `this.updateStyles()` on the element.  To update all elements on the page, you can also call `Polymer.updateStyles()`.
+
+The user can also directly modify a Polymer element's custom property by setting key-value pairs in `customStyle` on the element (analogous to setting `style`) and then calling `updateStyles()`.
+
+Example:
+
+```html
+<dom-module id="x-custom">
+  <style>
+    :host {
+      --my-toolbar-color: red;
+    }
+  </style>
+
+  <template>
+    <my-toolbar>My awesome app</my-toolbar>
+    <button on-tap="changeTheme">Change theme</button>
+  </template>
+
+  <script>
+    Polymer({
+      is: 'x-custom',
+      changeTheme: function() {
+        this.customStyle['--my-toolbar-color'] = 'blue';
+        this.updateStyles();
+      }
+    });
+  </script>
 </dom-module>
 ```
 

@@ -13,6 +13,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
 
   Polymer.StyleProperties = (function() {
+    'use strict';
 
     var nativeShadow = Polymer.Settings.useNativeShadow;
     var matchesSelector = Polymer.DomApi.matchesSelector;
@@ -97,6 +98,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var m;
         while (m = this.rx.VAR_CAPTURE.exec(cssText)) {
           props[m[1]] = true;
+          var def = m[2];
+          if (def && def.match(this.rx.IS_VAR)) {
+            props[def] = true;
+          }
         }
       },
 
@@ -165,7 +170,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       applyProperties: function(rule, props) {
         var output = '';
         // dynamically added sheets may not be decorated so ensure they are.
-        if (!rule.properties) {
+        if (!rule.propertyInfo) {
           this.decorateRule(rule);
         }
         if (rule.propertyInfo.cssText) {
@@ -238,12 +243,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       transformStyles: function(element, properties, scopeSelector) {
         var self = this;
-        var hostRx = new RegExp(this.rx.HOST_PREFIX + element.is + 
+        var hostSelector = styleTransformer
+          ._calcHostScope(element.is, element.extends);
+        var rxHostSelector = element.extends ? 
+          '\\' + hostSelector.slice(0, -1) + '\\]' : 
+          hostSelector;
+        var hostRx = new RegExp(this.rx.HOST_PREFIX + rxHostSelector + 
           this.rx.HOST_SUFFIX);
         return styleTransformer.elementStyles(element, function(rule) {
           self.applyProperties(rule, properties);
           if (rule.cssText && !nativeShadow) {
-            self._scopeSelector(rule, hostRx, element.is, 
+            self._scopeSelector(rule, hostRx, hostSelector, 
               element._scopeCssViaAttr, scopeSelector);
           }
         });
@@ -252,7 +262,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
       // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
       // host selector: x-foo.wide -> x-foo.x-foo-42.wide
-      _scopeSelector: function(rule, hostRx, is, viaAttr, scopeId) {
+      _scopeSelector: function(rule, hostRx, hostSelector, viaAttr, scopeId) {
         rule.transformedSelector = rule.transformedSelector || rule.selector;
         var selector = rule.transformedSelector;
         var scope = viaAttr ? '[' + styleTransformer.SCOPE_NAME + '~=' + 
@@ -261,7 +271,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var parts = selector.split(',');
         for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
           parts[i] = p.match(hostRx) ?
-            p.replace(is, is + scope) :
+            p.replace(hostSelector, hostSelector + scope) :
             scope + ' ' + p;
         }
         rule.selector = parts.join(',');
@@ -270,7 +280,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       applyElementScopeSelector: function(element, selector, old, viaAttr) {
         var c = viaAttr ? element.getAttribute(styleTransformer.SCOPE_NAME) :
           element.className;
-        v = old ? c.replace(old, selector) :
+        var v = old ? c.replace(old, selector) :
           (c ? c + ' ' : '') + this.XSCOPE_NAME + ' ' + selector;
         if (c !== v) {
           if (viaAttr) {
@@ -289,7 +299,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var s = element._customStyle;
         if (s && !nativeShadow && (s !== style)) {
           s._useCount--;
-          if (s._useCount <= 0) {
+          if (s._useCount <= 0 && s.parentNode) {
             s.parentNode.removeChild(s);
           }
         }
@@ -320,18 +330,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return style;
       },
 
+      // customStyle properties are applied if they are truthy or 0. Otherwise,
+      // they are skipped; this allows properties previously set in customStyle
+      // to be easily reset to inherited values.
+      mixinCustomStyle: function(props, customStyle) {
+        var v;
+        for (var i in customStyle) {
+          v = customStyle[i];
+          if (v || v === 0) {
+            props[i] = v;
+          }
+        }
+      },
+
       rx: {
-        VAR_ASSIGN: /(?:^|;\s*)(--[^\:;]*?):\s*?(?:([^;{]*?)|{([^}]*)})(?=;)/gim,
-        MIXIN_MATCH: /(?:^|\W+)@apply[\s]*\(([^)]*)\);?/im, 
+        VAR_ASSIGN: /(?:^|[;\n]\s*)(--[\w-]*?):\s*(?:([^;{]*)|{([^}]*)})(?:(?=[;\n])|$)/gi,
+        MIXIN_MATCH: /(?:^|\W+)@apply[\s]*\(([^)]*)\)/i, 
         // note, this supports:
         // var(--a)
         // var(--a, --b)
         // var(--a, fallback-literal)
         // var(--a, fallback-literal(with-one-nested-parens))
-        VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,)]*)|(?:[^;]*\([^;)]*\)))[\s]*?\)/gim,
-        VAR_CAPTURE: /\([\s]*(--[^,\s)]*)(?:,[\s]*(--[^,\s)]*))?(?:\)|,)/gim,
+        VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,)]*)|(?:[^;]*\([^;)]*\)))[\s]*?\)/gi,
+        VAR_CAPTURE: /\([\s]*(--[^,\s)]*)(?:,[\s]*(--[^,\s)]*))?(?:\)|,)/gi,
+        IS_VAR: /^--/,
         BRACKETED: /\{[^}]*\}/g,
-        HOST_PREFIX: '(?:^|[^.])',
+        HOST_PREFIX: '(?:^|[^.#[:])',
         HOST_SUFFIX: '($|[.:[\\s>+~])'
       },
 
