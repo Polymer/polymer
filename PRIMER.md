@@ -75,7 +75,7 @@ Below is a description of current Polymer features, followed by individual featu
 
 | Feature | Usage
 |---------|-------
-| [Cross-scope styling](#xscope-styling) | --custom-prop: value; prop: var(--custom-prop); @apply(--custom-property-set);
+| [Cross-scope styling](#cross-scope-styling) | --custom-prop: value; prop: var(--custom-prop); @apply(--custom-property-set);
 | [External stylesheets](#external-stylesheets) | \<link rel="import" type="css" href="...">
 
 **Settings, utility functions, and layering**
