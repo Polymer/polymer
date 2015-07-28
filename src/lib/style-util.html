@@ -16,7 +16,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return {
 
-      MODULE_STYLES_SELECTOR: 'style, link[rel=import][type~=css]',
+      MODULE_STYLES_SELECTOR: 'style, link[rel=import][type~=css], template',
 
       toCssText: function(rules, callback, preserveProperties) {
         if (typeof rules === 'string') {
@@ -81,16 +81,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return style;
       },
 
+      cssFromModules: function(moduleIds) {
+        var modules = moduleIds.trim().split(' ');
+        var cssText = '';
+        for (var i=0; i < modules.length; i++) {
+          cssText += this.cssFromModule(modules[i]);
+        }
+        return cssText;
+      },
+
       // returns cssText of styles in a given module; also un-applies any
       // styles that apply to the document.
       cssFromModule: function(moduleId) {
         var m = Polymer.DomModule.import(moduleId);
         if (m && !m._cssText) {
-          var cssText = '';
-          var e$ = Array.prototype.slice.call(
-            m.querySelectorAll(this.MODULE_STYLES_SELECTOR));
-          for (var i=0, e; i < e$.length; i++) {
-            e = e$[i];
+          m._cssText = this._cssFromElement(m);
+        }
+        return m && m._cssText || '';
+      },
+
+      // support lots of ways to discover css...
+      _cssFromElement: function(element) {
+        var cssText = '';
+        var e$ = Array.prototype.slice.call(
+          element.querySelectorAll(this.MODULE_STYLES_SELECTOR));
+        for (var i=0, e; i < e$.length; i++) {
+          e = e$[i];
+          // look inside templates for elements
+          if (e.localName === 'template') {
+            cssText += this._cssFromElement(e.content);
+          } else {
             // style elements inside dom-modules will apply to the main document
             // we don't want this, so we remove them here.
             if (e.localName === 'style') {
@@ -103,15 +123,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
             // adjust paths in css.
             if (e) {
-              cssText += 
-                Polymer.ResolveUrl.resolveCss(e.textContent, e.ownerDocument);
+              cssText += this.resolveCss(e.textContent, e.ownerDocument);
             }
           }
-          m._cssText = cssText;
+          // now support module refs on 'styling' elements
+          var module = e.getAttribute('module');
+          if (module) {
+            cssText += this.cssFromModules(module);
+          }
         }
-        return m && m._cssText || '';
+        return cssText;
       },
 
+      resolveCss: Polymer.ResolveUrl.resolveCss,
       parser: Polymer.CssParse,
       ruleTypes: Polymer.CssParse.types
 
