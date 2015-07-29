@@ -26,6 +26,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // Disabling "mouse" handlers for 2500ms is enough
   var MOUSE_TIMEOUT = 2500;
   var MOUSE_EVENTS = ['mousedown', 'mousemove', 'mouseup', 'click'];
+  // an array of bitmask values for mapping MouseEvent.which to MouseEvent.buttons
+  var MOUSE_WHICH_TO_BUTTONS = [0, 1, 4, 2];
+  var MOUSE_HAS_BUTTONS = (function() {
+    try {
+      return new MouseEvent('test', {buttons: 1}).buttons === 1;
+    } catch (e) {
+      return false;
+    }
+  })();
 
   // Check for touch-only devices
   var IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
@@ -76,6 +85,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     };
     POINTERSTATE.mouse.mouseIgnoreJob =
       Polymer.Debounce(POINTERSTATE.mouse.mouseIgnoreJob, unset, MOUSE_TIMEOUT);
+  }
+
+  function hasLeftMouseButton(ev) {
+    var type = ev.type;
+    // exit early if the event is not a mouse event
+    if (MOUSE_EVENTS.indexOf(type) === -1) {
+      return false;
+    }
+    // ev.button is not reliable for mousemove (0 is overloaded as both left button and no buttons)
+    // instead we use ev.buttons (bitmask of buttons) or fall back to ev.which (deprecated, 0 for no buttons, 1 for left button)
+    if (type === 'mousemove') {
+      // allow undefined for testing events
+      var buttons = ev.buttons === undefined ? 1 : ev.buttons;
+      if ((ev instanceof window.MouseEvent) && !MOUSE_HAS_BUTTONS) {
+        buttons = MOUSE_WHICH_TO_BUTTONS[ev.which] || 0;
+      }
+      // buttons is a bitmask, check that the left button bit is set (1)
+      return Boolean(buttons & 1);
+    } else {
+      // allow undefined for testing events
+      var button = ev.button === undefined ? 0 : ev.button;
+      // ev.button is 0 in mousedown/mouseup/click for left button activation
+      return button === 0;
+    }
   }
 
   var POINTERSTATE = {
@@ -336,16 +369,52 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Gestures.register({
     name: 'downup',
     deps: ['mousedown', 'touchstart', 'touchend'],
+    flow: {
+      start: ['mousedown', 'touchstart'],
+      end: ['mouseup', 'touchend']
+    },
     emits: ['down', 'up'],
 
+    info: {
+      movefn: function(){},
+      upfn: function(){}
+    },
+
+    reset: function() {
+      this.untrackDocument();
+    },
+
+    trackDocument: function(movefn, upfn) {
+      this.info.movefn = movefn;
+      this.info.upfn = upfn;
+      document.addEventListener('mousemove', movefn);
+      document.addEventListener('mouseup', upfn);
+    },
+
+    untrackDocument: function() {
+      document.removeEventListener('mousemove', this.info.movefn);
+      document.removeEventListener('mouseup', this.info.upfn);
+    },
+
     mousedown: function(e) {
+      if (!hasLeftMouseButton(e)) {
+        return;
+      }
       var t = Gestures.findOriginalTarget(e);
       var self = this;
-      var upfn = function upfn(e) {
-        self.fire('up', t, e);
-        document.removeEventListener('mouseup', upfn);
+      var movefn = function movefn(e) {
+        if (!hasLeftMouseButton(e)) {
+          self.fire('up', t, e);
+          self.untrackDocument();
+        }
       };
-      document.addEventListener('mouseup', upfn);
+      var upfn = function upfn(e) {
+        if (hasLeftMouseButton(e)) {
+          self.fire('up', t, e);
+        }
+        self.untrackDocument();
+      };
+      this.trackDocument(movefn, upfn);
       this.fire('down', t, e);
     },
     touchstart: function(e) {
@@ -387,7 +456,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         this.moves.push(move);
       },
+      movefn: function(){},
+      upfn: function(){},
       prevent: false
+    },
+
+    trackDocument: function(movefn, upfn) {
+      this.info.movefn = movefn;
+      this.info.upfn = upfn;
+      document.addEventListener('mousemove', movefn);
+      document.addEventListener('mouseup', upfn);
+    },
+
+    untrackDocument: function() {
+      document.removeEventListener('mousemove', this.info.movefn);
+      document.removeEventListener('mouseup', this.info.upfn);
     },
 
     reset: function() {
@@ -397,6 +480,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.info.x = 0;
       this.info.y = 0;
       this.info.prevent = false;
+      this.untrackDocument();
     },
 
     hasMovedEnough: function(x, y) {
@@ -412,6 +496,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     mousedown: function(e) {
+      if (!hasLeftMouseButton(e)) {
+        return;
+      }
       var t = Gestures.findOriginalTarget(e);
       var self = this;
       var movefn = function movefn(e) {
@@ -420,6 +507,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // first move is 'start', subsequent moves are 'move', mouseup is 'end'
           self.info.state = self.info.started ? (e.type === 'mouseup' ? 'end' : 'track') : 'start';
           self.info.addMove({x: x, y: y});
+          if (!hasLeftMouseButton(e)) {
+            // always fire "end"
+            self.info.state = 'end';
+            self.untrackDocument();
+          }
           self.fire(t, e);
           self.info.started = true;
         }
@@ -429,13 +521,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           Gestures.prevent('tap');
           movefn(e);
         }
+
         // remove the temporary listeners
-        document.removeEventListener('mousemove', movefn);
-        document.removeEventListener('mouseup', upfn);
+        self.untrackDocument();
       };
       // add temporary document listeners as mouse retargets
-      document.addEventListener('mousemove', movefn);
-      document.addEventListener('mouseup', upfn);
+      this.trackDocument(movefn, upfn);
       this.info.x = e.clientX;
       this.info.y = e.clientY;
     },
@@ -523,10 +614,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     mousedown: function(e) {
-      this.save(e);
+      if (hasLeftMouseButton(e)) {
+        this.save(e);
+      }
     },
     click: function(e) {
-      this.forward(e);
+      if (hasLeftMouseButton(e)) {
+        this.forward(e);
+      }
     },
 
     touchstart: function(e) {
