@@ -2253,7 +2253,7 @@ In order to use Polymer bindings without defining a new custom element, you may 
   <meta charset="utf-8">
   <script src="components/webcomponentsjs/webcomponents-lite.js"></script>
   <link rel="import" href="components/polymer/polymer.html">
-  <link rel="import" href="components/core-ajax/core-ajax.html">
+  <link rel="import" href="components/iron-ajax/iron-ajax.html">
 
 </head>
 <body>
@@ -2262,7 +2262,7 @@ In order to use Polymer bindings without defining a new custom element, you may 
   <!-- allow use of Polymer bindings main document -->
   <template is="dom-bind">
 
-    <core-ajax url="http://..." lastresponse="{{data}}"></core-ajax>
+    <iron-ajax url="http://..." lastresponse="{{data}}" auto></iron-ajax>
 
     <template is="dom-repeat" items="{{data}}">
         <div><span>{{item.first}}</span> <span>{{item.last}}</span></div>
