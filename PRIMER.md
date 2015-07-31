@@ -3,6 +3,8 @@
 <a name="feature-list"></a>
 Below is a description of current Polymer features, followed by individual feature guides.
 
+See [the full Polymer.Base API documentation](http://polymer.github.io/polymer/) for details on specific methods and properties. 
+
 <a name="polymer-micro"></a>
 **Basic Custom Element sugaring**
 
@@ -2044,7 +2046,7 @@ Example:
 <a name="utility-functions"></a>
 ## Utility Functions
 
-Polymer's Base prototype provides a set of useful convenience/utility functions for instances to use.  See API documentation for more details.
+Polymer's Base prototype provides a set of useful convenience/utility functions for instances to use.  [See API documentation for more details](http://polymer.github.io/polymer/).
 
 * toggleClass
 * toggleAttribute
