@@ -2046,14 +2046,20 @@ Example:
 
 Polymer's Base prototype provides a set of useful convenience/utility functions for instances to use.  See API documentation for more details.
 
-* toggleClass: function(name, bool, [node])
-* toggleAttribute: function(name, bool, [node])
-* attributeFollows: function(name, neo, old)
-* fire: function(type, [detail], [onNode], [bubbles], [cancelable])
-* async: function(method)
-* transform: function(node, transform)
-* translate3d: function(node, x, y, z)
-* importHref: function(href, onload, onerror)
+* toggleClass
+* toggleAttribute
+* classFollows
+* attributeFollows
+* getContentChildNodes
+* getContentChildren
+* fire
+* async
+* cancelAsync
+* arrayDelete
+* transform
+* translate3d
+* importHref
+* create
 
 <a name="settings"></a>
 ## Global Polymer settings
