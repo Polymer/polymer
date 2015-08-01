@@ -135,9 +135,14 @@ TODO(sjmiles): this module should produce either syntactic metadata
         // Parse bindings for methods & path roots (models)
         for (var j=0; j<note.bindings.length; j++) {
           var b = note.bindings[j];
-          b.signature = this._parseMethod(b.value);
-          if (!b.signature) {
-            b.model = this._modelForPath(b.value);
+          for (var k=0; k<b.parts.length; k++) {
+            var p = b.parts[k];
+            if (!p.literal) {
+              p.signature = this._parseMethod(p.value);
+              if (!p.signature) {
+                p.model = this._modelForPath(p.value);
+              }
+            }
           }
         }
         // Recurse into nested templates & bind parent props
@@ -150,10 +155,12 @@ TODO(sjmiles): this module should produce either syntactic metadata
             bindings.push({
               index: note.index,
               kind: 'property',
-              mode: '{',
               name: '_parent_' + prop,
-              model: prop,
-              value: prop
+              parts: [{
+                mode: '{',
+                model: prop,
+                value: prop
+              }]
             });
           }
           note.bindings = note.bindings.concat(bindings);
@@ -170,14 +177,16 @@ TODO(sjmiles): this module should produce either syntactic metadata
       notes.forEach(function(n) {
         // Find all bindings to parent.* and spread them into _parentPropChain
         n.bindings.forEach(function(b) {
-          if (b.signature) {
-            var args = b.signature.args;
-            for (var k=0; k<args.length; k++) {
-              pp[args[k].model] = true;
+          b.parts.forEach(function(p) {
+            if (p.signature) {
+              var args = p.signature.args;
+              for (var k=0; k<args.length; k++) {
+                pp[args[k].model] = true;
+              }
+            } else {
+              pp[p.model] = true;
             }
-          } else {
-            pp[b.model] = true;
-          }
+          });
         });
         // Merge child _parentProps into this _parentProps
         if (n.templateContent) {
