@@ -150,6 +150,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           });
         }
       }
+      // We need to ensure compound bindings with literals push the literals
+      // through regardless of whether annotation dependencies initialized
+      // this is done with a special compoundInitialization effect which simply
+      // kicks _applyEffectValue to push the literals through
+      if (note.isCompound) {
+        note.index = index;
+        this._addPropertyEffect('__static__', 'compoundInitialization', note);
+      }
     },
 
     _addAnnotatedComputationEffect: function(note, part, index) {
@@ -259,11 +267,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.Bind.setupBindListeners(this);
     },
 
-    _applyEffectValue: function(value, info) {
+    _applyEffectValue: function(info, value) {
       var node = this._nodes[info.index];
-      // TODO(sorvell): ideally, the info object is normalized for easy
-      // lookup here.
-      var property = info.name || 'textContent';
+      var property = info.name;
+      if (info.isCompound) {
+        var storage = node.__compoundStorage__[property];
+        storage[info.compoundIndex] = value;
+        value = storage.join('');
+      }
       // special processing for 'class' and 'className'; 'class' handled
       // when attr is serialized.
       if (info.kind == 'attribute') {
