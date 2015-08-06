@@ -1,0 +1,202 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+</head>
+<body>
+  <link rel="import" href="../../polymer.html">
+
+  <template is="dom-bind" id="app">
+
+    <div id="simple-bindref">
+      <template is="dom-template" id="ref1">
+        <span>I'm content inside ref1 template!</span>
+      </template>
+      <template is="dom-bindref" ref="ref1"></template>
+    </div>
+
+    <div id="bindref">
+      <template is="dom-template" id="ref2">
+        <span>[[item.key]]</span>
+      </template>
+      <template is="dom-bindref" ref="ref2" bind="[[item]]"></template>
+    </div>
+
+    <div id="bindref-recursive">
+      <template is="dom-template" id="leaf">
+        <span class="leaf">[[leaf.value]]</span>
+      </template>
+
+      <template is="dom-template" id="node">
+        <template is="dom-if" if="[[ node.leaf ]]">
+          <template is="dom-bindref" ref="leaf" bind="[[ node ]]" as="leaf"></template>
+        </template>
+        <template is="dom-if" if="[[ node.rows ]]">
+          <template is="dom-repeat" items="[[ node.rows ]]" as="row">
+            <span class="row">
+              <template is="dom-bindref" ref="node" bind="[[ row ]]" as="node"></template>
+            </span>
+          </template>
+        </template>
+        <template is="dom-if" if="[[ node.cols ]]">
+          <template is="dom-repeat" items="[[ node.cols ]]" as="col">
+            <span class="col">
+              <template is="dom-bindref" ref="node" bind="[[ col ]]" as="node"></template>
+            </span>
+          </template>
+        </template>
+      </template>
+
+      <template is="dom-bindref" ref="node" bind="[[ tree ]]" as="node"></template>
+    </div>
+    
+  </template>
+
+  <script>
+
+    (function(document) {
+      window.app = document.querySelector('#app');
+      var app = window.app;
+  
+      app.item = {
+        key : 'value'
+      };
+
+      app.tree = {
+        rows : [{
+          leaf : true,
+          value : 1
+        }, {
+          cols : [{
+            leaf : true,
+            value : 2
+          }, {
+            rows : [{
+              leaf : true,
+              value : 3
+            }, {
+              leaf : true,
+              value : 4
+            }]
+          }]
+        }]
+      };
+    })(document);
+
+    suite('dom-bindref', function() {
+
+      test('reference to simple template', function() {
+        var span = document.querySelector('#simple-bindref span');
+        assert.equal(span.textContent, 'I\'m content inside ref1 template!');
+      });
+
+      test('reference template with bound object', function() {
+        var span = document.querySelector('#bindref span');
+        assert.equal(span.textContent, 'value');
+      });
+
+      test('reference template with bound object and verify object change', function() {
+        var span = document.querySelector('#bindref span');
+        assert.equal(span.textContent, 'value');
+        app.item = {
+          key : 'value2'
+        };
+        span = document.querySelector('#bindref span');
+        assert.equal(span.textContent, 'value2');
+      });
+
+      test('reference recursive template', function() {
+        var rows, cols, leaves;
+
+        rows = document.querySelectorAll('#bindref-recursive .row');
+        assert.equal(rows.length, 4, 'expected 4 rows in total under #bindref-recursive');
+
+        leaves = rows[0].querySelectorAll('.leaf');
+        assert.equal(leaves.length, 1, 'expecting 1 leaf under #bindref-recursive > .row:nth-child(1)');
+        assert.equal(leaves[0].textContent, '1', 'expecting that leaf\'s content to be 1');
+
+        cols = rows[1].querySelectorAll('.col');
+        assert.equal(cols.length, 2, 'expecting 2 cols under #bindref-recursive > .row:nth-child(2)');
+
+        leaves = cols[0].querySelectorAll('.leaf');
+        assert.equal(leaves.length, 1, 'expecting 1 leaf under #bindref-recursive > .row:nth-child(2) > .col:nth-child(1)');
+        assert.equal(leaves[0].textContent, '2', 'expecting that leaf\'s content to be 2');
+
+        rows = cols[1].querySelectorAll('.row');
+        assert.equal(rows.length, 2, 'expecting 2 rows under #bindref-recursive > .row:nth-child(2) > .col:nth-child(2)');
+
+        _.forEach(rows, function(row, index) {
+          leaves = row.querySelectorAll('.leaf');
+          assert.equal(leaves.length, 1, 'expecting 1 leaf under each #bindref-recursive > .row:nth-child(2) > .col:nth-child(2) > .row ');
+          assert.equal(leaves[0].textContent, String(3 + index), 'expecting that leaf\'s value to be 3 + index');
+        });
+      });
+
+      test('reference recursive template and verify change in bound object', function() {
+        var rows, cols, leaves;
+        app.tree = {
+          cols : [{
+            leaf : true,
+            value : 1
+          }, {
+            rows : [{
+              leaf : true,
+              value : 2
+            }, {
+              cols : [{
+                leaf : true,
+                value : 3
+              }, {
+                leaf : true,
+                value : 4
+              }]
+            }]
+          }]
+        };
+
+        app.$.node.addEventListener('dom-change', function() {
+          _._.debounce(function() {
+            cols = document.querySelectorAll('#bindref-recursive .col');
+            // TODO remove
+            console.log(cols);
+
+            assert.equal(cols.length, 4, 'expected 4 cols in total under #bindref-recursive');
+
+            leaves = cols[0].querySelectorAll('.leaf');
+            assert.equal(leaves.length, 1, 'expecting 1 leaf under #bindref-recursive > .col:nth-child(1)');
+            assert.equal(leaves[0].textContent, '1', 'expecting that leaf\'s content to be 1');
+
+            rows = cols[1].querySelectorAll('.row');
+            assert.equal(cols.length, 2, 'expecting 2 rows under #bindref-recursive > .col:nth-child(2)');
+
+            leaves = rows[0].querySelectorAll('.leaf');
+            assert.equal(leaves.length, 1, 'expecting 1 leaf under #bindref-recursive > .col:nth-child(2) > .row:nth-child(1)');
+            assert.equal(leaves[0].textContent, '2', 'expecting that leaf\'s content to be 2');
+
+            cols = rows[1].querySelectorAll('.col');
+            assert.equal(rows.length, 2, 'expecting 2 cols under #bindref-recursive > .col:nth-child(2) > .row:nth-child(2)');
+
+            _.forEach(cols, function(col, index) {
+              leaves = col.querySelectorAll('.leaf');
+              assert.equal(leaves.length, 1, 'expecting 1 leaf under each #bindref-recursive > .col:nth-child(2) > .row:nth-child(2) > .col ');
+              assert.equal(leaves[0].textContent, String(3 + index), 'expecting that leaf\'s value to be 3 + index');
+            });
+          }, 250);
+        });
+      });
+
+    });
+  </script>
+</body>
+</html>
