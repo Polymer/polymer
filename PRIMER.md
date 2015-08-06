@@ -3,6 +3,8 @@
 <a name="feature-list"></a>
 Below is a description of current Polymer features, followed by individual feature guides.
 
+See [the full Polymer.Base API documentation](http://polymer.github.io/polymer/) for details on specific methods and properties. 
+
 <a name="polymer-micro"></a>
 **Basic Custom Element sugaring**
 
@@ -886,7 +888,7 @@ Example with `listeners`:
 
 ### Single property observation
 
-Custom element properties may be observed for changes by specifying `observer` property in the `properties` for the property that gives the name of a funciton to call.  When the property changes, the change handler will be called with the new and old values as arguments.
+Custom element properties may be observed for changes by specifying `observer` property in the `properties` for the property that gives the name of a function to call.  When the property changes, the change handler will be called with the new and old values as arguments.
 
 Example:
 
@@ -2044,16 +2046,22 @@ Example:
 <a name="utility-functions"></a>
 ## Utility Functions
 
-Polymer's Base prototype provides a set of useful convenience/utility functions for instances to use.  See API documentation for more details.
+Polymer's Base prototype provides a set of useful convenience/utility functions for instances to use.  [See API documentation for more details](http://polymer.github.io/polymer/).
 
-* toggleClass: function(name, bool, [node])
-* toggleAttribute: function(name, bool, [node])
-* attributeFollows: function(name, neo, old)
-* fire: function(type, [detail], [onNode], [bubbles], [cancelable])
-* async: function(method)
-* transform: function(node, transform)
-* translate3d: function(node, x, y, z)
-* importHref: function(href, onload, onerror)
+* toggleClass
+* toggleAttribute
+* classFollows
+* attributeFollows
+* getContentChildNodes
+* getContentChildren
+* fire
+* async
+* cancelAsync
+* arrayDelete
+* transform
+* translate3d
+* importHref
+* create
 
 <a name="settings"></a>
 ## Global Polymer settings
@@ -2253,7 +2261,7 @@ In order to use Polymer bindings without defining a new custom element, you may 
   <meta charset="utf-8">
   <script src="components/webcomponentsjs/webcomponents-lite.js"></script>
   <link rel="import" href="components/polymer/polymer.html">
-  <link rel="import" href="components/core-ajax/core-ajax.html">
+  <link rel="import" href="components/iron-ajax/iron-ajax.html">
 
 </head>
 <body>
@@ -2262,7 +2270,7 @@ In order to use Polymer bindings without defining a new custom element, you may 
   <!-- allow use of Polymer bindings main document -->
   <template is="dom-bind">
 
-    <core-ajax url="http://..." lastresponse="{{data}}"></core-ajax>
+    <iron-ajax url="http://..." lastresponse="{{data}}" auto></iron-ajax>
 
     <template is="dom-repeat" items="{{data}}">
         <div><span>{{item.first}}</span> <span>{{item.last}}</span></div>

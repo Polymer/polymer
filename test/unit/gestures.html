@@ -38,7 +38,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       test('tap on x-foo and check localTarget and rootTarget', function() {
         var foo = app.$.foo;
-        foo.dispatchEvent(new CustomEvent('click', {bubble: true}));
+        foo.dispatchEvent(new CustomEvent('click', {bubbles: true}));
         assert.equal(app._testLocalTarget, app, 'local target');
         assert.equal(app._testRootTarget, foo, 'root target');
       });
@@ -53,6 +53,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(foo._testRootTarget, div, 'foo root target');
       });
 
+      test('HTMLElement.click triggers tap', function() {
+        // put the element off screen to prevent x/y weirdness from .click()
+        app.style.cssText = 'position: absolute; left: -1000px; top: -1000px;';
+        // make a mousedown *very* far away to tickle the distance check
+        var ev = new CustomEvent('mousedown');
+        ev.clientX = 1e8;
+        ev.clientY = 1e8;
+        app.dispatchEvent(ev);
+        app.click();
+        assert.equal(app._testLocalTarget, app, 'app local target');
+        assert.equal(app._testRootTarget, app, 'app root target');
+      });
     });
 
     suite('Event Setup and Teardown', function() {
@@ -278,6 +290,100 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(el.stream[0].type, 'down', 'down was found');
         assert.equal(el.stream[0].defaultPrevented, true, 'down was prevented');
         assert.equal(el.stream[1].type, 'up', 'up was found');
+      });
+    });
+
+    suite('Buttons', function() {
+      var el;
+
+      setup(function() {
+        el = document.createElement('x-buttons');
+        document.body.appendChild(el);
+      });
+
+      teardown(function() {
+        el.parentNode.removeChild(el);
+      });
+
+      suite('Down and Up', function() {
+        test('Left Mouse Button Only', function() {
+          var options = {bubbles: true};
+          var evLeftDown = new CustomEvent('mousedown', options);
+          // left button
+          evLeftDown.button = 0;
+          evLeftDown.clientX = 1;
+          var evLeftUp = new CustomEvent('mouseup', options);
+          var evRightDown = new CustomEvent('mousedown', options);
+          // right button
+          evRightDown.button = 2;
+          evRightDown.clientX = 2;
+          var evRightUp = new CustomEvent('mouseup', options);
+
+          el.dispatchEvent(evLeftDown);
+          el.dispatchEvent(evLeftUp);
+          el.dispatchEvent(evRightDown);
+          el.dispatchEvent(evRightUp);
+
+          assert.equal(el.stream.length, 2, 'only saw one up and down pair');
+          assert.equal(el.stream[0].type, 'down');
+          assert.equal(el.stream[1].type, 'up');
+          assert.equal(el.stream[0].detail.x, 1, 'only from the left button');
+        });
+
+        test('Recover from right click', function() {
+          var options = {bubbles: true};
+          var evDown = new CustomEvent('mousedown', options);
+          var evMove = new CustomEvent('mousemove', options);
+          evMove.buttons = 0;
+          var evUp = new CustomEvent('mouseup', options);
+
+          el.dispatchEvent(evDown);
+          el.dispatchEvent(evMove);
+          el.dispatchEvent(evUp);
+
+          assert.equal(el.stream.length, 2, 'always get an up');
+        });
+      });
+
+      suite('Tap', function() {
+        test('Left Mouse Button Only', function() {
+          var evMid = new CustomEvent('click', {bubbles: true});
+          evMid.button = 1;
+          var evLeft = new CustomEvent('click', {bubbles: true});
+          evLeft.button = 0;
+
+          el.dispatchEvent(evMid);
+          el.dispatchEvent(evLeft);
+
+          assert.equal(el.stream.length, 1, 'only one tap');
+        });
+      });
+
+      suite('Track', function() {
+        test('Left Mouse Button Only', function() {
+          var options = {bubbles: true};
+          var ev = new CustomEvent('mousedown', options);
+          ev.clientX = ev.clientY = 0;
+          el.dispatchEvent(ev);
+          for (var i = 0; i < 5; i++) {
+            ev = new CustomEvent('mousemove', options);
+            ev.clientX = 10 * i;
+            ev.clientY = 10 * i;
+            // left button until move 4
+            ev.buttons = (i > 3) ? 2 : 1;
+            el.dispatchEvent(ev);
+          }
+          el.dispatchEvent(new CustomEvent('mouseup', options));
+
+          // down, <skipped>, track:start, track:track, track:track, track:end, up
+          assert.equal(el.stream.length, 6);
+          assert.equal(el.stream[0].type, 'down');
+          assert.equal(el.stream[1].detail.state, 'start');
+          assert.equal(el.stream[2].detail.state, 'track');
+          assert.equal(el.stream[3].detail.state, 'track');
+          assert.equal(el.stream[4].type, 'up');
+          assert.equal(el.stream[5].detail.state, 'end');
+        });
       });
     });
   </script>

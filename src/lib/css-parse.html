@@ -24,7 +24,7 @@ Polymer.CssParse = (function() {
 
     // remove stuff we don't care about that may hinder parsing
     _clean: function (cssText) {
-      return cssText.replace(rx.comments, '').replace(rx.port, '');
+      return cssText.replace(this._rx.comments, '').replace(this._rx.port, '');
     },
 
     // super simple {...} lexer that returns a node tree
@@ -64,16 +64,16 @@ Polymer.CssParse = (function() {
         // helps with mixin syntax
         t = t.substring(t.lastIndexOf(';')+1);
         var s = node.parsedSelector = node.selector = t.trim();
-        node.atRule = (s.indexOf(AT_START) === 0);
+        node.atRule = (s.indexOf(this.AT_START) === 0);
         // note, support a subset of rule types...
         if (node.atRule) {
-          if (s.indexOf(MEDIA_START) === 0) {
+          if (s.indexOf(this.MEDIA_START) === 0) {
             node.type = this.types.MEDIA_RULE;
-          } else if (s.match(rx.keyframesRule)) {
+          } else if (s.match(this._rx.keyframesRule)) {
             node.type = this.types.KEYFRAMES_RULE;
           }
         } else {
-          if (s.indexOf(VAR_START) === 0) {
+          if (s.indexOf(this.VAR_START) === 0) {
             node.type = this.types.MIXIN_RULE;
           } else {
             node.type = this.types.STYLE_RULE;
@@ -96,13 +96,13 @@ Polymer.CssParse = (function() {
       var cssText = '';
       if (node.cssText || node.rules) {
         var r$ = node.rules;
-        if (r$ && (preserveProperties || !hasMixinRules(r$))) {
+        if (r$ && (preserveProperties || !this._hasMixinRules(r$))) {
           for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
             cssText = this.stringify(r, preserveProperties, cssText);
           }  
         } else {
           cssText = preserveProperties ? node.cssText : 
-            removeCustomProps(node.cssText);  
+            this.removeCustomProps(node.cssText);  
           cssText = cssText.trim();
           if (cssText) {
             cssText = '  ' + cssText + '\n';
@@ -122,6 +122,27 @@ Polymer.CssParse = (function() {
       return text;
     },
 
+    _hasMixinRules: function(rules) {
+      return (rules[0].selector.indexOf(this.VAR_START) >= 0);
+    },
+
+    removeCustomProps: function(cssText) {
+      cssText = this.removeCustomPropAssignment(cssText);
+      return this.removeCustomPropApply(cssText);
+    },
+
+    removeCustomPropAssignment: function(cssText) {
+      return cssText
+        .replace(this._rx.customProp, '')
+        .replace(this._rx.mixinProp, '');
+    },
+
+    removeCustomPropApply: function(cssText) {
+      return cssText            
+        .replace(this._rx.mixinApply, '')
+        .replace(this._rx.varApply, '');
+    },
+
     types: {
       STYLE_RULE: 1,
       KEYFRAMES_RULE: 7,
@@ -130,36 +151,25 @@ Polymer.CssParse = (function() {
     },
 
     OPEN_BRACE: '{',
-    CLOSE_BRACE: '}'
+    CLOSE_BRACE: '}',
+
+    // helper regexp's
+    _rx: {
+      comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
+      port: /@import[^;]*;/gim,
+      customProp: /(?:^|[\s;])--[^;{]*?:[^{};]*?(?:[;\n]|$)/gim,
+      mixinProp: /(?:^|[\s;])--[^;{]*?:[^{;]*?{[^}]*?}(?:[;\n]|$)?/gim,
+      mixinApply: /@apply[\s]*\([^)]*?\)[\s]*(?:[;\n]|$)?/gim,
+      varApply: /[^;:]*?:[^;]*var[^;]*(?:[;\n]|$)?/gim,
+      keyframesRule: /^@[^\s]*keyframes/,
+    },
+
+    VAR_START: '--',
+    MEDIA_START: '@media',
+    AT_START: '@'
 
   };
 
-  function hasMixinRules(rules) {
-    return (rules[0].selector.indexOf(VAR_START) >= 0);
-  }
-
-  function removeCustomProps(cssText) {
-    return cssText
-      .replace(rx.customProp, '')
-      .replace(rx.mixinProp, '')
-      .replace(rx.mixinApply, '')
-      .replace(rx.varApply, '');
-  }
-
-  var VAR_START = '--';
-  var MEDIA_START = '@media';
-  var AT_START = '@';
-
-  // helper regexp's
-  var rx = {
-    comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
-    port: /@import[^;]*;/gim,
-    customProp: /(?:^|[\s;])--[^;{]*?:[^{};]*?(?:[;\n]|$)/gim,
-    mixinProp: /(?:^|[\s;])--[^;{]*?:[^{;]*?{[^}]*?}(?:[;\n]|$)?/gim,
-    mixinApply: /@apply[\s]*\([^)]*?\)[\s]*(?:[;\n]|$)?/gim,
-    varApply: /[^;:]*?:[^;]*var[^;]*(?:[;\n]|$)?/gim,
-    keyframesRule: /^@[^\s]*keyframes/,
-  };
 
   // exports 
   return api;
