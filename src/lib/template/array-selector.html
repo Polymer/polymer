@@ -73,7 +73,8 @@ is false, `selected` is a property representing the last selected item.  When
        * An array containing items from which selection will be made.
        */
       items: {
-        type: Array
+        type: Array,
+        observer: '_resetSelection'
       },
 
       /**
@@ -102,15 +103,11 @@ is false, `selected` is a property representing the last selected item.  When
        */
       multi: {
         type: Boolean,
-        value: false
+        observer: '_resetSelection'
       }
     },
 
-    observers: [
-      '_resetSelection(items, multi)'
-    ],
-
-    _resetSelection: function(items, multi) {
+    _resetSelection: function() {
       // Unbind previous selection
       if (Array.isArray(this.selected)) {
         for (var i=0; i<this.selected.length; i++) {
@@ -120,10 +117,22 @@ is false, `selected` is a property representing the last selected item.  When
         this.unlinkPaths('selected');
       }
       // Initialize selection
-      if (multi && items) {
-        this.selected = [];
+      if (this.multi) {
+        if (!this.selected || this.selected.length) {
+          this.selected = [];
+          this._selectedColl = Polymer.Collection.get(this.selected);
+        }
       } else {
         this.selected = null;
+        this._selectedColl = null;
+      }
+    },
+
+    isSelected: function(item) {
+      if (this.multi) {
+        return this._selectedColl.getKey(item) !== undefined;
+      } else {
+        return this.selected == item;
       }
     },
 
@@ -132,14 +141,9 @@ is false, `selected` is a property representing the last selected item.  When
      */
     deselect: function(item) {
       if (this.multi) {
-        var scol = Polymer.Collection.get(this.selected);
-        // var skey = scol.getKey(item);
-        // if (skey >= 0) {
-        var sidx = this.selected.indexOf(item);
-        if (sidx >= 0) {
-          var skey = scol.getKey(item);
-          this.splice('selected', sidx, 1);
-          // scol.remove(item);
+        if (this.isSelected(item)) {
+          var skey = this._selectedColl.getKey(item);
+          this.arrayDelete('selected', item);
           this.unlinkPaths('selected.' + skey);
           return true;
         }
@@ -157,16 +161,13 @@ is false, `selected` is a property representing the last selected item.  When
       var icol = Polymer.Collection.get(this.items);
       var key = icol.getKey(item);
       if (this.multi) {
-        // var sidx = this.selected.indexOf(item);
-        // if (sidx < 0) {
-        var scol = Polymer.Collection.get(this.selected);
-        if (scol.getKey(item) !== undefined) {
+        if (this.isSelected(item)) {
           if (this.toggle) {
             this.deselect(item);
           }
         } else {
           this.push('selected', item);
-          skey = scol.getKey(item);
+          skey = this._selectedColl.getKey(item);
           this.linkPaths('selected.' + skey, 'items.' + key);
         }
       } else {
