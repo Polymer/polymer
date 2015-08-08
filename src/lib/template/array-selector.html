@@ -74,7 +74,18 @@ is false, `selected` is a property representing the last selected item.  When
        */
       items: {
         type: Array,
-        observer: '_itemsChanged'
+        observer: '_resetSelection'
+      },
+
+      /**
+       * When `true`, multiple items may be selected at once (in this case,
+       * `selected` is an array of currently selected items).  When `false`,
+       * only one item may be selected at a time.
+       */
+      multi: {
+        type: Boolean,
+        value: false,
+        observer: '_resetSelection'
       },
 
       /**
@@ -91,17 +102,13 @@ is false, `selected` is a property representing the last selected item.  When
        * When `true`, calling `select` on an item that is already selected
        * will deselect the item.
        */
-      toggle: Boolean,
-
-      /**
-       * When `true`, multiple items may be selected at once (in this case,
-       * `selected` is an array of currently selected items).  When `false`,
-       * only one item may be selected at a time.
-       */
-      multi: Boolean
+      toggle: {
+        type: Boolean,
+        value: false
+      }
     },
 
-    _itemsChanged: function() {
+    _resetSelection: function() {
       // Unbind previous selection
       if (Array.isArray(this.selected)) {
         for (var i=0; i<this.selected.length; i++) {
@@ -112,27 +119,43 @@ is false, `selected` is a property representing the last selected item.  When
       }
       // Initialize selection
       if (this.multi) {
-        this.selected = [];
+        if (!this.selected || this.selected.length) {
+          this.selected = [];
+          this._selectedColl = Polymer.Collection.get(this.selected);
+        }
       } else {
         this.selected = null;
+        this._selectedColl = null;
+      }
+    },
+
+    /**
+     * Returns whether the item is currently selected.
+     *
+     * @method isSelected
+     * @param {*} item Item from `items` array to test
+     * @return {boolean} Whether the item is selected
+     */
+    isSelected: function(item) {
+      if (this.multi) {
+        return this._selectedColl.getKey(item) !== undefined;
+      } else {
+        return this.selected == item;
       }
     },
 
     /**
      * Deselects the given item if it is already selected.
+     *
+     * @method isSelected
+     * @param {*} item Item from `items` array to deselect
      */
     deselect: function(item) {
       if (this.multi) {
-        var scol = Polymer.Collection.get(this.selected);
-        // var skey = scol.getKey(item);
-        // if (skey >= 0) {
-        var sidx = this.selected.indexOf(item);
-        if (sidx >= 0) {
-          var skey = scol.getKey(item);
-          this.splice('selected', sidx, 1);
-          // scol.remove(item);
+        if (this.isSelected(item)) {
+          var skey = this._selectedColl.getKey(item);
+          this.arrayDelete('selected', item);
           this.unlinkPaths('selected.' + skey);
-          return true;
         }
       } else {
         this.selected = null;
@@ -143,27 +166,22 @@ is false, `selected` is a property representing the last selected item.  When
     /**
      * Selects the given item.  When `toggle` is true, this will automatically
      * deselect the item if already selected.
+     *
+     * @method isSelected
+     * @param {*} item Item from `items` array to select
      */
     select: function(item) {
       var icol = Polymer.Collection.get(this.items);
       var key = icol.getKey(item);
       if (this.multi) {
-        // var sidx = this.selected.indexOf(item);
-        // if (sidx < 0) {
-        var scol = Polymer.Collection.get(this.selected);
-        var skey = scol.getKey(item);
-        if (skey >= 0) {
+        if (this.isSelected(item)) {
           if (this.toggle) {
             this.deselect(item);
           }
         } else {
           this.push('selected', item);
-          // this.linkPaths('selected.' + sidx, 'items.' + skey);
-          // skey = Polymer.Collection.get(this.selected).add(item);
-          this.async(function() {
-            skey = scol.getKey(item);
-            this.linkPaths('selected.' + skey, 'items.' + key);
-          });
+          skey = this._selectedColl.getKey(item);
+          this.linkPaths('selected.' + skey, 'items.' + key);
         }
       } else {
         if (this.toggle && item == this.selected) {
