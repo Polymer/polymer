@@ -8,7 +8,6 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="settings.html">
-<link rel="import" href="event-api.html">
 <link rel="import" href="dom-innerHTML.html">
 <script>
 
@@ -26,9 +25,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var DomApi = function(node) {
       this.node = node;
-      this._observers = [];
-      this._addedNodes = [];
-      this._removedNodes = []
       if (this.patch) {
         this.patch();
       }
@@ -68,8 +64,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // 3. node is <content> (host of container needs distribution)
       appendChild: function(node) {
         var handled;
-        this._recordMutationRemoveFromParent(node);
-        this._removeNodeFromHost(node, true);
+        this._removeNodeFromParent(node);
         if (this._nodeIsInLogicalTree(this.node)) {
           this._addLogicalInfo(node, this.node);
           this._addNodeToHost(node);
@@ -82,7 +77,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           addToComposedParent(container, node);
           nativeAppendChild.call(container, node);
         }
-        this._recordMutationAdd(node);
+        if (this._observer) {
+          this._observer.addNode(node);
+        }
         return node;
       },
 
@@ -91,8 +88,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return this.appendChild(node);
         }
         var handled;
-        this._recordMutationRemoveFromParent(node);
-        this._removeNodeFromHost(node, true);
+        this._removeNodeFromParent(node);
         if (this._nodeIsInLogicalTree(this.node)) {
           saveLightChildrenIfNeeded(this.node);
           var children = this.childNodes;
@@ -115,7 +111,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           addToComposedParent(container, node, ref_node);
           nativeInsertBefore.call(container, node, ref_node);
         }
-        this._recordMutationAdd(node);
+        if (this._observer) {
+          this._observer.addNode(node);
+        }
         return node;
       },
 
@@ -143,7 +141,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             nativeRemoveChild.call(container, node);
           }
         }
-        this._recordMutationRemove(node);
+        if (this._observer) {
+          this._observer.removeNode(node);
+        }
         return node;
       },
 
@@ -245,6 +245,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _parentNeedsDistribution: function(parent) {
         return parent && parent.shadyRoot && hasInsertionPoint(parent.shadyRoot);
+      },
+
+      _removeNodeFromParent: function(node) {
+        var parent = node._lightParent;
+        if (parent && hasDomApi(parent)) {
+          var d =  factory(parent);
+          if (d._observer) {
+            d._observer.removeNode(node);
+          }
+        }
+        this._removeNodeFromHost(node, true);
       },
 
       // NOTE: if `ensureComposedRemoval` is true then the node should be
@@ -486,108 +497,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         return n;
-      },
-
-      observeChildren: function(callback) {
-        return this._observers.push(callback);
-      },
-
-      unobserveChildren: function(handle) {
-        this._observers.splice(handle - 1, 1);
-      },
-
-      _hasObservers: function() {
-        return Boolean(this._observers.length);
-      },
-
-      _recordMutationAdd: function(node) {
-        if (this._hasObservers()) {
-          this._addedNodes.push(node);
-          this._scheduleMutationNotify();
-        }
-      },
-
-      _recordMutationRemove: function(node) {
-        if (this._hasObservers()) {
-          this._removedNodes.push(node);
-          this._scheduleMutationNotify();
-        }
-      },
-
-      _recordMutationAddAll: function() {
-        if (this._hasObservers()) {
-          var c$ = this.childNodes;
-          for (var i=0, c; (i < c$.length) && (c=c$[i]); i++) {
-            this._recordMutationAdd(c);
-          }
-        }
-      },
-
-      _recordMutationRemoveFromParent: function(node) {
-        var parent = node._lightParent;
-        if (parent) {
-          factory(parent)._recordMutationRemove(node);
-        }
-      },
-
-      _scheduleMutationNotify: function() {
-        this._mutationDebouncer = Polymer.Debounce(this._mutationDebouncer, 
-          this._notifyObservers);
-        this._mutationDebouncer.context = this;
-        Polymer.dom.addDebouncer(this._mutationDebouncer);
-      },
-
-      _notifyObservers: function(mxns) {
-        var info = {
-          target: this.node,
-          addedNodes: this._addedNodes,
-          removedNodes: this._removedNodes
-        }
-        var o$ = this._observers;
-        for (var i=0, o; (i < o$.length) && (o=o$[i]); i++) {
-          o.call(null, info);
-        }
-        this._addedNodes = [];
-        this._removedNodes = [];
       }
 
     };
-
-    Object.defineProperty(DomApi.prototype, 'classList', {
-      get: function() {
-        if (!this._classList) {
-          this._classList = new DomApi.ClassList(this);
-        }
-        return this._classList;
-      },
-      configurable: true
-    });
-
-    DomApi.ClassList = function(host) {
-      this.domApi = host;
-      this.node = host.node;
-    }
-
-    DomApi.ClassList.prototype = {
-      add: function() {
-        this.node.classList.add.apply(this.node.classList, arguments);
-        this.domApi._distributeParent();
-      },
-
-      remove: function() {
-        this.node.classList.remove.apply(this.node.classList, arguments);
-        this.domApi._distributeParent();
-      },
-
-      toggle: function() {
-        this.node.classList.toggle.apply(this.node.classList, arguments);
-        this.domApi._distributeParent();
-      },
-      contains: function() {
-        return this.node.classList.contains.apply(this.node.classList,
-          arguments);
-      }
-    }
 
     // changes and accessors...
     if (!Settings.useShadow) {
@@ -927,62 +839,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return factory(obj, patch);
       }
     };
-
-    // add flush api...
-    Polymer.Base.extend(Polymer.dom, {
-      
-      _flushGuard: 0,
-      _FLUSH_MAX: 100,
-      _needsTakeRecords: !Polymer.Settings.useNativeCustomElements,
-      _debouncers: [],
-      _finishDebouncer: null,
-
-      // flush and debounce exposed as statics on Polymer.dom
-      flush: function() {
-        // flush debouncers
-        for (var i=0; i < this._debouncers.length; i++) {
-          this._debouncers[i].complete();
-        }
-        // clear the list of debouncers
-        if (this._finishDebouncer) {
-          this._finishDebouncer.complete();
-        }
-        // again make any pending CE mutations that might trigger debouncer
-        // additions go...
-        this._flushPolyfills();
-        // flush again if there are now any debouncers to process
-        if (this._debouncers.length && this._flushGuard < this._FLUSH_MAX) {
-          this._flushGuard++;
-          this.flush();
-        } else {
-          if (this._flushGuard >= this._FLUSH_MAX) {
-            console.warn('Polymer.dom.flush aborted. Flush may not be complete.')
-          }
-          this._flushGuard = 0;
-        }
-      },
-
-      // TODO(sorvell): There is currently not a good way 
-      // to process all custom elements mutations under SD polyfill because
-      // these mutations may be inside shadowRoots. 
-      _flushPolyfills: function() {
-        if (this._needsTakeRecords) {
-          CustomElements.takeRecords();
-        }
-      },
-
-      addDebouncer: function(debouncer) {
-        this._debouncers.push(debouncer);
-        // ensure the list of active debouncers is cleared when done.
-        this._finishDebouncer = Polymer.Debounce(this._finishDebouncer, 
-          this._finishFlush);
-      },
-
-      _finishFlush: function() {
-        Polymer.dom._debouncers = [];
-      }
-
-    });
 
     function getLightChildren(node) {
       var children = node._lightChildren;
