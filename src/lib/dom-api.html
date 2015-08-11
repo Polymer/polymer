@@ -64,11 +64,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // 3. node is <content> (host of container needs distribution)
       appendChild: function(node) {
         var handled;
+        // if a <content> is added, make sure it's parent has logical info.
+        this._ensureContentLogicalInfo(node);
         this._removeNodeFromParent(node);
         if (this._nodeIsInLogicalTree(this.node)) {
           this._addLogicalInfo(node, this.node);
           this._addNodeToHost(node);
           handled = this._maybeDistribute(node, this.node);
+        } else {
+          this._addNodeToHost(node);
         }
         // if not distributing and not adding to host, do a fast path addition
         if (!handled && !this._tryRemoveUndistributedNode(node)) {
@@ -88,9 +92,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return this.appendChild(node);
         }
         var handled;
+        // if a <content> is added, make sure it's parent has logical info.
+        this._ensureContentLogicalInfo(node);
         this._removeNodeFromParent(node);
         if (this._nodeIsInLogicalTree(this.node)) {
-          saveLightChildrenIfNeeded(this.node);
           var children = this.childNodes;
           var index = children.indexOf(ref_node);
           if (index < 0) {
@@ -100,6 +105,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._addLogicalInfo(node, this.node, index);
           this._addNodeToHost(node);
           handled = this._maybeDistribute(node, this.node);
+        } else {
+          this._addNodeToHost(node);
         }
         // if not distributing and not adding to host, do a fast path addition
         if (!handled && !this._tryRemoveUndistributedNode(node)) {
@@ -130,6 +137,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this._nodeIsInLogicalTree(this.node)) {
           this._removeNodeFromHost(node);
           handled = this._maybeDistribute(node, this.node);
+        } else {
+          this._removeNodeFromHost(node);
         }
         if (!handled) {
           // if removing from a shadyRoot, remove form host instead
@@ -231,16 +240,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _updateInsertionPoints: function(host) {
-        host.shadyRoot._insertionPoints =
+        var i$ = host.shadyRoot._insertionPoints =
           factory(host.shadyRoot).querySelectorAll(CONTENT);
+        // ensure <content>'s and their parents have logical dom info.
+        for (var i=0, c; i < i$.length; i++) {
+          c = i$[i];
+          saveLightChildrenIfNeeded(c);
+          saveLightChildrenIfNeeded(factory(c).parentNode);
+        }
       },
 
       // a node is in a shadyRoot, is a shadyRoot,
       // or has a lightParent
       _nodeIsInLogicalTree: function(node) {
         return Boolean((node._lightParent !== undefined) || node._isShadyRoot ||
-          this._ownerShadyRootForNode(node) ||
           node.shadyRoot);
+      },
+
+      _ensureContentLogicalInfo: function(node) {
+        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+          saveLightChildrenIfNeeded(this.node);
+          var c$ = Array.prototype.slice.call(node.childNodes);
+          for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
+            this._ensureContentLogicalInfo(n);
+          }
+        } else if (node.localName === CONTENT) {
+          // should be parent not this.node, but this is before parent is set.
+          saveLightChildrenIfNeeded(this.node);
+          saveLightChildrenIfNeeded(node);
+        }
       },
 
       _parentNeedsDistribution: function(parent) {
@@ -311,17 +339,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      // a node being added is always in this same host as this.node.
       _addNodeToHost: function(node) {
-        var checkNode = node.nodeType === Node.DOCUMENT_FRAGMENT_NODE ?
-          node.firstChild : node;
-        var root = this._ownerShadyRootForNode(checkNode);
+        var root = this.getOwnerRoot();
         if (root) {
           root.host._elementAdd(node);
         }
       },
 
       _addLogicalInfo: function(node, container, index) {
-        saveLightChildrenIfNeeded(container);
         var children = factory(container).childNodes;
         index = index === undefined ? children.length : index;
         // handle document fragments

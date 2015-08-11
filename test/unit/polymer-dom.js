@@ -424,6 +424,34 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom(rere.root).querySelectorAll('span').length, 0);
   });
 
+  test('appendChild interacts with unmanaged parent tree', function() {
+    var container = document.querySelector('#container');
+    var echo = Polymer.dom(container).firstElementChild;
+    assert.equal(echo.localName, 'x-echo');
+    var s1 = Polymer.dom(echo).nextElementSibling;
+    assert.equal(s1.textContent, '1');
+    var s2 = Polymer.dom(s1).nextElementSibling;
+    assert.equal(s2.textContent, '2');
+    assert.equal(Polymer.dom(container).children.length, 3);
+    Polymer.dom(echo).appendChild(s1);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(container).children.length, 2);
+    assert.equal(Polymer.dom(echo).nextElementSibling, s2);
+    Polymer.dom(echo).appendChild(s2);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(container).children.length, 1);
+    assert.equal(Polymer.dom(echo).nextElementSibling, null);
+    Polymer.dom(container).appendChild(s1);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(container).children.length, 2);
+    assert.equal(Polymer.dom(echo).nextElementSibling, s1);
+    Polymer.dom(container).appendChild(s2);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(container).children.length, 3);
+    assert.equal(Polymer.dom(echo).nextElementSibling, s1);
+    assert.equal(Polymer.dom(s1).nextElementSibling, s2);
+  });
+
   test('distribute (forced)', function() {
     var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
     var re = Polymer.dom(rere.root).querySelector('x-reproject');
