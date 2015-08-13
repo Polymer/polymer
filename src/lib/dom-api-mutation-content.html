@@ -15,113 +15,85 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var DomApi = Polymer.DomApi.ctor;
     var Settings = Polymer.Settings;
 
-    DomApi.prototype.observeDistributedNodes = function(callback) {
-      if (!this._observer) {
-        this._observer = new DomApi.Mutation(this);
-      }
-      return this._observer.addObserver(callback);
-    };
-
-    DomApi.prototype.unobserveDistributedNodes = function(handle) {
-      if (this._observer) {
-        this._observer.removeObserver(handle);
-      }
-    }
-
     DomApi.MutationContent = function(domApi) {
-      this.domApi = domApi;
-      this.node = this.domApi.node;
-      this._observers = [];
-      this._addedNodes = [];
-      this._removedNodes = [];
+      DomApi.Mutation.call(this, domApi);
     };
 
-    DomApi.MutationContent.prototype = {
+    DomApi.MutationContent.prototype = Object.create(DomApi.Mutation.prototype);
 
-      // addObserver: function(callback) {
-      //   return this._observers.push(callback);
-      // },
+    Polymer.Base.extend(DomApi.MutationContent.prototype, {
 
-      // removeObserver: function(handle) {
-      //   this._observers.splice(handle - 1, 1);
-      // },
+      addListener: function(callback, includeChanges) {
+        this._includeChanges = includeChanges;
+        var h = DomApi.Mutation.prototype.addListener.call(this, callback);
+        this._scheduleNotify();
+        return h;
+      },
 
-      // hasObservers: function() {
-      //   return Boolean(this._observers.length);
-      // },
+      notifyIfNeeded: function() {
+        if (this._hasListeners()) {
+          this._scheduleNotify();
+        }
+      },
 
-      // _scheduleMutationNotify: function() {
-      //   this._mutationDebouncer = Polymer.Debounce(this._mutationDebouncer, 
-      //     this._notifyObservers);
-      //   this._mutationDebouncer.context = this;
-      //   Polymer.dom.addDebouncer(this._mutationDebouncer);
-      // },
+      _notify: function() {
+        var info = this._includeChanges ? this._calcChanges() : {};
+        if (info) {
+          info.target = this.node;
+          this._callListeners(info);
+        }
+      },
 
-      // _notifyObservers: function(mxns) {
-      //   var info = {
-      //     target: this.node,
-      //     addedNodes: this._addedNodes,
-      //     removedNodes: this._removedNodes
-      //   }
-      //   var o$ = this._observers;
-      //   for (var i=0, o; (i < o$.length) && (o=o$[i]); i++) {
-      //     o.call(null, info);
-      //   }
-      //   this._addedNodes = [];
-      //   this._removedNodes = [];
-      // }
+      _calcChanges: function() {
+        var changes = {
+          addedNodes: [],
+          removedNodes: []
+        };
+        var o$ = this.node.__distributedNodes = this.node.__distributedNodes ||
+          [];
+        var n$ = this.domApi.getDistributedNodes();
+        this.node.__distributedNodes = n$;
+        var splices = Polymer.ArraySplice.calculateSplices(n$, o$);
+        // process removals
+        for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+          for (var j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
+            changes.removedNodes.push(n);
+          }
+        }
+        // process adds
+        for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+          for (var j=s.index; j < s.index + s.addedCount; j++) {
+            changes.addedNodes.push(n$[j]);
+          }
+        }
+        if (changes.addedNodes.length || changes.removedNodes.length) {
+          return changes;
+        }
+      }
 
-      // observeDistributedNodes: function(callback) {
-      //   if (this.node.localName !== 'content') {
-      //     console.warn('Must call `observeDistributedNodes` on a <content> element.');
-      //     return;
-      //   }
-      //   // setup <content>.getDistributedNodes observation
-      //   if (!this.hasObservers()) {
-      //     this._startObserveDistributedNodes();
-      //   }
-      //   this._addObserver(callback);
-      // },
-
-      // unobserveDistributedNodes: function(handle) {
-      //   if (this.node.localName !== 'content') {
-      //     return;
-      //   }
-      //   this._removeObserver(handle);
-      //   if (!this.hasObservers()) {
-      //     this._stopObservingDistributedNodes();
-      //   }
-      // },
-
-      // _startObservingDistributedNodes: function() {
-      //   this._distributedObservers = [];
-      //   var root = this.getOwnerRoot();
-      //   var host = root && root.host;
-      //   if (host) {
-      //     var h = Polymer.dom(host)
-      //       .observeChildren(this._scheduleDistributedNodesNotify);
-      //     this._distributedObservers.push(h);
-      //   }
-      // },
-
-      // _stopObservingDistributedNodes: function() {
-        
-      // },
-
-      // _scheduleDistributedNodesNotify: function() {
-      //   this._distributedNodesDebouncer = 
-      //     Polymer.Debounce(this._distributedNodesDebouncer, 
-      //     this._notifyObservers);
-      //   this._distributedNodesDebouncer.context = this.node;
-      //   Polymer.dom.addDebouncer(this._distributedNodesDebouncer);
-      // },
-
-    };
+    });
 
     if (Settings.useShadow) {
+      
+      Polymer.Base.extend(DomApi.MutationContent.prototype, {
+        
+        _ensureObserver: function() {
+          var root = this.domApi.getOwnerRoot();
+          var host = root && root.host;
+          if (host) {
+            this._observer = Polymer.dom(host).observeNodes(
+              this.notifyIfNeeded.bind(this));
+          }
+        },
 
+        _cleanupObserver: function() {
+          if (this._observer) {
+            Polymer.dom(host).unobserveNodes(this._observer);
+          }
+        }
+
+      });
     
-
     }
 
 })();
