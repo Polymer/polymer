@@ -14,6 +14,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var DomApi = Polymer.DomApi.ctor;
     var Settings = Polymer.Settings;
+    var hasDomApi = Polymer.DomApi.hasDomApi;
 
     DomApi.Mutation = function(domApi) {
       this.domApi = domApi;
@@ -100,7 +101,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _observeContentElements: function(elements) {
         for (var i=0, h, n; (i < elements.length) && (n=elements[i]); i++) {
-          if (n.localName === 'content') {
+          if (this._isContent(n)) {
             n.__observeNodesMap = n.__observeNodesMap || new WeakMap();
             if (n.__observeNodesMap.get(this) === undefined) {
               h = Polymer.dom(n).observeNodes(
@@ -113,13 +114,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _unobserveContentElements: function(elements) {
         for (var i=0, n, h; (i < elements.length) && (n=elements[i]); i++) {
-          if (n.localName === 'content') {
+          if (this._isContent(n)) {
             h = n.__observeNodesMap.get(this);
             if (h) {
               Polymer.dom(n).unobserveNodes(h);
             }
           }
         }
+      },
+
+      _isContent: function(node) {
+        return (node.localName === 'content');
       },
 
       _callListeners: function(info) {
@@ -151,10 +156,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._debouncer.context = this;
             Polymer.dom.addDebouncer(this._debouncer);
             this._preflush = this._flush.bind(this);
-            Polymer.dom.addPreflush(this._preflush);
+           
           }
-          // note: doing this > 1x is a no-op
-          this._observer.observe(this.node, {childList: true});
+          if (!this._hasListeners()) {
+             Polymer.dom.addPreflush(this._preflush);
+             // note: doing this > 1x is a no-op
+             this._observer.observe(this.node, {childList: true});
+          }
         },
 
         _cleanupObserver: function() {

@@ -538,7 +538,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this.observer) {
           this.observer.removeListener(handle);
         }
-      }
+      },
+
+      // abstract, intended as public 'kick' mehanism
+      notifyObservers: function() {} 
 
     };
 
@@ -744,57 +747,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       DomApi.prototype._distributeParent = function() {};
 
-      DomApi.prototype.observeChildren = function(callback) {
-        if (!this._mo) {
-          this._mo = new MutationObserver(this._notifyObservers.bind(this));
-          this._mo.observe(this.node, {childList: true});
-          // make sure to notify initial state...
-          this._mutationDebouncer = Polymer.Debounce(this._mutationDebouncer, 
-            function() {
-              this._notifyObservers([{
-                target: this.node, 
-                addedNodes: this.childNodes.slice()
-              }]);
-            }
-          );
-          this._mutationDebouncer.context = this;
-          Polymer.dom.addDebouncer(this._mutationDebouncer);
-        }
-        return this._observers.push(callback);
-      };
-
-      DomApi.prototype._notifyObservers = function(mxns) {
-        var info = {
-          target: this.node,
-          addedNodes: [],
-          removedNodes: []
-        };
-        mxns.forEach(function(m) {
-          if (m.addedNodes) {
-            for (var i=0; i < m.addedNodes.length; i++) {
-              info.addedNodes.push(m.addedNodes[i]);
+      DomApi.prototype.notifyObservers = function() {
+        if (this.node.shadowRoot) {
+          var ip$ = this.node.shadowRoot.querySelectorAll('content');
+          for (var i=0, c; (i<ip$.length) && (c=ip$[i]); i++) {
+            this._notifyContent(c);
+            if (c.parentNode.shadowRoot) {
+              factory(c.parentNode).notifyObservers();
             }
           }
-          if (m.removedNodes) {
-            for (var i=0; i < m.removedNodes.length; i++) {
-              info.removedNodes.push(m.removedNodes[i]);
-            }
-          }
-        });
-        if (info.addedNodes.length || info.removedNodes.length) {
-          var o$ = this._observers;
-          for (var i=0, o; (i < o$.length) && (o=o$[i]); i++) {
-            o.call(null, info);
-          }
         }
-      };
-
-      DomApi.prototype.flush = function() {
-        if (this._mo) {
-          this._notifyObservers(this._mo.takeRecords());
-        }
-        Polymer.dom.flush();
       }
+
+      DomApi.prototype._notifyContent = function(content) {
+        if (hasDomApi(content) && factory(content).observer) {
+          factory(content).observer.notify();
+        }
+      }
+
 
       var nativeForwards = ['appendChild', 'insertBefore', 
         'removeChild', 'replaceChild'];
