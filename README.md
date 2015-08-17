@@ -120,13 +120,14 @@ Polymer({
 ```html
 <!-- add style to your element -->
 <dom-module id="my-styled-namecard">
-  <style>
-    /* This would be crazy in non webcomponents. */
-    span {
-      font-weight: bold;
-    }
-  </style>
   <template>
+    <style>
+      /* This would be crazy in non webcomponents. */
+      span {
+        font-weight: bold;
+      }
+    </style>
+
     <div>
       Hi! My name is <span>{{myName}}</span>
     </div>
