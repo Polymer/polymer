@@ -53,6 +53,14 @@ suite('Polymer.dom', function() {
     assert(Polymer.dom(p).querySelectorAll('content').length, 1);
   });
 
+  test('querySelectorAll with dom-repeat', function() {
+    var el = document.createElement('polymer-dom-repeat');
+    document.body.appendChild(el);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(el.$.container).querySelectorAll('*').length, 6, 'querySelectorAll finds repeated elements');
+    document.body.removeChild(el);
+  })
+
   test('querySelector document', function() {
     assert.ok(Polymer.dom().querySelector('body'));
   });

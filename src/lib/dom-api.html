@@ -64,19 +64,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // container to container.host.
       // 3. node is <content> (host of container needs distribution)
       appendChild: function(node) {
-        var handled;
         this._removeNodeFromHost(node, true);
-        if (this._nodeIsInLogicalTree(this.node)) {
-          // if a <content> is added, make sure it's parent has logical info.
+        // if a <content> is added, make sure it's parent has logical info.
+        if (this.getOwnerRoot()) {
           this._ensureContentLogicalInfo(node);
-          this._addLogicalInfo(node, this.node);
-          this._addNodeToHost(node);
-          handled = this._maybeDistribute(node, this.node);
-        } else {
-          this._addNodeToHost(node);
         }
+        if (this._nodeIsInLogicalTree(this.node)) {
+          this._addLogicalInfo(node, this.node);
+        }
+        this._addNodeToHost(node);
         // if not distributing and not adding to host, do a fast path addition
-        if (!handled && !this._tryRemoveUndistributedNode(node)) {
+        if (!this._maybeDistribute(node, this.node) && 
+          !this._tryRemoveUndistributedNode(node)) {
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           addToComposedParent(container, node);
@@ -89,11 +88,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!ref_node) {
           return this.appendChild(node);
         }
-        var handled;
         this._removeNodeFromHost(node, true);
-        if (this._nodeIsInLogicalTree(this.node)) {
-          // if a <content> is added, make sure it's parent has logical info.
+        // if a <content> is added, make sure it's parent has logical info.
+        if (this.getOwnerRoot()) {
           this._ensureContentLogicalInfo(node);
+        }
+        if (this._nodeIsInLogicalTree(this.node)) {
           var children = this.childNodes;
           var index = children.indexOf(ref_node);
           if (index < 0) {
@@ -101,13 +101,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               'of this node');
           }
           this._addLogicalInfo(node, this.node, index);
-          this._addNodeToHost(node);
-          handled = this._maybeDistribute(node, this.node);
-        } else {
-          this._addNodeToHost(node);
         }
+        this._addNodeToHost(node);
         // if not distributing and not adding to host, do a fast path addition
-        if (!handled && !this._tryRemoveUndistributedNode(node)) {
+        if (!this._maybeDistribute(node, this.node) && 
+          !this._tryRemoveUndistributedNode(node)) {
           // if ref_node is <content> replace with first distributed node
           ref_node = ref_node.localName === CONTENT ?
             this._firstComposedNode(ref_node) : ref_node;
@@ -128,14 +126,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           console.warn('The node to be removed is not a child of this node',
             node);
         }
-        var handled;
-        if (this._nodeIsInLogicalTree(this.node)) {
-          this._removeNodeFromHost(node);
-          handled = this._maybeDistribute(node, this.node);
-        } else {
-          this._removeNodeFromHost(node);
-        }
-        if (!handled) {
+        this._removeNodeFromHost(node);
+        if (!this._maybeDistribute(node, this.node)) {
           // if removing from a shadyRoot, remove form host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           // not guaranteed to physically be in container; e.g.
@@ -249,9 +241,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _ensureContentLogicalInfo: function(node) {
-        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-          saveLightChildrenIfNeeded(this.node);
-          var c$ = Array.prototype.slice.call(node.childNodes);
+        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && 
+          !node.__noContent) {
+          var c$ = factory(node).querySelectorAll(CONTENT);
           for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
             this._ensureContentLogicalInfo(n);
           }
