@@ -636,14 +636,22 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom.deepActiveElement, b);
   });
 
-  test('deepActiveElement complex search', function() {
+  test('deepActiveElement complex search', function(done) {
     var a = document.createElement('x-focusable');
     var b = Polymer.dom(a.root).querySelector('[tabindex="1"]');
     Polymer.dom(document.body).appendChild(a);
-    b.focus();
-    assert.equal(Polymer.dom.deepActiveElement, b);
+    Polymer.dom.flush();
+    function testDeepActiveElement() {
+      b.focus();
+      assert.equal(Polymer.dom.deepActiveElement, b);
+      done();
+    }
+    if (Polymer.Settings.useShadow && !Polymer.Settings.useNativeShadow) {
+      setTimeout(testDeepActiveElement);
+    } else {
+      testDeepActiveElement();
+    }
   });
-
 });
 
 suite('Polymer.dom accessors', function() {
