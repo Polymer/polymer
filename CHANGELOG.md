@@ -1,5 +1,32 @@
 # Change Log
 
+##[v1.1.1](https://github.com/Polymer/polymer/tree/v1.1.1) (2015-08-20)
+- Fixes #2263: ensure custom-style can parse variable definitions in supported selectors (e.g. /deep/) without exception due to unknown css. ([commit](https://github.com/Polymer/polymer/commit/894492b))
+
+- Fixes #2311, #2323: when elements are removed from their previous position when they are added elsewhere, make sure to remove them from composed, not logical parent. ([commit](https://github.com/Polymer/polymer/commit/3d93116))
+
+- Update Changelog ([commit](https://github.com/Polymer/polymer/commit/039ef93))
+
+- Add selectedItem property ([commit](https://github.com/Polymer/polymer/commit/d65acd0))
+
+- Add test for large splice ([commit](https://github.com/Polymer/polymer/commit/c967583))
+
+- Use numeric sort when removing dom-repeat instances ([commit](https://github.com/Polymer/polymer/commit/fccbd8a))
+
+- Fixes #2267: properly find dom-module for mixed case elements ([commit](https://github.com/Polymer/polymer/commit/76c58b8))
+
+- Fixes #2304: avoid trying to read style data from imports that did not load. ([commit](https://github.com/Polymer/polymer/commit/0d1f206))
+
+- Avoid saving logical info on parent when a content is added inside a fragment + slight factoring. ([commit](https://github.com/Polymer/polymer/commit/36072be))
+
+- Fixes #2276: avoid losing logical information and simplify logical tree handling ([commit](https://github.com/Polymer/polymer/commit/ee61627))
+
+- Moved check earlier. Added test for negative literal. ([commit](https://github.com/Polymer/polymer/commit/1a87ab4))
+
+- Fixes #2253: refine logical tree check and populate parents of insertion points with logical info only if necessary. Fixes #2283: when a node is removed, we need to potentially distribute not only its host but also its parent. ([commit](https://github.com/Polymer/polymer/commit/6619f6c))
+
+- Support for negative numbers in computed bindings ([commit](https://github.com/Polymer/polymer/commit/fc53f50))
+
 ##[v1.1.0](https://github.com/Polymer/polymer/tree/v1.1.0) (2015-08-13)
 - Add comment. ([commit](https://github.com/Polymer/polymer/commit/337b54a))
 
