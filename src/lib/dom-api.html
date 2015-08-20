@@ -56,67 +56,59 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      // cases in which we may not be able to just do standard appendChild
+      appendChild: function(node) {
+        return this._addNode(node);
+      },
+
+      insertBefore: function(node, ref_node) {
+        return this._addNode(node, ref_node);
+      },
+
+      // cases in which we may not be able to just do standard native call
       // 1. container has a shadyRoot (needsDistribution IFF the shadyRoot
       // has an insertion point)
       // 2. container is a shadyRoot (don't distribute, instead set
       // container to container.host.
       // 3. node is <content> (host of container needs distribution)
-      appendChild: function(node) {
-        var handled;
-        // if a <content> is added, make sure it's parent has logical info.
-        this._ensureContentLogicalInfo(node);
+      _addNode: function(node, ref_node) {
         this._removeNodeFromParent(node);
-        if (this._nodeIsInLogicalTree(this.node)) {
-          this._addLogicalInfo(node, this.node);
-          this._addNodeToHost(node);
-          handled = this._maybeDistribute(node, this.node);
-        } else {
-          this._addNodeToHost(node);
-        }
-        // if not distributing and not adding to host, do a fast path addition
-        if (!handled && !this._tryRemoveUndistributedNode(node)) {
-          // if adding to a shadyRoot, add to host instead
-          var container = this.node._isShadyRoot ? this.node.host : this.node;
-          addToComposedParent(container, node);
-          nativeAppendChild.call(container, node);
-        }
-        if (this.observer) {
-          this.observer.addNode(node);
-        }
-        return node;
-      },
-
-      insertBefore: function(node, ref_node) {
-        if (!ref_node) {
-          return this.appendChild(node);
-        }
-        var handled;
+        var addedInsertionPoint;
+        var root = this.getOwnerRoot();
         // if a <content> is added, make sure it's parent has logical info.
-        this._ensureContentLogicalInfo(node);
-        this._removeNodeFromParent(node);
-        if (this._nodeIsInLogicalTree(this.node)) {
-          var children = this.childNodes;
-          var index = children.indexOf(ref_node);
-          if (index < 0) {
-            throw Error('The ref_node to be inserted before is not a child ' +
-              'of this node');
+        if (root) {
+          addedInsertionPoint = this._maybeAddInsertionPoint(node, this.node);
+        }
+        if (this._nodeHasLogicalChildren(this.node)) {
+          if (ref_node) {
+            var children = this.childNodes;
+            var index = children.indexOf(ref_node);
+            if (index < 0) {
+              throw Error('The ref_node to be inserted before is not a child ' +
+                'of this node');
+            }
           }
           this._addLogicalInfo(node, this.node, index);
-          this._addNodeToHost(node);
-          handled = this._maybeDistribute(node, this.node);
-        } else {
-          this._addNodeToHost(node);
         }
+        this._addNodeToHost(node);
         // if not distributing and not adding to host, do a fast path addition
-        if (!handled && !this._tryRemoveUndistributedNode(node)) {
-          // if ref_node is <content> replace with first distributed node
-          ref_node = ref_node.localName === CONTENT ?
-            this._firstComposedNode(ref_node) : ref_node;
+        if (!this._maybeDistribute(node, this.node) && 
+          !this._tryRemoveUndistributedNode(node)) {
+          if (ref_node) {
+            // if ref_node is <content> replace with first distributed node
+            ref_node = ref_node.localName === CONTENT ?
+              this._firstComposedNode(ref_node) : ref_node;
+          }
           // if adding to a shadyRoot, add to host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           addToComposedParent(container, node, ref_node);
-          nativeInsertBefore.call(container, node, ref_node);
+          if (ref_node) {
+            nativeInsertBefore.call(container, node, ref_node);
+          } else {
+            nativeAppendChild.call(container, node);
+          }
+        }
+        if (addedInsertionPoint) {
+          this._updateInsertionPoints(root.host);
         }
         if (this.observer) {
           this.observer.addNode(node);
@@ -133,14 +125,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           console.warn('The node to be removed is not a child of this node',
             node);
         }
-        var handled;
-        if (this._nodeIsInLogicalTree(this.node)) {
-          this._removeNodeFromHost(node);
-          handled = this._maybeDistribute(node, this.node);
-        } else {
-          this._removeNodeFromHost(node);
-        }
-        if (!handled) {
+        this._removeNodeFromHost(node);
+        if (!this._maybeDistribute(node, this.node)) {
           // if removing from a shadyRoot, remove form host instead
           var container = this.node._isShadyRoot ? this.node.host : this.node;
           // not guaranteed to physically be in container; e.g.
@@ -214,7 +200,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var root = this._ownerShadyRootForNode(parent);
           if (root) {
             var host = root.host;
-            this._updateInsertionPoints(host);
+            // note, insertion point list update is handled after node 
+            // mutations are complete
             this._lazyDistribute(host);
           }
         }
@@ -228,6 +215,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // the nodes to be added directly, after which children may be
         // distributed and composed into the wrapping node(s)
         return parentNeedsDist || (hasContent && !wrappedContent);
+      },
+
+      /* note: parent argument is required since node may have an out
+      of date parent at this point; returns true if a <content> is being added */
+      _maybeAddInsertionPoint: function(node, parent) {
+        var added;
+        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && 
+          !node.__noContent) {
+          var c$ = factory(node).querySelectorAll(CONTENT);
+          for (var i=0, n, np, na; (i<c$.length) && (n=c$[i]); i++) {
+            np = factory(n).parentNode;
+            // don't allow node's parent to be fragment itself
+            if (np === node) {
+              np = parent;
+            }
+            na = this._maybeAddInsertionPoint(n, np);
+            added = added || na;
+          }
+        } else if (node.localName === CONTENT) {
+          saveLightChildrenIfNeeded(parent);
+          saveLightChildrenIfNeeded(node);
+          added = true;
+        }
+        return added;
       },
 
       _tryRemoveUndistributedNode: function(node) {
@@ -250,25 +261,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      // a node is in a shadyRoot, is a shadyRoot,
-      // or has a lightParent
-      _nodeIsInLogicalTree: function(node) {
-        return Boolean((node._lightParent !== undefined) || node._isShadyRoot ||
-          node.shadyRoot);
-      },
-
-      _ensureContentLogicalInfo: function(node) {
-        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-          saveLightChildrenIfNeeded(this.node);
-          var c$ = Array.prototype.slice.call(node.childNodes);
-          for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
-            this._ensureContentLogicalInfo(n);
-          }
-        } else if (node.localName === CONTENT) {
-          // should be parent not this.node, but this is before parent is set.
-          saveLightChildrenIfNeeded(this.node);
-          saveLightChildrenIfNeeded(node);
-        }
+      // a node has logical children
+      _nodeHasLogicalChildren: function(node) {
+        return Boolean(node._lightChildren !== undefined);
       },
 
       _parentNeedsDistribution: function(parent) {
@@ -289,11 +284,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // NOTE: if `ensureComposedRemoval` is true then the node should be
       // removed from its composed parent.
       _removeNodeFromHost: function(node, ensureComposedRemoval) {
+        // note that it's possible for both the node's host and its parent 
+        // to require distribution... both cases are handled here.
         var hostNeedsDist;
         var root;
         var parent = node._lightParent;
         if (parent) {
+          // distribute node's parent iff needed
+          factory(node)._distributeParent();
           root = this._ownerShadyRootForNode(node);
+          // remove node from root and distribute it iff needed
           if (root) {
             root.host._elementRemove(node);
             hostNeedsDist = this._removeDistributedChildren(root, node);
@@ -305,7 +305,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._updateInsertionPoints(root.host);
           this._lazyDistribute(root.host);
         } else if (ensureComposedRemoval) {
-          removeFromComposedParent(parent || node.parentNode, node);
+          removeFromComposedParent(node._composedParent, node);
         }
       },
 
@@ -915,7 +915,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function hasInsertionPoint(root) {
-      return Boolean(root._insertionPoints.length);
+      return Boolean(root && root._insertionPoints.length);
     }
 
     var p = Element.prototype;

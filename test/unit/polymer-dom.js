@@ -53,6 +53,14 @@ suite('Polymer.dom', function() {
     assert(Polymer.dom(p).querySelectorAll('content').length, 1);
   });
 
+  test('querySelectorAll with dom-repeat', function() {
+    var el = document.createElement('polymer-dom-repeat');
+    document.body.appendChild(el);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(el.$.container).querySelectorAll('*').length, 6, 'querySelectorAll finds repeated elements');
+    document.body.removeChild(el);
+  });
+
   test('querySelector document', function() {
     assert.ok(Polymer.dom().querySelector('body'));
   });
@@ -422,6 +430,24 @@ suite('Polymer.dom', function() {
       Polymer.dom(rere.root).removeChild(added[i]);
     }
     assert.equal(Polymer.dom(rere.root).querySelectorAll('span').length, 0);
+  });
+
+  test('mutations using fragments without logical dom', function() {
+    var d = document.createElement('div');
+    document.body.appendChild(d);
+    assert.equal(Polymer.dom(d).childNodes.length, 0);
+    var frag = document.createDocumentFragment();
+    var c = document.createElement('div');
+    frag.appendChild(c);
+    Polymer.dom(d).appendChild(frag);
+    assert.equal(Polymer.dom(d).childNodes.length, 1);
+    assert.equal(Polymer.dom(d).firstChild, c);
+    var c1 = document.createElement('div');
+    frag.appendChild(c1);
+    Polymer.dom(d).appendChild(frag);
+    assert.equal(Polymer.dom(d).childNodes.length, 2);
+    assert.equal(Polymer.dom(d).firstChild, c);
+    assert.equal(Polymer.dom(d).lastChild, c1);
   });
 
   test('appendChild interacts with unmanaged parent tree', function() {
