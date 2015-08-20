@@ -59,7 +59,7 @@ suite('Polymer.dom', function() {
     Polymer.dom.flush();
     assert.equal(Polymer.dom(el.$.container).querySelectorAll('*').length, 6, 'querySelectorAll finds repeated elements');
     document.body.removeChild(el);
-  })
+  });
 
   test('querySelector document', function() {
     assert.ok(Polymer.dom().querySelector('body'));
