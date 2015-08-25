@@ -23,11 +23,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     Polymer.Base.extend(DomApi.MutationContent.prototype, {
 
-      addListener: function(callback, includeChanges) {
-        this._includeChanges = includeChanges;
-        var h = DomApi.Mutation.prototype.addListener.call(this, callback);
+      addListener: function(callback, options) {
+        var h = DomApi.Mutation.prototype.addListener.call(this, callback, 
+          options);
         this._scheduleNotify();
         return h;
+      },
+
+      _ensureSetup: function(options) {
+        this._describeChanges = options && options.changes;
       },
 
       notify: function() {
@@ -37,7 +41,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _notify: function() {
-        var info = this._includeChanges ? this._calcChanges() : {};
+        var info = this._describeChanges ? this._calcChanges() : {};
         if (info) {
           info.target = this.node;
           this._callListeners(info);
@@ -75,20 +79,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     if (Settings.useShadow) {
       
+      var ensureSetup = DomApi.MutationContent.prototype._ensureSetup;
+
       Polymer.Base.extend(DomApi.MutationContent.prototype, {
         
-        _ensureObserver: function() {
+        _ensureSetup: function(options) {
+          ensureSetup.call(this, options);
+          this._trackAttributes = this._trackAttributes ||
+            options && options.attributes;
           var root = this.domApi.getOwnerRoot();
           var host = root && root.host;
           if (host) {
             this._observer = Polymer.dom(host).observeNodes(
-              this.notify.bind(this));
+              this.notify.bind(this), {attributes: this._trackAttributes});
           }
         },
 
-        _cleanupObserver: function() {
+        _ensureCleanup: function() {
           if (this._observer) {
-            Polymer.dom(host).unobserveNodes(this._observer);
+            var root = this.domApi.getOwnerRoot();
+            var host = root && root.host;
+            if (host) {
+              Polymer.dom(host).unobserveNodes(this._observer);
+            }
           }
         }
 
