@@ -23,6 +23,9 @@ not leak into local DOM when running on browsers without non-native Shadow DOM.
 browsers without non-native Shadow DOM.
 * Custom properties used by Polymer's shim for cross-scope styling
 may be defined in an `custom-style`.
+* An `include` attribute may be specified to pull in style data from a 
+`dom-module` matching the include attribute. By using `include`, style data
+can be shared between multiple `custom-style` elements.
 
 Example:
 
@@ -80,7 +83,17 @@ Note, all features of `custom-style` are available when defining styles as part 
     is: 'custom-style',
     extends: 'style',
 
-    created: function() {
+    properties: {
+      // include is a property so that it deserializes
+      /**
+       * Specify `include` to identify a `dom-module` containing style data which
+       * should be used within the `custom-style`. By using `include` style data
+       * may be shared between multiple different `custom-style` elements.
+       */
+      include: String
+    },
+
+    ready: function() {
       // NOTE: we cannot just check attached because custom elements in 
       // HTMLImports do not get attached.
       this._tryApply();
@@ -101,7 +114,7 @@ Note, all features of `custom-style` are available when defining styles as part 
           styleDefaults.addStyle(e);
           // we may not have any textContent yet due to parser yielding
           // if so, wait until we do...
-          if (e.textContent) {
+          if (e.textContent || this.include) {
             this._apply();
           } else {
             var observer = new MutationObserver(function() {
@@ -119,11 +132,16 @@ Note, all features of `custom-style` are available when defining styles as part 
     _apply: function() {
       // used applied element from HTMLImports polyfill or this
       var e = this.__appliedElement || this;
+      if (this.include) {
+        e.textContent += styleUtil.cssFromModules(this.include);
+      }
+      var rules = styleUtil.rulesForStyle(e);
+      styleUtil.forEachStyleRule(rules, function(rule) {
+        styleTransformer.documentRule(rule);
+      });
       this._computeStyleProperties();
       var props = this._styleProperties;
-      var self = this;
-      e.textContent = styleUtil.toCssText(styleUtil.rulesForStyle(e), 
-        function(rule) {
+      e.textContent = styleUtil.toCssText(rules, function(rule) {
           var css = rule.cssText = rule.parsedCssText;
           if (rule.propertyInfo && rule.propertyInfo.cssText) {
             // remove property assignments
@@ -138,7 +156,6 @@ Note, all features of `custom-style` are available when defining styles as part 
             // replace with reified properties, scenario is same as mixin
             rule.cssText = propertyUtils.valueForProperties(css, props);
           }
-          styleTransformer.documentRule(rule);
         }
       );
     }

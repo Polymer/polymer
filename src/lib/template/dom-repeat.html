@@ -268,11 +268,13 @@ Then the `observe` property should be configured as follows:
           this._error(this._logf('dom-repeat', 'expected array for `items`,' +
             ' found', this.items));
         }
-        this._splices = [];
+        this._keySplices = [];
+        this._indexSplices = [];
         this._needFullRefresh = true;
         this._debounceTemplate(this._render);
       } else if (change.path == 'items.splices') {
-        this._splices = this._splices.concat(change.value.keySplices);
+        this._keySplices = this._keySplices.concat(change.value.keySplices);
+        this._indexSplices = this._indexSplices.concat(change.value.indexSplices);
         this._debounceTemplate(this._render);
       } else { // items.*
         // slice off 'items.' ('items.'.length == 6)
@@ -303,10 +305,10 @@ Then the `observe` property should be configured as follows:
     },
 
     /**
-     * Forces the element to render its content. Normally rendering is 
-     * asynchronous to a provoking change. This is done for efficiency so 
-     * that multiple changes trigger only a single render. The render method 
-     * should be called if, for example, template rendering is required to 
+     * Forces the element to render its content. Normally rendering is
+     * asynchronous to a provoking change. This is done for efficiency so
+     * that multiple changes trigger only a single render. The render method
+     * should be called if, for example, template rendering is required to
      * validate application state.
      */
     render: function() {
@@ -324,17 +326,18 @@ Then the `observe` property should be configured as follows:
         this._needFullRefresh = false;
       } else {
         if (this._sortFn) {
-          this._applySplicesUserSort(this._splices);
+          this._applySplicesUserSort(this._keySplices);
         } else {
           if (this._filterFn) {
             // TODK(kschaaf): Filtering using array sort takes slow path
             this._applyFullRefresh();
           } else {
-            this._applySplicesArrayOrder(this._splices);
+            this._applySplicesArrayOrder(this._indexSplices);
           }
         }
       }
-      this._splices = [];
+      this._keySplices = [];
+      this._indexSplices = [];
       // Update final _keyToInstIdx and instance indices
       var keyToIdx = this._keyToInstIdx = {};
       for (var i=0; i<this._instances.length; i++) {
@@ -399,6 +402,10 @@ Then the `observe` property should be configured as follows:
       return this.collection.getKey(a) - this.collection.getKey(b);
     },
 
+    _numericSort: function(a, b) {
+      return a - b;
+    },
+
     // Render method 2: incremental update using splices with user sort applied
     // ----
     // Removed/added keys are deduped, all removed rows are detached and pooled
@@ -435,7 +442,8 @@ Then the `observe` property should be configured as follows:
       if (removedIdxs.length) {
         // Sort removed instances idx's then remove backwards,
         // so we don't invalidate instance index
-        removedIdxs.sort();
+        // use numeric sort, default .sort is alphabetic
+        removedIdxs.sort(this._numericSort);
         for (var i=removedIdxs.length-1; i>=0 ; i--) {
           var idx = removedIdxs[i];
           // Removed idx may be undefined if item was previously filtered out
@@ -511,10 +519,10 @@ Then the `observe` property should be configured as follows:
         }
         this._instances.splice(s.index, s.removed.length);
         // Insert placeholders for new rows
-        for (var i=0; i<s.added.length; i++) {
+        for (var i=0; i<s.addedKeys.length; i++) {
           var inst = {
             isPlaceholder: true,
-            key: s.added[i]
+            key: s.addedKeys[i]
           };
           this._instances.splice(s.index + i, 0, inst);
         }
