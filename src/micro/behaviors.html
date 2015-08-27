@@ -58,11 +58,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     behaviors: [],
 
-    _prepBehaviors: function() {
+    _desugarBehaviors: function() {
       if (this.behaviors.length) {
-        this.behaviors = this._flattenBehaviorsList(this.behaviors);
+        this.behaviors = this._desugarSomeBehaviors(this.behaviors);
       }
-      this._prepAllBehaviors(this.behaviors);
+    },
+
+    _desugarSomeBehaviors: function(behaviors) {
+      // iteration 1
+      behaviors = this._flattenBehaviorsList(behaviors);
+      // iteration 2
+      // traverse the behaviors in _reverse_ order (youngest first) because
+      // `_mixinBehavior` has _first property wins_ behavior, this is done
+      // to optimize # of calls to `_copyOwnProperty`
+      for (var i=behaviors.length-1; i>=0; i--) {
+        this._mixinBehavior(behaviors[i]);
+      }
+      return behaviors;
     },
 
     _flattenBehaviorsList: function(behaviors) {
@@ -81,24 +93,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return flat;
     },
 
-    _prepAllBehaviors: function(behaviors) {
-      // traverse the behaviors in _reverse_ order (youngest first) because
-      // `_mixinBehavior` has _first property wins_ behavior, this is done
-      // to optimize # of calls to `_copyOwnProperty`
-      for (var i=behaviors.length-1; i>=0; i--) {
-        this._mixinBehavior(behaviors[i]);
-      }
-      // we iterate a second time so that `_prepBehavior` goes in natural order
-      // otherwise, it's a tricky detail for implementors of `_prepBehavior`
-      for (var i=0, l=behaviors.length; i<l; i++) {
-        this._prepBehavior(behaviors[i]);
-      }
-      // prep our prototype-as-behavior
-      this._prepBehavior(this);
-    },
-
     _mixinBehavior: function(b) {
-       Object.getOwnPropertyNames(b).forEach(function(n) {
+      Object.getOwnPropertyNames(b).forEach(function(n) {
         switch (n) {
           case 'hostAttributes':
           case 'registered':
@@ -119,6 +115,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             break;
         }
       }, this);
+    },
+
+    _prepBehaviors: function() {
+      this._prepFlattenedBehaviors(this.behaviors);
+    },
+
+    _prepFlattenedBehaviors: function(behaviors) {
+      // iteration 3
+      // `_prepBehavior` goes in natural order
+      // otherwise, it's a tricky detail for implementors of `_prepBehavior`
+      for (var i=0, l=behaviors.length; i<l; i++) {
+        this._prepBehavior(behaviors[i]);
+      }
+      // prep our prototype-as-behavior
+      this._prepBehavior(this);
     },
 
     _doBehavior: function(name, args) {
