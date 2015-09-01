@@ -1,0 +1,467 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+  <dom-module id='test-static'>
+    <template>
+      <div>static</div>
+    </template>
+    <script>
+      Polymer({
+        is:'test-static'
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content'>
+    <template>
+      [<content id="content"></content>]
+    </template>
+    <script>
+      Polymer({
+        is:'test-content'
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content1'>
+    <template>
+      <test-content id="content"><content></content></test-content>
+    </template>
+    <script>
+      Polymer({
+        is:'test-content1'
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content2'>
+    <template>
+      <test-content1 id="content"><content></content></test-content1>
+    </template>
+    <script>
+      Polymer({
+        is:'test-content2'
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content3'>
+    <template>
+      <test-content2 id="content"><content></content></test-content2>
+    </template>
+    <script>
+      Polymer({
+        is:'test-content3'
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content-attr'>
+    <template>
+      [<content id="content" select="[d]"></content>]
+    </template>
+    <script>
+      Polymer({
+        is:'test-content-attr'
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content-attr1'>
+    <template>
+      <test-content-attr id="content"><content select="[c]"></content></test-content-attr>
+    </template>
+    <script>
+      Polymer({
+        is:'test-content-attr1'
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content-attr2'>
+    <template>
+      <test-content-attr1 id="content"><content select="[b]"></content></test-content-attr1>
+    </template>
+    <script>
+      Polymer({
+        is:'test-content-attr2'
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content-attr3'>
+    <template>
+      <test-content-attr2 id="content"><content select="[a]"></content></test-content-attr2>
+    </template>
+    <script>
+      Polymer({
+        is:'test-content-attr3'
+      });
+    </script>
+  </dom-module>
+  
+
+  <test-content><div>A</div><div>B</div></test-content>
+
+  <test-static><div>static A</div><div>static B</div></test-static>
+
+<script>
+
+  suite('observeNodes', function() {
+
+    test('observe intial state of distributing element', function() {
+      var recordedA;
+      var el = document.querySelector('test-content');
+      Polymer.dom(el).observeNodes(function(info) {
+        recordedA = info;
+      });
+      Polymer.dom.flush();
+      assert.equal(recordedA.addedNodes.length, 2);
+      recordedA = null;
+      var recordedB;
+      Polymer.dom(el).observeNodes(function(info) {
+        recordedB = info;
+      });
+      Polymer.dom.flush();
+      assert.equal(recordedA, null);
+      assert.equal(recordedB.addedNodes.length, 2);
+    });
+
+    test('observe intial state of non-distributing element', function() {
+      var recordedA;
+      var el = document.querySelector('test-static');
+      Polymer.dom(el).observeNodes(function(info) {
+        recordedA = info;
+      });
+      Polymer.dom.flush();
+      assert.equal(recordedA.addedNodes.length, 2);
+      recordedA = null;
+      var recordedB;
+      Polymer.dom(el).observeNodes(function(info) {
+        recordedB = info;
+      });
+      Polymer.dom.flush();
+      assert.equal(recordedA, null);
+      assert.equal(recordedB.addedNodes.length, 2);
+    });
+
+    test('observe children changes to distributing element', function() {
+      var el = document.createElement('test-content');
+      document.body.appendChild(el);
+
+      var recorded;
+      var handle = Polymer.dom(el).observeNodes(function(info) {
+        recorded = info;
+      });
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.removedNodes.length, 0);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // remove
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 0);
+      assert.equal(recorded.removedNodes.length, 2);
+      assert.equal(recorded.removedNodes[0], d);
+      assert.equal(recorded.removedNodes[1], d1);
+      // add
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // reset, unobserve and remove
+      recorded = null;
+      Polymer.dom(el).unobserveNodes(handle);
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded, null);
+      document.body.removeChild(el);
+    });
+
+    test('observe children changes to non-distributing element', function() {
+      var el = document.createElement('test-static');
+      document.body.appendChild(el);
+
+      var recorded;
+      var handle = Polymer.dom(el).observeNodes(function(info) {
+        recorded = info;
+      });
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.removedNodes.length, 0);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // remove
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 0);
+      assert.equal(recorded.removedNodes.length, 2);
+      assert.equal(recorded.removedNodes[0], d);
+      assert.equal(recorded.removedNodes[1], d1);
+      // add
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // reset, unobserve and remove
+      recorded = null;
+      Polymer.dom(el).unobserveNodes(handle);
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded, null);
+      document.body.removeChild(el);
+    });
+
+    test('observe changes to distributed nodes without changes', function() {
+      var el = document.createElement('test-content');
+      document.body.appendChild(el);
+
+      var distributed;
+      var handle = Polymer.dom(el.$.content).observeNodes(function(info) {
+        distributed = Polymer.dom(info.target).getDistributedNodes();
+      });
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(distributed.length, 2);
+      assert.equal(distributed[0], d);
+      // remove
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(distributed.length, 0);
+      // add
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(distributed.length, 2);
+      assert.equal(distributed[0], d);
+      assert.equal(distributed[1], d1);
+      // reset, unobserve and remove
+      distributed = null;
+      Polymer.dom(el.$.content).unobserveNodes(handle);
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(distributed, null);
+      document.body.removeChild(el);
+    });
+
+    test('observe changes to distributed nodes with changes', function() {
+      var el = document.createElement('test-content');
+      document.body.appendChild(el);
+
+      var recorded;
+      var handle = Polymer.dom(el.$.content).observeNodes(function(info) {
+        recorded = info;
+      });
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.removedNodes.length, 0);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // remove
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 0);
+      assert.equal(recorded.removedNodes.length, 2);
+      assert.equal(recorded.removedNodes[0], d);
+      assert.equal(recorded.removedNodes[1], d1);
+      // add
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // reset, unobserve and remove
+      recorded = null;
+      Polymer.dom(el.$.content).unobserveNodes(handle);
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded, null);
+      document.body.removeChild(el);
+    });
+
+    test('observe effective children inside distributing element', function() {
+      var el = document.createElement('test-content1');
+      document.body.appendChild(el);
+
+      var recorded;
+      var handle = Polymer.dom(el.$.content).observeNodes(function(info) {
+        recorded = info;
+      });
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.removedNodes.length, 0);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // remove
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 0);
+      assert.equal(recorded.removedNodes.length, 2);
+      assert.equal(recorded.removedNodes[0], d);
+      assert.equal(recorded.removedNodes[1], d1);
+      // add
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // reset, unobserve and remove
+      recorded = null;
+      Polymer.dom(el.$.content).unobserveNodes(handle);
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded, null);
+      document.body.removeChild(el);
+    });
+
+    test('observe effective children inside deep distributing element', function() {
+      var el = document.createElement('test-content3');
+      document.body.appendChild(el);
+
+      var recorded;
+      var content = el.$.content.$.content.$.content;
+      var handle = Polymer.dom(content).observeNodes(function(info) {
+        recorded = info;
+      });
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.removedNodes.length, 0);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // remove
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 0);
+      assert.equal(recorded.removedNodes.length, 2);
+      assert.equal(recorded.removedNodes[0], d);
+      assert.equal(recorded.removedNodes[1], d1);
+      // add
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // reset, unobserve and remove
+      recorded = null;
+      Polymer.dom(content).unobserveNodes(handle);
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded, null);
+      document.body.removeChild(el);
+    });
+
+    test('observe effective children attr changes inside deep distributing element', function(done) {
+      var el = document.createElement('test-content-attr3');
+      document.body.appendChild(el);
+
+      var recorded;
+      var content = el.$.content.$.content.$.content;
+      var handle = Polymer.dom(content).observeNodes(function(info) {
+        recorded = info;
+      }, {attributes: true});
+      Polymer.dom(el).flush();
+      recorded = null;
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom(el).flush();
+      assert.equal(recorded, null);
+      Polymer.dom(d).setAttribute('a', '');
+      Polymer.dom(d).setAttribute('b', '');
+      setTimeout(function() {
+        assert.equal(recorded, null);
+        Polymer.dom(d).setAttribute('c', '');
+        setTimeout(function() {
+          assert.equal(recorded.addedNodes.length, 1);
+          assert.equal(recorded.removedNodes.length, 0);        
+          assert.equal(recorded.addedNodes[0], d);
+          Polymer.dom(d).removeAttribute('c');
+          setTimeout(function() {
+            assert.equal(recorded.addedNodes.length, 0);
+            assert.equal(recorded.removedNodes.length, 1);        
+            assert.equal(recorded.removedNodes[0], d);
+            recorded = null;
+            Polymer.dom(content).unobserveNodes(handle);
+            Polymer.dom(d).setAttribute('c', '');
+            setTimeout(function() {
+              assert.equal(recorded, null);
+              document.body.removeChild(el);
+              done();
+            });
+          });
+        });
+      });
+    });
+  });
+
+</script>
+
+</body>
+</html>

@@ -27,8 +27,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     DomApi.Mutation.prototype = {
 
       addListener: function(callback, options) {
+        options = options || {};
         this._ensureSetup(options);
-        return this._listeners.push({fn: callback, options: options});
+        var listener = {fn: callback, options: options};
+        this._notifyInitial(listener);
+        return this._listeners.push(listener);
       },
 
       removeListener: function(handle) {
@@ -39,7 +42,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _ensureSetup: function(options) {
-        this._observeContentElements(this.domApi.childNodes);
+        if (!this._isSetup) {
+          this._isSetup = true;
+          this._observeContentElements(this.domApi.childNodes);
+        }
       },
 
       _ensureCleanup: function() {}, // abstract
@@ -62,8 +68,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      addAllNodes: function() {
-        if (this._hasListeners()) {
+      addAllNodes: function(force) {
+        if (this._hasListeners() || force) {
           var c$ = this.domApi.childNodes;
           if (c$.length) {
             for (var i=0, c; (i < c$.length) && (c=c$[i]); i++) {
@@ -93,6 +99,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._removedNodes = [];
       },
 
+      _notifyInitial: function(listener) {
+        var info = {
+          target: this.node,
+          addedNodes: this.domApi.childNodes,
+          removedNodes: []
+        };
+        this._callListener(listener, info);
+      },
+
       _updateContentElements: function(info) {
         this._observeContentElements(info.addedNodes);
         this._unobserveContentElements(info.removedNodes);
@@ -111,9 +126,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _observeContent: function(content) {
-        return Polymer.dom(content).observeNodes(this._notify.bind(this), {
-          changes: true
-        });
+        return Polymer.dom(content).observeNodes(this._notify.bind(this));
       },
 
       _unobserveContentElements: function(elements) {
@@ -136,42 +149,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var o$ = this._listeners;
         for (var i=0, o; (i < o$.length) && (o=o$[i]); i++) {
           if (!filter || filter(o.options)) {
-            o.fn.call(this.node, info);
+            this._callListener(o, info);
           }
         }
+      },
+
+      _callListener: function(listener, info) {
+        return listener.fn.call(this.node, info);
       }
 
     };
 
     if (Settings.useShadow) {
 
+      var ensureSetup = DomApi.Mutation.prototype._ensureSetup;
+
       Polymer.Base.extend(DomApi.Mutation.prototype, {
         
         _ensureSetup: function(options) {
           this._trackAttributes = this._trackAttributes ||
-            options && options.attributes;
+            options.attributes;
           if (!this._observer) {
-            this._observer = 
-              new MutationObserver(this._notify.bind(this));
-            // make sure to notify initial state...
-            this._debouncer = Polymer.Debounce(this._debouncer, 
-              function() {
-                this._notify([{
-                  target: this.node, 
-                  addedNodes: this.domApi.childNodes.slice()
-                }]);
-              }
-            );
-            this._debouncer.context = this;
-            Polymer.dom.addDebouncer(this._debouncer);
+            this._observer = new MutationObserver(this._notify.bind(this));
             this._preflush = this._flush.bind(this);
-           
+            Polymer.dom.addPreflush(this._preflush);
+            // note: doing this > 1x is a no-op
+            this._observer.observe(this.node, {childList: true});
           }
-          if (!this._hasListeners()) {
-             Polymer.dom.addPreflush(this._preflush);
-             // note: doing this > 1x is a no-op
-             this._observer.observe(this.node, {childList: true});
-          }
+          ensureSetup.call(this, options);
         },
 
         _ensureCleanup: function() {
@@ -221,7 +226,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         _observeContent: function(content) {
           return Polymer.dom(content).observeNodes(this._notify.bind(this), {
-            changes: true, 
             attributes: this._trackAttributes
           });
         },
@@ -246,7 +250,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._attrObservers.set(element, new MutationObserver(
               function(mxns) {
                 self._callListeners(mxns, function(options) {
-                  return Boolean(options && options.attributes);
+                  return Boolean(options.attributes);
                 });
               }
             ));
