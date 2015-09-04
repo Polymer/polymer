@@ -20,21 +20,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var userPolymer = window.Polymer;
 
     window.Polymer = function(prototype) {
-      var ctor = desugar(prototype);
-      // Polymer.Base is now chained to ctor.prototype, and for IE10 compat
+      // if input is a `class` (aka a function with a prototype), use the prototype
+      // remember that the `constructor` will never be called
+      if (typeof prototype === 'function') {
+        prototype = prototype.prototype;
+      }
+      // if there is no prototype, use a default empty object
+      if (!prototype) {
+        prototype = {};
+      }
+      // desugar the prototype and return a factory object
+      var factory = desugar(prototype);
+      // Polymer.Base is now chained to factory.prototype, and for IE10 compat
       // this may have resulted in a new prototype being created
-      prototype = ctor.prototype;
-      // native Custom Elements treats 'undefined' extends property
-      // as valued, the property must not exist to be ignored
+      prototype = factory.prototype;
       var options = {
         prototype: prototype
       };
+      // NOTE: we're specifically supporting older Chrome versions here 
+      // (specifically Chrome 39) that throw when options.extends is undefined.
       if (prototype.extends) {
         options.extends = prototype.extends;
       }
       Polymer.telemetry._registrate(prototype);
       document.registerElement(prototype.is, options);
-      return ctor;
+      return factory;
     };
 
     var desugar = function(prototype) {

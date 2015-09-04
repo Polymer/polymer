@@ -1,5 +1,40 @@
 # Change Log
 
+##[v1.1.2](https://github.com/Polymer/polymer/tree/v1.1.2) (2015-08-28)
+- Improve composed parent tracking. ([commit](https://github.com/Polymer/polymer/commit/4d15789))
+
+- move the mixing-in of behaviors so that it happens before `register` behaviors are invoked ([commit](https://github.com/Polymer/polymer/commit/637367c))
+
+- Fixes #2378 ([commit](https://github.com/Polymer/polymer/commit/a9f081b))
+
+- Fixes #2356: issue a warning and don't throw an exception when a style include cannot be found. Fixes #2357: include data now comes before any textContent in a style element. ([commit](https://github.com/Polymer/polymer/commit/a16ada1))
+
+- remove unneeded protection code for extends. ([commit](https://github.com/Polymer/polymer/commit/8eada87))
+
+- Add test ([commit](https://github.com/Polymer/polymer/commit/47ff0e8))
+
+- add test for `registered` behavior affecting a value then used by features ([commit](https://github.com/Polymer/polymer/commit/230528c))
+
+- add tests for new Polymer() argument support (and make Base tests aware of new abstract method `_desugarBehaviors`) ([commit](https://github.com/Polymer/polymer/commit/9734a3a))
+
+- invoke `registration` behavior before registering features, so behaviors can alter features, this requires calling behavior flattening as part of prototype desugaring instead of as part of behavior prep, so the flattened list is available early ([commit](https://github.com/Polymer/polymer/commit/6224dc3))
+
+- do `registered` behaviors before invoking `registerFeatures` so `registered` can affect properties used by features (ref #2329) ([commit](https://github.com/Polymer/polymer/commit/61d611c))
+
+- specifically create `Polymer` object on `window` to satisfy strict mode (fixes #2363) ([commit](https://github.com/Polymer/polymer/commit/a75133d))
+
+- Remove forceUpgraded check in dom-module.import ([commit](https://github.com/Polymer/polymer/commit/b85b641))
+
+- Fixes #2341: branch Polymer.dom to use native dom methods under Shadow DOM for: appendChild, insertBefore, removeChild, replaceChild, cloneNode. ([commit](https://github.com/Polymer/polymer/commit/9b1f706))
+
+- Fixes #2334: when composing nodes in shady dom, check if a node is where we expect it to be before removing it from its distributed position. We do this because the node may have been moved by Polymer.dom in a way that triggered distribution of its previous location. The node is already where it needs to be so removing it from its parent when it's no longer distributed is destructive. ([commit](https://github.com/Polymer/polymer/commit/4ea69c2))
+
+- use cached template annotations when possible ([commit](https://github.com/Polymer/polymer/commit/b0733d3))
+
+- fix comment typos ([commit](https://github.com/Polymer/polymer/commit/a0a3e0c))
+
+- Update changelog with v1.1.1 release ([commit](https://github.com/Polymer/polymer/commit/12fa867))
+
 ##[v1.1.1](https://github.com/Polymer/polymer/tree/v1.1.1) (2015-08-20)
 - Fixes #2263: ensure custom-style can parse variable definitions in supported selectors (e.g. /deep/) without exception due to unknown css. ([commit](https://github.com/Polymer/polymer/commit/894492b))
 
