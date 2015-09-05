@@ -1,5 +1,14 @@
 # Change Log
 
+##[v1.1.3](https://github.com/Polymer/polymer/tree/v1.1.3) (2015-09-04)
+- Fixes #2403 ([commit](https://github.com/Polymer/polymer/commit/a6694b7))
+
+- Only try to decrement gesture dependency counter if dependency exists ([commit](https://github.com/Polymer/polymer/commit/8886e8c))
+
+- update changelog with v1.1.2 ([commit](https://github.com/Polymer/polymer/commit/d3a7c93))
+
+- prepare v1.1.2 ([commit](https://github.com/Polymer/polymer/commit/e78be4f))
+
 ##[v1.1.2](https://github.com/Polymer/polymer/tree/v1.1.2) (2015-08-28)
 - Improve composed parent tracking. ([commit](https://github.com/Polymer/polymer/commit/4d15789))
 
