@@ -1,5 +1,34 @@
 # Change Log
 
+##[v1.1.4](https://github.com/Polymer/polymer/tree/v1.1.4) (2015-09-25)
+- :memo: Update description ([commit](https://github.com/Polymer/polymer/commit/6afb8be))
+
+- :art: Use npm command bin lookup ([commit](https://github.com/Polymer/polymer/commit/84258d4))
+
+- :grapes: Add missing test dependency ([commit](https://github.com/Polymer/polymer/commit/5726b8e))
+
+- Reset handlers queue after finished replaying events ([commit](https://github.com/Polymer/polymer/commit/76a5f17))
+
+- Update the README.md to Polymer 1.1 ([commit](https://github.com/Polymer/polymer/commit/40c455a))
+
+- Add note on arrayDelete with array vs. path ([commit](https://github.com/Polymer/polymer/commit/d2b71a5))
+
+- Add unlinkPath tests. ([commit](https://github.com/Polymer/polymer/commit/bee110b))
+
+- Update changelog ([commit](https://github.com/Polymer/polymer/commit/573ca29))
+
+- Remove dead code; add tests. ([commit](https://github.com/Polymer/polymer/commit/ab85884))
+
+- Allow multiple paths to be linked using linkPath. Fixes #2048 ([commit](https://github.com/Polymer/polymer/commit/b221dbe))
+
+- Fix docs for stamp method ([commit](https://github.com/Polymer/polymer/commit/8adbe60))
+
+- http to https for jsbin ([commit](https://github.com/Polymer/polymer/commit/d842435))
+
+- Typo ([commit](https://github.com/Polymer/polymer/commit/d558c0d))
+
+- Fix typos in PRIMER.md ([commit](https://github.com/Polymer/polymer/commit/cf793f4))
+
 ##[v1.1.3](https://github.com/Polymer/polymer/tree/v1.1.3) (2015-09-04)
 - Fixes #2403 ([commit](https://github.com/Polymer/polymer/commit/a6694b7))
 
