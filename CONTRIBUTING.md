@@ -46,13 +46,23 @@ We love examples for addressing issues - issues with a Plunkr, jsFiddle, or jsBi
 
 Occasionally we'll close issues if they appear stale or are too vague - please don't take this personally! Please feel free to re-open issues we've closed if there's something we've missed and they still need to be addressed.
 
-## Contributing Code to Elements
+## Contributing Pull Requests
+
+PR's are even better than issues. We gladly accept community pull requests. In general across the core library and all of the elements, there are a few necessary steps before we can accept a pull request:
+
+- Open an issue describing the problem that you are looking to solve in your PR. This makes it easier to have a conversation around the best general approach for solving your problem, outside of the code itself.
+- Sign the [CLA](https://cla.developers.google.com/clas), as described above.
+- Submit your PR, making sure it references the issue you created.
+
+If you've completed all of these steps the core team will do its best to respond to the PR as soon as possible.
+
+### Contributing Code to Elements
 
 Though the aim of the Polymer library is to allow lots of flexibility and not get in your way, we work to standardize our elements to make them as toolable and easy to maintain as possible.
 
 All elements should follow the [Polymer element style guide](http://polymerelements.github.io/style-guide/), which defines how to specify properties, documentation, and more. It's a great guide to follow when building your own elements as well, for maximum standardization and toolability. For instance, structuring elements following the style guide will ensure that they work with the [`iron-component-page`](https://github.com/polymerelements/iron-component-page) element, an incredibly easy way to turn any raw element directly into a documentation page.
 
-## Contributing Code to the Polymer library
+### Contributing Code to the Polymer library
 
 We follow the most common javascript and HTML style guidelines for how we structure our code - in general, look at the code and you'll know how to contribute! If you'd like a bit more structure, the [Google Javascript Styleguide](https://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml) is a good place to start.
 
