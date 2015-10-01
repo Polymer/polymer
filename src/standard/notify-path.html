@@ -65,10 +65,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     Polymer.Base._addFeature({
       /**
-       * Notify that a path has changed. For example:
+       * Notify that a path has changed.
        *
-       *   this.item.user.name = 'Bob';
-       *   this.notifyPath('item.user.name', this.item.user.name);
+       * Example:
+       *
+       *     this.item.user.name = 'Bob';
+       *     this.notifyPath('item.user.name', this.item.user.name);
        *
        * @param {string} path Path that should be notified.
        * @param {*} value Value of the specified path.
@@ -79,6 +81,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   based on a dirty check of whether the new value was already known.
       */
       notifyPath: function(path, value, fromAbove) {
+        // Convert any array indicies to keys before notifying path
+        var info = {};
+        path = this.get(path, this, info);
+        // Notify change to key-based path
+        this._notifyPath(info.path, value, fromAbove);
+      },
+
+      // Note: this implemetation only accepts key-based array paths
+      _notifyPath: function(path, value, fromAbove) {
         var old = this._propertySetter(path, value);
         // manual dirty checking for now...
         // NaN is always not equal to itself,
@@ -94,7 +105,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // is coming from above already (avoid wasted event dispatch)
           if (!fromAbove) {
             // TODO(sorvell): should only notify if notify: true?
-            this._notifyPath(path, value);
+            this._notifyPathUp(path, value);
           }
           // console.groupEnd((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
           return true;
@@ -146,29 +157,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var array;
         var last = parts[parts.length-1];
         if (parts.length > 1) {
+          // Loop over path parts[0..n-2] and dereference
           for (var i=0; i<parts.length-1; i++) {
             var part = parts[i];
-            prop = prop[part];
-            if (array && (parseInt(part) == part)) {
-              parts[i] = Polymer.Collection.get(array).getKey(prop);
+            if (array && part[0] == '#') {
+              // Part was key; lookup item in collection
+              prop = Polymer.Collection.get(array).getItem(part);
+            } else {
+              // Get item from simple property dereference
+              prop = prop[part];
+              if (array && (parseInt(part) == part)) {
+                // Translate array indicies to collection keys for path notificaiton
+                parts[i] = Polymer.Collection.get(array).getKey(prop);
+              }
             }
             if (!prop) {
               return;
             }
+            // Cache previous part if it is an array
             array = Array.isArray(prop) ? prop : null;
           }
-          if (array && (parseInt(last) == last)) {
+          // Special handling when last part is a array item: need to replace
+          // item in collection associated with key for that item
+          if (array) {
             var coll = Polymer.Collection.get(array);
-            var old = prop[last];
-            var key = coll.getKey(old);
-            parts[i] = key;
-            coll.setItem(key, value);
+            if (parseInt(last) == last) {
+              // Dereference index & lookup collection key
+              var old = prop[last];
+              var key = coll.getKey(old);
+              // Translate array indicies to collection keys for path notificaiton
+              parts[i] = key;
+              // Replace item associated with key in collection
+              coll.setItem(key, value);
+            } else if (last[0] == '#') {
+              // Part was key; lookup item in collection
+              var key = last;
+              var old = coll.getItem(key);
+              // Update last part from key to index: O(n) lookup unavoidable
+              last = array.indexOf(old);
+              // Replace item associated with key in collection
+              coll.setItem(key, value);
+            }
           }
+          // Set value to object at end of path
           prop[last] = value;
+          // Notify observers of path change
           if (!root) {
-            this.notifyPath(parts.join('.'), value);
+            this._notifyPath(parts.join('.'), value);
           }
         } else {
+          // Simple property set
           prop[path] = value;
         }
       },
@@ -189,24 +227,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   indicies, the index may be used as a dotted part directly
        *   (e.g. `users.12.name` or `['users', 12, 'name']`).
        * @param {Object=} root Root object from which the path is evaluated.
+       * @param {Object=} info Info object; if supplied, a `path` property
+       *   will be added containing path with array indicies converted to keys
        * @return {*} Value at the path, or `undefined` if any part of the path
        *   is undefined.
        */
-      get: function(path, root) {
+      get: function(path, root, info) {
         var prop = root || this;
         var parts = this._getPathParts(path);
         var array;
+        // Loop over path parts[0..n-1] and dereference
         for (var i=0; i<parts.length; i++) {
           if (!prop) {
             return;
           }
           var part = parts[i];
           if (array && part[0] == '#') {
+            // Part was key; lookup item in collection
             prop = Polymer.Collection.get(array).getItem(part);
           } else {
+            // Part was index; simple dereference
             prop = prop[part];
+            if (info && array && (parseInt(part) == part)) {
+              // Translate array indicies to collection keys for path notificaiton
+              parts[i] = Polymer.Collection.get(array).getKey(prop);
+            }
           }
+          // Cache previous part if it is an array
           array = Array.isArray(prop) ? prop : null;
+        }
+        if (info) {
+          info.path = parts.join('.');
         }
         return prop;
       },
@@ -319,7 +370,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return property + path.slice(root.length);
       },
 
-      _notifyPath: function(path, value) {
+      _notifyPathUp: function(path, value) {
         var rootName = this._modelForPath(path);
         var dashCaseName = Polymer.CaseMap.camelToDashCase(rootName);
         var eventName = dashCaseName + this._EVENT_CHANGED;
@@ -336,14 +387,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _EVENT_CHANGED: '-changed',
 
-      _notifySplice: function(array, path, index, added, removed) {
-        var splices = [{
-          index: index,
-          addedCount: added,
-          removed: removed,
-          object: array,
-          type: 'splice'
-        }];
+      /**
+       * Notify that an array has changed.
+       *
+       * Example:
+       *
+       *     this.items = [ {name: 'Jim'}, {name: 'Todd'}, {name: 'Bill'} ];
+       *     ...
+       *     this.items.splice(1, 1, {name: 'Sam'});
+       *     this.items.push({name: 'Bob'});
+       *     this.notifySplices('items', [
+       *       { index: 1, removed: [{name: 'Todd'}], addedCount: 1, obect: this.items, type: 'splice' },
+       *       { index: 3, removed: [], addedCount: 1, object: this.items, type: 'splice'}
+       *     ]);
+       *
+       * @param {string} path Path that should be notified.
+       * @param {Array} splices Array of splice records indicating ordered
+       *   changes that occurred to the array. Each record should have the
+       *   following fields:
+       *    * index: index at which the change occurred
+       *    * removed: array of items that were removed from this index
+       *    * addedCount: number of new items added at this index
+       *    * object: a reference to the array in question
+       *    * type: the string literal 'splice'
+       *
+       *   Note that splice records _must_ be normalized such that they are
+       *   reported in index order (raw results from `Object.observe` are not
+       *   ordered and must be normalized/merged before notifying).
+      */
+      notifySplices: function(path, splices) {
+        var info = {};
+        var array = this.get(path, this, info);
+        // Notify change to key-based path
+        this._notifySplices(array, info.path, splices);
+      },
+
+      _notifySplices: function(array, path, splices) {
         var change = {
           keySplices: Polymer.Collection.applySplices(array, splices),
           indexSplices: splices
@@ -353,12 +432,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             {configurable: true, writable: true});
         }
         this.set(path + '.splices', change);
-        if (added != removed.length) {
-          this.notifyPath(path + '.length', array.length);
-        }
+        this._notifyPath(path + '.length', array.length);
         // Null here to allow potentially large splice records to be GC'ed
         change.keySplices = null;
         change.indexSplices = null;
+      },
+
+      _notifySplice: function(array, path, index, added, removed) {
+        this._notifySplices(array, path, [{
+          index: index,
+          addedCount: added,
+          removed: removed,
+          object: array,
+          type: 'splice'
+        }]);
       },
 
       /**
