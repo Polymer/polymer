@@ -53,6 +53,7 @@ PR's are even better than issues. We gladly accept community pull requests. In g
 - Open an issue describing the problem that you are looking to solve in your PR. This makes it easier to have a conversation around the best general approach for solving your problem, outside of the code itself.
 - Sign the [CLA](https://cla.developers.google.com/clas), as described above.
 - Submit your PR, making sure it references the issue you created.
+- Make sure the issue includes clear steps to reproduce the issue so we can test your fix.
 
 If you've completed all of these steps the core team will do its best to respond to the PR as soon as possible.
 
