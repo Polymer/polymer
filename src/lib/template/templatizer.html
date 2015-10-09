@@ -87,6 +87,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {HTMLTemplateElement} template The template to process.
      */
     templatize: function(template) {
+      this._templatized = template;
       // TODO(sjmiles): supply _alternate_ content reference missing from root
       // templates (not nested). `_content` exists to provide content sharing
       // for nested templates.
@@ -108,17 +109,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // archetypes do special caching
       this._customPrepAnnotations(archetype, template);
 
+      // forward parent properties to archetype
+      this._prepParentProperties(archetype, template);
+
       // setup accessors
       archetype._prepEffects();
       this._customPrepEffects(archetype);
       archetype._prepBehaviors();
       archetype._prepBindings();
 
-      // forward parent properties to archetype
-      this._prepParentProperties(archetype, template);
-
       // boilerplate code
-      archetype._notifyPath = this._notifyPathImpl;
+      archetype._notifyPathUp = this._notifyPathUpImpl;
       archetype._scopeElementClass = this._scopeElementClassImpl;
       archetype.listen = this._listenImpl;
       archetype._showHideChildren = this._showHideChildrenImpl;
@@ -223,6 +224,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // assume that the template is not a Poylmer.Base, so prep it
             // for binding
             Polymer.Bind.prepareModel(proto);
+            Polymer.Base.prepareModelNotifyPath(proto);
           }
           // Create accessors for each parent prop that forward the property
           // to template instances through abstract _forwardParentProp API
@@ -241,10 +243,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Instance setup
         if (template != this) {
           Polymer.Bind.prepareInstance(template);
-          template._forwardParentProp =
-            this._forwardParentProp.bind(this);
+          template._forwardParentProp = this._forwardParentProp.bind(this);
         }
         this._extendTemplate(template, proto);
+        template._pathEffector = this._pathEffectorImpl.bind(this);
       }
     },
 
@@ -257,7 +259,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _createHostPropEffector: function(prop) {
       var prefix = this._parentPropPrefix;
       return function(source, value) {
-        this.dataHost[prefix + prop] = value;
+        this.dataHost._templatized[prefix + prop] = value;
       };
     },
 
@@ -290,25 +292,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // _forwardParentPath: function(path, value) { },
     // _forwardParentProp: function(prop, value) { },
 
-    _notifyPathImpl: function(path, value) {
+    _notifyPathUpImpl: function(path, value) {
       var dataHost = this.dataHost;
       var dot = path.indexOf('.');
       var root = dot < 0 ? path : path.slice(0, dot);
       // Call extension point for Templatizer sub-classes
       dataHost._forwardInstancePath.call(dataHost, this, path, value);
       if (root in dataHost._parentProps) {
-        dataHost.notifyPath(dataHost._parentPropPrefix + path, value);
+        dataHost._templatized.notifyPath(dataHost._parentPropPrefix + path, value);
       }
     },
 
     // Overrides Base notify-path module
-    _pathEffector: function(path, value, fromAbove) {
+    _pathEffectorImpl: function(path, value, fromAbove) {
       if (this._forwardParentPath) {
         if (path.indexOf(this._parentPropPrefix) === 0) {
-          this._forwardParentPath(path.substring(8), value);
+          var subPath = path.substring(this._parentPropPrefix.length);
+          this._forwardParentPath(subPath, value);
         }
       }
-      Polymer.Base._pathEffector.apply(this, arguments);
+      Polymer.Base._pathEffector.call(this._templatized, path, value, fromAbove);
     },
 
     _constructorImpl: function(model, host) {
@@ -383,8 +386,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     stamp: function(model) {
       model = model || {};
       if (this._parentProps) {
+        var templatized = this._templatized;
         for (var prop in this._parentProps) {
-          model[prop] = this[this._parentPropPrefix + prop];
+          model[prop] = templatized[this._parentPropPrefix + prop];
         }
       }
       return new this.ctor(model, this);
