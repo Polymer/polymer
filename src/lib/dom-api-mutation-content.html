@@ -23,54 +23,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     Polymer.Base.extend(DomApi.MutationContent.prototype, {
 
-      addListener: function(callback, options) {
-        var h = DomApi.Mutation.prototype.addListener.call(this, callback, 
-          options);
-        this._scheduleNotify();
-        return h;
-      },
+      // NOTE: ShadyDOM distribute provokes notification of these observers
+      // so no setup is required.
+      _setup: function() {},
 
-      _ensureSetup: function(options) {},
+      _cleanup: function() {},
 
-      notify: function() {
-        if (this._hasListeners()) {
-          this._scheduleNotify();
-        }
-      },
+      // no need to update sub-elements since <content> does not nest
+      // (but note that <slot> will)
+      _beforeCallListeners: function() {},
 
-      _notify: function() {
-        var info = this._suspendChangeInfo ? {} : this._calcChanges();
-        if (info) {
-          info.target = this.node;
-          this._callListeners(info);
-        }
-      },
-
-      _calcChanges: function() {
-        var changes = {
-          addedNodes: [],
-          removedNodes: []
-        };
-        var o$ = this.node.__distributedNodes = this.node.__distributedNodes ||
-          [];
-        var n$ = this.domApi.getDistributedNodes();
-        this.node.__distributedNodes = n$;
-        var splices = Polymer.ArraySplice.calculateSplices(n$, o$);
-        // process removals
-        for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
-          for (var j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
-            changes.removedNodes.push(n);
-          }
-        }
-        // process adds
-        for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
-          for (var j=s.index; j < s.index + s.addedCount; j++) {
-            changes.addedNodes.push(n$[j]);
-          }
-        }
-        if (changes.addedNodes.length || changes.removedNodes.length) {
-          return changes;
-        }
+      _generateListenerInfo: function() {
+        return true;
       }
 
     });
@@ -79,27 +43,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       
       Polymer.Base.extend(DomApi.MutationContent.prototype, {
         
-        _ensureSetup: function(options) {
-          this._trackAttributes = this._trackAttributes ||
-            options.attributes;
+        // NOTE: Under ShadowDOM we must observe the host element for
+        // changes.
+        _setup: function() {
           if (!this._observer) {
             var root = this.domApi.getOwnerRoot();
             var host = root && root.host;
             if (host) {
               this._observer = Polymer.dom(host).observeNodes(
-                this.notify.bind(this), {attributes: this._trackAttributes});
+                this._scheduleNotify.bind(this));
+              this._observer._alwaysCallListener = true;
             }
           }
         },
 
-        _ensureCleanup: function() {
-          if (this._observer) {
-            var root = this.domApi.getOwnerRoot();
-            var host = root && root.host;
-            if (host) {
-              Polymer.dom(host).unobserveNodes(this._observer);
-            }
+        _cleanup: function() {
+          var root = this.domApi.getOwnerRoot();
+          var host = root && root.host;
+          if (host) {
+            Polymer.dom(host).unobserveNodes(this._observer);
           }
+          this._observer = null;
         }
 
       });

@@ -20,113 +20,87 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.domApi = domApi;
       this.node = this.domApi.node;
       this._listeners = [];
-      this._addedNodes = [];
-      this._removedNodes = [];
     };
 
     DomApi.Mutation.prototype = {
 
-      addListener: function(callback, options) {
-        options = options || {};
-        this._ensureSetup(options);
-        var listener = {fn: callback, options: options};
-        this._notifyInitial(listener);
-        return this._listeners.push(listener);
+      addListener: function(callback) {
+        if (!this._isSetup) {
+          this._setup();
+          this._isSetup = true;
+        }
+        var listener = {fn: callback, _nodes: []};
+        this._listeners.push(listener);
+        this._scheduleNotify();
+        return listener;
       },
 
       removeListener: function(handle) {
-        this._listeners.splice(handle - 1, 1);
+        var i = this._listeners.indexOf(handle);
+        if (i >= 0) {
+          this._listeners.splice(i, 1);
+          handle._nodes = [];
+        }
         if (!this._hasListeners()) {
-          this._ensureCleanup();
+          this._cleanup();
+          this._isSetup = false;
         }
       },
 
-      _ensureSetup: function(options) {
-        if (!this._isSetup) {
-          this._isSetup = true;
-          this._observeContentElements(this.domApi.childNodes);
-        }
+      _setup: function() {
+        this._observeContentElements(this.domApi.childNodes);
       },
 
-      _ensureCleanup: function() {}, // abstract
+      _cleanup: function() {
+        this._unobserveContentElements(this.domApi.childNodes);
+      },
 
       _hasListeners: function() {
         return Boolean(this._listeners.length);
       },
 
-      addNode: function(node) {
-        if (this._hasListeners()) {
-          this._addedNodes.push(node);
-          this._scheduleNotify();
-        }
-      },
-
-      removeNode: function(node) {
-        if (this._hasListeners()) {
-          this._removedNodes.push(node);
-          this._scheduleNotify();
-        }
-      },
-
-      addAllNodes: function(force) {
-        if (this._hasListeners() || force) {
-          var c$ = this.domApi.childNodes;
-          if (c$.length) {
-            for (var i=0, c; (i < c$.length) && (c=c$[i]); i++) {
-              this._addedNodes.push(c);
-            }
-            this._scheduleNotify();
-          }
-        }
-      },
-
       _scheduleNotify: function() {
+        if (this._debouncer) {
+          this._debouncer.stop();
+        }
         this._debouncer = Polymer.Debounce(this._debouncer, 
           this._notify);
         this._debouncer.context = this;
         Polymer.dom.addDebouncer(this._debouncer);
       },
 
-      _notify: function(mxns) {
-        var info = mxns || {
-          target: this.node,
-          addedNodes: this._addedNodes,
-          removedNodes: this._removedNodes
+      notify: function() {
+        if (this._hasListeners()) {
+          this._scheduleNotify();
         }
-        this._updateContentElements(info);
-        this._callListeners(info);
-        this._addedNodes = [];
-        this._removedNodes = [];
       },
 
-      _notifyInitial: function(listener) {
-        var info = {
-          target: this.node,
-          addedNodes: this.domApi.childNodes,
-          removedNodes: []
-        };
-        this._callListener(listener, info);
+      _notify: function(mxns) {
+        this._beforeCallListeners();
+        this._callListeners();
       },
 
-      _updateContentElements: function(info) {
-        this._observeContentElements(info.addedNodes);
-        this._unobserveContentElements(info.removedNodes);
+      _beforeCallListeners: function() {
+        this._updateContentElements();
+      },
+
+      _updateContentElements: function() {
+        this._observeContentElements(this.domApi.childNodes);
       },
 
       _observeContentElements: function(elements) {
-        for (var i=0, h, n; (i < elements.length) && (n=elements[i]); i++) {
+        for (var i=0, n; (i < elements.length) && (n=elements[i]); i++) {
           if (this._isContent(n)) {
             n.__observeNodesMap = n.__observeNodesMap || new WeakMap();
-            if (n.__observeNodesMap.get(this) == null) {
-              h = this._observeContent(n);
-              n.__observeNodesMap.set(this, h);
+            if (!n.__observeNodesMap.has(this)) {
+              n.__observeNodesMap.set(this, this._observeContent(n));
             }
           }
         }
       },
 
       _observeContent: function(content) {
-        return Polymer.dom(content).observeNodes(this._notify.bind(this));
+        return Polymer.dom(content).observeNodes(this._scheduleNotify.bind(this));
       },
 
       _unobserveContentElements: function(elements) {
@@ -134,8 +108,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (this._isContent(n)) {
             h = n.__observeNodesMap.get(this);
             if (h) {
-              n.__observeNodesMap.set(this, null);
               Polymer.dom(n).unobserveNodes(h);
+              n.__observeNodesMap.delete(this);
             }
           }
         }
@@ -145,12 +119,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return (node.localName === 'content');
       },
 
-      _callListeners: function(info, filter) {
+      _callListeners: function() {
         var o$ = this._listeners;
+        var nodes = this.domApi.getEffectiveChildNodes();
         for (var i=0, o; (i < o$.length) && (o=o$[i]); i++) {
-          if (!filter || filter(o.options)) {
+          var info = this._generateListenerInfo(o, nodes);
+          if (info || o._alwaysCallListener) {
             this._callListener(o, info);
           }
+        }
+      },
+
+      _generateListenerInfo: function(listener, newNodes) {
+        var oldNodes = listener._nodes;
+        var info = {
+          target: this.node,
+          addedNodes: [],
+          removedNodes: []
+        };
+        var splices = Polymer.ArraySplice.calculateSplices(newNodes, oldNodes);
+        // process removals
+        for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+          for (var j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
+            info.removedNodes.push(n);
+          }
+        }
+        // process adds
+        for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+          for (var j=s.index; j < s.index + s.addedCount; j++) {
+            info.addedNodes.push(newNodes[j]);
+          }
+        }
+        // update cache
+        listener._nodes = newNodes;
+        if (info.addedNodes.length || info.removedNodes.length) {
+          return info;
         }
       },
 
@@ -162,112 +165,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     if (Settings.useShadow) {
 
-      var ensureSetup = DomApi.Mutation.prototype._ensureSetup;
+      var baseSetup = DomApi.Mutation.prototype._setup;
+      var baseCleanup = DomApi.Mutation.prototype._cleanup;
+
+      var beforeCallListeners = DomApi.Mutation.prototype._beforeCallListeners;
 
       Polymer.Base.extend(DomApi.Mutation.prototype, {
         
-        _ensureSetup: function(options) {
-          this._trackAttributes = this._trackAttributes ||
-            options.attributes;
+        _setup: function() {
           if (!this._observer) {
-            this._observer = new MutationObserver(this._notify.bind(this));
+            var self = this;
+            this._mutationHandler = function(mxns) {
+              self._scheduleNotify();
+            };
+            this._observer = new MutationObserver(this._mutationHandler);
             this._preflush = this._flush.bind(this);
             Polymer.dom.addPreflush(this._preflush);
-            // note: doing this > 1x is a no-op
-            this._observer.observe(this.node, {childList: true});
-          }
-          ensureSetup.call(this, options);
-        },
-
-        _ensureCleanup: function() {
-          this._observer.disconnect();
-          Polymer.dom.removePreflush(this._preflush);
-        },
-
-        _notify: function(mxns) {
-          var info = {
-            target: this.node,
-            addedNodes: [],
-            removedNodes: []
-          };
-          // collapse multiple mutations into one view
-          if (Array.isArray(mxns)) {
-            Array.prototype.forEach.call(mxns, function(m) {
-              if (m.addedNodes) {
-                for (var i=0; i < m.addedNodes.length; i++) {
-                  info.addedNodes.push(m.addedNodes[i]);
-                }
-              }
-              if (m.removedNodes) {
-                for (var i=0; i < m.removedNodes.length; i++) {
-                  info.removedNodes.push(m.removedNodes[i]);
-                }
-              }
+            // NOTE: subtree true is way too aggressive, but it easily catches
+            // attribute changes on children. These changes otherwise require
+            // attribute observers on every child. Testing has shown this
+            // approach to be more efficient. 
+            // TODO(sorvell): do we still need to include an option to defeat
+            // attribute tracking?
+            this._observer.observe(this.node, {
+              childList: true,
+              attributes: true,
+              subtree: true
             });
-          } else if (mxns) {
-            info = mxns;
           }
-          if (info.addedNodes.length || info.removedNodes.length) {
-            this._updateContentElements(info);
-            // attribute tracking helps us notice distributed nodes changes
-            // needed only with shadow dom.
-            if (this._trackAttributes) {
-              this._updateAttributeObservers(info);
-            }
-            this._callListeners(info);
-          }
+          baseSetup.call(this);
+        },
+
+        _cleanup: function() {
+          this._observer.disconnect();
+          this._observer = null;
+          this._mutationHandler = null;
+          Polymer.dom.removePreflush(this._preflush);
+          baseCleanup.call(this);
         },
 
         _flush: function() {
           if (this._observer) {
-            this._notify(this._observer.takeRecords());
-          }
-        },
-
-        _observeContent: function(content) {
-          return Polymer.dom(content).observeNodes(this._notify.bind(this), {
-            attributes: this._trackAttributes
-          });
-        },
-
-        _updateAttributeObservers: function(info) {
-          this._observeAttributes(info.addedNodes);
-          this._unobserveAttributes(info.removedNodes);
-        },
-
-        _observeAttributes: function(elements) {
-          for (var i=0, h, n; (i < elements.length) && (n=elements[i]); i++) {
-            if (n.nodeType === Node.ELEMENT_NODE) {
-              this._ensureElementAttrObserver(n);
-            }
-          }
-        },
-
-        _ensureElementAttrObserver: function(element) {
-          this._attrObservers = this._attrObservers || new WeakMap();
-          if (!this._attrObservers.get(element)) {
-            var self = this;
-            this._attrObservers.set(element, new MutationObserver(
-              function(mxns) {
-                self._callListeners(mxns, function(options) {
-                  return Boolean(options.attributes);
-                });
-              }
-            ));
-            this._attrObservers.get(element)
-              .observe(element, {attributes: true});
-          }
-        },
-
-        _unobserveAttributes: function(elements) {
-          for (var i=0, h, n; (i < elements.length) && (n=elements[i]); i++) {
-            if (n.nodeType === Node.ELEMENT_NODE) {
-              h = this._attrObservers.get(n);
-              if (h) {
-                h.disconnect(n);
-              }
-              this._attrObservers.set(n, null);
-            }
+            this._mutationHandler(this._observer.takeRecords());
           }
         }
 
