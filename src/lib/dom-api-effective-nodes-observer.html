@@ -17,18 +17,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var hasDomApi = Polymer.DomApi.hasDomApi;
 
     /**
-     * DomApi.ObserveNodes tracks changes to an element's effective child nodes,
-     * the same list returned from `Polymer.dom(node).getEffectiveChildNodes()`.
+     * DomApi.EffectiveNodesObserver tracks changes to an element's 
+     * effective child nodes, the same list returned from 
+     * `Polymer.dom(node).getEffectiveChildNodes()`.
      * It is not meant to be used directly; it is used by
      * `Polymer.dom(node).observeNodes(callback)` to observe changes.
      */
-    DomApi.ObserveNodes = function(domApi) {
+    DomApi.EffectiveNodesObserver = function(domApi) {
       this.domApi = domApi;
       this.node = this.domApi.node;
       this._listeners = [];
     };
 
-    DomApi.ObserveNodes.prototype = {
+    DomApi.EffectiveNodesObserver.prototype = {
 
       addListener: function(callback) {
         if (!this._isSetup) {
@@ -132,7 +133,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var nodes = this._getEffectiveNodes();
         for (var i=0, o; (i < o$.length) && (o=o$[i]); i++) {
           var info = this._generateListenerInfo(o, nodes);
-          if (info || o._alwaysCallListener) {
+          if (info || o._alwaysNotify) {
             this._callListener(o, info);
           }
         }
@@ -182,13 +183,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     if (Settings.useShadow) {
 
-      var baseSetup = DomApi.ObserveNodes.prototype._setup;
-      var baseCleanup = DomApi.ObserveNodes.prototype._cleanup;
+      var baseSetup = DomApi.EffectiveNodesObserver.prototype._setup;
+      var baseCleanup = DomApi.EffectiveNodesObserver.prototype._cleanup;
 
-      var beforeCallListeners = DomApi.ObserveNodes
+      var beforeCallListeners = DomApi.EffectiveNodesObserver
         .prototype._beforeCallListeners;
 
-      Polymer.Base.extend(DomApi.ObserveNodes.prototype, {
+      Polymer.Base.extend(DomApi.EffectiveNodesObserver.prototype, {
         
         _setup: function() {
           if (!this._observer) {
@@ -228,6 +229,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         enableShadowAttributeTracking: function() {
           if (this._observer) {
+            // provoke all listeners needed for <content> observation
+            // to always call listeners when no-op changes occur (which may
+            // affect lower distributions.
+            this._makeContentListenersAlwaysNotify();
             this._observer.disconnect();
             this._observer.observe(this.node, { 
               childList: true,
@@ -239,6 +244,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             if (host && Polymer.dom(host).observer) {
               Polymer.dom(host).observer.enableShadowAttributeTracking();
             }
+          }
+        },
+
+        _makeContentListenersAlwaysNotify: function() {
+          for (var i=0, h; i < this._listeners.length ; i++) {
+            h = this._listeners[i];
+            h._alwaysNotify = h._isContentListener;
           }
         }
 
