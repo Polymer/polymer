@@ -106,7 +106,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _observeContent: function(content) {
-        return Polymer.dom(content).observeNodes(this._scheduleNotify.bind(this));
+        var h = Polymer.dom(content).observeNodes(this._scheduleNotify.bind(this));
+        h._avoidChangeCalculation = true;
+        return h;
       },
 
       _unobserveContentElements: function(elements) {
@@ -127,7 +129,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _callListeners: function() {
         var o$ = this._listeners;
-        var nodes = this.domApi.getEffectiveChildNodes();
+        var nodes = this._getEffectiveNodes();
         for (var i=0, o; (i < o$.length) && (o=o$[i]); i++) {
           var info = this._generateListenerInfo(o, nodes);
           if (info || o._alwaysCallListener) {
@@ -136,7 +138,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      _getEffectiveNodes: function() {
+        return this.domApi.getEffectiveChildNodes()
+      },
+
       _generateListenerInfo: function(listener, newNodes) {
+        if (listener._avoidChangeCalculation) {
+          return true;
+        }
         var oldNodes = listener._nodes;
         var info = {
           target: this.node,
@@ -185,11 +194,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (!this._observer) {
             var self = this;
             this._mutationHandler = function(mxns) {
-              self._scheduleNotify();
+              if (mxns && mxns.length) {
+                self._scheduleNotify();
+              }
             };
             this._observer = new MutationObserver(this._mutationHandler);
-            this._preflush = this._flush.bind(this);
-            Polymer.dom.addPreflush(this._preflush);
+            this._boundFlush = this._flush.bind(this);
+            Polymer.dom.addStaticFlush(this._boundFlush);
             // NOTE: subtree true is way too aggressive, but it easily catches
             // attribute changes on children. These changes otherwise require
             // attribute observers on every child. Testing has shown this
@@ -205,7 +216,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._observer.disconnect();
           this._observer = null;
           this._mutationHandler = null;
-          Polymer.dom.removePreflush(this._preflush);
+          Polymer.dom.removeStaticFlush(this._boundFlush);
           baseCleanup.call(this);
         },
 

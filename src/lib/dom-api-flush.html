@@ -23,59 +23,53 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _FLUSH_MAX: 100,
     _needsTakeRecords: !Polymer.Settings.useNativeCustomElements,
     _debouncers: [],
-    _preFlushList: [],
+    _staticFlushList: [],
     _finishDebouncer: null,
 
     // flush and debounce exposed as statics on Polymer.dom
     flush: function() {
-      for (var i=0; i < this._preFlushList.length; i++) {
-        this._preFlushList[i]();
+      this._flushGuard = 0;
+      this._prepareFlush();
+      while (this._debouncers.length && this._flushGuard < this._FLUSH_MAX) {
+        for (var i=0; i < this._debouncers.length; i++) {
+          this._debouncers[i].complete();
+        }
+        // clear the list of debouncers
+        if (this._finishDebouncer) {
+          this._finishDebouncer.complete();
+        }
+        this._prepareFlush();
+        this._flushGuard++;
       }
-      this._flush();
+      if (this._flushGuard >= this._FLUSH_MAX) {
+        console.warn('Polymer.dom.flush aborted. Flush may not be complete.')
+      }
     },
 
-    _flush: function() {
-      // flush debouncers
-      for (var i=0; i < this._debouncers.length; i++) {
-        this._debouncers[i].complete();
-      }
-      // clear the list of debouncers
-      if (this._finishDebouncer) {
-        this._finishDebouncer.complete();
-      }
+    _prepareFlush: function() {
+      // TODO(sorvell): There is currently not a good way 
+      // to process all custom elements mutations under SD polyfill because
+      // these mutations may be inside shadowRoots. 
       // again make any pending CE mutations that might trigger debouncer
       // additions go...
-      this._flushPolyfills();
-      // flush again if there are now any debouncers to process
-      if (this._debouncers.length && this._flushGuard < this._FLUSH_MAX) {
-        this._flushGuard++;
-        this._flush();
-      } else {
-        if (this._flushGuard >= this._FLUSH_MAX) {
-          console.warn('Polymer.dom.flush aborted. Flush may not be complete.')
-        }
-        this._flushGuard = 0;
-      }
-    },
-
-    // TODO(sorvell): There is currently not a good way 
-    // to process all custom elements mutations under SD polyfill because
-    // these mutations may be inside shadowRoots. 
-    _flushPolyfills: function() {
       if (this._needsTakeRecords) {
         CustomElements.takeRecords();
       }
+      for (var i=0; i < this._staticFlushList.length; i++) {
+        this._staticFlushList[i]();
+      }
     },
 
-    addPreflush: function(fn) {
-      this._preFlushList.push(fn);
+    // add to the static list of methods to call when flushing
+    addStaticFlush: function(fn) {
+      this._staticFlushList.push(fn);
     },
 
-    // TODO(sorvell): Map when we can?
-    removePreflush: function(fn) {
-      var i = this._preFlushList.indexOf(fn);
+    // remove a function from the static list of methods to call when flushing
+    removeStaticFlush: function(fn) {
+      var i = this._staticFlushList.indexOf(fn);
       if (i >= 0) {
-        this._preFlushList.splice(i, 1);
+        this._staticFlushList.splice(i, 1);
       }
     },
 

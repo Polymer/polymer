@@ -235,6 +235,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       document.body.removeChild(el);
     });
 
+    test('observe children changes to distributing element that provoke additional changes', function() {
+      var el = document.createElement('test-content');
+      document.body.appendChild(el);
+
+      var recordedInfo, elAddedInObserver;
+      var observerCallCount = 0;
+      var handle = Polymer.dom(el).observeNodes(function(info) {
+        if (Polymer.dom(info.target).childNodes.length < 5) {
+          elAddedInObserver = document.createElement('div');
+          Polymer.dom(info.target).appendChild(elAddedInObserver);
+        }
+        observerCallCount++;
+        recordedInfo = info;
+      });
+      // add
+      var d = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom.flush();
+      assert.equal(observerCallCount, 5);
+      assert.equal(recordedInfo.addedNodes.length, 1);
+      assert.equal(recordedInfo.addedNodes[0], elAddedInObserver);
+      assert.equal(Polymer.dom(el).childNodes.length, 5);
+      document.body.removeChild(el);
+    });
+
     test('observe children changes to distributing element (async)', function(done) {
       var el = document.createElement('test-content');
       document.body.appendChild(el);
@@ -321,7 +346,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       document.body.removeChild(el);
     });
 
-    test('observe changes to inner node with <content>', function() {
+    test('observe changes to inner node wrapping <content>', function() {
       var el = document.createElement('test-content');
       document.body.appendChild(el);
       var observedInfo;
@@ -335,6 +360,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.dom(el).appendChild(d);
       Polymer.dom(el).appendChild(d1);
       Polymer.dom.flush();
+      assert.equal(observedInfo.target, el.$.contentContainer);
       assert.equal(observedInfo.addedNodes.length, 2);
       assert.equal(observedInfo.removedNodes.length, 0);
       // remove
@@ -352,6 +378,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // reset, unobserve and remove
       observedInfo = null;
       Polymer.dom(el.$.contentContainer).unobserveNodes(handle);
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom.flush();
+      assert.equal(observedInfo, null);
+      document.body.removeChild(el);
+    });
+
+    test('observe changes to <content>', function() {
+      var el = document.createElement('test-content');
+      document.body.appendChild(el);
+      var observedInfo;
+      var handle = Polymer.dom(el.$.content).observeNodes(function(info) {
+        observedInfo = info;
+      });
+      Polymer.dom.flush();
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom.flush();
+      assert.equal(observedInfo.target, el.$.content);
+      assert.equal(observedInfo.addedNodes.length, 2);
+      assert.equal(observedInfo.removedNodes.length, 0);
+      // remove
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom.flush();
+      assert.equal(observedInfo.addedNodes.length, 0);
+      assert.equal(observedInfo.removedNodes.length, 2);
+      // add
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom.flush();
+      assert.equal(observedInfo.addedNodes.length, 2);
+      assert.equal(observedInfo.removedNodes.length, 0);
+      // reset, unobserve and remove
+      observedInfo = null;
+      Polymer.dom(el.$.content).unobserveNodes(handle);
       Polymer.dom(el).removeChild(d);
       Polymer.dom(el).removeChild(d1);
       Polymer.dom.flush();
@@ -408,6 +473,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       var recorded;
       var content = el.$.content.$.content.$.content;
+      var handle = Polymer.dom(content).observeNodes(function(info) {
+        recorded = info;
+      });
+      // add
+      var d = document.createElement('div');
+      var d1 = document.createElement('div');
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom.flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.removedNodes.length, 0);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // remove
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom.flush();
+      assert.equal(recorded.addedNodes.length, 0);
+      assert.equal(recorded.removedNodes.length, 2);
+      assert.equal(recorded.removedNodes[0], d);
+      assert.equal(recorded.removedNodes[1], d1);
+      // add
+      Polymer.dom(el).appendChild(d);
+      Polymer.dom(el).appendChild(d1);
+      Polymer.dom.flush();
+      assert.equal(recorded.addedNodes.length, 2);
+      assert.equal(recorded.addedNodes[0], d);
+      assert.equal(recorded.addedNodes[1], d1);
+      // reset, unobserve and remove
+      recorded = null;
+      Polymer.dom(content).unobserveNodes(handle);
+      Polymer.dom(el).removeChild(d);
+      Polymer.dom(el).removeChild(d1);
+      Polymer.dom.flush();
+      assert.equal(recorded, null);
+      document.body.removeChild(el);
+    });
+
+    test('observe <content> inside deep distributing element', function() {
+      var el = document.createElement('test-content3');
+      document.body.appendChild(el);
+
+      var recorded;
+      var content = el.$.content.$.content.$.content.$.content;
+      assert.equal(content.localName, 'content');
       var handle = Polymer.dom(content).observeNodes(function(info) {
         recorded = info;
       });
