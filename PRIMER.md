@@ -3,7 +3,7 @@
 <a name="feature-list"></a>
 Below is a description of current Polymer features, followed by individual feature guides.
 
-See [the full Polymer.Base API documentation](http://polymer.github.io/polymer/) for details on specific methods and properties. 
+See [the full Polymer.Base API documentation](http://polymer.github.io/polymer/) for details on specific methods and properties.
 
 <a name="polymer-micro"></a>
 **Basic Custom Element sugaring**
@@ -1085,17 +1085,10 @@ Polymer({
 
 Properties of the custom element may be bound into text content or properties of local DOM elements using binding annotations in the template.
 
-To bind to textContent, the binding annotation must currently span the entire content of the tag:
-
 ```html
 <dom-module id="user-view">
   <template>
 
-    <!-- Supported -->
-    First: <span>{{first}}</span><br>
-    Last: <span>{{last}}</span>
-
-    <!-- Not currently supported! -->
     <div>First: {{first}}</div>
     <div>Last: {{last}}</div>
 

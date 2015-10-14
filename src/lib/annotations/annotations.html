@@ -88,26 +88,91 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._parseElementAnnotations(node, list);
     },
 
-    _testEscape: function(value) {
-      var escape = value.slice(0, 2);
-      if (escape === '{{' || escape === '[[') {
-        return escape;
+    _bindingRegex: /([^{[]*)({{|\[\[)([^}\]]*)(?:]]|}})/g,
+
+    // TODO(kschaaf): We could modify this to allow an escape mechanism by
+    // looking for the escape sequence in each of the matches and converting
+    // the part back to a literal type, and then bailing if only literals
+    // were found
+    _parseBindings: function(text) {
+      var re = this._bindingRegex;
+      var parts = [];
+      var m, lastIndex;
+      // Example: "literal1{{binding1}}literal2[[binding2]]final"
+      // Regex matches:
+      //       Iteration 1:  Iteration 2:
+      // m[1]: 'literal1'    'literal2'
+      // m[2]: '{{'          '[['
+      // m[3]: 'binding1'    'binding2'
+      // 'final' is manually substring'ed from end
+      while ((m = re.exec(text)) !== null) {
+        // Add literal part
+        if (m[1]) {
+          parts.push({literal: m[1]});
+        }
+        // Add binding part
+        // Mode (one-way or two)
+        var mode = m[2][0];
+        var value = m[3].trim();
+        // Negate
+        var negate = false;
+        if (value[0] == '!') {
+          negate = true;
+          value = value.substring(1).trim();
+        }
+        var customEvent, notifyEvent, colon;
+        if (mode == '{' && (colon = value.indexOf('::')) > 0) {
+          notifyEvent = value.substring(colon + 2);
+          value = value.substring(0, colon);
+          customEvent = true;
+        }
+        parts.push({
+          compoundIndex: parts.length,
+          value: value,
+          mode: mode,
+          negate: negate,
+          event: notifyEvent,
+          customEvent: customEvent
+        });
+        lastIndex = re.lastIndex;
       }
+      // Add a final literal part
+      if (lastIndex && lastIndex < text.length) {
+        var literal = text.substring(lastIndex);
+        if (literal) {
+          parts.push({
+            literal: literal
+          });
+        }
+      }
+      if (parts.length) {
+        return parts;
+      }
+    },
+
+    _literalFromParts: function(parts) {
+      var s = '';
+      for (var i=0; i<parts.length; i++) {
+        var literal = parts[i].literal;
+        s += literal || '';
+      }
+      return s;
     },
 
     // add annotations gleaned from TextNode `node` to `list`
     _parseTextNodeAnnotation: function(node, list) {
-      var v = node.textContent;
-      var escape = this._testEscape(v);
-      if (escape) {
-        // NOTE: use a space here so the textNode remains; some browsers
-        // (IE) evacipate an empty textNode.
-        node.textContent = ' ';
+      var parts = this._parseBindings(node.textContent);
+      if (parts) {
+        // Initialize the textContent with any literal parts
+        // NOTE: default to a space here so the textNode remains; some browsers
+        // (IE) evacipate an empty textNode following cloneNode/importNode.
+        node.textContent = this._literalFromParts(parts) || ' ';
         var annote = {
           bindings: [{
             kind: 'text',
-            mode: escape[0],
-            value: v.slice(2, -2).trim()
+            name: 'textContent',
+            parts: parts,
+            isCompound: parts.length !== 1
           }]
         };
         list.push(annote);
@@ -152,7 +217,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             !node.hasAttribute('preserve-content')) {
             this._parseTemplate(node, i, list, annote);
           }
-          // collapse adjacent textNodes: fixes an IE issue that can cause 
+          // collapse adjacent textNodes: fixes an IE issue that can cause
           // text nodes to be inexplicably split =(
           // note that root.normalize() should work but does not so we do this
           // manually.
@@ -203,13 +268,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // `annotation data` is not as clear as it could be
     _parseNodeAttributeAnnotations: function(node, annotation) {
       for (var i=node.attributes.length-1, a; (a=node.attributes[i]); i--) {
-        var n = a.name, v = a.value;
-        // id (unless actually an escaped binding annotation)
-        if (n === 'id' && !this._testEscape(v)) {
-          annotation.id = v;
-        }
+        var n = a.name;
+        var v = a.value;
+        var b;
         // events (on-*)
-        else if (n.slice(0, 3) === 'on-') {
+        if (n.slice(0, 3) === 'on-') {
           node.removeAttribute(n);
           annotation.events.push({
             name: n.slice(3),
@@ -217,53 +280,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           });
         }
         // bindings (other attributes)
-        else {
-          var b = this._parseNodeAttributeAnnotation(node, n, v);
-          if (b) {
-            annotation.bindings.push(b);
-          }
+        else if (b = this._parseNodeAttributeAnnotation(node, n, v)) {
+          annotation.bindings.push(b);
+        }
+        // static id
+        else if (n === 'id') {
+          annotation.id = v;
         }
       }
     },
 
     // construct annotation data from a generic attribute, or undefined
-    _parseNodeAttributeAnnotation: function(node, n, v) {
-      var escape = this._testEscape(v);
-      if (escape) {
-        var customEvent;
-        // Cache name (`n` will be mangled)
-        var name = n;
-        // Mode (one-way or two)
-        var mode = escape[0];
-        v = v.slice(2, -2).trim();
-        // Negate
-        var not = false;
-        if (v[0] == '!') {
-          v = v.substring(1);
-          not = true;
-        }
+    _parseNodeAttributeAnnotation: function(node, name, value) {
+      var parts = this._parseBindings(value);
+      if (parts) {
         // Attribute or property
+        var origName = name;
         var kind = 'property';
-        if (n[n.length-1] == '$') {
-          name = n.slice(0, -1);
+        if (name[name.length-1] == '$') {
+          name = name.slice(0, -1);
           kind = 'attribute';
         }
-        // Custom notification event
-        var notifyEvent, colon;
-        if (mode == '{' && (colon = v.indexOf('::')) > 0) {
-          notifyEvent = v.substring(colon + 2);
-          v = v.substring(0, colon);
-          customEvent = true;
+        // Initialize attribute bindings with any literal parts
+        var literal = this._literalFromParts(parts);
+        if (kind == 'attribute') {
+          node.setAttribute(name, literal);
         }
         // Clear attribute before removing, since IE won't allow removing
         // `value` attribute if it previously had a value (can't
         // unconditionally set '' before removing since attributes with `$`
         // can't be set using setAttribute)
-        if (node.localName == 'input' && n == 'value') {
-          node.setAttribute(n, '');
+        if (node.localName == 'input' && name == 'value') {
+          node.setAttribute(origName, '');
         }
         // Remove annotation
-        node.removeAttribute(n);
+        node.removeAttribute(origName);
         // Case hackery: attributes are lower-case, but bind targets
         // (properties) are case sensitive. Gambit is to map dash-case to
         // camel-case: `foo-bar` becomes `fooBar`.
@@ -273,12 +324,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return {
           kind: kind,
-          mode: mode,
           name: name,
-          value: v,
-          negate: not,
-          event: notifyEvent,
-          customEvent: customEvent
+          parts: parts,
+          literal: literal,
+          isCompound: parts.length !== 1
         };
       }
     },
