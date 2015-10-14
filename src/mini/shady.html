@@ -9,15 +9,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <link rel="import" href="../lib/array-splice.html">
 <link rel="import" href="../lib/dom-api.html">
+<link rel="import" href="../lib/dom-api-flush.html">
+<link rel="import" href="../lib/dom-api-event.html">
+<link rel="import" href="../lib/dom-api-classlist.html">
+<link rel="import" href="../lib/dom-api-effective-nodes-observer.html">
+<link rel="import" href="../lib/dom-api-distributed-nodes-observer.html">
 <script>
 
   (function() {
     /**
-
       Implements a pared down version of ShadowDOM's scoping, which is easy to
       polyfill across browsers.
-
     */
+    var hasDomApi = Polymer.DomApi.hasDomApi;
+
     Polymer.Base._addFeature({
 
       _prepShady: function() {
@@ -143,6 +148,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.shadyRoot._distributionClean = true;
           if (hasInsertionPoint(this.shadyRoot)) {
             this._composeTree();
+            // NOTE: send a signal to insertion points that we have distributed
+            // which informs effective children observers
+            notifyContentObservers(this.shadyRoot);
           } else {
             if (!this.shadyRoot._hasDistributed) {
               this.textContent = '';
@@ -156,6 +164,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               var children = this._composeNode(this);
               this._updateChildNodes(this, children);
             }
+          }
+          // NOTE: send a signal to any Polymer.dom node observers
+          // to report the initial set of childNodes
+          if (!this.shadyRoot._hasDistributed) {
+            notifyInitialDistribution(this);
           }
           this.shadyRoot._hasDistributed = true;
         }
@@ -460,6 +473,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (c.localName === 'content') {
           return host.domHost;
         }
+      }
+    }
+
+    function notifyContentObservers(root) {
+      for (var i=0, c; i < root._insertionPoints.length; i++) {
+        c = root._insertionPoints[i];
+        if (hasDomApi(c)) {
+          Polymer.dom(c).notifyObserver();
+        }
+      }
+    }
+
+    function notifyInitialDistribution(host) {
+      if (hasDomApi(host)) {
+        Polymer.dom(host).notifyObserver();
       }
     }
 

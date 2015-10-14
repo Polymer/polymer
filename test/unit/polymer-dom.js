@@ -516,6 +516,15 @@ suite('Polymer.dom', function() {
 
   });
 
+  test('getEffectiveChildNodes', function() {
+    var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
+    var re = Polymer.dom(rere.root).querySelector('x-reproject');
+    var projected = Polymer.dom(testElement.root).querySelector('#projected');
+    var c$ = Polymer.dom(re).getEffectiveChildNodes();
+    assert.equal(c$.length, 3);
+    assert.equal(c$[1], projected);
+  });
+
   test('Polymer.dom.querySelector', function() {
     var test = Polymer.dom().querySelector('x-test');
     var rere = Polymer.dom().querySelector('x-rereproject');

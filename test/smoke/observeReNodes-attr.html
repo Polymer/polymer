@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+<head>
+
+  <title>observeReNodes</title>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <link rel="import" href="../../polymer.html">
+
+</head>
+<body>
+
+  <dom-module id='test-inner'>
+    <template>
+      ~<content id="c" select=".a"></content>~
+    </template>
+    <script>
+      Polymer({
+        is:'test-inner',
+        ready: function() {
+          this.observe();
+        },
+
+        observe: function() {
+          console.warn('observeNodes', this.localName);
+          this._childObserver = Polymer.dom(this).observeNodes(function(info) {
+            info.addedNodes.forEach(function(n) {
+              if (n.nodeType === Node.ELEMENT_NODE) {
+                console.log('added:', n.localName, n.textContent);
+              }
+            });
+            info.removedNodes.forEach(function(n) {
+              if (n.nodeType === Node.ELEMENT_NODE) {
+                console.log('removed:', n.localName, n.textContent);
+              }
+            });
+          }, {changes: true, attributes: true});
+          this._contentObserver = Polymer.dom(this.$.c).observeNodes(function(info) {
+            info.addedNodes.forEach(function(n) {
+              if (n.nodeType === Node.ELEMENT_NODE) {
+                console.log('%c content added:', 'color: blue;', n.localName, n.textContent);
+              }
+            });
+            info.removedNodes.forEach(function(n) {
+              if (n.nodeType === Node.ELEMENT_NODE) {
+                console.log('%c content removed:', 'color: blue;', n.localName, n.textContent);
+              }
+            });
+          }, {changes: true, attributes: true});
+        },
+
+        unobserve: function() {
+          console.warn('unobserveNodes', this.localName);
+          Polymer.dom(this).unobserveNodes(this._childObserver);
+          Polymer.dom(this.$.c).unobserveNodes(this._contentObserver);
+        }
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id='test-content'>
+    <template>
+      <test-inner id="inner">[<content id="ip" select=".b"></content>]</test-inner>
+    </template>
+    <script>
+    (function() {
+      Polymer({
+        is:'test-content'
+      });
+    })();
+    </script>
+  </dom-module>
+
+  <test-content id="content">
+    <div class="a b">content A</div>
+    <div class="a b">content B</div>
+  </test-content>
+
+  <br><br>
+
+  <script>
+  
+  function makeNode(text) {
+    var d = document.createElement('div');
+    d.textContent = text;;
+    return d;
+  }
+
+
+  Polymer.dom.flush();
+  
+  function test(done) {
+    console.group('test dynamic');
+    var d = makeNode('dynamic!');
+    Polymer.dom.flush();
+    Polymer.dom(content).appendChild(d);
+    Polymer.dom.flush();
+    Polymer.dom(content).removeChild(d);
+    Polymer.dom.flush();
+    d = makeNode('1');
+    Polymer.dom(d).classList.add('b');
+    Polymer.dom(content).appendChild(d);
+    Polymer.dom.flush();
+    Polymer.dom(d).classList.add('a');
+    //Polymer.dom(Polymer.dom(d).parentNode).notifyObservers();
+    Polymer.dom(content.$.inner).appendChild(makeNode('2'));
+    Polymer.dom.flush();
+    d = makeNode('-1');
+    Polymer.dom(d).classList.add('b');
+    Polymer.dom(d).classList.add('a');
+    Polymer.dom(content).insertBefore(d, Polymer.dom(content).firstChild);
+    Polymer.dom.flush();
+    Polymer.dom(content.$.inner).insertBefore(makeNode('-2'), Polymer.dom(content.$.inner).firstChild);
+    Polymer.dom.flush();
+    Polymer.dom(content.$.inner).removeChild(Polymer.dom(content.$.inner).firstChild);
+    Polymer.dom(content.$.inner).removeChild(Polymer.dom(content.$.inner).lastChild);
+    Polymer.dom(content).removeChild(Polymer.dom(content).firstChild);
+    Polymer.dom(content).removeChild(Polymer.dom(content).lastChild);
+    Polymer.dom.flush();
+
+    var d1 = makeNode('dynamic2!');
+    Polymer.dom(content).appendChild(d1);
+
+    setTimeout(function() {
+      Polymer.dom(d1).classList.add('a');
+      Polymer.dom(d1).classList.add('b');
+      setTimeout(function() {
+        //Polymer.dom(content).notifyObservers();
+        console.groupEnd('test dynamic');
+        if (done) {
+          done();
+        }
+      });
+    });
+  }
+    
+   
+  test(function() {
+    content.$.inner.unobserve();
+    test(function() {
+      content.$.inner.observe();
+      test(function() {
+        content.$.inner.unobserve();
+        test(function() {
+          content.$.inner.observe();
+          test();  
+        });
+      });
+    });
+  });
+
+  </script>
+
+</body>
+</html>

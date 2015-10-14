@@ -8,10 +8,15 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="settings.html">
-<link rel="import" href="event-api.html">
 <link rel="import" href="dom-innerHTML.html">
 <script>
 
+  /**
+   * DomApi is a dom manipulation library which is compatible with both 
+   * Shady DOM and Shadow DOM. The general usage is 
+   * `Polymer.dom(node).method(arguments)` where methods and arguments
+   * match native DOM where possible.
+   */
   Polymer.DomApi = (function() {
     'use strict';
 
@@ -72,7 +77,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // container to container.host.
       // 3. node is <content> (host of container needs distribution)
       _addNode: function(node, ref_node) {
-        this._removeNodeFromHost(node, true);
+        this._removeNodeFromParent(node);
         var addedInsertionPoint;
         var root = this.getOwnerRoot();
         // if a <content> is added, make sure it's parent has logical info.
@@ -111,6 +116,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (addedInsertionPoint) {
           this._updateInsertionPoints(root.host);
         }
+        this.notifyObserver();
         return node;
       },
 
@@ -134,6 +140,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             nativeRemoveChild.call(container, node);
           }
         }
+        this.notifyObserver();
         return node;
       },
 
@@ -266,6 +273,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return parent && parent.shadyRoot && hasInsertionPoint(parent.shadyRoot);
       },
 
+      _removeNodeFromParent: function(node) {
+        var parent = node._lightParent;
+        if (parent && hasDomApi(parent)) {
+          factory(parent).notifyObserver();
+        }
+        this._removeNodeFromHost(node, true);
+      },
+
       // NOTE: if `ensureComposedRemoval` is true then the node should be
       // removed from its composed parent.
       _removeNodeFromHost: function(node, ensureComposedRemoval) {
@@ -283,7 +298,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             root.host._elementRemove(node);
             hostNeedsDist = this._removeDistributedChildren(root, node);
           }
-          this._removeLogicalInfo(node, node._lightParent);
+          this._removeLogicalInfo(node, parent);
         }
         this._removeOwnerShadyRoot(node);
         if (root && hostNeedsDist) {
@@ -435,28 +450,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         points.
       */
       queryDistributedElements: function(selector) {
-        var c$ = this.childNodes;
+        var c$ = this.getEffectiveChildNodes();
         var list = [];
-        this._distributedFilter(selector, c$, list);
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
-          if (c.localName === CONTENT) {
-            this._distributedFilter(selector, factory(c).getDistributedNodes(),
-              list);
+          if ((c.nodeType === Node.ELEMENT_NODE) && 
+              matchesSelector.call(c, selector)) {
+            list.push(c);
           }
         }
         return list;
       },
 
-      _distributedFilter: function(selector, list, results) {
-        results = results || [];
-        for (var i=0, l=list.length, d; (i<l) && (d=list[i]); i++) {
-          if ((d.nodeType === Node.ELEMENT_NODE) &&
-            (d.localName !== CONTENT) &&
-            matchesSelector.call(d, selector)) {
-            results.push(d);
+      /*
+        Returns a list of effective childNoes within this element. These can be
+        dom child nodes or elements distributed to children that are insertion
+        points.
+      */
+      getEffectiveChildNodes: function() {
+        var list = [];
+        var c$ = this.childNodes;
+        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if (c.localName === CONTENT) {
+            var d$ = factory(c).getDistributedNodes();
+            for (var j=0; j < d$.length; j++) {
+              list.push(d$[j]);
+            }
+          } else {
+            list.push(c);
           }
         }
-        return results;
+        return list;
       },
 
       _clear: function() {
@@ -508,45 +531,49 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         return n;
+      },
+
+      /**
+       * Notifies callers about changes to the element's effective child nodes, 
+       * the same list as returned by `getEffectiveChildNodes`. 
+       * @param {function} callback The supplied callback is called with an 
+       * `info` argument which is an object that provides 
+       * the `target` on which the changes occurred, a list of any nodes 
+       * added in the `addedNodes` array, and nodes removed in the 
+       * `removedNodes` array.
+       * @return {object} Returns a handle which is the argument to 
+       * `unobserveNodes`.
+       */
+      observeNodes: function(callback) {
+        if (callback) {
+          if (!this.observer) {
+            this.observer = this.node.localName === CONTENT ?
+              new DomApi.DistributedNodesObserver(this) :
+              new DomApi.EffectiveNodesObserver(this);
+          }
+          return this.observer.addListener(callback);
+        }
+      },
+
+      /**
+       * Stops observing changes to the element's effective child nodes.
+       * @param {object} handle The handle for the callback that should
+       * no longer receive notifications. This handle is returned from 
+       * `observeNodes`.
+       */
+      unobserveNodes: function(handle) {
+        if (this.observer) {
+          this.observer.removeListener(handle);
+        }
+      },
+
+      notifyObserver: function() {
+        if (this.observer) {
+          this.observer.notify();
+        }
       }
 
     };
-
-    Object.defineProperty(DomApi.prototype, 'classList', {
-      get: function() {
-        if (!this._classList) {
-          this._classList = new DomApi.ClassList(this);
-        }
-        return this._classList;
-      },
-      configurable: true
-    });
-
-    DomApi.ClassList = function(host) {
-      this.domApi = host;
-      this.node = host.node;
-    }
-
-    DomApi.ClassList.prototype = {
-      add: function() {
-        this.node.classList.add.apply(this.node.classList, arguments);
-        this.domApi._distributeParent();
-      },
-
-      remove: function() {
-        this.node.classList.remove.apply(this.node.classList, arguments);
-        this.domApi._distributeParent();
-      },
-
-      toggle: function() {
-        this.node.classList.toggle.apply(this.node.classList, arguments);
-        this.domApi._distributeParent();
-      },
-      contains: function() {
-        return this.node.classList.contains.apply(this.node.classList,
-          arguments);
-      }
-    }
 
     // changes and accessors...
     if (!Settings.useShadow) {
@@ -752,7 +779,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return n$ ? Array.prototype.slice.call(n$) : [];
       };
 
-      DomApi.prototype._distributeParent = function() {}
+      DomApi.prototype._distributeParent = function() {};
+
+      var nativeForwards = ['appendChild', 'insertBefore', 
+        'removeChild', 'replaceChild'];
+
+      nativeForwards.forEach(function(forward) {
+        DomApi.prototype[forward] = function() {
+          return this.node[forward].apply(this.node, arguments);
+        };
+      });
 
       Object.defineProperties(DomApi.prototype, {
 
@@ -810,13 +846,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var CONTENT = 'content';
 
-    var factory = function(node, patch) {
+    function factory(node, patch) {
       node = node || document;
       if (!node.__domApi) {
         node.__domApi = new DomApi(node, patch);
       }
       return node.__domApi;
     };
+
+    function hasDomApi(node) {
+      return Boolean(node.__domApi);
+    }
 
     Polymer.dom = function(obj, patch) {
       if (obj instanceof Event) {
@@ -825,62 +865,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return factory(obj, patch);
       }
     };
-
-    // add flush api...
-    Polymer.Base.extend(Polymer.dom, {
-      
-      _flushGuard: 0,
-      _FLUSH_MAX: 100,
-      _needsTakeRecords: !Polymer.Settings.useNativeCustomElements,
-      _debouncers: [],
-      _finishDebouncer: null,
-
-      // flush and debounce exposed as statics on Polymer.dom
-      flush: function() {
-        // flush debouncers
-        for (var i=0; i < this._debouncers.length; i++) {
-          this._debouncers[i].complete();
-        }
-        // clear the list of debouncers
-        if (this._finishDebouncer) {
-          this._finishDebouncer.complete();
-        }
-        // again make any pending CE mutations that might trigger debouncer
-        // additions go...
-        this._flushPolyfills();
-        // flush again if there are now any debouncers to process
-        if (this._debouncers.length && this._flushGuard < this._FLUSH_MAX) {
-          this._flushGuard++;
-          this.flush();
-        } else {
-          if (this._flushGuard >= this._FLUSH_MAX) {
-            console.warn('Polymer.dom.flush aborted. Flush may not be complete.')
-          }
-          this._flushGuard = 0;
-        }
-      },
-
-      // TODO(sorvell): There is currently not a good way 
-      // to process all custom elements mutations under SD polyfill because
-      // these mutations may be inside shadowRoots. 
-      _flushPolyfills: function() {
-        if (this._needsTakeRecords) {
-          CustomElements.takeRecords();
-        }
-      },
-
-      addDebouncer: function(debouncer) {
-        this._debouncers.push(debouncer);
-        // ensure the list of active debouncers is cleared when done.
-        this._finishDebouncer = Polymer.Debounce(this._finishDebouncer, 
-          this._finishFlush);
-      },
-
-      _finishFlush: function() {
-        Polymer.dom._debouncers = [];
-      }
-
-    });
 
     function getLightChildren(node) {
       var children = node._lightChildren;
@@ -966,7 +950,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       matchesSelector: matchesSelector,
       hasInsertionPoint: hasInsertionPoint,
       ctor: DomApi,
-      factory: factory
+      factory: factory,
+      hasDomApi: hasDomApi
     };
 
   })();
