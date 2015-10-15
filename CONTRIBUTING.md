@@ -50,10 +50,14 @@ Occasionally we'll close issues if they appear stale or are too vague - please d
 
 PR's are even better than issues. We gladly accept community pull requests. In general across the core library and all of the elements, there are a few necessary steps before we can accept a pull request:
 
-- Open an issue describing the problem that you are looking to solve in your PR. This makes it easier to have a conversation around the best general approach for solving your problem, outside of the code itself.
+- Open an issue describing the problem that you are looking to solve in your PR (if one is not already open), and your approach to solving it. This makes it easier to have a conversation around the best general approach for solving your problem, outside of the code itself.
 - Sign the [CLA](https://cla.developers.google.com/clas), as described above.
+- Fork the repo you're making the fix on to your own Github account.
+- Code!
+- Ideally, squash your commits into a single commit with a clear message of what the PR does. If it absolutely makes sense to keep multiple commits, that OK - or perhaps consider making two separate PR's.
+- **Include tests that test the range of behavior that changes with your PR.** If you PR fixes a bug, make sure your tests capture that bug. If your PR adds new behavior, make sure that behavior is fully tested. Every PR *must* include associated tests.
 - Submit your PR, making sure it references the issue you created.
-- Make sure the issue includes clear steps to reproduce the issue so we can test your fix.
+- If your PR fixes a bug, make sure the issue includes clear steps to reproduce the bug so we can test your fix.
 
 If you've completed all of these steps the core team will do its best to respond to the PR as soon as possible.
 
