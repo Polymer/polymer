@@ -179,15 +179,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     },
 
+    _methodRegEx: (function() {
+        var dblQuotStr = '"(?:\\\\.|[^"\\\\])*"';
+        var quotStr = "'(?:\\\\.|[^'\\\\])*'";
+        var string = dblQuotStr + '|' + quotStr;
+
+        var methodName = '[^\\s]+';
+        var argumentList = '(' + '(?:' + string + '|' + '[^)\'"]*' + ')*' + ')';
+
+        return {
+            method: new RegExp('^\\s*(' + methodName + ')\\s*' + '\\(' + argumentList + '\\)\\s*$'),
+            argument: new RegExp('(' + string + '|' + '[^,\'"]*' + ')' + ',?\\s*')
+        };
+    })(),
+
     // method expressions are of the form: `name([arg1, arg2, .... argn])`
     _parseMethod: function(expression) {
       // tries to match valid javascript property names
-      var m = expression.match(/([^\s]+)\((.*)\)/);
+      var m = expression.match(this._methodRegEx.method);
       if (m) {
         var sig = { method: m[1], static: true };
         if (m[2].trim()) {
-          // replace escaped commas with comma entity, split on un-escaped commas
-          var args = m[2].replace(/\\,/g, '&comma;').split(',');
+          // "foo,bar,baz" is transformed into ["","foo","","bar","","baz",""]
+          var args = m[2].split(this._methodRegEx.argument);
+          // remove empty strings at even indices
+          for(var i=0;i<args.length;i++)
+            args.splice(i,1);
           return this._parseArgs(args, sig);
         } else {
           sig.args = Polymer.nar;
