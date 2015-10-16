@@ -1,5 +1,7 @@
 # Polymer
 
+[![Build Status](https://travis-ci.org/Polymer/polymer.svg?branch=master)](https://travis-ci.org/Polymer/polymer)
+
 Polymer lets you build encapsulated, re-usable elements that work just like HTML elements, to use in building web applications.
 
 ```html
