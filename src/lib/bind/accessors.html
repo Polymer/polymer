@@ -11,6 +11,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.Bind = {
 
+    _dataEventCache: {},
+
     // for prototypes (usually)
 
     prepareModel: function(model) {
@@ -22,7 +24,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _modelApi: {
 
       _notifyChange: function(event, value) {
-        Polymer.Base.fire(event, {value: value}, {bubbles: false, node: this});
+        var cache = Polymer.Bind._dataEventCache;
+        var e = cache[event];
+        if (e) {
+          cache[event] = null;
+        } else {
+          e = new CustomEvent(event, 
+            {bubbles: false, cancelable: false, detail: {}});
+        } 
+        e.detail.value = value;
+        this.dispatchEvent(e);
+        cache[event] = e;
       },
 
       // TODO(sjmiles): removing _notifyListener from here breaks accessors.html
@@ -182,7 +194,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addAnnotatedListener: function(model, index, property, path, event) {
       var fn = this._notedListenerFactory(property, path,
-        this._isStructured(path), this._isEventBogus);
+        this._isStructured(path));
       var eventName = event ||
         (Polymer.CaseMap.camelToDashCase(property) + '-changed');
       model._bindListeners.push({
@@ -202,27 +214,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return e.path && e.path[0] !== target;
     },
 
-    _notedListenerFactory: function(property, path, isStructured, bogusTest) {
-      return function(e, target) {
-        if (!bogusTest(e, target)) {
-          if (e.detail && e.detail.path) {
-            this._notifyPath(this._fixPath(path, property, e.detail.path),
-              e.detail.value);
+    _notedListenerFactory: function(property, path, isStructured) {
+      return function(target, value, targetPath) {
+        if (targetPath) {
+          this._notifyPath(this._fixPath(path, property, targetPath), value);
+        } else {
+          value = value !== undefined ? value : target[property];
+          if (!isStructured) {
+            this[path] = value;
           } else {
-            var value = target[property];
-            if (!isStructured) {
-              this[path] = target[property];
-            } else {
-              // TODO(kschaaf): dirty check avoids null references when the object has gone away
-              if (this.__data__[path] != value) {
-                this.set(path, value);
-              }
+            // TODO(kschaaf): dirty check avoids null references when the object has gone away
+            if (this.__data__[path] != value) {
+              this.set(path, value);
             }
           }
         }
       };
     },
-
     // for instances
 
     prepareInstance: function(inst) {
