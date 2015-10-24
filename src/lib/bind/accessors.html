@@ -163,8 +163,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return this.__data__[property];
         }
       };
+
+      var validate = function(property, value) {
+        var propertyValidations = this.properties[property];
+        //@Polymer team are these stored anywhere else?
+        var RESERVED_WORDS = ['type', 'value', 'reflectToAttribute', 'ReadOnly', 'notify', 'computed', 'observer', 'defined'];
+        RESERVED_WORDS.forEach(function (reservedWord) {
+          delete propertyValidations[reservedWord];
+        });
+
+        for (var key in propertyValidations) {
+          if (propertyValidations.hasOwnProperty(key)) {
+            // Check if the rule exist
+            if (!this.rules[key]) {
+              console.error(key + ' does not exist in ' + property + ' for ' + this.localName + '. Ignoring rule.');
+              continue;
+            }
+            // Check if the rule passes
+            if (!this.rules[key](value, propertyValidations[key])) {
+              this.fire(property + "-invalid");
+              console.error(this.localName + ': {' + key + ': ' + propertyValidations[key] + '} failed validations rule: ' + value );
+              return false;
+            }
+          }
+        }
+
+        return true;
+      };
+
       var setter = function(value) {
-        this._propertySetter(property, value, effects);
+        if (validate.bind(this)(property, value)) {
+          this._propertySetter(property, value, effects);
+        }
       };
       // ReadOnly properties have a private setter only
       // TODO(kschaaf): Per current Bind factoring, we shouldn't
