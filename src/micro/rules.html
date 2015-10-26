@@ -1,0 +1,139 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<script>
+
+  /**
+   * Define property metadata.
+   *
+   *     rules: {
+   *       <rule>: <Function || String>,
+   *       ...
+   *     }
+   *
+   * Example:
+   *
+   *     rules: {
+   *       // `foo` property can be assigned via attribute, will be deserialized to
+   *       // the specified data-type. All `properties` properties have this behavior.
+   *       foo: String,
+   *
+   *       // `bar` property has additional behavior specifiers.
+   *       //   type: as above, type for (de-)serialization
+   *       //   notify: true to send a signal when a value is set to this property
+   *       //   reflectToAttribute: true to serialize the property to an attribute
+   *       //   readOnly: if true, the property has no setter
+   *       bar: {
+   *         type: Boolean,
+   *         notify: true
+   *       }
+   *     }
+   *
+   * By itself the properties feature doesn't do anything but provide property
+   * information. Other features use this information to control behavior.
+   *
+   * The `type` information is used by the `attributes` feature to convert
+   * String values in attributes to typed properties. The `bind` feature uses
+   * property information to control property access.
+   *
+   * Marking a property as `notify` causes a change in the property to
+   * fire a non-bubbling event called `<property>-changed`. Elements that
+   * have enabled two-way binding to the property use this event to
+   * observe changes.
+   *
+   * `readOnly` properties have a getter, but no setter. To set a read-only
+   * property, use the private setter method `_set_<property>(value)`.
+   *
+   * @class base feature: properties
+   */
+
+
+  Polymer.Base._addFeature({
+
+    /**
+     * A list validation rules which can be applied to properties
+     *
+     * rules: {
+     * is
+     *
+     * }
+     */
+    rules: {
+    },
+
+    /**
+     *
+     * @param  {[type]} rules [description]
+     * @return {[type]}       [description]
+     */
+    marshalRule: function(rule){
+      //@Polymer team are these stored anywhere else?
+      var RESERVED_WORDS = ['type', 'value', 'reflectToAttribute', 'readOnly', 'notify', 'computed', 'observer', 'defined'];
+      RESERVED_WORDS.forEach(function (reservedWord) {
+        if(rule && rule[reservedWord]) {
+          delete rule[reservedWord];
+        }
+      });
+      return rule;
+    },
+
+    getRuleInfo: function(rule) {
+      var info = this._getRuleInfo(rule, this.rules);
+      if (!info) {
+        this.behaviors.some(function(b) {
+          return info = this._getRuleInfo(rule, b.rules);
+        }, this);
+      }
+      return info || Polymer.nob;
+    },
+
+    _getRuleInfo: function(rule, rules) {
+      var p = rules && rules[rule];
+      return p;
+    },
+
+    /**
+     * [function description]
+     * @param  {[type]} element  [description]
+     * @param  {[type]} property [description]
+     * @param  {[type]} value    [description]
+     * @return {[type]}          [description]
+     */
+    validateRule: function(element, property, value) {
+      var prop = Polymer.Base.getPropertyInfo.bind(element)(property);
+      var propertyValidations = this.marshalRule(prop);
+
+      for (var key in propertyValidations) {
+        if (propertyValidations.hasOwnProperty(key)) {
+          var rule = this.getRuleInfo.bind(element)(key);
+          // Check if the rule exist
+          if (!rule) {
+            console.error(key + ' does not exist in ' + property + ' for ' + element.localName + '. Ignoring rule.');
+            continue;
+          }
+          // Check if the rule passes
+          if (!rule(value, propertyValidations[key])) {
+            var eventName = Polymer.CaseMap.camelToDashCase(property) + "-invalid";
+            var payload = {
+              ruleName: key,
+              ruleArgs: propertyValidations[key],
+              value: value
+            };
+            element.fire(eventName, payload);
+            return false;
+          }
+        }
+      }
+
+      return true;
+    }
+
+  });
+
+</script>
