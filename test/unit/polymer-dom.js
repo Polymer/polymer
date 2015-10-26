@@ -635,6 +635,25 @@ suite('Polymer.dom', function() {
 
   });
 
+  test('Polymer.dom.deepActiveElement search', function() {
+    var a = document.createElement('x-trivial');
+    var b = document.createElement('x-trivial');
+    Polymer.dom(b).setAttribute('tabindex', 1);
+    Polymer.dom(a).appendChild(b);
+    Polymer.dom(document.body).appendChild(a);
+    Polymer.dom.flush();
+    b.focus();
+    assert.equal(Polymer.dom.deepActiveElement, b);
+    Polymer.dom(document.body).removeChild(a);
+  });
+
+  test('Polymer.dom.deepActiveElement complex search', function() {
+    var focusable = document.querySelector('#focusable');
+    var b = Polymer.dom(focusable.root).querySelector('[tabindex="1"]');
+    b.focus();
+    assert.equal(Polymer.dom.deepActiveElement, b);
+  });
+
 });
 
 suite('Polymer.dom accessors', function() {
