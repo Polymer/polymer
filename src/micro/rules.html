@@ -13,64 +13,83 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Define property metadata.
    *
    *     rules: {
-   *       <rule>: <Function || String>,
+   *       <rule>: <Function>,
    *       ...
    *     }
    *
    * Example:
    *
-   *     rules: {
-   *       // `foo` property can be assigned via attribute, will be deserialized to
-   *       // the specified data-type. All `properties` properties have this behavior.
-   *       foo: String,
+   * 			rules: {
+   *         maxLength: function(val, arg) {
+   *           return (val.length <= arg);
+   *         },
    *
-   *       // `bar` property has additional behavior specifiers.
-   *       //   type: as above, type for (de-)serialization
-   *       //   notify: true to send a signal when a value is set to this property
-   *       //   reflectToAttribute: true to serialize the property to an attribute
-   *       //   readOnly: if true, the property has no setter
-   *       bar: {
-   *         type: Boolean,
+   *         minLength: function(val, arg) {
+   *           return (val.length >= arg);
+   *         },
+   *
+   *         in: function (val, arg) {
+   *           return !!(arg.indexOf(val) + 1);
+   *         }
+   *       }
+   *      properties: {
+   *       name: {
+   *         type: String,
+   *         maxLength: 15,
+   *         minLength: 3,
+   *         notify: true
+   *       },
+   *       cardType: {
+   *         type: String,
+   *         in: ["Debit", "Credit", "EBT"],
    *         notify: true
    *       }
    *     }
    *
-   * By itself the properties feature doesn't do anything but provide property
-   * information. Other features use this information to control behavior.
+   * Rules are used to provide more rigid validations to properties.
    *
-   * The `type` information is used by the `attributes` feature to convert
-   * String values in attributes to typed properties. The `bind` feature uses
-   * property information to control property access.
+   * When you attempt to change a property which has validation rules.
+   * Every rule must pass before the value will be assigned.
    *
-   * Marking a property as `notify` causes a change in the property to
-   * fire a non-bubbling event called `<property>-changed`. Elements that
-   * have enabled two-way binding to the property use this event to
-   * observe changes.
+   * If any rules fail an event named `property-name-invalid` is fired
+   * property-name-invalid contains the following payload
+   * {
+   * ruleName: "minLength",
+   * ruleArgs: 4,
+   * value: "foo"
+   * }
    *
-   * `readOnly` properties have a getter, but no setter. To set a read-only
-   * property, use the private setter method `_set_<property>(value)`.
    *
-   * @class base feature: properties
+   * @class base feature: rules
    */
-
-
   Polymer.Base._addFeature({
 
     /**
      * A list validation rules which can be applied to properties
      *
-     * rules: {
-     * is
+     * 			rules: {
+     *         maxLength: function(val, arg) {
+     *           return (val.length <= arg);
+     *         },
      *
-     * }
+     *         minLength: function(val, arg) {
+     *           return (val.length >= arg);
+     *         },
+     *
+     *         in: function (val, arg) {
+     *           return !!(arg.indexOf(val) + 1);
+     *         }
+     *       }
      */
     rules: {
     },
 
     /**
+     * Takes a single property from the properties array.
+     * Strip out all words which already have special meanings
      *
-     * @param  {[type]} rules [description]
-     * @return {[type]}       [description]
+     * @param  {[Object]} rules `info` or a property
+     * @return {[Object]}       An object containing only posible valid rule calls
      */
     marshalRule: function(rule){
       //@Polymer team are these stored anywhere else?
@@ -83,6 +102,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return rule;
     },
 
+    /**
+     * Returns a rule descriptor object for the rule specified.
+     *
+     * This method allows introspecting the configuration of a Polymer element's
+     * rules as configured in its `rules` object.  Note, this method
+     * normalizes shorthand forms of the `rules` object into longhand form.
+     *
+     * @method getRuleInfo
+     * @param {string} rule Name of rule to introspect.
+     * @return {Object} Rule descriptor for specified rule.
+    */
     getRuleInfo: function(rule) {
       var info = this._getRuleInfo(rule, this.rules);
       if (!info) {
@@ -99,11 +129,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     /**
-     * [function description]
-     * @param  {[type]} element  [description]
-     * @param  {[type]} property [description]
-     * @param  {[type]} value    [description]
-     * @return {[type]}          [description]
+     * Function which can be called to validate all rules for a property against a given value
+     * @param  {[HTMLElement]} element  Element which we are validating rules on
+     * @param  {String} property Name of the property we want to validate
+     * @param  {[Any]} value    value we are going to try to assign
+     * @return {[Boolean]}      True if all rules pass, False if any fail.
      */
     validateRules: function(element, property, value) {
       var prop = Polymer.Base.getPropertyInfo.bind(element)(property);
