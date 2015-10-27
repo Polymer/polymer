@@ -632,7 +632,7 @@ suite('Polymer.dom', function() {
     } else {
       testHeight();
     }
-    
+
   });
 
 });
@@ -916,5 +916,22 @@ suite('Polymer.dom non-distributed elements', function() {
   test('getDestinationInsertionPoints on non-distributable element', function() {
     assert.equal(Polymer.dom(document.createElement('div')).getDestinationInsertionPoints().length, 0);
     assert.equal(Polymer.dom(document).getDestinationInsertionPoints().length, 0);
+  });
+
+  test('Deep Contains', function() {
+    var el = document.querySelector('x-deep-contains');
+    var shadow = el.$.shadowed;
+    var light = el.querySelector('#light');
+    var disconnected = document.createElement('div');
+    var separate = document.createElement('div');
+    document.body.appendChild(separate);
+
+    assert.equal(Polymer.dom(el).deepContains(el), true, 'Element should deepContain itself');
+    assert.equal(Polymer.dom(el).deepContains(shadow), true, 'Shadowed Child element should be found');
+    assert.equal(Polymer.dom(el).deepContains(light), true, 'Light Child element should be found');
+    assert.equal(Polymer.dom(el).deepContains(disconnected), false, 'Disconnected element should not be found');
+    assert.equal(Polymer.dom(el).deepContains(separate), false, 'Unassociated, attached element should not be found');
+
+    document.body.removeChild(separate);
   });
 });
