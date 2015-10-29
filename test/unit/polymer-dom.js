@@ -922,7 +922,7 @@ suite('Polymer.dom non-distributed elements', function() {
     var el = document.querySelector('x-deep-contains');
     var shadow = el.$.shadowed;
     var light = Polymer.dom(el).querySelector('#light');
-    var notdistributed = Polymer.dom(el).querySelector('#notdistributed');
+    var notdistributed = Polymer.dom(el).children[1];
     var disconnected = document.createElement('div');
     var separate = document.createElement('div');
     document.body.appendChild(separate);
