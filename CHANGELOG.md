@@ -1,5 +1,22 @@
 # Change Log
 
+##[v1.2.1](https://github.com/Polymer/polymer/tree/v1.2.1) (2015-10-29)
+- Fix test for SD polyfill ([commit](https://github.com/Polymer/polymer/commit/dd8b3e9))
+
+- Add pre-condition check for completeness. ([commit](https://github.com/Polymer/polymer/commit/89304dc))
+
+- Find non distributed children with deepContains ([commit](https://github.com/Polymer/polymer/commit/8e6f55a))
+
+- Ensure outer paths aren't forwarded to instance props. Fixes #2556. ([commit](https://github.com/Polymer/polymer/commit/01273e9))
+
+- Add `Polymer.dom.deepContains` ([commit](https://github.com/Polymer/polymer/commit/279bf63))
+
+- [ci skip] Update CHANGELOG ([commit](https://github.com/Polymer/polymer/commit/e1f83d2))
+
+- isLightDescendant should return false for self ([commit](https://github.com/Polymer/polymer/commit/a0debf4))
+
+- Fix for mixins declaration with space before colon. Allow any space character or even `{` and `}` (before and after capturing pattern correspondingly) as pattern boundaries instead of new lines only. In minified sources there might be no space, semicolon or line start, so we need to account that as well. ([commit](https://github.com/Polymer/polymer/commit/883aa5c))
+
 ##[v1.2.0](https://github.com/Polymer/polymer/tree/v1.2.0) (2015-10-22)
 - A simpler travis config ([commit](https://github.com/Polymer/polymer/commit/3338b67))
 
