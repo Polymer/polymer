@@ -921,7 +921,8 @@ suite('Polymer.dom non-distributed elements', function() {
   test('Deep Contains', function() {
     var el = document.querySelector('x-deep-contains');
     var shadow = el.$.shadowed;
-    var light = el.querySelector('#light');
+    var light = Polymer.dom(el).querySelector('#light');
+    var notdistributed = Polymer.dom(el).querySelector('#notdistributed');
     var disconnected = document.createElement('div');
     var separate = document.createElement('div');
     document.body.appendChild(separate);
@@ -929,6 +930,7 @@ suite('Polymer.dom non-distributed elements', function() {
     assert.equal(Polymer.dom(el).deepContains(el), true, 'Element should deepContain itself');
     assert.equal(Polymer.dom(el).deepContains(shadow), true, 'Shadowed Child element should be found');
     assert.equal(Polymer.dom(el).deepContains(light), true, 'Light Child element should be found');
+    assert.equal(Polymer.dom(el).deepContains(notdistributed), true, 'Non-distributed child element should be found');
     assert.equal(Polymer.dom(el).deepContains(disconnected), false, 'Disconnected element should not be found');
     assert.equal(Polymer.dom(el).deepContains(separate), false, 'Unassociated, attached element should not be found');
 
