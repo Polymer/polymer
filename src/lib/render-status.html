@@ -37,9 +37,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _makeReady: function() {
       this._ready = true;
-      this._callbacks.forEach(function(cb) {
-        cb();
-      });
+      for (var i=0; i < this._callbacks.length; i++) {
+        this._callbacks[i]();
+      }
       this._callbacks = [];
     },
 
@@ -47,6 +47,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       requestAnimationFrame(function() {
         Polymer.RenderStatus._makeReady();
       });
+    },
+
+    _afterFirstRenderQueue: [],
+
+    _waitingAfterFirstRender: false,
+
+    afterFirstRender: function(element, fn, args) {
+      if (!this._waitingAfterFirstRender) {
+        this._waitingAfterFirstRender = true;
+        this.whenReady(this._flushAfterFirstRender);
+      }
+      this._afterFirstRenderQueue.push([element, fn, args]);
+    },
+
+    _flushAfterFirstRender: function() {
+      requestAnimationFrame(function() {
+        var self = Polymer.RenderStatus;
+        // if already ready, wait 2 frames to ensure async
+        if (self._ready) {
+          requestAnimationFrame(self.__flushAfterFirstRender);
+        } else {
+          self.__flushAfterFirstRender();
+        }
+      });
+    },
+
+    __flushAfterFirstRender: function() {
+      var self = Polymer.RenderStatus;
+      self._waitingAfterFirstRender = false;
+      for (var i=0, h; i < self._afterFirstRenderQueue.length; i++) {
+        h = self._afterFirstRenderQueue[i];
+        h[1].apply(h[0], h[2] || Polymer.nar);
+      };
+      self._afterFirstRenderQueue = [];
     }
   };
 
