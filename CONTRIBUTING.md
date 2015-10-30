@@ -100,13 +100,13 @@ To run the Polymer library unit tests:
 
         wct
 
-You can also run individual test suites:
+To run individual test suites:
 
-<code>npm test <i>path/to/suite</i>
+<code>npm test <var>path/to/suite</var></code>
 
 Or:
 
-<code>wct <i>path/to/suite</i>
+<code>wct <var>path/to/suite</var></code>
 
 For example:
 
@@ -114,9 +114,9 @@ For example:
 
 You can also run tests in the browser:
 
-        polyserve
+    polyserve
 
-    Navigate to [`http://localhost:8080/components/polymer/test/runner.html`](http://localhost:8080/components/polymer/test/runner.html).
+Navigate to [`http://localhost:8080/components/polymer/test/runner.html`](http://localhost:8080/components/polymer/test/runner.html).
 
 ### Running Polymer element unit tests
 
