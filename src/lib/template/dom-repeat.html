@@ -241,18 +241,6 @@ Then the `observe` property should be configured as follows:
         value: 20
       },
 
-      /**
-       * Maximum number of removed instances to pool for reuse when rows are
-       * added in a future turn.  By default, pooling is enabled.
-       *
-       * Set to 0 to disable pooling, which will allow all removed instances to
-       * be garbage collected.
-       */
-      poolSize: {
-        type: Number,
-        value: 1000
-      },
-
       _targetFrameTime: {
         computed: '_computeFrameTime(targetFramerate)'
       }
@@ -338,10 +326,10 @@ Then the `observe` property should be configured as follows:
       return Math.ceil(1000/rate);
     },
 
-    _initializeChunkCount: function(initialCount, chunkCount) {
-      if (initialCount) {
-        this.limit = initialCount;
-        this._chunkCount = parseInt(chunkCount, 10) || initialCount;
+    _initializeChunkCount: function() {
+      if (this.initialCount) {
+        this.limit = this.initialCount;
+        this._chunkCount = parseInt(this.chunkCount, 10) || this.initialCount;
       }
     },
 
@@ -386,6 +374,9 @@ Then the `observe` property should be configured as follows:
         } else {
           this._error(this._logf('dom-repeat', 'expected array for `items`,' +
             ' found', this.items));
+        }
+        if (this._instances.length && this.initialCount) {
+          this._initializeChunkCount();
         }
         this._keySplices = [];
         this._indexSplices = [];
@@ -472,8 +463,12 @@ Then the `observe` property should be configured as follows:
         }
       }
       // Reset the pool
-      // TODO(kschaaf): Allow pool to be reused across turns & between nested
-      // peer repeats (requires updating parentProps when reusing from pool)
+      // TODO(kschaaf): Reuse pool across turns and nested templates
+      // Requires updating parentProps and dealing with the fact that path
+      // notifications won't reach instances sitting in the pool, which
+      // could result in out-of-sync instances since simply re-setting
+      // `item` may not be sufficient if the pooled instance happens to be
+      // the same item.
       this._pool.length = 0;
       // Notify users
       this.fire('dom-change');
@@ -518,10 +513,8 @@ Then the `observe` property should be configured as follows:
         var key = keys[i];
         var inst = this._instances[i];
         if (inst) {
-          if (inst.isPlaceholder) {
-            inst.__key__ = key;
-          } else {
-            inst.__setProperty('__key__', key, true);
+          inst.__key__ = key;
+          if (!inst.isPlaceholder && i < this.limit) {
             inst.__setProperty(this.as, c.getItem(key), true);
           }
         } else {
@@ -661,12 +654,21 @@ Then the `observe` property should be configured as follows:
           var el = inst._children[i];
           Polymer.dom(inst.root).appendChild(el);
         }
-        this._pool.push(inst);
+        if (!keepInstance) {
+          this._pool.push(inst);
+        }
       }
       if (!keepInstance) {
         this._instances.splice(idx, 1);
       }
       return inst;
+    },
+
+    _detachAllRows: function() {
+      for (var i=0; i<this._instances.length; i++) {
+        this._detachRow(i, true);
+      }
+      this._instances.length = 0;
     },
 
     _insertRow: function(idx, key, replace, makePlaceholder) {
@@ -678,6 +680,8 @@ Then the `observe` property should be configured as follows:
         };
       } else {
         if (inst = this._pool.pop()) {
+          // TODO(kschaaf): If the pool is shared across turns, parentProps
+          // need to be re-set to reused instances in addition to item/key
           inst.__setProperty(this.as, this.collection.getItem(key), true);
           inst.__setProperty('__key__', key, true);
         } else {
@@ -749,18 +753,24 @@ Then the `observe` property should be configured as follows:
     // Called as side-effect of a host property change, responsible for
     // notifying parent path change on each inst
     _forwardParentProp: function(prop, value) {
-      this._instances.forEach(function(inst) {
-        inst.__setProperty(prop, value, true);
-      }, this);
+      for (var i=0, i$=this._instances, il=i$.length; i<il; i++) {
+        var inst = i$[i];
+        if (!inst.isPlaceholder) {
+          inst.__setProperty(prop, value, true);
+        }
+      }
     },
 
     // Implements extension point from Templatizer
     // Called as side-effect of a host path change, responsible for
     // notifying parent path change on each inst
     _forwardParentPath: function(path, value) {
-      this._instances.forEach(function(inst) {
-        inst._notifyPath(path, value, true);
-      }, this);
+      for (var i=0, i$=this._instances, il=i$.length; i<il; i++) {
+        var inst = i$[i];
+        if (!inst.isPlaceholder) {
+          inst._notifyPath(path, value, true);
+        }
+      }
     },
 
     // Called as a side effect of a host items.<key>.<path> path change,
@@ -771,7 +781,7 @@ Then the `observe` property should be configured as follows:
         var key = path.substring(0, dot < 0 ? path.length : dot);
         var idx = this._keyToInstIdx[key];
         var inst = this._instances[idx];
-        if (inst) {
+        if (inst && !inst.isPlaceholder) {
           if (dot >= 0) {
             path = this.as + '.' + path.substring(dot+1);
             inst._notifyPath(path, value, true);

@@ -71,6 +71,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <h4>x-primitive-large</h4>
   <x-primitive-large id="primitiveLarge"></x-primitive-large>
 
+  <h4>x-repeat-limit</h4>
+  <x-repeat-limit id="limited"></x-repeat-limit>
+
+  <h4>x-repeat-chunked</h4>
+  <x-repeat-chunked id="chunked"></x-repeat-chunked>
+
   <div id="inDocumentContainer">
   </div>
 
@@ -92,6 +98,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       stamped[37] .. 3-3-2
       stamped[38] .. 3-3-3
     */
+
 
     suite('errors', function() {
 
@@ -3344,6 +3351,501 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Revert
         primitive.splice('items', 5, 2);
         primitive.$.repeater1.render();
+      });
+
+    });
+
+
+    suite('limit', function() {
+
+      var checkItemOrder = function(stamped) {
+        for (var i=0; i<stamped.length; i++) {
+          assert.equal(parseInt(stamped[i].textContent), i);
+        }
+      };
+
+      test('initial limit', function() {
+        var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 2);
+        checkItemOrder(stamped);
+      });
+
+      test('change item paths in & out of limit', function() {
+        var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        limited.outerProp = {prop: 'changed'};
+        assert.equal(stamped[0].prop, 'changed');
+        limited.set('items.0.prop', '0-changed');
+        limited.set('items.3.prop', '3-changed');
+        assert.equal(stamped[0].textContent, '0-changed');
+        limited.set('outerProp.prop', 'changed again');
+        assert.equal(stamped[0].prop, 'changed again');
+      });
+
+      test('increase limit', function(done) {
+        // Increase limit and test async rendering
+        limited.$.repeater.limit = 10;
+        setTimeout(function() {
+          var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 10);
+          checkItemOrder(stamped);
+          assert.equal(stamped[3].prop, 'changed again');
+          assert.equal(stamped[3].textContent, '3-changed');
+          limited.set('items.0.prop', 0);
+          limited.set('items.3.prop', 3);
+          // Increase limit and test sync rendering
+          limited.$.repeater.limit = 20;
+          Polymer.dom.flush();
+          stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 20);
+          checkItemOrder(stamped);
+          done();
+        });
+      });
+
+      test('increase limit above items.length', function() {
+        limited.$.repeater.limit = 30;
+        Polymer.dom.flush();
+        stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 20);
+          checkItemOrder(stamped);
+      });
+
+      test('decrease limit', function(done) {
+        // Decrease limit and test async rendering
+        limited.$.repeater.limit = 15;
+        setTimeout(function() {
+          var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 15);
+          checkItemOrder(stamped);
+          // Decrease limit and test sync rendering
+          limited.$.repeater.limit = 0;
+          Polymer.dom.flush();
+          stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 0);
+          done();
+        });
+      });
+
+      test('negative limit', function() {
+        limited.$.repeater.limit = -10;
+        Polymer.dom.flush();
+        stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 0);
+      });
+
+    });
+
+    suite('limit with sort', function() {
+
+      var checkItemOrder = function(stamped) {
+        for (var i=0; i<stamped.length; i++) {
+          assert.equal(stamped[i].textContent, 19 - i);
+        }
+      };
+
+      test('initial limit', function() {
+        var items = limited.items;
+        limited.$.repeater.limit = 2;
+        limited.$.repeater.sort = function(a, b) {
+          return b.prop - a.prop;
+        };
+        limited.items = null;
+        Polymer.dom.flush();
+        limited.items = items;
+        Polymer.dom.flush();
+        var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 2);
+        checkItemOrder(stamped);
+      });
+
+      test('increase limit', function(done) {
+        // Increase limit and test async rendering
+        limited.$.repeater.limit = 10;
+        setTimeout(function() {
+          var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 10);
+          checkItemOrder(stamped);
+          // Increase limit and test sync rendering
+          limited.$.repeater.limit = 20;
+          Polymer.dom.flush();
+          stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 20);
+          checkItemOrder(stamped);
+          done();
+        });
+      });
+
+      test('increase limit above items.length', function() {
+        limited.$.repeater.limit = 30;
+        Polymer.dom.flush();
+        stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 20);
+          checkItemOrder(stamped);
+      });
+
+      test('decrease limit', function(done) {
+        // Decrease limit and test async rendering
+        limited.$.repeater.limit = 15;
+        setTimeout(function() {
+          var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 15);
+          checkItemOrder(stamped);
+          // Decrease limit and test sync rendering
+          limited.$.repeater.limit = 0;
+          Polymer.dom.flush();
+          stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 0);
+          done();
+        });
+      });
+
+      test('negative limit', function() {
+        limited.$.repeater.limit = -10;
+        Polymer.dom.flush();
+        stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 0);
+      });
+
+    });
+
+    suite('limit with filter', function() {
+
+      var checkItemOrder = function(stamped) {
+        for (var i=0; i<stamped.length; i++) {
+          assert.equal(stamped[i].textContent, i * 2);
+        }
+      };
+
+      test('initial limit', function() {
+        var items = limited.items;
+        limited.$.repeater.limit = 2;
+        limited.$.repeater.sort = null;
+        limited.$.repeater.filter = function(a) {
+          return (a.prop % 2) === 0;
+        };
+        limited.items = null;
+        Polymer.dom.flush();
+        limited.items = items;
+        Polymer.dom.flush();
+        var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 2);
+        checkItemOrder(stamped);
+      });
+
+      test('increase limit', function(done) {
+        // Increase limit and test async rendering
+        limited.$.repeater.limit = 5;
+        setTimeout(function() {
+          var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 5);
+          checkItemOrder(stamped);
+          // Increase limit and test sync rendering
+          limited.$.repeater.limit = 10;
+          Polymer.dom.flush();
+          stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 10);
+          checkItemOrder(stamped);
+          done();
+        });
+      });
+
+      test('increase limit above items.length', function() {
+        limited.$.repeater.limit = 30;
+        Polymer.dom.flush();
+        stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 10);
+          checkItemOrder(stamped);
+      });
+
+      test('decrease limit', function(done) {
+        // Decrease limit and test async rendering
+        limited.$.repeater.limit = 5;
+        setTimeout(function() {
+          var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 5);
+          checkItemOrder(stamped);
+          // Decrease limit and test sync rendering
+          limited.$.repeater.limit = 0;
+          Polymer.dom.flush();
+          stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 0);
+          done();
+        });
+      });
+
+      test('negative limit', function() {
+        limited.$.repeater.limit = -10;
+        Polymer.dom.flush();
+        stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 0);
+      });
+
+    });
+
+    suite('limit with sort & filter', function() {
+
+      var checkItemOrder = function(stamped) {
+        for (var i=0; i<stamped.length; i++) {
+          assert.equal(stamped[i].textContent, (9 - i) * 2);
+        }
+      };
+
+      test('initial limit', function() {
+        var items = limited.items;
+        limited.$.repeater.limit = 2;
+        limited.$.repeater.sort = function(a, b) {
+          return b.prop - a.prop;
+        };
+        limited.$.repeater.filter = function(a) {
+          return (a.prop % 2) === 0;
+        };
+        limited.items = null;
+        Polymer.dom.flush();
+        limited.items = items;
+        Polymer.dom.flush();
+        var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 2);
+        checkItemOrder(stamped);
+      });
+
+      test('increase limit', function(done) {
+        // Increase limit and test async rendering
+        limited.$.repeater.limit = 5;
+        setTimeout(function() {
+          var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 5);
+          checkItemOrder(stamped);
+          // Increase limit and test sync rendering
+          limited.$.repeater.limit = 10;
+          Polymer.dom.flush();
+          stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 10);
+          checkItemOrder(stamped);
+          done();
+        });
+      });
+
+      test('increase limit above items.length', function() {
+        limited.$.repeater.limit = 30;
+        Polymer.dom.flush();
+        stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 10);
+        checkItemOrder(stamped);
+      });
+
+      test('decrease limit', function(done) {
+        // Decrease limit and test async rendering
+        limited.$.repeater.limit = 5;
+        setTimeout(function() {
+          var stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 5);
+          checkItemOrder(stamped);
+          // Decrease limit and test sync rendering
+          limited.$.repeater.limit = 0;
+          Polymer.dom.flush();
+          stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+          assert.equal(stamped.length, 0);
+          done();
+        });
+      });
+
+      test('negative limit', function() {
+        limited.$.repeater.limit = -10;
+        Polymer.dom.flush();
+        stamped = Polymer.dom(limited.root).querySelectorAll('*:not(template)');
+        assert.equal(stamped.length, 0);
+      });
+
+    });
+
+    suite('chunked rendering', function() {
+
+      test('basic chunked rendering', function(done) {
+
+        var checkItemOrder = function(stamped) {
+          for (var i=0; i<stamped.length; i++) {
+            assert.equal(stamped[i].textContent, i);
+          }
+        };
+
+        var lastLength = 0;
+        var checkCount = function() {
+          var stamped = Polymer.dom(chunked.root).querySelectorAll('*:not(template)');
+          checkItemOrder(stamped);
+          if (stamped.length && lastLength === 0) {
+            // Initial rendering of initial count
+            assert.equal(stamped.length, 10);
+          } else {
+            // Remaining rendering incremenets
+            assert.isTrue(stamped.length > lastLength);
+          }
+          if (stamped.length < 100) {
+            lastLength = stamped.length;
+            checkUntilComplete();
+          } else {
+            // Final rendering at exact item count
+            assert.equal(stamped.length, 100);
+            done();
+          }
+        };
+        var checkUntilComplete = function() {
+          // On polyfilled MO, need to wait one setTimeout before rAF
+          if (MutationObserver._isPolyfilled) {
+            setTimeout(function() {
+              requestAnimationFrame(checkCount);
+            });
+          } else {
+            requestAnimationFrame(checkCount);
+          }
+        };
+
+        chunked.items = chunked.preppedItems.slice();
+        checkUntilComplete();
+
+      });
+
+      test('mutations during chunked rendering', function(done) {
+
+        var checkItemOrder = function(stamped) {
+          var last = -1;
+          for (var i=0; i<stamped.length; i++) {
+            var curr = parseFloat(stamped[i].textContent);
+            assert.isTrue(curr > last);
+            last = curr;
+          }
+        };
+
+        var mutateArray = function(repeater, renderedCount) {
+          // The goal here is to remove & add some, and do it over
+          // the threshold of where we have currently rendered items, and
+          // ensure that the prop values of the newly inserted items are in
+          // ascending order so we can do a simple check in checkItemOrder
+          var overlap = 2;
+          var remove = 4;
+          var add = 6;
+          var start = renderedCount.length - overlap;
+          if (start + add < repeater.items.length) {
+            var end = start + remove;
+            var args = ['items', start, remove];
+            var startVal = repeater.items[start].prop;
+            var endVal = repeater.items[end].prop;
+            var delta = (endVal - startVal) / add;
+            for (var i=0; i<add; i++) {
+              args.push({prop: startVal + i*delta});
+            }
+            repeater.splice.apply(repeater, args);
+          }
+        };
+
+        var lastLength = 0;
+        var mutateCount = 5;
+        var checkCount = function() {
+          var stamped = Polymer.dom(chunked.root).querySelectorAll('*:not(template)');
+          checkItemOrder(stamped);
+          if (stamped.length && lastLength === 0) {
+            // Initial rendering of initial count
+            assert.equal(stamped.length, 10);
+          } else {
+            // Remaining rendering incremenets
+            assert.isTrue(stamped.length > lastLength);
+          }
+          if (stamped.length < chunked.items.length) {
+            if (mutateCount-- > 0) {
+              mutateArray(chunked, stamped);
+            }
+            lastLength = stamped.length;
+            checkUntilComplete();
+          } else {
+            // Final rendering at exact item count
+            assert.equal(stamped.length, chunked.items.length);
+            done();
+          }
+        };
+        var checkUntilComplete = function() {
+          // On polyfilled MO, need to wait one setTimeout before rAF
+          if (MutationObserver._isPolyfilled) {
+            setTimeout(function() {
+              requestAnimationFrame(checkCount);
+            });
+          } else {
+            requestAnimationFrame(checkCount);
+          }
+        };
+
+        chunked.items = chunked.preppedItems.slice();
+        checkUntilComplete();
+
+      });
+
+
+      test('mutations during chunked rendering, sort & filtered', function(done) {
+
+        var checkItemOrder = function(stamped) {
+          var last = Infinity;
+          for (var i=0; i<stamped.length; i++) {
+            var curr = parseFloat(stamped[i].textContent);
+            assert.isTrue(curr <= last);
+            assert.strictEqual(curr % 2, 0);
+            last = curr;
+          }
+        };
+
+        var mutateArray = function(repeater, stamped) {
+          var start = parseInt(stamped[0].textContent);
+          var end = parseInt(stamped[stamped.length-1].textContent);
+          var mid = (end-start)/2;
+          for (var i=0; i<5; i++) {
+            chunked.push('items', {prop: mid + 1});
+          }
+          chunked.splice('items', Math.round(stamped.length/2), 3);
+        };
+
+        var lastLength = 0;
+        var mutateCount = 5;
+        var checkCount = function() {
+          var stamped = Polymer.dom(chunked.root).querySelectorAll('*:not(template)');
+          checkItemOrder(stamped);
+          var filteredLength = chunked.items.filter(chunked.$.repeater.filter).length;
+          if (stamped.length && lastLength === 0) {
+            // Initial rendering of initial count
+            assert.equal(stamped.length, 10);
+          } else {
+            // Remaining rendering incremenets
+            if (stamped.length < filteredLength) {
+              assert.isTrue(stamped.length > lastLength);
+            }
+          }
+          if (stamped.length < filteredLength) {
+            if (mutateCount-- > 0) {
+              mutateArray(chunked, stamped);
+            }
+            lastLength = stamped.length;
+            checkUntilComplete();
+          } else {
+            assert.equal(stamped.length, filteredLength);
+            done();
+          }
+        };
+        var checkUntilComplete = function() {
+          // On polyfilled MO, need to wait one setTimeout before rAF
+          if (MutationObserver._isPolyfilled) {
+            setTimeout(function() {
+              requestAnimationFrame(checkCount);
+            });
+          } else {
+            requestAnimationFrame(checkCount);
+          }
+        };
+
+        chunked.$.repeater.sort = function(a, b) {
+          return b.prop - a.prop;
+        };
+        chunked.$.repeater.filter = function(a) {
+          return (a.prop % 2) === 0;
+        };
+        chunked.items = chunked.preppedItems.slice();
+        checkUntilComplete();
+
       });
 
     });
