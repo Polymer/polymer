@@ -516,6 +516,15 @@ suite('Polymer.dom', function() {
 
   });
 
+  test('getEffectiveChildNodes', function() {
+    var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
+    var re = Polymer.dom(rere.root).querySelector('x-reproject');
+    var projected = Polymer.dom(testElement.root).querySelector('#projected');
+    var c$ = Polymer.dom(re).getEffectiveChildNodes();
+    assert.equal(c$.length, 3);
+    assert.equal(c$[1], projected);
+  });
+
   test('Polymer.dom.querySelector', function() {
     var test = Polymer.dom().querySelector('x-test');
     var rere = Polymer.dom().querySelector('x-rereproject');
@@ -623,7 +632,7 @@ suite('Polymer.dom', function() {
     } else {
       testHeight();
     }
-    
+
   });
 
 });
@@ -907,5 +916,24 @@ suite('Polymer.dom non-distributed elements', function() {
   test('getDestinationInsertionPoints on non-distributable element', function() {
     assert.equal(Polymer.dom(document.createElement('div')).getDestinationInsertionPoints().length, 0);
     assert.equal(Polymer.dom(document).getDestinationInsertionPoints().length, 0);
+  });
+
+  test('Deep Contains', function() {
+    var el = document.querySelector('x-deep-contains');
+    var shadow = el.$.shadowed;
+    var light = Polymer.dom(el).querySelector('#light');
+    var notdistributed = Polymer.dom(el).children[1];
+    var disconnected = document.createElement('div');
+    var separate = document.createElement('div');
+    document.body.appendChild(separate);
+
+    assert.equal(Polymer.dom(el).deepContains(el), true, 'Element should deepContain itself');
+    assert.equal(Polymer.dom(el).deepContains(shadow), true, 'Shadowed Child element should be found');
+    assert.equal(Polymer.dom(el).deepContains(light), true, 'Light Child element should be found');
+    assert.equal(Polymer.dom(el).deepContains(notdistributed), true, 'Non-distributed child element should be found');
+    assert.equal(Polymer.dom(el).deepContains(disconnected), false, 'Disconnected element should not be found');
+    assert.equal(Polymer.dom(el).deepContains(separate), false, 'Unassociated, attached element should not be found');
+
+    document.body.removeChild(separate);
   });
 });
