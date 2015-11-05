@@ -47,6 +47,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       };
     }
 
+    :root {
+      --red-text : {
+        color : red;
+      };
+    }
+
+    :root{--blue-text:{color:#0000ff};--dummy-mixin:{};--bold-text:{font-weight:700}}
+
 
     :root {
 
@@ -69,15 +77,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     x-foo {
-      
+
       --primary: 10px;
     }
 
     body /deep/ * {
       --deeep: 6px solid orange;
     }
-
-
   </style>
   <style is="custom-style">
     .bag {
@@ -108,7 +114,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <style is="custom-style" include="shared-style2">
     .zazz {
-      border: 20px solid blue; 
+      border: 20px solid blue;
+    }
+  </style>
+  <style>
+    .foo--bar {
+      border-top : 3px solid red;
+    }
+  </style>
+  <style is="custom-style">
+    @media (min-width: 1px) {
+      .foo--bar {
+        border-top : 20px solid blue;
+      }
     }
   </style>
 </head>
@@ -126,11 +144,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <x-foo></x-foo>
 
+  <x-red-text></x-red-text>
+
+  <x-blue-bold-text></x-blue-bold-text>
+
+  <parent-variable-with-var></parent-variable-with-var>
+
   <br><br>
   <div id="after"></div>
 
   <div class="foo"></div>
 
+  <div class="foo--bar style-scope"></div>
 
   <dom-module id="x-baz">
     <style>
@@ -180,12 +205,81 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </dom-module>
 
+  <dom-module id="x-red-text">
+    <style>
+      :host {
+        @apply(--red-text);
+      }
+    </style>
+    <template>
+      x-red-text
+    </template>
+  </dom-module>
+
+  <dom-module id="x-blue-bold-text">
+    <style>
+      :host {@apply(--blue-text);@apply(--bold-text);}
+    </style>
+    <template>
+      x-blue-bold-text
+    </template>
+  </dom-module>
+
+  <dom-module id="parent-variable-with-var">
+    <template>
+      <style>
+        child-variable-with-var {
+          --variable-property-own-line: 1px;
+          --variable-property-preceded-property: 2px;
+          --variable-property-before-property: yellow;
+          --variable-property-after-property: 3px;
+          --variable-property-after-assignment: 4px;
+          --variable-property-before-assignment: 5px;
+        }
+      </style>
+      <child-variable-with-var id="child"></child-variable-with-var>
+    </template>
+  </dom-module>
+
+  <dom-module id="child-variable-with-var">
+    <template>
+      <style>
+        child-of-child-with-var {
+          --variable-own-line: "Varela font";
+          margin-top: var(--variable-property-own-line);
+          margin-bottom: var(--variable-property-preceded-property);
+          --variable-between-properties: 6px;
+          background-color: var(--variable-property-before-property); padding-top: var(--variable-property-after-property);
+          --variable-assignment-before-property: 7px; padding-bottom: var(--variable-property-after-assignment);
+          padding-left: var(--variable-property-before-assignment);--variable-assignment-after-property: 8px
+        }
+      </style>
+      <child-of-child-with-var id="child"></child-of-child-with-var>
+    </template>
+  </dom-module>
+
+  <dom-module id="child-of-child-with-var">
+    <template>
+      <style>
+        :host {
+          font-family: var(--variable-own-line);
+          padding-right: var(--variable-between-properties);
+          margin-left: var(--variable-assignment-before-property);
+          margin-right: var(--variable-assignment-after-property);
+        }
+      </style>
+      Text
+    </template>
+  </dom-module>
+
   <script>
 
     suite('custom-style', function() {
 
+      var xBar, xFoo;
+
       suiteSetup(function() {
-    
+
         Polymer({
           is: 'x-baz'
         });
@@ -196,6 +290,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         Polymer({
           is: 'x-foo'
+        });
+
+        Polymer({
+          is: 'x-red-text'
+        });
+
+        Polymer({
+          is: 'x-blue-bold-text'
         });
 
         xBar = document.querySelector('x-bar');
@@ -225,6 +327,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var props = Polymer.StyleDefaults._styleProperties;
         assert.property(props, '--italic');
         assert.property(props, '--bag');
+      });
+
+      test('custom properties with space before semicolon', function() {
+        var red = document.querySelector('x-red-text');
+        assertComputed(red, 'rgb(255, 0, 0)', 'color');
+      });
+
+      test('custom properties in minified css', function() {
+        var blue = document.querySelector('x-blue-bold-text');
+        assertComputed(blue, 'rgb(0, 0, 255)', 'color');
+
+        var computed = getComputedStyle(blue);
+        // Firefox returns `700`, while Chrome returns original `bold`
+        assert.ok(computed.fontWeight == '700' || computed.fontWeight == 'bold', 'computed style incorrect for fontWeight');
       });
 
       test('custom-styles apply normal and property values to main document', function() {
@@ -329,6 +445,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         document.body.appendChild(d);
         assertComputed(d, '20px');
         document.body.removeChild(d);
+      });
+
+      test('variable name with assignment including var correctly applied', function() {
+        Polymer({
+          is: 'parent-variable-with-var'
+        });
+        Polymer({
+          is: 'child-variable-with-var'
+        });
+        Polymer({
+          is: 'child-of-child-with-var'
+        });
+
+        var d = document.querySelector('parent-variable-with-var');
+        var el = d.$.child.$.child;
+        assertComputed(el, '1px', 'margin-top');
+        assertComputed(el, '2px', 'margin-bottom');
+        assertComputed(el, '3px', 'padding-top');
+        assertComputed(el, '4px', 'padding-bottom');
+        assertComputed(el, '5px', 'padding-left');
+        assertComputed(el, '6px', 'padding-right');
+        assertComputed(el, '7px', 'margin-left');
+        assertComputed(el, '8px', 'margin-right');
+        assertComputed(el, 'rgb(255, 255, 0)', 'background-color');
+
+        // Because FireFox and Chrome parse font-family differently...
+        var computed = getComputedStyle(el);
+        assert.equal(computed['font-family'].replace(/['"]+/g, ''), 'Varela font');
+      });
+      test('BEM-like CSS selectors under media queries', function() {
+        assertComputed(document.querySelector('.foo--bar'), '3px');
       });
 
     });

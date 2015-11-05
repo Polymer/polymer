@@ -1,5 +1,111 @@
 # Change Log
 
+##[v1.2.1](https://github.com/Polymer/polymer/tree/v1.2.1) (2015-10-29)
+- Fix test for SD polyfill ([commit](https://github.com/Polymer/polymer/commit/dd8b3e9))
+
+- Add pre-condition check for completeness. ([commit](https://github.com/Polymer/polymer/commit/89304dc))
+
+- Find non distributed children with deepContains ([commit](https://github.com/Polymer/polymer/commit/8e6f55a))
+
+- Ensure outer paths aren't forwarded to instance props. Fixes #2556. ([commit](https://github.com/Polymer/polymer/commit/01273e9))
+
+- Add `Polymer.dom.deepContains` ([commit](https://github.com/Polymer/polymer/commit/279bf63))
+
+- [ci skip] Update CHANGELOG ([commit](https://github.com/Polymer/polymer/commit/e1f83d2))
+
+- isLightDescendant should return false for self ([commit](https://github.com/Polymer/polymer/commit/a0debf4))
+
+- Fix for mixins declaration with space before colon. Allow any space character or even `{` and `}` (before and after capturing pattern correspondingly) as pattern boundaries instead of new lines only. In minified sources there might be no space, semicolon or line start, so we need to account that as well. ([commit](https://github.com/Polymer/polymer/commit/883aa5c))
+
+##[v1.2.0](https://github.com/Polymer/polymer/tree/v1.2.0) (2015-10-22)
+- A simpler travis config ([commit](https://github.com/Polymer/polymer/commit/3338b67))
+
+- Fix #2587: When Polymer.dom(el).appendChild(node) is called, cleanup work must be performed on the existing parent of node. This change fixes a missing case in this cleanup work: if the existing parent has a observer via `Polymer.dom(parent).observeNodes`, it needs to be notified that node is being removed even if the node does not have specific logical info. For example, if an observed node has no Shady DOM and has a child that is removed. A test for this case was added. ([commit](https://github.com/Polymer/polymer/commit/0d4f418))
+
+- add fancy travis status badge to the readme ([commit](https://github.com/Polymer/polymer/commit/e29fca8))
+
+- Do not configure compound property/attribute binding if literal if empty. Fixes #2583. ([commit](https://github.com/Polymer/polymer/commit/ca4724a))
+
+- Update .travis.yml ([commit](https://github.com/Polymer/polymer/commit/ef366c5))
+
+- Remove web-component-tester cache. ([commit](https://github.com/Polymer/polymer/commit/4ae23ce))
+
+- Fix IE10 regressions. Fixes #2582 * Copy attribute list before modifying it * Fall back to document for current document if no currentScript ([commit](https://github.com/Polymer/polymer/commit/ee65e68))
+
+- Allow _atEndOfMicrotask to be patchable. ([commit](https://github.com/Polymer/polymer/commit/e2d8446))
+
+- contributing copy fixup ([commit](https://github.com/Polymer/polymer/commit/ed22c50))
+
+- Update CONTRIBUTING.md ([commit](https://github.com/Polymer/polymer/commit/0c21efc))
+
+- Add travis config ([commit](https://github.com/Polymer/polymer/commit/6fb7684))
+
+- Factor into functions. ([commit](https://github.com/Polymer/polymer/commit/b2117dc))
+
+- Fix deepEqual on Safari 9 due to Safari enumeration bug. ([commit](https://github.com/Polymer/polymer/commit/445d603))
+
+- ensure distribution observers see all changes that can come from attributes under native Shadow DOM; +minor factoring ([commit](https://github.com/Polymer/polymer/commit/344f5cc))
+
+- Add <content>.getDistributedNodes observation. Refactor flush. ([commit](https://github.com/Polymer/polymer/commit/8b1face))
+
+- Add docs ([commit](https://github.com/Polymer/polymer/commit/0ede79a))
+
+- Make shadow attribute tracking automatic based on detecting a <content select> that depends on attributes; add tests. ([commit](https://github.com/Polymer/polymer/commit/54911a7))
+
+- Add comments. ([commit](https://github.com/Polymer/polymer/commit/758c483))
+
+- Fix typo. ([commit](https://github.com/Polymer/polymer/commit/74a87a0))
+
+- Replace _compoundInitializationEffect with statically-initialized literals in the template for attributes & textContent, and by configuring literal values of properties in _configureAnnotationReferences. ([commit](https://github.com/Polymer/polymer/commit/2f1bd31))
+
+- Simplify change tracking by always dirty checking at the observer level. Under Shadow DOM, use a deep MO to watch for attributes. ([commit](https://github.com/Polymer/polymer/commit/669acaa))
+
+- Fix URL to component.kitchen ([commit](https://github.com/Polymer/polymer/commit/d9af504))
+
+- Update the Google+ community link ([commit](https://github.com/Polymer/polymer/commit/c6684e5))
+
+- Fixes from review. ([commit](https://github.com/Polymer/polymer/commit/a300862))
+
+- Remove compound binding limitation from primer. ([commit](https://github.com/Polymer/polymer/commit/b1c1b35))
+
+- Exclude compound bindings from configure; revisit later. ([commit](https://github.com/Polymer/polymer/commit/1035e2d))
+
+- Apply effect value from compound parts. ([commit](https://github.com/Polymer/polymer/commit/c30ac10))
+
+- Store binding parts in notes. ([commit](https://github.com/Polymer/polymer/commit/1026498))
+
+- Fix missing var ([commit](https://github.com/Polymer/polymer/commit/68edb83))
+
+- Add radix for correctness. ([commit](https://github.com/Polymer/polymer/commit/a79f012))
+
+- Separate public & private get, flip conditions, add notifyPath API. ([commit](https://github.com/Polymer/polymer/commit/97503ec))
+
+- Fix typo in comments. ([commit](https://github.com/Polymer/polymer/commit/e59dbef))
+
+- Improvements to path API. Fixes #2509. * Allows `set` to take paths with array #keys * Allows `notifyPath` to take paths with array indices * Exposes public notifySplices API ([commit](https://github.com/Polymer/polymer/commit/10021cc))
+
+- Fix merge issue. ([commit](https://github.com/Polymer/polymer/commit/85c23e1))
+
+- Denote keys with # to disambiguate from index. Fixes #2007. ([commit](https://github.com/Polymer/polymer/commit/85d8a3a))
+
+- update CHANGELOG to 1.1.5 ([commit](https://github.com/Polymer/polymer/commit/b2b23c4))
+
+- make tests work on polyfill. ([commit](https://github.com/Polymer/polymer/commit/9ff2ee4))
+
+- add `observeNodes` tests. ([commit](https://github.com/Polymer/polymer/commit/bd90b57))
+
+- Add optional attribute tracking to support better distributed node notifications under shadow dom. ([commit](https://github.com/Polymer/polymer/commit/8242a98))
+
+- Add `Polymer.dom().notifyObservers` method to 'kick' observers, for example, when attributes change under Shadow DOM. ([commit](https://github.com/Polymer/polymer/commit/07261e4))
+
+- Add mutation tracking for distributedNodes. ([commit](https://github.com/Polymer/polymer/commit/b11f86b))
+
+- Factor dom-api's into separate helpers. ([commit](https://github.com/Polymer/polymer/commit/effedcb))
+
+- Adds `Polymer.dom(element).observeChildren(callback)` api ([commit](https://github.com/Polymer/polymer/commit/6499e83))
+
+- Adds `getEffectiveChildNodes`, `getEffectiveChildren`, `getEffectiveTextContent` ([commit](https://github.com/Polymer/polymer/commit/f34fb45))
+
 ##[v1.1.5](https://github.com/Polymer/polymer/tree/v1.1.5) (2015-10-08)
 - Simplify ([commit](https://github.com/Polymer/polymer/commit/79dfe1f))
 
