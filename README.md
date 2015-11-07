@@ -84,7 +84,7 @@ Polymer({
 <my-property-namecard my-name="Jim"></my-property-namecard>
 ```
 
-> Hi! My name is Jim.
+> Hi! My name is Jim
 
 **Bind data into your element using the familiar mustache-syntax**
 
@@ -115,7 +115,7 @@ Polymer({
 <my-bound-namecard my-name="Josh"></my-bound-namecard>
 ```
 
-> Hi! My name is Josh.
+> Hi! My name is Josh
 
 **Style the internals of your element, without the style leaking out**
 
