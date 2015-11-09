@@ -38,7 +38,7 @@ See [the full Polymer.Base API documentation](http://polymer.github.io/polymer/)
 | Feature | Usage
 |---------|-------
 | [Local node marshaling](#node-marshaling) | this.$.\<id>
-| [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
+| [Host event listener setup](#event-listeners)| listeners: { ‘\<event>’: ‘function’, ... }
 | [Annotated event listener setup](#annotated-listeners) | \<element on-[event]=”function”>
 | [Gesture event support](#gesture-events) | \<element on-[gesture-event]=”function”>
 
