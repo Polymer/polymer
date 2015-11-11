@@ -936,4 +936,13 @@ suite('Polymer.dom non-distributed elements', function() {
 
     document.body.removeChild(separate);
   });
+
+  test('Polymer.DomApi.wrap', function() {
+    var wrap = window.wrap || function(node) { return node; };
+
+    var node = document.querySelector('x-wrapped');
+    assert.equal(wrap(document), Polymer.DomApi.wrap(document), 'document should be wrapped');
+    assert.equal(wrap(node), Polymer.DomApi.wrap(node), 'node should be wrapped');
+    assert.equal(wrap(node), Polymer.dom(node).node, 'Polymer.dom should always wrap the input node');
+  });
 });
