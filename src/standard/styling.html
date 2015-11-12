@@ -40,16 +40,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._encapsulateStyle = !nativeShadow &&
             Boolean(this._template);
         }
-        this._styles = this._collectStyles();
-        var cssText = styleTransformer.elementStyles(this);
-        if (cssText && this._template) {
-          var style = styleUtil.applyCss(cssText, this.is,
-            nativeShadow ? this._template.content : null);
-          // keep track of style when in document scope (polyfill) so we can
-          // attach property styles after it.
-          if (!nativeShadow) {
-            this._scopeStyle = style;
+        if (this._template) {
+          this._styles = this._collectStyles();
+          var cssText = styleTransformer.elementStyles(this);
+          if (cssText) {
+            var style = styleUtil.applyCss(cssText, this.is,
+              nativeShadow ? this._template.content : null);
+            // keep track of style when in document scope (polyfill) so we can
+            // attach property styles after it.
+            if (!nativeShadow) {
+              this._scopeStyle = style;
+            }
           }
+        } else {
+          this._styles = [];
         }
       },
 
@@ -64,6 +68,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         cssText += styleUtil.cssFromModule(this.is);
+        // check if we have a disconnected template and add styles from that 
+        // if so; if our template has no parent or is not in our dom-module...
+        var p = this._template && this._template.parentNode;
+        if (this._template && (!p || p.id.toLowerCase() !== this.is)) {
+          cssText += styleUtil.cssFromElement(this._template);
+        }
         if (cssText) {
           var style = document.createElement('style');
           style.textContent = cssText;
@@ -121,21 +131,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (node.nodeType === Node.ELEMENT_NODE) {
             node.className = self._scopeElementClass(node, node.className);
             var n$ = node.querySelectorAll('*');
-            Array.prototype.forEach.call(n$, function(n) {
+            for (var i=0, n; (i<n$.length) && (n=n$[i]); i++) {
               n.className = self._scopeElementClass(n, n.className);
-            });
+            }
           }
         };
         scopify(container);
         if (shouldObserve) {
           var mo = new MutationObserver(function(mxns) {
-            mxns.forEach(function(m) {
+            for (var i=0, m; (i<mxns.length) && (m=mxns[i]); i++) {
               if (m.addedNodes) {
-                for (var i=0; i < m.addedNodes.length; i++) {
-                  scopify(m.addedNodes[i]);
+                for (var j=0; j < m.addedNodes.length; j++) {
+                  scopify(m.addedNodes[j]);
                 }
               }
-            });
+            }
           });
           mo.observe(container, {childList: true, subtree: true});
           return mo;

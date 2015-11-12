@@ -57,11 +57,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this.node.contains(node)) {
           return true;
         }
-
         var n = node;
         // wrap document for SD polyfill
         var wrappedDocument = wrap(document);
-
         // walk from node to `this` or `document`
         while (n && n !== wrappedDocument && n !== this.node) {
           // use logical parentnode, or native ShadowRoot host
@@ -374,7 +372,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
           // NOTE: the act of setting this info can affect patched nodes
           // getters; therefore capture childNodes before patching.
-          var c$ = Array.prototype.slice.call(node.childNodes);
+          var c$ = arrayCopyChildNodes(node);
           for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
             children.splice(index++, 0, n);
             n._lightParent = container;
@@ -603,7 +601,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         childNodes: {
           get: function() {
             var c$ = getLightChildren(this.node);
-            return Array.isArray(c$) ? c$ : Array.prototype.slice.call(c$);
+            return Array.isArray(c$) ? c$ : arrayCopyChildNodes(this.node);
           },
           configurable: true
         },
@@ -740,7 +738,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               this._clear();
               var d = document.createElement('div');
               d.innerHTML = text;
-              var c$ = Array.prototype.slice.call(d.childNodes);
+              // here, appendChild may move nodes async so we cannot rely
+              // on node position when copying
+              var c$ = arrayCopyChildNodes(d);
               for (var i=0; i < c$.length; i++) {
                 this.appendChild(c$[i]);
               }
@@ -758,17 +758,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     } else {
 
-      var forwardMethods = ['cloneNode', 'appendChild', 'insertBefore',
-      'removeChild', 'replaceChild'];
-
-      forwardMethods.forEach(function(name) {
-        DomApi.prototype[name] = function() {
-          return this.node[name].apply(this.node, arguments);
+      var forwardMethods = function(m$) {
+        for (var i=0; i < m$.length; i++) {
+          forwardMethod(m$[i]);
         }
-      });
+      };
+
+      var forwardMethod = function(method) {
+        DomApi.prototype[method] = function() {
+          return this.node[method].apply(this.node, arguments);
+        }
+      };
+
+      forwardMethods(['cloneNode', 'appendChild', 'insertBefore',
+        'removeChild', 'replaceChild']);
 
       DomApi.prototype.querySelectorAll = function(selector) {
-        return Array.prototype.slice.call(this.node.querySelectorAll(selector));
+        return arrayCopy(this.node.querySelectorAll(selector));
       };
 
       DomApi.prototype.getOwnerRoot = function() {
@@ -790,38 +796,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       DomApi.prototype.getDestinationInsertionPoints = function() {
         var n$ = this.node.getDestinationInsertionPoints &&
           this.node.getDestinationInsertionPoints();
-        return n$ ? Array.prototype.slice.call(n$) : [];
+        return n$ ? arrayCopy(n$) : [];
       };
 
       DomApi.prototype.getDistributedNodes = function() {
         var n$ = this.node.getDistributedNodes &&
           this.node.getDistributedNodes();
-        return n$ ? Array.prototype.slice.call(n$) : [];
+        return n$ ? arrayCopy(n$) : [];
       };
 
       DomApi.prototype._distributeParent = function() {};
-
-      var nativeForwards = ['appendChild', 'insertBefore',
-        'removeChild', 'replaceChild'];
-
-      nativeForwards.forEach(function(forward) {
-        DomApi.prototype[forward] = function() {
-          return this.node[forward].apply(this.node, arguments);
-        };
-      });
 
       Object.defineProperties(DomApi.prototype, {
 
         childNodes: {
           get: function() {
-            return Array.prototype.slice.call(this.node.childNodes);
+            return arrayCopyChildNodes(this.node);
           },
           configurable: true
         },
 
         children: {
           get: function() {
-            return Array.prototype.slice.call(this.node.children);
+            return arrayCopyChildren(this.node);
           },
           configurable: true
         },
@@ -849,18 +846,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       });
 
-      var forwardProperties = ['parentNode', 'firstChild', 'lastChild',
-      'nextSibling', 'previousSibling', 'firstElementChild', 'lastElementChild',
-      'nextElementSibling', 'previousElementSibling'];
+      var forwardProperties = function(f$) {
+        for (var i=0; i < f$.length; i++) {
+          forwardProperty(f$[i]);
+        }
+      };
 
-      forwardProperties.forEach(function(name) {
+      var forwardProperty = function(name) {
         Object.defineProperty(DomApi.prototype, name, {
           get: function() {
             return this.node[name];
           },
           configurable: true
         });
-      });
+      };
+
+      forwardProperties(['parentNode', 'firstChild', 'lastChild',
+        'nextSibling', 'previousSibling', 'firstElementChild',
+        'lastElementChild', 'nextElementSibling', 'previousElementSibling']);
 
     }
 
@@ -876,7 +879,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function hasDomApi(node) {
       return Boolean(node.__domApi);
-    }
+    };
 
     Polymer.dom = function(obj, patch) {
       if (obj instanceof Event) {
@@ -896,7 +899,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     function getComposedChildren(node) {
       if (!node._composedChildren) {
-        node._composedChildren = Array.prototype.slice.call(node.childNodes);
+        node._composedChildren = arrayCopyChildNodes(node);
       }
       return node._composedChildren;
     }
@@ -944,12 +947,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // actual children will be treated as the rendered state once lightChildren
       // is populated.
       if (!node._lightChildren) {
-        var c$ = Array.prototype.slice.call(node.childNodes);
+        var c$ = arrayCopyChildNodes(node);
         for (var i=0, l=c$.length, child; (i<l) && (child=c$[i]); i++) {
           child._lightParent = child._lightParent || node;
         }
         node._lightChildren = c$;
       }
+    }
+
+    // sad but faster than slice...
+    function arrayCopyChildNodes(parent) {
+      var copy=[], i=0;
+      for (var n=parent.firstChild; n; n=n.nextSibling) {
+        copy[i++] = n;
+      }
+      return copy;
+    }
+
+    function arrayCopyChildren(parent) {
+      var copy=[], i=0;
+      for (var n=parent.firstElementChild; n; n=n.nextElementSibling) {
+        copy[i++] = n;
+      }
+      return copy;
+    }
+
+    function arrayCopy(a$) {
+      var l = a$.length;
+      var copy = new Array(l);
+      for (var i=0; i < l; i++) {
+        copy[i] = a$[i];
+      }
+      return copy;
     }
 
     function hasInsertionPoint(root) {
@@ -972,6 +1001,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       ctor: DomApi,
       factory: factory,
       hasDomApi: hasDomApi,
+      arrayCopy: arrayCopy,
+      arrayCopyChildNodes: arrayCopyChildNodes,
+      arrayCopyChildren: arrayCopyChildren,
       wrap: wrap
     };
 

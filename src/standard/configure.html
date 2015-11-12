@@ -46,13 +46,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // storage for configuration
     _setupConfigure: function(initialConfig) {
       this._config = {};
-      // don't accept undefined values in intialConfig
-      for (var i in initialConfig) {
-        if (initialConfig[i] !== undefined) {
-          this._config[i] = initialConfig[i];
+      this._handlers = [];
+      if (initialConfig) {
+        // don't accept undefined values in intialConfig
+        for (var i in initialConfig) {
+          if (initialConfig[i] !== undefined) {
+            this._config[i] = initialConfig[i];
+          }
         }
       }
-      this._handlers = [];
     },
 
     // static attributes are deserialized into _config
@@ -67,7 +69,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // at configure time values are stored in _config
     _configValue: function(name, value) {
-      this._config[name] = value;
+      var info = this._propertyInfo[name];
+      if (!info || !info.readOnly) {
+        this._config[name] = value;
+      }
     },
 
     // Override polymer-mini thunk
@@ -87,17 +92,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // get individual default values from property configs
       var config = {};
       // mixed-in behaviors
-      this.behaviors.forEach(function(b) {
-        this._configureProperties(b.properties, config);
-      }, this);
+      for (var i=0; i < this.behaviors.length; i++) {
+        this._configureProperties(this.behaviors[i].properties, config);
+      }
       // prototypical behavior
       this._configureProperties(this.properties, config);
+      // TODO(sorvell): it *may* be faster to loop over _propertyInfo but
+      // there are some test issues.
+      //this._configureProperties(this._propertyInfo, config);
       // override local configuration with configuration from above
-      this._mixinConfigure(config, this._aboveConfig);
+      this.mixin(config, this._aboveConfig);
       // this is the new _config, which are the final values to be applied
       this._config = config;
       // pass configuration data to bindings
-      this._distributeConfig(this._config);
+      if (this._clients && this._clients.length) {
+        this._distributeConfig(this._config);
+      }
     },
 
     _configureProperties: function(properties, config) {
@@ -111,14 +121,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             value = value.call(this, this._config);
           }
           config[i] = value;
-        }
-      }
-    },
-
-    _mixinConfigure: function(a, b) {
-      for (var prop in b) {
-        if (!this.getPropertyInfo(prop).readOnly) {
-          a[prop] = b[prop];
         }
       }
     },
@@ -176,10 +178,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // effects and side effects must not be processed before ready time,
     // handling is queue/defered until then.
     _notifyListener: function(fn, e) {
-      if (!this._clientsReadied) {
-        this._queueHandler([fn, e, e.target]);
-      } else {
-        return fn.call(this, e, e.target);
+      if (!Polymer.Bind._isEventBogus(e, e.target)) {
+        var value, path;
+        if (e.detail) {
+          value = e.detail.value;
+          path = e.detail.path;
+        }
+        if (!this._clientsReadied) {
+          this._queueHandler([fn, e.target, value, path]);
+        } else {
+          return fn.call(this, e.target, value, path);
+        }
       }
     },
 
@@ -190,7 +199,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _flushHandlers: function() {
       var h$ = this._handlers;
       for (var i=0, l=h$.length, h; (i<l) && (h=h$[i]); i++) {
-        h[0].call(this, h[1], h[2]);
+        h[0].call(this, h[1], h[2], h[3]);
       }
       // reset handlers array
       //

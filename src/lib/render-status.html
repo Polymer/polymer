@@ -37,9 +37,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _makeReady: function() {
       this._ready = true;
-      this._callbacks.forEach(function(cb) {
-        cb();
-      });
+      for (var i=0; i < this._callbacks.length; i++) {
+        this._callbacks[i]();
+      }
       this._callbacks = [];
     },
 
@@ -47,6 +47,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       requestAnimationFrame(function() {
         Polymer.RenderStatus._makeReady();
       });
+    },
+
+    _afterNextRenderQueue: [],
+
+    _waitingNextRender: false,
+
+    afterNextRender: function(element, fn, args) {
+      if (!this._waitingNextRender) {
+        this._waitingNextRender = true;
+        this.whenReady(this._flushAfterNextRender);
+      }
+      this._afterNextRenderQueue.push([element, fn, args]);
+    },
+
+    _flushAfterNextRender: function() {
+      // we want to defer flush until just after the next paint.
+      requestAnimationFrame(function() {
+        setTimeout(Polymer.RenderStatus.__flushAfterNextRender);
+      });
+    },
+
+    __flushAfterNextRender: function() {
+      // called without context so force here.
+      var self = Polymer.RenderStatus;
+      self._waitingNextRender = false;
+      for (var i=0, h; i < self._afterNextRenderQueue.length; i++) {
+        h = self._afterNextRenderQueue[i];
+        h[1].apply(h[0], h[2] || Polymer.nar);
+      };
+      self._afterNextRenderQueue = [];
     }
   };
 

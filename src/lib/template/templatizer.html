@@ -116,6 +116,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       archetype._prepEffects();
       this._customPrepEffects(archetype);
       archetype._prepBehaviors();
+      archetype._prepPropertyInfo();
       archetype._prepBindings();
 
       // boilerplate code
@@ -193,8 +194,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!c._notes) {
         var rootDataHost = archetype._rootDataHost;
         if (rootDataHost) {
-          Polymer.Annotations.prepElement =
-            rootDataHost._prepElement.bind(rootDataHost);
+          Polymer.Annotations.prepElement = function() {
+            rootDataHost._prepElement();
+          }
         }
         c._notes = Polymer.Annotations.parseAnnotations(template);
         Polymer.Annotations.prepElement = null;
@@ -231,22 +233,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // that should be implemented by Templatizer users
           for (prop in parentProps) {
             var parentProp = this._parentPropPrefix + prop;
+            // TODO(sorvell): remove reference Bind library functions here.
+            // Needed for effect optimization.
             var effects = [{
               kind: 'function',
-              effect: this._createForwardPropEffector(prop)
+              effect: this._createForwardPropEffector(prop),
+              fn: Polymer.Bind._functionEffect
             }, {
-              kind: 'notify'
+              kind: 'notify',
+              fn: Polymer.Bind._notifyEffect,
+              effect: {event: 
+                Polymer.CaseMap.camelToDashCase(parentProp) + '-changed'}
             }];
             Polymer.Bind._createAccessors(proto, parentProp, effects);
           }
         }
+        // capture this reference for use below
+        var self = this;
         // Instance setup
         if (template != this) {
           Polymer.Bind.prepareInstance(template);
-          template._forwardParentProp = this._forwardParentProp.bind(this);
+          template._forwardParentProp = function(source, value) {
+            self._forwardParentProp(source, value);
+          }
         }
         this._extendTemplate(template, proto);
-        template._pathEffector = this._pathEffectorImpl.bind(this);
+        template._pathEffector = function(path, value, fromAbove) {
+          return self._pathEffectorImpl(path, value, fromAbove);  
+        }
       }
     },
 
@@ -274,14 +288,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // Similar to Polymer.Base.extend, but retains any previously set instance
     // values (_propertySetter back on instance once accessor is installed)
     _extendTemplate: function(template, proto) {
-      Object.getOwnPropertyNames(proto).forEach(function(n) {
+      var n$ = Object.getOwnPropertyNames(proto);
+      for (var i=0, n; (i<n$.length) && (n=n$[i]); i++) {
         var val = template[n];
         var pd = Object.getOwnPropertyDescriptor(proto, n);
         Object.defineProperty(template, n, pd);
         if (val !== undefined) {
           template._propertySetter(n, val);
         }
-      });
+      }
     },
 
     // Extension points for Templatizer sub-classes
@@ -320,11 +335,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _constructorImpl: function(model, host) {
       this._rootDataHost = host._getRootDataHost();
       this._setupConfigure(model);
-      this._pushHost(host);
+      this._registerHost(host);
+      this._beginHosting();
       this.root = this.instanceTemplate(this._template);
       this.root.__noContent = !this._notes._hasContent;
       this.root.__styleScoped = true;
-      this._popHost();
+      this._endHosting();
       this._marshalAnnotatedNodes();
       this._marshalInstanceEffects();
       this._marshalAnnotatedListeners();
@@ -436,25 +452,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
     }
-
-    // TODO(sorvell): note, using the template as host is ~5-10% faster if
-    // elements have no default values.
-    // _constructorImpl: function(model, host) {
-    //   this._setupConfigure(model);
-    //   host._beginHost();
-    //   this.root = this.instanceTemplate(this._template);
-    //   host._popHost();
-    //   this._marshalTemplateContent();
-    //   this._marshalAnnotatedNodes();
-    //   this._marshalInstanceEffects();
-    //   this._marshalAnnotatedListeners();
-    //   this._ready();
-    // },
-
-    // stamp: function(model) {
-    //   return new this.ctor(model, this.dataHost);
-    // }
-
 
   };
 

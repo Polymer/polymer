@@ -75,17 +75,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     parseAnnotations: function(template) {
       var list = [];
       var content = template._content || template.content;
-      this._parseNodeAnnotations(content, list);
+      this._parseNodeAnnotations(content, list, 
+        template.hasAttribute('strip-whitespace'));
       return list;
     },
 
     // add annotations gleaned from subtree at `node` to `list`
-    _parseNodeAnnotations: function(node, list) {
+    _parseNodeAnnotations: function(node, list, stripWhiteSpace) {
       return node.nodeType === Node.TEXT_NODE ?
         this._parseTextNodeAnnotation(node, list) :
           // TODO(sjmiles): are there other nodes we may encounter
           // that are not TEXT_NODE but also not ELEMENT?
-          this._parseElementAnnotations(node, list);
+          this._parseElementAnnotations(node, list, stripWhiteSpace);
     },
 
     _bindingRegex: /([^{[]*)(\{\{|\[\[)(?!\}\}|\]\])(.+?)(?:\]\]|\}\})/g,
@@ -181,7 +182,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     // add annotations gleaned from Element `node` to `list`
-    _parseElementAnnotations: function(element, list) {
+    _parseElementAnnotations: function(element, list, stripWhiteSpace) {
       var annote = {
         bindings: [],
         events: []
@@ -189,7 +190,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (element.localName === 'content') {
         list._hasContent = true;
       }
-      this._parseChildNodesAnnotations(element, annote, list);
+      this._parseChildNodesAnnotations(element, annote, list, stripWhiteSpace);
       // TODO(sjmiles): is this for non-ELEMENT nodes? If so, we should
       // change the contract of this method, or filter these out above.
       if (element.attributes) {
@@ -210,9 +211,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // add annotations gleaned from children of `root` to `list`, `root`'s
     // `annote` is supplied as it is the annote.parent of added annotations
-    _parseChildNodesAnnotations: function(root, annote, list, callback) {
+    _parseChildNodesAnnotations: function(root, annote, list, stripWhiteSpace) {
       if (root.firstChild) {
-        for (var i=0, node=root.firstChild; node; node=node.nextSibling, i++) {
+        var node = root.firstChild;
+        var i = 0;
+        while (node) {
+          var next = node.nextSibling;
           if (node.localName === 'template' &&
             !node.hasAttribute('preserve-content')) {
             this._parseTemplate(node, i, list, annote);
@@ -222,18 +226,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // note that root.normalize() should work but does not so we do this
           // manually.
           if (node.nodeType === Node.TEXT_NODE) {
-            var n = node.nextSibling;
+            var n = next;
             while (n && (n.nodeType === Node.TEXT_NODE)) {
               node.textContent += n.textContent;
+              next = n.nextSibling;
               root.removeChild(n);
-              n = n.nextSibling;
+              n = next;
+            }
+            // optionally strip whitespace
+            if (stripWhiteSpace && !node.textContent.trim()) {
+              root.removeChild(node);
+              // decrement index since node is removed
+              i--;
             }
           }
-          var childAnnotation = this._parseNodeAnnotations(node, list, callback);
-          if (childAnnotation) {
-            childAnnotation.parent = annote;
-            childAnnotation.index = i;
+          // if this node didn't get evacipated, parse it.
+          if (node.parentNode) {
+            var childAnnotation = this._parseNodeAnnotations(node, list, 
+              stripWhiteSpace);
+            if (childAnnotation) {
+              childAnnotation.parent = annote;
+              childAnnotation.index = i;
+            }
           }
+          node = next;
+          i++;
         }
       }
     },

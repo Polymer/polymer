@@ -12,7 +12,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../lib/bind/effects.html">
 
 <script>
-
   /**
    * Support for property side effects.
    *
@@ -33,7 +32,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.Base._addFeature({
 
     _addPropertyEffect: function(property, kind, effect) {
-     Polymer.Bind.addPropertyEffect(this, property, kind, effect);
+      var prop = Polymer.Bind.addPropertyEffect(this, property, kind, effect);
+      // memoize path function for faster lookup.
+      prop.pathFn = this['_' + prop.kind + 'PathEffect'];
     },
 
     // prototyping
@@ -60,10 +61,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._addComputedEffect(p, prop.computed);
           }
           if (prop.notify) {
-            this._addPropertyEffect(p, 'notify');
+            this._addPropertyEffect(p, 'notify', {
+              event: Polymer.CaseMap.camelToDashCase(p) + '-changed'});
           }
           if (prop.reflectToAttribute) {
-            this._addPropertyEffect(p, 'reflect');
+            this._addPropertyEffect(p, 'reflect', {
+              attribute: Polymer.CaseMap.camelToDashCase(p)
+            });
           }
           if (prop.readOnly) {
             // Ensure accessor is created
@@ -75,14 +79,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addComputedEffect: function(name, expression) {
       var sig = this._parseMethod(expression);
-      sig.args.forEach(function(arg) {
+      for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
         this._addPropertyEffect(arg.model, 'compute', {
           method: sig.method,
           args: sig.args,
           trigger: arg,
           name: name
         });
-      }, this);
+      }
     },
 
     _addObserverEffect: function(property, observer) {
@@ -94,34 +98,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addComplexObserverEffects: function(observers) {
       if (observers) {
-        observers.forEach(function(observer) {
-          this._addComplexObserverEffect(observer);
-        }, this);
+        for (var i=0, o; (i<observers.length) && (o=observers[i]); i++)  {
+          this._addComplexObserverEffect(o);
+        }
       }
     },
 
     _addComplexObserverEffect: function(observer) {
       var sig = this._parseMethod(observer);
-      sig.args.forEach(function(arg) {
+      for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
         this._addPropertyEffect(arg.model, 'complexObserver', {
           method: sig.method,
           args: sig.args,
           trigger: arg
         });
-      }, this);
+      }
     },
 
     _addAnnotationEffects: function(notes) {
-      // create a virtual annotation list, must be concretized at instance time
-      this._nodes = [];
       // process annotations that have been parsed from template
-      notes.forEach(function(note) {
+      for (var i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
         // where to find the node in the concretized list
-        var index = this._nodes.push(note) - 1;
-        note.bindings.forEach(function(binding) {
-          this._addAnnotationEffect(binding, index);
-        }, this);
-      }, this);
+        var b$ = note.bindings;
+        for (var j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
+          this._addAnnotationEffect(binding, i);
+        }
+      }
     },
 
     _addAnnotationEffect: function(note, index) {
@@ -157,11 +159,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (sig.static) {
         this.__addAnnotatedComputationEffect('__static__', index, note, part, null);
       } else {
-        sig.args.forEach(function(arg) {
+        for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
           if (!arg.literal) {
-            this.__addAnnotatedComputationEffect(arg.model, index, note, part, arg);
+            this.__addAnnotatedComputationEffect(arg.model, index, note, part, 
+              arg);
           }
-        }, this);
+        }
       }
     },
 
@@ -256,10 +259,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     // instancing
-
     _marshalInstanceEffects: function() {
       Polymer.Bind.prepareInstance(this);
-      Polymer.Bind.setupBindListeners(this);
+      if (this._bindListeners) {
+        Polymer.Bind.setupBindListeners(this);
+      }
     },
 
     _applyEffectValue: function(info, value) {
@@ -285,19 +289,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             (node.localName == 'input' && property == 'value')) {
           value = value == undefined ? '' : value;
         }
-        // TODO(kschaaf): Ideally we'd use `fromAbove: true`, but this
-        // breaks read-only properties
-        // this.__setProperty(property, value, true, node);
-        return node[property] = value;
+        // setProperty using fromAbove to avoid spinning the wheel needlessly.
+        var pinfo;
+        if (!node._propertyInfo || !(pinfo = node._propertyInfo[property]) || 
+          !pinfo.readOnly) {
+          this.__setProperty(property, value, true, node);
+        }
       }
     },
 
     _executeStaticEffects: function() {
-      if (this._propertyEffects.__static__) {
+      if (this._propertyEffects && this._propertyEffects.__static__) {
         this._effectEffects('__static__', null, this._propertyEffects.__static__);
       }
     }
 
   });
-
 </script>
