@@ -11,7 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="style-transformer.html">
 <link rel="import" href="style-defaults.html">
 
-<!-- 
+<!--
 
 The `custom-style` extension of the native `<style>` element allows defining styles
 in the main document that can take advantage of several special features of
@@ -23,7 +23,7 @@ not leak into local DOM when running on browsers without non-native Shadow DOM.
 browsers without non-native Shadow DOM.
 * Custom properties used by Polymer's shim for cross-scope styling
 may be defined in an `custom-style`.
-* An `include` attribute may be specified to pull in style data from a 
+* An `include` attribute may be specified to pull in style data from a
 `dom-module` matching the include attribute. By using `include`, style data
 can be shared between multiple `custom-style` elements.
 
@@ -37,22 +37,22 @@ Example:
   <link rel="import" href="components/polymer/polymer.html">
 
   <style is="custom-style">
-    
+
     /* Will be prevented from affecting local DOM of Polymer elements */
     * {
       box-sizing: border-box;
     }
-    
+
     /* Can use /deep/ and ::shadow combinators */
     body /deep/ .my-special-view::shadow #thing-inside {
       background: yellow;
     }
-    
+
     /* Custom properties that inherit down the document tree may be defined */
     body {
       --my-toolbar-title-color: green;
     }
-    
+
   </style>
 
 </head>
@@ -71,7 +71,7 @@ Note, all features of `custom-style` are available when defining styles as part 
 <script>
 (function() {
 
-  var nativeShadow = Polymer.Settings.useNativeShadow;
+  var nativeImports = Polymer.Settings.useNativeImports;
   var propertyUtils = Polymer.StyleProperties;
   var styleUtil = Polymer.StyleUtil;
   var cssParse = Polymer.CssParse;
@@ -95,7 +95,7 @@ Note, all features of `custom-style` are available when defining styles as part 
     },
 
     ready: function() {
-      // NOTE: we cannot just check attached because custom elements in 
+      // NOTE: we cannot just check attached because custom elements in
       // HTMLImports do not get attached.
       this._tryApply();
     },
@@ -105,10 +105,22 @@ Note, all features of `custom-style` are available when defining styles as part 
     },
 
     _tryApply: function() {
-      if (!this._appliesToDocument) {
-        // only apply variables iff this style is not inside a dom-module
-        if (this.parentNode && 
+      if (!this._appliesToDocument && !this._delayTryApply) {
+        // only apply variables if this style is not inside a dom-module
+        if (this.parentNode &&
           (this.parentNode.localName !== 'dom-module')) {
+          // If `style[is=custom-style]` is the second element in HTML import
+          // while first one is `script` with `Polymer()` call things go really wrong
+          // So we need to delay calling `this._tryReady()` to let HTML imports polyfill
+          // to parse style properly first
+          if (!nativeImports && !this.__appliedElement && this.ownerDocument.__importLink) {
+            this._delayTryApply = true;
+            setTimeout(function () {
+              delete this._delayTryApply;
+              this._tryApply();
+            }.bind(this), 0);
+            return;
+          }
           this._appliesToDocument = true;
           // used applied element from HTMLImports polyfill or this
           var e = this.__appliedElement || this;
@@ -129,13 +141,13 @@ Note, all features of `custom-style` are available when defining styles as part 
       }
     },
 
-    // polyfill this style with root scoping and 
+    // polyfill this style with root scoping and
     // apply custom properties!
     _apply: function() {
       // used applied element from HTMLImports polyfill or this
       var e = this.__appliedElement || this;
       if (this.include) {
-        e.textContent = styleUtil.cssFromModules(this.include, true) + 
+        e.textContent = styleUtil.cssFromModules(this.include, true) +
           e.textContent;
       }
       if (e.textContent) {
@@ -157,9 +169,9 @@ Note, all features of `custom-style` are available when defining styles as part 
           // so next function isn't confused
           // NOTE: we have 3 categories of css:
           // (1) normal properties,
-          // (2) custom property assignments (--foo: red;), 
+          // (2) custom property assignments (--foo: red;),
           // (3) custom property usage: border: var(--foo); @apply(--foo);
-          // In elements, 1 and 3 are separated for efficiency; here they 
+          // In elements, 1 and 3 are separated for efficiency; here they
           // are not and this makes this case unique.
           css = cssParse.removeCustomPropAssignment(css);
           // replace with reified properties, scenario is same as mixin
