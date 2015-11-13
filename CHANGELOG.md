@@ -1,5 +1,152 @@
 # Change Log
 
+##[v1.2.2](https://github.com/Polymer/polymer/tree/v1.2.2) (2015-11-12)
+- use local reference for wrap. ([commit](https://github.com/Polymer/polymer/commit/b15e5b9))
+
+- Add Polymer.DomApi.wrap ([commit](https://github.com/Polymer/polymer/commit/6cf974a))
+
+- For correctness, bind listeners must use a property's current value rather than its passed value. ([commit](https://github.com/Polymer/polymer/commit/aca404f))
+
+- Explicitly making an element's `_template` falsy is now considered an allowable setting. This means the element stamps no content, doesn't collect any styles, and avoids looking up a dom-module. This helps address #2708 and the 5 elements Polymer registers that have no template have been set with `_template: null`. ([commit](https://github.com/Polymer/polymer/commit/b905a37))
+
+- Make test work under native Shadow DOM. ([commit](https://github.com/Polymer/polymer/commit/4f9c2bd))
+
+- In `_notifyListener`, only use `e.detail` if the event has a detail. This is necessary for `::eventName` compatibility where `eventName` is a native event like `change`. ([commit](https://github.com/Polymer/polymer/commit/3ece552))
+
+- Fix TOC re: host event listeners. ([commit](https://github.com/Polymer/polymer/commit/ce32459))
+
+- Fix compound bindings with braces in literals ([commit](https://github.com/Polymer/polymer/commit/561b28b))
+
+- Re-enable listeners of the form 'a.b' (todo: make this more efficient). ([commit](https://github.com/Polymer/polymer/commit/139257b))
+
+- Avoid stomping on property objects when mixing behaviors. ([commit](https://github.com/Polymer/polymer/commit/ec4d313))
+
+- Update test to avoid template polypill issues. ([commit](https://github.com/Polymer/polymer/commit/fa96ff3))
+
+- Ensure parent node exists when stamping. Fixes #2685. ([commit](https://github.com/Polymer/polymer/commit/62f2d2a))
+
+- Add global leak test to runner. ([commit](https://github.com/Polymer/polymer/commit/dc2255c))
+
+- Add global leak test. ([commit](https://github.com/Polymer/polymer/commit/7f71b4c))
+
+- Fix typo that prevented correct functioning of Polymer.dom under Shadow DOM and add tests to catch. ([commit](https://github.com/Polymer/polymer/commit/cdc9fde))
+
+- maintain compatibility with older `_notifyChange` arguments. ([commit](https://github.com/Polymer/polymer/commit/f5aec30))
+
+- Weird assignment fix ([commit](https://github.com/Polymer/polymer/commit/9e6f77a))
+
+- add comment. ([commit](https://github.com/Polymer/polymer/commit/f2d5f44))
+
+- For efficiency, use cached events in data system, for property and path changes. ([commit](https://github.com/Polymer/polymer/commit/da71dfe))
+
+- Fixes #2690 ([commit](https://github.com/Polymer/polymer/commit/d8b78d4))
+
+- change after render method to `Polymer.RenderStatus.afterNextRender` ([commit](https://github.com/Polymer/polymer/commit/8949c04))
+
+- When effect values are applied via bindings, use fromAbove gambit to avoid unnecessary wheel spinning. (This is now possible since we have fast lookup for readOnly where we want to avoid doing the set at all). ([commit](https://github.com/Polymer/polymer/commit/c520907))
+
+- do readOnly check for configured properties where they are handed down, rather than when they are consumed. ([commit](https://github.com/Polymer/polymer/commit/24bcedb))
+
+- Minor cleanup. ([commit](https://github.com/Polymer/polymer/commit/0b21506))
+
+- Avoid creating unnecessary placeholders for full refresh. ([commit](https://github.com/Polymer/polymer/commit/996289a))
+
+- Simplify ([commit](https://github.com/Polymer/polymer/commit/c5e1135))
+
+- Fix typo. ([commit](https://github.com/Polymer/polymer/commit/680c56d))
+
+- Update docs. ([commit](https://github.com/Polymer/polymer/commit/352ccbe))
+
+- _removeInstance -> _detachAndRemoveInstance ([commit](https://github.com/Polymer/polymer/commit/ba7a16f))
+
+- Remove limit & chunkCount API. Refactor insert/remove. ([commit](https://github.com/Polymer/polymer/commit/f447c0e))
+
+- add back deepContains (got removed incorrectly in merge). ([commit](https://github.com/Polymer/polymer/commit/d53ab57))
+
+- fix line endings. ([commit](https://github.com/Polymer/polymer/commit/0233d6d))
+
+- revert host attributes ordering change optimization as it was not worth the trouble (barely measurable and more cumbersome impl). ([commit](https://github.com/Polymer/polymer/commit/f9894a0))
+
+- rename host functions fix typos afterFirstRender is now raf+setTimeout dom-repeat: remove cruft ([commit](https://github.com/Polymer/polymer/commit/d82840b))
+
+- Fix Gestures when using SD polyfill ([commit](https://github.com/Polymer/polymer/commit/96e4bfa))
+
+- Fix for multiple consequent spaces present in CSS selectors, fixes #2670 ([commit](https://github.com/Polymer/polymer/commit/ecddb56))
+
+- avoid configuration work when unnecessary ([commit](https://github.com/Polymer/polymer/commit/e0fbfbe))
+
+- lazily create effect objects so we can more easily abort processing. avoid forEach ([commit](https://github.com/Polymer/polymer/commit/66df196))
+
+- provides support for memoizing pathFn on effect; only process effects/listeners if they exist. ([commit](https://github.com/Polymer/polymer/commit/a2376b6))
+
+- memoize pathFn on effect (note: notifyPath change made in previous commit); avoid forEach. ([commit](https://github.com/Polymer/polymer/commit/d93340a))
+
+- Avoid using .slice and .forEach ([commit](https://github.com/Polymer/polymer/commit/d2c02a9))
+
+- Added support for short unicode escape sequences, fixes #2650 ([commit](https://github.com/Polymer/polymer/commit/2c87145))
+
+- Fix for BEM-like CSS selectors under media queries, fixes #2639. Small optimization for produced CSS (empty rules produced semicolon before, now empty string). ([commit](https://github.com/Polymer/polymer/commit/35c89f1))
+
+- Fix parsing of custom properties with 'var' in value ([commit](https://github.com/Polymer/polymer/commit/61abfbd))
+
+- Clean up cruft. ([commit](https://github.com/Polymer/polymer/commit/59c27fa))
+
+- Add tests and fix issues. ([commit](https://github.com/Polymer/polymer/commit/e99e5fa))
+
+- dom-repeat chunked/throttled render API ([commit](https://github.com/Polymer/polymer/commit/e9aebd7))
+
+- Fix formatting. ([commit](https://github.com/Polymer/polymer/commit/56734a7))
+
+- Add notes on running unit tests. ([commit](https://github.com/Polymer/polymer/commit/492f310))
+
+- Corrected method name. Fixes #2649. ([commit](https://github.com/Polymer/polymer/commit/5168604))
+
+- Fix typos in more efficient array copying. ([commit](https://github.com/Polymer/polymer/commit/53f3a7d))
+
+- Adds `Polymer.RenderStatus.afterFirstRender` method. Call to perform tasks after an element first renders. ([commit](https://github.com/Polymer/polymer/commit/71b5c2a))
+
+- More efficient array management in Polymer.DomApi. ([commit](https://github.com/Polymer/polymer/commit/320d5c7))
+
+- Fixes #2652 ([commit](https://github.com/Polymer/polymer/commit/e35c4e9))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/0dc69df))
+
+- Fix whitespace around bindings. ([commit](https://github.com/Polymer/polymer/commit/d7d0ed6))
+
+- Add support for `strip-whitespace`. Should fix #2511. ([commit](https://github.com/Polymer/polymer/commit/35a1b94))
+
+- Improve efficiency of attribute configuration. ([commit](https://github.com/Polymer/polymer/commit/f7d86e9))
+
+- Remove use of Function.bind ([commit](https://github.com/Polymer/polymer/commit/25aab8b))
+
+- fix typos. ([commit](https://github.com/Polymer/polymer/commit/5fb20da))
+
+- Re-use data change events. Remove unused/undocumented listener object specific node listening feature. ([commit](https://github.com/Polymer/polymer/commit/8bdedf3))
+
+- Add flattened properties to dom-bind, templatizer, optimize by 'liming properties that are protected/private and not readOnly from list. ([commit](https://github.com/Polymer/polymer/commit/2ba08ec))
+
+- Use flattened list of properties for fast access during configuration and attribute->property ([commit](https://github.com/Polymer/polymer/commit/acdd242))
+
+- Assemble effect strings at prototype time. ([commit](https://github.com/Polymer/polymer/commit/4745e8f))
+
+- Fallback to string lookup to fix support for extra effects. ([commit](https://github.com/Polymer/polymer/commit/d3c4611))
+
+- Fix typo. ([commit](https://github.com/Polymer/polymer/commit/ead9adb))
+
+- Correct NodeList copying. ([commit](https://github.com/Polymer/polymer/commit/1d29e19))
+
+- Avoid Polymer.dom.setAttribute when unneeded. ([commit](https://github.com/Polymer/polymer/commit/9c5a404))
+
+- More efficient iteration. ([commit](https://github.com/Polymer/polymer/commit/23a9a06))
+
+- Avoid forEach ([commit](https://github.com/Polymer/polymer/commit/ebeaf80))
+
+- Copy dom NodeList faster than slice. ([commit](https://github.com/Polymer/polymer/commit/8cad475))
+
+- Avoid function lookup by string. ([commit](https://github.com/Polymer/polymer/commit/e2674bc))
+
+- Add test for parsing multi-line css comments ([commit](https://github.com/Polymer/polymer/commit/6f21ae6))
+
 ##[v1.2.1](https://github.com/Polymer/polymer/tree/v1.2.1) (2015-10-29)
 - Fix test for SD polyfill ([commit](https://github.com/Polymer/polymer/commit/dd8b3e9))
 
