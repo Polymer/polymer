@@ -116,7 +116,9 @@ You can also run tests in the browser:
 
     polyserve
 
-Navigate to [`http://localhost:8080/components/polymer/test/runner.html`](http://localhost:8080/components/polymer/test/runner.html).
+Navigate to:
+
+[`http://localhost:8080/components/polymer/test/runner.html`](http://localhost:8080/components/polymer/test/runner.html)
 
 ### Running Polymer element unit tests
 
