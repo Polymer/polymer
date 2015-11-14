@@ -50,33 +50,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _afterNextRenderQueue: [],
-
     _waitingNextRender: false,
 
     afterNextRender: function(element, fn, args) {
-      if (!this._waitingNextRender) {
-        this._waitingNextRender = true;
-        this.whenReady(this._flushAfterNextRender);
-      }
+      this._watchNextRender();
       this._afterNextRenderQueue.push([element, fn, args]);
     },
 
-    _flushAfterNextRender: function() {
-      // we want to defer flush until just after the next paint.
-      requestAnimationFrame(function() {
-        setTimeout(Polymer.RenderStatus.__flushAfterNextRender);
+    _watchNextRender: function() {
+      if (!this._waitingNextRender) {
+        this._waitingNextRender = true;
+        var fn = function() {
+          Polymer.RenderStatus._flushNextRender();
+        }
+        if (!this._ready) {
+          this.whenReady(fn);
+        } else {
+          requestAnimationFrame(fn);
+        }
+      }
+    },
+
+    _flushNextRender: function() {
+      var self = this;
+      // we want to defer after render until just after the paint.
+      setTimeout(function() {
+        self._flushRenderCallbacks(self._afterNextRenderQueue);
+        self._afterNextRenderQueue = [];
+        self._waitingNextRender = false;
       });
     },
 
-    __flushAfterNextRender: function() {
-      // called without context so force here.
-      var self = Polymer.RenderStatus;
-      self._waitingNextRender = false;
-      for (var i=0, h; i < self._afterNextRenderQueue.length; i++) {
-        h = self._afterNextRenderQueue[i];
+    _flushRenderCallbacks: function(callbacks) {
+      for (var i=0, h; i < callbacks.length; i++) {
+        h = callbacks[i];
         h[1].apply(h[0], h[2] || Polymer.nar);
       };
-      self._afterNextRenderQueue = [];
     }
   };
 
