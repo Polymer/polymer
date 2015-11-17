@@ -1,5 +1,24 @@
 # Change Log
 
+##[v1.2.3](https://github.com/Polymer/polymer/tree/v1.2.3) (2015-11-16)
+- Call decorate instead of bootstrap for template prepping ([commit](https://github.com/Polymer/polymer/commit/e2a2cfd))
+
+- Fix global leak test. Necessary due to changes to test harness. ([commit](https://github.com/Polymer/polymer/commit/134766f))
+
+- Defer property application only when a custom-style is first created. ([commit](https://github.com/Polymer/polymer/commit/4bf0e13))
+
+- Update comment. ([commit](https://github.com/Polymer/polymer/commit/27e1dcd))
+
+- Simplify custom-style property deferment. ([commit](https://github.com/Polymer/polymer/commit/a970493))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/98acb3a))
+
+- Fixes #2692. Ensures that custom-style properties are applied async but before next render so that all properties are defined before any are consumed by custom-styles. Also refines dom-module's early upgrade code so that it does not affect other elements (corrects for example, custom-styles upgrading before expected). ([commit](https://github.com/Polymer/polymer/commit/b829f2a))
+
+- Remove undesired full-stop from outputs ([commit](https://github.com/Polymer/polymer/commit/68d5c55))
+
+- Fix Formatting ([commit](https://github.com/Polymer/polymer/commit/724e1bc))
+
 ##[v1.2.2](https://github.com/Polymer/polymer/tree/v1.2.2) (2015-11-12)
 - use local reference for wrap. ([commit](https://github.com/Polymer/polymer/commit/b15e5b9))
 
