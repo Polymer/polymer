@@ -75,7 +75,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     parseAnnotations: function(template) {
       var list = [];
       var content = template._content || template.content;
-      this._parseNodeAnnotations(content, list, 
+      this._parseNodeAnnotations(content, list,
         template.hasAttribute('strip-whitespace'));
       return list;
     },
@@ -89,7 +89,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._parseElementAnnotations(node, list, stripWhiteSpace);
     },
 
-    _bindingRegex: /([^{[]*)(\{\{|\[\[)(?!\}\}|\]\])(.+?)(?:\]\]|\}\})/g,
+    _bindingRegex: (function() {
+      var IDENT = '([\\w\\s-_.:$]+)';
+      // The following lookahead group (?= ... ) and backreference \\4, etc.
+      // for repeating identifier characters prevent catastrophic
+      // backtracking when the argument which contains the identifier itself
+      // is repeated. This approximates possessive/atomic groups which are
+      // otherwise unsupported in Javascript. Unfortunately this means each
+      // usage of identifier must be separated to index the backreference
+      // correctly.
+      //                v..............v  v
+      var PROPERTY = '(?:(?=' + IDENT + ')\\4)';
+      var METHOD = '(?:(?=' + IDENT + ')\\5)';
+      var ARG_IDENT = '(?:(?=' + IDENT + ')\\6)';
+      var NUMBER = '(?:' + '[0-9]+' + ')';
+      var SQUOTE_STRING = '(?:' + '\'(?:[^\'\\\\]|\\\\\'|\\\\,)*\'' + ')';
+      var DQUOTE_STRING = '(?:' + '"(?:[^"\\\\]|\\\\"|\\\\,)*"' + ')';
+      var STRING = '(?:' + SQUOTE_STRING + '|' + DQUOTE_STRING + ')';
+      var ARGUMENT = '(?:' + ARG_IDENT + '|' + NUMBER + '|' +  STRING + ')';
+      var ARGUMENT_LIST = '(?:(?:' + ARGUMENT + ',?' + ')*)';
+      var COMPUTED_FUNCTION = '(?:' + METHOD + '\\(' + ARGUMENT_LIST + '\\)' + ')';
+      var BINDING = '(' + PROPERTY + '|' + COMPUTED_FUNCTION + ')';  // Group 3
+      var OPEN_BRACKET = '(\\[\\[|{{)';  // Group 1
+      var CLOSE_BRACKET = '(?:]]|}})';
+      var NEGATE = '(!?)'; // Group 2
+      var EXPRESSION = OPEN_BRACKET + NEGATE + BINDING + CLOSE_BRACKET;
+      return new RegExp(EXPRESSION, "g");
+    })(),
 
     // TODO(kschaaf): We could modify this to allow an escape mechanism by
     // looking for the escape sequence in each of the matches and converting
@@ -98,29 +124,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _parseBindings: function(text) {
       var re = this._bindingRegex;
       var parts = [];
-      var m, lastIndex;
-      // Example: "literal1{{binding1}}literal2[[binding2]]final"
+      var lastIndex = 0;
+      var m;
+      // Example: "literal1{{prop}}literal2[[!compute(foo,bar)]]final"
       // Regex matches:
-      //       Iteration 1:  Iteration 2:
-      // m[1]: 'literal1'    'literal2'
-      // m[2]: '{{'          '[['
-      // m[3]: 'binding1'    'binding2'
-      // 'final' is manually substring'ed from end
+      //        Iteration 1:  Iteration 2:
+      // m[1]: '{{'          '[['
+      // m[2]: ''            '!'
+      // m[3]: 'prop'        'compute(foo,bar)'
       while ((m = re.exec(text)) !== null) {
         // Add literal part
-        if (m[1]) {
-          parts.push({literal: m[1]});
+        if (m.index > lastIndex) {
+          parts.push({literal: text.slice(lastIndex, m.index)});
         }
         // Add binding part
         // Mode (one-way or two)
-        var mode = m[2][0];
+        var mode = m[1][0];
+        var negate = Boolean(m[2]);
         var value = m[3].trim();
-        // Negate
-        var negate = false;
-        if (value[0] == '!') {
-          negate = true;
-          value = value.substring(1).trim();
-        }
         var customEvent, notifyEvent, colon;
         if (mode == '{' && (colon = value.indexOf('::')) > 0) {
           notifyEvent = value.substring(colon + 2);
@@ -242,7 +263,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           // if this node didn't get evacipated, parse it.
           if (node.parentNode) {
-            var childAnnotation = this._parseNodeAnnotations(node, list, 
+            var childAnnotation = this._parseNodeAnnotations(node, list,
               stripWhiteSpace);
             if (childAnnotation) {
               childAnnotation.parent = annote;
