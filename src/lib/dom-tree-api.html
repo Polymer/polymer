@@ -1,0 +1,158 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="settings.html">
+<link rel="import" href="dom-innerHTML.html">
+<script>
+(function() {
+  
+  'use strict';
+
+  // native add/remove
+  var nativeInsertBefore = Element.prototype.insertBefore;
+  var nativeRemoveChild = Element.prototype.removeChild;
+  
+  /**
+   * TreeApi is a dom manipulation library used by Shady/Polymer.dom to 
+   * manipulate composed and logical trees.
+   */
+  Polymer.TreeApi = {
+    
+    // sad but faster than slice...
+    arrayCopyChildNodes: function(parent) {
+      var copy=[], i=0;
+      for (var n=parent.firstChild; n; n=n.nextSibling) {
+        copy[i++] = n;
+      }
+      return copy;
+    },
+
+    arrayCopyChildren: function(parent) {
+      var copy=[], i=0;
+      for (var n=parent.firstElementChild; n; n=n.nextElementSibling) {
+        copy[i++] = n;
+      }
+      return copy;
+    },
+
+    arrayCopy: function(a$) {
+      var l = a$.length;
+      var copy = new Array(l);
+      for (var i=0; i < l; i++) {
+        copy[i] = a$[i];
+      }
+      return copy;
+    }
+
+  };
+
+  Polymer.TreeApi.Logical = {
+
+    hasChildNodes: function(node) {
+      return Boolean(node.__childNodes !== undefined);
+    },
+
+    getChildNodes: function(node) {
+      if (this.hasChildNodes(node)) {
+        if (!node.__childNodes) {
+          node.__childNodes = [];
+          for (var n=node.__firstChild; n; n=n.__nextSibling) {
+            node.__childNodes.push(n);
+          } 
+        }
+        return node.__childNodes;
+      } else {
+        // TODO(sorvell): it's more correct to `Composed.getChildNodes`
+        // instead of `childNodes` here but any trivial failure 
+        //to use Polymer.dom will result in an error.
+        return node.childNodes;
+      }
+    },
+
+    // Capture the list of light children. It's important to do this before we
+    // start transforming the DOM into "rendered" state.
+    // Children may be added to this list dynamically. It will be treated as the
+    // source of truth for the light children of the element. This element's
+    // actual children will be treated as the rendered state once this function
+    // has been called.
+    saveChildNodes: function(node) {
+      if (!this.hasChildNodes(node)) {
+        node.__firstChild = node.firstChild;
+        node.__lastChild = node.lastChild;
+        node.__childNodes = [];
+        for (var n=node.firstChild; n; n=n.nextSibling) {
+          n.__parentNode = node;
+          node.__childNodes.push(n);
+          n.__nextSibling = n.nextSibling;
+          n.__previousSibling = n.previousSibling;
+        }
+      }
+    }
+
+  }
+
+  // TODO(sorvell): composed tree manipulation is made available
+  // (1) to maninpulate the composed tree, and (2) to track changes
+  // to the tree for optional patching pluggability.
+  Polymer.TreeApi.Composed = {
+
+    
+    ensureParentNodes: function(parent, children) {
+    },
+
+    getChildNodes: function(node) {
+      return Polymer.TreeApi.arrayCopyChildNodes(node);
+    },
+
+    getParentNode: function(node) {
+      return node.parentNode;
+    },
+
+    recordInsertBefore: function(parent, node, ref_node) {
+    },
+
+    recordRemoveChild: function(parent, node) {
+    },
+
+    recordParentNode: function(node, parent) {
+    },
+
+    // composed tracking needs to reset composed children here in case
+    // they may have already been set (this shouldn't happen but can 
+    // if dependency ordering is incorrect and as a result upgrade order 
+    // is unexpected)
+    clearChildNodes: function(node) {
+      node.textContent = '';
+    },
+
+    insertBefore: function(parentNode, newChild, refChild) {
+      var newChildParent = this.getParentNode(newChild);
+      if (newChildParent !== parentNode) {
+        this.recordRemoveChild(newChildParent, newChild);
+      }
+      // remove child from its old parent first
+      this.removeChild(newChild);
+      // insert it into the real DOM
+      nativeInsertBefore.call(parentNode, newChild, refChild || null);
+      this.recordParentNode(newChild, parentNode);
+    },
+
+    removeChild: function(node) {
+      var parentNode = this.getParentNode(node);
+      if (parentNode) {
+        this.recordParentNode(node, null);
+        // remove it from the real DOM
+        nativeRemoveChild.call(parentNode, node);
+      }
+    }
+
+  };
+
+})();
+</script>
