@@ -489,19 +489,19 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom(rere).querySelector('#light'), s);
     assert.equal(Polymer.dom(s).parentNode, rere);
     if (rere.shadyRoot) {
-      assert.notEqual(s._composedParent, rere);
+      assert.notEqual(Polymer.TreeApi.Composed.getParentNode(s), rere);
     }
     Polymer.dom(testElement).flush();
     if (rere.shadyRoot) {
-      assert.equal(s._composedParent, p);
+      assert.equal(Polymer.TreeApi.Composed.getParentNode(s), p);
     }
     Polymer.dom(rere).removeChild(s);
     if (rere.shadyRoot) {
-      assert.equal(s._composedParent, p);
+      assert.equal(Polymer.TreeApi.Composed.getParentNode(s), p);
     }
     Polymer.dom(testElement).flush();
     if (rere.shadyRoot) {
-      assert.equal(s._composedParent, null);
+      assert.equal(Polymer.TreeApi.Composed.getParentNode(s), null);
     }
   });
 
@@ -713,7 +713,7 @@ suite('Polymer.dom accessors', function() {
     assert.equal(Polymer.dom(testElement).textContent, 'Hello World', 'textContent getter incorrect');
     if (testElement.shadyRoot) {
       Polymer.dom.flush();
-      assert.equal(testElement._composedChildren[1].textContent, 'Hello World', 'text content setter incorrect');
+      assert.equal(Polymer.TreeApi.Composed.getChildNodes(testElement)[1].textContent, 'Hello World', 'text content setter incorrect');
     }
     testElement = document.createElement('x-commented');
     assert.equal(Polymer.dom(testElement.root).textContent, '[]', 'text content getter with comment incorrect');
@@ -737,9 +737,10 @@ suite('Polymer.dom accessors', function() {
     assert.equal(Polymer.dom(testElement).innerHTML , '<div>Hello World</div><div>2</div><div>3</div>', 'innerHTML getter incorrect');
     if (testElement.shadyRoot) {
       Polymer.dom.flush();
-      assert.equal(testElement._composedChildren[1], added, 'innerHTML setter composed incorrectly');
-      assert.equal(testElement._composedChildren[2].textContent, '2', 'innerHTML setter composed incorrectly');
-      assert.equal(testElement._composedChildren[3].textContent, '3', 'innerHTML setter composed incorrectly');
+      var children = Polymer.TreeApi.Composed.getChildNodes(testElement);
+      assert.equal(children[1], added, 'innerHTML setter composed incorrectly');
+      assert.equal(children[2].textContent, '2', 'innerHTML setter composed incorrectly');
+      assert.equal(children[3].textContent, '3', 'innerHTML setter composed incorrectly');
     }
   });
 
@@ -804,13 +805,13 @@ suite('Polymer.dom non-distributed elements', function() {
     function testNoAttr() {
       assert.equal(Polymer.dom(child).getDestinationInsertionPoints()[0], d.$.notTestContent, 'child not distributed logically');
       if (shady) {
-        assert.equal(child._composedParent, d.$.notTestContainer, 'child not rendered in composed dom');
+        assert.equal(Polymer.TreeApi.Composed.getParentNode(child), d.$.notTestContainer, 'child not rendered in composed dom');
       }
     }
     function testWithAttr() {
       assert.equal(Polymer.dom(child).getDestinationInsertionPoints()[0], d.$.testContent, 'child not distributed logically');
       if (shady) {
-        assert.equal(child._composedParent, d.$.testContainer, 'child not rendered in composed dom');
+        assert.equal(Polymer.TreeApi.Composed.getParentNode(child), d.$.testContainer, 'child not rendered in composed dom');
       }
     }
     // test with x-distribute

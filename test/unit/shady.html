@@ -135,14 +135,14 @@ test('Reproject', function() {
     assert.strictEqual(getComposedHTML(host),
         '<x-content-test id="p">a: <a></a>b: <b></b></x-content-test>');
 
-    assertArrayEqual(host._lightChildren, [a]);
-    assert.strictEqual(a._lightParent, host);
-    assertArrayEqual(host.shadyRoot._lightChildren, [p]);
-    assert.strictEqual(p._lightParent, host.shadyRoot);
-    assertArrayEqual(p._lightChildren, [b, content]);
-    assert.strictEqual(b._lightParent, p);
-    assert.strictEqual(content._lightParent, p);
-    assertArrayEqual(p.shadyRoot._lightChildren,
+    assertArrayEqual(host.__childNodes, [a]);
+    assert.strictEqual(a.__parentNode, host);
+    assertArrayEqual(host.shadyRoot.__childNodes, [p]);
+    assert.strictEqual(p.__parentNode, host.shadyRoot);
+    assertArrayEqual(p.__childNodes, [b, content]);
+    assert.strictEqual(b.__parentNode, p);
+    assert.strictEqual(content.__parentNode, p);
+    assertArrayEqual(p.shadyRoot.__childNodes,
         [textNodeA, contentA, textNodeB, contentB]);
   }
 
@@ -165,7 +165,7 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a></a>');
 
-    host._lightChildren = [];
+    host.__childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), 'fallback');
   });
@@ -180,11 +180,11 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b>after</b>');
 
-    host.shadyRoot._lightChildren[1].textContent = '';
+    host.shadyRoot.__childNodes[1].textContent = '';
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
 
-    host.shadyRoot._lightChildren = [];
+    host.shadyRoot.__childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '');
   });
@@ -203,11 +203,11 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<b></b>');
 
-    host.shadyRoot.firstChild._lightChildren = [];
+    host.shadyRoot.firstChild.__childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '');
 
-    host.shadyRoot._lightChildren = [];
+    host.shadyRoot.__childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '');
   });
@@ -225,7 +225,7 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a></a>');
 
-    host._lightChildren = [];
+    host.__childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), 'fallback');
   });
@@ -265,11 +265,11 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
 
-    host.shadyRoot._lightChildren.splice(1, 1); // remove b
+    host.shadyRoot.__childNodes.splice(1, 1); // remove b
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
-    host.shadyRoot._lightChildren = []; // remove a
+    host.shadyRoot.__childNodes = []; // remove a
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '');
   });
@@ -368,7 +368,7 @@ suite('Mutate light DOM', function() {
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     var b = document.createElement('b');
-    host._lightChildren[0] = b;
+    host.__childNodes[0] = b;
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<b></b>');
   });
@@ -437,12 +437,16 @@ suite('Mutate light DOM', function() {
 });
 
 function syncLightDOM(n) {
-  if (n._lightChildren) {
+  if (n.__childNodes) {
     var c$ = n.__patched ? n._composedChildren || [] : Array.prototype.slice.call(n.childNodes);
-    c$.forEach(function(c) {
-      if (n._lightChildren.indexOf(c) < 0) {
-        c._lightParent = n;
-        n._lightChildren.push(c);
+    n.__firstChild = c$[0];
+    n.__lastChild = c$[c$.length-1];
+    c$.forEach(function(c, i) {
+      if (n.__childNodes.indexOf(c) < 0) {
+        c.__parentNode = n;
+        c.__previousSibling = c$[i-1];
+        c.__nextSibling = c$[i+1];
+        n.__childNodes.push(c);
       }
     });
   }
