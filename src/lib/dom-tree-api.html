@@ -22,7 +22,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * TreeApi is a dom manipulation library used by Shady/Polymer.dom to 
    * manipulate composed and logical trees.
    */
-  Polymer.TreeApi = {
+  var TreeApi = Polymer.TreeApi = {
     
     // sad but faster than slice...
     arrayCopyChildNodes: function(parent) {
@@ -93,7 +93,67 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           n.__previousSibling = n.previousSibling;
         }
       }
-    }
+    },
+
+    recordInsertBefore: function(node, container, ref_node) {
+      container.__childNodes = null;
+      // handle document fragments
+      if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        // NOTE: the act of setting this info can affect patched nodes
+        // getters; therefore capture childNodes before patching.
+        var c$ = TreeApi.arrayCopyChildNodes(node);
+        for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
+          this._linkNode(n, container, ref_node);  
+        }
+      } else {
+        this._linkNode(node, container, ref_node);
+      }
+    },
+
+    _linkNode: function(node, container, ref_node) {
+      // update node <-> ref_node
+      node.__previousSibling = ref_node ? ref_node.__previousSibling : 
+        container.__lastChild;
+      if (node.__previousSibling) {
+        node.__previousSibling.__nextSibling = node;
+      }
+      node.__nextSibling = ref_node;
+      if (ref_node) {
+        ref_node.__previousSibling = node;
+      }
+      // update node <-> container
+      node.__parentNode = container;
+      if (ref_node && ref_node === container.__firstChild) {
+        container.__firstChild = node;
+      } else {
+        container.__lastChild = node;
+        if (!container.__firstChild) {
+          container.__firstChild = node;
+        }
+      }
+      // remove caching of childNodes
+      container.__childNodes = null;
+    },
+
+    recordRemoveChild: function(node, container) {
+      if (node === container.__firstChild) {
+        container.__firstChild = node.__nextSibling;
+      }
+      if (node === container.__lastChild) {
+        container.__lastChild = node.__previousSibling;
+      }
+      var p = node.__previousSibling;
+      var n = node.__nextSibling;
+      if (p) {
+        p.__nextSibling = n;
+      }
+      if (n) {
+        n.__previousSibling = p;
+      }
+      node.__parentNode = node.__previousSibling = node.__nextSibling = null;
+      // remove caching of childNodes
+      container.__childNodes = null;
+    },
 
   }
 

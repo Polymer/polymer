@@ -15,6 +15,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var Settings = Polymer.Settings;
   var DomApi = Polymer.DomApi;
+  var dom = DomApi.factory;
   var TreeApi = Polymer.TreeApi;
   var getInnerHTML = Polymer.domInnerHTML.getInnerHTML;
   var CONTENT = DomApi.CONTENT;
@@ -69,7 +70,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           throw Error('The ref_node to be inserted before is not a child ' +
             'of this node');
         }
-        this._addLogicalInfo(node, this.node, ref_node);
+        TreeApi.Logical.recordInsertBefore(node, this.node, ref_node);
       }
       this._addNodeToHost(node);
       // if not distributing and not adding to host, do a fast path addition
@@ -101,7 +102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       This method also performs dom composition.
     */
     removeChild: function(node) {
-      if (DomApi.factory(node).parentNode !== this.node) {
+      if (dom(node).parentNode !== this.node) {
         console.warn('The node to be removed is not a child of this node',
           node);
       }
@@ -201,9 +202,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var added;
       if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE &&
         !node.__noContent) {
-        var c$ = DomApi.factory(node).querySelectorAll(CONTENT);
+        var c$ = dom(node).querySelectorAll(CONTENT);
         for (var i=0, n, np, na; (i<c$.length) && (n=c$[i]); i++) {
-          np = DomApi.factory(n).parentNode;
+          np = dom(n).parentNode;
           // don't allow node's parent to be fragment itself
           if (np === node) {
             np = parent;
@@ -231,12 +232,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _updateInsertionPoints: function(host) {
       var i$ = host.shadyRoot._insertionPoints =
-        DomApi.factory(host.shadyRoot).querySelectorAll(CONTENT);
+        dom(host.shadyRoot).querySelectorAll(CONTENT);
       // ensure <content>'s and their parents have logical dom info.
       for (var i=0, c; i < i$.length; i++) {
         c = i$[i];
         TreeApi.Logical.saveChildNodes(c);
-        TreeApi.Logical.saveChildNodes(DomApi.factory(c).parentNode);
+        TreeApi.Logical.saveChildNodes(dom(c).parentNode);
       }
     },
 
@@ -248,9 +249,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _removeNodeFromParent: function(node) {
       // note: we may need to notify and not have logical info so fallback
       // to composed parentNode.
+
       var parent = node.__parentNode || node.parentNode;
+      //var parent = dom(node).parentNode;
+      // TODO(sorvell): hasDomApi doesn't make sense now
       if (parent && DomApi.hasApi(parent)) {
-        DomApi.factory(parent).notifyObserver();
+        dom(parent).notifyObserver();
       }
       this._removeNodeFromHost(node, true);
     },
@@ -262,17 +266,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // to require distribution... both cases are handled here.
       var hostNeedsDist;
       var root;
+      // important that we want to do this only if the node has a logical parent
       var parent = node.__parentNode;
       if (parent) {
         // distribute node's parent iff needed
-        DomApi.factory(node)._distributeParent();
+        dom(node)._distributeParent();
         root = this._ownerShadyRootForNode(node);
         // remove node from root and distribute it iff needed
         if (root) {
           root.host._elementRemove(node);
           hostNeedsDist = this._removeDistributedChildren(root, node);
         }
-        this._removeLogicalInfo(node, parent);
+        TreeApi.Logical.recordRemoveChild(node, parent);
       }
       this._removeOwnerShadyRoot(node);
       if (root && hostNeedsDist) {
@@ -290,7 +295,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var i=0; i<ip$.length; i++) {
         var content = ip$[i];
         if (this._contains(container, content)) {
-          var dc$ = DomApi.factory(content).getDistributedNodes();
+          var dc$ = dom(content).getDistributedNodes();
           for (var j=0; j<dc$.length; j++) {
             hostNeedsDist = true;
             var node = dc$[j];
@@ -310,7 +315,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (node == container) {
           return true;
         }
-        node = DomApi.factory(node).parentNode;
+        node = dom(node).parentNode;
       }
     },
 
@@ -322,73 +327,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _addLogicalInfo: function(node, container, ref_node) {
-      container.__childNodes = null;
-      // handle document fragments
-      if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-        // NOTE: the act of setting this info can affect patched nodes
-        // getters; therefore capture childNodes before patching.
-        var c$ = TreeApi.arrayCopyChildNodes(node);
-        for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
-          this._linkNode(n, container, ref_node);  
-        }
-      } else {
-        this._linkNode(node, container, ref_node);
-      }
-    },
-
-    _linkNode: function(node, container, ref_node) {
-      // update node <-> ref_node
-      node.__previousSibling = ref_node ? ref_node.__previousSibling : 
-        container.__lastChild;
-      if (node.__previousSibling) {
-        node.__previousSibling.__nextSibling = node;
-      }
-      node.__nextSibling = ref_node;
-      if (ref_node) {
-        ref_node.__previousSibling = node;
-      }
-      // update node <-> container
-      node.__parentNode = container;
-      if (ref_node && ref_node === container.__firstChild) {
-        container.__firstChild = node;
-      } else {
-        container.__lastChild = node;
-        if (!container.__firstChild) {
-          container.__firstChild = node;
-        }
-      }
-      // remove caching of childNodes
-      container.__childNodes = null;
-    },
-
-    // NOTE: in general, we expect contents of the lists here to be small-ish
-    // and therefore indexOf to be nbd. Other optimizations can be made
-    // for larger lists (linked list)
-    _removeLogicalInfo: function(node, container) {
-      if (node === container.__firstChild) {
-        container.__firstChild = node.__nextSibling;
-      }
-      if (node === container.__lastChild) {
-        container.__lastChild = node.__previousSibling;
-      }
-      var p = node.__previousSibling;
-      var n = node.__nextSibling;
-      if (p) {
-        p.__nextSibling = n;
-      }
-      if (n) {
-        n.__previousSibling = p;
-      }
-      node.__parentNode = node.__previousSibling = node.__nextSibling = null;
-      // remove caching of childNodes
-      container.__childNodes = null;
-    },
-
     _removeOwnerShadyRoot: function(node) {
       // optimization: only reset the tree if node is actually in a root
       if (this._hasCachedOwnerRoot(node)) {
-        var c$ = DomApi.factory(node).childNodes;
+        var c$ = dom(node).childNodes;
         for (var i=0, l=c$.length, n; (i<l) && (n=c$[i]); i++) {
           this._removeOwnerShadyRoot(n);
         }
@@ -400,9 +342,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // question is pending; this is expected to be exceedingly rare, but if
     // the issue comes up, we can force a flush in this case.
     _firstComposedNode: function(content) {
-      var n$ = DomApi.factory(content).getDistributedNodes();
+      var n$ = dom(content).getDistributedNodes();
       for (var i=0, l=n$.length, n, p$; (i<l) && (n=n$[i]); i++) {
-        p$ = DomApi.factory(n).getDestinationInsertionPoints();
+        p$ = dom(n).getDestinationInsertionPoints();
         // means that we're composed to this spot.
         if (p$[p$.length-1] === content) {
           return n;
@@ -424,7 +366,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _query: function(matcher, node) {
       node = node || this.node;
       var list = [];
-      this._queryElements(DomApi.factory(node).childNodes, matcher, list);
+      this._queryElements(dom(node).childNodes, matcher, list);
       return list;
     },
 
@@ -440,7 +382,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (matcher(node)) {
         list.push(node);
       }
-      this._queryElements(DomApi.factory(node).childNodes, matcher, list);
+      this._queryElements(dom(node).childNodes, matcher, list);
     },
 
     getDestinationInsertionPoints: function() {
@@ -477,9 +419,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var n = nativeCloneNode.call(this.node, false);
       if (deep) {
         var c$ = this.childNodes;
-        var d = DomApi.factory(n);
+        var d = dom(n);
         for (var i=0, nc; i < c$.length; i++) {
-          nc = DomApi.factory(c$[i]).cloneNode(true);
+          nc = dom(c$[i]).cloneNode(true);
           d.appendChild(nc);
         }
       }
@@ -492,10 +434,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.node.ownerDocument;
       var n = nativeImportNode.call(doc, externalNode, false);
       if (deep) {
-        var c$ = DomApi.factory(externalNode).childNodes;
-        var d = DomApi.factory(n);
+        var c$ = dom(externalNode).childNodes;
+        var d = dom(n);
         for (var i=0, nc; i < c$.length; i++) {
-          nc = DomApi.factory(doc).importNode(c$[i], true);
+          nc = dom(doc).importNode(c$[i], true);
           d.appendChild(nc);
         }
       }
