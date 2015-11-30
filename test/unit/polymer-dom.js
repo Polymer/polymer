@@ -635,6 +635,34 @@ suite('Polymer.dom', function() {
 
   });
 
+  test('Polymer.dom.flush reentrancy', function() {
+    // Setup callbacks
+    var order = [];
+    var cb1 = sinon.spy(function() { order.push(cb1); });
+    var cb2 = sinon.spy(function() { order.push(cb2); });
+    var cb3 = sinon.spy(function() { order.push(cb3); });
+    var cb4 = sinon.spy(function() { order.push(cb4); });
+    var cbReentrant = sinon.spy(function() {
+      order.push(cbReentrant);
+      Polymer.dom.addDebouncer(Polymer.Debounce(null, cb3));
+      Polymer.dom.flush();
+      Polymer.dom.addDebouncer(Polymer.Debounce(null, cb4));
+    });
+    // Enqueue debouncers
+    Polymer.dom.addDebouncer(Polymer.Debounce(null, cb1));
+    Polymer.dom.addDebouncer(Polymer.Debounce(null, cbReentrant));
+    Polymer.dom.addDebouncer(Polymer.Debounce(null, cb2));
+    // Flush
+    Polymer.dom.flush();
+    // Check callbacks called and in correct order
+    assert.isTrue(cb1.calledOnce);
+    assert.isTrue(cb2.calledOnce);
+    assert.isTrue(cb3.calledOnce);
+    assert.isTrue(cb4.calledOnce);
+    assert.isTrue(cbReentrant.calledOnce);
+    assert.sameMembers(order, [cb1, cbReentrant, cb2, cb3, cb4]);
+  });
+
 });
 
 suite('Polymer.dom accessors', function() {
