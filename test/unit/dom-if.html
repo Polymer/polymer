@@ -56,9 +56,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </div>
 
-  <template is="dom-if" id="simple">
-    <div></div>
-  </template>
+  <div id="outerContainer">
+    <template is="dom-if" id="simple">
+      <x-client></x-client>
+      <x-client></x-client>
+      <x-client></x-client>
+    </template>
+
+    <div id="innerContainer">
+    </div>
+  </div>
 
   <script>
 
@@ -497,16 +504,129 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     });
 
-    suite('queueing race conditions', function() {
+    suite('attach/detach tests', function() {
 
-      test('domif=true, attach, detach', function(done) {
+      test('remove, append domif', function(done) {
         var domif = document.querySelector('#simple');
         domif.if = true;
-        document.body.appendChild(domif);
-        document.body.removeChild(domif);
+        outerContainer.removeChild(domif);
         setTimeout(function() {
-          document.body.appendChild(domif);
+          var clients = outerContainer.querySelectorAll('x-client');
+          assert.equal(clients.length, 0);
+          outerContainer.appendChild(domif);
+          setTimeout(function() {
+            var clients = outerContainer.querySelectorAll('x-client');
+            assert.equal(clients[0].uid, 0);
+            assert.equal(clients[1].uid, 1);
+            assert.equal(clients[2].uid, 2);
+            assert.equal(clients[1].previousElementSibling, clients[0]);
+            assert.equal(clients[2].previousElementSibling, clients[1]);
+            assert.equal(domif.previousElementSibling, clients[2]);
+            done();
+          });
+        });
+      });
+
+      test('move domif (clients persist)', function(done) {
+        var domif = document.querySelector('#simple');
+        domif.if = true;
+        Polymer.dom(innerContainer).appendChild(domif);
+        setTimeout(function() {
+          var clients = innerContainer.querySelectorAll('x-client');
+          // Same clients as before since move happened in one turn
+          assert.equal(clients[0].uid, 0);
+          assert.equal(clients[1].uid, 1);
+          assert.equal(clients[2].uid, 2);
+          assert.equal(clients[1].previousElementSibling, clients[0]);
+          assert.equal(clients[2].previousElementSibling, clients[1]);
+          assert.equal(domif.previousElementSibling, clients[2]);
           done();
+        });
+      });
+
+      test('remove, wait, append domif (clients recreated)', function(done) {
+        var domif = document.querySelector('#simple');
+        domif.if = true;
+        Polymer.dom(innerContainer).removeChild(domif);
+        setTimeout(function() {
+          var clients = innerContainer.querySelectorAll('x-client');
+          assert.equal(clients.length, 0);
+          Polymer.dom(innerContainer).appendChild(domif);
+          setTimeout(function() {
+            var clients = outerContainer.querySelectorAll('x-client');
+            // New clients since removed for a turn
+            assert.equal(clients[0].uid, 3);
+            assert.equal(clients[1].uid, 4);
+            assert.equal(clients[2].uid, 5);
+            assert.equal(clients[1].previousElementSibling, clients[0]);
+            assert.equal(clients[2].previousElementSibling, clients[1]);
+            assert.equal(domif.previousElementSibling, clients[2]);
+            done();
+          });
+        });
+      });
+
+      test('move host with domif (clients persist)', function(done) {
+        var host = document.createElement('x-host');
+        Polymer.dom(outerContainer).appendChild(host);
+        setTimeout(function() {
+          var clients = Polymer.dom(host.root).querySelectorAll('x-client');
+          // New clients created in host instance
+          assert.equal(clients[0].uid, 6);
+          assert.equal(clients[1].uid, 7);
+          assert.equal(clients[2].uid, 8);
+          assert.equal(clients[1].previousElementSibling, clients[0]);
+          assert.equal(clients[2].previousElementSibling, clients[1]);
+          assert.equal(host.$.domif.previousElementSibling, clients[2]);
+          Polymer.dom(innerContainer).appendChild(host);
+          setTimeout(function() {
+            var clients = Polymer.dom(host.root).querySelectorAll('x-client');
+            // Clients in removed host persist
+            assert.equal(clients[0].uid, 6);
+            assert.equal(clients[1].uid, 7);
+            assert.equal(clients[2].uid, 8);
+            assert.equal(clients[1].previousElementSibling, clients[0]);
+            assert.equal(clients[2].previousElementSibling, clients[1]);
+            assert.equal(host.$.domif.previousElementSibling, clients[2]);
+            done();
+          });
+        });
+      });
+
+      test('remove, wait, append host with domif (clients persist)', function(done) {
+        var host = document.createElement('x-host');
+        Polymer.dom(outerContainer).appendChild(host);
+        setTimeout(function() {
+          var clients = Polymer.dom(host.root).querySelectorAll('x-client');
+          // New clients created in host instance
+          assert.equal(clients[0].uid, 9);
+          assert.equal(clients[1].uid, 10);
+          assert.equal(clients[2].uid, 11);
+          assert.equal(clients[1].previousElementSibling, clients[0]);
+          assert.equal(clients[2].previousElementSibling, clients[1]);
+          assert.equal(host.$.domif.previousElementSibling, clients[2]);
+          Polymer.dom(outerContainer).removeChild(host);
+          setTimeout(function() {
+            // Clients in removed host persist
+            assert.equal(clients[0].uid, 9);
+            assert.equal(clients[1].uid, 10);
+            assert.equal(clients[2].uid, 11);
+            assert.equal(clients[1].previousElementSibling, clients[0]);
+            assert.equal(clients[2].previousElementSibling, clients[1]);
+            assert.equal(host.$.domif.previousElementSibling, clients[2]);
+            Polymer.dom(innerContainer).appendChild(host);
+            setTimeout(function() {
+              // Clients in removed host persist
+              var clients = Polymer.dom(host.root).querySelectorAll('x-client');
+              assert.equal(clients[0].uid, 9);
+              assert.equal(clients[1].uid, 10);
+              assert.equal(clients[2].uid, 11);
+              assert.equal(clients[1].previousElementSibling, clients[0]);
+              assert.equal(clients[2].previousElementSibling, clients[1]);
+              assert.equal(host.$.domif.previousElementSibling, clients[2]);
+              done();
+            });
+          });
         });
       });
 
