@@ -73,13 +73,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     detached: function() {
-      // TODO(kschaaf): add logic to re-stamp in attached?
-      this._teardownInstance();
+      if (!this.parentNode) {
+        this._teardownInstance();
+      }
     },
 
     attached: function() {
       if (this.if && this.ctor) {
-        // TODO(sorvell): should not be async, but node can be attached
+        // NOTE: ideally should not be async, but node can be attached
         // when shady dom is in the act of distributing/composing so push it out
         this.async(this._ensureInstance);
       }
@@ -116,16 +117,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _ensureInstance: function() {
-      if (!this._instance) {
-        var parentNode = Polymer.dom(this).parentNode;
-        // Guard against element being detached while render was queued
-        if (parentNode) {
-          var parent = Polymer.dom(parentNode);
-          // TODO(sorvell): pickup stamping logic from x-repeat
+      var parentNode = Polymer.dom(this).parentNode;
+      // Guard against element being detached while render was queued
+      if (parentNode) {
+        var parent = Polymer.dom(parentNode);
+        if (!this._instance) {
           this._instance = this.stamp();
           var root = this._instance.root;
-          // TODO(sorvell): this incantation needs to be simpler.
           parent.insertBefore(root, this);
+        } else {
+          var c$ = this._instance._children;
+          if (c$ && c$.length) {
+            // Detect case where dom-if was re-attached in new position
+            var lastChild = Polymer.dom(this).previousSibling;
+            if (lastChild !== c$[c$.length-1]) {
+              for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
+                parent.insertBefore(n, this);
+              }
+            }
+          }
         }
       }
     },
@@ -133,7 +143,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _teardownInstance: function() {
       if (this._instance) {
         var c$ = this._instance._children;
-        if (c$) {
+        if (c$ && c$.length) {
           // use first child parent, for case when dom-if may have been detached
           var parent = Polymer.dom(Polymer.dom(c$[0]).parentNode);
           for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
