@@ -44,11 +44,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     appendChild: function(node) {
-      return this._addNode(node);
-    },
-
-    insertBefore: function(node, ref_node) {
-      return this._addNode(node, ref_node);
+      return this.insertBefore(node);
     },
 
     // cases in which we may not be able to just do standard native call
@@ -57,25 +53,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // 2. container is a shadyRoot (don't distribute, instead set
     // container to container.host.
     // 3. node is <content> (host of container needs distribution)
-    _addNode: function(node, ref_node) {
-      this._removeNodeFromParent(node);
-      var addedInsertionPoint;
-      var root = this.getOwnerRoot();
-      // if a <content> is added, make sure it's parent has logical info.
-      if (root) {
-        addedInsertionPoint = this._maybeAddInsertionPoint(node, this.node);
+    insertBefore: function(node, ref_node) {
+      if (ref_node && TreeApi.Logical.getParentNode(ref_node) !== this.node) {
+        throw Error('The ref_node to be inserted before is not a child ' +
+          'of this node');
       }
-      if (TreeApi.Logical.hasChildNodes(this.node)) {
-        if (ref_node && ref_node.__parentNode !== this.node) {
-          throw Error('The ref_node to be inserted before is not a child ' +
-            'of this node');
-        }
-        TreeApi.Logical.recordInsertBefore(node, this.node, ref_node);
+      // notify existing parent that this node is being removed.
+      var parent = TreeApi.Logical.getParentNode(node);
+      if (parent && DomApi.hasApi(parent)) {
+        dom(parent).notifyObserver();
       }
-      this._addNodeToHost(node);
-      // if not distributing and not adding to host, do a fast path addition
-      if (!this._maybeDistribute(node, this.node) &&
-        !this._tryRemoveUndistributedNode(node)) {
+      this._removeNode(node);
+      if (!this._addNode(node, ref_node)) {
         if (ref_node) {
           // if ref_node is <content> replace with first distributed node
           ref_node = ref_node.localName === CONTENT ?
@@ -90,11 +79,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         TreeApi.Composed.recordInsertBefore(container, node, ref_node);
       }
-      if (addedInsertionPoint) {
-        this._updateInsertionPoints(root.host);
-      }
       this.notifyObserver();
       return node;
+    },
+
+    // Try to add node. Record logical info, track insertion points, perform
+    // distribution iff needed. Return true if the add is handled.
+    _addNode: function(node, ref_node) {
+      var root = this.getOwnerRoot();
+      if (root) {
+        root._invalidInsertionPoints = 
+          this._maybeAddInsertionPoint(node, this.node);
+        this._addNodeToHost(root.host, node);
+      }
+      if (TreeApi.Logical.hasChildNodes(this.node)) {
+        TreeApi.Logical.recordInsertBefore(node, this.node, ref_node);
+      }
+      // if not distributing and not adding to host, do a fast path addition
+      return (this._maybeDistribute(node) ||
+        this._tryRemoveUndistributedNode(node));
     },
 
     /**
@@ -106,8 +109,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         console.warn('The node to be removed is not a child of this node',
           node);
       }
-      this._removeNodeFromHost(node);
-      if (!this._maybeDistribute(node, this.node)) {
+      if (!this._removeNode(node)) {
         // if removing from a shadyRoot, remove form host instead
         var container = this.node._isShadyRoot ? this.node.host : this.node;
         // not guaranteed to physically be in container; e.g.
@@ -119,6 +121,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       this.notifyObserver();
       return node;
+    },
+
+    // Try to remove node: update logical info and perform distribution iff 
+    // needed. Return true if the removal has been handled.
+    // note that it's possible for both the node's host and its parent
+    // to require distribution... both cases are handled here.
+    _removeNode: function(node) {
+      TreeApi.Composed.recordRemoveChild(
+        TreeApi.Composed.getParentNode(node), node);
+      // important that we want to do this only if the node has a logical parent
+      var logicalParent = TreeApi.Logical.hasParentNode(node) &&
+        TreeApi.Logical.getParentNode(node);
+      var distributed;
+      var root = this._ownerShadyRootForNode(node);
+      if (logicalParent) {
+        // distribute node's parent iff needed
+        distributed = dom(node)._distributeParent();
+        TreeApi.Logical.recordRemoveChild(node, logicalParent);
+        // remove node from root and distribute it iff needed
+        if (root && this._removeDistributedChildren(root, node)) {
+          root._invalidInsertionPoints = true;
+          this._lazyDistribute(root.host);
+        }
+      }
+      this._removeOwnerShadyRoot(node);
+      if (root) {
+        this._removeNodeFromHost(root.host, node);
+      }
+      return distributed;
     },
 
     replaceChild: function(node, ref_node) {
@@ -157,7 +188,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return node._ownerShadyRoot;
     },
 
-    _maybeDistribute: function(node, parent) {
+    _maybeDistribute: function(node) {
       // TODO(sorvell): technically we should check non-fragment nodes for
       // <content> children but since this case is assumed to be exceedingly
       // rare, we avoid the cost and will address with some specific api
@@ -176,24 +207,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // 2. children being inserted into parent with a shady root (parent
       //    needs distribution)
       if (hasContent) {
-        var root = this._ownerShadyRootForNode(parent);
+        var root = this.getOwnerRoot();
         if (root) {
-          var host = root.host;
           // note, insertion point list update is handled after node
           // mutations are complete
-          this._lazyDistribute(host);
+          this._lazyDistribute(root.host);
         }
       }
-      var parentNeedsDist = this._parentNeedsDistribution(parent);
-      if (parentNeedsDist) {
-        this._lazyDistribute(parent);
+      var needsDist = this._nodeNeedsDistribution(this.node);
+      if (needsDist) {
+        this._lazyDistribute(this.node);
       }
       // Return true when distribution will fully handle the composition
       // Note that if a content was being inserted that was wrapped by a node,
       // and the parent does not need distribution, return false to allow
       // the nodes to be added directly, after which children may be
       // distributed and composed into the wrapping node(s)
-      return parentNeedsDist || (hasContent && !wrappedContent);
+      return needsDist || (hasContent && !wrappedContent);
     },
 
     /* note: parent argument is required since node may have an out
@@ -241,51 +271,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _parentNeedsDistribution: function(parent) {
-      return parent && parent.shadyRoot && 
-        DomApi.hasInsertionPoint(parent.shadyRoot);
+    _nodeNeedsDistribution: function(node) {
+      return node && node.shadyRoot && 
+        DomApi.hasInsertionPoint(node.shadyRoot);
     },
 
-    _removeNodeFromParent: function(node) {
-      // note: we may need to notify and not have logical info so fallback
-      // to composed parentNode.
-
-      var parent = node.__parentNode || node.parentNode;
-      //var parent = dom(node).parentNode;
-      // TODO(sorvell): hasDomApi doesn't make sense now
-      if (parent && DomApi.hasApi(parent)) {
-        dom(parent).notifyObserver();
+    // a node being added is always in this same host as this.node.
+    _addNodeToHost: function(host, node) {
+      if (host._elementAdd) {
+        host._elementAdd(node);
       }
-      this._removeNodeFromHost(node, true);
     },
 
-    // NOTE: if `ensureComposedRemoval` is true then the node should be
-    // removed from its composed parent.
-    _removeNodeFromHost: function(node, ensureComposedRemoval) {
-      // note that it's possible for both the node's host and its parent
-      // to require distribution... both cases are handled here.
-      var hostNeedsDist;
-      var root;
-      // important that we want to do this only if the node has a logical parent
-      var parent = node.__parentNode;
-      if (parent) {
-        // distribute node's parent iff needed
-        dom(node)._distributeParent();
-        root = this._ownerShadyRootForNode(node);
-        // remove node from root and distribute it iff needed
-        if (root) {
-          root.host._elementRemove(node);
-          hostNeedsDist = this._removeDistributedChildren(root, node);
-        }
-        TreeApi.Logical.recordRemoveChild(node, parent);
-      }
-      this._removeOwnerShadyRoot(node);
-      if (root && hostNeedsDist) {
-        this._updateInsertionPoints(root.host);
-        this._lazyDistribute(root.host);
-      } else if (ensureComposedRemoval) {
-        TreeApi.Composed.recordRemoveChild(
-          TreeApi.Composed.getParentNode(node), node);
+    _removeNodeFromHost: function(host, node) {
+      if (host._elementRemove) {
+        host._elementRemove(node);
       }
     },
 
@@ -316,14 +316,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return true;
         }
         node = dom(node).parentNode;
-      }
-    },
-
-    // a node being added is always in this same host as this.node.
-    _addNodeToHost: function(node) {
-      var root = this.getOwnerRoot();
-      if (root) {
-        root.host._elementAdd(node);
       }
     },
 
@@ -410,8 +402,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _distributeParent: function() {
-      if (this._parentNeedsDistribution(this.parentNode)) {
+      if (this._nodeNeedsDistribution(this.parentNode)) {
         this._lazyDistribute(this.parentNode);
+        return true;
       }
     },
 
