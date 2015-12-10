@@ -16,6 +16,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // native add/remove
   var nativeInsertBefore = Element.prototype.insertBefore;
+  var nativeAppendChild = Element.prototype.appendChild;
   var nativeRemoveChild = Element.prototype.removeChild;
   
   /**
@@ -63,6 +64,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     getChildNodes: function(node) {
+      // note: we're distinguishing here between undefined and false-y:
+      // hasChildNodes uses undefined check to see if this element has logical
+      // children; the false-y check indicates whether or not we should rebuild
+      // the cached childNodes array.
       if (this.hasChildNodes(node)) {
         if (!node.__childNodes) {
           node.__childNodes = [];
@@ -80,7 +85,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     getParentNode: function(node) {
-      return node.__parentNode || node.parentNode;
+      return node.__parentNode || TreeApi.Composed.getParentNode(node);
+    },
+
+    getFirstChild: function(node) {
+      return node.__firstChild || TreeApi.Composed.getFirstChild(node);
+    },
+
+    getLastChild: function(node) {
+      return node.__lastChild || TreeApi.Composed.getLastChild(node);
+    },
+
+    getNextSibling: function(node) {
+      return node.__nextSibling || TreeApi.Composed.getNextSibling(node);
+    },
+
+    getPreviousSibling: function(node) {
+      return node.__previousSibling || TreeApi.Composed.getPreviousSibling(node);
     },
 
     // Capture the list of light children. It's important to do this before we
@@ -119,20 +140,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _linkNode: function(node, container, ref_node) {
-      // update node <-> ref_node
+      // update ref_node.previousSibling <-> node
       node.__previousSibling = ref_node ? ref_node.__previousSibling : 
         container.__lastChild;
       if (node.__previousSibling) {
         node.__previousSibling.__nextSibling = node;
       }
+      // update node <-> ref_node
       node.__nextSibling = ref_node;
-      if (ref_node) {
-        ref_node.__previousSibling = node;
+      if (node.__nextSibling) {
+        node.__nextSibling.__previousSibling = node;
       }
       // update node <-> container
       node.__parentNode = container;
-      if (ref_node && ref_node === container.__firstChild) {
-        container.__firstChild = node;
+      if (ref_node) {
+        if (ref_node === container.__firstChild) {
+          container.__firstChild = node;
+        }
       } else {
         container.__lastChild = node;
         if (!container.__firstChild) {
@@ -182,13 +206,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return node.parentNode;
     },
 
-    recordInsertBefore: function(parent, node, ref_node) {
+    getFirstChild: function(node) {
+      return node.firstChild;
     },
 
-    recordRemoveChild: function(parent, node) {
+    getLastChild: function(node) {
+      return node.lastChild;
     },
 
-    recordParentNode: function(node, parent) {
+    getNextSibling: function(node) {
+      return node.nextSibling;
+    },
+
+    getPreviousSibling: function(node) {
+      return node.previousSibling;
     },
 
     // composed tracking needs to reset composed children here in case
@@ -200,24 +231,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     insertBefore: function(parentNode, newChild, refChild) {
-      var newChildParent = this.getParentNode(newChild);
-      if (newChildParent !== parentNode) {
-        this.recordRemoveChild(newChildParent, newChild);
-      }
-      // remove child from its old parent first
-      this.removeChild(newChild);
-      // insert it into the real DOM
-      nativeInsertBefore.call(parentNode, newChild, refChild || null);
-      this.recordParentNode(newChild, parentNode);
+      return nativeInsertBefore.call(parentNode, newChild, refChild || null);
     },
 
-    removeChild: function(node) {
-      var parentNode = this.getParentNode(node);
-      if (parentNode) {
-        this.recordParentNode(node, null);
-        // remove it from the real DOM
-        nativeRemoveChild.call(parentNode, node);
-      }
+    appendChild: function(parentNode, newChild) {
+      return nativeAppendChild.call(parentNode, newChild);
+    },
+
+    removeChild: function(parentNode, node) {
+      return nativeRemoveChild.call(parentNode, node);
     }
 
   };

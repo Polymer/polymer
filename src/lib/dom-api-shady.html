@@ -25,9 +25,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return;
   }
 
-  var nativeInsertBefore = Element.prototype.insertBefore;
-  var nativeRemoveChild = Element.prototype.removeChild;
-  var nativeAppendChild = Element.prototype.appendChild;
   var nativeCloneNode = Element.prototype.cloneNode;
   var nativeImportNode = Document.prototype.importNode;
 
@@ -73,11 +70,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // if adding to a shadyRoot, add to host instead
         var container = this.node._isShadyRoot ? this.node.host : this.node;
         if (ref_node) {
-          nativeInsertBefore.call(container, node, ref_node);
+          TreeApi.Composed.insertBefore(container, node, ref_node);
         } else {
-          nativeAppendChild.call(container, node);
+          TreeApi.Composed.appendChild(container, node);
         }
-        TreeApi.Composed.recordInsertBefore(container, node, ref_node);
       }
       this.notifyObserver();
       return node;
@@ -105,8 +101,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       This method also performs dom composition.
     */
     removeChild: function(node) {
-      if (dom(node).parentNode !== this.node) {
-        console.warn('The node to be removed is not a child of this node',
+      if (TreeApi.Logical.getParentNode(node) !== this.node) {
+        throw Error('The node to be removed is not a child of this node: ' + 
           node);
       }
       if (!this._removeNode(node)) {
@@ -115,8 +111,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // not guaranteed to physically be in container; e.g.
         // undistributed nodes.
         if (container === node.parentNode) {
-          nativeRemoveChild.call(container, node);
-          TreeApi.Composed.recordRemoveChild(container, node);
+          TreeApi.Composed.removeChild(container, node);
         }
       }
       this.notifyObserver();
@@ -128,8 +123,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // note that it's possible for both the node's host and its parent
     // to require distribution... both cases are handled here.
     _removeNode: function(node) {
-      TreeApi.Composed.recordRemoveChild(
-        TreeApi.Composed.getParentNode(node), node);
       // important that we want to do this only if the node has a logical parent
       var logicalParent = TreeApi.Logical.hasParentNode(node) &&
         TreeApi.Logical.getParentNode(node);
@@ -137,7 +130,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var root = this._ownerShadyRootForNode(node);
       if (logicalParent) {
         // distribute node's parent iff needed
-        distributed = dom(node)._distributeParent();
+        distributed = dom(node)._maybeDistributeParent();
         TreeApi.Logical.recordRemoveChild(node, logicalParent);
         // remove node from root and distribute it iff needed
         if (root && this._removeDistributedChildren(root, node)) {
@@ -175,7 +168,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (node._isShadyRoot) {
           root = node;
         } else {
-          var parent = Polymer.dom(node).parentNode;
+          var parent = TreeApi.Logical.getParentNode(node);
           if (parent) {
             root = parent._isShadyRoot ? parent :
               this._ownerShadyRootForNode(parent);
@@ -196,9 +189,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // distributeContent(true), which updates insertion points manually
       // and forces distribution.
       var fragContent = (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
-        !node.__noContent && Polymer.dom(node).querySelector(CONTENT);
+        !node.__noContent && dom(node).querySelector(CONTENT);
       var wrappedContent = fragContent &&
-        (Polymer.dom(fragContent).parentNode.nodeType !==
+        (TreeApi.Logical.getParentNode(fragContent).nodeType !==
         Node.DOCUMENT_FRAGMENT_NODE);
       var hasContent = fragContent || (node.localName === CONTENT);
       // There are 2 possible cases where a distribution may need to occur:
@@ -234,7 +227,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         !node.__noContent) {
         var c$ = dom(node).querySelectorAll(CONTENT);
         for (var i=0, n, np, na; (i<c$.length) && (n=c$[i]); i++) {
-          np = dom(n).parentNode;
+          np = TreeApi.Logical.getParentNode(n);
           // don't allow node's parent to be fragment itself
           if (np === node) {
             np = parent;
@@ -254,7 +247,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this.node.shadyRoot) {
         var parent = TreeApi.Composed.getParentNode(node);
         if (parent) {
-          nativeRemoveChild.call(parent, node);
+          TreeApi.Composed.removeChild(parent, node);
         }
         return true;
       }
@@ -267,7 +260,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var i=0, c; i < i$.length; i++) {
         c = i$[i];
         TreeApi.Logical.saveChildNodes(c);
-        TreeApi.Logical.saveChildNodes(dom(c).parentNode);
+        TreeApi.Logical.saveChildNodes(TreeApi.Logical.getParentNode(c));
       }
     },
 
@@ -301,8 +294,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             var node = dc$[j];
             var parent = node.parentNode;
             if (parent) {
-              nativeRemoveChild.call(parent, node);
-              TreeApi.Composed.recordRemoveChild(parent, node);
+              TreeApi.Composed.removeChild(parent, node);
             }
           }
         }
@@ -315,14 +307,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (node == container) {
           return true;
         }
-        node = dom(node).parentNode;
+        node = TreeApi.Logical.getParentNode(node);
       }
     },
 
     _removeOwnerShadyRoot: function(node) {
       // optimization: only reset the tree if node is actually in a root
       if (this._hasCachedOwnerRoot(node)) {
-        var c$ = dom(node).childNodes;
+        var c$ = TreeApi.Logical.getChildNodes(node);
         for (var i=0, l=c$.length, n; (i<l) && (n=c$[i]); i++) {
           this._removeOwnerShadyRoot(n);
         }
@@ -358,7 +350,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _query: function(matcher, node) {
       node = node || this.node;
       var list = [];
-      this._queryElements(dom(node).childNodes, matcher, list);
+      this._queryElements(TreeApi.Logical.getChildNodes(node), matcher, list);
       return list;
     },
 
@@ -374,7 +366,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (matcher(node)) {
         list.push(node);
       }
-      this._queryElements(dom(node).childNodes, matcher, list);
+      this._queryElements(TreeApi.Logical.getChildNodes(node), matcher, list);
     },
 
     getDestinationInsertionPoints: function() {
@@ -393,15 +385,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     setAttribute: function(name, value) {
       this.node.setAttribute(name, value);
-      this._distributeParent();
+      this._maybeDistributeParent();
     },
 
     removeAttribute: function(name) {
       this.node.removeAttribute(name);
-      this._distributeParent();
+      this._maybeDistributeParent();
     },
 
-    _distributeParent: function() {
+    _maybeDistributeParent: function() {
       if (this._nodeNeedsDistribution(this.parentNode)) {
         this._lazyDistribute(this.parentNode);
         return true;
@@ -427,7 +419,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.node.ownerDocument;
       var n = nativeImportNode.call(doc, externalNode, false);
       if (deep) {
-        var c$ = dom(externalNode).childNodes;
+        var c$ = TreeApi.Logical.getChildNodes(externalNode);
         var d = dom(n);
         for (var i=0, nc; i < c$.length; i++) {
           nc = dom(doc).importNode(c$[i], true);
@@ -455,45 +447,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     children: {
       get: function() {
-        return Array.prototype.filter.call(this.childNodes, function(n) {
-          return (n.nodeType === Node.ELEMENT_NODE);
-        });
+        if (TreeApi.Logical.hasChildNodes(this.node)) {
+          return Array.prototype.filter.call(this.childNodes, function(n) {
+            return (n.nodeType === Node.ELEMENT_NODE);
+          });
+        } else {
+          return TreeApi.arrayCopyChildren(this.node);
+        }
       },
       configurable: true
     },
 
     parentNode: {
       get: function() {
-        return this.node.__parentNode ||
-          TreeApi.Composed.getParentNode(this.node);
+        return TreeApi.Logical.getParentNode(this.node);
       },
       configurable: true
     },
 
     firstChild: {
       get: function() {
-        return this.node.__firstChild || this.node.firstChild;
+        return TreeApi.Logical.getFirstChild(this.node);
       },
       configurable: true
     },
 
     lastChild: {
       get: function() {
-        return this.node.__lastChild || this.node.lastChild;
+        return TreeApi.Logical.getLastChild(this.node);
       },
       configurable: true
     },
 
     nextSibling: {
       get: function() {
-        return this.node.__nextSibling || this.node.nextSibling;
+        return TreeApi.Logical.getNextSibling(this.node);
       },
       configurable: true
     },
 
     previousSibling: {
       get: function() {
-        return this.node.__previousSibling || this.node.previousSibling;
+        return TreeApi.Logical.getPreviousSibling(this.node);
       },
       configurable: true
     },
