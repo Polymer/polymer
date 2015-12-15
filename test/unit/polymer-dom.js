@@ -663,6 +663,25 @@ suite('Polymer.dom', function() {
     assert.sameMembers(order, [cb1, cbReentrant, cb2, cb3, cb4]);
   });
 
+  test('path correctly calculated for elements with destination insertion points', function(done) {
+    var re = document.createElement('x-reproject');
+    var p = Polymer.dom(re.root).querySelector('x-project');
+    var child = document.createElement('p');
+    child.innerHTML = "hello";
+    // child will be inserted into p after distributeContent is performed.
+    Polymer.dom(re).appendChild(child);
+    Polymer.dom(document.body).appendChild(re);
+    Polymer.dom.flush();
+    child.addEventListener('child-event', function(e){
+      var path = Polymer.dom(e).path;
+      assert.isTrue(path.indexOf(p) !== -1, 'path contains p');
+      assert.isTrue(path.indexOf(re) !== -1, 'path contains re');
+      done();
+    });
+    var evt = new CustomEvent('child-event');
+    child.dispatchEvent(evt);
+  });
+
 });
 
 suite('Polymer.dom accessors', function() {
