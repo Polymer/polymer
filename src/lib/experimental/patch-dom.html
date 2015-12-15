@@ -27,8 +27,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return;
   }
 
-  count = 0;
-
   var baseFinishDistribute = Polymer.Base._finishDistribute;
   var TreeApi = Polymer.TreeApi;
   var DomApi = Polymer.DomApi;
@@ -117,8 +115,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 
   var log = false;
-
-  var count = 0;
 
   var patchImpl = {
     
@@ -245,25 +241,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // NOTE: patch logical implementations here so we can use 
   // composed getters
-  TreeApi.Logical.saveChildNodes = function(node) {
-    if (!this.hasChildNodes(node)) {
-      if (!node.__dom) {
-        node.__dom = {};
-      }
-      node.__dom.firstChild = node.firstChild;
-      node.__dom.lastChild = node.lastChild;
-      node.__dom.childNodes = [];
-      for (var n=TreeApi.Composed.getFirstChild(node); n; 
-        n=TreeApi.Composed.getNextSibling(n)) {
-        n.__dom = n.__dom || {};
-        n.__dom.parentNode = node;
-        node.__dom.childNodes.push(n);
-        n.__dom.nextSibling = TreeApi.Composed.getNextSibling(n);
-        n.__dom.previousSibling = TreeApi.Composed.getPreviousSibling(n);
-      }
-    }
-  }
-
+  // TODO(sorvell): may need to patch saveChildNodes iff the tree has
+  // already been distributed.
   TreeApi.Logical.recordInsertBefore = function(node, container, ref_node) {
     container.__dom.childNodes = null;
     // handle document fragments
@@ -279,18 +258,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._linkNode(node, container, ref_node);
     }
   }
-
-  TreeApi.Logical.getChildNodes = function(node) {
-    if (this.hasChildNodes(node)) {
-      return this._getChildNodes(node);
-    } else {
-      // TODO(sorvell): it's more correct to `Composed.getChildNodes`
-      // instead of `childNodes` here but any trivial failure 
-      //to use Polymer.dom will result in an error.
-      return node.childNodes;
-    }
-  };
-
 
   TreeApi.Logical.getParentNode = function(node) {
     return node.__dom && node.__dom.parentNode || 
@@ -342,6 +309,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
 
+  // TODO(sorvell): This is largely copy/pasted from the Logical tree
+  // implementation. The code could be factored such that it could be shared
+  // but there are perf trade offs to consider.
   TreeApi.Composed = {
 
     hasParentNode: function(node) {
@@ -353,8 +323,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     getChildNodes: function(node) {
-      return node.__dom.$childNodes || 
+      return this.hasChildNodes(node) ? this._getChildNodes(node) :
         (!node.__patched && TreeApi.arrayCopy(node.childNodes));
+    },
+
+    _getChildNodes: function(node) {
+      if (!node.__dom.$childNodes) {
+        node.__dom.$childNodes = [];
+        for (var n=node.__dom.$firstChild; n; n=n.__dom.$nextSibling) {
+          node.__dom.$childNodes.push(n);
+        } 
+      }
+      return node.__dom.$childNodes;
     },
 
     getComposedChildNodes: function(node) {
