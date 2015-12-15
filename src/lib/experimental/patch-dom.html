@@ -245,24 +245,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // NOTE: patch logical implementations here so we can use 
   // composed getters
-  Polymer.TreeApi.Logical.saveChildNodes = function(node) {
+  TreeApi.Logical.saveChildNodes = function(node) {
     if (!this.hasChildNodes(node)) {
-      node.__firstChild = node.firstChild;
-      node.__lastChild = node.lastChild;
-      node.__childNodes = [];
+      if (!node.__dom) {
+        node.__dom = {};
+      }
+      node.__dom.firstChild = node.firstChild;
+      node.__dom.lastChild = node.lastChild;
+      node.__dom.childNodes = [];
       for (var n=TreeApi.Composed.getFirstChild(node); n; 
         n=TreeApi.Composed.getNextSibling(n)) {
-        n.__parentNode = node;
-        node.__childNodes.push(n);
-        n.__nextSibling = TreeApi.Composed.getNextSibling(n);
-        n.__previousSibling = TreeApi.Composed.getPreviousSibling(n);
+        n.__dom = n.__dom || {};
+        n.__dom.parentNode = node;
+        node.__dom.childNodes.push(n);
+        n.__dom.nextSibling = TreeApi.Composed.getNextSibling(n);
+        n.__dom.previousSibling = TreeApi.Composed.getPreviousSibling(n);
       }
     }
   }
 
-  Polymer.TreeApi.Logical.recordInsertBefore =
-      function(node, container, ref_node) {
-    container.__childNodes = null;
+  TreeApi.Logical.recordInsertBefore = function(node, container, ref_node) {
+    container.__dom.childNodes = null;
     // handle document fragments
     if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
       // TODO(sorvell): remember this for patching:
@@ -277,131 +280,245 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  Polymer.TreeApi.Composed = {
+  TreeApi.Logical.getChildNodes = function(node) {
+    if (this.hasChildNodes(node)) {
+      return this._getChildNodes(node);
+    } else {
+      // TODO(sorvell): it's more correct to `Composed.getChildNodes`
+      // instead of `childNodes` here but any trivial failure 
+      //to use Polymer.dom will result in an error.
+      return node.childNodes;
+    }
+  };
+
+
+  TreeApi.Logical.getParentNode = function(node) {
+    return node.__dom && node.__dom.parentNode || 
+      TreeApi.Composed.getParentNode(node);
+  };
+
+  TreeApi.Logical.getFirstChild = function(node) {
+    return node.__dom && node.__dom.firstChild || 
+      TreeApi.Composed.getFirstChild(node);
+  };
+
+  TreeApi.Logical.getLastChild = function(node) {
+    return node.__dom && node.__dom.lastChild || 
+      TreeApi.Composed.getLastChild(node);
+  };
+
+  TreeApi.Logical.getNextSibling = function(node) {
+    return node.__dom && node.__dom.nextSibling || 
+      TreeApi.Composed.getNextSibling(node);
+  };
+
+  TreeApi.Logical.getPreviousSibling = function(node) {
+    return node.__dom && node.__dom.previousSibling || 
+      TreeApi.Composed.getPreviousSibling(node);
+  };
+
+  TreeApi.Logical.getFirstElementChild = function(node) {
+    return node.__dom && node.__dom.firstChild ? 
+      this._getFirstElementChild(node) :
+      TreeApi.Composed.getFirstElementChild(node);
+  };
+
+  TreeApi.Logical.getLastElementChild = function(node) {
+    return node.__dom && node.__dom.lastChild ? 
+      this._getLastElementChild(node) :
+      TreeApi.Composed.getLastElementChild(node);
+  };
+
+  TreeApi.Logical.getNextElementSibling = function(node) {
+    return node.__dom && node.__dom.nextSibling ? 
+      this._getNextElementSibling(node) :
+      TreeApi.Composed.getNextElementSibling(node);
+  };
+
+  TreeApi.Logical.getPreviousElementSibling = function(node) {
+    return node.__dom && node.__dom.previousSibling ? 
+      this._getPreviousElementSibling(node) :
+      TreeApi.Composed.getPreviousElementSibling(node);
+  };
+
+
+  TreeApi.Composed = {
 
     hasParentNode: function(node) {
-      return Boolean(node.__composedParent !== undefined);
+      return Boolean(node.__dom && node.__dom.$parentNode !== undefined);
     },
 
     hasChildNodes: function(node) {
-      return Boolean(node.__composedChildNodes !== undefined);
+      return Boolean(node.__dom && node.__dom.$childNodes !== undefined);
     },
 
     getChildNodes: function(node) {
-      return node.__composedChildNodes || 
+      return node.__dom.$childNodes || 
         (!node.__patched && TreeApi.arrayCopy(node.childNodes));
     },
 
     getComposedChildNodes: function(node) {
-      return node.__composedChildNodes;
+      return node.__dom.$childNodes;
     },
 
     getParentNode: function(node) {
-      return this.hasParentNode(node) ? node.__composedParent :
+      return this.hasParentNode(node) ? node.__dom.$parentNode :
         (!node.__patched && node.parentNode);
     },
 
     getFirstChild: function(node) {
-      if (node.__patched) {
-        return this.getChildNodes(node)[0];
-      } else {
-        return node.firstChild;
-      }
+      return node.__patched ? node.__dom.$firstChild : node.firstChild;
     },
 
     getLastChild: function(node) {
-      if (node.__patched) {
-        var c$ = this.getChildNodes(node);
-        return c$[c$.length-1];
-      } else {
-        return node.lastChild;
-      }
+      return node.__patched ? node.__dom.$lastChild : node.lastChild;
     },
 
     getNextSibling: function(node) {
-      // TODO(sorvell): linked list
-      var parent = this.getParentNode(node);
-      if (parent.__patched) {
-        var c$ = this.getChildNodes(parent);
-        var i = c$.indexOf(node);
-        return c$[i+1];
-      } else if (!node.__patched) {
-       return node.nextSibling;
-      }
+      return node.__patched ? node.__dom.$nextSibling : node.nextSibling;
     },
 
     getPreviousSibling: function(node) {
-      // TODO(sorvell): linked list
-      var parent = this.getParentNode(node);
-      if (parent.__patched) {
-        var c$ = this.getChildNodes(parent);
-        var i = c$.indexOf(node);
-        return c$[i-1];
-      } else if (!node.__patched) {
-       return node.previousSibling;
-      }
+      return node.__patched ? node.__dom.$previousSibling : node.previousSibling;
     },
 
     getFirstElementChild: function(node) {
-      if (node.__patched) {
-        var c$ = this.getChildNodes(node);
-        for (var i=0, n; i < c$.length; i++) {
-          n = c$[i];
-          if (n.nodeType === Node.ELEMENT_NODE) {
-            return n;
-          }
-        }
-      } else {
-        return node.firstElementChild;
+      return node.__patched ? this._getFirstElementChild(node) : 
+        node.firstElementChild;
+    },
+
+    _getFirstElementChild: function(node) {
+      var n = node.__dom.$firstChild;
+      while (n && n.nodeType !== Node.ELEMENT_NODE) {
+        n = n.__dom.$nextSibling;
       }
+      return n;
     },
 
     getLastElementChild: function(node) {
-      if (node.__patched) {
-        var c$ = this.getChildNodes(node);
-        for (var i=c$.length, n; i >=0 ; i--) {
-          n = c$[i];
-          if (n.nodeType === Node.ELEMENT_NODE) {
-            return n;
-          }
-        }
-      } else {
-        return node.lastElementChild;
+      return node.__patched ? this._getLastElementChild(node) : 
+        node.firstElementChild;
+    },
+
+    _getLastElementChild: function(node) {
+      var n = node.__dom.$lastChild;
+      while (n && n.nodeType !== Node.ELEMENT_NODE) {
+        n = n.__dom.$previousSibling;
       }
+      return n;
     },
 
     getNextElementSibling: function(node) {
-      if (node.__patched) {
-        var c$ = this.getChildNodes(node);
-        var i = c$.indexOf(node);
-        if (i >= 0) {
-          for (var n; i < c$.length; i++) {
-            n = c$[i];
-            if (n.nodeType === Node.ELEMENT_NODE) {
-              return n;
-            }
-          }
-        }
-      } else {
-        return node.nextElementSibling;
+      return node.__patched ? this._getNextElementSibling(node) : 
+        node.nextElementSibling;
+    },
+
+    _getNextElementSibling: function(node) {
+      var n = node.__dom.$nextSibling;
+      while (n && n.nodeType !== Node.ELEMENT_NODE) {
+        n = n.__dom.$nextSibling;
       }
+      return n;
     },
 
     getPreviousElementSibling: function(node) {
-      if (node.__patched) {
-        var c$ = this.getChildNodes(node);
-        var i = c$.indexOf(node);
-        if (i >= 0) {
-          for (var n; i >=0 ; i--) {
-            n = c$[i];
-            if (n.nodeType === Node.ELEMENT_NODE) {
-              return n;
-            }
-          }
+      return node.__patched ? this._getPreviousElementSibling(node) : 
+        node.previousElementSibling;
+    },
+
+    _getPreviousElementSibling: function(node) {
+      var n = node.__dom.$previousSibling;
+      while (n && n.nodeType !== Node.ELEMENT_NODE) {
+        n = n.__dom.$previousSibling;
+      }
+      return n;
+    },
+    
+    saveChildNodes: function(node) {
+      if (!this.hasChildNodes(node)) {
+        node.__dom = node.__dom || {};
+        node.__dom.$firstChild = node.firstChild;
+        node.__dom.$lastChild = node.lastChild;
+        node.__dom.$childNodes = [];
+        for (var n=node.firstChild; n; n=n.nextSibling) {
+          n.__dom = n.__dom || {};
+          n.__dom.$parentNode = node;
+          node.__dom.$childNodes.push(n);
+          n.__dom.$nextSibling = n.nextSibling;
+          n.__dom.$previousSibling = n.previousSibling;
+        }
+      }
+    },
+
+    recordInsertBefore: function(node, container, ref_node) {
+      container.__dom.$childNodes = null;
+      // handle document fragments
+      if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        // TODO(sorvell): remember this for patching:
+        // the act of setting this info can affect patched nodes
+        // getters; therefore capture childNodes before patching.
+        for (var n=this.getFirstChild(node); n; n=this.getNextSibling(n)) {
+          this._linkNode(n, container, ref_node);  
         }
       } else {
-        return node.previousElementSibling;
+        this._linkNode(node, container, ref_node);
       }
+    },
+
+    _linkNode: function(node, container, ref_node) {
+      node.__dom = node.__dom || {};
+      container.__dom = container.__dom || {};
+      if (ref_node) {
+        ref_node.__dom = ref_node.__dom || {};
+      }      
+      // update ref_node.previousSibling <-> node
+      node.__dom.$previousSibling = ref_node ? ref_node.__dom.$previousSibling : 
+        container.__dom.$lastChild;
+      if (node.__dom.$previousSibling) {
+        node.__dom.$previousSibling.__dom.$nextSibling = node;
+      }
+      // update node <-> ref_node
+      node.__dom.$nextSibling = ref_node;
+      if (node.__dom.$nextSibling) {
+        node.__dom.$nextSibling.__dom.$previousSibling = node;
+      }
+      // update node <-> container
+      node.__dom.$parentNode = container;
+      if (ref_node) {
+        if (ref_node === container.__dom.$firstChild) {
+          container.__dom.$firstChild = node;
+        }
+      } else {
+        container.__dom.$lastChild = node;
+        if (!container.__dom.$firstChild) {
+          container.__dom.$firstChild = node;
+        }
+      }
+      // remove caching of childNodes
+      container.__dom.$childNodes = null;
+    },
+
+    recordRemoveChild: function(node, container) {
+      node.__dom = node.__dom || {};
+      container.__dom = container.__dom || {};
+      if (node === container.__dom.$firstChild) {
+        container.__dom.$firstChild = node.__dom.$nextSibling;
+      }
+      if (node === container.__dom.$lastChild) {
+        container.__dom.$lastChild = node.__dom.$previousSibling;
+      }
+      var p = node.__dom.$previousSibling;
+      var n = node.__dom.$nextSibling;
+      if (p) {
+        p.__dom.$nextSibling = n;
+      }
+      if (n) {
+        n.__dom.$previousSibling = p;
+      }
+      node.__dom.$parentNode = node.__dom.$previousSibling = 
+        node.__dom.$nextSibling = null;
+      // remove caching of childNodes
+      container.__dom.$childNodes = null;
     },
 
     // composed tracking needs to reset composed children here in case
@@ -409,28 +526,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // if dependency ordering is incorrect and as a result upgrade order 
     // is unexpected)
     clearChildNodes: function(node) {
-      if (node.__composedParent) {
-        node.__composedParent.__composedChildNodes = [];
+      if (node.__dom && node.__dom.$parentNode) {
+        node.__dom.$parentNode.__dom.$childNodes = [];
       }
       node.textContent = '';
     },
 
-    saveChildNodes: function(node) {
-      var c$ = node.__composedChildNodes = [];
-      for (var n=node.firstChild; n; n=n.nextSibling) {
-        n.__composedParent = node;
-        c$.push(n);
-      }
-    },
-
     saveParentNode: function(node) {
-      node.__composedParent = node.parentNode;
+      node.__dom = node.__dom || {};
+      node.__dom.$parentNode = node.parentNode;
     },
 
     insertBefore: function(parentNode, newChild, refChild) {
-      if (!this.hasChildNodes(parentNode)) {
-        this.saveChildNodes(parentNode);
-      }
+      this.saveChildNodes(parentNode);
       // remove from current location.
       if (this.hasParentNode(newChild)) {
         var oldParent = this.getParentNode(newChild);
@@ -443,9 +551,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     appendChild: function(parentNode, newChild) {
-      if (!this.hasChildNodes(parentNode)) {
-        this.saveChildNodes(parentNode);
-      }
+      this.saveChildNodes(parentNode);
       // remove from current location.
       if (this.hasParentNode(newChild)) {
         var oldParent = this.getParentNode(newChild);
@@ -459,13 +565,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     removeChild: function(parentNode, node) {
       var currentParent = this.getParentNode(node);
-      if (!this.hasChildNodes(parentNode)) {
-        this.saveChildNodes(parentNode);
-      }
+      this.saveChildNodes(parentNode);
       this._removeChild(parentNode, node);
       if (currentParent === parentNode) {
         // TODO(sorvell); abort if the composedParent is not expected...
-        if (!node.__patched && node.parentNode !== node.__composedParent) {
+        if (!node.__patched && node.parentNode !== node.__dom.$parentNode) {
           return;
         }
         return nativeRemoveChild.call(parentNode, node);
@@ -479,7 +583,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._addChild(parentNode, c$[j], refChild);
         }
       } else {
-        newChild.__composedParent = parentNode;
+        newChild.__dom = newChild.__dom || {};
+        newChild.__dom.$parentNode = parentNode;
         var c$ = this.getComposedChildNodes(parentNode);
         if (c$) {
           var i = c$.indexOf(refChild);
@@ -490,7 +595,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _removeChild: function(parentNode, node) {
-      node.__composedParent = null;
+      node.__dom = node.__dom || {};
+      node.__dom.$parentNode = null;
       var c$ = this.getComposedChildNodes(parentNode);
       if (c$) {
         var i = c$.indexOf(node);

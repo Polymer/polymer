@@ -135,14 +135,14 @@ test('Reproject', function() {
     assert.strictEqual(getComposedHTML(host),
         '<x-content-test id="p">a: <a></a>b: <b></b></x-content-test>');
 
-    assertArrayEqual(host.__childNodes, [a]);
-    assert.strictEqual(a.__parentNode, host);
-    assertArrayEqual(host.shadyRoot.__childNodes, [p]);
-    assert.strictEqual(p.__parentNode, host.shadyRoot);
-    assertArrayEqual(p.__childNodes, [b, content]);
-    assert.strictEqual(b.__parentNode, p);
-    assert.strictEqual(content.__parentNode, p);
-    assertArrayEqual(p.shadyRoot.__childNodes,
+    assertArrayEqual(host.__dom.childNodes, [a]);
+    assert.strictEqual(a.__dom.parentNode, host);
+    assertArrayEqual(host.shadyRoot.__dom.childNodes, [p]);
+    assert.strictEqual(p.__dom.parentNode, host.shadyRoot);
+    assertArrayEqual(p.__dom.childNodes, [b, content]);
+    assert.strictEqual(b.__dom.parentNode, p);
+    assert.strictEqual(content.__dom.parentNode, p);
+    assertArrayEqual(p.shadyRoot.__dom.childNodes,
         [textNodeA, contentA, textNodeB, contentB]);
   }
 
@@ -165,7 +165,7 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a></a>');
 
-    host.__childNodes = [];
+    host.__dom.childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), 'fallback');
   });
@@ -180,11 +180,11 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b>after</b>');
 
-    host.shadyRoot.__childNodes[1].textContent = '';
+    host.shadyRoot.__dom.childNodes[1].textContent = '';
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
 
-    host.shadyRoot.__childNodes = [];
+    host.shadyRoot.__dom.childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '');
   });
@@ -203,11 +203,11 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<b></b>');
 
-    host.shadyRoot.firstChild.__childNodes = [];
+    host.shadyRoot.firstChild.__dom.childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '');
 
-    host.shadyRoot.__childNodes = [];
+    host.shadyRoot.__dom.childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '');
   });
@@ -225,7 +225,7 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a></a>');
 
-    host.__childNodes = [];
+    host.__dom.childNodes = [];
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), 'fallback');
   });
@@ -265,11 +265,11 @@ suite('Mutate light DOM', function() {
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
 
-    host.shadyRoot.__childNodes.splice(1, 1); // remove b
+    host.shadyRoot.__dom.childNodes.splice(1, 1); // remove b
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
-    host.shadyRoot.__childNodes = []; // remove a
+    host.shadyRoot.__dom.childNodes = []; // remove a
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '');
   });
@@ -368,7 +368,7 @@ suite('Mutate light DOM', function() {
     assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
 
     var b = document.createElement('b');
-    host.__childNodes[0] = b;
+    host.__dom.childNodes[0] = b;
     distributeContentNow(host);
     assert.strictEqual(getComposedHTML(host), '<b></b>');
   });
@@ -437,16 +437,17 @@ suite('Mutate light DOM', function() {
 });
 
 function syncLightDOM(n) {
-  if (n.__childNodes) {
-    var c$ = n.__patched ? n._composedChildren || [] : Array.prototype.slice.call(n.childNodes);
-    n.__firstChild = c$[0];
-    n.__lastChild = c$[c$.length-1];
+  if (n.__dom.childNodes !== undefined) {
+    var c$ = Array.prototype.slice.call(n.childNodes);
+    n.__dom.firstChild = c$[0];
+    n.__dom.lastChild = c$[c$.length-1];
     c$.forEach(function(c, i) {
-      if (n.__childNodes.indexOf(c) < 0) {
-        c.__parentNode = n;
-        c.__previousSibling = c$[i-1];
-        c.__nextSibling = c$[i+1];
-        n.__childNodes.push(c);
+      if (n.__dom.childNodes.indexOf(c) < 0) {
+        c.__dom = c.__dom || {};
+        c.__dom.parentNode = n;
+        c.__dom.previousSibling = c$[i-1];
+        c.__dom.nextSibling = c$[i+1];
+        n.__dom.childNodes.push(c);
       }
     });
   }
@@ -456,17 +457,11 @@ var nativeAppendChild = Element.prototype.appendChild;
 
 function setInnerHTML(node, value) {
   node.textContent = '';
-  if (node._composedChildren) {
-    node._composedChildren = [];
-  }
   var temp = node.ownerDocument.createElement('div');
   temp.innerHTML = value;
   var firstChild;
   while (firstChild = temp.firstChild) {
     nativeAppendChild.call(node, firstChild);
-    if (node._composedChildren) {
-      node._composedChildren.push(firstChild);
-    }
   }
 }
 
@@ -481,11 +476,11 @@ function updateRootInsertionPoints(root) {
 }
 
 function getComposedHTML(node) {
-  return node.__patched ? Polymer.domInnerHTML.getInnerHTML(node, true) : node.innerHTML;
+  return node.innerHTML;
 }
 
 function getComposedChildAtIndex(node, index) {
-  var c$ = node._composedChildren || node.childNodes;
+  var c$ = node.childNodes;
   if (c$) {
     index = index || 0;
     index = Math.max(0, Math.min(index, c$.length-1));
