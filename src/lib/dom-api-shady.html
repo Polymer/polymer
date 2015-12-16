@@ -422,6 +422,47 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Object.defineProperties(DomApi.prototype, {
 
+    activeElement: {
+      get: function() {
+        var active = document.activeElement;
+        if (!active) {
+          return null;
+        }
+        var isShadyRoot = !!this.node._isShadyRoot;
+        if (this.node !== document) {
+          // If this node isn't a document or shady root, then it doesn't
+          // have an active element.
+          if (!isShadyRoot) {
+            return null;
+          }
+          // If this shady root's host is the active element or the active
+          // element is not a descendant of the host, then it doesn't have
+          // an active element.
+          if (this.node.host === active ||
+              !this.node.host.contains(active)) {
+            return null;
+          }
+          // If the active element is a light descendant of the shady root's
+          // host, return the active element.
+          if (this.node.host !== active &&
+              this._contains(this.node.host, active)) {
+            return active;
+          }
+        }
+        // This node is either the document or a shady root of which the
+        // active element is a descendant of its host; iterate upwards to
+        // find the active element's most shallow host.
+        var activeRoot = Polymer.dom(active).getOwnerRoot();
+        while (activeRoot && activeRoot !== this.node &&
+            !(isShadyRoot && this._contains(this.node.host, active))) {
+          active = activeRoot.host;
+          activeRoot = Polymer.dom(active).getOwnerRoot();
+        }
+        return active;
+      },
+      configurable: true
+    },
+
     childNodes: {
       get: function() {
         var c$ = TreeApi.Logical.getChildNodes(this.node);
