@@ -172,19 +172,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // be interrogating the prototype here
       // TODO(sorvell): we want to avoid using `getPropertyInfo` here, but
       // this requires more data in `_propertyInfo`
-      var info = model.getPropertyInfo && model.getPropertyInfo(property);
-      if (info && info.readOnly) {
+      var info = model.getPropertyInfo && model.getPropertyInfo(property) || {};
+      if (info.readOnly) {
         // Computed properties are read-only (no property setter), but also don't
         // need a private setter since they should not be called by the user
         if (!info.computed) {
           model['_set' + this.upper(property)] = setter;
         }
       } else {
-        if (info && info.set) {
+        if (info.set) {
           var setFn = model[info.set];
+          var processing = false;
 
           setter = function(value) {
-            this._propertySetter(property, setFn(value), effects);
+            // When setting the value, effects are triggered. In order to
+            // prevent stackoverflows, do not re-process the updated value
+            if (!processing) {
+              processing = true;
+              this._propertySetter(property, setFn(value), effects);
+              processing = false;
+            }
           }
         }
 
