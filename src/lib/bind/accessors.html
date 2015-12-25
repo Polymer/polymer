@@ -23,7 +23,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _notifyChange: function(source, event, value) {
         value = value === undefined ? this[source] : value;
         event = event || Polymer.CaseMap.camelToDashCase(source) + '-changed';
-        this.fire(event, {value: value}, 
+        this.fire(event, {value: value},
           {bubbles: false, cancelable: false, _useCache: true});
       },
 
@@ -172,14 +172,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // be interrogating the prototype here
       // TODO(sorvell): we want to avoid using `getPropertyInfo` here, but
       // this requires more data in `_propertyInfo`
-      var info = model.getPropertyInfo && model.getPropertyInfo(property);
-      if (info && info.readOnly) {
+      var info = model.getPropertyInfo && model.getPropertyInfo(property) || {};
+      if (info.readOnly) {
         // Computed properties are read-only (no property setter), but also don't
         // need a private setter since they should not be called by the user
         if (!info.computed) {
           model['_set' + this.upper(property)] = setter;
         }
       } else {
+        if (info.set) {
+          var setFn = model[info.set];
+
+          if (setFn) {
+            var processing = false;
+
+            setter = function(value) {
+              // When setting the value, effects are triggered. In order to
+              // prevent stackoverflows, do not re-process the updated value
+              if (!processing) {
+                processing = true;
+                this._propertySetter(property, setFn(value), effects);
+                processing = false;
+              }
+            }
+          } else {
+            Polymer.Base._warn(Polymer.Base._logf('_createAccessors', 'set method `' +
+              info.set + '` not defined for property ' + property));
+          }
+        }
+
         defun.set = setter;
       }
       Object.defineProperty(model, property, defun);
@@ -221,8 +242,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           // TODO(sorvell): even though we have a `value` argument, we *must*
           // lookup the current value of the property. Multiple listeners and
-          // queued events during configuration can theoretically lead to 
-          // divergence of the passed value from the current value, but we 
+          // queued events during configuration can theoretically lead to
+          // divergence of the passed value from the current value, but we
           // really need to track down a specific case where this happens.
           value = target[property];
           if (!isStructured) {
