@@ -1,10 +1,11 @@
 suite('Polymer.dom', function() {
 
   var testElement;
+  var wrap = window.wrap || function(n){ return n; };
 
   suiteSetup(function() {
     testElement = document.querySelector('x-test');
-  })
+  });
 
   test('querySelector (local)', function() {
     var projected = Polymer.dom(testElement.root).querySelector('#projected');
@@ -96,17 +97,17 @@ suite('Polymer.dom', function() {
     testElement.distributeContent();
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(projected).getDestinationInsertionPoints(), ip$);
-    var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
+    rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
     assert.equal(rere.is, 'x-rereproject');
     rere.distributeContent();
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(projected).getDestinationInsertionPoints(), ip$);
-    var re = Polymer.dom(rere.root).querySelector('x-reproject');
+    re = Polymer.dom(rere.root).querySelector('x-reproject');
     assert.equal(re.is, 'x-reproject');
     re.distributeContent();
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(projected).getDestinationInsertionPoints(), ip$);
-    var p = Polymer.dom(re.root).querySelector('x-project');
+    p = Polymer.dom(re.root).querySelector('x-project');
     assert.equal(p.is, 'x-project');
   });
 
@@ -293,10 +294,10 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on host attribute');
     c.foo = true;
     Polymer.dom.flush();
-    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute')
+    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute');
     c.foo = false;
     Polymer.dom.flush();
-    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute')
+    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute');
   });
 
   test('within a host setting hostAttributes/reflecting properties provokes distribution', function() {
@@ -312,10 +313,10 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on host attribute');
     c1.foo = true;
     Polymer.dom.flush();
-    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute')
+    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute');
     c1.foo = false;
     Polymer.dom.flush();
-    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute')
+    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute');
     var c2 = e.$.attr2;
     Polymer.dom.flush();
     assert.equal(Polymer.dom(c2).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on default value');
@@ -404,7 +405,7 @@ suite('Polymer.dom', function() {
     Polymer.dom(rere.root).appendChild(fragment);
     var added = Polymer.dom(rere.root).querySelectorAll('span');
     assert.equal(added.length, childCount);
-    for (var i=0; i < added.length; i++) {
+    for (i=0; i < added.length; i++) {
       Polymer.dom(rere.root).removeChild(added[i]);
     }
     assert.equal(Polymer.dom(rere.root).querySelectorAll('span').length, 0);
@@ -426,7 +427,7 @@ suite('Polymer.dom', function() {
     var added = Polymer.dom(rere.root).querySelectorAll('span');
     assert.equal(added.length, childCount+1);
     assert.equal(added[added.length-1], l);
-    for (var i=0; i < added.length; i++) {
+    for (i=0; i < added.length; i++) {
       Polymer.dom(rere.root).removeChild(added[i]);
     }
     assert.equal(Polymer.dom(rere.root).querySelectorAll('span').length, 0);
@@ -694,7 +695,7 @@ suite('Polymer.dom accessors', function() {
 
   test('Polymer.dom node accessors (no distribute)', function() {
     var child = Polymer.dom(noDistribute).children[0];
-    assert.isTrue(child.classList.contains('child'), 'test node could not be found')
+    assert.isTrue(child.classList.contains('child'), 'test node could not be found');
     var before = document.createElement('div');
     var after = document.createElement('div');
     Polymer.dom(noDistribute).insertBefore(before, child);
@@ -709,7 +710,7 @@ suite('Polymer.dom accessors', function() {
 
   test('Polymer.dom node accessors (distribute)', function() {
     var child = Polymer.dom(distribute).children[0];
-    assert.isTrue(child.classList.contains('child'), 'test node could not be found')
+    assert.isTrue(child.classList.contains('child'), 'test node could not be found');
     var before = document.createElement('div');
     var after = document.createElement('div');
     Polymer.dom(distribute).insertBefore(before, child);
