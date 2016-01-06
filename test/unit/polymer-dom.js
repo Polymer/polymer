@@ -868,7 +868,7 @@ suite('Polymer.dom accessors', function() {
       r_l.focus();
 
       assert.equal(Polymer.dom(document).activeElement, r_l, 'document.activeElement === r_l');
-      assert.equal(Polymer.dom(r.root).activeElement, r_l, 'r.root.activeElement === r_l');
+      assert.equal(Polymer.dom(r.root).activeElement, null, 'r.root.activeElement === null');
       assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
@@ -895,7 +895,7 @@ suite('Polymer.dom accessors', function() {
 
       assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
       assert.equal(Polymer.dom(r.root).activeElement, r_0_l, 'r.root.activeElement === r_0_l');
-      assert.equal(Polymer.dom(r_0.root).activeElement, r_0_l, 'r_0.root.activeElement === r_0_l');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
 
       assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
@@ -923,7 +923,7 @@ suite('Polymer.dom accessors', function() {
       assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
       assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
       assert.equal(Polymer.dom(r_0.root).activeElement, r_0_0_l, 'r_0.root.activeElement === r_0_0_l');
-      assert.equal(Polymer.dom(r_0_0.root).activeElement, r_0_0_l, 'r_0_0.root.activeElement === r_0_0_l');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
@@ -936,7 +936,7 @@ suite('Polymer.dom accessors', function() {
       assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
       assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
       assert.equal(Polymer.dom(r_0.root).activeElement, r_0_0_l, 'r_0.root.activeElement === r_0_0_l');
-      assert.equal(Polymer.dom(r_0_0.root).activeElement, r_0_0_l, 'r_0_0.root.activeElement === r_0_0_l');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_0_l.root).activeElement, r_0_0_l_0, 'r_0_0_l.root.activeElement === r_0_0_l_0');
       assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
@@ -964,7 +964,7 @@ suite('Polymer.dom accessors', function() {
       assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
       assert.equal(Polymer.dom(r_0.root).activeElement, r_0_1_l, 'r_0.root.activeElement === r_0_1_l');
       assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
-      assert.equal(Polymer.dom(r_0_1.root).activeElement, r_0_1_l, 'r_0_1.root.activeElement === r_0_1_l');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
@@ -991,7 +991,7 @@ suite('Polymer.dom accessors', function() {
       assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
-      assert.equal(Polymer.dom(r_1.root).activeElement, r_1_l, 'r_1.root.activeElement === r_1_l');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
     });
@@ -1004,7 +1004,7 @@ suite('Polymer.dom accessors', function() {
       assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
-      assert.equal(Polymer.dom(r_1.root).activeElement, r_1_l, 'r_1.root.activeElement === r_1_l');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1_l.root).activeElement, r_1_l_0, 'r_1.root.activeElement === r_1_l_0');
       assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
@@ -1032,7 +1032,7 @@ suite('Polymer.dom accessors', function() {
       assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1.root).activeElement, r_1_0_l, 'r_1.root.activeElement === r_1_0_l');
-      assert.equal(Polymer.dom(r_1_0.root).activeElement, r_1_0_l, 'r_1_0.root.activeElement === r_1_0_l');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
       assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
     });
 
@@ -1059,7 +1059,7 @@ suite('Polymer.dom accessors', function() {
       assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
       assert.equal(Polymer.dom(r_1.root).activeElement, r_1_1_l, 'r_1.root.activeElement === r_1_1_l');
       assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
-      assert.equal(Polymer.dom(r_1_1.root).activeElement, r_1_1_l, 'r_1_1.root.activeElement === r_1_1_l');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
     });
 
     test('setting activeElement on document has no effect', function() {
