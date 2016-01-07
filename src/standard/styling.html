@@ -20,10 +20,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var prepElement = Polymer.Base._prepElement;
     var nativeShadow = Polymer.Settings.useNativeShadow;
+    var useShadow = Polymer.Settings.useShadow;
 
     var styleUtil = Polymer.StyleUtil;
     var styleTransformer = Polymer.StyleTransformer;
     var styleExtends = Polymer.StyleExtends;
+
+    var mixinRegExp = new RegExp(styleUtil.parser._rx.mixinApply);
+    var varRegExp = new RegExp(styleUtil.parser._rx.varApply);
 
     Polymer.Base._addFeature({
 
@@ -41,7 +45,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             Boolean(this._template);
         }
         if (this._template) {
-          this._styles = this._collectStyles();
+          var styles = this._styles = this._collectStyles();
+          if (useShadow) {
+            for (var i = 0, l = styles.length; i < l; i++) {
+              if (
+                  styles[i].textContent.match(mixinRegExp) ||
+                  styles[i].textContent.match(varRegExp)
+              ) {
+                // Skip applying CSS if there are some mixins or variables used
+                // since styles with mixins and variables will be added on later stages anyway,
+                // and will include styles applied here, no need to do this twice
+                return;
+              }
+            }
+          }
           var cssText = styleTransformer.elementStyles(this);
           if (cssText) {
             var style = styleUtil.applyCss(cssText, this.is,
