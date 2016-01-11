@@ -78,6 +78,42 @@ Note, all features of `custom-style` are available when defining styles as part 
   var styleDefaults = Polymer.StyleDefaults;
   var styleTransformer = Polymer.StyleTransformer;
 
+  var applyDebouncer = {
+    list: [],
+    debouncing: null,
+    needsUpdateStyles: false,
+    queue: function(e) {
+      if (this.list.indexOf(e) < 0) {
+        this.list.push(e);
+      }
+      if (this.debouncing) {
+        cancelAnimationFrame(this.debouncing);
+      }
+      var self = this;
+      this.debouncing = requestAnimationFrame(function() {
+        self.flush();
+      });
+    },
+    unqueue: function(e) {
+      var i = this.list.indexOf(e);
+      if (i >= 0) {
+        this.list.splice(i, 1);
+      }
+    },
+    flush: function() {
+      if (this.needsUpdateStyles) {
+        Polymer.updateStyles();
+      } else {
+        for (var i=0; i < this.list.length; i++) {
+          this.list[i]._applyCustomProperties();
+        }
+      }
+      this.debouncing = null;
+      this.needsUpdate = false;
+      this.list = [];
+    }
+  }
+
   Polymer({
 
     is: 'custom-style',
@@ -110,8 +146,9 @@ Note, all features of `custom-style` are available when defining styles as part 
         if (this.parentNode &&
           (this.parentNode.localName !== 'dom-module')) {
           this._appliesToDocument = true;
-          // used applied element from HTMLImports polyfill or this
-          var e = this.__appliedElement || this;
+          var e = this._getActiveStyle();
+          applyDebouncer.needsUpdateStyles = applyDebouncer.needsUpdateStyles || 
+            Boolean(styleDefaults.hasProperties());
           styleDefaults.addStyle(e);
           // we may not have any textContent yet due to parser yielding
           // if so, wait until we do...
@@ -133,50 +170,49 @@ Note, all features of `custom-style` are available when defining styles as part 
     // apply custom properties!
     _apply: function(deferProperties) {
       // used applied element from HTMLImports polyfill or this
-      var e = this.__appliedElement || this;
+      if (!this.__prepared) {
+        this.__prepared = true;
+        this._prepApply();
+      }
+      // Allow all custom-styles defined in this turn to register
+      // before applying any properties. This helps ensure that all properties
+      // are defined before any are consumed.
+      // Premature application of properties can occur in 2 cases:
+      // (1) A property `--foo` is consumed in a custom-style
+      // before another custom-style produces `--foo`.
+      // In general, we require custom properties to be defined before being
+      // used in elements so supporting this for custom-style
+      // is dubious but is slightly more like native properties where this
+      // is supported.
+      // (2) A set of in order styles (A, B) are re-ordered due to a parser
+      // yield that makes A wait for textContent. This reorders its
+      // `_apply` after B.
+      // This case should only occur with native webcomponents.
+      applyDebouncer.unqueue(this);
+      if (deferProperties) {
+        applyDebouncer.queue(this);
+      } else {
+        this._applyCustomProperties();
+      }
+    },
+
+    _prepApply: function() {
+      var e = this._getActiveStyle();
       if (this.include) {
         e.textContent = styleUtil.cssFromModules(this.include, true) +
           e.textContent;
       }
-      if (e.textContent) {
-        styleUtil.forEachStyleRule(styleUtil.rulesForStyle(e), function(rule) {
-          styleTransformer.documentRule(rule);
-        });
-        // Allow all custom-styles defined in this turn to register
-        // before applying any properties. This helps ensure that all properties
-        // are defined before any are consumed.
-        // Premature application of properties can occur in 2 cases:
-        // (1) A property `--foo` is consumed in a custom-style
-        // before another custom-style produces `--foo`.
-        // In general, we require custom properties to be defined before being
-        // used in elements so supporting this for custom-style
-        // is dubious but is slightly more like native properties where this
-        // is supported.
-        // (2) A set of in order styles (A, B) are re-ordered due to a parser
-        // yield that makes A wait for textContent. This reorders its
-        // `_apply` after B.
-        // This case should only occur with native webcomponents.
-        var self = this;
-        var fn = function fn() {
-          self._applyCustomProperties(e);
-        }
-        if (this._pendingApplyProperties) {
-          cancelAnimationFrame(this._pendingApplyProperties);
-          this._pendingApplyProperties = null;
-        }
-        if (deferProperties) {
-          this._pendingApplyProperties = requestAnimationFrame(fn);
-        } else {
-          fn();
-        }
-      }
+      styleUtil.forEachStyleRule(styleUtil.rulesForStyle(e), function(rule) {
+        styleTransformer.documentRule(rule);
+      });
     },
 
-    _applyCustomProperties: function(element) {
+    _applyCustomProperties: function() {
+      var e = this._getActiveStyle();
       this._computeStyleProperties();
       var props = this._styleProperties;
-      var rules = styleUtil.rulesForStyle(element);
-      element.textContent = styleUtil.toCssText(rules, function(rule) {
+      var rules = styleUtil.rulesForStyle(e);
+      e.textContent = styleUtil.toCssText(rules, function(rule) {
         var css = rule.cssText = rule.parsedCssText;
         if (rule.propertyInfo && rule.propertyInfo.cssText) {
           // remove property assignments
@@ -192,6 +228,11 @@ Note, all features of `custom-style` are available when defining styles as part 
           rule.cssText = propertyUtils.valueForProperties(css, props);
         }
       });
+    },
+
+    // used applied element from HTMLImports polyfill or this
+    _getActiveStyle: function() {
+      return this.__appliedElement || this;
     }
 
   });
