@@ -85,7 +85,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var info = {};
         this._get(path, this, info);
         // Notify change to key-based path
-        this._notifyPath(info.path, value, fromAbove);
+        if (info.path) {
+          this._notifyPath(info.path, value, fromAbove);
+        }
       },
 
       // Note: this implemetation only accepts key-based array paths
@@ -271,14 +273,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // get root property
         var model = this._modelForPath(path);
         // search property effects of the root property for 'annotation' effects
-        var fx$ = this._propertyEffects[model];
+        var fx$ = this._propertyEffects && this._propertyEffects[model];
         if (fx$) {
-          fx$.forEach(function(fx) {
-            var fxFn = this['_' + fx.kind + 'PathEffect'];
+          for (var i=0, fx; (i<fx$.length) && (fx=fx$[i]); i++) {
+            // use memoized path functions
+            var fxFn = fx.pathFn;
             if (fxFn) {
               fxFn.call(this, path, value, fx.effect);
             }
-          }, this);
+          }
         }
         // notify runtime-bound paths
         if (this._boundPaths) {
@@ -379,10 +382,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var rootName = this._modelForPath(path);
         var dashCaseName = Polymer.CaseMap.camelToDashCase(rootName);
         var eventName = dashCaseName + this._EVENT_CHANGED;
+        // use a cached event here (_useCache: true) for efficiency
         this.fire(eventName, {
           path: path,
           value: value
-        }, {bubbles: false});
+        }, {bubbles: false, _useCache: true});
       },
 
       _modelForPath: function(path) {
@@ -601,6 +605,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       prepareModelNotifyPath: function(model) {
         this.mixin(model, {
           fire: Polymer.Base.fire,
+          _getEvent: Polymer.Base._getEvent,
+          __eventCache: Polymer.Base.__eventCache,
           notifyPath: Polymer.Base.notifyPath,
           _get: Polymer.Base._get,
           _EVENT_CHANGED: Polymer.Base._EVENT_CHANGED,

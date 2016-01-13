@@ -11,21 +11,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.Bind = {
 
-    // for prototypes (usually)
+    _dataEventCache: {},
 
+    // for prototypes (usually)
     prepareModel: function(model) {
-      model._propertyEffects = {};
-      model._bindListeners = [];
       Polymer.Base.mixin(model, this._modelApi);
     },
 
     _modelApi: {
 
-      _notifyChange: function(property) {
-        var eventName = Polymer.CaseMap.camelToDashCase(property) + '-changed';
-        Polymer.Base.fire(eventName, {
-          value: this[property]
-        }, {bubbles: false, node: this});
+      _notifyChange: function(source, event, value) {
+        value = value === undefined ? this[source] : value;
+        event = event || Polymer.CaseMap.camelToDashCase(source) + '-changed';
+        this.fire(event, {value: value}, 
+          {bubbles: false, cancelable: false, _useCache: true});
       },
 
       // TODO(sjmiles): removing _notifyListener from here breaks accessors.html
@@ -79,13 +78,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _effectEffects: function(property, value, effects, old, fromAbove) {
-        effects.forEach(function(fx) {
-          //console.log(fx);
-          var fn = Polymer.Bind['_' + fx.kind + 'Effect'];
-          if (fn) {
-            fn.call(this, property, value, fx.effect, old, fromAbove);
-          }
-        }, this);
+        for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
+          fx.fn.call(this, property, value, fx.effect, old, fromAbove);
+        }
       },
 
       _clearPath: function(path) {
@@ -101,6 +96,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // a prepared model can acquire effects
 
     ensurePropertyEffects: function(model, property) {
+      if (!model._propertyEffects) {
+        model._propertyEffects = {};
+      }
       var fx = model._propertyEffects[property];
       if (!fx) {
         fx = model._propertyEffects[property] = [];
@@ -110,10 +108,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     addPropertyEffect: function(model, property, kind, effect) {
       var fx = this.ensurePropertyEffects(model, property);
-      fx.push({
+      var propEffect = {
         kind: kind,
-        effect: effect
-      });
+        effect: effect,
+        fn: Polymer.Bind['_' + kind + 'Effect']
+      };
+      fx.push(propEffect);
+      return propEffect;
     },
 
     createBindings: function(model) {
@@ -169,6 +170,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // ReadOnly properties have a private setter only
       // TODO(kschaaf): Per current Bind factoring, we shouldn't
       // be interrogating the prototype here
+      // TODO(sorvell): we want to avoid using `getPropertyInfo` here, but
+      // this requires more data in `_propertyInfo`
       var info = model.getPropertyInfo && model.getPropertyInfo(property);
       if (info && info.readOnly) {
         // Computed properties are read-only (no property setter), but also don't
@@ -187,8 +190,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _addAnnotatedListener: function(model, index, property, path, event) {
+      if (!model._bindListeners) {
+        model._bindListeners = [];
+      }
       var fn = this._notedListenerFactory(property, path,
-        this._isStructured(path), this._isEventBogus);
+        this._isStructured(path));
       var eventName = event ||
         (Polymer.CaseMap.camelToDashCase(property) + '-changed');
       model._bindListeners.push({
@@ -208,27 +214,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return e.path && e.path[0] !== target;
     },
 
-    _notedListenerFactory: function(property, path, isStructured, bogusTest) {
-      return function(e, target) {
-        if (!bogusTest(e, target)) {
-          if (e.detail && e.detail.path) {
-            this._notifyPath(this._fixPath(path, property, e.detail.path),
-              e.detail.value);
+    _notedListenerFactory: function(property, path, isStructured) {
+      return function(target, value, targetPath) {
+        if (targetPath) {
+          this._notifyPath(this._fixPath(path, property, targetPath), value);
+        } else {
+          // TODO(sorvell): even though we have a `value` argument, we *must*
+          // lookup the current value of the property. Multiple listeners and
+          // queued events during configuration can theoretically lead to 
+          // divergence of the passed value from the current value, but we 
+          // really need to track down a specific case where this happens.
+          value = target[property];
+          if (!isStructured) {
+            this[path] = value;
           } else {
-            var value = target[property];
-            if (!isStructured) {
-              this[path] = target[property];
-            } else {
-              // TODO(kschaaf): dirty check avoids null references when the object has gone away
-              if (this.__data__[path] != value) {
-                this.set(path, value);
-              }
+            // TODO(kschaaf): dirty check avoids null references when the object has gone away
+            if (this.__data__[path] != value) {
+              this.set(path, value);
             }
           }
         }
       };
     },
-
     // for instances
 
     prepareInstance: function(inst) {
@@ -236,15 +243,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     setupBindListeners: function(inst) {
-      inst._bindListeners.forEach(function(info) {
+      var b$ = inst._bindListeners;
+      for (var i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
         // Property listeners:
         // <node>.on.<property>-changed: <path]> = e.detail.value
         //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
+        //
+        // TODO(sorvell): fix templatizer to support this before uncommenting
+        // Optimization: only add bind listeners if the bound property is notifying...
         var node = inst._nodes[info.index];
-        node.addEventListener(info.event, inst._notifyListener.bind(inst, info.changedFn));
+        //var p = node._propertyInfo && node._propertyInfo[info.property];
+        //if (node._prepParentProperties || !node._propertyInfo || (p && p.notify)) {
+          this._addNotifyListener(node, inst, info.event, info.changedFn);
+        //}
+      };
+    },
+
+    // TODO(sorvell): note, adding these synchronously may impact performance,
+    // measure and consider if we can defer until after first paint in some cases at least.
+    _addNotifyListener: function(element, context, event, changedFn) {
+      element.addEventListener(event, function(e) {
+        return context._notifyListener(changedFn, e);
       });
     }
-
   };
 
 </script>

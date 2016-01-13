@@ -105,12 +105,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {string} property Name of property to introspect.
      * @return {Object} Property descriptor for specified property.
     */
+    // TODO(sorvell): This function returns the first property object found
+    // and this is not the property info Polymer acts on for readOnly or type
+    // This api should be combined with _propertyInfo.
     getPropertyInfo: function(property) {
       var info = this._getPropertyInfo(property, this.properties);
       if (!info) {
-        this.behaviors.some(function(b) {
-          return info = this._getPropertyInfo(property, b.properties);
-        }, this);
+        for (var i=0; i < this.behaviors.length; i++) {
+          info = this._getPropertyInfo(property, this.behaviors[i].properties);
+          if (info) {
+            return info;
+          }
+        };
       }
       return info || Polymer.nob;
     },
@@ -127,7 +133,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         p.defined = true;
       }
       return p;
-    }
+    },
+
+    // union properties, behaviors.properties, and propertyEffects
+    _prepPropertyInfo: function() {
+      this._propertyInfo = {};
+      for (var i=0, p; i < this.behaviors.length; i++) {
+        this._addPropertyInfo(this._propertyInfo, this.behaviors[i].properties);
+      }
+      this._addPropertyInfo(this._propertyInfo, this.properties);
+      this._addPropertyInfo(this._propertyInfo, this._propertyEffects);
+    },
+
+    // list of propertyInfo with {readOnly, type, attribute}
+    _addPropertyInfo: function(target, source) {
+      if (source) {
+        var t, s;
+        for (var i in source) {
+          t = target[i];
+          s = source[i];
+          // optimization: avoid info'ing properties that are protected and
+          // not read only since they are not needed for attributes or
+          // configuration.
+          if (i[0] === '_' && !s.readOnly) {
+            continue;
+          }
+          if (!target[i]) {
+            target[i] = {
+              type: typeof(s) === 'function' ? s : s.type,
+              readOnly: s.readOnly,
+              attribute: Polymer.CaseMap.camelToDashCase(i)
+            }
+          } else {
+            if (!t.type) {
+              t.type = s.type;
+            }
+            if (!t.readOnly) {
+              t.readOnly = s.readOnly;
+            }
+          }
+        }
+      }
+    },
 
   });
 

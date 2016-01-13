@@ -12,6 +12,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
+  var wrap = Polymer.DomApi.wrap;
+
   // detect native touch action support
   var HAS_NATIVE_TA = typeof document.head.style.touchAction === 'string';
   var GESTURE_KEY = '__polymerGestures';
@@ -166,6 +168,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function untrackDocument(stateObj) {
     document.removeEventListener('mousemove', stateObj.movefn);
     document.removeEventListener('mouseup', stateObj.upfn);
+    stateObj.movefn = null;
+    stateObj.upfn = null;
   }
 
   var Gestures = {
@@ -199,8 +203,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     handleNative: function(ev) {
       var handled;
       var type = ev.type;
-      var node = ev.currentTarget;
+      var node = wrap(ev.currentTarget);
       var gobj = node[GESTURE_KEY];
+      if (!gobj) {
+        return;
+      }
       var gs = gobj[type];
       if (!gs) {
         return;
@@ -292,6 +299,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // automate the event listeners for the native events
     add: function(node, evType, handler) {
+      // SD polyfill: handle case where `node` is unwrapped, like `document`
+      node = wrap(node);
       var recognizer = this.gestures[evType];
       var deps = recognizer.deps;
       var name = recognizer.name;
@@ -323,6 +332,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // automate event listener removal for native events
     remove: function(node, evType, handler) {
+      // SD polyfill: handle case where `node` is unwrapped, like `document`
+      node = wrap(node);
       var recognizer = this.gestures[evType];
       var deps = recognizer.deps;
       var name = recognizer.name;
@@ -407,8 +418,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     emits: ['down', 'up'],
 
     info: {
-      movefn: function(){},
-      upfn: function(){}
+      movefn: null,
+      upfn: null
     },
 
     reset: function() {
@@ -443,12 +454,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.fire('up', Gestures.findOriginalTarget(e), e.changedTouches[0]);
     },
     fire: function(type, target, event) {
-      var self = this;
       Gestures.fire(target, type, {
         x: event.clientX,
         y: event.clientY,
         sourceEvent: event,
-        prevent: Gestures.prevent.bind(Gestures)
+        prevent: function(e) {
+          return Gestures.prevent(e);
+        }
       });
     }
   });
@@ -475,8 +487,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         this.moves.push(move);
       },
-      movefn: function(){},
-      upfn: function(){},
+      movefn: null,
+      upfn: null,
       prevent: false
     },
 
@@ -664,6 +676,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
   Polymer.Base._addFeature({
+
+    _setupGestures: function() {
+      this.__polymerGestures = null;
+    },
+
     // override _listen to handle gestures
     _listen: function(node, eventName, handler) {
       if (Gestures.gestures[eventName]) {

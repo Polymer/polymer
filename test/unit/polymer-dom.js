@@ -1,10 +1,11 @@
 suite('Polymer.dom', function() {
 
   var testElement;
+  var wrap = window.wrap || function(n){ return n; };
 
   suiteSetup(function() {
     testElement = document.querySelector('x-test');
-  })
+  });
 
   test('querySelector (local)', function() {
     var projected = Polymer.dom(testElement.root).querySelector('#projected');
@@ -96,17 +97,17 @@ suite('Polymer.dom', function() {
     testElement.distributeContent();
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(projected).getDestinationInsertionPoints(), ip$);
-    var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
+    rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
     assert.equal(rere.is, 'x-rereproject');
     rere.distributeContent();
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(projected).getDestinationInsertionPoints(), ip$);
-    var re = Polymer.dom(rere.root).querySelector('x-reproject');
+    re = Polymer.dom(rere.root).querySelector('x-reproject');
     assert.equal(re.is, 'x-reproject');
     re.distributeContent();
     Polymer.dom.flush();
     assert.deepEqual(Polymer.dom(projected).getDestinationInsertionPoints(), ip$);
-    var p = Polymer.dom(re.root).querySelector('x-project');
+    p = Polymer.dom(re.root).querySelector('x-project');
     assert.equal(p.is, 'x-project');
   });
 
@@ -293,10 +294,10 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on host attribute');
     c.foo = true;
     Polymer.dom.flush();
-    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute')
+    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute');
     c.foo = false;
     Polymer.dom.flush();
-    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute')
+    assert.equal(Polymer.dom(c).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute');
   });
 
   test('within a host setting hostAttributes/reflecting properties provokes distribution', function() {
@@ -312,10 +313,10 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on host attribute');
     c1.foo = true;
     Polymer.dom.flush();
-    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute')
+    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on reflecting attribute');
     c1.foo = false;
     Polymer.dom.flush();
-    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute')
+    assert.equal(Polymer.dom(c1).getDestinationInsertionPoints()[0], ip$[1], 'child not distributed based on reflecting attribute');
     var c2 = e.$.attr2;
     Polymer.dom.flush();
     assert.equal(Polymer.dom(c2).getDestinationInsertionPoints()[0], ip$[0], 'child not distributed based on default value');
@@ -404,7 +405,7 @@ suite('Polymer.dom', function() {
     Polymer.dom(rere.root).appendChild(fragment);
     var added = Polymer.dom(rere.root).querySelectorAll('span');
     assert.equal(added.length, childCount);
-    for (var i=0; i < added.length; i++) {
+    for (i=0; i < added.length; i++) {
       Polymer.dom(rere.root).removeChild(added[i]);
     }
     assert.equal(Polymer.dom(rere.root).querySelectorAll('span').length, 0);
@@ -426,7 +427,7 @@ suite('Polymer.dom', function() {
     var added = Polymer.dom(rere.root).querySelectorAll('span');
     assert.equal(added.length, childCount+1);
     assert.equal(added[added.length-1], l);
-    for (var i=0; i < added.length; i++) {
+    for (i=0; i < added.length; i++) {
       Polymer.dom(rere.root).removeChild(added[i]);
     }
     assert.equal(Polymer.dom(rere.root).querySelectorAll('span').length, 0);
@@ -489,19 +490,19 @@ suite('Polymer.dom', function() {
     assert.equal(Polymer.dom(rere).querySelector('#light'), s);
     assert.equal(Polymer.dom(s).parentNode, rere);
     if (rere.shadyRoot) {
-      assert.notEqual(s._composedParent, rere);
+      assert.notEqual(Polymer.TreeApi.Composed.getParentNode(s), rere);
     }
     Polymer.dom(testElement).flush();
     if (rere.shadyRoot) {
-      assert.equal(s._composedParent, p);
+      assert.equal(Polymer.TreeApi.Composed.getParentNode(s), p);
     }
     Polymer.dom(rere).removeChild(s);
     if (rere.shadyRoot) {
-      assert.equal(s._composedParent, p);
+      assert.equal(Polymer.TreeApi.Composed.getParentNode(s), p);
     }
     Polymer.dom(testElement).flush();
     if (rere.shadyRoot) {
-      assert.equal(s._composedParent, null);
+      assert.equal(Polymer.TreeApi.Composed.getParentNode(s), null);
     }
   });
 
@@ -635,6 +636,53 @@ suite('Polymer.dom', function() {
 
   });
 
+  test('Polymer.dom.flush reentrancy', function() {
+    // Setup callbacks
+    var order = [];
+    var cb1 = sinon.spy(function() { order.push(cb1); });
+    var cb2 = sinon.spy(function() { order.push(cb2); });
+    var cb3 = sinon.spy(function() { order.push(cb3); });
+    var cb4 = sinon.spy(function() { order.push(cb4); });
+    var cbReentrant = sinon.spy(function() {
+      order.push(cbReentrant);
+      Polymer.dom.addDebouncer(Polymer.Debounce(null, cb3));
+      Polymer.dom.flush();
+      Polymer.dom.addDebouncer(Polymer.Debounce(null, cb4));
+    });
+    // Enqueue debouncers
+    Polymer.dom.addDebouncer(Polymer.Debounce(null, cb1));
+    Polymer.dom.addDebouncer(Polymer.Debounce(null, cbReentrant));
+    Polymer.dom.addDebouncer(Polymer.Debounce(null, cb2));
+    // Flush
+    Polymer.dom.flush();
+    // Check callbacks called and in correct order
+    assert.isTrue(cb1.calledOnce);
+    assert.isTrue(cb2.calledOnce);
+    assert.isTrue(cb3.calledOnce);
+    assert.isTrue(cb4.calledOnce);
+    assert.isTrue(cbReentrant.calledOnce);
+    assert.sameMembers(order, [cb1, cbReentrant, cb2, cb3, cb4]);
+  });
+
+  test('path correctly calculated for elements with destination insertion points', function(done) {
+    var re = document.createElement('x-reproject');
+    var p = Polymer.dom(re.root).querySelector('x-project');
+    var child = document.createElement('p');
+    child.innerHTML = "hello";
+    // child will be inserted into p after distributeContent is performed.
+    Polymer.dom(re).appendChild(child);
+    Polymer.dom(document.body).appendChild(re);
+    Polymer.dom.flush();
+    child.addEventListener('child-event', function(e){
+      var path = Polymer.dom(e).path;
+      assert.isTrue(path.indexOf(p) !== -1, 'path contains p');
+      assert.isTrue(path.indexOf(re) !== -1, 'path contains re');
+      done();
+    });
+    var evt = new CustomEvent('child-event');
+    child.dispatchEvent(evt);
+  });
+
 });
 
 suite('Polymer.dom accessors', function() {
@@ -647,7 +695,7 @@ suite('Polymer.dom accessors', function() {
 
   test('Polymer.dom node accessors (no distribute)', function() {
     var child = Polymer.dom(noDistribute).children[0];
-    assert.isTrue(child.classList.contains('child'), 'test node could not be found')
+    assert.isTrue(child.classList.contains('child'), 'test node could not be found');
     var before = document.createElement('div');
     var after = document.createElement('div');
     Polymer.dom(noDistribute).insertBefore(before, child);
@@ -662,7 +710,7 @@ suite('Polymer.dom accessors', function() {
 
   test('Polymer.dom node accessors (distribute)', function() {
     var child = Polymer.dom(distribute).children[0];
-    assert.isTrue(child.classList.contains('child'), 'test node could not be found')
+    assert.isTrue(child.classList.contains('child'), 'test node could not be found');
     var before = document.createElement('div');
     var after = document.createElement('div');
     Polymer.dom(distribute).insertBefore(before, child);
@@ -713,7 +761,7 @@ suite('Polymer.dom accessors', function() {
     assert.equal(Polymer.dom(testElement).textContent, 'Hello World', 'textContent getter incorrect');
     if (testElement.shadyRoot) {
       Polymer.dom.flush();
-      assert.equal(testElement._composedChildren[1].textContent, 'Hello World', 'text content setter incorrect');
+      assert.equal(Polymer.TreeApi.Composed.getChildNodes(testElement)[1].textContent, 'Hello World', 'text content setter incorrect');
     }
     testElement = document.createElement('x-commented');
     assert.equal(Polymer.dom(testElement.root).textContent, '[]', 'text content getter with comment incorrect');
@@ -737,9 +785,10 @@ suite('Polymer.dom accessors', function() {
     assert.equal(Polymer.dom(testElement).innerHTML , '<div>Hello World</div><div>2</div><div>3</div>', 'innerHTML getter incorrect');
     if (testElement.shadyRoot) {
       Polymer.dom.flush();
-      assert.equal(testElement._composedChildren[1], added, 'innerHTML setter composed incorrectly');
-      assert.equal(testElement._composedChildren[2].textContent, '2', 'innerHTML setter composed incorrectly');
-      assert.equal(testElement._composedChildren[3].textContent, '3', 'innerHTML setter composed incorrectly');
+      var children = Polymer.TreeApi.Composed.getChildNodes(testElement);
+      assert.equal(children[1], added, 'innerHTML setter composed incorrectly');
+      assert.equal(children[2].textContent, '2', 'innerHTML setter composed incorrectly');
+      assert.equal(children[3].textContent, '3', 'innerHTML setter composed incorrectly');
     }
   });
 
@@ -753,6 +802,294 @@ suite('Polymer.dom accessors', function() {
     assert.equal(testElement.children.length, 3);
   });
 
+  suite('Polymer.dom activeElement', function() {
+    var r;
+      // light
+        var r_l
+      // shadow
+        var r_0;
+          // light
+            var r_0_l;
+          // shadow
+            var r_0_0;
+              // light
+                var r_0_0_l;
+                  // shadow
+                    var r_0_0_l_0;
+            var r_0_1;
+              // light
+                var r_0_1_l;
+        var r_1;
+          // light
+            var r_1_l;
+              // shadow
+                var r_1_l_0;
+          // shadow
+            var r_1_0;
+              // light
+                var r_1_0_l;
+            var r_1_1;
+              // light
+                var r_1_1_l;
+
+    suiteSetup(function() {
+      r = Polymer.dom(document).querySelector('x-shadow-host-root');
+        r_l = Polymer.dom(r).querySelector('x-shadow-host-root-light');
+        r_0 = Polymer.dom(r.root).querySelector('x-shadow-host-root-0');
+          r_0_l = Polymer.dom(r_0).querySelector('x-shadow-host-root-0-light');
+          r_0_0 = Polymer.dom(r_0.root).querySelector('x-shadow-host-root-0-0');
+            r_0_0_l = Polymer.dom(r_0_0).querySelector('x-shadow-host-root-0-0-light');
+              r_0_0_l_0 = Polymer.dom(r_0_0_l.root).querySelector('x-shadow-host-root-0-0-light-0');
+          r_0_1 = Polymer.dom(r_0.root).querySelector('x-shadow-host-root-0-1');
+            r_0_1_l = Polymer.dom(r_0_1).querySelector('x-shadow-host-root-0-1-light');
+        r_1 = Polymer.dom(r.root).querySelector('x-shadow-host-root-1');
+          r_1_l = Polymer.dom(r_1).querySelector('x-shadow-host-root-1-light');
+            r_1_l_0 = Polymer.dom(r_1_l.root).querySelector('x-shadow-host-root-1-light-0');
+          r_1_0 = Polymer.dom(r_1.root).querySelector('x-shadow-host-root-1-0');
+            r_1_0_l = Polymer.dom(r_1_0).querySelector('x-shadow-host-root-1-0-light');
+          r_1_1 = Polymer.dom(r_1.root).querySelector('x-shadow-host-root-1-1');
+            r_1_1_l = Polymer.dom(r_1_1).querySelector('x-shadow-host-root-1-1-light');
+    });
+
+    test('r.focus()', function() {
+      r.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, null, 'r.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_l.focus()', function() {
+      r_l.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r_l, 'document.activeElement === r_l');
+      assert.equal(Polymer.dom(r.root).activeElement, null, 'r.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_0.focus()', function() {
+      r_0.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_0_l.focus()', function() {
+      r_0_l.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_0_l, 'r.root.activeElement === r_0_l');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_0_0.focus()', function() {
+      r_0_0.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
+      assert.equal(Polymer.dom(r_0.root).activeElement, r_0_0, 'r_0.root.activeElement === r_0_0');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_0_0_l.focus()', function() {
+      r_0_0_l.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
+      assert.equal(Polymer.dom(r_0.root).activeElement, r_0_0_l, 'r_0.root.activeElement === r_0_0_l');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_0_0_l_0.focus()', function() {
+      r_0_0_l_0.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
+      assert.equal(Polymer.dom(r_0.root).activeElement, r_0_0_l, 'r_0.root.activeElement === r_0_0_l');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0_l.root).activeElement, r_0_0_l_0, 'r_0_0_l.root.activeElement === r_0_0_l_0');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_0_1.focus()', function() {
+      r_0_1.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
+      assert.equal(Polymer.dom(r_0.root).activeElement, r_0_1, 'r_0.root.activeElement === r_0_1');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_0_1_l.focus()', function() {
+      r_0_1_l.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_0, 'r.root.activeElement === r_0');
+      assert.equal(Polymer.dom(r_0.root).activeElement, r_0_1_l, 'r_0.root.activeElement === r_0_1_l');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_1.focus()', function() {
+      r_1.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1, 'r.root.activeElement === r_1');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_1_l.focus()', function() {
+      r_1_l.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1_l, 'r.root.activeElement === r_1_l');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_1_l_0.focus()', function() {
+      r_1_l_0.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1_l, 'r.root.activeElement === r_1_l');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, null, 'r_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_l.root).activeElement, r_1_l_0, 'r_1.root.activeElement === r_1_l_0');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_1_0.focus()', function() {
+      r_1_0.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1, 'r.root.activeElement === r_1');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, r_1_0, 'r_1.root.activeElement === r_1_0');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_1_0_l.focus()', function() {
+      r_1_0_l.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1, 'r.root.activeElement === r_1');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, r_1_0_l, 'r_1.root.activeElement === r_1_0_l');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_1_1.focus()', function() {
+      r_1_1.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1, 'r.root.activeElement === r_1');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, r_1_1, 'r_1.root.activeElement === r_1_1');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('r_1_1_l.focus()', function() {
+      r_1_1_l.focus();
+
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1, 'r.root.activeElement === r_1');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, r_1_1_l, 'r_1.root.activeElement === r_1_1_l');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('setting activeElement on document has no effect', function() {
+      r_1_1.focus();
+
+      Polymer.dom(document).activeElement = "abc";
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1, 'r.root.activeElement === r_1');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, r_1_1, 'r_1.root.activeElement === r_1_1');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+
+    test('setting activeElement on a shadow root has no effect', function() {
+      r_1_1.focus();
+
+      Polymer.dom(r_1.root).activeElement = "abc";
+      assert.equal(Polymer.dom(document).activeElement, r, 'document.activeElement === r');
+      assert.equal(Polymer.dom(r.root).activeElement, r_1, 'r.root.activeElement === r_1');
+      assert.equal(Polymer.dom(r_0.root).activeElement, null, 'r_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_0.root).activeElement, null, 'r_0_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_0_1.root).activeElement, null, 'r_0_1.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1.root).activeElement, r_1_1, 'r_1.root.activeElement === r_1_1');
+      assert.equal(Polymer.dom(r_1_0.root).activeElement, null, 'r_1_0.root.activeElement === null');
+      assert.equal(Polymer.dom(r_1_1.root).activeElement, null, 'r_1_1.root.activeElement === null');
+    });
+  });
 });
 
 suite('Polymer.dom non-distributed elements', function() {
@@ -804,13 +1141,13 @@ suite('Polymer.dom non-distributed elements', function() {
     function testNoAttr() {
       assert.equal(Polymer.dom(child).getDestinationInsertionPoints()[0], d.$.notTestContent, 'child not distributed logically');
       if (shady) {
-        assert.equal(child._composedParent, d.$.notTestContainer, 'child not rendered in composed dom');
+        assert.equal(Polymer.TreeApi.Composed.getParentNode(child), d.$.notTestContainer, 'child not rendered in composed dom');
       }
     }
     function testWithAttr() {
       assert.equal(Polymer.dom(child).getDestinationInsertionPoints()[0], d.$.testContent, 'child not distributed logically');
       if (shady) {
-        assert.equal(child._composedParent, d.$.testContainer, 'child not rendered in composed dom');
+        assert.equal(Polymer.TreeApi.Composed.getParentNode(child), d.$.testContainer, 'child not rendered in composed dom');
       }
     }
     // test with x-distribute
@@ -935,5 +1272,14 @@ suite('Polymer.dom non-distributed elements', function() {
     assert.equal(Polymer.dom(el).deepContains(separate), false, 'Unassociated, attached element should not be found');
 
     document.body.removeChild(separate);
+  });
+
+  test('Polymer.DomApi.wrap', function() {
+    var wrap = window.wrap || function(node) { return node; };
+
+    var node = document.querySelector('x-wrapped');
+    assert.equal(wrap(document), Polymer.DomApi.wrap(document), 'document should be wrapped');
+    assert.equal(wrap(node), Polymer.DomApi.wrap(node), 'node should be wrapped');
+    assert.equal(wrap(node), Polymer.dom(node).node, 'Polymer.dom should always wrap the input node');
   });
 });

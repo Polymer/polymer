@@ -56,37 +56,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // In order not to over-emphaisize this technical difference, we expose
     // one concept to the user and it maps to the dom-related meaning of host.
     //
-    // 1. set this element's `host` and push this element onto the `host`'s
+    // set this element's `host` and push this element onto the `host`'s
     // list of `client` elements
-    // 2. establish this element as the current hosting element (allows
-    // any elements we stamp to easily set host to us).
-    _pushHost: function(host) {
+    // this.dataHost reflects the parent element who manages
+    // any bindings for the element.  Only elements originally
+    // stamped from Polymer templates have a dataHost, and this
+    // never changes
+    _registerHost: function(host) {
       // NOTE: The `dataHost` of an element never changes.
-      this.dataHost = host = host ||
+      this.dataHost = host = host || 
         Polymer.Base._hostStack[Polymer.Base._hostStack.length-1];
-      // this.dataHost reflects the parent element who manages
-      // any bindings for the element.  Only elements originally
-      // stamped from Polymer templates have a dataHost, and this
-      // never changes
       if (host && host._clients) {
         host._clients.push(this);
       }
-      this._beginHost();
+      this._clients = null;
+      this._clientsReadied = false;
     },
 
-    _beginHost: function() {
+    // establish this element as the current hosting element (allows
+    // any elements we stamp to easily set host to us).
+    _beginHosting: function() {
       Polymer.Base._hostStack.push(this);
       if (!this._clients) {
         this._clients = [];
       }
     },
 
-    _popHost: function() {
+    _endHosting: function() {
       // this element is no longer the current hosting element
       Polymer.Base._hostStack.pop();
     },
 
     _tryReady: function() {
+      this._readied = false;
       if (this._canReady()) {
         this._ready();
       }
@@ -99,9 +101,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _ready: function() {
       // extension point
       this._beforeClientsReady();
-      // prepare root
-      this._setupRoot();
-      this._readyClients();
+      if (this._template) {
+        // prepare root
+        this._setupRoot();
+        this._readyClients();
+      }
+      this._clientsReadied = true;
+      this._clients = null;
       // extension point
       this._afterClientsReady();
       this._readySelf();
@@ -112,8 +118,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._beginDistribute();
       // now fully prepare localChildren
       var c$ = this._clients;
-      for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
-        c._ready();
+      if (c$) {
+        for (var i=0, l= c$.length, c; (i<l) && (c=c$[i]); i++) {
+          c._ready();
+        }
       }
       // perform actual dom composition
       this._finishDistribute();
@@ -123,8 +131,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // if (!Polymer.Settings.useNativeCustomElements) {
       //   CustomElements.takeRecords();
       // }
-      this._clientsReadied = true;
-      this._clients = null;
     },
 
     // mark readied and call `ready`

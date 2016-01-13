@@ -158,13 +158,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     queryAllEffectiveChildren: function(slctr) {
-      return Polymer.dom(this).queryAllDistributedElements(slctr);
+      return Polymer.dom(this).queryDistributedElements(slctr);
     },
 
     /**
      * Returns a list of nodes distributed to this element's `<content>`.
      *
-     * If this element contans more than one `<content>` in its local DOM,
+     * If this element contains more than one `<content>` in its local DOM,
      * an optional selector may be passed to choose the desired content.
      *
      * @method getContentChildNodes
@@ -181,7 +181,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Returns a list of element children distributed to this element's
      * `<content>`.
      *
-     * If this element contans more than one `<content>` in its
+     * If this element contains more than one `<content>` in its
      * local DOM, an optional selector may be passed to choose the desired
      * content.  This method differs from `getContentChildNodes` in that only
      * elements are returned.
@@ -197,6 +197,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return (n.nodeType === Node.ELEMENT_NODE);
       });
     },
+
 
     /**
      * Dispatches a custom event with an optional detail value.
@@ -214,17 +215,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     fire: function(type, detail, options) {
       options = options || Polymer.nob;
       var node = options.node || this;
-      var detail = (detail === null || detail === undefined) ? Polymer.nob : detail;
+      var detail = (detail === null || detail === undefined) ? {} : detail;
       var bubbles = options.bubbles === undefined ? true : options.bubbles;
       var cancelable = Boolean(options.cancelable);
-      var event = new CustomEvent(type, {
-        bubbles: Boolean(bubbles),
-        cancelable: cancelable,
-        detail: detail
-      });
+      var useCache = options._useCache;
+      var event = this._getEvent(type, bubbles, cancelable, useCache);
+      event.detail = detail;
+      if (useCache) {
+        this.__eventCache[type] = null;
+      }
       node.dispatchEvent(event);
+      if (useCache) {
+        this.__eventCache[type] = event;
+      }
       return event;
     },
+
+    __eventCache: {},
+
+    // NOTE: We optionally cache event objects for efficiency during high
+    // freq. opts. This option cannot be used for events which may have
+    // `stopPropagation` called on them. On Chrome and Safari (but not FF)
+    // if `stopPropagation` is called, the event cannot be reused. It does not
+    // dispatch again.
+    _getEvent: function(type, bubbles, cancelable, useCache) {
+      var event = useCache && this.__eventCache[type];
+      if (!event || ((event.bubbles != bubbles) ||
+          (event.cancelable != cancelable))) {
+        event = new Event(type, {
+          bubbles: Boolean(bubbles),
+          cancelable: cancelable
+        });
+      }
+      return event;
+    },
+
 
     /**
      * Runs a callback function asyncronously.
@@ -240,7 +265,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {number} Handle that may be used to cancel the async job.
      */
     async: function(callback, waitTime) {
-      return Polymer.Async.run(callback.bind(this), waitTime);
+      var self = this;
+      return Polymer.Async.run(function() {
+        callback.call(self);
+      }, waitTime);
     },
 
     /**
@@ -330,17 +358,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      *   loaded.
      * @param {Function} onerror Callback to notify when an import
      *   unsuccessfully loaded.
+     * @param {boolean} optAsync True if the import should be loaded `async`.
+     *   Defaults to `false`.
      * @return {HTMLLinkElement} The link element for the URL to be loaded.
      */
-    importHref: function(href, onload, onerror) {
+    importHref: function(href, onload, onerror, optAsync) {
       var l = document.createElement('link');
       l.rel = 'import';
       l.href = href;
+
+      optAsync = Boolean(optAsync);
+      if (optAsync) {
+        l.setAttribute('async', '');
+      }
+
+      var self = this;
       if (onload) {
-        l.onload = onload.bind(this);
+        l.onload = function(e) {
+          return onload.call(self, e);
+        }
       }
       if (onerror) {
-        l.onerror = onerror.bind(this);
+        l.onerror = function(e) {
+          return onerror.call(self, e);
+        }
       }
       document.head.appendChild(l);
       return l;
@@ -369,7 +410,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Checks whether an element is in this element's light DOM tree.
      *
      * @method isLightDescendant
-     * @param {HTMLElement=} node The element to be checked.
+     * @param {?Node} node The element to be checked.
      * @return {Boolean} true if node is in this element's light DOM tree.
      */
     isLightDescendant: function(node) {
