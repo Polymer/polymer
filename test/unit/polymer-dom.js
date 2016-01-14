@@ -1207,6 +1207,24 @@ suite('Polymer.dom non-distributed elements', function() {
     assert.equal(Polymer.dom(test).getOwnerRoot(), c1.root, 'getOwnerRoot incorrect for child added to element in root');
   });
 
+  test('getOwnerRoot when out of tree and adding subtree', function() {
+    var container = document.createDocumentFragment();
+    var test = document.createElement('div');
+    container.appendChild(test);
+    assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect when not in root');
+    var c1 = document.createElement('x-compose');
+    var project = c1.$.project;
+    Polymer.dom(project).appendChild(container);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(test).getOwnerRoot(), c1.root, 'getOwnerRoot incorrect for child added to element in root');
+    Polymer.dom(project).removeChild(test);
+    Polymer.dom.flush();
+    assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect for child moved from a root to no root');
+    Polymer.dom(project).appendChild(test);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(test).getOwnerRoot(), c1.root, 'getOwnerRoot incorrect for child added to element in root');
+  });
+
   test('getOwnerRoot, subtree', function() {
     var test = document.createElement('div');
     var testChild = document.createElement('div');
