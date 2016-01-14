@@ -11,7 +11,7 @@ suite('Polymer.dom', function() {
     var projected = Polymer.dom(testElement.root).querySelector('#projected');
     assert.equal(projected.textContent, 'projected');
     var p2 = Polymer.dom(testElement).querySelector('#projected');
-    assert.notOk(p2);
+    assert.isNull(p2);
     var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
     assert.equal(rere.is, 'x-rereproject');
     var re = Polymer.dom(rere.root).querySelector('x-reproject');
