@@ -11,7 +11,7 @@ suite('Polymer.dom', function() {
     var projected = Polymer.dom(testElement.root).querySelector('#projected');
     assert.equal(projected.textContent, 'projected');
     var p2 = Polymer.dom(testElement).querySelector('#projected');
-    assert.notOk(p2);
+    assert.isNull(p2);
     var rere = Polymer.dom(testElement.root).querySelector('x-rereproject');
     assert.equal(rere.is, 'x-rereproject');
     var re = Polymer.dom(rere.root).querySelector('x-reproject');
@@ -1197,6 +1197,24 @@ suite('Polymer.dom non-distributed elements', function() {
     var c1 = document.createElement('x-compose');
     var project = c1.$.project;
     Polymer.dom(project).appendChild(test);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(test).getOwnerRoot(), c1.root, 'getOwnerRoot incorrect for child added to element in root');
+    Polymer.dom(project).removeChild(test);
+    Polymer.dom.flush();
+    assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect for child moved from a root to no root');
+    Polymer.dom(project).appendChild(test);
+    Polymer.dom.flush();
+    assert.equal(Polymer.dom(test).getOwnerRoot(), c1.root, 'getOwnerRoot incorrect for child added to element in root');
+  });
+
+  test('getOwnerRoot when out of tree and adding subtree', function() {
+    var container = document.createDocumentFragment();
+    var test = document.createElement('div');
+    container.appendChild(test);
+    assert.notOk(Polymer.dom(test).getOwnerRoot(), 'getOwnerRoot incorrect when not in root');
+    var c1 = document.createElement('x-compose');
+    var project = c1.$.project;
+    Polymer.dom(project).appendChild(container);
     Polymer.dom.flush();
     assert.equal(Polymer.dom(test).getOwnerRoot(), c1.root, 'getOwnerRoot incorrect for child added to element in root');
     Polymer.dom(project).removeChild(test);
