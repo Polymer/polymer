@@ -755,6 +755,36 @@ suite('Polymer.dom accessors', function() {
     assert.equal(Polymer.dom(child).previousElementSibling, before, 'previousElementSibling incorrect');
   });
 
+  test('Polymer.dom node accessors (empty logical tree)', function() {
+    var element = document.createElement('x-simple');
+    assert.equal(Polymer.dom(element).parentNode, null, 'parentNode incorrect');
+    assert.equal(Polymer.dom(element).firstChild, null, 'firstChild incorrect');
+    assert.equal(Polymer.dom(element).lastChild, null, 'lastChild incorrect');
+    assert.equal(Polymer.dom(element).nextSibling, null, 'nextSibling incorrect');
+    assert.equal(Polymer.dom(element).previousSibling, null, 'previousSibling incorrect');
+    assert.equal(Polymer.dom(element).firstElementChild, null, 'firstElementChild incorrect');
+    assert.equal(Polymer.dom(element).lastElementChild, null, 'lastElementChild incorrect');
+    assert.equal(Polymer.dom(element).nextElementSibling, null, 'nextElementSibling incorrect');
+    assert.equal(Polymer.dom(element).previousElementSibling, null, 'previousElementSibling incorrect');
+  });
+
+  test('Polymer.dom node accessors (unmanaged logical tree)', function() {
+    var element = document.createElement('div');
+    var child1 = document.createElement('div');
+    var child2 = document.createElement('div');
+    element.appendChild(child1);
+    element.appendChild(child2);
+    assert.equal(Polymer.dom(element).parentNode, null, 'parentNode incorrect');
+    assert.equal(Polymer.dom(element).firstChild, child1, 'firstChild incorrect');
+    assert.equal(Polymer.dom(element).lastChild, child2, 'lastChild incorrect');
+    assert.equal(Polymer.dom(element).nextSibling, null, 'nextSibling incorrect');
+    assert.equal(Polymer.dom(element).previousSibling, null, 'previousSibling incorrect');
+    assert.equal(Polymer.dom(element).firstElementChild, child1, 'firstElementChild incorrect');
+    assert.equal(Polymer.dom(element).lastElementChild, child2, 'lastElementChild incorrect');
+    assert.equal(Polymer.dom(element).nextElementSibling, null, 'nextElementSibling incorrect');
+    assert.equal(Polymer.dom(element).previousElementSibling, null, 'previousElementSibling incorrect');
+  });
+
   test('Polymer.dom textContent', function() {
     var testElement = document.createElement('x-project');
     Polymer.dom(testElement).textContent = 'Hello World';
