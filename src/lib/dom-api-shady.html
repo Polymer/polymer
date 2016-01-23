@@ -99,8 +99,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         TreeApi.Logical.recordInsertBefore(node, this.node, ref_node);
       }
       // if not distributing and not adding to host, do a fast path addition
-      return (this._maybeDistribute(node) ||
-        this._tryRemoveUndistributedNode(node));
+      var handled = this._maybeDistribute(node) ||
+        this.node.shadyRoot;
+      // if shady is handling this node, 
+      // the actual dom may not be removed if the node or fragment contents
+      // remain undistributed so we ensure removal here.
+      // NOTE: we only remove from existing location iff shady dom is involved.
+      // This is because a node fragment is passed to the native add method
+      // which expects to see fragment children. Regular elements must also
+      // use this check because not doing so causes separation of 
+      // attached/detached and breaks, for example, 
+      // dom-if's attached/detached checks.
+      if (handled) {
+        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+          while (node.firstChild) {
+            TreeApi.Composed.removeChild(node, node.firstChild);
+          }
+        } else {
+          var parent = TreeApi.Composed.getParentNode(node);
+          if (parent) {
+            TreeApi.Composed.removeChild(parent, node);
+          }
+        }
+      }
+      return handled;
     },
 
     /**
@@ -117,7 +139,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var container = this.node._isShadyRoot ? this.node.host : this.node;
         // not guaranteed to physically be in container; e.g.
         // undistributed nodes.
-        if (container === node.parentNode) {
+        var parent = TreeApi.Composed.getParentNode(node);
+        if (container === parent) {
           TreeApi.Composed.removeChild(container, node);
         }
       }
@@ -257,16 +280,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return added;
     },
 
-    _tryRemoveUndistributedNode: function(node) {
-      if (this.node.shadyRoot) {
-        var parent = TreeApi.Composed.getParentNode(node);
-        if (parent) {
-          TreeApi.Composed.removeChild(parent, node);
-        }
-        return true;
-      }
-    },
-
     _updateInsertionPoints: function(host) {
       var i$ = host.shadyRoot._insertionPoints =
         dom(host.shadyRoot).querySelectorAll(CONTENT);
@@ -306,7 +319,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           for (var j=0; j<dc$.length; j++) {
             hostNeedsDist = true;
             var node = dc$[j];
-            var parent = node.parentNode;
+            var parent = TreeApi.Composed.getParentNode(node);
             if (parent) {
               TreeApi.Composed.removeChild(parent, node);
             }

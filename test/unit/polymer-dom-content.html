@@ -40,6 +40,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </script>
 </dom-module>
 
+<dom-module id="x-dist-star">
+  <template><content select="*"></content></template>
+  <script>
+  HTMLImports.whenReady(function() {
+    Polymer({is: 'x-dist-star'});
+  });
+  </script>
+</dom-module>
+
 <dom-module id="x-dist-inside-deep-tree">
   <template>
     x-dist-inside-deep-tree
@@ -242,6 +251,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   });
   </script>
 </dom-module>
+
+<dom-module id="x-repeat2">
+  <template>
+    <x-dist-star id="dist">
+      <template is="dom-repeat" items="{{items}}">
+        <div>{{item}}</div>
+      </template>
+    </x-dist-star>
+  </template>
+  <script>
+  HTMLImports.whenReady(function() {
+    Polymer({
+      is: 'x-repeat2',
+      properties: {
+        items: {
+          type: Array,
+          value: ["ITEM1", "ITEM2", "ITEM3"]
+        }
+      }
+    });
+  });
+  </script>
+</dom-module>
+
+<x-repeat2 id="repeat2"></x-repeat2>
 
 <x-compose-lazy-no-dist><span>Child</span></x-compose-lazy-no-dist>
 
@@ -1394,6 +1428,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(x1.$.dist.$.distWrapper.children.length, 4);
       }
       Polymer.dom(document.body).removeChild(div);
+    });
+
+    test('dom-repeat that distributes inside a select=* container', function(done) {
+      var x1 = document.querySelector('#repeat2');
+      Polymer.dom.flush();
+      // async due to attachment.
+      setTimeout(function() {
+        assert.equal(Polymer.dom(x1.$.dist).children.length, 4);
+        if (x1.$.dist.shadyRoot) {
+          assert.equal(x1.$.dist.children.length, 4);
+        }
+        done();
+      });
+    });
+
+    test('adding a document fragment clears nodes in the fragment', function() {
+      var x = document.createElement('x-dist-star');
+      var frag = document.createDocumentFragment();
+      var t = document.createTextNode('hi');
+      var d = document.createElement('div');
+      frag.appendChild(t);
+      frag.appendChild(d);
+      Polymer.dom(x).appendChild(frag);
+      Polymer.dom.flush();
+      assert.equal(Polymer.dom(t).parentNode, x, 'logical parent wrong');
+      assert.equal(Polymer.dom(d).parentNode, x, 'logical parent wrong');
+      assert.equal(frag.childNodes.length, 0, 'fragment not empty');
+    });
+
+    test('adding a non-distributing node removes the node from its current location', function() {
+      var x = document.createElement('x-dist-star');
+      var t = document.createTextNode('hi');
+      document.body.appendChild(t);
+      Polymer.dom(x).appendChild(t);
+      Polymer.dom.flush();
+      assert.equal(Polymer.dom(t).parentNode, x);
+      if (x.shadyRoot) {
+        assert.isNull(t.parentNode);
+      }
     });
 
   });
