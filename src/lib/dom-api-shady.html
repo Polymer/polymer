@@ -56,8 +56,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           'of this node');
       }
       // remove node from its current position iff it's in a tree.
-      var isFragment = node.nodeType === Node.DOCUMENT_FRAGMENT_NODE;
-      if (!isFragment) {
+      if (node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
         var parent = TreeApi.Logical.getParentNode(node);
         // notify existing parent that this node is being removed.
         if (parent) {
@@ -82,11 +81,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           TreeApi.Composed.appendChild(container, node);
         }
-      // if a fragment provoked distribution, clean up it's actual dom.
-      } else if (isFragment) {
-        while (node.firstChild) {
-          node.removeChild(node.firstChild);
-        }
       }
       this.notifyObserver();
       return node;
@@ -105,8 +99,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         TreeApi.Logical.recordInsertBefore(node, this.node, ref_node);
       }
       // if not distributing and not adding to host, do a fast path addition
-      return (this._maybeDistribute(node) ||
+      var handled = (this._maybeDistribute(node) ||
         this._tryRemoveUndistributedNode(node));
+      // if distribution is handling this node and it's a fragment, 
+      // the actual dom may not be removed from the fragment if some nodes
+      // remain undistributed so we ensure removal here.
+      if (handled && (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE)) {
+        while (node.firstChild) {
+          node.removeChild(node.firstChild);
+        }
+      }
+      return handled;
     },
 
     /**
