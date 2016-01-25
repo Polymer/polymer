@@ -42,8 +42,10 @@ var cleanupPipe = lazypipe()
   // remove leading whitespace and comments
   .pipe(polyclean.leftAlignJs)
   // remove html wrapper
-  .pipe(replace, '<html><head><meta charset="UTF-8">', '')
-  .pipe(replace, '</head><body></body></html>', '')
+  .pipe(replace, '<html><head>', '')
+  .pipe(replace, '<meta charset="UTF-8">', '')
+  .pipe(replace, '</head><body><div hidden="" by-vulcanize="">', '')
+  .pipe(replace, '</div></body></html>', '')
 ;
 
 function vulcanizeWithExcludes(target, excludes) {
