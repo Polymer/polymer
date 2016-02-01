@@ -59,8 +59,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     behaviors: [],
 
     _desugarBehaviors: function() {
-      if (this.behaviors.length) {
+      // ensure behaviors are not shadowed by super.
+      if (!this.hasOwnProperty('behaviors')) {
+        this.behaviors = [];
+      }
+      if (this.behaviors && this.behaviors.length) {
         this.behaviors = this._desugarSomeBehaviors(this.behaviors);
+      }
+      this._desugarSuperBehaviors();
+    },
+
+    _desugarSuperBehaviors: function() {
+      // note: to support manual prototype chaining (or ES6 class syntax),
+      // don't rely on extends being set...
+      var supr = this.__proto__.__isPolymerInstance__  && 
+        !this.__proto__.hasOwnProperty('__isPolymerInstance__') ? 
+        this.__proto__ : null;
+      if (supr) {
+        // setup __behaviorMethods (list used by _doBehavior)
+        this.__behaviorMethods = this.behaviors.concat(
+          supr.__behaviorMethods || supr.behaviors);
+        // chain behaviors from super
+        var superBehaviors = supr.behaviors.slice();
+        superBehaviors.push(supr);
+        // collapsed list of: 
+        // [ extended behaviors, extended element, this.behaviors ]
+        this.behaviors = superBehaviors.concat(this.behaviors);
+        // ensure meta objects are not shadowed by super.
+        for (var i in Polymer.Base._behaviorMetaProperties) {
+          if (!this.hasOwnProperty(i)) {
+            this[i] = new Polymer.Base._behaviorMetaProperties[i];
+          }
+        }
       }
     },
 
@@ -104,23 +134,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _prepBehaviors: function() {
-      this._prepFlattenedBehaviors(this.behaviors);
-    },
-
-    _prepFlattenedBehaviors: function(behaviors) {
       // iteration 3
       // `_prepBehavior` goes in natural order
       // otherwise, it's a tricky detail for implementors of `_prepBehavior`
-      for (var i=0, l=behaviors.length; i<l; i++) {
-        this._prepBehavior(behaviors[i]);
+      for (var i=0, l=this.behaviors.length; i<l; i++) {
+        this._prepBehavior(this.behaviors[i]);
       }
       // prep our prototype-as-behavior
       this._prepBehavior(this);
     },
 
     _doBehavior: function(name, args) {
-      for (var i=0; i < this.behaviors.length; i++) {
-        this._invokeBehavior(this.behaviors[i], name, args);
+      var list = this.__behaviorMethods || this.behaviors;
+      for (var i=0; i < list.length; i++) {
+        this._invokeBehavior(list[i], name, args);
       }
       this._invokeBehavior(this, name, args);
     },
@@ -144,18 +171,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // special properties on behaviors are not mixed in and are instead 
   // either processed specially (e.g. listeners, properties) or available
   // for calling via doBehavior (e.g. created, ready)
-  Polymer.Base._behaviorProperties = {
-    hostAttributes: true,
+  Polymer.Base._behaviorMetaProperties = {
+    hostAttributes: Object,
+    properties: Object,
+    observers: Array,
+    listeners: Object
+  };
+
+  Polymer.Base._behaviorProperties = Polymer.Base.chainObject({
     beforeRegister: true,
     registered: true,
-    properties: true,
-    observers: true,
-    listeners: true,
     created: true,
     attached: true,
     detached: true,
     attributeChanged: true,
     ready: true
-  }
+  }, Polymer.Base._behaviorMetaProperties);
 
 </script>
