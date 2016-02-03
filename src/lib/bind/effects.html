@@ -67,6 +67,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (args) {
           fn.apply(this, args);
         }
+      } else if (effect.dynamicFn) {
+        // dynamic functions can be just like every other property `undefined`
+        // so we MUST ignore an undefined value here. (That's totally the
+        // same guard we use within `_marshalArgs` and part of the spec.)
       } else {
         this._warn(this._logf('_complexObserverEffect', 'observer method `' +
           effect.method + '` not defined'));
@@ -74,15 +78,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _computeEffect: function(source, value, effect) {
-      var args = Polymer.Bind._marshalArgs(this.__data__, effect, source, value);
-      if (args) {
-        var fn = this[effect.method];
-        if (fn) {
-          this.__setProperty(effect.name, fn.apply(this, args));
-        } else {
-          this._warn(this._logf('_computeEffect', 'compute method `' +
-            effect.method + '` not defined'));
+      var fn = this[effect.method];
+      if (fn) {
+        var args = Polymer.Bind._marshalArgs(this.__data__, effect, source, value);
+        if (args) {
+          var computedvalue = fn.apply(this, args);
+          this.__setProperty(effect.name, computedvalue);
         }
+      } else if (effect.dynamicFn) {
+        // dynamic functions can be just like every other property `undefined`
+        // so we MUST ignore an undefined value here. (That's totally the
+        // same guard we use within `_marshalArgs` and part of the spec.)
+      } else {
+        this._warn(this._logf('_computeEffect', 'compute method `' +
+          effect.method + '` not defined'));
       }
     },
 
@@ -98,6 +107,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           this._applyEffectValue(effect, computedvalue);
         }
+      } else if (effect.dynamicFn) {
+        // dynamic functions can be just like every other property `undefined`
+        // so we MUST ignore an undefined value here. (That's totally the
+        // same guard we use within `_marshalArgs` and part of the spec.)
       } else {
         computedHost._warn(computedHost._logf('_annotatedComputationEffect',
           'compute method `' + effect.method + '` not defined'));
@@ -109,6 +122,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _marshalArgs: function(model, effect, path, value) {
       var values = [];
       var args = effect.args;
+      // Actually we should return early as soon as we see an `undefined`,
+      // but dom-repeat relies on this behavior.
+      var bailoutEarly = (args.length > 1 || effect.dynamicFn);
       for (var i=0, l=args.length; i<l; i++) {
         var arg = args[i];
         var name = arg.name;
@@ -120,7 +136,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           v = model[name];
         }
-        if (args.length > 1 && v === undefined) {
+        if (bailoutEarly && v === undefined) {
           return;
         }
         if (arg.wildcard) {
