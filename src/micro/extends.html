@@ -49,7 +49,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _getExtendedPrototype: function(tag) {
       var isNative = tag && tag.indexOf('-') < 0;
-      var proto = isNative ? 
+      var proto = isNative ?
         this._getExtendedNativePrototype(tag) :
         this._getExtendedElementPrototype(tag);
       proto.__extendsNativeElement = isNative;
@@ -58,6 +58,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _nativePrototypes: {}, // static
     _registeredPrototypes: {}, // static
+    _chainedExtendedPrototypes: {}, // static
 
     _getExtendedElementPrototype: function(tag) {
       return this._registeredPrototypes[tag];
@@ -76,7 +77,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     __getSuper: function(proto) {
       var supr = proto.__proto__;
       // is a Polymer instance but is not Base...
-      if (supr.__isPolymerInstance__ && 
+      if (supr.__isPolymerInstance__ &&
         !supr.hasOwnProperty('__isPolymerInstance__')) {
         return supr;
       }
@@ -87,7 +88,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!p) {
         var np = this.getNativePrototype(tag);
         p = this.extend(Object.create(np), Polymer.Base);
+        var constructor = function(){};
+        constructor.prototype = p;
+        p.constructor = constructor;
+        p.extends = tag;
         this._nativePrototypes[tag] = p;
+      }
+      return p;
+    },
+
+    _getChainedExtendedPrototype: function(tag) {
+      var p = this._chainedExtendedPrototypes[tag]
+      if (!p) {
+        var baseProto = this._getExtendedPrototype(tag);
+        var p = Object.create(baseProto);
+        var constructor = function(){};
+        constructor.prototype = p;
+        p.constructor = constructor;
+        p.extends = tag;
+        this._chainedExtendedPrototypes[tag] = p;
       }
       return p;
     },
@@ -105,5 +124,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
   });
+
+  /**
+   * Utility function for extending native elements and Polymer elements with
+   * ES2015 class syntax.
+   *
+   * `Polymer.Extend()` will
+   *
+   * Example:
+   *
+   *    class MyInput extends Polymer.Extend('input') {
+   *      beforeRegister() {
+   *        this.is = 'my-input';
+   *      }
+   *    }
+   *    Polymer(MyInput);
+   *
+   * @method Extend
+   * @param {string} tag Tagname of element to extend from
+   * @return {Function} Constructor of element given parameter`tag`.
+   */
+  Polymer.Extend = function(tag) {
+    var p = Polymer.Base._getExtendedPrototype(tag);
+    if (!p.__extendsNativeElement) {
+      p = Polymer.Base._getChainedExtendedPrototype(tag);
+    }
+    return p.constructor;
+  };
 
 </script>
