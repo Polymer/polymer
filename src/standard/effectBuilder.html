@@ -12,7 +12,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../lib/bind/effects.html">
 
 <script>
-
   /**
    * Support for property side effects.
    *
@@ -33,7 +32,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.Base._addFeature({
 
     _addPropertyEffect: function(property, kind, effect) {
-     Polymer.Bind.addPropertyEffect(this, property, kind, effect);
+      var prop = Polymer.Bind.addPropertyEffect(this, property, kind, effect);
+      // memoize path function for faster lookup.
+      prop.pathFn = this['_' + prop.kind + 'PathEffect'];
     },
 
     // prototyping
@@ -60,10 +61,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._addComputedEffect(p, prop.computed);
           }
           if (prop.notify) {
-            this._addPropertyEffect(p, 'notify');
+            this._addPropertyEffect(p, 'notify', {
+              event: Polymer.CaseMap.camelToDashCase(p) + '-changed'});
           }
           if (prop.reflectToAttribute) {
-            this._addPropertyEffect(p, 'reflect');
+            this._addPropertyEffect(p, 'reflect', {
+              attribute: Polymer.CaseMap.camelToDashCase(p)
+            });
           }
           if (prop.readOnly) {
             // Ensure accessor is created
@@ -75,14 +79,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addComputedEffect: function(name, expression) {
       var sig = this._parseMethod(expression);
-      sig.args.forEach(function(arg) {
+      for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
         this._addPropertyEffect(arg.model, 'compute', {
           method: sig.method,
           args: sig.args,
           trigger: arg,
-          property: name
+          name: name
         });
-      }, this);
+      }
     },
 
     _addObserverEffect: function(property, observer) {
@@ -94,34 +98,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addComplexObserverEffects: function(observers) {
       if (observers) {
-        observers.forEach(function(observer) {
-          this._addComplexObserverEffect(observer);
-        }, this);
+        for (var i=0, o; (i<observers.length) && (o=observers[i]); i++)  {
+          this._addComplexObserverEffect(o);
+        }
       }
     },
 
     _addComplexObserverEffect: function(observer) {
       var sig = this._parseMethod(observer);
-      sig.args.forEach(function(arg) {
+
+      if (!sig) {
+        throw new Error("Malformed observer expression '" + observer + "'");
+      }
+
+      for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
         this._addPropertyEffect(arg.model, 'complexObserver', {
           method: sig.method,
           args: sig.args,
           trigger: arg
         });
-      }, this);
+      }
     },
 
     _addAnnotationEffects: function(notes) {
-      // create a virtual annotation list, must be concretized at instance time
-      this._nodes = [];
       // process annotations that have been parsed from template
-      notes.forEach(function(note) {
+      for (var i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
         // where to find the node in the concretized list
-        var index = this._nodes.push(note) - 1;
-        note.bindings.forEach(function(binding) {
-          this._addAnnotationEffect(binding, index);
-        }, this);
-      }, this);
+        var b$ = note.bindings;
+        for (var j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
+          this._addAnnotationEffect(binding, i);
+        }
+      }
     },
 
     _addAnnotationEffect: function(note, index) {
@@ -129,39 +136,53 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (Polymer.Bind._shouldAddListener(note)) {
         // <node>.on.<dash-case-property>-changed: <path> = e.detail.value
         Polymer.Bind._addAnnotatedListener(this, index,
-          note.name, note.value, note.event);
+          note.name, note.parts[0].value, note.parts[0].event);
       }
-      if (note.signature) {
-        this._addAnnotatedComputationEffect(note, index);
-      } else {
-        // capture the node index
-        note.index = index;
-        // add 'annotation' binding effect for property 'model'
-        this._addPropertyEffect(note.model, 'annotation', note);
+      for (var i=0; i<note.parts.length; i++) {
+        var part = note.parts[i];
+        if (part.signature) {
+          this._addAnnotatedComputationEffect(note, part, index);
+        } else if (!part.literal) {
+          // add 'annotation' binding effect for property 'model'
+          this._addPropertyEffect(part.model, 'annotation', {
+            kind: note.kind,
+            index: index,
+            name: note.name,
+            value: part.value,
+            isCompound: note.isCompound,
+            compoundIndex: part.compoundIndex,
+            event: part.event,
+            customEvent: part.customEvent,
+            negate: part.negate
+          });
+        }
       }
     },
 
-    _addAnnotatedComputationEffect: function(note, index) {
-      var sig = note.signature;
+    _addAnnotatedComputationEffect: function(note, part, index) {
+      var sig = part.signature;
       if (sig.static) {
-        this.__addAnnotatedComputationEffect('__static__', index, note, sig, null);
+        this.__addAnnotatedComputationEffect('__static__', index, note, part, null);
       } else {
-        sig.args.forEach(function(arg) {
+        for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
           if (!arg.literal) {
-            this.__addAnnotatedComputationEffect(arg.model, index, note, sig, arg);
+            this.__addAnnotatedComputationEffect(arg.model, index, note, part,
+              arg);
           }
-        }, this);
+        }
       }
     },
 
-    __addAnnotatedComputationEffect: function(property, index, note, sig, trigger) {
+    __addAnnotatedComputationEffect: function(property, index, note, part, trigger) {
       this._addPropertyEffect(property, 'annotatedComputation', {
         index: index,
+        isCompound: note.isCompound,
+        compoundIndex: part.compoundIndex,
         kind: note.kind,
-        property: note.name,
-        negate: note.negate,
-        method: sig.method,
-        args: sig.args,
+        name: note.name,
+        negate: part.negate,
+        method: part.signature.method,
+        args: part.signature.args,
         trigger: trigger
       });
     },
@@ -169,7 +190,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // method expressions are of the form: `name([arg1, arg2, .... argn])`
     _parseMethod: function(expression) {
       // tries to match valid javascript property names
-      var m = expression.match(/([^\s]+)\(([\s\S]*)\)/);
+      var m = expression.match(/([^\s]+?)\((.*)\)/);
       if (m) {
         var sig = { method: m[1], static: true };
         if (m[2].trim()) {
@@ -206,8 +227,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         ;
       // basic argument descriptor
       var a = {
-        name: arg,
-        model: this._modelForPath(arg)
+        name: arg
       };
       // detect literal value (must be String or Number)
       var fc = arg[0];
@@ -230,6 +250,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       // if not literal, look for structured path
       if (!a.literal) {
+        a.model = this._modelForPath(arg);
         // detect structured path (has dots)
         a.structured = arg.indexOf('.') > 0;
         if (a.structured) {
@@ -243,17 +264,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     // instancing
-
     _marshalInstanceEffects: function() {
       Polymer.Bind.prepareInstance(this);
-      Polymer.Bind.setupBindListeners(this);
+      if (this._bindListeners) {
+        Polymer.Bind.setupBindListeners(this);
+      }
     },
 
-    _applyEffectValue: function(value, info) {
+    _applyEffectValue: function(info, value) {
       var node = this._nodes[info.index];
-      // TODO(sorvell): ideally, the info object is normalized for easy
-      // lookup here.
-      var property = info.property || info.name || 'textContent';
+      var property = info.name;
+      if (info.isCompound) {
+        var storage = node.__compoundStorage__[property];
+        storage[info.compoundIndex] = value;
+        value = storage.join('');
+      }
       // special processing for 'class' and 'className'; 'class' handled
       // when attr is serialized.
       if (info.kind == 'attribute') {
@@ -269,19 +294,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             (node.localName == 'input' && property == 'value')) {
           value = value == undefined ? '' : value;
         }
-        // TODO(kschaaf): Ideally we'd use `fromAbove: true`, but this
-        // breaks read-only properties
-        // this.__setProperty(property, value, true, node);
-        return node[property] = value;
+        // Ideally we would call setProperty using fromAbove: true to avoid
+        // spinning the wheel needlessly, but we found that users were listening
+        // for change events outside of bindings
+        var pinfo;
+        if (!node._propertyInfo || !(pinfo = node._propertyInfo[property]) ||
+          !pinfo.readOnly) {
+          this.__setProperty(property, value, false, node);
+        }
       }
     },
 
     _executeStaticEffects: function() {
-      if (this._propertyEffects.__static__) {
+      if (this._propertyEffects && this._propertyEffects.__static__) {
         this._effectEffects('__static__', null, this._propertyEffects.__static__);
       }
     }
 
   });
-
 </script>

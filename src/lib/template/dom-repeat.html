@@ -107,6 +107,7 @@ Then the `observe` property should be configured as follows:
 
     is: 'dom-repeat',
     extends: 'template',
+    _template: null,
 
     /**
      * Fired whenever DOM is added or removed by this template (by
@@ -188,7 +189,50 @@ Then the `observe` property should be configured as follows:
        * This is useful in rate-limiting shuffing of the view when
        * item changes may be frequent.
        */
-      delay: Number
+      delay: Number,
+
+      /**
+       * Count of currently rendered items after `filter` (if any) has been applied.
+       * If "chunking mode" is enabled, `renderedItemCount` is updated each time a 
+       * set of template instances is rendered.
+       * 
+       */
+      renderedItemCount: {
+        type: Number,
+        notify: true,
+        readOnly: true
+      },
+
+      /**
+       * Defines an initial count of template instances to render after setting
+       * the `items` array, before the next paint, and puts the `dom-repeat`
+       * into "chunking mode".  The remaining items will be created and rendered
+       * incrementally at each animation frame therof until all instances have
+       * been rendered.
+       */
+      initialCount: {
+        type: Number,
+        observer: '_initializeChunking'
+      },
+
+      /**
+       * When `initialCount` is used, this property defines a frame rate to
+       * target by throttling the number of instances rendered each frame to
+       * not exceed the budget for the target frame rate.  Setting this to a
+       * higher number will allow lower latency and higher throughput for
+       * things like event handlers, but will result in a longer time for the
+       * remaining items to complete rendering.
+       */
+      targetFramerate: {
+        type: Number,
+        value: 20
+      },
+
+      _targetFrameTime: {
+        type: Number,
+        computed: '_computeFrameTime(targetFramerate)'
+      }
+
     },
 
     behaviors: [
@@ -201,18 +245,29 @@ Then the `observe` property should be configured as follows:
 
     created: function() {
       this._instances = [];
+      this._pool = [];
+      this._limit = Infinity;
+      var self = this;
+      this._boundRenderChunk = function() {
+        self._renderChunk();
+      };
     },
 
     detached: function() {
+      this.__isDetached = true;
       for (var i=0; i<this._instances.length; i++) {
-        this._detachRow(i);
+        this._detachInstance(i);
       }
     },
 
     attached: function() {
-      var parentNode = Polymer.dom(this).parentNode;
-      for (var i=0; i<this._instances.length; i++) {
-        Polymer.dom(parentNode).insertBefore(this._instances[i].root, this);
+      // only perform attachment if the element was previously detached.
+      if (this.__isDetached) {
+        this.__isDetached = false;
+        var parent = Polymer.dom(Polymer.dom(this).parentNode);
+        for (var i=0; i<this._instances.length; i++) {
+          this._attachInstance(i, parent);
+        }
       }
     },
 
@@ -231,9 +286,8 @@ Then the `observe` property should be configured as follows:
       }
     },
 
-    _sortChanged: function() {
+    _sortChanged: function(sort) {
       var dataHost = this._getRootDataHost();
-      var sort = this.sort;
       this._sortFn = sort && (typeof sort == 'function' ? sort :
         function() { return dataHost[sort].apply(dataHost, arguments); });
       this._needFullRefresh = true;
@@ -242,15 +296,50 @@ Then the `observe` property should be configured as follows:
       }
     },
 
-    _filterChanged: function() {
+    _filterChanged: function(filter) {
       var dataHost = this._getRootDataHost();
-      var filter = this.filter;
       this._filterFn = filter && (typeof filter == 'function' ? filter :
         function() { return dataHost[filter].apply(dataHost, arguments); });
       this._needFullRefresh = true;
       if (this.items) {
         this._debounceTemplate(this._render);
       }
+    },
+
+    _computeFrameTime: function(rate) {
+      return Math.ceil(1000/rate);
+    },
+
+    _initializeChunking: function() {
+      if (this.initialCount) {
+        this._limit = this.initialCount;
+        this._chunkCount = this.initialCount;
+        this._lastChunkTime = performance.now();
+      }
+    },
+
+    _tryRenderChunk: function() {
+      // Debounced so that multiple calls through `_render` between animation
+      // frames only queue one new rAF (e.g. array mutation & chunked render)
+      if (this.items && this._limit < this.items.length) {
+        this.debounce('renderChunk', this._requestRenderChunk);
+      }
+    },
+
+    _requestRenderChunk: function() {
+      requestAnimationFrame(this._boundRenderChunk);
+    },
+
+    _renderChunk: function() {
+      // Simple auto chunkSize throttling algorithm based on feedback loop:
+      // measure actual time between frames and scale chunk count by ratio
+      // of target/actual frame time
+      var currChunkTime = performance.now();
+      var ratio = this._targetFrameTime / (currChunkTime - this._lastChunkTime);
+      this._chunkCount = Math.round(this._chunkCount * ratio) || 1;
+      this._limit += this._chunkCount;
+      this._lastChunkTime = currChunkTime;
+      this._debounceTemplate(this._render);
     },
 
     _observeChanged: function() {
@@ -271,6 +360,7 @@ Then the `observe` property should be configured as follows:
         this._keySplices = [];
         this._indexSplices = [];
         this._needFullRefresh = true;
+        this._initializeChunking();
         this._debounceTemplate(this._render);
       } else if (change.path == 'items.splices') {
         this._keySplices = this._keySplices.concat(change.value.keySplices);
@@ -322,9 +412,11 @@ Then the `observe` property should be configured as follows:
       var c = this.collection;
       // Choose rendering path: full vs. incremental using splices
       if (this._needFullRefresh) {
+        // Full refresh when items, sort, or filter change, or when render() called
         this._applyFullRefresh();
         this._needFullRefresh = false;
-      } else {
+      } else if (this._keySplices.length) {
+        // Incremental refresh when splices were queued
         if (this._sortFn) {
           this._applySplicesUserSort(this._keySplices);
         } else {
@@ -335,17 +427,41 @@ Then the `observe` property should be configured as follows:
             this._applySplicesArrayOrder(this._indexSplices);
           }
         }
+      } else {
+        // Otherwise only limit changed; no change to instances, just need to
+        // upgrade more placeholders to instances
       }
       this._keySplices = [];
       this._indexSplices = [];
-      // Update final _keyToInstIdx and instance indices
+      // Update final _keyToInstIdx and instance indices, and
+      // upgrade/downgrade placeholders
       var keyToIdx = this._keyToInstIdx = {};
-      for (var i=0; i<this._instances.length; i++) {
+      for (var i=this._instances.length-1; i>=0; i--) {
         var inst = this._instances[i];
+        if (inst.isPlaceholder && i<this._limit) {
+          inst = this._insertInstance(i, inst.__key__);
+        } else if (!inst.isPlaceholder && i>=this._limit) {
+          inst = this._downgradeInstance(i, inst.__key__);
+        }
         keyToIdx[inst.__key__] = i;
-        inst.__setProperty(this.indexAs, i, true);
+        if (!inst.isPlaceholder) {
+          inst.__setProperty(this.indexAs, i, true);
+        }
       }
+      // Reset the pool
+      // TODO(kschaaf): Reuse pool across turns and nested templates
+      // Requires updating parentProps and dealing with the fact that path
+      // notifications won't reach instances sitting in the pool, which
+      // could result in out-of-sync instances since simply re-setting
+      // `item` may not be sufficient if the pooled instance happens to be
+      // the same item.
+      this._pool.length = 0;
+      // Set rendered item count 
+      this._setRenderedItemCount(this._instances.length);
+      // Notify users
       this.fire('dom-change');
+      // Check to see if we need to render more items
+      this._tryRenderChunk();
     },
 
     // Render method 1: full refesh
@@ -368,38 +484,39 @@ Then the `observe` property should be configured as follows:
           }
         }
       }
+      // capture reference for use in filter/sort fn's
+      var self = this;
       // Apply user filter to keys
       if (this._filterFn) {
         keys = keys.filter(function(a) {
-          return this._filterFn(c.getItem(a));
-        }, this);
+          return self._filterFn(c.getItem(a));
+        });
       }
       // Apply user sort to keys
       if (this._sortFn) {
         keys.sort(function(a, b) {
-          return this._sortFn(c.getItem(a), c.getItem(b));
-        }.bind(this));
+          return self._sortFn(c.getItem(a), c.getItem(b));
+        });
       }
       // Generate instances and assign items and keys
       for (var i=0; i<keys.length; i++) {
         var key = keys[i];
         var inst = this._instances[i];
         if (inst) {
-          inst.__setProperty('__key__', key, true);
-          inst.__setProperty(this.as, c.getItem(key), true);
+          inst.__key__ = key;
+          if (!inst.isPlaceholder && i < this._limit) {
+            inst.__setProperty(this.as, c.getItem(key), true);
+          }
+        } else if (i < this._limit) {
+          this._insertInstance(i, key);
         } else {
-          this._instances.push(this._insertRow(i, key));
+          this._insertPlaceholder(i, key);
         }
       }
       // Remove any extra instances from previous state
-      for (; i<this._instances.length; i++) {
-        this._detachRow(i);
+      for (var j=this._instances.length-1; j>=i; j--) {
+        this._detachAndRemoveInstance(j);
       }
-      this._instances.splice(keys.length, this._instances.length-keys.length);
-    },
-
-    _keySort: function(a, b) {
-      return this.collection.getKey(a) - this.collection.getKey(b);
     },
 
     _numericSort: function(a, b) {
@@ -414,19 +531,17 @@ Then the `observe` property should be configured as follows:
       var c = this.collection;
       var instances = this._instances;
       var keyMap = {};
-      var pool = [];
-      var sortFn = this._sortFn || this._keySort.bind(this);
       // Dedupe added and removed keys to a final added/removed map
-      splices.forEach(function(s) {
-        for (var i=0; i<s.removed.length; i++) {
-          var key = s.removed[i];
+      for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+        for (var j=0; j<s.removed.length; j++) {
+          var key = s.removed[j];
           keyMap[key] = keyMap[key] ? null : -1;
         }
-        for (var i=0; i<s.added.length; i++) {
-          var key = s.added[i];
+        for (var j=0; j<s.added.length; j++) {
+          var key = s.added[j];
           keyMap[key] = keyMap[key] ? null : 1;
         }
-      }, this);
+      }
       // Convert added/removed key map to added/removed arrays
       var removedIdxs = [];
       var addedKeys = [];
@@ -448,42 +563,42 @@ Then the `observe` property should be configured as follows:
           var idx = removedIdxs[i];
           // Removed idx may be undefined if item was previously filtered out
           if (idx !== undefined) {
-            pool.push(this._detachRow(idx));
-            instances.splice(idx, 1);
+            this._detachAndRemoveInstance(idx);
           }
         }
       }
+      // capture reference for use in filter/sort fn's
+      var self = this;
       // Add instances for added keys
       if (addedKeys.length) {
         // Filter added keys
         if (this._filterFn) {
           addedKeys = addedKeys.filter(function(a) {
-            return this._filterFn(c.getItem(a));
-          }, this);
+            return self._filterFn(c.getItem(a));
+          });
         }
         // Sort added keys
         addedKeys.sort(function(a, b) {
-          return this._sortFn(c.getItem(a), c.getItem(b));
-        }.bind(this));
+          return self._sortFn(c.getItem(a), c.getItem(b));
+        });
         // Insertion-sort new instances into place (from pool or newly created)
         var start = 0;
         for (var i=0; i<addedKeys.length; i++) {
-          start = this._insertRowUserSort(start, addedKeys[i], pool);
+          start = this._insertRowUserSort(start, addedKeys[i]);
         }
       }
     },
 
-    _insertRowUserSort: function(start, key, pool) {
+    _insertRowUserSort: function(start, key) {
       var c = this.collection;
       var item = c.getItem(key);
       var end = this._instances.length - 1;
       var idx = -1;
-      var sortFn = this._sortFn || this._keySort.bind(this);
       // Binary search for insertion point
       while (start <= end) {
         var mid = (start + end) >> 1;
         var midKey = this._instances[mid].__key__;
-        var cmp = sortFn(c.getItem(midKey), item);
+        var cmp = this._sortFn(c.getItem(midKey), item);
         if (cmp < 0) {
           start = mid + 1;
         } else if (cmp > 0) {
@@ -497,7 +612,7 @@ Then the `observe` property should be configured as follows:
         idx = end + 1;
       }
       // Insert instance at insertion point
-      this._instances.splice(idx, 0, this._insertRow(idx, key, pool));
+      this._insertPlaceholder(idx, key);
       return idx;
     },
 
@@ -507,70 +622,88 @@ Then the `observe` property should be configured as follows:
     // rows are as placeholders, and placeholders are updated to
     // actual rows at the end to take full advantage of removed rows
     _applySplicesArrayOrder: function(splices) {
-      var pool = [];
       var c = this.collection;
-      splices.forEach(function(s) {
+      for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
         // Detach & pool removed instances
-        for (var i=0; i<s.removed.length; i++) {
-          var inst = this._detachRow(s.index + i);
-          if (!inst.isPlaceholder) {
-            pool.push(inst);
-          }
+        for (var j=0; j<s.removed.length; j++) {
+          this._detachAndRemoveInstance(s.index);
         }
-        this._instances.splice(s.index, s.removed.length);
-        // Insert placeholders for new rows
-        for (var i=0; i<s.addedKeys.length; i++) {
-          var inst = {
-            isPlaceholder: true,
-            key: s.addedKeys[i]
-          };
-          this._instances.splice(s.index + i, 0, inst);
-        }
-      }, this);
-      // Replace placeholders with actual instances (from pool or newly created)
-      // Iterate backwards to ensure insertBefore refrence is never a placeholder
-      for (var i=this._instances.length-1; i>=0; i--) {
-        var inst = this._instances[i];
-        if (inst.isPlaceholder) {
-          this._instances[i] = this._insertRow(i, inst.key, pool, true);
+        for (var j=0; j<s.addedKeys.length; j++) {
+          this._insertPlaceholder(s.index+j, s.addedKeys[j]);
         }
       }
     },
 
-    _detachRow: function(idx) {
+    _detachInstance: function(idx) {
       var inst = this._instances[idx];
       if (!inst.isPlaceholder) {
-        var parentNode = Polymer.dom(this).parentNode;
         for (var i=0; i<inst._children.length; i++) {
           var el = inst._children[i];
           Polymer.dom(inst.root).appendChild(el);
         }
+        return inst;
       }
-      return inst;
     },
 
-    _insertRow: function(idx, key, pool, replace) {
-      var inst;
-      if (inst = pool && pool.pop()) {
-        inst.__setProperty(this.as, this.collection.getItem(key), true);
-        inst.__setProperty('__key__', key, true);
-      } else {
-        inst = this._generateRow(idx, key);
+    _attachInstance: function(idx, parent) {
+      var inst = this._instances[idx];
+      if (!inst.isPlaceholder) {
+        parent.insertBefore(inst.root, this);
       }
-      var beforeRow = this._instances[replace ? idx + 1 : idx];
-      var beforeNode = beforeRow ? beforeRow._children[0] : this;
-      var parentNode = Polymer.dom(this).parentNode;
-      Polymer.dom(parentNode).insertBefore(inst.root, beforeNode);
-      return inst;
     },
 
-    _generateRow: function(idx, key) {
+    _detachAndRemoveInstance: function(idx) {
+      var inst = this._detachInstance(idx);
+      if (inst) {
+        this._pool.push(inst);
+      }
+      this._instances.splice(idx, 1);
+    },
+
+    _insertPlaceholder: function(idx, key) {
+      this._instances.splice(idx, 0, {
+        isPlaceholder: true,
+        __key__: key
+      });
+    },
+
+    _stampInstance: function(idx, key) {
       var model = {
         __key__: key
       };
       model[this.as] = this.collection.getItem(key);
       model[this.indexAs] = idx;
-      var inst = this.stamp(model);
+      return this.stamp(model);
+    },
+
+    _insertInstance: function(idx, key) {
+      var inst = this._pool.pop();
+      if (inst) {
+        // TODO(kschaaf): If the pool is shared across turns, parentProps
+        // need to be re-set to reused instances in addition to item/key
+        inst.__setProperty(this.as, this.collection.getItem(key), true);
+        inst.__setProperty('__key__', key, true);
+      } else {
+        inst = this._stampInstance(idx, key);
+      }
+      var beforeRow = this._instances[idx + 1];
+      var beforeNode = beforeRow && !beforeRow.isPlaceholder ? beforeRow._children[0] : this;
+      var parentNode = Polymer.dom(this).parentNode;
+      Polymer.dom(parentNode).insertBefore(inst.root, beforeNode);
+      this._instances[idx] = inst;
+      return inst;
+    },
+
+    _downgradeInstance: function(idx, key) {
+      var inst = this._detachInstance(idx);
+      if (inst) {
+        this._pool.push(inst);
+      }
+      inst = {
+        isPlaceholder: true,
+        __key__: key
+      };
+      this._instances[idx] = inst;
       return inst;
     },
 
@@ -605,7 +738,7 @@ Then the `observe` property should be configured as follows:
     // for notifying items.<key-for-inst>.<path> change up to host
     _forwardInstancePath: function(inst, path, value) {
       if (path.indexOf(this.as + '.') === 0) {
-        this.notifyPath('items.' + inst.__key__ + '.' +
+        this._notifyPath('items.' + inst.__key__ + '.' +
           path.slice(this.as.length + 1), value);
       }
     },
@@ -614,18 +747,24 @@ Then the `observe` property should be configured as follows:
     // Called as side-effect of a host property change, responsible for
     // notifying parent path change on each inst
     _forwardParentProp: function(prop, value) {
-      this._instances.forEach(function(inst) {
-        inst.__setProperty(prop, value, true);
-      }, this);
+      var i$ = this._instances;
+      for (var i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
+        if (!inst.isPlaceholder) {
+          inst.__setProperty(prop, value, true);
+        }
+      }
     },
 
     // Implements extension point from Templatizer
     // Called as side-effect of a host path change, responsible for
     // notifying parent path change on each inst
     _forwardParentPath: function(path, value) {
-      this._instances.forEach(function(inst) {
-        inst.notifyPath(path, value, true);
-      }, this);
+      var i$ = this._instances;
+      for (var i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
+        if (!inst.isPlaceholder) {
+          inst._notifyPath(path, value, true);
+        }
+      }
     },
 
     // Called as a side effect of a host items.<key>.<path> path change,
@@ -636,10 +775,10 @@ Then the `observe` property should be configured as follows:
         var key = path.substring(0, dot < 0 ? path.length : dot);
         var idx = this._keyToInstIdx[key];
         var inst = this._instances[idx];
-        if (inst) {
+        if (inst && !inst.isPlaceholder) {
           if (dot >= 0) {
             path = this.as + '.' + path.substring(dot+1);
-            inst.notifyPath(path, value, true);
+            inst._notifyPath(path, value, true);
           } else {
             inst.__setProperty(this.as, value, true);
           }

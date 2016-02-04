@@ -11,11 +11,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 /*
   Extremely simple css parser. Intended to be not more than what we need
-  and definitely not necessarly correct =).
+  and definitely not necessarily correct =).
 */
 Polymer.CssParse = (function() {
 
-  var api = {
+  return {
     // given a string of css, return a simple rule tree
     parse: function(text) {
       text = this._clean(text);
@@ -31,7 +31,7 @@ Polymer.CssParse = (function() {
     _lex: function(text) {
       var root = {start: 0, end: text.length};
       var n = root;
-      for (var i=0, s=0, l=text.length; i < l; i++) {
+      for (var i=0, l=text.length; i < l; i++) {
         switch (text[i]) {
           case this.OPEN_BRACE:
             //console.group(i);
@@ -43,7 +43,7 @@ Polymer.CssParse = (function() {
             n = {start: i+1, parent: p, previous: previous};
             p.rules.push(n);
             break;
-          case this.CLOSE_BRACE: 
+          case this.CLOSE_BRACE:
             //console.groupEnd(n.start);
             n.end = i+1;
             n = n.parent || root;
@@ -60,6 +60,8 @@ Polymer.CssParse = (function() {
       if (node.parent) {
         var ss = node.previous ? node.previous.end : node.parent.start;
         t = text.substring(ss, node.start-1);
+        t = this._expandUnicodeEscapes(t);
+        t = t.replace(this._rx.multipleSpaces, ' ');
         // TODO(sorvell): ad hoc; make selector include only after last ;
         // helps with mixin syntax
         t = t.substring(t.lastIndexOf(';')+1);
@@ -84,9 +86,21 @@ Polymer.CssParse = (function() {
       if (r$) {
         for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
           this._parseCss(r, text);
-        }  
+        }
       }
-      return node;  
+      return node;
+    },
+
+    // conversion of sort unicode escapes with spaces like `\33 ` (and longer) into
+    // expanded form that doesn't require trailing space `\000033`
+    _expandUnicodeEscapes : function(s) {
+      return s.replace(/\\([0-9a-f]{1,6})\s/gi, function() {
+        var code = arguments[1], repeat = 6 - code.length;
+        while (repeat--) {
+          code = '0' + code;
+        }
+        return '\\' + code;
+      });
     },
 
     // stringify parsed css.
@@ -99,17 +113,17 @@ Polymer.CssParse = (function() {
         if (r$ && (preserveProperties || !this._hasMixinRules(r$))) {
           for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
             cssText = this.stringify(r, preserveProperties, cssText);
-          }  
+          }
         } else {
-          cssText = preserveProperties ? node.cssText : 
-            this.removeCustomProps(node.cssText);  
+          cssText = preserveProperties ? node.cssText :
+            this.removeCustomProps(node.cssText);
           cssText = cssText.trim();
           if (cssText) {
             cssText = '  ' + cssText + '\n';
           }
         }
       }
-      // emit rule iff there is cssText
+      // emit rule if there is cssText
       if (cssText) {
         if (node.selector) {
           text += node.selector + ' ' + this.OPEN_BRACE + '\n';
@@ -123,7 +137,7 @@ Polymer.CssParse = (function() {
     },
 
     _hasMixinRules: function(rules) {
-      return (rules[0].selector.indexOf(this.VAR_START) >= 0);
+      return rules[0].selector.indexOf(this.VAR_START) === 0;
     },
 
     removeCustomProps: function(cssText) {
@@ -138,7 +152,7 @@ Polymer.CssParse = (function() {
     },
 
     removeCustomPropApply: function(cssText) {
-      return cssText            
+      return cssText
         .replace(this._rx.mixinApply, '')
         .replace(this._rx.varApply, '');
     },
@@ -157,11 +171,12 @@ Polymer.CssParse = (function() {
     _rx: {
       comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
       port: /@import[^;]*;/gim,
-      customProp: /(?:^|[\s;])--[^;{]*?:[^{};]*?(?:[;\n]|$)/gim,
-      mixinProp: /(?:^|[\s;])--[^;{]*?:[^{;]*?{[^}]*?}(?:[;\n]|$)?/gim,
+      customProp: /(?:^[^;\-\s}]+)?--[^;{}]*?:[^{};]*?(?:[;\n]|$)/gim,
+      mixinProp:  /(?:^[^;\-\s}]+)?--[^;{}]*?:[^{};]*?{[^}]*?}(?:[;\n]|$)?/gim,
       mixinApply: /@apply[\s]*\([^)]*?\)[\s]*(?:[;\n]|$)?/gim,
-      varApply: /[^;:]*?:[^;]*var[^;]*(?:[;\n]|$)?/gim,
+      varApply: /[^;:]*?:[^;]*?var\([^;]*\)(?:[;\n]|$)?/gim,
       keyframesRule: /^@[^\s]*keyframes/,
+      multipleSpaces: /\s+/g
     },
 
     VAR_START: '--',
@@ -169,10 +184,6 @@ Polymer.CssParse = (function() {
     AT_START: '@'
 
   };
-
-
-  // exports 
-  return api;
 
 })();
 

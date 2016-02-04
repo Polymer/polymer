@@ -19,6 +19,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script>
 
+// Safari 9 has a horrible bug related to array enumeration after defining
+// a non-enumerable property on it (we do for `.splices`); for now we work
+// around chai's deepEqual implementation that enumerates array keys using
+// `for in` in the specific case the bug causes an assert failure
+function arraysEqual(a, b) {
+  for (var i=0; i<a.length; i++) {
+    if (a[i] !== b[i]) {
+      throw new Error('expected ' + a + ' to equal ' + b);
+    }
+  }
+  if (a.length != b.length) {
+    throw new Error('expected ' + a + ' to equal ' + b);
+  }
+}
+
 suite('basic path bindings', function() {
 
   var el;
@@ -31,6 +46,80 @@ suite('basic path bindings', function() {
   teardown(function() {
     document.body.removeChild(el);
   });
+
+  function setupNested() {
+    var nested = {
+      obj: {
+        value: 41
+      }
+    };
+    el.nested = nested;
+    el.expectedNestedSubpath = 'nested.obj.value';
+    el.expectedNestedValue = 42;
+    el.expectedNestedObjSubpath = 'nested.obj.value';
+    el.expectedNestedObjValue = 42;
+    el.$.compose.expectedObjSubpath = 'obj.value';
+    el.$.compose.expectedObjValue = 42;
+    el.$.forward.expectedObjSubpath = 'obj.value';
+    el.$.forward.expectedObjValue = 42;
+    el.$.forward.$.compose.expectedObjSubpath = 'obj.value';
+    el.$.forward.$.compose.expectedObjValue = 42;
+    el.clearObserverCounts();
+  }
+
+  function setupComposedAndGetObject() {
+    el.nested = {
+      obj: {
+        value: 41
+      }
+    };
+    var obj = {
+      value: 42
+    };
+    el.expectedNestedSubpath = 'nested.obj';
+    el.expectedNestedValue = obj;
+    el.expectedNestedObjSubpath = 'nested.obj';
+    el.expectedNestedObjValue = obj;
+    el.$.compose.expectedObjSubpath = 'obj';
+    el.$.compose.expectedObjValue = obj;
+    el.$.forward.expectedObjSubpath = 'obj';
+    el.$.forward.expectedObjValue = obj;
+    el.$.forward.$.compose.expectedObjSubpath = 'obj';
+    el.$.forward.$.compose.expectedObjValue = obj;
+    el.clearObserverCounts();
+
+    return obj;
+  }
+
+  function verifyObserverOutput(expectedNestedObjChanged) {
+    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
+    assert.equal(el.observerCounts.nestedObjChanged, expectedNestedObjChanged);
+    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
+    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
+    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
+    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
+    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
+    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
+    assert.equal(el.$.basic.notifyingValue, 42);
+    assert.equal(el.$.basic.notifyingValue, 42);
+    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
+    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
+    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
+    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
+    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
+    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
+    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+  }
+
+  function verifyNestedObserversOutput() {
+    verifyObserverOutput(0);
+  }
+
+  function verifyNonNestedObserversOutput() {
+    verifyObserverOutput(1);
+  }
 
   test('downward data flow', function() {
     // Setup
@@ -52,462 +141,97 @@ suite('basic path bindings', function() {
     // Do the thing
     el.nested = nested;
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 1);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.obj, nested.obj);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.obj, nested.obj);
-    assert.equal(el.$.forward.$.compose.obj, nested.obj);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNonNestedObserversOutput();
   });
 
   test('notification from basic element property change', function() {
     // Setup
-    var nested = {
-      obj: {
-        value: 41
-      }
-    };
-    el.nested = nested;
-    el.expectedNestedSubpath = 'nested.obj.value';
-    el.expectedNestedValue = 42;
-    el.expectedNestedObjSubpath = 'nested.obj.value';
-    el.expectedNestedObjValue = 42;
-    el.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.compose.expectedObjValue = 42;
-    el.$.forward.expectedObjSubpath = 'obj.value';
-    el.$.forward.expectedObjValue = 42;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.forward.$.compose.expectedObjValue = 42;
-    el.clearObserverCounts();
+    setupNested();
     // Do the thing
     el.$.basic.notifyingValue = 42;
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 0);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNestedObserversOutput();
   });
 
   test('notification from composed element property change', function() {
     // Setup
-    var nested = {
-      obj: {
-        value: 41
-      }
-    };
-    el.nested = nested;
-    el.expectedNestedSubpath = 'nested.obj.value';
-    el.expectedNestedValue = 42;
-    el.expectedNestedObjSubpath = 'nested.obj.value';
-    el.expectedNestedObjValue = 42;
-    el.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.compose.expectedObjValue = 42;
-    el.$.forward.expectedObjSubpath = 'obj.value';
-    el.$.forward.expectedObjValue = 42;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.forward.$.compose.expectedObjValue = 42;
-    el.clearObserverCounts();
+    setupNested();
     // Do the thing
     el.$.compose.$.basic1.notifyingValue = 42;
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 0);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNestedObserversOutput();
   });
 
   test('notification from forward\'s composed element property change', function() {
     // Setup
-    var nested = {
-      obj: {
-        value: 41
-      }
-    };
-    el.nested = nested;
-    el.expectedNestedSubpath = 'nested.obj.value';
-    el.expectedNestedValue = 42;
-    el.expectedNestedObjSubpath = 'nested.obj.value';
-    el.expectedNestedObjValue = 42;
-    el.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.compose.expectedObjValue = 42;
-    el.$.forward.expectedObjSubpath = 'obj.value';
-    el.$.forward.expectedObjValue = 42;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.forward.$.compose.expectedObjValue = 42;
-    el.clearObserverCounts();
+    setupNested();
     // Do the thing
     el.$.forward.$.compose.$.basic1.notifyingValue = 42;
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 0);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNestedObserversOutput();
   });
 
   test('notification from set in top element', function() {
     // Setup
-    var nested = {
-      obj: {
-        value: 41
-      }
-    };
-    el.nested = nested;
-    el.expectedNestedSubpath = 'nested.obj.value';
-    el.expectedNestedValue = 42;
-    el.expectedNestedObjSubpath = 'nested.obj.value';
-    el.expectedNestedObjValue = 42;
-    el.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.compose.expectedObjValue = 42;
-    el.$.forward.expectedObjSubpath = 'obj.value';
-    el.$.forward.expectedObjValue = 42;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.forward.$.compose.expectedObjValue = 42;
-    el.clearObserverCounts();
+    setupNested();
     // Do the thing
     el.set('nested.obj.value', 42);
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 0);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNestedObserversOutput();
   });
 
   test('notification from set in composed element', function() {
     // Setup
-    var nested = {
-      obj: {
-        value: 41
-      }
-    };
-    el.nested = nested;
-    el.expectedNestedSubpath = 'nested.obj.value';
-    el.expectedNestedValue = 42;
-    el.expectedNestedObjSubpath = 'nested.obj.value';
-    el.expectedNestedObjValue = 42;
-    el.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.compose.expectedObjValue = 42;
-    el.$.forward.expectedObjSubpath = 'obj.value';
-    el.$.forward.expectedObjValue = 42;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.forward.$.compose.expectedObjValue = 42;
-    el.clearObserverCounts();
+    setupNested();
     // Do the thing
     el.$.compose.set('obj.value', 42);
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 0);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNestedObserversOutput();
   });
 
   test('notification from set in forward element', function() {
     // Setup
-    var nested = {
-      obj: {
-        value: 41
-      }
-    };
-    el.nested = nested;
-    el.expectedNestedSubpath = 'nested.obj.value';
-    el.expectedNestedValue = 42;
-    el.expectedNestedObjSubpath = 'nested.obj.value';
-    el.expectedNestedObjValue = 42;
-    el.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.compose.expectedObjValue = 42;
-    el.$.forward.expectedObjSubpath = 'obj.value';
-    el.$.forward.expectedObjValue = 42;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.forward.$.compose.expectedObjValue = 42;
-    el.clearObserverCounts();
+    setupNested();
     // Do the thing
     el.$.forward.set('obj.value', 42);
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 0);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNestedObserversOutput();
   });
 
   test('notification from set in forward\'s composed element', function() {
     // Setup
-    var nested = {
-      obj: {
-        value: 41
-      }
-    };
-    el.nested = nested;
-    el.expectedNestedSubpath = 'nested.obj.value';
-    el.expectedNestedValue = 42;
-    el.expectedNestedObjSubpath = 'nested.obj.value';
-    el.expectedNestedObjValue = 42;
-    el.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.compose.expectedObjValue = 42;
-    el.$.forward.expectedObjSubpath = 'obj.value';
-    el.$.forward.expectedObjValue = 42;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj.value';
-    el.$.forward.$.compose.expectedObjValue = 42;
-    el.clearObserverCounts();
+    setupNested();
     // Do the thing
     el.$.forward.$.compose.set('obj.value', 42);
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 0);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNestedObserversOutput();
   });
 
   test('notification from object change in compose element', function() {
     // Setup
-    el.nested = {
-      obj: {
-        value: 41
-      }
-    };
-    var obj = {
-      value: 42
-    };
-    el.expectedNestedSubpath = 'nested.obj';
-    el.expectedNestedValue = obj;
-    el.expectedNestedObjSubpath = 'nested.obj';
-    el.expectedNestedObjValue = obj;
-    el.$.compose.expectedObjSubpath = 'obj';
-    el.$.compose.expectedObjValue = obj;
-    el.$.forward.expectedObjSubpath = 'obj';
-    el.$.forward.expectedObjValue = obj;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj';
-    el.$.forward.$.compose.expectedObjValue = obj;
-    el.clearObserverCounts();
+    var obj = setupComposedAndGetObject();
     // Do the thing
     el.$.compose.obj = obj;
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 1);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNonNestedObserversOutput();
   });
 
   test('notification from object change in forward element', function() {
     // Setup
-    el.nested = {
-      obj: {
-        value: 41
-      }
-    };
-    var obj = {
-      value: 42
-    };
-    el.expectedNestedSubpath = 'nested.obj';
-    el.expectedNestedValue = obj;
-    el.expectedNestedObjSubpath = 'nested.obj';
-    el.expectedNestedObjValue = obj;
-    el.$.compose.expectedObjSubpath = 'obj';
-    el.$.compose.expectedObjValue = obj;
-    el.$.forward.expectedObjSubpath = 'obj';
-    el.$.forward.expectedObjValue = obj;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj';
-    el.$.forward.$.compose.expectedObjValue = obj;
-    el.clearObserverCounts();
+    var obj = setupComposedAndGetObject();
     // Do the thing
     el.$.forward.obj = obj;
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 1);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNonNestedObserversOutput();
   });
 
   test('notification from object change in forward\'s compose element', function() {
     // Setup
-    el.nested = {
-      obj: {
-        value: 41
-      }
-    };
-    var obj = {
-      value: 42
-    };
-    el.expectedNestedSubpath = 'nested.obj';
-    el.expectedNestedValue = obj;
-    el.expectedNestedObjSubpath = 'nested.obj';
-    el.expectedNestedObjValue = obj;
-    el.$.compose.expectedObjSubpath = 'obj';
-    el.$.compose.expectedObjValue = obj;
-    el.$.forward.expectedObjSubpath = 'obj';
-    el.$.forward.expectedObjValue = obj;
-    el.$.forward.$.compose.expectedObjSubpath = 'obj';
-    el.$.forward.$.compose.expectedObjValue = obj;
-    el.clearObserverCounts();
+    var obj = setupComposedAndGetObject();
     // Do the thing
     el.$.forward.$.compose.obj = obj;
     // Verify
-    assert.equal(el.observerCounts.nestedSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjChanged, 1);
-    assert.equal(el.observerCounts.nestedObjSubpathChanged, 1);
-    assert.equal(el.observerCounts.nestedObjValueChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.compose.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objSubpathChanged, 1);
-    assert.equal(el.$.forward.observerCounts.objValueChanged, 1);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.basic.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic1.notifyingValue, 42);
-    assert.equal(el.$.forward.$.compose.$.basic2.notifyingValue, 42);
-    assert.equal(el.$.basic.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
-    assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    verifyNonNestedObserversOutput();
   });
 
   test('negation', function() {
@@ -841,6 +565,18 @@ suite('path API', function() {
     assert.equal(el.get('nested.again.again.wayOverThere'), 99);
   });
 
+  test('notifyPath calls observer', function() {
+    el.a = {b: {c: true}};
+    sinon.spy(el, 'aChanged');
+    el.notifyPath('a.b.c', el.a.b.c);
+    assert.isTrue(el.aChanged.calledOnce);
+    assert.equal(el.get('a.b.c'), true);
+  });
+
+  test('notifyPath a non-extistant does nothing', function() {
+    el.notifyPath('does.not.exist', true);
+  });
+
   test('get array', function() {
     el.arrayChanged = function() {};
     el.array = [1, 2, 3];
@@ -850,10 +586,16 @@ suite('path API', function() {
     assert.equal(el.get('array.0'), 1);
     assert.equal(el.get('array.1'), 2);
     assert.equal(el.get('array.2'), 3);
+    assert.equal(el.get('array.#0'), 1);
+    assert.equal(el.get('array.#1'), 2);
+    assert.equal(el.get('array.#2'), 3);
     assert.equal(el.get('array.array'), el.array.array);
     assert.equal(el.get('array.array.0'), 5);
     assert.equal(el.get('array.array.1'), 6);
     assert.equal(el.get('array.array.2'), 7);
+    assert.equal(el.get('array.array.#0'), 5);
+    assert.equal(el.get('array.array.#1'), 6);
+    assert.equal(el.get('array.array.#2'), 7);
     assert.equal(el.get('array.prop'), 'prop');
     el.unshift('array', 0);
     el.splice('array', 2, 0, 1.5);
@@ -864,11 +606,21 @@ suite('path API', function() {
     assert.equal(el.get('array.2'), 1.5);
     assert.equal(el.get('array.3'), 2);
     assert.equal(el.get('array.4'), 3);
+    assert.equal(el.get('array.#0'), 1);
+    assert.equal(el.get('array.#1'), 2);
+    assert.equal(el.get('array.#2'), 3);
+    assert.equal(el.get('array.#3'), 0);
+    assert.equal(el.get('array.#4'), 1.5);
     assert.equal(el.get('array.array.0'), 4);
     assert.equal(el.get('array.array.1'), 5);
     assert.equal(el.get('array.array.2'), 5.5);
     assert.equal(el.get('array.array.3'), 6);
     assert.equal(el.get('array.array.4'), 7);
+    assert.equal(el.get('array.array.#0'), 5);
+    assert.equal(el.get('array.array.#1'), 6);
+    assert.equal(el.get('array.array.#2'), 7);
+    assert.equal(el.get('array.array.#3'), 4);
+    assert.equal(el.get('array.array.#4'), 5.5);
   });
 
   test('set array', function() {
@@ -880,10 +632,16 @@ suite('path API', function() {
     assert.equal(el.get('array.0'), 1);
     assert.equal(el.get('array.1'), 2);
     assert.equal(el.get('array.2'), 3);
+    assert.equal(el.get('array.#0'), 1);
+    assert.equal(el.get('array.#1'), 2);
+    assert.equal(el.get('array.#2'), 3);
     assert.equal(el.get('array.array'), el.array.array);
     assert.equal(el.get('array.array.0'), 5);
     assert.equal(el.get('array.array.1'), 6);
     assert.equal(el.get('array.array.2'), 7);
+    assert.equal(el.get('array.array.#0'), 5);
+    assert.equal(el.get('array.array.#1'), 6);
+    assert.equal(el.get('array.array.#2'), 7);
     assert.equal(el.get('array.prop'), 'prop');
     el.set(['array', 0], 81);
     el.set(['array', 1], 82);
@@ -895,10 +653,34 @@ suite('path API', function() {
     assert.equal(el.get('array.0'), 81);
     assert.equal(el.get('array.1'), 82);
     assert.equal(el.get('array.2'), 83);
+    assert.equal(el.get('array.#0'), 81);
+    assert.equal(el.get('array.#1'), 82);
+    assert.equal(el.get('array.#2'), 83);
     assert.equal(el.get('array.array.0'), 91);
     assert.equal(el.get('array.array.1'), 92);
     assert.equal(el.get('array.array.2'), 93);
+    assert.equal(el.get('array.array.#0'), 91);
+    assert.equal(el.get('array.array.#1'), 92);
+    assert.equal(el.get('array.array.#2'), 93);
     assert.equal(el.get('array.prop'), 'foo');
+    el.set(['array', '#0'], 31);
+    el.set(['array', '#1'], 32);
+    el.set(['array', '#2'], 33);
+    el.set(['array.array', '#0'], 41);
+    el.set(['array.array', '#1'], 42);
+    el.set(['array.array', '#2'], 43);
+    assert.equal(el.get('array.0'), 31);
+    assert.equal(el.get('array.1'), 32);
+    assert.equal(el.get('array.2'), 33);
+    assert.equal(el.get('array.#0'), 31);
+    assert.equal(el.get('array.#1'), 32);
+    assert.equal(el.get('array.#2'), 33);
+    assert.equal(el.get('array.array.0'), 41);
+    assert.equal(el.get('array.array.1'), 42);
+    assert.equal(el.get('array.array.2'), 43);
+    assert.equal(el.get('array.array.#0'), 41);
+    assert.equal(el.get('array.array.#1'), 42);
+    assert.equal(el.get('array.array.#2'), 43);
   });
 
   var nop = function() {};
@@ -915,8 +697,8 @@ suite('path API', function() {
       assert.strictEqual(change.indexSplices[0].removed.length, 0);
       assert.strictEqual(change.keySplices.length, 1);
       assert.strictEqual(change.keySplices[0].added.length, 2);
-      assert.equal(change.keySplices[0].added[0], key);
-      assert.equal(change.keySplices[0].added[1], key+1);
+      assert.strictEqual(change.keySplices[0].added[0], '#' + key);
+      assert.strictEqual(change.keySplices[0].added[1], '#' + (key+1));
       assert.strictEqual(change.keySplices[0].removed.length, 0);
     };
     var ret = el.push('array', 'new1', 'new2');
@@ -943,7 +725,7 @@ suite('path API', function() {
       assert.strictEqual(change.keySplices.length, 1);
       assert.strictEqual(change.keySplices[0].added.length, 0);
       assert.strictEqual(change.keySplices[0].removed.length, 1);
-      assert.equal(change.keySplices[0].removed[0], key);
+      assert.strictEqual(change.keySplices[0].removed[0], '#' + key);
     };
     var ret = el.pop('array');
     assert.strictEqual(ret, 'orig3');
@@ -964,8 +746,8 @@ suite('path API', function() {
       assert.strictEqual(change.indexSplices[0].removed.length, 0);
       assert.strictEqual(change.keySplices.length, 1);
       assert.strictEqual(change.keySplices[0].added.length, 2);
-      assert.equal(change.keySplices[0].added[0], key);
-      assert.equal(change.keySplices[0].added[1], key+1);
+      assert.strictEqual(change.keySplices[0].added[0], '#' + key);
+      assert.strictEqual(change.keySplices[0].added[1], '#' + (key+1));
       assert.strictEqual(change.keySplices[0].removed.length, 0);
     };
     var ret = el.unshift('array', 'new1', 'new2');
@@ -991,7 +773,7 @@ suite('path API', function() {
       assert.strictEqual(change.keySplices.length, 1);
       assert.strictEqual(change.keySplices[0].added.length, 0);
       assert.strictEqual(change.keySplices[0].removed.length, 1);
-      assert.equal(change.keySplices[0].removed[0], 0);
+      assert.strictEqual(change.keySplices[0].removed[0], '#' + 0);
     };
     var ret = el.shift('array');
     assert.strictEqual(ret, 'orig1');
@@ -1013,10 +795,10 @@ suite('path API', function() {
       assert.strictEqual(change.indexSplices[0].removed[0], 'orig2');
       assert.strictEqual(change.keySplices.length, 1);
       assert.strictEqual(change.keySplices[0].added.length, 2);
-      assert.equal(change.keySplices[0].added[0], key);
-      assert.equal(change.keySplices[0].added[1], key+1);
+      assert.strictEqual(change.keySplices[0].added[0], '#' + key);
+      assert.strictEqual(change.keySplices[0].added[1], '#' + (key+1));
       assert.strictEqual(change.keySplices[0].removed.length, 1);
-      assert.equal(change.keySplices[0].removed[0], 1);
+      assert.strictEqual(change.keySplices[0].removed[0], '#' + 1);
     };
     var ret = el.splice('array', 1, 1, 'new1', 'new2');
     assert.deepEqual(ret, ['orig2']);
@@ -1112,10 +894,10 @@ suite('path API', function() {
       assert.strictEqual(change.indexSplices[0].removed[0], 'orig2');
       assert.strictEqual(change.keySplices.length, 1);
       assert.strictEqual(change.keySplices[0].added.length, 2);
-      assert.equal(change.keySplices[0].added[0], key);
-      assert.equal(change.keySplices[0].added[1], key+1);
+      assert.strictEqual(change.keySplices[0].added[0], '#' + key);
+      assert.strictEqual(change.keySplices[0].added[1], '#' + (key+1));
       assert.strictEqual(change.keySplices[0].removed.length, 1);
-      assert.equal(change.keySplices[0].removed[0], 1);
+      assert.strictEqual(change.keySplices[0].removed[0], '#' + 1);
     };
     var ret = el.splice('array', '1', '1', 'new1', 'new2');
     assert.deepEqual(ret, ['orig2']);
@@ -1139,10 +921,10 @@ suite('path API', function() {
       assert.strictEqual(change.indexSplices[0].removed[0], 'orig2');
       assert.strictEqual(change.keySplices.length, 1);
       assert.strictEqual(change.keySplices[0].added.length, 2);
-      assert.equal(change.keySplices[0].added[0], key);
-      assert.equal(change.keySplices[0].added[1], key+1);
+      assert.strictEqual(change.keySplices[0].added[0], '#' + key);
+      assert.strictEqual(change.keySplices[0].added[1], '#' + (key+1));
       assert.strictEqual(change.keySplices[0].removed.length, 1);
-      assert.equal(change.keySplices[0].removed[0], 1);
+      assert.strictEqual(change.keySplices[0].removed[0], '#' + 1);
     };
     var ret = el.splice('array', '-2', '1', 'new1', 'new2');
     assert.deepEqual(ret, ['orig2']);
@@ -1229,6 +1011,55 @@ suite('path API', function() {
     assert.equal(cChanged, 4);
   });
 
+  test('get from path in deep observer', function() {
+    el.arrayChanged = nop;
+    var array = [1, 2, 3];
+    // Initialize array
+    el.arrayChangedDeep = function(info) {
+      assert.strictEqual(el.get(info.path), array);
+    };
+    el.array = array;
+    // Change index 0
+    el.arrayChangedDeep = function(info) {
+      assert.strictEqual(el.get(info.path), 99);
+    };
+    el.set('array.0', 99);
+    // Unshift value
+    el.arrayChangedDeep = function(info) {
+      if (info.path == 'array.splices') {
+        assert.strictEqual(el.get(info.path), array.splices);
+      } else {
+        assert.strictEqual(el.get(info.path), 4);
+      }
+    };
+    el.unshift('array', 0);
+    // Change index 0
+    el.arrayChangedDeep = function(info) {
+      assert.strictEqual(el.get(info.path), -1);
+    };
+    el.set('array.0', -1);
+    // Verify array contents
+    arraysEqual(el.array, [-1, 99, 2, 3]);
+  });
+
+});
+
+suite('malformed observers', function() {
+  test('has nice message on failure', function() {
+    var thrown = false;
+
+    try {
+      Polymer({
+        is: 'x-broken',
+        observers: ['foo(missingParenthesis']
+      });
+    } catch (e) {
+      assert.equal(e.message, "Malformed observer expression 'foo(missingParenthesis'");
+      thrown = true;
+    }
+
+    assert.equal(thrown, true, "No exception thrown when parsing malformed observer");
+  });
 });
 
 </script>

@@ -55,18 +55,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     listeners: {},
 
+    // TODO(sorvell): need to deprecate listening for a.b.
+    // In the interim, we need to keep a map of listeners by node name
+    // to avoid these string searches at instance time.
     _listenListeners: function(listeners) {
-      var node, name, key;
-      for (key in listeners) {
-        if (key.indexOf('.') < 0) {
+      var node, name, eventName;
+      for (eventName in listeners) {
+        if (eventName.indexOf('.') < 0) {
           node = this;
-          name = key;
+          name = eventName;
         } else {
-          name = key.split('.');
+          name = eventName.split('.');
           node = this.$[name[0]];
           name = name[1];
         }
-        this.listen(node, name, listeners[key]);
+        this.listen(node, name, listeners[eventName]);
       }
     },
 
@@ -80,8 +83,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {string} methodName Name of handler method on `this` to call.
      */
     listen: function(node, eventName, methodName) {
-      this._listen(node, eventName,
-        this._createEventHandler(node, eventName, methodName));
+      var handler = this._recallEventHandler(this, eventName, node, methodName);
+      // reuse cache'd handler
+      if (!handler) {
+        handler = this._createEventHandler(node, eventName, methodName);
+      }
+      // don't call _listen if we are already listening
+      if (handler._listening) {
+        return;
+      }
+      this._listen(node, eventName, handler);
+      handler._listening = true;
     },
 
     _boundListenerKey: function(eventName, methodName) {
@@ -125,6 +137,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             methodName + '` not defined'));
         }
       };
+      handler._listening = false;
       this._recordEventHandler(host, eventName, node, methodName, handler);
       return handler;
     },
@@ -140,9 +153,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      anymore.
      */
     unlisten: function(node, eventName, methodName) {
+      // leave handler in map for cache purposes
       var handler = this._recallEventHandler(this, eventName, node, methodName);
       if (handler) {
         this._unlisten(node, eventName, handler);
+        handler._listening = false;
       }
     },
 

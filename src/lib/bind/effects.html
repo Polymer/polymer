@@ -14,15 +14,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _shouldAddListener: function(effect) {
       return effect.name &&
-             effect.mode === '{' &&
-             !effect.negate &&
-             effect.kind != 'attribute'
-             ;
+             effect.kind != 'attribute' &&
+             effect.kind != 'text' &&
+             !effect.isCompound &&
+             effect.parts[0].mode === '{' &&
+             !effect.parts[0].negate;
     },
 
     _annotationEffect: function(source, value, effect) {
       if (source != effect.value) {
-        value = this.get(effect.value);
+        value = this._get(effect.value);
         this.__data__[effect.value] = value;
       }
       var calc = effect.negate ? !value : value;
@@ -30,17 +31,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // are used, since the target element may not dirty check (e.g. <input>)
       if (!effect.customEvent ||
           this._nodes[effect.index][effect.name] !== calc) {
-        return this._applyEffectValue(calc, effect);
+        return this._applyEffectValue(effect, calc);
       }
     },
 
-    _reflectEffect: function(source) {
-      this.reflectPropertyToAttribute(source);
+    _reflectEffect: function(source, value, effect) {
+      this.reflectPropertyToAttribute(source, effect.attribute, value);
     },
 
     _notifyEffect: function(source, value, effect, old, fromAbove) {
       if (!fromAbove) {
-        this._notifyChange(source);
+        this._notifyChange(source, effect.event, value);
       }
     },
 
@@ -77,7 +78,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (args) {
         var fn = this[effect.method];
         if (fn) {
-          this.__setProperty(effect.property, fn.apply(this, args));
+          this.__setProperty(effect.name, fn.apply(this, args));
         } else {
           this._warn(this._logf('_computeEffect', 'compute method `' +
             effect.method + '` not defined'));
@@ -95,7 +96,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (effect.negate) {
             computedvalue = !computedvalue;
           }
-          this._applyEffectValue(computedvalue, effect);
+          this._applyEffectValue(effect, computedvalue);
         }
       } else {
         computedHost._warn(computedHost._logf('_annotatedComputationEffect',
@@ -115,7 +116,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (arg.literal) {
           v = arg.value;
         } else if (arg.structured) {
-          v = Polymer.Base.get(name, model);
+          v = Polymer.Base._get(name, model);
         } else {
           v = model[name];
         }

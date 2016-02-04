@@ -28,6 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     is: 'dom-if',
     extends: 'template',
+    _template: null,
 
     /**
      * Fired whenever DOM is added or removed/hidden by this template (by
@@ -72,13 +73,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     detached: function() {
-      // TODO(kschaaf): add logic to re-stamp in attached?
-      this._teardownInstance();
+      if (!this.parentNode ||
+          (this.parentNode.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
+           (!Polymer.Settings.hasShadow ||
+            !(this.parentNode instanceof ShadowRoot)))) {
+        this._teardownInstance();
+      }
     },
 
     attached: function() {
       if (this.if && this.ctor) {
-        // TODO(sorvell): should not be async, but node can be attached
+        // NOTE: ideally should not be async, but node can be attached
         // when shady dom is in the act of distributing/composing so push it out
         this.async(this._ensureInstance);
       }
@@ -115,25 +120,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _ensureInstance: function() {
-      if (!this._instance) {
-        // TODO(sorvell): pickup stamping logic from x-repeat
-        this._instance = this.stamp();
-        var root = this._instance.root;
-        // TODO(sorvell): this incantation needs to be simpler.
-        var parent = Polymer.dom(Polymer.dom(this).parentNode);
-        parent.insertBefore(root, this);
+      var parentNode = Polymer.dom(this).parentNode;
+      // Guard against element being detached while render was queued
+      if (parentNode) {
+        var parent = Polymer.dom(parentNode);
+        if (!this._instance) {
+          this._instance = this.stamp();
+          var root = this._instance.root;
+          parent.insertBefore(root, this);
+        } else {
+          var c$ = this._instance._children;
+          if (c$ && c$.length) {
+            // Detect case where dom-if was re-attached in new position
+            var lastChild = Polymer.dom(this).previousSibling;
+            if (lastChild !== c$[c$.length-1]) {
+              for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
+                parent.insertBefore(n, this);
+              }
+            }
+          }
+        }
       }
     },
 
     _teardownInstance: function() {
       if (this._instance) {
-        var c = this._instance._children;
-        if (c) {
+        var c$ = this._instance._children;
+        if (c$ && c$.length) {
           // use first child parent, for case when dom-if may have been detached
-          var parent = Polymer.dom(Polymer.dom(c[0]).parentNode);
-          c.forEach(function(n) {
+          var parent = Polymer.dom(Polymer.dom(c$[0]).parentNode);
+          for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
             parent.removeChild(n);
-          });
+          }
         }
         this._instance = null;
       }
@@ -160,7 +178,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // notifying parent.<path> path change on each row
     _forwardParentPath: function(path, value) {
       if (this._instance) {
-        this._instance.notifyPath(path, value, true);
+        this._instance._notifyPath(path, value, true);
       }
     }
 

@@ -3,7 +3,7 @@
 <a name="feature-list"></a>
 Below is a description of current Polymer features, followed by individual feature guides.
 
-See [the full Polymer.Base API documentation](http://polymer.github.io/polymer/) for details on specific methods and properties. 
+See [the full Polymer.Base API documentation](http://polymer.github.io/polymer/) for details on specific methods and properties.
 
 <a name="polymer-micro"></a>
 **Basic Custom Element sugaring**
@@ -38,7 +38,7 @@ See [the full Polymer.Base API documentation](http://polymer.github.io/polymer/)
 | Feature | Usage
 |---------|-------
 | [Local node marshaling](#node-marshaling) | this.$.\<id>
-| [Event listener setup](#event-listeners)| listeners: { ‘\<node>.\<event>’: ‘function’, ... }
+| [Host event listener setup](#event-listeners)| listeners: { ‘\<event>’: ‘function’, ... }
 | [Annotated event listener setup](#annotated-listeners) | \<element on-[event]=”function”>
 | [Gesture event support](#gesture-events) | \<element on-[gesture-event]=”function”>
 
@@ -167,8 +167,8 @@ MyElement = Polymer({
   is: 'my-element',
 
   factoryImpl: function(foo, bar) {
-    el.foo = foo;
-    el.configureWithBar(bar);
+    this.foo = foo;
+    this.configureWithBar(bar);
   },
 
   configureWithBar: function(bar) {
@@ -1085,17 +1085,10 @@ Polymer({
 
 Properties of the custom element may be bound into text content or properties of local DOM elements using binding annotations in the template.
 
-To bind to textContent, the binding annotation must currently span the entire content of the tag:
-
 ```html
 <dom-module id="user-view">
   <template>
 
-    <!-- Supported -->
-    First: <span>{{first}}</span><br>
-    Last: <span>{{last}}</span>
-
-    <!-- Not currently supported! -->
     <div>First: {{first}}</div>
     <div>Last: {{last}}</div>
 

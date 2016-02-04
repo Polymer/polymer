@@ -16,7 +16,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <link rel="import" href="../../polymer.html">
   <link rel="import" href="bind-elements.html">
 <body>
-
 <script>
 
 suite('single-element binding effects', function() {
@@ -176,6 +175,7 @@ suite('single-element binding effects', function() {
     assert.equal(el.$.boundChild.computedFromTrickyLiterals2, '3tricky,\'zot\'', 'Wrong result from tricky literal arg computation');
     assert.equal(el.$.boundChild.computedFromTrickyLiterals3, '3tricky,\'zot\'', 'Wrong result from tricky literal arg computation');
     assert.equal(el.$.computedContent.textContent, '3tricky,\'zot\'', 'Wrong textContent from tricky literal arg computation');
+    assert.equal(el.$.computedContent2.textContent, '(3', 'Wrong textContent from tricky literal arg computation');
   });
 
   test('computed annotation with no args', function() {
@@ -260,7 +260,7 @@ suite('single-element binding effects', function() {
   test('custom notification event to path', function() {
     el.clearObserverCounts();
     el.$.boundChild.customEventObjectValue = 84;
-    el.fire('change', null, {node: el.$.boundChild});
+    el.$.boundChild.dispatchEvent(new Event('change'));
     assert.equal(el.customEventObject.value, 84, 'custom bound path incorrect');
     assert.equal(el.observerCounts.customEventObjectValueChanged, 1, 'custom bound path observer not called');
   });
@@ -271,6 +271,12 @@ suite('single-element binding effects', function() {
 
   test('computed property with negative literal', function() {
     assert.equal(el.$.boundChild.computedNegativeLiteral, undefined);
+  });
+
+  test('computed binding with wildcard', function() {
+    el.a = 5;
+    el.b = {value: 10};
+    assert.equal(el.$.boundChild.computedWildcard, 15);
   });
 
 });
@@ -371,6 +377,15 @@ suite('2-way binding effects between elements', function() {
     el.$.basic1._setReadonlyvalue(46);
     assert.equal(el.observerCounts.boundreadonlyvalueChanged, 1, 'observer for property bound to read-only property should be called from change to bound value');
     assert.equal(el.boundreadonlyvalue, 46, 'property bound to read-only property should change from change to bound value');
+  });
+
+  test('listener for value-changed fires when value changed from host', function() {
+    var listener = sinon.spy();
+    el.$.basic1.addEventListener('notifyingvalue-changed', listener);
+    el.boundnotifyingvalue = 678;
+    assert.equal(el.$.basic1.notifyingvalue, 678);
+    assert.isTrue(listener.calledOnce);
+    assert.equal(listener.getCalls()[0].args[0].detail.value, 678);
   });
 
 });
@@ -598,6 +613,17 @@ suite('binding to attribute', function() {
     assert(!el.$.boundChild.hasAttribute('attrvalue'));
   });
 
+  test('bind to value attribute on input should not fail', function() {
+    Polymer({
+      is: 'x-input-value'
+    });
+
+    var el = document.createElement('x-input-value');
+    el.inputValue = "the value";
+    assert.equal(el.$.input.value, "the value", "The value of the input is not propagated");
+    assert.equal(el.$.input.value$, undefined, "value$ should be removed from input");
+  });
+
 });
 
 suite('avoid non-bubbling event gotchas', function() {
@@ -653,7 +679,6 @@ suite('warnings', function() {
     var warned = false;
     el._warn = function() {
       warned = true;
-      warn.apply(el, arguments);
     };
     el.noObserver = 42;
     assert.equal(warned, true, 'no warning for undefined observer');
@@ -663,7 +688,6 @@ suite('warnings', function() {
     var warned = false;
     el._warn = function() {
       warned = true;
-      warn.apply(el, arguments);
     };
     el.noComplexObserver = {};
     assert.equal(warned, true, 'no warning for undefined complex observer');
@@ -673,7 +697,6 @@ suite('warnings', function() {
     var warned = false;
     el._warn = function() {
       warned = true;
-      warn.apply(el, arguments);
     };
     el.noComputed = 99;
     assert.equal(warned, true, 'no warning for undefined computed function');
@@ -683,7 +706,6 @@ suite('warnings', function() {
     var warned = false;
     el._warn = function() {
       warned = true;
-      warn.apply(el, arguments);
     };
     el.noInlineComputed = 99;
     assert.equal(warned, true, 'no warning for undefined computed function');
@@ -691,22 +713,153 @@ suite('warnings', function() {
 
 });
 
-</script>
+suite('binding corner cases', function() {
 
-<script>
-  suite('binding corner cases', function() {
-
-    // IE can create adjacent text nodes that split bindings; this test
-    // ensures the code that addresses this is functional
-    test('text binding after entity', function() {
-      var el = document.createElement('x-entity-and-binding');
-      assert.equal(el.$.binding.textContent, 'binding');
-    });
-
+  // IE can create adjacent text nodes that split bindings; this test
+  // ensures the code that addresses this is functional
+  test('text binding after entity', function() {
+    var el = document.createElement('x-entity-and-binding');
+    assert.equal(el.$.binding.textContent, 'binding');
   });
+
+  test('bind to isAttached', function() {
+    var el = document.createElement('x-bind-is-attached');
+    sinon.spy(el, '_isAttachedChanged');
+    document.body.appendChild(el);
+    Polymer.dom.flush();
+    assert.equal(el.$.check.textContent, 'true');
+    assert.isTrue(el._isAttachedChanged.calledOnce);
+    document.body.removeChild(el);
+  });
+});
+
+suite('compound binding / string interpolation', function() {
+
+  test('compound adjacent property bindings', function() {
+    var el = document.createElement('x-basic');
+    // Adjacent compound binding with no literal do not override the default
+    assert.equal(el.$.boundProps.prop1, 'default');
+    assert.isTrue(el.$.boundProps.prop1Changed.calledOnce);
+    el.cpnd2 = 'cpnd2';
+    assert.equal(el.$.boundProps.prop1, 'cpnd2');
+    el.cpnd1 = 'cpnd1';
+    el.cpnd3 = {prop: 'cpnd3'};
+    assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3');
+    el.cpnd4 = 'cpnd4';
+    assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3');
+    el.cpnd5 = 'cpnd5';
+    assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3literalcpnd5cpnd4');
+  });
+
+  test('compound property bindings with literals', function() {
+    var el = document.createElement('x-basic');
+    assert.equal(el.$.boundProps.prop2, 'literal1  literal2  literal3  literal4');
+    assert.isTrue(el.$.boundProps.prop2Changed.calledOnce);
+    el.cpnd1 = 'cpnd1';
+    el.cpnd2 = 'cpnd2';
+    el.cpnd3 = {prop: 'cpnd3'};
+    el.cpnd4 = 'cpnd4';
+    el.cpnd5 = 'cpnd5';
+    assert.equal(el.$.boundProps.prop2, 'literal1 cpnd1 literal2 cpnd2cpnd3 literal3 literalcpnd5cpnd4 literal4');
+    el.cpnd1 = null;
+    el.cpnd2 = undefined;
+    el.cpnd3 = {};
+    el.cpnd4 = '';
+    el.cpnd5 = '';
+    assert.equal(el.$.boundProps.prop2, 'literal1  literal2  literal3 literal literal4');
+  });
+
+  test('compound adjacent attribute bindings', function() {
+    var el = document.createElement('x-basic');
+    // Adjacent compound binding with no literal do not override the default
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), null);
+    el.cpnd2 = 'cpnd2';
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd2');
+    el.cpnd1 = 'cpnd1';
+    el.cpnd3 = {prop: 'cpnd3'};
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3');
+    el.cpnd4 = 'cpnd4';
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3');
+    el.cpnd5 = 'cpnd5';
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3literalcpnd5cpnd4');
+  });
+
+  test('compound property attribute with literals', function() {
+    var el = document.createElement('x-basic');
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr2'), 'literal1  literal2  literal3  literal4');
+    el.cpnd1 = 'cpnd1';
+    el.cpnd2 = 'cpnd2';
+    el.cpnd3 = {prop: 'cpnd3'};
+    el.cpnd4 = 'cpnd4';
+    el.cpnd5 = 'cpnd5';
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr2'), 'literal1 cpnd1 literal2 cpnd2cpnd3 literal3 literalcpnd5cpnd4 literal4');
+    el.cpnd1 = null;
+    el.cpnd2 = undefined;
+    el.cpnd3 = {};
+    el.cpnd4 = '';
+    el.cpnd5 = '';
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr2'), 'literal1  literal2  literal3 literal literal4');
+  });
+
+  test('compound property attribute with {} and [] in text', function() {
+    var el = document.createElement('x-basic');
+    el.cpnd1 = 'cpnd1';
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr3'), '[yes/no]: cpnd1, Hello {0} username world');
+  });
+
+  test('compound adjacent textNode bindings', function() {
+    var el = document.createElement('x-basic');
+    // The single space is due to the gambit to prevent empty text nodes
+    // from being evacipated on IE during importNode from the template; it will
+    // only be there the when in the virgin state after cloning the template
+    assert.equal(el.$.compound1.textContent, ' ');
+    el.cpnd2 = 'cpnd2';
+    assert.equal(el.$.compound1.textContent, 'cpnd2');
+    el.cpnd1 = 'cpnd1';
+    el.cpnd3 = {prop: 'cpnd3'};
+    assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3');
+    el.cpnd4 = 'cpnd4';
+    assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3');
+    el.cpnd5 = 'cpnd5';
+    assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3literalcpnd5cpnd4');
+    // Once the binding evaluates back to '', it will in fact be ''
+    el.computeCompound = function() { return ''; };
+    el.cpnd1 = null;
+    el.cpnd2 = '';
+    el.cpnd3 = {prop: null};
+    el.cpnd4 = null;
+    el.cpnd5 = '';
+    assert.equal(el.$.compound1.textContent, '');
+  });
+
+  test('compound textNode bindings with literals', function() {
+    var el = document.createElement('x-basic');
+    assert.equal(el.$.compound2.textContent.trim(), 'literal1  literal2  literal3  literal4');
+    el.cpnd1 = 'cpnd1';
+    el.cpnd2 = 'cpnd2';
+    el.cpnd3 = {prop: 'cpnd3'};
+    el.cpnd4 = 'cpnd4';
+    el.cpnd5 = 'cpnd5';
+    assert.equal(el.$.compound2.textContent.trim(), 'literal1 cpnd1 literal2 cpnd2cpnd3 literal3 literalcpnd5cpnd4 literal4');
+    el.cpnd1 = null;
+    el.cpnd2 = undefined;
+    el.cpnd3 = {};
+    el.cpnd4 = '';
+    el.cpnd5 = '';
+    assert.equal(el.$.compound2.textContent.trim(), 'literal1  literal2  literal3 literal literal4');
+  });
+
+  test('malformed bindings ignored', function() {
+    var el = document.createElement('x-basic');
+    el.bool = true;
+    assert.isTrue(el.$.boundChild.textContent.indexOf('really.long.identifier.in.malformed.binding.should.be.ignored') >= 0, true);
+    assert.isTrue(el.$.boundChild.textContent.indexOf('really.long.literal.in.malformed.binding.should.be.ignored') >= 0, true);
+    assert.isTrue(el.$.boundChild.textContent.indexOf('3foo') >= 0, true);
+  });
+
+});
+
 </script>
-
-
 
 </body>
 </html>
