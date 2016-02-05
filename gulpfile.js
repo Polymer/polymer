@@ -20,6 +20,7 @@ var runseq = require('run-sequence');
 var lazypipe = require('lazypipe');
 var polyclean = require('polyclean');
 var del = require('del');
+var eslint = require('gulp-eslint');
 
 var path = require('path');
 
@@ -123,4 +124,10 @@ gulp.task('audit', function() {
 
 gulp.task('release', function(cb) {
   runseq('default', ['copy-bower-json', 'audit'], cb);
+});
+
+gulp.task('eslint', function() {
+  return gulp.src('src/**/*.html')
+    .pipe(eslint())
+    .pipe(eslint.format());
 });
