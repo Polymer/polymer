@@ -126,8 +126,9 @@ gulp.task('release', function(cb) {
   runseq('default', ['copy-bower-json', 'audit'], cb);
 });
 
-gulp.task('eslint', function() {
+gulp.task('lint', function() {
   return gulp.src('src/**/*.html')
     .pipe(eslint())
-    .pipe(eslint.format());
+    .pipe(eslint.format())
+    .pipe(eslint.failAfterError());
 });
