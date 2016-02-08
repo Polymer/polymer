@@ -8,7 +8,7 @@ Polymer is a library built on top of Web Components that makes it easier to buil
 
 Polymer provides a declarative syntax (defining what needs to be done and letting the computer figure out how to do it), to easily create your own custom elements.  It allows one to easily develop the structure of the element with HTML, style it with CSS, and add interactions with the element using JavaScript.   It also provides two-way data-binding allowing user interfaces to be updated when properties of the element are updated and vice versa.
 
-If you don’t want to build your own custom elements Polymer comes with a collection of pre-built elements that you can just drop on a page and use immediately.  You can even use Polymer catalog of elements as a starting point for you own elements.  Just include it in a project, expand upon it customizing the element to your liking and thus creating your own custom element.
+If you don’t want to build your own custom elements Polymer comes with a collection of pre-built elements that you can just drop on a page and use immediately.  You can even use Polymer catalog of elements as a starting point for you own elements.  Just include it in a project, expand upon it customizing the element to your liking and thus creating your own custom element.  
 
 ```html
 <!-- Polyfill Web Components for older browsers -->
