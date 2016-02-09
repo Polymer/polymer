@@ -25,11 +25,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // decorates styles with rule info and returns an array of used style
       // property names
       decorateStyles: function(styles) {
-        var self = this, props = {};
+        var self = this, props = {}, keyframes = [];
         styleUtil.forRulesInStyles(styles, function(rule) {
           self.decorateRule(rule);
           self.collectPropertiesInCssText(rule.propertyInfo.cssText, props);
+        }, function onKeyframesRule(rule) {
+          keyframes.push(rule);
         });
+        // Cache all found keyframes rules for later reference:
+        styles._keyframes = keyframes;
         // return this list of property names *consumes* in these styles.
         var names = [];
         for (var i in props) {
@@ -67,7 +71,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var m, rx = this.rx.VAR_ASSIGN;
           var cssText = rule.parsedCssText;
           var any;
-          while (m = rx.exec(cssText)) {
+          while ((m = rx.exec(cssText))) {
             // note: group 2 is var, 3 is mixin
             properties[m[1]] = (m[2] || m[3]).trim();
             any = true;
@@ -87,7 +91,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var parts = cssText.split(';');
         for (var i=0, p; i<parts.length; i++) {
           p = parts[i];
-          if (p.match(this.rx.MIXIN_MATCH) || p.match(this.rx.VAR_MATCH)) {
+          if (p.match(this.rx.MIXIN_MATCH) ||
+              p.match(this.rx.VAR_MATCH) ||
+              this.rx.ANIMATION_MATCH.test(p) ||
+              styleUtil.isKeyframesSelector(rule)) {
             customCssText += p + ';\n';
           }
         }
@@ -96,7 +103,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       collectPropertiesInCssText: function(cssText, props) {
         var m;
-        while (m = this.rx.VAR_CAPTURE.exec(cssText)) {
+        while ((m = this.rx.VAR_CAPTURE.exec(cssText))) {
           props[m[1]] = true;
           var def = m[2];
           if (def && def.match(this.rx.IS_VAR)) {
@@ -148,7 +155,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       valueForProperties: function(property, props) {
         var parts = property.split(';');
         for (var i=0, p, m; i<parts.length; i++) {
-          if (p = parts[i]) {
+          if ((p = parts[i])) {
             m = p.match(this.rx.MIXIN_MATCH);
             if (m) {
               p = this.valueForProperty(props[m[1]], props);
@@ -177,6 +184,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (rule.propertyInfo.cssText) {
           output = this.valueForProperties(rule.propertyInfo.cssText, props);
+        }
+        rule.cssText = output;
+      },
+
+      // Apply keyframe transformations to the cssText of a given rule. The
+      // keyframeTransforms object is a map of keyframe names to transformer
+      // functions which take in cssText and spit out transformed cssText.
+      applyKeyframeTransforms: function(rule, keyframeTransforms) {
+        var input = rule.cssText;
+        var output = rule.cssText;
+        if (rule.hasAnimations == null) {
+          // Cache whether or not the rule has any animations to begin with:
+          rule.hasAnimations = this.rx.ANIMATION_MATCH.test(input);
+        }
+        // If there are no animations referenced, we can skip transforms:
+        if (rule.hasAnimations) {
+          var transform;
+          // If we haven't transformed this rule before, we iterate over all
+          // transforms:
+          if (rule.keyframeNamesToTransform == null) {
+            rule.keyframeNamesToTransform = [];
+            for (var keyframe in keyframeTransforms) {
+              transform = keyframeTransforms[keyframe];
+              output = transform(input);
+              // If the transform actually changed the CSS text, we cache the
+              // transform name for future use:
+              if (input !== output) {
+                input = output;
+                rule.keyframeNamesToTransform.push(keyframe);
+              }
+            }
+          } else {
+            // If we already have a list of keyframe names that apply to this
+            // rule, we apply only those keyframe name transforms:
+            for (var i = 0; i < rule.keyframeNamesToTransform.length; ++i) {
+              transform = keyframeTransforms[rule.keyframeNamesToTransform[i]];
+              input = transform(input);
+            }
+            output = input;
+          }
         }
         rule.cssText = output;
       },
@@ -257,13 +304,58 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           hostSelector;
         var hostRx = new RegExp(this.rx.HOST_PREFIX + rxHostSelector +
           this.rx.HOST_SUFFIX);
+        var keyframeTransforms =
+          this._elementKeyframeTransforms(element, scopeSelector);
         return styleTransformer.elementStyles(element, function(rule) {
           self.applyProperties(rule, properties);
-          if (rule.cssText && !nativeShadow) {
+          if (!nativeShadow &&
+              !Polymer.StyleUtil.isKeyframesSelector(rule) &&
+              rule.cssText) {
+            // NOTE: keyframe transforms only scope munge animation names, so it
+            // is not necessary to apply them in ShadowDOM.
+            self.applyKeyframeTransforms(rule, keyframeTransforms);
             self._scopeSelector(rule, hostRx, hostSelector,
               element._scopeCssViaAttr, scopeSelector);
           }
         });
+      },
+
+      _elementKeyframeTransforms: function(element, scopeSelector) {
+        var keyframesRules = element._styles._keyframes;
+        var keyframeTransforms = {};
+        if (!nativeShadow) {
+          // For non-ShadowDOM, we transform all known keyframes rules in
+          // advance for the current scope. This allows us to catch keyframes
+          // rules that appear anywhere in the stylesheet:
+          for (var i = 0, keyframesRule = keyframesRules[i];
+               i < keyframesRules.length;
+               keyframesRule = keyframesRules[++i]) {
+            this._scopeKeyframes(keyframesRule, scopeSelector);
+            keyframeTransforms[keyframesRule.keyframesName] =
+                this._keyframesRuleTransformer(keyframesRule);
+          }
+        }
+        return keyframeTransforms;
+      },
+
+      // Generate a factory for transforming a chunk of CSS text to handle a
+      // particular scoped keyframes rule.
+      _keyframesRuleTransformer: function(keyframesRule) {
+        return function(cssText) {
+          return cssText.replace(
+              keyframesRule.keyframesNameRx,
+              keyframesRule.transformedKeyframesName);
+        };
+      },
+
+      // Transforms `@keyframes` names to be unique for the current host.
+      // Example: @keyframes foo-anim -> @keyframes foo-anim-x-foo-0
+      _scopeKeyframes: function(rule, scopeId) {
+        rule.keyframesNameRx = new RegExp(rule.keyframesName, 'g');
+        rule.transformedKeyframesName = rule.keyframesName + '-' + scopeId;
+        rule.transformedSelector = rule.transformedSelector || rule.selector;
+        rule.selector = rule.transformedSelector.replace(
+            rule.keyframesName, rule.transformedKeyframesName);
       },
 
       // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
@@ -360,6 +452,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // var(--a, fallback-literal(with-one-nested-parentheses))
         VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,)]*)|(?:[^;]*\([^;)]*\)))[\s]*?\)/gi,
         VAR_CAPTURE: /\([\s]*(--[^,\s)]*)(?:,[\s]*(--[^,\s)]*))?(?:\)|,)/gi,
+        ANIMATION_MATCH: /(animation\s*:)|(animation-name\s*:)/,
         IS_VAR: /^--/,
         BRACKETED: /\{[^}]*\}/g,
         HOST_PREFIX: '(?:^|[^.#[:])',

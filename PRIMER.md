@@ -167,8 +167,8 @@ MyElement = Polymer({
   is: 'my-element',
 
   factoryImpl: function(foo, bar) {
-    el.foo = foo;
-    el.configureWithBar(bar);
+    this.foo = foo;
+    this.configureWithBar(bar);
   },
 
   configureWithBar: function(bar) {
