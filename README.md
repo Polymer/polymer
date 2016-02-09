@@ -2,12 +2,6 @@
 
 [![Build Status](https://travis-ci.org/Polymer/polymer.svg?branch=master)](https://travis-ci.org/Polymer/polymer)
 
-#What to Use Polymer for and When to Use It?
-
-As *Taylor Savage* says in [The Polymer Summit 2015](https://www.polymer-project.org/summit) , "LEGOs are a great metaphor for the kind of things that Polymer lets you build and that Web Components lets you build. They're composable, modular and resusable. You can use the same kinds of pieces to build really incredible things." Polymer gives the pieces for you to build.
-
-You can use Polymer for any Web Application or project. With Polymer, you can craft your own HTML elements and add them together to create complex web applications that are scalable and maintainable. You can use the custom elements made by the Polymer team or mix and match these elements to make your own custom elements. The custom elements you create for your application are treated as any other element in a web page. You can use any other JavaScript code or libraries to access their properties and methods. With that said, you can use Polymer for anything and use it when ever you want to. Polymer gives you the tools to build extraodinary things in many ways and your imagination is the limit.
-
 Polymer lets you build encapsulated, re-usable elements that work just like HTML elements, to use in building web applications.
 
 ```html
@@ -20,6 +14,14 @@ Polymer lets you build encapsulated, re-usable elements that work just like HTML
 <!-- Use element -->
 <google-map latitude="37.790" longitude="-122.390"></google-map>
 ```
+
+#What to Use Polymer for and When to Use It?
+
+As *Taylor Savage* says in [The Polymer Summit 2015](https://www.polymer-project.org/summit) , "LEGOs are a great metaphor for the kind of things that Polymer lets you build and that Web Components lets you build. They're composable, modular and reusable. You can use the same kinds of pieces to build really incredible things." Polymer provides the pieces to build components easier.
+
+You can use Polymer for any Web Application or project. With Polymer, you can craft your own HTML elements and add them together to create complex web applications that are scalable and maintainable. You can use the custom elements made by the Polymer team or mix and match these elements to make your own custom elements. The custom elements you create for your application are treated as any other element in a web page. You can use any other JavaScript framework or libraries to access their properties and methods. 
+
+Polymer becomes extremely useful when you have a complex element that you want to reuse throughout your site. It makes implementing that feature much easier, as you need to only create it once and then include it, where necessary, throughout your application.  Polymer gives you the tools to build extraordinary things in many ways and your imagination is the limit.
 
 ## Getting Started
 
