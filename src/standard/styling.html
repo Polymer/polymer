@@ -36,9 +36,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _prepStyles: function() {
-        // under shady dom we always output a shimmed style (which may be 
-        // empty) so that other dynamic stylesheets can always be placed 
-        // after the element's main stylesheet. 
+        // under shady dom we always output a shimmed style (which may be
+        // empty) so that other dynamic stylesheets can always be placed
+        // after the element's main stylesheet.
         // This helps ensure element styles are always in registration order.
         if (!nativeShadow) {
           this._scopeStyle = styleUtil.applyStylePlaceHolder(this.is);
@@ -47,10 +47,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _prepShimStyles: function() {
         if (this._template) {
+          var template = this.__template || this._template;
           if (this._encapsulateStyle === undefined) {
             this._encapsulateStyle = !nativeShadow;
           }
           this._styles = this._collectStyles();
+          styleUtil.removeStyles(template.content);
           // calculate shimmed styles (we must always do this as it
           // stores shimmed style data in the css rules for later use)
           var cssText = styleTransformer.elementStyles(this);
@@ -60,8 +62,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // only if no custom properties are used since otherwise
           // styles are applied via property shimming.
           if (!this._needsStyleProperties() && this._styles.length) {
-            styleUtil.applyCss(cssText, this.is,
-              nativeShadow ? this._template.content : null, this._scopeStyle);
+            var style = styleUtil.applyCss(cssText, this.is,
+                nativeShadow ? this._template.content : null, this._scopeStyle);
+            // keep track of style when in document scope (polyfill) so we can
+            // attach property styles after it.
+            if (!nativeShadow) {
+              this._scopeStyle = style;
+            }
           }
         } else {
           this._styles = [];
@@ -75,16 +82,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var cssText = '', m$ = this.styleModules;
         if (m$) {
           for (var i=0, l=m$.length, m; (i<l) && (m=m$[i]); i++) {
-            cssText += styleUtil.cssFromModule(m);
+            cssText += styleUtil.cssFromModule(m, true);
           }
         }
         cssText += styleUtil.cssFromModule(this.is);
         // check if we have a disconnected template and add styles from that
         // if so; if our template has no parent or is not in our dom-module...
-        var p = this._template && this._template.parentNode;
-        if (this._template && (!p || p.id.toLowerCase() !== this.is)) {
-          cssText += styleUtil.cssFromElement(this._template);
-        }
+        cssText += styleUtil.cssFromElement(this.__template || this._template,
+            true);
         if (cssText) {
           var style = document.createElement('style');
           style.textContent = cssText;
