@@ -31,6 +31,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.Base._addFeature({
 
+    /**
+     * Map with as key the method name and as value either an array of strings
+     * with names of the dependent properties or a single string.
+     * The properties are prepended to the original computation-methods.
+     *
+     * Example:
+     *
+     *  &lt;dom-module id="x-computed-with-dependency"&gt;
+     *     &lt;template&gt;
+     *       &lt;span&gt;{{methodName('literal')}}&lt;/span&gt;
+     *     &lt;/template&gt;
+     *     &lt;script&gt;
+     *      Polymer({
+     *        is: 'element-with-dependency',
+     *
+     *        properties: {
+     *          property1: {...},
+     *          property2: {...}
+     *        },
+     *
+     *        dependencies: {
+     *          methodName: ['property1', 'property2']
+     *        },
+     *
+     *        methodName: function(property1, property2, literal) {}
+     *      });
+     *    &lt;/script&gt;
+     *  &lt;/dom-module&gt;
+     */
+    dependencies: {},
+
     _addPropertyEffect: function(property, kind, effect) {
       var prop = Polymer.Bind.addPropertyEffect(this, property, kind, effect);
       // memoize path function for faster lookup.
@@ -41,6 +72,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _prepEffects: function() {
       Polymer.Bind.prepareModel(this);
+      this._prepDependencies();
       this._addAnnotationEffects(this._notes);
     },
 
@@ -160,8 +192,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    _flattenedDependencies: {},
+
+    _prepDependencies: function() {
+      for (var i=0,l=this.behaviors.length; i<l; i++) {
+        this._prepDependenciesOfBehavior(this.behaviors[i]);
+      }
+      this._prepDependenciesOfBehavior(this);
+    },
+
+    _prepDependenciesOfBehavior: function(behavior) {
+      var behaviorDependencies = behavior.dependencies;
+      for (var method in behaviorDependencies) {
+        this._flattenedDependencies[method] = behaviorDependencies[method];
+      }
+    },
+
     _addAnnotatedComputationEffect: function(note, part, index) {
       var sig = part.signature;
+      var m;
+      if (m=this._flattenedDependencies[sig.method]) {
+        var args = sig.args;
+        if (typeof m === 'string') {
+          m = [m];
+        }
+        sig.args = this._parseArgs(m, part.signature).concat(args);
+      }
       if (sig.static) {
         this.__addAnnotatedComputationEffect('__static__', index, note, part, null);
       } else {
@@ -197,7 +253,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (m[2].trim()) {
           // replace escaped commas with comma entity, split on un-escaped commas
           var args = m[2].replace(/\\,/g, '&comma;').split(',');
-          return this._parseArgs(args, sig);
+          sig.args = this._parseArgs(args, sig);
+          return sig;
         } else {
           sig.args = Polymer.nar;
           return sig;
@@ -206,14 +263,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _parseArgs: function(argList, sig) {
-      sig.args = argList.map(function(rawArg) {
+      return argList.map(function(rawArg) {
         var arg = this._parseArg(rawArg);
         if (!arg.literal) {
           sig.static = false;
         }
         return arg;
       }, this);
-      return sig;
     },
 
     _parseArg: function(rawArg) {
