@@ -240,6 +240,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     document.body.removeChild(el);
   });
 
+  test('attribute inclusive selector and general sibling selectors', function() {
+    var e = document.createElement('x-attr-selector');
+    document.body.appendChild(e);
+    assertComputed(e.$.bar1, '2px');
+    assertComputed(e.$.bar2, '4px');
+    assertComputed(e.$.bar3, '6px');
+  });
+
     suite('scoped-styling-shady-only', function() {
 
       suiteSetup(function() {
@@ -253,17 +261,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
 
       test('styles shimmed in registration order', function() {
-        var s$ = document.head.querySelectorAll('style[scope]');
-        var expected = ['x-keyframes', 'x-keyframes-1', 'x-keyframes-0', 'x-gchild', 'x-child2',
-          'x-styled', 'x-button', 'x-mixed-case', 'x-mixed-case-button',
-          'x-dynamic-scope', 'x-dynamic-template', 'x-dynamic-svg',
-          'x-specificity', 'x-overriding', 'x-overriding-0',
-          'x-specificity-parent-0', 'x-specificity-nested-0'];
-        var actual = [];
-        for (var i=0; i<s$.length; i++) {
-          actual.push(s$[i].getAttribute('scope'));
+        var regList = Polymer.telemetry.registrations.map(function(reg) {
+          return reg.is;
+        });
+        function regIndex(styleScope) {
+          for (var i=0, r; (r=regList[i]); i++) {
+            if (styleScope.match(new RegExp(r + '\\-?\\d*$'))) {
+              return i;
+            }
+          }
         }
-        assert.deepEqual(actual, expected);
+        var s$ = document.head.querySelectorAll('style[scope]');
+        for (var i=0, scope, n=0, o=0; i<s$.length; i++) {
+          scope = s$[i].getAttribute('scope');
+          n = regIndex(scope);
+          assert.isTrue(n >= o, 'style not in registration order: ' + scope);
+          o = n;
+        }
       });
 
       test('svg elements properly scoped', function() {
@@ -311,9 +325,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assertComputed(document.querySelector('[is=x-specificity-nested]'), '10px');
       });
 
+      test('overwriting mixin properties', function() {
+        var root = document.querySelector('x-overriding');
+        assertComputed(root.querySelector('.red'), '1px');
+        assertComputed(root.querySelector('.green'), '2px');
+        assertComputed(root.querySelector('.red-2'), '1px');
+        assertComputed(root.querySelector('.blue'), '3px');
+      });
+
       test('x-scope with no class attribute', function () {
         assert.equal(document.querySelector('x-scope-no-class > div').className, 'style-scope x-scope-no-class');
-      })
+      });
+      
     });
 
     test('svg classes are dynamically scoped correctly', function() {
@@ -326,6 +349,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       computed = getComputedStyle(circle);
       assert.equal(computed['fill-opacity'], '0.5');
     });
+
 });
 
 </script>
