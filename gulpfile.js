@@ -127,7 +127,7 @@ gulp.task('release', function(cb) {
 });
 
 gulp.task('lint', function() {
-  return gulp.src('src/**/*.html')
+  return gulp.src(['src/**/*.html', 'test/unit/*.html'])
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
