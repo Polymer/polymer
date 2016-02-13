@@ -1,4 +1,5 @@
 suite('ready', function() {
+  /* globals configureList readyList clearTestLists */
 
   var configure = ['x-ready', 'x-zot#a', 'x-zot#b', 'x-zot#c', 'x-zot#d', 'x-foo#foo', 'x-bar#bar1', 'x-zot', 'x-bar#bar2', 'x-zot'];
   var ready = ['x-zot#a', 'x-zot#b', 'x-zot#c', 'x-zot#d', 'x-zot', 'x-bar#bar1', 'x-zot', 'x-bar#bar2', 'x-foo#foo', 'x-ready'];

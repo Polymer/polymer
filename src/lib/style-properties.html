@@ -82,23 +82,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // returns cssText of properties that consume variables/mixins
       collectCssText: function(rule) {
-        var customCssText = '';
         var cssText = rule.parsedCssText;
         // NOTE: we support consumption inside mixin assignment
         // but not production, so strip out {...}
         cssText = cssText.replace(this.rx.BRACKETED, '')
           .replace(this.rx.VAR_ASSIGN, '');
-        var parts = cssText.split(';');
-        for (var i=0, p; i<parts.length; i++) {
-          p = parts[i];
-          if (p.match(this.rx.MIXIN_MATCH) ||
-              p.match(this.rx.VAR_MATCH) ||
-              this.rx.ANIMATION_MATCH.test(p) ||
-              styleUtil.isKeyframesSelector(rule)) {
-            customCssText += p + ';\n';
-          }
-        }
-        return customCssText;
+        return cssText;
       },
 
       collectPropertiesInCssText: function(cssText, props) {
@@ -160,12 +149,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             if (m) {
               p = this.valueForProperty(props[m[1]], props);
             } else {
-              var pp = p.split(':');
-              if (pp[1]) {
-                pp[1] = pp[1].trim();
-                pp[1] = this.valueForProperty(pp[1], props) || pp[1];
+              var colon = p.indexOf(':');
+              if (colon !== -1) {
+                var pp = p.substring(colon);
+                pp = pp.trim();
+                pp = this.valueForProperty(pp, props) || pp;
+                p = p.substring(0, colon) + pp;
               }
-              p = pp.join(':');
             }
             parts[i] = (p && p.lastIndexOf(';') === p.length - 1) ?
               // strip trailing ;
@@ -359,7 +349,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
       // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
-      // host selector: x-foo.wide -> x-foo.x-foo-42.wide
+      // host selector: x-foo.wide -> .x-foo-42.wide
+      // note: we use only the scope class (.x-foo-42) and not the hostSelector
+      // (x-foo) to scope :host rules; this helps make property host rules
+      // have low specificity. They are overrideable by class selectors but,
+      // unfortunately, not by type selectors (e.g. overriding via 
+      // `.special` is ok, but not by `x-foo`).
       _scopeSelector: function(rule, hostRx, hostSelector, viaAttr, scopeId) {
         rule.transformedSelector = rule.transformedSelector || rule.selector;
         var selector = rule.transformedSelector;
@@ -369,7 +364,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var parts = selector.split(',');
         for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
           parts[i] = p.match(hostRx) ?
-            p.replace(hostSelector, hostSelector + scope) :
+            p.replace(hostSelector, scope) :
             scope + ' ' + p;
         }
         rule.selector = parts.join(',');
@@ -449,7 +444,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // var(--a, --b)
         // var(--a, fallback-literal)
         // var(--a, fallback-literal(with-one-nested-parentheses))
-        VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,)]*)|(?:[^;]*\([^;)]*\)))[\s]*?\)/gi,
+        VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,()]*)|(?:[^;()]*\([^;)]*\)))[\s]*?\)/gi,
         VAR_CAPTURE: /\([\s]*(--[^,\s)]*)(?:,[\s]*(--[^,\s)]*))?(?:\)|,)/gi,
         ANIMATION_MATCH: /(animation\s*:)|(animation-name\s*:)/,
         IS_VAR: /^--/,
