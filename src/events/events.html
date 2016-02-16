@@ -1,0 +1,127 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<script>
+
+  /**
+   * Supports `listeners` object.
+   *
+   * Example:
+   *
+   *
+   *     Polymer({
+   *
+   *       listeners: {
+   *         // `click` events on the host are delegated to `clickHandler`
+   *         'click': 'clickHandler'
+   *       },
+   *
+   *       ...
+   *
+   *     });
+   *
+   *
+   * @class standard feature: events
+   *
+   */
+
+  Polymer.Events = {
+
+    fire: function(type, detail, options) {
+      options = options || {};
+      var node = options.node || this;
+      detail = (detail === null || detail === undefined) ? {} : detail;
+      var bubbles = options.bubbles === undefined ? true : options.bubbles;
+      var cancelable = Boolean(options.cancelable);
+      var useCache = options._useCache;
+      var event = this._getEvent(type, bubbles, cancelable, useCache);
+      event.detail = detail;
+      if (useCache) {
+        this.__eventCache[type] = null;
+      }
+      node.dispatchEvent(event);
+      if (useCache) {
+        this.__eventCache[type] = event;
+      }
+      return event;
+    },
+
+    __eventCache: {},
+
+    // NOTE: We optionally cache event objects for efficiency during high
+    // freq. opts. This option cannot be used for events which may have
+    // `stopPropagation` called on them. On Chrome and Safari (but not FF)
+    // if `stopPropagation` is called, the event cannot be reused. It does not
+    // dispatch again.
+    _getEvent: function(type, bubbles, cancelable, useCache) {
+      var event = useCache && this.__eventCache[type];
+      if (!event || ((event.bubbles != bubbles) ||
+          (event.cancelable != cancelable))) {
+        event = new Event(type, {
+          bubbles: Boolean(bubbles),
+          cancelable: cancelable
+        });
+      }
+      return event;
+    },
+
+    /**
+     * Object containing entries specifying event listeners to create on each
+     * instance of this element, where keys specify the event name and values
+     * specify the name of the handler method to call on this prototype.
+     *
+     * Example:
+     *
+     *
+     *     Polymer({
+     *
+     *       listeners: {
+     *         // `click` events on the host are delegated to `clickHandler`
+     *         'tap': 'tapHandler'
+     *       },
+     *
+     *       ...
+     *
+     *     });
+     */
+
+    // TODO(sorvell): need to deprecate listening for a.b.
+    listenListeners: function(listeners) {
+      var name, eventName;
+      for (eventName in listeners) {
+        this._listen(this, eventName, listeners[eventName]);
+      }
+    },
+  
+    _createEventHandler: function(node, eventName, methodName) {
+      var host = this;
+      var handler = function(e) {
+        if (host[methodName]) {
+          host[methodName](e, e.detail);
+        } else {
+          host._warn(host._logf('_createEventHandler', 'listener method `' +
+            methodName + '` not defined'));
+        }
+      };
+      handler._listening = false;
+      return handler;
+    },
+
+    _listen: function(node, eventName, handler) {
+      node.addEventListener(eventName, handler);
+    },
+
+    _unlisten: function(node, eventName, handler) {
+      node.removeEventListener(eventName, handler);
+    }
+
+  };
+
+</script>
