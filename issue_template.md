@@ -2,7 +2,7 @@
 
 
 #### Live Demo
-http://jsbin.com/xukike/edit?html,output
+https://jsbin.com/xukike/edit?html,output
 
 #### Steps to Reproduce
 1. …
