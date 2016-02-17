@@ -1,0 +1,169 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../events/compat.html">
+<link rel="import" href="../attributes/compat.html">
+<script>
+
+  Polymer.Base = {
+
+    // Used for `isInstance` type checking; cannot use `instanceof` because
+    // there is no common Polymer.Base in the prototype chain between type
+    // extensions and normal custom elements
+    __isPolymerInstance__: true,
+
+    // pluggable features
+    // `this` context is a prototype, not an instance
+    // _addFeature: function(feature) {
+    //   this.extend(this, feature);
+    // },
+
+    // `this` context is a prototype, not an instance
+    registerCallback: function() {
+      // TODO(sjmiles): perhaps this method should be called from polymer-bootstrap?
+      // this._desugarBehaviors(); // abstract
+      // this._doBehavior('beforeRegister'); // abstract
+      // this._registerFeatures();  // abstract
+      // this._doBehavior('registered'); // abstract
+    },
+
+    createdCallback: function() {
+      Polymer.telemetry.instanceCount++;
+      this.root = this;
+      this.created();
+      // this._doBehavior('created'); // abstract
+      this._initFeatures(); // abstract
+    },
+
+    _initFeatures: function() {
+      Polymer.GestureEvents.listenListeners(this, this.listeners);
+      Polymer.Attributes.applyAttributes(this, this.hostAttributes);
+      Polymer.Attributes.attributesToProperties(this, this._propertyInfo);
+    },
+
+    created: function() {},
+
+    // reserved for canonical behavior
+    attachedCallback: function() {
+      // NOTE: workaround for:
+      // https://code.google.com/p/chromium/issues/detail?id=516550
+      // To allow querying style/layout data in attached, we defer it
+      // until we are sure rendering is ready.
+      // var self = this;
+      // Polymer.RenderStatus.whenReady(function() {
+      //   self.isAttached = true;
+      //   self._doBehavior('attached'); // abstract
+      // });
+      this.isAttached = true;
+      this.attached();
+    },
+
+    attached: function() {},
+
+    // reserved for canonical behavior
+    detachedCallback: function() {
+      this.isAttached = false;
+      this.detached();
+      //this._doBehavior('detached'); // abstract
+    },
+
+    detached: function() {},
+
+    /**
+     * Copies own properties (including accessor descriptors) from a source
+     * object to a target object.
+     *
+     * @method extend
+     * @param {Object} prototype Target object to copy properties to.
+     * @param {Object} api Source object to copy properties from.
+     * @return {Object} prototype object that was passed as first argument.
+     */
+    extend: function(prototype, api) {
+      if (prototype && api) {
+        var n$ = Object.getOwnPropertyNames(api);
+        for (var i=0, n; (i<n$.length) && (n=n$[i]); i++) {
+          this.copyOwnProperty(n, api, prototype);
+        }
+      }
+      return prototype || api;
+    },
+
+    /**
+     * Copies props from a source object to a target object.
+     *
+     * Note, this method uses a simple `for...in` strategy for enumerating
+     * properties.  To ensure only `ownProperties` are copied from source
+     * to target and that accessor implementations are copied, use `extend`.
+     *
+     * @method mixin
+     * @param {Object} target Target object to copy properties to.
+     * @param {Object} source Source object to copy properties from.
+     * @return {Object} Target object that was passed as first argument.
+     */
+    mixin: function(target, source) {
+      for (var i in source) {
+        target[i] = source[i];
+      }
+      return target;
+    },
+
+    copyOwnProperty: function(name, source, target) {
+      var pd = Object.getOwnPropertyDescriptor(source, name);
+      if (pd) {
+        Object.defineProperty(target, name, pd);
+      }
+    },
+
+    _log: console.log.apply.bind(console.log, console),
+    _warn: console.warn.apply.bind(console.warn, console),
+    _error: console.error.apply.bind(console.error, console),
+    _logf: function(/* args*/) {
+      return this._logPrefix.concat([this.is]).concat(Array.prototype.slice.call(arguments, 0));
+    }
+
+  };
+
+  Polymer.Base._logPrefix = (function(){
+    var color = window.chrome || (/firefox/i.test(navigator.userAgent));
+    return color ? ['%c[%s::%s]:', 'font-weight: bold; background-color:#EEEE00;'] : ['[%s::%s]:'];
+  })();
+
+  Polymer.Base.chainObject = function(object, inherited) {
+    if (object && inherited && object !== inherited) {
+      if (!Object.__proto__) {
+        object = Polymer.Base.extend(Object.create(inherited), object);
+      }
+      object.__proto__ = inherited;
+    }
+    return object;
+  };
+
+  Polymer.Base = Polymer.Base.chainObject(Polymer.Base, HTMLElement.prototype);
+
+  if (window.CustomElements) {
+    Polymer.instanceof = CustomElements.instanceof;
+  } else {
+    Polymer.instanceof = function(obj, ctor) {
+      return obj instanceof ctor;
+    };
+  }
+
+  Polymer.isInstance = function(obj) {
+    return Boolean(obj && obj.__isPolymerInstance__);
+  };
+
+  // TODO(sjmiles): ad hoc telemetry
+  Polymer.telemetry.instanceCount = 0;
+
+  // mixin
+  Polymer.Base.mixin(Polymer.Base, Polymer.CompatEvents.Mixin);
+  Polymer.Base.mixin(Polymer.Base, Polymer.CompatAttributes.Mixin);
+
+</script>
