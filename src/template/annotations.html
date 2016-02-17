@@ -8,6 +8,7 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="../utils/case-map.html">
+<link rel="import" href="resolve-url.html">
 
 <script>
 /**
@@ -72,12 +73,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // construct and return a list of annotation records
     // by scanning `template`'s content
     //
+    // TODO(sorvell): This should just crawl over a template and call
+    // a supplied list of callbacks. 
     parseAnnotations: function(template) {
-      var list = [];
       var content = template._content || template.content;
-      this._parseNodeAnnotations(content, list,
-        template.hasAttribute('strip-whitespace'));
-      return list;
+      // since a template may be re-used, memo-ize notes.
+      if (!content._notes) {
+        content._notes = [];
+        // TODO(sorvell): whitespace and processAnnotations need to be factored
+        // into plugins
+        this.currentTemplate = this.currentTemplate || template;
+        this._parseNodeAnnotations(content, content._notes,
+          template.hasAttribute('strip-whitespace'));
+      }
+      return content._notes;
     },
 
     // add annotations gleaned from subtree at `node` to `list`
@@ -180,7 +189,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // NOTE: default to a space here so the textNode remains; some browsers
         // (IE) evacipate an empty textNode following cloneNode/importNode.
         node.textContent = this._literalFromParts(parts) || ' ';
-        var annote = {
+        var note = {
           bindings: [{
             kind: 'text',
             name: 'textContent',
@@ -188,42 +197,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             isCompound: parts.length !== 1
           }]
         };
-        list.push(annote);
-        return annote;
+        list.push(note);
+        return note;
       }
     },
 
     // add annotations gleaned from Element `node` to `list`
     _parseElementAnnotations: function(element, list, stripWhiteSpace) {
-      var annote = {
+      var note = {
         bindings: [],
         events: []
       };
       if (element.localName === 'content') {
         list._hasContent = true;
       }
-      this._parseChildNodesAnnotations(element, annote, list, stripWhiteSpace);
+      this._parseChildNodesAnnotations(element, note, list, stripWhiteSpace);
       // TODO(sjmiles): is this for non-ELEMENT nodes? If so, we should
       // change the contract of this method, or filter these out above.
       if (element.attributes) {
-        this._parseNodeAttributeAnnotations(element, annote, list);
+        this._parseNodeAttributeAnnotations(element, note, list);
         // TODO(sorvell): ad hoc callback for doing work on elements while
         // leveraging annotator's tree walk.
         // Consider adding an node callback registry and moving specific
         // processing out of this module.
-        if (this.prepElement) {
-          this.prepElement(element);
-        }
+        this.prepElement(element);
       }
-      if (annote.bindings.length || annote.events.length || annote.id) {
-        list.push(annote);
+      if (note.bindings.length || note.events.length || note.id) {
+        list.push(note);
       }
-      return annote;
+      return note;
     },
 
     // add annotations gleaned from children of `root` to `list`, `root`'s
-    // `annote` is supplied as it is the annote.parent of added annotations
-    _parseChildNodesAnnotations: function(root, annote, list, stripWhiteSpace) {
+    // `note` is supplied as it is the note.parent of added annotations
+    _parseChildNodesAnnotations: function(root, note, list, stripWhiteSpace) {
       if (root.firstChild) {
         var node = root.firstChild;
         var i = 0;
@@ -231,7 +238,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var next = node.nextSibling;
           if (node.localName === 'template' &&
             !node.hasAttribute('preserve-content')) {
-            this._parseTemplate(node, i, list, annote);
+            this._parseTemplate(node, i, list, note);
           }
           // collapse adjacent textNodes: fixes an IE issue that can cause
           // text nodes to be inexplicably split =(
@@ -257,7 +264,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             var childAnnotation = this._parseNodeAnnotations(node, list,
               stripWhiteSpace);
             if (childAnnotation) {
-              childAnnotation.parent = annote;
+              childAnnotation.parent = note;
               childAnnotation.index = i;
             }
           }
@@ -367,23 +374,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     // instance-time
-
-    findAnnotatedNode: function(root, annote) {
+    // TODO(sorvell): consider trying to use QS instead of this proprietary 
+    // search. This would require some unique way to identify a node, a guid.
+    // Is this faster? simpler? Is that worth polluting the node? 
+    findAnnotatedNode: function(root, note) {
       // recursively ascend tree until we hit root
-      var parent = annote.parent &&
-        Polymer.Annotations.findAnnotatedNode(root, annote.parent);
+      var parent = note.parent &&
+        Polymer.Annotations.findAnnotatedNode(root, note.parent);
       // unwind the stack, returning the indexed node at each level
       if (parent) {
         // note: marginally faster than indexing via childNodes
         // (http://jsperf.com/childnodes-lookup)
         for (var n=parent.firstChild, i=0; n; n=n.nextSibling) {
-          if (annote.index === i++) {
+          if (note.index === i++) {
             return n;
           }
         }
       } else {
         return root;
       }
+    },
+
+    // TODO(sorvell): this should be factored into a plugin
+    prepElement: function(element) {
+      Polymer.ResolveUrl.resolveAttrs(element, this.currentTemplate.ownerDocument);
     }
 
   };

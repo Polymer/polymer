@@ -7,63 +7,145 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+
+<link rel="import" href="annotations.html">
 <script>
 
-  /**
-   * Automatic template management.
-   *
-   * The `template` feature locates and instances a `<template>` element
-   * corresponding to the current Polymer prototype.
-   *
-   * The `<template>` element may be immediately preceeding the script that
-   * invokes `Polymer()`.
-   *
-   * @class standard feature: template
-   */
+/**
+ * Scans a template to produce an annotation object that stores expression
+ * metadata along with information to associate the metadata with nodes in an
+ * instance.
+ *
+ * Elements with `id` in the template are noted and marshaled into an
+ * the `$` hash in an instance.
+ *
+ * Example
+ *
+ *     &lt;template>
+ *       &lt;div id="foo">&lt;/div>
+ *     &lt;/template>
+ *     &lt;script>
+ *      Polymer({
+ *        task: function() {
+ *          this.$.foo.style.color = 'red';
+ *        }
+ *      });
+ *     &lt;/script>
+ *
+ * Other expressions that are noted include:
+ *
+ * Double-mustache annotations in text content. The annotation must be the only
+ * content in the tag, compound expressions are not (currently) supported.
+ *
+ *     <[tag]>{{path.to.host.property}}<[tag]>
+ *
+ * Double-mustache annotations in an attribute.
+ *
+ *     <[tag] someAttribute="{{path.to.host.property}}"><[tag]>
+ *
+ * Only immediate host properties can automatically trigger side-effects.
+ * Setting `host.path` in the example above triggers the binding, setting
+ * `host.path.to.host.property` does not.
+ *
+ * `on-` style event declarations.
+ *
+ *     <[tag] on-<event-name>="{{hostMethodName}}"><[tag]>
+ *
+ * Note: **the `annotations` feature does not actually implement the behaviors
+ * associated with these expressions, it only captures the data**.
+ *
+ * Other optional features contain actual data implementations.
+ *
+ * @class standard feature: annotations
+ */
 
-  Polymer.Base._addFeature({
+/*
 
-    _prepTemplate: function() {
-      // locate template using dom-module
-      if (this._template === undefined) {
-        this._template = Polymer.DomModule.import(this.is, 'template');
+Scans a template to produce an annotation map that stores expression metadata
+and information that associates the metadata to nodes in a template instance.
+
+Supported annotations are:
+
+  * id attributes
+  * binding annotations in text nodes
+    * double-mustache expressions: {{expression}}
+    * double-bracket expressions: [[expression]]
+  * binding annotations in attributes
+    * attribute-bind expressions: name="{{expression}} || [[expression]]"
+    * property-bind expressions: name*="{{expression}} || [[expression]]"
+    * property-bind expressions: name:="expression"
+  * event annotations
+    * event delegation directives: on-<eventName>="expression"
+
+Generated data-structure:
+
+  [
+    {
+      id: '<id>',
+      events: [
+        {
+          mode: ['auto'|''],
+          name: '<name>'
+          value: '<expression>'
+        }, ...
+      ],
+      bindings: [
+        {
+          kind: ['text'|'attribute'|'property'],
+          mode: ['auto'|''],
+          name: '<name>'
+          value: '<expression>'
+        }, ...
+      ],
+      // TODO(sjmiles): confusingly, this is annotation-parent, not node-parent
+      parent: <reference to parent annotation>,
+      index: <integer index in parent's childNodes collection>
+    },
+    ...
+  ]
+
+TODO(sjmiles): this module should produce either syntactic metadata
+(e.g. double-mustache, double-bracket, star-attr), or semantic metadata
+(e.g. manual-bind, auto-bind, property-bind). Right now it's half and half.
+
+*/
+
+  Polymer.Template = {
+
+    // construct `$` map (from id annotations)
+    createIdMap: function(dom, notes) {
+      var map = {};
+      for (var i=0, l=notes.length, a; (i<l) && (a=notes[i]); i++) {
+        if (a.id) {
+          map[a.id] = Polymer.Annotations.findAnnotatedNode(dom, a);
+        }
       }
-      // stick finger in footgun
-      if (this._template && this._template.hasAttribute('is')) {
-        this._warn(this._logf('_prepTemplate', 'top-level Polymer template ' +
-          'must not be a type-extension, found', this._template,
-          'Move inside simple <template>.'));
-      }
-      // bootstrap the template if it has not already been
-      if (this._template && !this._template.content &&
-          window.HTMLTemplateElement && HTMLTemplateElement.decorate) {
-        HTMLTemplateElement.decorate(this._template);
+      return map;
+    },
+
+    // install event listeners (from event annotations)
+    installEventListeners: function(dom, notes, listenFn) {
+      for (var i=0, l=notes.length, a; (i<l) && (a=notes[i]); i++) {
+        if (a.events && a.events.length) {
+          var node = Polymer.Annotations.findAnnotatedNode(dom, a);
+          for (var j=0, e$=a.events, e; (j<e$.length) && (e=e$[j]); j++) {
+            listenFn(node, e.name, e.value);
+          }
+        }
       }
     },
 
-    _stampTemplate: function() {
-      if (this._template) {
-        // note: root is now a fragment which can be manipulated
-        // while not attached to the element.
-        this.root = this.instanceTemplate(this._template);
+    // push configuration references at configure time
+    installTemplateContent: function(dom, notes) {
+      for (var i=0; i<notes.length; i++) {
+        var a = notes[i];
+        if (a.templateContent) {
+          var node = Polymer.Annotations.findAnnotatedNode(dom, a);
+          node._content = a.templateContent;
+        }
       }
-    },
-
-    /**
-     * Calls `importNode` on the `content` of the `template` specified and
-     * returns a document fragment containing the imported content.
-     *
-     * @method instanceTemplate
-     * @param {HTMLTemplateElement} template HTML template element to instance.
-     * @return {DocumentFragment} Document fragment containing the imported
-     *   template content.
-    */
-    instanceTemplate: function(template) {
-      var dom =
-        document.importNode(template._content || template.content, true);
-      return dom;
     }
 
-  });
+  };
 
 </script>

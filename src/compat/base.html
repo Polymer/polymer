@@ -10,6 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../events/compat.html">
 <link rel="import" href="../attributes/compat.html">
+<link rel="import" href="../template/compat.html">
 <script>
 
   Polymer.Base = {
@@ -30,8 +31,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // TODO(sjmiles): perhaps this method should be called from polymer-bootstrap?
       // this._desugarBehaviors(); // abstract
       // this._doBehavior('beforeRegister'); // abstract
-      // this._registerFeatures();  // abstract
+      this._registerFeatures();  // abstract
       // this._doBehavior('registered'); // abstract
+    },
+
+    _registerFeatures: function() {
+      Polymer.CompatTemplate._prepTemplate(this);
     },
 
     createdCallback: function() {
@@ -46,9 +51,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.GestureEvents.listenListeners(this, this.listeners);
       Polymer.Attributes.applyAttributes(this, this.hostAttributes);
       Polymer.Attributes.attributesToProperties(this, this._propertyInfo);
+      if (this._template) {
+        Polymer.Annotations.parseAnnotations(this._template);
+        var dom = this.instanceTemplate(this._template);
+        var notes = this._template.content._notes;
+        // ids
+        this.$ = Polymer.CompatTemplate.createIdMap(dom, notes);
+        // template content
+        Polymer.CompatTemplate.installTemplateContent(dom, notes);
+        // event listeners
+        var self = this;
+        Polymer.CompatTemplate.installEventListeners(dom, notes, 
+            function(node, event, method) {
+          Polymer.GestureEvents.listenMethod(node, event, method, self);
+        });
+        // stamp!
+        this.root = this.attachShadow({mode: 'open'});
+        this.root.appendChild(dom);
+        //
+        // TODO(sorvell): replace with configuration...
+        this.ready();
+      }
     },
 
     created: function() {},
+
+    ready: function() {},
 
     // reserved for canonical behavior
     attachedCallback: function() {
@@ -165,6 +193,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // mixin
   Polymer.Base.mixin(Polymer.Base, Polymer.CompatEvents.Mixin);
   Polymer.Base.mixin(Polymer.Base, Polymer.CompatAttributes.Mixin);
+  Polymer.Base.mixin(Polymer.Base, Polymer.CompatTemplate.Mixin);
 
   Polymer.Element = function() {};
   Polymer.Element.prototype = Polymer.Base;
