@@ -79,13 +79,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addComputedEffect: function(name, expression) {
       var sig = this._parseMethod(expression);
+
+      var dynamicFn = sig.dynamicFn;
+
       for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
         this._addPropertyEffect(arg.model, 'compute', {
           method: sig.method,
           args: sig.args,
           trigger: arg,
-          name: name
+          name: name,
+          dynamicFn: dynamicFn
         });
+      }
+      if (dynamicFn) {
+        this._addPropertyEffect(sig.method, 'compute', {
+          method: sig.method,
+          args: sig.args,
+          trigger: null,
+          name: name,
+          dynamicFn: dynamicFn
+        })
       }
     },
 
@@ -111,11 +124,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         throw new Error("Malformed observer expression '" + observer + "'");
       }
 
+      var dynamicFn = sig.dynamicFn;
+
       for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
         this._addPropertyEffect(arg.model, 'complexObserver', {
           method: sig.method,
           args: sig.args,
-          trigger: arg
+          trigger: arg,
+          dynamicFn: dynamicFn
+        });
+      }
+      if (dynamicFn) {
+        this._addPropertyEffect(sig.method, 'complexObserver', {
+          method: sig.method,
+          args: sig.args,
+          trigger: null,
+          dynamicFn: dynamicFn
         });
       }
     },
@@ -171,6 +195,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               arg);
           }
         }
+        if (sig.dynamicFn) {
+          // trigger=null is sufficient as long as we don't allow paths to be
+          // used. If we change our mind, we must first implement this in the
+          // effects anyway where we basically do a `fn = this[methodName]` at
+          // the moment.
+          this.__addAnnotatedComputationEffect(
+              sig.method, index, note, part, null);
+        }
       }
     },
 
@@ -184,7 +216,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         negate: part.negate,
         method: part.signature.method,
         args: part.signature.args,
-        trigger: trigger
+        trigger: trigger,
+        dynamicFn: part.signature.dynamicFn
       });
     },
 
@@ -194,6 +227,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var m = expression.match(/([^\s]+?)\(([\s\S]*)\)/);
       if (m) {
         var sig = { method: m[1], static: true };
+        // TODO(kaste): Optimize/memoize `getPropertyInfo`.
+        if (this.getPropertyInfo(sig.method) !== Polymer.nob) {
+          sig.static = false;
+          sig.dynamicFn = true;
+        }
         if (m[2].trim()) {
           // replace escaped commas with comma entity, split on un-escaped commas
           var args = m[2].replace(/\\,/g, '&comma;').split(',');
