@@ -16,7 +16,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var userPolymer = window.Polymer;
 
-    window.Polymer = function(prototype) {
+    window.Polymer = function(prototype, mixin) {
       // if input is a `class` (aka a function with a prototype), use the prototype
       // remember that the `constructor` will never be called
       if (typeof prototype === 'function') {
@@ -26,11 +26,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!prototype) {
         prototype = {};
       }
+      // support mixin for properties on ES6 classes...
+      if (mixin) {
+        Polymer.Base.mixin(prototype, mixin);
+      }
+
       // desugar the prototype and return a factory object
-      var factory = desugar(prototype);
-      // Polymer.Base is now chained to factory.prototype, and for IE10 compat
-      // this may have resulted in a new prototype being created
-      prototype = factory.prototype;
+      prototype = desugar(prototype);
       var options = {
         prototype: prototype
       };
@@ -40,24 +42,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         options.extends = prototype.extends;
       }
       Polymer.telemetry._registrate(prototype);
-      document.registerElement(prototype.is, options);
-      return factory;
+      var ctor = document.registerElement(prototype.is, options);
+      return ctor;
     };
 
     var desugar = function(prototype) {
       // Note: need to chain user prototype with the correct type-extended
       // version of Polymer.Base; this is especially important when you can't
       // prototype swizzle (e.g. IE10), since CustomElements uses getPrototypeOf
-      var base = Polymer.Base;
-      // if (prototype.extends) {
-      //   base = Polymer.Base._getExtendedPrototype(prototype.extends);
-      // }
-      prototype = Polymer.Base.chainObject(prototype, base);
+      if (!prototype.__isPolymerInstance__) {
+        prototype = Polymer.Base.chainObject(prototype, Polymer.Base);
+      }
       prototype.registerCallback();
-      prototype.constructor = function() {};
-      prototype.constructor.prototype = prototype;
-
-      return prototype.constructor;
+      return prototype;
     };
 
     if (userPolymer) {
@@ -66,7 +63,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    Polymer.Class = desugar;
+    //Polymer.Class = desugar;
 
   })();
 
