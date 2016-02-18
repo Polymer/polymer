@@ -1,0 +1,107 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<script>
+(function() {
+
+  'use strict';
+  var Properties = {
+
+    createReadOnlyProperty: function(model, property) {
+      this._ensureAccessor(model, property, true);
+    },
+
+    createObserver: function(model, property, methodName, context) {
+      var effects = this._ensureAccessor(model, property);
+      effects.push({
+        fn: this._runObserver,
+        info: {
+          methodName: methodName,
+          context: context || model
+        }
+      });
+    },
+
+    _runObserver: function(property, value, old, info) {
+      var fn = info.context[info.methodName];
+      if (fn) {
+        fn.call(info.context, value, old);
+      } else {
+        // this._warn(this._logf('_observerEffect', 'observer method `' +
+        //   effect.method + '` not defined'));
+      }
+    },
+
+    _ensureAccessor: function(model, property, readOnly) {
+      if (!model._propertyEffects) {
+        model._propertyEffects = {};
+      }
+      var effects = model._propertyEffects[property];
+      if (!effects) {
+        effects = model._propertyEffects[property] = [];
+        this._createAccessor(model, property, readOnly, effects);
+      }
+      return effects;
+    },
+
+    _createAccessor: function(model, property, readOnly, effects) {
+      var self = this;
+      var defun = {
+        get: function() {
+          // TODO(sjmiles): elide delegation for performance, good ROI?
+          return model.__data__[property];
+        }
+      };
+      var setter = function(value) {
+        self._propertySetter(property, value, effects);
+      };
+      if (readOnly) {
+        model['_set' + this._upper(property)] = setter;
+      } else {
+        defun.set = setter;
+      }
+      Object.defineProperty(model, property, defun);
+    },
+
+    _upper: function(name) {
+      return name[0].toUpperCase() + name.substring(1);
+    },
+
+    _propertySetter: function(property, value, effects, fromAbove) {
+      if (!this.__data__) {
+        this.__data__ = {};
+      }
+      var old = this.__data__[property];
+      if (this.isPropertyDirty(value, old)) {
+        this.__data__[property] = value;
+        if (effects) {
+          this._runEffects(property, value, old, effects, fromAbove);
+        }
+      }
+      return old;
+    },
+
+    _runEffects: function(property, value, old, effects, fromAbove) {
+      for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
+        fx.fn.call(this, property, value, old, fx.info, fromAbove);
+      }
+    },
+
+    isPropertyDirty: function(value, old) {
+      return (old !== value && (old === old || value === value));
+    }
+
+  };
+
+  // export
+  Polymer.Properties = Properties;
+
+})();
+</script>
