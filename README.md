@@ -15,6 +15,8 @@ Polymer lets you build encapsulated, re-usable elements that work just like stan
 <google-map latitude="37.790" longitude="-122.390"></google-map>
 ```
 
+## Getting Started
+
 Check out [polymer-project.org](https://www.polymer-project.org) for all of the library documentation, including getting started guides, tutorials, developer reference, and more.
 
 Or if you'd just like to download the library, check out our [releases page](https://github.com/polymer/polymer/releases).
@@ -25,7 +27,7 @@ Polymer is a lightweight library built on top of the web standards-based [Web Co
 
 Among many ways to leverage custom elements, they can be particularly useful for building re-usable UI components. Instead of continually re-building a specific navigation bar or button in different frameworks and for different projects, you can define this element once using Polymer, and then reuse it throughout your project or in any future project.
 
-Polymer provides a declarative syntax to easily create your own custom elements, using all standard web technologies - define the structure of the element with HTML, style it with CSS, and add interactions to the element with JavaScript. 
+Polymer provides a declarative syntax to easily create your own custom elements, using all standard web technologies - define the structure of the element with HTML, style it with CSS, and add interactions to the element with JavaScript.
 
 Polymer also provides optional two-way data-binding, meaning:
 
