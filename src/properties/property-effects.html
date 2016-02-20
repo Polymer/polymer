@@ -11,6 +11,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="property-accessors.html">
 
+<!-- for notify, reflect -->
+<link rel="import" href="../utils/case-map.html">
+<!-- for notify -->
+<link rel="import" href="../events/event-dispatch.html">
+<!-- for reflect -->
+<link rel="import" href="../attributes/property-to-attribute.html">
+<!-- for annotated effects -->
+<link rel="import" href="../template/annotations.html">
+
+
 <script>
 (function() {
 
@@ -19,13 +29,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.Utils.mixin(PropertyEffects, {
 
+    // TODO(kschaaf): rather than create+run, consider closing over
+    // run in create to avoid extra info object creation, otoh maybe
+    // its good for debugging?
+
+    // -- readOnly ----------------------------------------------
+
     createReadOnlyProperty: function(model, property) {
       this._ensureAccessor(model, property, true);
     },
 
+    // -- observer ----------------------------------------------
+
     createObserver: function(model, property, methodName, context) {
       this.addPropertyEffect(model, property, {
-        fn: this._runObserver,
+        fn: this._runObserverEffect,
         info: {
           methodName: methodName,
           context: context || model
@@ -33,13 +51,471 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     },
 
-    _runObserver: function(property, value, old, info) {
+    _runObserverEffect: function(property, value, old, info) {
       var fn = info.context[info.methodName];
       if (fn) {
-        fn.call(info.context, value, old);
+        fn.call(this, value, old);
       } else {
-        // this._warn(this._logf('_observerEffect', 'observer method `' +
-        //   effect.method + '` not defined'));
+        console.warn('observer method `' + info.methodName + '` not defined');
+      }
+    },
+
+    // -- notify ----------------------------------------------
+
+    createNotifyingProperty: function(model, property) {
+      this.addPropertyEffect(model, property, {
+        fn: this._runNotifyEffect,
+        info: {
+          lib: this,
+          eventName: Polymer.CaseMap.camelToDashCase(property) + '-changed'
+        }
+      });
+    },
+
+    _runNotifyEffect: function(property, value, old, info) {
+      info.lib.fire(this, info.eventName, {value: value},
+        {bubbles: false, _useCache: true});
+    },
+
+    // *** for overriding ***
+    fire: function(node, type, detail, options) {
+      Polymer.EventDispatch.fire(node, type, detail, options);
+    },
+
+    // -- reflect ----------------------------------------------
+
+    createReflectedProperty: function(model, property) {
+      this.addPropertyEffect(model, property, {
+        fn: this._runReflectEffect,
+        info: {
+          lib: this,
+          attrName: Polymer.CaseMap.camelToDashCase(property)
+        }
+      });
+    },
+
+    _runReflectEffect: function(property, value, old, info) {
+      info.lib.propertyToAttribute(this, property, info.attrName);
+    },
+
+    // *** for overriding ***
+    propertyToAttribute: function(node, property, attribute, value) {
+      Polymer.PropertyToAttribute.propertyToAttribute(node, property, attribute, value);
+    },
+
+    // -- complexObserver ----------------------------------------------
+
+    createMultiObserver: function(model, expression) {
+      var sig = this._parseMethod(expression);
+      this._createMethodEffect(model, sig, this._runMultiObserverEffect);
+    },
+
+    _runMultiObserverEffect: function(property, value, old, info) {
+      info.lib._runMethodEffect(this, property, value, old, info);
+    },
+
+    // -- computed ----------------------------------------------
+
+    createComputedProperty: function(model, property, expression) {
+      var sig = this._parseMethod(expression);
+      this._createMethodEffect(model, sig, this._runComputedEffect, property);
+    },
+
+    _runComputedEffect: function(property, value, old, info) {
+      this[info.methodInfo] = info.lib._runMethodEffect(this, property, value, old, info);
+    },
+
+    // -- annotation ----------------------------------------------
+
+    bindTemplate: function(model, notes) {
+      this._processAnnotations(notes);
+      for (var i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
+        // where to find the node in the concretized list
+        var b$ = note.bindings;
+        for (var j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
+          if (this._shouldAddListener(note)) {
+            this._addAnnotatedListener(this, i,
+              note.name, note.parts[0].value, note.parts[0].event);
+          }
+          this._addAnnotationEffect(model, binding, i);
+        }
+      }
+    },
+
+    _addAnnotationEffect: function(model, note, index) {
+      for (var i=0; i<note.parts.length; i++) {
+        var part = note.parts[i];
+        if (part.signature) {
+          this._addAnnotatedComputationEffect(model, note, part, index);
+        } else if (!part.literal) {
+          this.addPropertyEffect(model, part.rootProperty, {
+            fn: this._runAnnotationEffect,
+            info:  {
+              lib: this,
+              kind: note.kind,
+              index: index,
+              name: note.name,
+              propertyName: note.propertyName,
+              value: part.value,
+              isCompound: note.isCompound,
+              compoundIndex: part.compoundIndex,
+              event: part.event,
+              customEvent: part.customEvent,
+              negate: part.negate
+            }
+          });
+        }
+      }
+    },
+
+    _runAnnotationEffect: function(property, value, old, info) {
+      if (property != info.value) {
+        //TODO(kschaaf): deal with paths
+        debugger
+        value = this._get(info.value);
+        this.__data__[info.value] = value;
+      }
+      var calc = info.negate ? !value : value;
+      // For better interop, dirty check before setting when custom events
+      // are used, since the target element may not dirty check (e.g. <input>)
+      if (!info.customEvent ||
+          this._nodes[info.index][info.name] !== calc) {
+        return info.lib._applyEffectValue(this, info, calc);
+      }
+    },
+
+    _applyEffectValue: function(model, info, value) {
+      var node = model._nodes[info.index];
+      var property = info.name;
+      if (info.isCompound) {
+        var storage = node.__compoundStorage__[property];
+        storage[info.compoundIndex] = value;
+        value = storage.join('');
+      }
+      // special processing for 'class' and 'className'; 'class' handled
+      // when attr is serialized.
+      if (info.kind == 'attribute') {
+        this.valueToAttribute(node, value, property);
+      } else {
+        // TODO(sorvell): --- class scoping was here ---
+        // Some browsers serialize `undefined` to `"undefined"`
+        if (property === 'textContent' ||
+            (node.localName == 'input' && property == 'value')) {
+          value = value == undefined ? '' : value;
+        }
+        // TODO(kschaaf): --- from above was here ---
+        node[property] = value;
+      }
+    },
+
+    valueToAttribute: function(node, value, attribute) {
+      Polymer.PropertyToAttribute.valueToAttribute(node, value, attribute);
+    },
+
+    _addAnnotatedComputationEffect: function(model, note, part, index) {
+      this._createMethodEffect(model, part.signature,
+        this._runAnnotationComputationEffect, {
+          index: index,
+          isCompound: note.isCompound,
+          compoundIndex: part.compoundIndex,
+          kind: note.kind,
+          name: note.name,
+          negate: part.negate,
+          part: part
+        }
+      );
+    },
+
+   _runAnnotationComputationEffect: function(property, value, old, info) {
+      var val = info.lib._runMethodEffect(this, property, value, old, info);
+      info.lib._applyEffectValue(this, info.methodInfo, val);
+    },
+
+    _processAnnotations: function(notes) {
+      if (!notes._processed) {
+        for (var i=0; i<notes.length; i++) {
+          var note = notes[i];
+          // Parse bindings for methods & path roots (models)
+          for (var j=0; j<note.bindings.length; j++) {
+            var b = note.bindings[j];
+            for (var k=0; k<b.parts.length; k++) {
+              var p = b.parts[k];
+              if (!p.literal) {
+                p.signature = this._parseMethod(p.value);
+                if (!p.signature) {
+                  p.rootProperty = this._rootForPath(p.value);
+                }
+              }
+            }
+          }
+          // Recurse into nested templates & bind parent props
+          if (note.templateContent) {
+            this._processAnnotations(note.templateContent._notes);
+            var pp = note.templateContent._parentProps =
+              this._discoverTemplateParentProps(note.templateContent._notes);
+            var bindings = [];
+            for (var prop in pp) {
+              bindings.push({
+                index: note.index,
+                kind: 'property',
+                name: '_parent_' + prop,
+                parts: [{
+                  mode: '{',
+                  rootProperty: prop,
+                  value: prop
+                }]
+              });
+            }
+            note.bindings = note.bindings.concat(bindings);
+          }
+        }
+        notes._processed = true;
+      }
+    },
+
+    // Finds all bindings in template content and stores the path roots in
+    // the path members in content._parentProps. Each outer template merges
+    // inner _parentProps to propagate inner parent property needs to outer
+    // templates.
+    _discoverTemplateParentProps: function(notes) {
+      var pp = {};
+      for (var i=0, n; (i<notes.length) && (n=notes[i]); i++) {
+        // Find all bindings to parent.* and spread them into _parentPropChain
+        for (var j=0, b$=n.bindings, b; (j<b$.length) && (b=b$[j]); j++) {
+          for (var k=0, p$=b.parts, p; (k<p$.length) && (p=p$[k]); k++) {
+            if (p.signature) {
+              var args = p.signature.args;
+              for (var kk=0; kk<args.length; kk++) {
+                var rootProperty = args[kk].rootProperty;
+                if (rootProperty) {
+                  pp[rootProperty] = true;
+                }
+              }
+            } else {
+              if (p.rootProperty) {
+                pp[p.rootProperty] = true;
+              }
+            }
+          }
+        }
+        // Merge child _parentProps into this _parentProps
+        if (n.templateContent) {
+          var tpp = n.templateContent._parentProps;
+          Polymer.Base.mixin(pp, tpp);
+        }
+      }
+      return pp;
+    },
+
+    _shouldAddListener: function(effect) {
+      return effect.name &&
+             effect.kind != 'attribute' &&
+             effect.kind != 'text' &&
+             !effect.isCompound &&
+             effect.parts[0].mode === '{' &&
+             !effect.parts[0].negate;
+    },
+
+    _addAnnotatedListener: function() {
+    },
+
+    // -- for method-based effects (complexObserver & computed) --------------
+
+    _createMethodEffect: function(model, sig, effectFn, methodInfo) {
+      var dynamicFn = sig.dynamicFn;
+      for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
+        this.addPropertyEffect(model, arg.rootProperty, {
+          fn: effectFn,
+          info: {
+            lib: this,
+            methodName: sig.methodName,
+            args: sig.args,
+            trigger: arg,
+            methodInfo: methodInfo,
+            dynamicFn: dynamicFn
+          }
+        });
+      }
+      if (dynamicFn) {
+        this._addPropertyEffect(model, sig.methodName, {
+          fn: this._runComputedEffect,
+          info: {
+            lib: this,
+            methodName: sig.methodName,
+            args: sig.args,
+            trigger: null,
+            property: property,
+            dynamicFn: dynamicFn
+          }
+        });
+      }
+    },
+
+    _runMethodEffect: function(inst, property, value, old, info) {
+      var fn = inst[info.methodName];
+      if (fn) {
+        var args = this._marshalArgs(inst.__data__, info, property, value);
+        return fn.apply(inst, args);
+      } else if (!info.dynamicFn) {
+        console.warn('method `' + info.methodName + '` not defined');
+      }
+    },
+
+    _parseMethod: function(expression) {
+      // tries to match valid javascript property names
+      var m = expression.match(/([^\s]+?)\(([\s\S]*)\)/);
+      if (m) {
+        var sig = { methodName: m[1], static: true };
+        if (m[2].trim()) {
+          // replace escaped commas with comma entity, split on un-escaped commas
+          var args = m[2].replace(/\\,/g, '&comma;').split(',');
+          return this._parseArgs(args, sig);
+        } else {
+          sig.args = Polymer.nar;
+          return sig;
+        }
+      }
+    },
+
+    _parseArgs: function(argList, sig) {
+      sig.args = argList.map(function(rawArg) {
+        var arg = this._parseArg(rawArg);
+        if (!arg.literal) {
+          sig.static = false;
+        }
+        return arg;
+      }, this);
+      return sig;
+    },
+
+    _parseArg: function(rawArg) {
+      // clean up whitespace
+      var arg = rawArg.trim()
+        // replace comma entity with comma
+        .replace(/&comma;/g, ',')
+        // repair extra escape sequences; note only commas strictly need
+        // escaping, but we allow any other char to be escaped since its
+        // likely users will do this
+        .replace(/\\(.)/g, '\$1')
+        ;
+      // basic argument descriptor
+      var a = {
+        name: arg
+      };
+      // detect literal value (must be String or Number)
+      var fc = arg[0];
+      if (fc === '-') {
+        fc = arg[1];
+      }
+      if (fc >= '0' && fc <= '9') {
+        fc = '#';
+      }
+      switch(fc) {
+        case "'":
+        case '"':
+          a.value = arg.slice(1, -1);
+          a.literal = true;
+          break;
+        case '#':
+          a.value = Number(arg);
+          a.literal = true;
+          break;
+      }
+      // if not literal, look for structured path
+      if (!a.literal) {
+        a.rootProperty = this._rootForPath(arg);
+        // detect structured path (has dots)
+        a.structured = arg.indexOf('.') > 0;
+        if (a.structured) {
+          a.wildcard = (arg.slice(-2) == '.*');
+          if (a.wildcard) {
+            a.name = arg.slice(0, -2);
+          }
+        }
+      }
+      return a;
+    },
+
+    _rootForPath: function(path) {
+      var dot = path.indexOf('.');
+      return (dot < 0) ? path : path.slice(0, dot);
+    },
+
+    // path & value are used to fill in wildcard descriptor when effect is
+    // being called as a result of a path notification
+    _marshalArgs: function(model, info, path, value) {
+      var values = [];
+      var args = info.args;
+      for (var i=0, l=args.length; i<l; i++) {
+        var arg = args[i];
+        var name = arg.name;
+        var v;
+        if (arg.literal) {
+          v = arg.value;
+        } else if (arg.structured) {
+          debugger
+          // TODO(kschaaf) deal
+          // v = Polymer.Base._get(name, model);
+        } else {
+          v = model[name];
+        }
+        if (arg.wildcard) {
+          // Only send the actual path changed info if the change that
+          // caused the observer to run matched the wildcard
+          var baseChanged = (name.indexOf(path + '.') === 0);
+          var matches = (info.trigger.name.indexOf(name) === 0 && !baseChanged);
+          values[i] = {
+            path: matches ? path : name,
+            value: matches ? value : v,
+            base: v
+          };
+        } else {
+          values[i] = v;
+        }
+      }
+      return values;
+    },
+
+    setupBindings: function(model, dom, notes) {
+      if (notes.length) {
+        var nodes = new Array(notes.length);
+        for (var i=0; i < notes.length; i++) {
+          var note = notes[i];
+          var node = nodes[i] = Polymer.Annotations.findAnnotatedNode(dom, note);
+          if (note.bindings) {
+            this._setupCompoundBinding(note, node);
+          }
+        }
+        model._nodes = nodes;
+      }
+    },
+
+    _setupCompoundBinding: function(note, node) {
+      var bindings = note.bindings;
+      for (var i=0; i<bindings.length; i++) {
+        var binding = bindings[i];
+        if (binding.isCompound) {
+          // Create compound storage map
+          var storage = node.__compoundStorage__ ||
+            (node.__compoundStorage__ = {});
+          var parts = binding.parts;
+          // Copy literals from parts into storage for this binding
+          var literals = new Array(parts.length);
+          for (var j=0; j<parts.length; j++) {
+            literals[j] = parts[j].literal;
+          }
+          var name = binding.name;
+          storage[name] = literals;
+          // Configure properties with their literal parts
+          if (binding.literal && binding.kind == 'property') {
+            // TODO(kschaaf) config integration
+            // if (node._configValue) {
+            //   node._configValue(name, binding.literal);
+            // } else {
+              node[name] = binding.literal;
+            // }
+          }
+        }
       }
     }
 
