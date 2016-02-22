@@ -33,7 +33,9 @@ Example:
 - [ ] IE 11
 
 ### Versions
-<!-- Polymer.version will show the version -->
+<!--
+`Polymer.version` will show the version for Polymer
+`bower ls` or `npm ls` will show the version of webcomponents.js or webcomponents-lite.js
+-->
 - Polymer: vX.X.X
-<!-- use `bower ls` or `npm ls` -->
 - webcomponents: vX.X.X 
