@@ -1,4 +1,3 @@
+<!-- Instructions: https://github.com/Polymer/polymer/blob/master/CONTRIBUTING.md#contributing-pull-requests -->
 ### Reference Issue
-Fixes #9999999
-
-### Description
+<!-- Example: Fixes #1234 -->
