@@ -1,21 +1,30 @@
+<!-- Instructions: https://github.com/Polymer/polymer/blob/master/CONTRIBUTING.md#filing-bugs -->
 ### Description
-
+<!-- Example: Error thrown when calling `appendChild` on Polymer element -->
 
 #### Live Demo
+<!-- Fork this JSBin, or provide your own URL -->
 https://jsbin.com/xukike/edit?html,output
 
 #### Steps to Reproduce
-1. …
-2. …
-3. …
+<!--
+Example:
+
+1. Create `my-element`
+2. Append `my-element to document.body
+3. Create `div`.
+4. Append `div` to `my-element`
+-->
+
 
 #### Expected Results
-
+<!-- Example: No error is throw -->
 
 #### Actual Results
-
+<!-- Example: Error is thrown -->
 
 ### Browsers Affected
+<!-- Check all that apply -->
 - [ ] Chrome
 - [ ] Firefox
 - [ ] Edge
@@ -24,5 +33,7 @@ https://jsbin.com/xukike/edit?html,output
 - [ ] IE 11
 
 ### Versions
-- Polymer: vX.X.X (use `Polymer.version`)
-- webcomponents: vX.X.X (use `bower ls` or `npm ls`)
+<!-- Polymer.version will show the version -->
+- Polymer: vX.X.X
+<!-- use `bower ls` or `npm ls` -->
+- webcomponents: vX.X.X 
