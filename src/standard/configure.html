@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <script>
-
+(function() {
   /*
     Process inputs efficiently via a configure lifecycle callback.
     Configure is called top-down, host before local dom. Users should
@@ -40,6 +40,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   when a user sends an event in a change handler or listens to a data event
   directly (on-foo-changed).
   */
+
+  var usePolyfillProto = Polymer.Settings.usePolyfillProto;
 
   Polymer.Base._addFeature({
 
@@ -114,8 +116,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _configureProperties: function(properties, config) {
       for (var i in properties) {
         var c = properties[i];
-        // don't accept undefined values
-        if (c.value !== undefined) {
+        // Allow properties set before upgrade on the instance
+        // to override default values. This allows late upgrade + an early set
+        // to not b0rk accessors on the prototype.
+        // Perf testing has shown `hasOwnProperty` to be ok here.
+        if (!usePolyfillProto && this.hasOwnProperty(i) &&
+            this._propertyEffects && this._propertyEffects[i]) {
+          config[i] = this[i];
+          delete this[i];
+        } else if (c.value !== undefined) {
           var value = c.value;
           if (typeof value == 'function') {
             // pass existing config values (this._config) to value function
@@ -140,11 +149,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                 var node = this._nodes[x.effect.index];
                 var name = x.effect.propertyName;
                 // seeding configuration only
-                if (node._propertyEffects && node._propertyEffects[name]) {
+                var isAttr = (x.effect.kind == 'attribute');
+                var hasEffect = (node._propertyEffects && 
+                  node._propertyEffects[name]);
+                if (node._configValue && (hasEffect || !isAttr)) {
                   var value = (p === x.effect.value) ? config[p] :
                     this._get(x.effect.value, config);
-                  if (x.effect.kind == 'attribute') {
-                    value = node.deserialize(value,
+                  if (isAttr) {
+                    // For attribute bindings, flow through the same ser/deser
+                    // process to ensure the value is the same as if it were
+                    // bound through the attribute
+                    value = node.deserialize(this.serialize(value),
                       node._propertyInfo[name].type);
                   }
                   node._configValue(name, value);
@@ -217,4 +232,5 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   });
 
+})();
 </script>

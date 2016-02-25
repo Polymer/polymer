@@ -1,5 +1,144 @@
 # Change Log
 
+##[v1.3.0](https://github.com/Polymer/polymer/tree/v1.3.0) (2016-02-22)
+- [ci skip] Add instructions to pull request template ([commit](https://github.com/Polymer/polymer/commit/933c920))
+
+- [ci skip] markdown fail ([commit](https://github.com/Polymer/polymer/commit/a8e01e2))
+
+- [ci skip] Add instructions to issue template ([commit](https://github.com/Polymer/polymer/commit/ace0f72))
+
+- Make sure to configure properties on polymer elements that do not have property effects. ([commit](https://github.com/Polymer/polymer/commit/f93c3e5))
+
+- Fix lint errors. ([commit](https://github.com/Polymer/polymer/commit/5ac5ee7))
+
+- Add comment. Ensure Date deserializes to String for correctness. ([commit](https://github.com/Polymer/polymer/commit/69c7087))
+
+- Serialize before deserialize when configuring attrs. Fixes #3433. ([commit](https://github.com/Polymer/polymer/commit/ec85582))
+
+- Restrict early property set to properties that have accessors. This allows users to set properties in `created` which are listed in `properties` but which have no accessor. ([commit](https://github.com/Polymer/polymer/commit/4cfb245))
+
+- fix crlf once and for all ([commit](https://github.com/Polymer/polymer/commit/6c5afe5))
+
+- fix test linting from #3350 ([commit](https://github.com/Polymer/polymer/commit/37f7157))
+
+- Use the new .github folder for issue and pull request templates ([commit](https://github.com/Polymer/polymer/commit/58529c2))
+
+- [ci skip] Use https for jsbin ([commit](https://github.com/Polymer/polymer/commit/3e33fd4))
+
+- [ci skip] Add issue and pr template ([commit](https://github.com/Polymer/polymer/commit/cc1ef9a))
+
+- Update to gulp-eslint v2 ([commit](https://github.com/Polymer/polymer/commit/dca0dda))
+
+- fix lint errors ([commit](https://github.com/Polymer/polymer/commit/7da9a38))
+
+- Minor fixes based on review. ([commit](https://github.com/Polymer/polymer/commit/f2c1d4a))
+
+- Undo fix on IE10 where the custom elements polyfill's mixin strategy makes this unfeasible. ([commit](https://github.com/Polymer/polymer/commit/ef629f4))
+
+- Update comments. ([commit](https://github.com/Polymer/polymer/commit/b870fe0))
+
+- Add test that late resolved functions don't warn ([commit](https://github.com/Polymer/polymer/commit/0037c53))
+
+- Add support for properties defined in a behavior. ([commit](https://github.com/Polymer/polymer/commit/b6abf26))
+
+- Generalized approach supporting compute and observers ([commit](https://github.com/Polymer/polymer/commit/f4486a2))
+
+- Proper implementation ([commit](https://github.com/Polymer/polymer/commit/3c12178))
+
+- Support dynamic functions for computed annotations. ([commit](https://github.com/Polymer/polymer/commit/3f1bc4e))
+
+- ordering issue for when assert is defined in native html imports ([commit](https://github.com/Polymer/polymer/commit/d81f6bc))
+
+- Lint the tests ([commit](https://github.com/Polymer/polymer/commit/e5063ca))
+
+- Add support for one-of attribute selector while not breaking support for general sibling combinator. Fixes #3023. Fix taken from #3067. ([commit](https://github.com/Polymer/polymer/commit/5a493d8))
+
+- Fix bindings with special characters ([commit](https://github.com/Polymer/polymer/commit/d385873))
+
+- [ci skip] move linting into before_script stage ([commit](https://github.com/Polymer/polymer/commit/1b5fc9a))
+
+- Fix lint error and uncomment test. ([commit](https://github.com/Polymer/polymer/commit/c00c47f))
+
+- Add test for overriding property based :host selector from outside. ([commit](https://github.com/Polymer/polymer/commit/71c41ed))
+
+- Add comment and fix typo ([commit](https://github.com/Polymer/polymer/commit/b0e16f0))
+
+- Ensure _propertySetter is installed first. Fixes #3063 ([commit](https://github.com/Polymer/polymer/commit/6362f60))
+
+- Disable tap gesture when track gesture is firing for ancestor node ([commit](https://github.com/Polymer/polymer/commit/6f2c1fc))
+
+- Fix parsing of parenthesis in default of variable declaration ([commit](https://github.com/Polymer/polymer/commit/926d0e5))
+
+- Rename _mapRule to _mapRuleOntoParent ([commit](https://github.com/Polymer/polymer/commit/cd42595))
+
+- Test with ESLint enabled ([commit](https://github.com/Polymer/polymer/commit/acdfc1e))
+
+- Make behaviors array unique ([commit](https://github.com/Polymer/polymer/commit/4cde38a))
+
+- Use deserialize from the node. ([commit](https://github.com/Polymer/polymer/commit/a3641e2))
+
+- Actually execute case-map ([commit](https://github.com/Polymer/polymer/commit/d84d75b))
+
+- [ci skip] .eslintrc is deprecated, add .json suffix ([commit](https://github.com/Polymer/polymer/commit/c7554d9))
+
+- Make the test more look like a spec ([commit](https://github.com/Polymer/polymer/commit/db7c324))
+
+- Configure attr's with property effects. More robust fix for #3288. ([commit](https://github.com/Polymer/polymer/commit/0f55d1d))
+
+- Use ESLint for Polymer ([commit](https://github.com/Polymer/polymer/commit/f3c4bb1))
+
+- Add test suite for effects order ([commit](https://github.com/Polymer/polymer/commit/56df8f7))
+
+- Fix negation when a negated binding is changed ([commit](https://github.com/Polymer/polymer/commit/21383a3))
+
+- Add unit test suite for CaseMap ([commit](https://github.com/Polymer/polymer/commit/ee9a600))
+
+- Fixes for IE style ordering issue. ([commit](https://github.com/Polymer/polymer/commit/162f81e))
+
+- Fixes #3326. Changes inspired by #3276 and #3344 ([commit](https://github.com/Polymer/polymer/commit/b5ba9a8))
+
+- Fix for getters/setters for property become inaccessible when property set on element before it is ready ([commit](https://github.com/Polymer/polymer/commit/ecd9b09))
+
+- Non-destructive `@keyframes` rule transformation. ([commit](https://github.com/Polymer/polymer/commit/b9f2482))
+
+- Fix test regression from PR 3289 ([commit](https://github.com/Polymer/polymer/commit/5205d6a))
+
+- Move test and add to runner. ([commit](https://github.com/Polymer/polymer/commit/aeb44de))
+
+- make isDebouncerActive actually return a bool ([commit](https://github.com/Polymer/polymer/commit/dee9b98))
+
+- Lint the javascript code with eslint ([commit](https://github.com/Polymer/polymer/commit/f7d2bdf))
+
+- i suck at git ([commit](https://github.com/Polymer/polymer/commit/b40f639))
+
+- Fix for scoping when class is not specified on element (null was prepended instead of empty string) ([commit](https://github.com/Polymer/polymer/commit/24e9fc7))
+
+- Using constant rather than plain `:host` and `::content`, also create regexp object only once ([commit](https://github.com/Polymer/polymer/commit/c6c28f5))
+
+- Eliminate the need to write `:host ::content` instead of just `::content`, while keeping the same processing under the hood ([commit](https://github.com/Polymer/polymer/commit/d9f3dda))
+
+- Fix: There is no effect of kind 'computedAnnotation' ([commit](https://github.com/Polymer/polymer/commit/06cd560))
+
+- fix test case in 5d17efc ([commit](https://github.com/Polymer/polymer/commit/4a9ef8e))
+
+- add test for 3326 ([commit](https://github.com/Polymer/polymer/commit/854fdbf))
+
+- [ci skip] update CHANGELOG ([commit](https://github.com/Polymer/polymer/commit/3d2cb71))
+
+- Exclude attribute bindings from configuration. Fixes #3288. ([commit](https://github.com/Polymer/polymer/commit/246ea72))
+
+- Doubled `Polymer.CaseMap.dashToCamelCase` performance with simplified and once compiled RegExp. 5 times faster `Polymer.CaseMap.camelToDashCase` using simplified replace part, simplified and once compiled RegExp. ([commit](https://github.com/Polymer/polymer/commit/90938e3))
+
+- Update PRIMER.md ([commit](https://github.com/Polymer/polymer/commit/bb4d558))
+
+- Unit tests ([commit](https://github.com/Polymer/polymer/commit/de371bb))
+
+- Allow newlines in computed binding argument list ([commit](https://github.com/Polymer/polymer/commit/b745f45))
+
+- Remove redundant assign to window.Polymer ([commit](https://github.com/Polymer/polymer/commit/b2f8e8f))
+
+- parentProps should not override argument based props ([commit](https://github.com/Polymer/polymer/commit/898fe89))
+
 ##[v1.2.4](https://github.com/Polymer/polymer/tree/v1.2.4) (2016-01-27)
 - Fixes #3337. When a doc fragment is added, only update the invalidation state of the insertion point list of the shadyRoot IFF it is not already invalid. This fixes an issue that was detected when an a doc fragment that did not include an insertion point was added after one that did but before distribution. ([commit](https://github.com/Polymer/polymer/commit/d26b003))
 

@@ -230,7 +230,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               Gestures.handleTouchAction(ev);
             }
           }
-          if (type === 'touchend') {
+          // disable synth mouse events, unless this event is itself simulated
+          if (type === 'touchend' && !ev.__polymerSimulatedTouch) {
             POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
             // ignore syntethic mouse events after a touch
             ignoreMouse(true);
@@ -247,10 +248,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var i = 0, r; i < recognizers.length; i++) {
         r = recognizers[i];
         if (gs[r.name] && !handled[r.name]) {
-          if (r.flow && r.flow.start.indexOf(ev.type) > -1) {
-            if (r.reset) {
-              r.reset();
-            }
+          if (r.flow && r.flow.start.indexOf(ev.type) > -1 && r.reset) {
+            r.reset();
           }
         }
       }
@@ -525,6 +524,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (self.hasMovedEnough(x, y)) {
           // first move is 'start', subsequent moves are 'move', mouseup is 'end'
           self.info.state = self.info.started ? (e.type === 'mouseup' ? 'end' : 'track') : 'start';
+          if (self.info.state === 'start') {
+            // iff tracking, always prevent tap
+            Gestures.prevent('tap');
+          }
           self.info.addMove({x: x, y: y});
           if (!hasLeftMouseButton(e)) {
             // always fire "end"
@@ -537,7 +540,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       };
       var upfn = function upfn(e) {
         if (self.info.started) {
-          Gestures.prevent('tap');
           movefn(e);
         }
 
@@ -561,6 +563,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var ct = e.changedTouches[0];
       var x = ct.clientX, y = ct.clientY;
       if (this.hasMovedEnough(x, y)) {
+        if (this.info.state === 'start') {
+          // iff tracking, always prevent tap
+          Gestures.prevent('tap');
+        }
         this.info.addMove({x: x, y: y});
         this.fire(t, ct);
         this.info.state = 'track';
@@ -573,8 +579,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var ct = e.changedTouches[0];
       // only trackend if track was started and not aborted
       if (this.info.started) {
-        // iff tracking, always prevent tap
-        Gestures.prevent('tap');
         // reset started state on up
         this.info.state = 'end';
         this.info.addMove({x: ct.clientX, y: ct.clientY});

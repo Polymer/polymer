@@ -68,8 +68,8 @@ gulp.task('micro', vulcanizeWithExcludes(micro));
 gulp.task('mini', vulcanizeWithExcludes(mini, [micro]));
 gulp.task('max', vulcanizeWithExcludes(max, [mini, micro]));
 
-gulp.task('clean', function(cb) {
-  del(workdir, cb);
+gulp.task('clean', function() {
+  return del(workdir);
 });
 
 // copy bower.json into dist folder
@@ -99,8 +99,8 @@ gulp.task('restore-src', function() {
     .pipe(gulp.dest('.'));
 });
 
-gulp.task('cleanup-switch', function(cb) {
-  del([mini + '.bak', micro + '.bak', max + '.bak'], cb);
+gulp.task('cleanup-switch', function() {
+  return del([mini + '.bak', micro + '.bak', max + '.bak']);
 });
 
 gulp.task('switch-build', function() {
@@ -127,7 +127,7 @@ gulp.task('release', function(cb) {
 });
 
 gulp.task('lint', function() {
-  return gulp.src('src/**/*.html')
+  return gulp.src(['src/**/*.html', 'test/unit/*.html'])
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());

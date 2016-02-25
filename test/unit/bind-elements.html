@@ -55,6 +55,7 @@
       <div id="compound2">
         literal1 {{cpnd1}} literal2 {{cpnd2}}{{cpnd3.prop}} literal3 {{computeCompound(cpnd4, cpnd5, 'literal')}} literal4
       </div>
+      <span id="boundWithDash">{{objectWithDash.binding-with-dash}}</span>
   </template>
   <script>
     Polymer({
@@ -134,6 +135,9 @@
         },
         noComputedProp: {
           computed: 'foobared(noComputed)'
+        },
+        objectWithDash: {
+          type: Object
         }
       },
       observers: [
@@ -293,6 +297,9 @@
       notifyingvalue="{{computedValue}}"
       computedvalue="{{value}}">
     </x-basic>
+    <x-basic id="basic4"
+      notifyingvalue="{{!negatedValue}}">
+    </x-basic>
   </template>
   <script>
     Polymer({
@@ -313,6 +320,9 @@
         },
         computedValue: {
           computed: 'computeComputedValue(a, b)'
+        },
+        negatedValue: {
+          value: false
         }
       },
       created: function() {
@@ -489,6 +499,166 @@
         }
       },
       _isAttachedChanged: function() {}
+    });
+  </script>
+</dom-module>
+
+<dom-module id="x-order-of-effects-grand-parent">
+  <template>
+    <x-order-of-effects id="child" base="{{base}}"></x-order-of-effects>
+  </template>
+</dom-module>
+
+<dom-module id="x-order-of-effects">
+  <template>
+    <x-order-of-effects-child
+      prop1="[[base]]"
+      prop2="[[_computedAnnotation(base)]]"
+    ></x-order-of-effects-child>
+  </template>
+  <script>
+  (function() {
+    var invocations = [];
+    Polymer({
+      is: 'x-order-of-effects-grand-parent',
+      properties: {
+        base: {
+          observer: '_childPropertyChanged'
+        }
+      },
+      _childPropertyChanged: function() {
+        invocations.push('notify');
+      }
+    });
+    Polymer({
+      is: 'x-order-of-effects',
+      properties: {
+        base: {
+          type: String,
+          observer: '_observer',
+          notify: true,
+          reflectToAttribute: true
+        },
+        computed: {
+          type: String,
+          computed: '_computed(base)'
+        },
+        complex: {
+          type: String,
+          value: 'complex'
+        }
+      },
+      observers: ['_complexObserver(complex, base)'],
+      ready: function() {
+        this.invocations = invocations;
+
+        var old = this.reflectPropertyToAttribute.bind(this);
+        this.reflectPropertyToAttribute = function(property, attribute, value) {
+          invocations.push('reflect');
+          old(property, attribute, value);
+        };
+      },
+      _computed: function(base) {
+        invocations.push('compute');
+        return base;
+      },
+      _computedAnnotation: function(base) {
+        return base;
+      },
+      _observer: function() {
+        invocations.push('observer');
+      },
+      _complexObserver: function() {
+        invocations.push('complexObserver');
+      }
+    });
+    Polymer({
+      is: 'x-order-of-effects-child',
+      properties: {
+        prop1: {
+          observer: '_prop1Changed'
+        },
+        prop2: {
+          observer: '_prop2Changed'
+        }
+      },
+      _prop1Changed: function() {
+        invocations.push('annotation');
+      },
+      _prop2Changed: function() {
+        invocations.push('annotatedComputation');
+      }
+    });
+  })();
+  </script>
+</dom-module>
+
+<dom-module id="x-bind-computed-property">
+  <template>
+    <div id="check">[[translate('Hello World.')]]</div>
+  </template>
+  <script>
+    (function(){
+      var TranslateBehavior = {
+        properties: {
+          translate: {
+            type: Function,
+            computed: '_computeTranslateFn(translator)'
+          }
+        }
+      };
+      Polymer({
+        is: 'x-bind-computed-property',
+        behaviors: [TranslateBehavior],
+        properties: {
+          translator: {
+            type: Function,
+            value: function() {
+              return function(message) {
+                return 'translated: ' + message;
+              };
+            }
+          }
+        },
+
+        _computeTranslateFn: function(translator) {
+          return function(message) {
+            return translator(message);
+          };
+        }
+
+      });
+    })();
+  </script>
+</dom-module>
+
+<dom-module id="x-bind-computed-property-late-translator">
+  <template>
+    <div id="check">[[translate(message)]]</div>
+  </template>
+  <script>
+    Polymer({
+      is: 'x-bind-computed-property-late-translator',
+      properties: {
+        message: {
+          type: String,
+          value: 'Hello'
+        },
+        translate: {
+          type: Function,
+          computed: '_computeTranslateFn(translator)'
+        },
+        translator: {
+          type: Function
+        }
+      },
+
+      _computeTranslateFn: function(translator) {
+        return function(message) {
+          return translator(message);
+        };
+      }
+
     });
   </script>
 </dom-module>
