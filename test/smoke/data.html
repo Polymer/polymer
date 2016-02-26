@@ -1,0 +1,268 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <title>Polymer - setProperties</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+
+  <link rel="import" href="../../src/utils/boot.html">
+  <link rel="import" href="../../src/properties/data.html">
+
+</head>
+<body>
+
+  <template id="x-template">
+    <style>
+      :host {
+        display: block;
+        background: beige;
+        padding: 8px;
+        margin: 4px;
+      }
+      td:first-of-type {
+        background: lightgray;
+      }
+    </style>
+    <table>
+      <tr><td foo$="{{foo}}" title="{{foo}}">foo:</td><td>{{foo}}</td></tr>
+      <tr><td>concat(ziz, foo):</td><td>{{concat(ziz, foo)}}</td></tr>
+      <tr><td>compound ziz, concat:</td><td>{{ziz}} - {{concat(ziz, foo)}}</td></tr>
+      <tr><td>bar (computed):</td><td>{{bar}}</td></tr>
+      <tr><td>nard (computed below):</td><td>{{nard}}</td></tr>
+    </table>
+    <x-client foo="{{foo}}" ziz="{{ziz}}" bar="{{bar}}" nard="{{nard}}" nard2="{{nard}}"></x-client>
+  </template>
+
+  <template id="x-client">
+    <style>
+      :host {
+        display: block;
+        background: lightblue;
+        padding: 8px;
+        margin: 4px;
+      }
+    </style>
+    <table>
+      <tr><td>foo:</td><td><input value="{{foo::input}}"></td></tr>
+      <tr><td>ziz:</td><td><input value="{{ziz::input}}"></td></tr>
+      <tr><td>bar:</td><td><input value="{{bar}}" disabled></td></tr>
+      <tr><td>nard (computed):</td><td><input value="{{nard}}" disabled></td></tr>
+    </table>
+  </template>
+
+  <script>
+  (function() {
+    'use strict';
+
+    var logEl = window.logEl = function(el) {
+      return el.localName + (el.id ? '#' + el.id : '');
+    };
+
+    var template = document.querySelector('template#x-template');
+    var notes = Polymer.Annotations.parseAnnotations(template);
+
+    class XProperties extends HTMLElement {
+
+      createdCallback() {
+        var dom = document.importNode(template.content, true);
+        Polymer.Data.setupBindings(this, dom, notes);
+        this.attachShadow({mode: 'open'}).appendChild(dom);
+
+        if (this.hasAttribute('runtime')) {
+          Polymer.Data.addPropertyEffect(this, 'foo', {
+            fn: function() {
+              console.log(logEl(this), 'custom2', arguments);
+            }
+          });
+        }
+
+      }
+
+      zizChanged(value) {
+        console.log(logEl(this), 'zizChanged', value);
+      }
+
+      fooChanged(value) {
+        console.log(logEl(this), 'fooChanged', value);
+      }
+
+      computeBar(foo, ziz) {
+        return '[ ' + foo + ' - ' + ziz + ' ]';
+      }
+
+      barChanged(value) {
+        console.log(logEl(this), 'barChanged', value);
+      }
+
+      stuffChanged(foo, ziz) {
+        console.log(logEl(this), 'stuffChanged', foo, ziz);
+      }
+
+      concat(a, b) {
+        return a + ' ' + b;
+      }
+
+      nardChanged(value) {
+        console.log(logEl(this), 'nardChanged', value);
+      }
+
+    }
+
+    Polymer.Data.createReadOnlyProperty(XProperties.prototype, 'ziz');
+    Polymer.Data.createReflectedProperty(XProperties.prototype, 'ziz');
+    Polymer.Data.createObserver(XProperties.prototype, 'ziz', 'zizChanged');
+    Polymer.Data.createObserver(XProperties.prototype, 'foo', 'fooChanged');
+    Polymer.Data.addPropertyEffect(XProperties.prototype, 'foo', {
+      fn: function() {
+        console.log(logEl(this), 'custom', arguments);
+      }
+    });
+
+    Polymer.Data.createNotifyingProperty(XProperties.prototype, 'foo');
+    Polymer.Data.createComputedProperty(XProperties.prototype, 'bar',
+      'computeBar(foo, ziz)');
+    Polymer.Data.createObserver(XProperties.prototype, 'bar',
+      'barChanged');
+    Polymer.Data.createMultiObserver(XProperties.prototype,
+      'stuffChanged(foo, ziz)');
+
+    Polymer.Data.createObserver(XProperties.prototype, 'nard','nardChanged');
+
+    Polymer.Data.bindTemplate(XProperties.prototype, notes);
+
+    document.registerElement('x-properties', XProperties);
+
+    // ---------------
+
+    var clientTemplate = document.querySelector('template#x-client');
+    var clientNotes = Polymer.Annotations.parseAnnotations(clientTemplate);
+
+    class XClient extends HTMLElement {
+
+      createdCallback() {
+        var dom = document.importNode(clientTemplate.content, true);
+        Polymer.Data.setupBindings(this, dom, clientNotes);
+        this.attachShadow({mode: 'open'}).appendChild(dom);
+      }
+
+      zizChanged(value) {
+        console.log(logEl(this), 'zizChanged', value);
+      }
+
+      fooChanged(value) {
+        console.log(logEl(this), 'fooChanged', value);
+      }
+
+      barChanged(value) {
+        console.log(logEl(this), 'barChanged', value);
+      }
+
+      computeNard(bar) {
+        return '<< ' + bar + ' >>';
+      }
+
+      nardChanged(value) {
+        console.log(logEl(this), 'nardChanged', value);
+      }
+
+      nard2Changed(value) {
+        console.log(logEl(this), 'nard2Changed', value);
+      }
+
+    }
+
+    Polymer.Data.createNotifyingProperty(XClient.prototype, 'foo');
+    Polymer.Data.createNotifyingProperty(XClient.prototype, 'ziz');
+    Polymer.Data.createObserver(XClient.prototype, 'ziz','zizChanged');
+    Polymer.Data.createObserver(XClient.prototype, 'foo','fooChanged');
+    Polymer.Data.createObserver(XClient.prototype, 'bar','barChanged');
+    Polymer.Data.bindTemplate(XClient.prototype, clientNotes);
+    Polymer.Data.createComputedProperty(XClient.prototype, 'nard',
+      'computeNard(bar)');
+    Polymer.Data.createObserver(XClient.prototype, 'nard','nardChanged');
+    Polymer.Data.createObserver(XClient.prototype, 'nard2','nard2Changed');
+    Polymer.Data.createNotifyingProperty(XClient.prototype, 'nard');
+
+    document.registerElement('x-client', XClient);
+
+    // ---------------
+
+    class XPropertiesSub extends XProperties {
+
+      createdCallback() {
+
+        super.createdCallback();
+
+        Polymer.Data.addPropertyEffect(this, 'foo', {
+          fn: function() {
+            console.log(logEl(this), 'custom3', arguments);
+          }
+        });
+
+      }
+
+      fooChanged2(value) {
+        console.log(logEl(this), 'fooChanged2', value);
+      }
+
+    }
+
+    Polymer.Data.createObserver(XPropertiesSub.prototype, 'foo',
+      'fooChanged2');
+
+    document.registerElement('x-properties-sub', XPropertiesSub);
+
+  })();
+  </script>
+
+  <x-properties id="el1" runtime></x-properties>
+
+<!--   <x-properties id="el2"></x-properties>
+
+  <x-properties-sub id="el3" runtime></x-properties-sub>
+ -->
+   <script>
+
+    var logEl = window.logEl;
+
+    var el1 = document.getElementById('el1');
+    el1.addEventListener('foo-changed', function(e) {
+      console.log(logEl(this), 'notified:', e.type,  e.detail);
+    });
+    console.log('// setProperties(el1, {foo: \'foo\', ziz: \'ziz\'}');
+    Polymer.Data.setProperties(el1, {
+      foo: 'foo',
+      ziz: 'ziz'
+    });
+
+    // console.log('---');
+
+    // var el2 = document.getElementById('el2');
+    // console.log('// setProperties(el2, {foo: \'foo\', ziz: \'ziz\'}');
+    // Polymer.Data.setProperties(el2, {
+    //   foo: 'foo',
+    //   ziz: 'ziz'
+    // });
+
+    // console.log('---');
+
+    // var el3 = document.getElementById('el3');
+    // console.log('// el3.foo = \'foo\';');
+    // el3.foo = 'foo';
+    // console.log('// el3._setZiz(\'ziz\');');
+    // el3._setZiz('ziz');
+
+  </script>
+
+</body>
+</html>
