@@ -135,9 +135,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // where to find the node in the concretized list
         var b$ = note.bindings;
         for (var j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
-          if (this._shouldAddListener(note)) {
-            this._addAnnotatedListener(this, i,
-              note.name, note.parts[0].value, note.parts[0].event);
+          if (this._shouldAddListener(binding)) {
+            this._addAnnotatedListener(model, i,
+              binding.name, binding.parts[0].value, binding.parts[0].event);
           }
           this._addAnnotationEffect(model, binding, i);
         }
@@ -206,8 +206,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           value = value == undefined ? '' : value;
         }
         // TODO(kschaaf): --- from above was here ---
-        node[property] = value;
+        this._setPropertyToNode(model, node, property, value);
       }
+    },
+
+    // *** for overriding ***
+    _setPropertyToNode: function(model, node, property, value) {
+      node[property] = value;
     },
 
     valueToAttribute: function(node, value, attribute) {
@@ -318,38 +323,66 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
              !effect.parts[0].negate;
     },
 
-    _addAnnotatedListener: function() {
+    _addAnnotatedListener: function(model, index, property, path, event) {
+      if (!model._bindListeners) {
+        model._bindListeners = [];
+      }
+      var eventName = event ||
+        (Polymer.CaseMap.camelToDashCase(property) + '-changed');
+      model._bindListeners.push({
+        index: index,
+        property: property,
+        path: path,
+        event: eventName
+      });
+    },
+
+    _setupBindListeners: function(inst) {
+      var b$ = inst._bindListeners;
+      for (var i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
+        var node = inst._nodes[info.index];
+        this._addNotifyListener(node, inst, info);
+      }
+    },
+
+    _addNotifyListener: function(node, inst, info) {
+      var lib = this;
+      node.addEventListener(info.event, function(e) {
+        return lib._notifyListener(e, inst, info.property, info.path);
+      });
+    },
+
+    _notifyListener: function(e, inst, property, path) {
+      if (!this._isEventBogus(e, e.target)) {
+        // TODO(kschaaf): paths
+        var value = e.target[property];
+        inst[path] = value;
+      }
+    },
+
+    _isEventBogus: function(e, target) {
+      return e.path && e.path[0] !== target;
     },
 
     // -- for method-based effects (complexObserver & computed) --------------
 
     _createMethodEffect: function(model, sig, effectFn, methodInfo) {
       var dynamicFn = sig.dynamicFn;
+      var effect = {
+        fn: effectFn,
+        info: {
+          lib: this,
+          methodName: sig.methodName,
+          args: sig.args,
+          methodInfo: methodInfo,
+          dynamicFn: dynamicFn
+        }
+      };
       for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
-        this.addPropertyEffect(model, arg.rootProperty, {
-          fn: effectFn,
-          info: {
-            lib: this,
-            methodName: sig.methodName,
-            args: sig.args,
-            trigger: arg,
-            methodInfo: methodInfo,
-            dynamicFn: dynamicFn
-          }
-        });
+        this.addPropertyEffect(model, arg.rootProperty, effect);
       }
       if (dynamicFn) {
-        this._addPropertyEffect(model, sig.methodName, {
-          fn: effectFn,
-          info: {
-            lib: this,
-            methodName: sig.methodName,
-            args: sig.args,
-            trigger: null,
-            methodInfo: methodInfo,
-            dynamicFn: dynamicFn
-          }
-        });
+        this._addPropertyEffect(model, sig.methodName, effect);
       }
     },
 
@@ -462,15 +495,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           v = model[name];
         }
         if (arg.wildcard) {
-          // Only send the actual path changed info if the change that
-          // caused the observer to run matched the wildcard
-          var baseChanged = (name.indexOf(path + '.') === 0);
-          var matches = (info.trigger.name.indexOf(name) === 0 && !baseChanged);
-          values[i] = {
-            path: matches ? path : name,
-            value: matches ? value : v,
-            base: v
-          };
+          // TODO(kschaaf): paths/wildcards
+          debugger
+          // // Only send the actual path changed info if the change that
+          // // caused the observer to run matched the wildcard
+          // var baseChanged = (name.indexOf(path + '.') === 0);
+          // var matches = (info.trigger.name.indexOf(name) === 0 && !baseChanged);
+          // values[i] = {
+          //   path: matches ? path : name,
+          //   value: matches ? value : v,
+          //   base: v
+          // };
         } else {
           values[i] = v;
         }
@@ -478,17 +513,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return values;
     },
 
-    setupBindings: function(model, dom, notes) {
+    setupBindings: function(inst, dom, notes) {
       if (notes.length) {
         var nodes = new Array(notes.length);
         for (var i=0; i < notes.length; i++) {
           var note = notes[i];
           var node = nodes[i] = Polymer.Annotations.findAnnotatedNode(dom, note);
+          node.dataHost = inst;
           if (note.bindings) {
             this._setupCompoundBinding(note, node);
           }
         }
-        model._nodes = nodes;
+        inst._nodes = nodes;
+      }
+      if (inst._bindListeners) {
+        this._setupBindListeners(inst);
       }
     },
 
