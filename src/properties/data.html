@@ -10,6 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="property-effects.html">
+<link rel="import" href="../template/template.html">
 
 <script>
 (function() {
@@ -89,9 +90,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // -- annotation ----------------------------------------------
 
-    bindTemplate: function(model) {
+    bindTemplate: function(model, template) {
+      var notes = Polymer.Annotations.parseAnnotations(template);
       this._accumulateEffects(model, '_propagateEffects',
-        Polymer.PropertyEffects.bindTemplate, arguments);
+        Polymer.PropertyEffects.bindTemplate, [model, notes]);
     },
 
     // -- set properties machinery
@@ -138,14 +140,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // Run annotation effects
         this._runEffects(inst, inst._propagateEffects, props);
-        // Recurse to children
-        inst._setPropClients.forEach(function(v, client) {
-          if (client != this) {
-            lib.setProperties(client, client._setPropQueue, true);
-          }
-        });
-        // Run observer effects
-        this._runEffects(inst, inst._observerEffects, props);
+        if (inst._hasConfigured) {
+          // Recurse to children
+          inst._setPropClients.forEach(function(v, client) {
+            if (client != this) {
+              lib.setProperties(client, client._setPropQueue, true);
+            }
+          });
+          // Run observer effects
+          this._runEffects(inst, inst._observerEffects, props);
+        } else {
+          inst._setPropInterim = props;
+        }
         inst._setPropClients = null;
       }
       return props;
@@ -247,6 +253,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!node.setProperties) {
         Polymer.PropertyEffects._addNotifyListener.apply(this, arguments);
       }
+    },
+
+    _hostStack: [],
+
+    configureDefaults: function(inst, props) {
+      inst._setPropQueue = props;
+    },
+
+    _configureDefaults: function(inst) {
+      this.setProperties(inst, inst._setPropQueue, true, true);
+      for (var i=0; i<inst._clients.length; i++) {
+        this._configureDefaults(inst._clients[i]);
+      }
+      inst._hasConfigured = true;
+      this._runEffects(inst, inst._observerEffects, inst._setPropInterim);
+    },
+
+    _registerClient: function(client) {
+      var host = this._hostStack[this._hostStack.length-1];
+      if (host) {
+        host._clients.push(client);
+      }
+    },
+
+    stamp: function(template, inst) {
+      this._registerClient(inst);
+      inst._clients = [];
+      this._hostStack.push(inst);
+      var dom = Polymer.Template.stamp(template, inst);
+      this.setupBindings(inst, dom, template.content._notes);
+      this._hostStack.pop(inst);
+      if (!this._hostStack.length) {
+        this._configureDefaults(inst);
+      }
+      return dom;
     }
 
   });
