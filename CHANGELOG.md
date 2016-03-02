@@ -1,5 +1,28 @@
 # Change Log
 
+##[v1.3.1](https://github.com/Polymer/polymer/tree/v1.3.1) (2016-03-02)
+- Fix lint errors. ([commit](https://github.com/Polymer/polymer/commit/44d06f1))
+
+- Add test. ([commit](https://github.com/Polymer/polymer/commit/02660c1))
+
+- Fix lint error. ([commit](https://github.com/Polymer/polymer/commit/e2c5f9e))
+
+- Ensure that dom-bind always waits until DOMContentLoaded to render. This ensures a script can install api on the dom-bind prior to it rendering. Previously dom-bind waited for first render, but an early parser yield can make this occur unexpectedly early. ([commit](https://github.com/Polymer/polymer/commit/cc0e9df))
+
+- Refine fix for #3461 so that the decision to apply a static or property stylesheet relies on the same info. ([commit](https://github.com/Polymer/polymer/commit/ff96f9e))
+
+- Clean the .eslintignore ([commit](https://github.com/Polymer/polymer/commit/04d06a5))
+
+- [ci skip] Add header for those asking questions ([commit](https://github.com/Polymer/polymer/commit/9d6111c))
+
+- Fixes #3461: Only avoid creating a statically scoped stylesheet when properties are consumed in an element, properly excluding properties produced as a result of consumption. ([commit](https://github.com/Polymer/polymer/commit/e26a806))
+
+- tweaks to new README ([commit](https://github.com/Polymer/polymer/commit/809352d))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/4f3f463))
+
+- Updated the README.md for a non-technical user to understand ([commit](https://github.com/Polymer/polymer/commit/0729cef))
+
 ##[v1.3.0](https://github.com/Polymer/polymer/tree/v1.3.0) (2016-02-22)
 - [ci skip] Add instructions to pull request template ([commit](https://github.com/Polymer/polymer/commit/933c920))
 
