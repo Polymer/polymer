@@ -552,6 +552,10 @@ suite('Polymer.dom', function() {
       assert.equal(path[2], re);
       assert.equal(path[4], rere);
       assert.equal(path[6], testElement);
+      // event.path *should* be an array
+      assert.isArray(path);
+      assert.isFunction(path.indexOf);
+      assert(path.indexOf(testElement) > -1);
     });
 
     rere.addEventListener('test-event', function(e) {
