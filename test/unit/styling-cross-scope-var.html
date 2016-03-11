@@ -85,7 +85,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           padding: 8px;
         }
 
-        :root {
+        *, :host {
           --gc4-scope: 5px solid green;
         }
 
@@ -146,9 +146,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           display: block;
         }
 
-        :root {
+        *, :host {
           --grand-child-scope-var: var(--rename);
         }
+
       </style>
       overrides:
       <x-grand-child-scope id="gc1"></x-grand-child-scope>
@@ -187,7 +188,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           display: block;
         }
 
-        :root {
+        *, :host {
           --fillin: 16px;
         }
       </style>
@@ -205,7 +206,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <template>
       <style>
         :host {
-          border: var(--border, --defaultBorder);
+          border: var(--border, var(--defaultBorder));
           margin: 8px;
           padding: 8px;
           display: block;
@@ -352,7 +353,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           --scope-var: 1px solid black;
           --fallback: 7px solid orange;
           --default1: var(--undefined, 6px solid yellow);
-          --default2: var(--undefined, --fallback);
+          --default2: var(--undefined, var(--fallback));
           --default3: var(--undefined, rgb(128, 200, 250));
           --defaultBorder: 22px solid green;
           --a: 10px;
@@ -365,7 +366,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
           --end-term: 19px solid blue}
 
-        :root{--ws-term: 18px solid orange}
+        /* TODO(dfreedm): fix :host shimming */
+        :host{--ws-term: 18px solid orange}
+        *{--ws-term: 18px solid orange}
 
         #me {
           border: var(--scope-var);
@@ -385,7 +388,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
 
         #applyDefault2 {
-          border: var(--undefined, --fallback);
+          border: var(--undefined, var(--fallback));
         }
 
         #default1 {
@@ -760,13 +763,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     styled.$.child.classList.add('special');
     var l = document.querySelectorAll('style').length;
     styled.updateStyles();
-    if (styled.shadyRoot) {
+    if (styled.shadyRoot && !Polymer.StyleUtil.HAS_NATIVE_VARIABLES) {
       assert.equal(document.querySelectorAll('style').length, l+4);
     }
     assertComputed(styled.$.child.$.me, '12px');
     styled.$.child.classList.remove('special');
     styled.updateStyles();
-    if (styled.shadyRoot) {
+    if (styled.shadyRoot && !Polymer.StyleUtil.HAS_NATIVE_VARIABLES) {
       assert.equal(document.querySelectorAll('style').length, l);
     }
     assertComputed(styled.$.child.$.me, '2px');
@@ -830,13 +833,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // own scope property overrides outer scope
     var o2 = styled.$.overrides2;
     assertStylePropertyValue(o2, '--rename', '8px');
-    assertStylePropertyValue(o2, '--grand-child-scope-var', '8px');
+    assertStylePropertyValue(o2.$.gc1, '--grand-child-scope-var', '8px');
     assertComputed(o2.$.gc1.$.me, '8px');
 
     // late bound property does *not* resolve using inherited value
     var o3 = styled.$.overrides3;
     assert.equal(o3._styleProperties['--late'], '', 'property should not be late bound');
-    assertStylePropertyValue(o3, '--fillin', '16px');
+    assertStylePropertyValue(o3.$.late, '--fillin', '16px');
     assertComputed(o3.$.late, '0px');
 
   });
@@ -890,16 +893,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     assertComputed(d, '10px');
   });
 
-  test('producing a var that consumes results in static and not dynamic stylesheet', function() {
-    var d = document.createElement('x-var-produce-via-consume');
-    document.body.appendChild(d);
-    CustomElements.takeRecords();
-    var styleRoot = d.shadowRoot ? d.shadowRoot : document.head;
-    var staticStyle = styleRoot.querySelector('style[scope=x-var-produce-via-consume]');
-    assert.ok(staticStyle);
-    assert.match(staticStyle.textContent, /display/, 'static style does not contain style content');
-    assert.equal(styleRoot.querySelectorAll('style[scope~=x-var-produce-via-consume]').length, 1);
-  });
+  if (!Polymer.StyleUtil.HAS_NATIVE_VARIABLES) {
+
+    test('producing a var that consumes results in static and not dynamic stylesheet', function() {
+      var d = document.createElement('x-var-produce-via-consume');
+      document.body.appendChild(d);
+      CustomElements.takeRecords();
+      var styleRoot = d.shadowRoot ? d.shadowRoot : document.head;
+      var staticStyle = styleRoot.querySelector('style[scope=x-var-produce-via-consume]');
+      assert.ok(staticStyle);
+      assert.match(staticStyle.textContent, /display/, 'static style does not contain style content');
+      assert.equal(styleRoot.querySelectorAll('style[scope~=x-var-produce-via-consume]').length, 1);
+    });
+    
+  }
 
 });
 

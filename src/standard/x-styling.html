@@ -7,6 +7,7 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="../lib/style-util.html">
 <link rel="import" href="../lib/style-properties.html">
 <link rel="import" href="../lib/settings.html">
 <link rel="import" href="../lib/style-defaults.html">
@@ -17,6 +18,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var serializeValueToAttribute = Polymer.Base.serializeValueToAttribute;
 
+    var styleUtil = Polymer.StyleUtil;
     var propertyUtils = Polymer.StyleProperties;
     var styleTransformer = Polymer.StyleTransformer;
     var styleDefaults = Polymer.StyleDefaults;
@@ -47,7 +49,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {String} the computed value
      */
       getComputedStyleValue: function(property) {
-        return this._styleProperties && this._styleProperties[property] ||
+        return !styleUtil.HAS_NATIVE_VARIABLES && this._styleProperties ? 
+          this._styleProperties[property] :
           getComputedStyle(this).getPropertyValue(property);
       },
 
@@ -61,8 +64,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._customStyle = null;
       },
 
+      // TODO(dfreedm): should only be true iff browser doesn't support
+      // native custom properties.
       _needsStyleProperties: function() {
-        return Boolean(this._ownStylePropertyNames &&
+        return Boolean(this._ownStylePropertyNames && 
           this._ownStylePropertyNames.length);
       },
 
@@ -240,16 +245,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (properties) {
             this.mixin(this.customStyle, properties);
           }
-          // skip applying properties to self if not used
-          if (this._needsStyleProperties()) {
-            this._updateStyleProperties();
-          // when an element doesn't use style properties, its own properties
-          // should be invalidated so elements down the tree update ok.
+          if (styleUtil.HAS_NATIVE_VARIABLES) {
+            propertyUtils.updateNativeStyleProperties(this, this.customStyle);
           } else {
-            this._styleProperties = null;
-          }
-          if (this._styleCache) {
-            this._styleCache.clear();
+            // skip applying properties to self if not used
+            if (this._needsStyleProperties()) {
+              this._updateStyleProperties();
+            // when an element doesn't use style properties, its own properties
+            // should be invalidated so elements down the tree update ok.
+            } else {
+              this._styleProperties = null;
+            }
+            if (this._styleCache) {
+              this._styleCache.clear();
+            }
           }
           // always apply properties to root
           this._updateRootStyles();
