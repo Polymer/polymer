@@ -229,17 +229,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           for (prop in this._instanceProps) {
             delete parentProps[prop];
           }
-          proto = archetype._parentPropProto = Object.create(null);
-          if (template != this) {
-            // Assumption: if `this` isn't the template being templatized,
-            // assume that the template is not a Poylmer.Base, so prep it
-            // for binding
-            Polymer.Bind.prepareModel(proto);
-            Polymer.Base.prepareModelNotifyPath(proto);
-          }
           // Create accessors for each parent prop that forward the property
           // to template instances through abstract _forwardParentProp API
           // that should be implemented by Templatizer users
+          var propertyEffects = this.mixin({}, this._propertyEffects);
+          var propertyInfo = this.mixin({}, this._propertyInfo);
+          var prefixedParentProps = {};
           for (prop in parentProps) {
             var parentProp = this._parentPropPrefix + prop;
             // TODO(sorvell): remove reference Bind library functions here.
@@ -254,13 +249,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               effect: {event:
                 Polymer.CaseMap.camelToDashCase(parentProp) + '-changed'}
             }];
-            Polymer.Bind._createAccessors(proto, parentProp, effects);
+            propertyEffects[parentProp] = effects;
+            propertyInfo[parentProp] = {};
+            prefixedParentProps[parentProp] = true;
           }
+          proto = archetype._parentPropProto = {
+            _propertyEffects: propertyEffects,
+            _propertyInfo: propertyInfo,
+            prefixedParentProps: prefixedParentProps
+          };
         }
         // capture this reference for use below
         var self = this;
         // Instance setup
         if (template != this) {
+          Polymer.Bind.prepareModel(template);
+          Polymer.Base.prepareModelNotifyPath(template);
           Polymer.Bind.prepareInstance(template);
           template._forwardParentProp = function(source, value) {
             self._forwardParentProp(source, value);
@@ -280,9 +284,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _createHostPropEffector: function(prop) {
-      var prefix = this._parentPropPrefix;
-      return function(source, value) {
-        this.dataHost._templatized[prefix + prop] = value;
+      var pp = this._parentPropPrefix + prop;
+      return function(source, value, old, fromAbove) {
+        if (!fromAbove) {
+          this.dataHost._templatized.__setProperty(pp, value);
+        }
       };
     },
 
@@ -294,22 +300,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       };
     },
 
-    // Similar to Polymer.Base.extend, but retains any previously set instance
-    // values (_propertySetter back on instance once accessor is installed)
+    // Extends template with parent property info & effects and seed pre-bound data
     _extendTemplate: function(template, proto) {
-      var n$ = Object.getOwnPropertyNames(proto);
-      if (proto._propertySetter) {
-        // _propertySetter API may need to be copied onto the template,
-        // and it needs to come first to allow the property swizzle below
-        template._propertySetter = proto._propertySetter;
-      }
-      for (var i=0, n; (i<n$.length) && (n=n$[i]); i++) {
-        var val = template[n];
-        var pd = Object.getOwnPropertyDescriptor(proto, n);
-        Object.defineProperty(template, n, pd);
-        if (val !== undefined) {
-          template._propertySetter(n, val);
-        }
+      template._propertyEffects = proto._propertyEffects;
+      template._propertyInfo = proto._propertyInfo;
+      var prefixedParentProps = proto.prefixedParentProps;
+      for (var p in prefixedParentProps) {
+        var val = template[p];
+        template.__data__[p] = val;
       }
     },
 
@@ -330,7 +328,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Call extension point for Templatizer sub-classes
       dataHost._forwardInstancePath.call(dataHost, this, path, value);
       if (root in dataHost._parentProps) {
-        dataHost._templatized.notifyPath(dataHost._parentPropPrefix + path, value);
+        dataHost._templatized._notifyPath(dataHost._parentPropPrefix + path, value);
       }
     },
 
@@ -423,9 +421,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this._parentProps) {
         var templatized = this._templatized;
         for (var prop in this._parentProps) {
-          if (model[prop] === undefined) {
-            model[prop] = templatized[this._parentPropPrefix + prop];
-          }
+          model[prop] = templatized.__data__[this._parentPropPrefix + prop];
         }
       }
       return new this.ctor(model, this);

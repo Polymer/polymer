@@ -91,26 +91,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       // Note: this implemetation only accepts key-based array paths
+      // _notifyPath: function(path, value, fromAbove) {
+      //   var old = this._propertySetter(path, value);
+      //   // manual dirty checking for now...
+      //   // NaN is always not equal to itself,
+      //   // if old and value are both NaN we treat them as equal
+      //   // x === x is 10x faster, and equivalent to !isNaN(x)
+      //   if (old !== value && (old === old || value === value)) {
+      //     // console.group((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
+      //     // Take path effects at this level for exact path matches,
+      //     // and notify down for any bindings to a subset of this path
+      //     this._pathEffector(path, value);
+      //     // Send event to notify the path change upwards
+      //     // Optimization: don't notify up if we know the notification
+      //     // is coming from above already (avoid wasted event dispatch)
+      //     if (!fromAbove) {
+      //       // TODO(sorvell): should only notify if notify: true?
+      //       this._notifyPathUp(path, value);
+      //     }
+      //     // console.groupEnd((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
+      //     return true;
+      //   }
+      // },
+
       _notifyPath: function(path, value, fromAbove) {
-        var old = this._propertySetter(path, value);
-        // manual dirty checking for now...
-        // NaN is always not equal to itself,
-        // if old and value are both NaN we treat them as equal
-        // x === x is 10x faster, and equivalent to !isNaN(x)
-        if (old !== value && (old === old || value === value)) {
-          // console.group((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
-          // Take path effects at this level for exact path matches,
-          // and notify down for any bindings to a subset of this path
+        var handled;
+        if (!fromAbove) {
+          handled = this._notifyPathUp(path, value);
+        }
+        if (!handled) {
           this._pathEffector(path, value);
-          // Send event to notify the path change upwards
-          // Optimization: don't notify up if we know the notification
-          // is coming from above already (avoid wasted event dispatch)
-          if (!fromAbove) {
-            // TODO(sorvell): should only notify if notify: true?
-            this._notifyPathUp(path, value);
-          }
-          // console.groupEnd((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
-          return true;
         }
       },
 
@@ -183,19 +193,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // item in collection associated with key for that item
           if (array) {
             var coll = Polymer.Collection.get(array);
-            var old, key;
             if (last[0] == '#') {
               // Part was key; lookup item in collection
-              key = last;
-              old = coll.getItem(key);
+              var key = last;
+              var old = coll.getItem(key);
               // Update last part from key to index: O(n) lookup unavoidable
               last = array.indexOf(old);
               // Replace item associated with key in collection
               coll.setItem(key, value);
             } else if (parseInt(last, 10) == last) {
               // Dereference index & lookup collection key
-              old = prop[last];
-              key = coll.getKey(old);
+              var old = prop[last];
+              var key = coll.getKey(old);
               // Translate array indices to collection keys for path notificaiton
               parts[i] = key;
               // Replace item associated with key in collection
@@ -384,10 +393,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var dashCaseName = Polymer.CaseMap.camelToDashCase(rootName);
         var eventName = dashCaseName + this._EVENT_CHANGED;
         // use a cached event here (_useCache: true) for efficiency
-        this.fire(eventName, {
+        var detail = {
           path: path,
-          value: value
-        }, {bubbles: false, _useCache: true});
+          value: value,
+          handled: false
+        };
+        this.fire(eventName, detail, {bubbles: false, _useCache: true});
+        return detail.handled;
       },
 
       _modelForPath: function(path) {
@@ -528,7 +540,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {...any} var_args Items to insert into array.
        * @return {Array} Array of removed items.
        */
-      splice: function(path, start) {
+      splice: function(path, start, deleteCount) {
         var info = {};
         var array = this._get(path, this, info);
         // Normalize fancy native splice handling of crazy start values
