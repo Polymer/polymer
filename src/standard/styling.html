@@ -42,6 +42,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (this._template) {
           this._styles = this._collectStyles();
+          // under shady dom we always output a shimmed style (which may be 
+          // empty) so that other dynamic stylesheets can always be placed 
+          // after the element's main stylesheet. 
+          // This helps ensure element styles are always in registration order.
+          if (this._styles.length && !nativeShadow) {
+            this._scopeStyle = styleUtil.applyStylePlaceHolder(this.is);
+          }
+        }
+      },
+
+      _prepShimStyles: function() {
+        if (this._template) {
           // calculate shimmed styles (we must always do this as it
           // stores shimmed style data in the css rules for later use)
           var cssText = styleTransformer.elementStyles(this);
@@ -50,21 +62,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // do we really need to output static shimmed styles?
           // only if no custom properties are used since otherwise
           // styles are applied via property shimming.
-          var needsStatic = this._styles.length && 
-            !this._needsStyleProperties();
-          // under shady dom we always output a shimmed style (which may be 
-          // empty) so that other dynamic stylesheets can always be placed 
-          // after the element's main stylesheet. 
-          // This helps ensure element styles are always in registration order.
-          if (needsStatic || !nativeShadow) {
+          if (!this._needsStyleProperties() && this._styles.length) {
             // NOTE: IE has css style ordering issues unless there's at least a
             // space in the stylesheet.
-            cssText = needsStatic ? cssText : ' ';
             var style = styleUtil.applyCss(cssText, this.is,
-              nativeShadow ? this._template.content : null);
+              nativeShadow ? this._template.content : null, this._scopeStyle);
             // keep track of style when in document scope (polyfill) so we can
             // attach property styles after it.
             if (!nativeShadow) {
+              // remove old scope style (comment node) when it's not needed.
+              if (this._scopeStyle) {
+                this._scopeStyle.parentNode.removeChild(this._scopeStyle);
+              }
               this._scopeStyle = style;
             }
           }
