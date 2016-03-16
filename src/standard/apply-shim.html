@@ -1,0 +1,96 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../lib/style-properties.html">
+<link rel="import" href="../lib/settings.html">
+<link rel="import" href="../lib/style-defaults.html">
+<link rel="import" href="../lib/style-cache.html">
+<link rel="import" href="../lib/style-util.html">
+<script>
+Polymer.ApplyShim = (function(){
+  'use strict';
+
+  var propertyUtils = Polymer.StyleProperties;
+  var styleTransformer = Polymer.StyleTransformer;
+  var styleDefaults = Polymer.StyleDefaults;
+  var styleUtil = Polymer.StyleUtil;
+
+  // map of mixin to property names
+  // --foo: {border: 2px} -> (--foo, {border: '2px'})
+  var mixinMap = Object.create(null);
+
+  function mapSet(name, prop) {
+    mixinMap[name] = prop;
+  }
+
+  // get(--foo) -> '--foo-border: 2px;'
+  function mapGet(name) {
+    return mixinMap[name];
+  }
+
+  function diff(oldProp, newProp) {
+    var diff = [];
+    Object.keys(oldProp).forEach(function(p) {
+      if (!newProp[p]) {
+        diff.push(p);
+      }
+    });
+    return diff;
+  }
+
+  function flattenMixin(name, props) {
+    return Object.keys(props).map(function(p){
+      return name + '-' + p + ': ' + props[p];
+    }).join(';');
+  }
+
+  function applyVars(name, props) {
+    return Object.keys(props).map(function(p){
+      return p + ': var(' + name + '-' + p + ')';
+    }).join(';');
+  }
+
+  function textToProps(text) {
+    var props = text.split(';');
+    var out = {};
+    for (var i = 0, sp; i < props.length; i++) {
+      sp = props[i].split(':');
+      out[sp[0].trim()] = sp[1].trim();
+    }
+    return out;
+  }
+
+  return {
+    transform: function(styles) {
+      styleUtil.forRulesInStyles(styles, function(n){
+        var m;
+        while ((m = propertyUtils.rx.VAR_ASSIGN.exec(n.cssText))) {
+          // mixin assignment
+          if (m[3]) {
+            var prefix = m[0].slice(0, m[0].indexOf('--'));
+            var name = m[1].trim();
+            var subprops = textToProps(m[3]);
+            mapSet(name, subprops);
+            n.cssText = n.cssText.replace(m[0], prefix + flattenMixin(name, subprops));
+          }
+        }
+        while((m = propertyUtils.rx.MIXIN_MATCH.exec(n.cssText))) {
+          var name = m[1].replace(/;$/, '');
+          var prefix = m[0].slice(0, m[0].indexOf('@apply'));
+          var mixin = mapGet(name);
+          var vars = applyVars(name, mixin);
+          n.cssText = n.cssText.replace(m[0], prefix + vars);
+        }
+      }, function(n){
+        console.log(n);
+      });
+    }
+  };
+})();
+</script>
