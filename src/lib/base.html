@@ -7,7 +7,13 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="settings.html">
 <script>
+(function() {
+
+  'use strict';
+
+  var settings = Polymer.Settings;
 
   Polymer.Base = {
 
@@ -28,14 +34,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._desugarBehaviors(); // abstract
       this._doBehavior('beforeRegister'); // abstract
       this._registerFeatures();  // abstract
-      this._doBehavior('registered'); // abstract
+      if (!settings.lazyRegister) {
+        this.ensureRegisterFinished();
+      }
     },
 
     createdCallback: function() {
+      if (!this.__hasRegisterFinished) {
+        this._ensureRegisterFinished(this.__proto__);
+      }
       Polymer.telemetry.instanceCount++;
       this.root = this;
       this._doBehavior('created'); // abstract
       this._initFeatures(); // abstract
+    },
+
+    /**
+     * As an optimization, when `Polymer.Settings.lazyRegister` is set to true 
+     * registration tasks are deferred until the first instance of the element 
+     * is created. If an element should not defer registration tasks until
+     * this time, `ensureRegisterFinished` may be called 
+     * on the element's prototype.
+     */
+    ensureRegisterFinished: function() {
+      this._ensureRegisterFinished(this);
+    },
+
+    _ensureRegisterFinished: function(proto) {
+      if (proto.__hasRegisterFinished !== proto.is) {
+        proto.__hasRegisterFinished = proto.is;
+        if (proto._finishRegisterFeatures) {
+          proto._finishRegisterFeatures();
+        }
+        // registration extension point
+        proto._doBehavior('registered');
+      }
     },
 
     // reserved for canonical behavior
@@ -155,4 +188,5 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // TODO(sjmiles): ad hoc telemetry
   Polymer.telemetry.instanceCount = 0;
 
+})();
 </script>

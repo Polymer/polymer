@@ -36,11 +36,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _prepStyles: function() {
-        if (this._encapsulateStyle === undefined) {
-          this._encapsulateStyle = !nativeShadow &&
-            Boolean(this._template);
+        // under shady dom we always output a shimmed style (which may be 
+        // empty) so that other dynamic stylesheets can always be placed 
+        // after the element's main stylesheet. 
+        // This helps ensure element styles are always in registration order.
+        if (!nativeShadow) {
+          this._scopeStyle = styleUtil.applyStylePlaceHolder(this.is);
         }
+      },
+
+      _prepShimStyles: function() {
         if (this._template) {
+          if (this._encapsulateStyle === undefined) {
+            this._encapsulateStyle = !nativeShadow;
+          }
           this._styles = this._collectStyles();
           // calculate shimmed styles (we must always do this as it
           // stores shimmed style data in the css rules for later use)
@@ -50,23 +59,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // do we really need to output static shimmed styles?
           // only if no custom properties are used since otherwise
           // styles are applied via property shimming.
-          var needsStatic = this._styles.length && 
-            !this._needsStyleProperties();
-          // under shady dom we always output a shimmed style (which may be 
-          // empty) so that other dynamic stylesheets can always be placed 
-          // after the element's main stylesheet. 
-          // This helps ensure element styles are always in registration order.
-          if (needsStatic || !nativeShadow) {
-            // NOTE: IE has css style ordering issues unless there's at least a
-            // space in the stylesheet.
-            cssText = needsStatic ? cssText : ' ';
-            var style = styleUtil.applyCss(cssText, this.is,
-              nativeShadow ? this._template.content : null);
-            // keep track of style when in document scope (polyfill) so we can
-            // attach property styles after it.
-            if (!nativeShadow) {
-              this._scopeStyle = style;
-            }
+          if (!this._needsStyleProperties() && this._styles.length) {
+            styleUtil.applyCss(cssText, this.is,
+              nativeShadow ? this._template.content : null, this._scopeStyle);
           }
         } else {
           this._styles = [];
