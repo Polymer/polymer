@@ -1,5 +1,34 @@
 # Change Log
 
+##[v1.4.0](https://github.com/Polymer/polymer/tree/v1.4.0) (2016-03-18)
+- Fast check in createdCallback to see if registration has finished. ([commit](https://github.com/Polymer/polymer/commit/a3fce19))
+
+- even more lazy: defer template lookup and style collection until finish register time. ([commit](https://github.com/Polymer/polymer/commit/103f790))
+
+- fix lint errors. ([commit](https://github.com/Polymer/polymer/commit/d7a2baa))
+
+- * turn on lazy registration via `Polymer.Settings.lazyRegister` * ensure registration finished by calling `Element.prototype.ensureRegisterFinished()` ([commit](https://github.com/Polymer/polymer/commit/31c785d))
+
+- remove crufty smoke test. ([commit](https://github.com/Polymer/polymer/commit/3dd1b61))
+
+- fix lint issues ([commit](https://github.com/Polymer/polymer/commit/0447228))
+
+- Change `forceRegister` to `eagerRegister` and add `Polymer.Settings.eagerRegister` flag. ([commit](https://github.com/Polymer/polymer/commit/f6597ec))
+
+- Add `forceRegister` flag to force an element to fully register when `Polymer` is called. Normally, some work is deferred until the first element instance is created. ([commit](https://github.com/Polymer/polymer/commit/d53323d))
+
+- Call registered no prototype. ([commit](https://github.com/Polymer/polymer/commit/812db6a))
+
+- Lazy register features we can be deferred until first instance. This is an optimization which can speed up page load time when elements are registered but not needed at time of first paint/interaction ([commit](https://github.com/Polymer/polymer/commit/31702ff))
+
+- Do not reflect uppercase properties ([commit](https://github.com/Polymer/polymer/commit/72d35e0))
+
+- Make sure event.path is an array ([commit](https://github.com/Polymer/polymer/commit/2dfdd7b))
+
+- fix testing failures on assert.notInclude of null ([commit](https://github.com/Polymer/polymer/commit/8066919))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/58e6713))
+
 ##[v1.3.1](https://github.com/Polymer/polymer/tree/v1.3.1) (2016-03-02)
 - Fix lint errors. ([commit](https://github.com/Polymer/polymer/commit/44d06f1))
 
