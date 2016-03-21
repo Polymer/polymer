@@ -17,8 +17,6 @@ Polymer.ApplyShim = (function(){
   'use strict';
 
   var propertyUtils = Polymer.StyleProperties;
-  var styleTransformer = Polymer.StyleTransformer;
-  var styleDefaults = Polymer.StyleDefaults;
   var styleUtil = Polymer.StyleUtil;
 
   // map of mixin to property names
@@ -80,38 +78,40 @@ Polymer.ApplyShim = (function(){
     return out;
   }
 
+  function assign(all, name, _, mixin) {
+    if (!mixin) {
+      return all;
+    }
+    mixin = mixin.replace(propertyUtils.rx.MIXIN_MATCH, apply);
+    var prefix = all.slice(0, all.indexOf('--'));
+    name = name.trim();
+    var subprops = textToProps(mixin);
+    mapSet(name, subprops);
+    return prefix + flattenMixin(name, subprops);
+  }
+
+  function apply(all, name) {
+    var prefix = all.slice(0, all.indexOf('@apply'));
+    name = name.replace(/;\s*/m, '');
+    var mixin = mapGet(name);
+    var vars = '';
+    if (mixin) {
+      vars = applyVars(name, mixin) + ';';
+    }
+    return prefix + vars;
+  }
+
   return {
     transform: function(styles) {
-      styleUtil.forRulesInStyles(styles, function(n){
-        var cssText = n.cssText;
-        // produce variables
-        cssText = cssText.replace(propertyUtils.rx.VAR_ASSIGN,
-          function(all, name, _, mixin) {
-            if (!mixin) {
-              return all;
-            }
-            var prefix = all.slice(0, all.indexOf('--'));
-            name = name.trim();
-            var subprops = textToProps(mixin);
-            mapSet(name, subprops);
-            return prefix + flattenMixin(name, subprops);
-          });
-        // consume mixins
-        cssText = cssText.replace(propertyUtils.rx.MIXIN_MATCH,
-          function(all, name) {
-            var prefix = all.slice(0, all.indexOf('@apply'));
-            name = name.replace(/;$/, '');
-            var mixin = mapGet(name);
-            var vars = '';
-            if (mixin) {
-              vars = applyVars(name, mixin) + ';';
-            }
-            return prefix + vars;
-          });
-        n.cssText = cssText;
-      }, function(n){
-        console.log(n);
-      });
+      styleUtil.forRulesInStyles(styles, this.transformRule, this.transformRule);
+    },
+    transformRule: function(rule) {
+      var cssText = rule.cssText;
+      // produce variables
+      cssText = cssText.replace(propertyUtils.rx.VAR_ASSIGN, assign);
+      // consume mixins
+      cssText = cssText.replace(propertyUtils.rx.MIXIN_MATCH, apply);
+      rule.cssText = cssText;
     }
   };
 })();
