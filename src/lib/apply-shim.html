@@ -19,6 +19,8 @@ Polymer.ApplyShim = (function(){
   var propertyUtils = Polymer.StyleProperties;
   var styleUtil = Polymer.StyleUtil;
 
+  var currentStyleProps = null;
+
   // map of mixin to property names
   // --foo: {border: 2px} -> (--foo, {border: '2px'})
   var mixinMap = Object.create(null);
@@ -57,7 +59,12 @@ Polymer.ApplyShim = (function(){
 
   function applyVars(name, props) {
     return Object.keys(props).map(function(p){
-      return p + ': var(' + name + '-' + p + ')';
+      var fallback = currentStyleProps && currentStyleProps[p];
+      var parts = [p, ': var(', name, '-', p, ')'];
+      if (fallback) {
+        parts.splice(parts.length - 1, 0, ',', fallback);
+      }
+      return parts.join('');
     }).join('; ');
   }
 
@@ -109,6 +116,9 @@ Polymer.ApplyShim = (function(){
       var cssText = rule.cssText;
       // produce variables
       cssText = cssText.replace(propertyUtils.rx.VAR_ASSIGN, assign);
+      currentStyleProps = textToProps(cssText.replace(propertyUtils.rx.MIXIN_MATCH, function(all) {
+        return all.slice(0, all.indexOf('@apply'));
+      }));
       // consume mixins
       cssText = cssText.replace(propertyUtils.rx.MIXIN_MATCH, apply);
       rule.cssText = cssText;
