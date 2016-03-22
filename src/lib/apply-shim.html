@@ -22,8 +22,6 @@ Polymer.ApplyShim = (function(){
   var MIXIN_MATCH = propertyUtils.rx.MIXIN_MATCH;
   var VAR_ASSIGN = propertyUtils.rx.VAR_ASSIGN;
 
-  var currentStyleProps = null;
-
   // map of mixin to property names
   // --foo: {border: 2px} -> (--foo, {border: '2px'})
   var mixinMap = Object.create(null);
@@ -60,9 +58,9 @@ Polymer.ApplyShim = (function(){
     }).join(';') + ';';
   }
 
-  function applyVars(name, props) {
+  function applyVars(name, props, defaults) {
     return Object.keys(props).map(function(p){
-      var fallback = currentStyleProps && currentStyleProps[p];
+      var fallback = defaults && defaults[p];
       var parts = [p, ': var(', name, '-', p, ')'];
       if (fallback) {
         parts.splice(parts.length - 1, 0, ',', fallback);
@@ -92,12 +90,10 @@ Polymer.ApplyShim = (function(){
     if (!mixin) {
       return all;
     }
-    currentStyleProps = textToProps(mixin.replace(MIXIN_MATCH,
-      function(all) {
-        return all.slice(0, all.indexOf('@apply'));
-      })
-    );
-    mixin = mixin.replace(MIXIN_MATCH, apply);
+    var defaults = collectDefaults(mixin);
+    mixin = mixin.replace(MIXIN_MATCH, function(all, name) {
+      return apply(all, name, defaults);
+    });
     var prefix = all.slice(0, all.indexOf('--'));
     name = name.trim();
     var subprops = textToProps(mixin);
@@ -105,19 +101,27 @@ Polymer.ApplyShim = (function(){
     return prefix + flattenMixin(name, subprops);
   }
 
-  function apply(all, name) {
+  function apply(all, name, defaults) {
     var prefix = all.slice(0, all.indexOf('@apply'));
     name = name.replace(/;\s*/m, '');
     var mixin = mapGet(name);
     var vars = '';
     if (mixin) {
-      vars = applyVars(name, mixin) + ';';
+      vars = applyVars(name, mixin, defaults) + ';';
     }
     return prefix + vars;
   }
 
+  function collectDefaults(cssText) {
+    return textToProps(cssText.replace(MIXIN_MATCH,
+      function(all) {
+        return all.slice(0, all.indexOf('@apply'));
+      })
+    );
+  }
+
   function fixOrderInShadowDOMInstances(proto) {
-    var s = proto._template && 
+    var s = proto._template &&
       proto._template.content.querySelector('style');
     if (s) {
       var selector = proto.extends ? '[is=' + proto.is + ']' : proto.is;
@@ -142,7 +146,7 @@ Polymer.ApplyShim = (function(){
       var r$ = Polymer.telemetry.registrations;
       for (var i=r$.length-1, proto; i>=0; i--) {
         proto = r$[i];
-        // TODO(sorvell): abort if the element has not fully registered; need 
+        // TODO(sorvell): abort if the element has not fully registered; need
         // to work out issues with lazyRegister
         if (!proto.__hasRegisterFinished) {
           continue;
@@ -175,16 +179,18 @@ Polymer.ApplyShim = (function(){
 
   return {
     transform: function(styles) {
-      styleUtil.forRulesInStyles(styles, this.transformRule, this.transformRule);
+      styleUtil.forRulesInStyles(styles, this.transformRule);
     },
     transformRule: function(rule) {
       var cssText = rule.parsedCssText;
       // produce variables
       cssText = cssText.replace(VAR_ASSIGN, assign);
+      var defaults = collectDefaults(cssText);
       // consume mixins
-      cssText = cssText.replace(MIXIN_MATCH, apply);
+      cssText = cssText.replace(MIXIN_MATCH, function(all, name) {
+        return apply(all, name, defaults);
+      });
       rule.cssText = cssText;
-      currentStyleProps = null;
     }
   };
 })();
