@@ -108,12 +108,69 @@ Polymer.ApplyShim = (function(){
     return prefix + vars;
   }
 
+  function fixOrderInShadowDOMInstances(proto) {
+    var s = proto._template && 
+      proto._template.content.querySelector('style');
+    if (s) {
+      var selector = proto.extends ? '[is=' + proto.is + ']' : proto.is;
+      // TODO(sorvell): won't work in attachShadow
+      // could keep an instance map instead of the querySelectorAll.
+      var e$ = document.querySelectorAll('html /deep/ ' + selector);
+      for (var j=0, e; (j < e$.length) && (e = e$[j]); j++) {
+        var c = e.shadowRoot && e.shadowRoot.firstElementChild;
+        if (c && c.localName === 'style') {
+          c.parentNode.replaceChild(s.cloneNode(true), c);
+        }
+      }
+    }
+  }
+
+  // TODO(sorvell): Temporary ordering fixup. This approach can be refined
+  // to do less work, or this might be ok if the fast answer is build.
+  function fixOrder() {
+    // TODO(sorvell): make compatible with lazyRegister
+    if (Polymer.StyleUtil.HAS_NATIVE_VARIABLES) {
+      // in reverse registration order.
+      var r$ = Polymer.telemetry.registrations;
+      for (var i=r$.length-1, proto; i>=0; i--) {
+        proto = r$[i];
+        // TODO(sorvell): abort if the element has not fully registered; need 
+        // to work out issues with lazyRegister
+        if (!proto.__hasRegisterFinished) {
+          continue;
+        }
+        // FIX registrations
+        var s = !Polymer.Settings.useNativeShadow ?
+            document.head.querySelector('style[scope=' + proto.is + ']') :
+            proto._template && proto._template.content.querySelector('style');
+        if (s) {
+          s.parentNode.removeChild(s);
+        }
+        // TODO(sorvell): this re-does significant work that could be factored away.
+        // re-shim styles...
+        proto._prepShimStyles();
+        // FIX instances with shadowRoot
+        if (Polymer.Settings.useNativeShadow) {
+          fixOrderInShadowDOMInstances(proto);
+        }
+      }
+    }
+  }
+
+  Polymer.RenderStatus.whenReady(function() {
+    if (document.readyState === 'loading') {
+      addEventListener('DOMContentLoaded', fixOrder);
+    } else {
+      fixOrder();
+    }
+  });
+
   return {
     transform: function(styles) {
       styleUtil.forRulesInStyles(styles, this.transformRule, this.transformRule);
     },
     transformRule: function(rule) {
-      var cssText = rule.cssText;
+      var cssText = rule.parsedCssText;
       // produce variables
       cssText = cssText.replace(propertyUtils.rx.VAR_ASSIGN, assign);
       currentStyleProps = textToProps(cssText.replace(propertyUtils.rx.MIXIN_MATCH, function(all) {
