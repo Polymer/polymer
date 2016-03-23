@@ -21,12 +21,14 @@ Polymer.ApplyShim = (function(){
 
   var MIXIN_MATCH = propertyUtils.rx.MIXIN_MATCH;
   var VAR_ASSIGN = propertyUtils.rx.VAR_ASSIGN;
+  var VAR_MATCH = propertyUtils.rx.VAR_MATCH;
 
   // map of mixin to property names
   // --foo: {border: 2px} -> (--foo, {border: '2px'})
   var mixinMap = Object.create(null);
 
   function mapSet(name, prop) {
+    name = name.trim();
     var old = mixinMap[name];
     if (old) {
       var reset = diff(old, prop);
@@ -39,6 +41,7 @@ Polymer.ApplyShim = (function(){
 
   // get(--foo) -> '--foo-border: 2px;'
   function mapGet(name) {
+    name = name.trim();
     return mixinMap[name];
   }
 
@@ -61,10 +64,11 @@ Polymer.ApplyShim = (function(){
   function applyVars(name, props, defaults) {
     return Object.keys(props).map(function(p){
       var fallback = defaults && defaults[p];
-      var parts = [p, ': var(', name, '-', p, ')'];
+      var parts = [p, ': var(', name, '-', p];
       if (fallback) {
-        parts.splice(parts.length - 1, 0, ',', fallback);
+        parts.push(',', fallback);
       }
+      parts.push(')');
       return parts.join('');
     }).join('; ');
   }
@@ -86,7 +90,15 @@ Polymer.ApplyShim = (function(){
     return out;
   }
 
-  function assign(all, name, _, mixin) {
+  function assign(all, name, property, mixin) {
+    // handle case where property value is a mixin
+    if (property) {
+      property.replace(VAR_MATCH, function(all, prefix, value){
+        if (mapGet(value)){
+          mixin = '@apply ' + value + ';';
+        }
+      });
+    }
     if (!mixin) {
       return all;
     }
@@ -95,7 +107,6 @@ Polymer.ApplyShim = (function(){
       return apply(all, name, defaults);
     });
     var prefix = all.slice(0, all.indexOf('--'));
-    name = name.trim();
     var subprops = textToProps(mixin);
     mapSet(name, subprops);
     return prefix + flattenMixin(name, subprops);
@@ -118,6 +129,15 @@ Polymer.ApplyShim = (function(){
         return all.slice(0, all.indexOf('@apply'));
       })
     );
+  }
+
+  // fix shim'd var syntax
+  // var(--a, --b) -> var(--a, var(--b));
+  function fixVars(all, prefix, value, fallback) {
+    if (!fallback || fallback.indexOf('--') !== 0) {
+      return all;
+    }
+    return prefix + 'var(' + value + ',var(' + fallback + '));';
   }
 
   function fixOrderInShadowDOMInstances(proto) {
@@ -183,6 +203,8 @@ Polymer.ApplyShim = (function(){
     },
     transformRule: function(rule) {
       var cssText = rule.parsedCssText;
+      // fix shim variables
+      cssText = cssText.replace(VAR_MATCH, fixVars);
       // produce variables
       cssText = cssText.replace(VAR_ASSIGN, assign);
       var defaults = collectDefaults(cssText);
