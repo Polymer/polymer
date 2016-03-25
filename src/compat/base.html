@@ -8,12 +8,25 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
+<link rel="import" href="../utils/utils.html">
+<link rel="import" href="../utils/compat-utils.html">
+<link rel="import" href="behaviors.html">
 <link rel="import" href="../events/compat-events.html">
 <link rel="import" href="../attributes/compat-attributes.html">
 <link rel="import" href="../template/compat-template.html">
-<link rel="import" href="../utils/compat-utils.html">
-<link rel="import" href="../properties/compat-property-effects.html">
+<link rel="import" href="../properties/compat-data.html">
+
 <script>
+(function() {
+
+  'use strict';
+
+  var Utils = Polymer.Utils;
+  var Behaviors = Polymer.CompatBehaviors;
+  var Data = Polymer.CompatData;
+  var Events = Polymer.CompatEvents;
+  var Template = Polymer.CompatTemplate;
+  var Attributes = Polymer.CompatAttributes;
 
   Polymer.Base = {
 
@@ -22,70 +35,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // extensions and normal custom elements
     __isPolymerInstance__: true,
 
-    // pluggable features
-    // `this` context is a prototype, not an instance
-    // _addFeature: function(feature) {
-    //   this.extend(this, feature);
-    // },
-
     // `this` context is a prototype, not an instance
     registerCallback: function() {
-      // TODO(sjmiles): perhaps this method should be called from polymer-bootstrap?
-      // this._desugarBehaviors(); // abstract
-      // this._doBehavior('beforeRegister'); // abstract
-      this._registerFeatures();  // abstract
-      // this._doBehavior('registered'); // abstract
-    },
-
-    _registerFeatures: function() {
-      Polymer.CompatTemplate._prepTemplate(this);
+      this._behaviors = Behaviors.prepBehaviors(this, this.behaviors);
+      this._meta = Behaviors.createMeta(this, this._behaviors);
+      this._template = Template.prepTemplate(this, this._template);
       if (this._template) {
-        Polymer.Annotations.parseAnnotations(this._template);
-        var notes = this._template.content._notes;
-        Polymer.CompatPropertyEffects.bindTemplate(this, notes);
+        Data.bindTemplate(this, this._template);
       }
-      if (this.hasOwnProperty('properties')) {
-        Polymer.CompatPropertyEffects.createProperties(this, this.properties);
-      }
-      if (this.hasOwnProperty('observers')) {
-        Polymer.CompatPropertyEffects.createMultiObservers(this, this.observers);
-      }
+      Data.createProperties(this, this._meta.properties);
+      Data.createMultiObservers(this, this._meta.observers);
+      Behaviors.callMethod(this, 'registered');
     },
 
     createdCallback: function() {
       Polymer.telemetry.instanceCount++;
       this.root = this;
-      this.created();
-      // this._doBehavior('created'); // abstract
-      this._initFeatures(); // abstract
-    },
-
-    _initFeatures: function() {
-      Polymer.CompatEvents.addListeners(this, this.listeners);
-      Polymer.CompatAttributes.applyAttributes(this, this.hostAttributes);
-      Polymer.CompatAttributes.attributesToProperties(this, this.properties);
+      // TODO(sorvell): can we drop 'created'?
+      // this.callMethod('created');
+      Events.addListeners(this, this._meta.listeners);
+      Attributes.applyAttributes(this, this._meta.hostAttributes);
+      Data.configureDefaults(this, this._template);
       if (this._template) {
-        var dom = this.instanceTemplate(this._template);
-        var notes = this._template.content._notes;
-        // ids
-        this.$ = Polymer.CompatTemplate.createIdMap(dom, notes);
-        // template content
-        Polymer.CompatTemplate.installTemplateContent(dom, notes);
-        // event listeners
-        var self = this;
-        Polymer.CompatTemplate.installEventListeners(dom, notes, this);
-        // bindings!
-        Polymer.CompatPropertyEffects.setupBindings(this, dom, notes);
-        Polymer.CompatPropertyEffects.setDefaultValues(this, this.properties);
+        var dom = Polymer.Data.stamp(this._template, this);
         // stamp!
-        this.root = this.attachShadow({mode: 'open'});
+        //this.root = this.attachShadow({mode: 'open'});
+        this.root = this.createShadowRoot();
         this.root.appendChild(dom);
       }
-      // TODO(sorvell): replace with configuration...
-      this.ready();
+      Behaviors.callMethod(this, 'ready');
     },
-
-    created: function() {},
 
     ready: function() {},
 
@@ -98,10 +77,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // var self = this;
       // Polymer.RenderStatus.whenReady(function() {
       //   self.isAttached = true;
-      //   self._doBehavior('attached'); // abstract
+      //   self.callMethod('attached'); // abstract
       // });
       this.isAttached = true;
-      this.attached();
+      Behaviors.callMethod(this, 'attached');
     },
 
     attached: function() {},
@@ -109,8 +88,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // reserved for canonical behavior
     detachedCallback: function() {
       this.isAttached = false;
-      this.detached();
-      //this._doBehavior('detached'); // abstract
+      Behaviors.callMethod(this, 'detached');
     },
 
     detached: function() {},
@@ -125,13 +103,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {Object} prototype object that was passed as first argument.
      */
     extend: function(prototype, api) {
-      if (prototype && api) {
-        var n$ = Object.getOwnPropertyNames(api);
-        for (var i=0, n; (i<n$.length) && (n=n$[i]); i++) {
-          this.copyOwnProperty(n, api, prototype);
-        }
-      }
-      return prototype || api;
+      return Utils.extend(prototype, api);
     },
 
     /**
@@ -147,41 +119,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {Object} Target object that was passed as first argument.
      */
     mixin: function(target, source) {
-      for (var i in source) {
-        target[i] = source[i];
-      }
-      return target;
+      return Utils.mixin(target, source);
     },
 
-    copyOwnProperty: function(name, source, target) {
-      var pd = Object.getOwnPropertyDescriptor(source, name);
-      if (pd) {
-        Object.defineProperty(target, name, pd);
+    // TODO(sorvell): move out of here?
+    chainObject: function(object, inherited) {
+      if (object && inherited && object !== inherited) {
+        if (!Object.__proto__) {
+          object = this.extend(Object.create(inherited), object);
+        }
+        object.__proto__ = inherited;
       }
+      return object;
     },
 
+    // TODO(sorvell): move out of here?
     _log: console.log.apply.bind(console.log, console),
     _warn: console.warn.apply.bind(console.warn, console),
     _error: console.error.apply.bind(console.error, console),
     _logf: function(/* args*/) {
       return this._logPrefix.concat([this.is]).concat(Array.prototype.slice.call(arguments, 0));
-    }
+    },
+    _logPrefix: (function(){
+      var color = window.chrome || (/firefox/i.test(navigator.userAgent));
+      return color ? ['%c[%s::%s]:', 'font-weight: bold; background-color:#EEEE00;'] : ['[%s::%s]:'];
+    })()
 
-  };
-
-  Polymer.Base._logPrefix = (function(){
-    var color = window.chrome || (/firefox/i.test(navigator.userAgent));
-    return color ? ['%c[%s::%s]:', 'font-weight: bold; background-color:#EEEE00;'] : ['[%s::%s]:'];
-  })();
-
-  Polymer.Base.chainObject = function(object, inherited) {
-    if (object && inherited && object !== inherited) {
-      if (!Object.__proto__) {
-        object = Polymer.Base.extend(Object.create(inherited), object);
-      }
-      object.__proto__ = inherited;
-    }
-    return object;
   };
 
   Polymer.Base = Polymer.Base.chainObject(Polymer.Base, HTMLElement.prototype);
@@ -202,11 +165,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.telemetry.instanceCount = 0;
 
   // mixin
-  Polymer.Base.mixin(Polymer.Base, Polymer.CompatEvents.Mixin);
-  Polymer.Base.mixin(Polymer.Base, Polymer.CompatAttributes.Mixin);
-  Polymer.Base.mixin(Polymer.Base, Polymer.CompatTemplate.Mixin);
+  Polymer.Base.mixin(Polymer.Base, Events.Mixin);
+  Polymer.Base.mixin(Polymer.Base, Attributes.Mixin);
+  Polymer.Base.mixin(Polymer.Base, Template.Mixin);
   Polymer.Base.mixin(Polymer.Base, Polymer.CompatUtils.Mixin);
 
   Polymer.Element = function() {};
   Polymer.Element.prototype = Polymer.Base;
+
+})();
 </script>
