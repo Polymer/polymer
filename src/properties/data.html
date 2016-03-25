@@ -8,6 +8,7 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
+<link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="property-effects.html">
 <link rel="import" href="../template/template.html">
@@ -26,6 +27,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var lib = this;
         model.setProperties = function(props, fromAbove) {
           lib.setProperties(this, props, fromAbove);
+        };
+        model.set = model.notifyPath = function(prop, value) {
+          lib.set(this, prop, value);
         };
       }
       Polymer.PropertyEffects.addPropertyEffect.apply(this, arguments);
@@ -104,9 +108,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var changedProps;
       for (var prop in props) {
         var value = props[prop];
-        if (!inst._propertyEffects[prop]) {
-          inst[prop] = value;
+        var rootProperty = this._rootForPath(prop);
+        if (!inst._propertyEffects[rootProperty]) {
+          this._set(inst, prop, value);
         } else if (this.isPropertyDirty(inst[prop], value)) {
+          if (rootProperty !== prop) {
+            //TODO(kschaaf): ideally this only happens once on entry
+            this._set(inst, prop, value);
+          }
           changedProps = changedProps || {};
           changedProps[prop] = value;
         }
@@ -156,6 +165,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return props;
     },
 
+    set: function(inst, path, value) {
+      path = Array.isArray(path) ? path.join('.') : path;
+      this._propertySetter(inst, path, value);
+    },
+
     // Not a correct assign polyfill-- only use where proto's don't matter!
     // _mixin: Object.assign ? Object.assign : Polymer.Utils.mixin,
     _mixin: Polymer.Utils.mixin,
@@ -172,31 +186,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _dispatchNotifyProperties: function(inst, props) {
-      if (inst._notifyEffects) {
-        for (var prop in props) {
-          if (inst._notifyEffects[prop]) {
-            Polymer.EventDispatch.fire(inst, prop + '-changed',
-              {value: props[prop]});
-          }
+      var fx = inst._notifyEffects;
+      for (var prop in props) {
+        if ((fx && fx[prop]) || this._rootForPath(prop) !== prop) {
+          Polymer.EventDispatch.fire(inst, prop + '-changed',
+            {value: props[prop]});
         }
       }
     },
 
     _setNotifyProperties: function(inst, host, props) {
+      var fx = inst._notifyEffects;
       var hostProps = {};
       for (var prop in props) {
         var val = props[prop];
-        if (inst._notifyEffects[prop] && host._boundProperties[prop]) {
+        var rootProperty = this._rootForPath(prop);
+        var hostPath = inst._hostBindings && inst._hostBindings[rootProperty];
+        if (hostPath && ((fx && fx[rootProperty]) || rootProperty !== prop)) {
+          prop = this._fixPath(hostPath, rootProperty, prop);
           hostProps[prop] = val;
         }
       }
       this.setProperties(host, hostProps);
     },
 
-    _addAnnotatedListener: function(model, index, property, path) {
-      Polymer.PropertyEffects._addAnnotatedListener.apply(this, arguments);
-      var rootProperty = this._rootForPath(path);
-      this._ensureEffects(model, '_boundProperties')[rootProperty] = true;
+    _addNotifyListener: function(node, inst, info) {
+      if (!node.setProperties) {
+        Polymer.PropertyEffects._addNotifyListener.apply(this, arguments);
+      } else {
+        node._hostBindings = node._hostBindings || {};
+        node._hostBindings[info.property] = info.path;
+      }
     },
 
     _propertySetter: function(inst, property, value) {
@@ -229,17 +249,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var id = this._effectUid++;
         for (var prop in props) {
           var val = props[prop];
-          var model = this._rootForPath(prop);
-          var fxs = effects[model];
+          var rootProperty = this._rootForPath(prop);
+          var fxs = effects[rootProperty];
           if (fxs) {
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
-              // TODO(kschaaf): paths
-              // if (model !== prop) {
-              //   if (!this._pathMatchesEffect2(prop, fx.effect)) {
-              //     continue;
-              //   }
-              // }
-              if (!fx.info || fx.info.lastRun !== id) {
+              if (this._pathMatchesEffect(prop, fx) &&
+                (!fx.info || fx.info.lastRun !== id)) {
                 fx.fn.call(inst, prop, val, undefined, fx.info);
                 fx.info.lastRun = id;
                 ran = true;
@@ -249,12 +264,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       return ran;
-    },
-
-    _addNotifyListener: function(node) {
-      if (!node.setProperties) {
-        Polymer.PropertyEffects._addNotifyListener.apply(this, arguments);
-      }
     },
 
     _hostStack: [],

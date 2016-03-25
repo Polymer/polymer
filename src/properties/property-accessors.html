@@ -26,7 +26,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     addPropertyEffect: function(model, property, effect) {
-      this.createAccessor(model, property).push(effect);
+      var root = this._rootForPath(property);
+      effect.path = property;
+      this.createAccessor(model, root).push(effect);
     },
 
     getModel: function(model) {
@@ -77,7 +79,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var old = inst.__data__[property];
       if (this.isPropertyDirty(value, old)) {
         inst.__data__[property] = value;
-        var effects = inst._propertyEffects[property];
+        var rootProperty = this._rootForPath(property);
+        var effects = inst._propertyEffects[rootProperty];
         if (effects) {
           this._runEffects(inst, property, value, old, effects);
         }
@@ -87,8 +90,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _runEffects: function(inst, property, value, old, effects) {
       for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
-        fx.fn.call(inst, property, value, old, fx.info);
+        if (this._pathMatchesEffect(property, fx)) {
+          fx.fn.call(inst, property, value, old, fx.info);
+        }
       }
+    },
+
+    _pathMatchesEffect: function(path, effect) {
+      var effectArg = effect.path;
+      return (effectArg == path) ||
+        (effectArg.indexOf(path + '.') === 0) ||
+        (/* effect.trigger.wildcard && */ path.indexOf(effectArg) === 0);
+    },
+
+    _rootForPath: function(path) {
+      var dot = path.indexOf('.');
+      return (dot < 0) ? path : path.slice(0, dot);
     },
 
     isPropertyDirty: function(value, old) {

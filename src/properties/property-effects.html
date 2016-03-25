@@ -198,6 +198,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return prop;
     },
 
+    _set: function(inst, path, value) {
+      var prop = inst;
+      var parts = path.split('.');
+      var i;
+      for (i=0; i<parts.length-1; i++) {
+        if (!prop) {
+          return;
+        }
+        prop = prop[parts[i]];
+      }
+      prop[parts[i]] = value;
+    },
+
     _applyEffectValue: function(model, info, value) {
       var node = model._nodes[info.index];
       var property = info.name;
@@ -359,17 +372,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addNotifyListener: function(node, inst, info) {
       var lib = this;
+      var rootProperty = this._rootForPath(info.path);
       node.addEventListener(info.event, function(e) {
-        return lib._notifyListener(e, inst, info.property, info.path);
+        return lib._notifyListener(e, inst, info.property, info.path, rootProperty);
       });
     },
 
-    _notifyListener: function(e, inst, property, path) {
+    _notifyListener: function(e, inst, property, path, rootProperty) {
       if (!this._isEventBogus(e, e.target)) {
-        // TODO(kschaaf): paths
-        var value = e.target[property];
-        inst[path] = value;
+        //TODO(kschaaf): no support for firing path in change events yet; want?
+        var targetPath = e.detail && e.detail.path;
+        if (targetPath) {
+          path = this._fixPath(path, property, e.detail.path);
+          this._propertySetter(inst, path, e.detail.value);
+        } else {
+          var value = e.target[property];
+          if (path !== rootProperty) {
+            this._set(inst, path, value);
+            this._propertySetter(inst, path, value);
+          } else {
+            inst[rootProperty] = value;
+          }
+        }
       }
+    },
+
+    _fixPath: function(property, root, path) {
+      return property + path.slice(root.length);
     },
 
     _isEventBogus: function(e, target) {
@@ -380,21 +409,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _createMethodEffect: function(model, sig, effectFn, methodInfo) {
       var dynamicFn = sig.dynamicFn;
-      var effect = {
-        fn: effectFn,
-        info: {
-          lib: this,
-          methodName: sig.methodName,
-          args: sig.args,
-          methodInfo: methodInfo,
-          dynamicFn: dynamicFn
-        }
+      var info = {
+        lib: this,
+        methodName: sig.methodName,
+        args: sig.args,
+        methodInfo: methodInfo,
+        dynamicFn: dynamicFn
       };
       for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
-        this.addPropertyEffect(model, arg.rootProperty, effect);
+        this.addPropertyEffect(model, arg.rootProperty, {
+          fn: effectFn, info: info
+        });
       }
       if (dynamicFn) {
-        this._addPropertyEffect(model, sig.methodName, effect);
+        this._addPropertyEffect(model, sig.methodName, {
+          fn: effectFn, info: info
+        });
       }
     },
 
@@ -481,11 +511,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       return a;
-    },
-
-    _rootForPath: function(path) {
-      var dot = path.indexOf('.');
-      return (dot < 0) ? path : path.slice(0, dot);
     },
 
     // path & value are used to fill in wildcard descriptor when effect is
