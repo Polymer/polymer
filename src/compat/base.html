@@ -37,30 +37,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // `this` context is a prototype, not an instance
     registerCallback: function() {
-      this._behaviors = Behaviors.prepBehaviors(this, this.behaviors);
-      this._meta = Behaviors.createMeta(this, this._behaviors);
+      this.__behaviors = Behaviors.prepBehaviors(this, this.behaviors);
+      this.__meta = Behaviors.createMeta(this, this.__behaviors);
       this._template = Template.prepTemplate(this, this._template);
       if (this._template) {
         Data.bindTemplate(this, this._template);
       }
-      Data.createProperties(this, this._meta.properties);
-      Data.createMultiObservers(this, this._meta.observers);
+      Data.createProperties(this, this.__meta.properties);
+      Data.createMultiObservers(this, this.__meta.observers);
       Behaviors.callMethod(this, 'registered');
     },
 
     createdCallback: function() {
       Polymer.telemetry.instanceCount++;
-      this.root = this;
       // TODO(sorvell): can we drop 'created'?
-      // this.callMethod('created');
-      Events.addListeners(this, this._meta.listeners);
-      Attributes.applyAttributes(this, this._meta.hostAttributes);
+      Behaviors.callMethod(this, 'created');
+      this.root = this;
+      Events.addListeners(this, this.__meta.listeners);
+      Attributes.applyAttributes(this, this.__meta.hostAttributes);
       Data.configureDefaults(this, this._template);
       if (this._template) {
         var dom = Polymer.Data.stamp(this._template, this);
         // stamp!
         //this.root = this.attachShadow({mode: 'open'});
         this.root = this.createShadowRoot();
+        Data.takeDefaults(this);
         this.root.appendChild(dom);
       }
       Behaviors.callMethod(this, 'ready');
@@ -70,15 +71,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // reserved for canonical behavior
     attachedCallback: function() {
-      // NOTE: workaround for:
-      // https://code.google.com/p/chromium/issues/detail?id=516550
-      // To allow querying style/layout data in attached, we defer it
-      // until we are sure rendering is ready.
-      // var self = this;
-      // Polymer.RenderStatus.whenReady(function() {
-      //   self.isAttached = true;
-      //   self.callMethod('attached'); // abstract
-      // });
       this.isAttached = true;
       Behaviors.callMethod(this, 'attached');
     },
@@ -131,19 +123,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         object.__proto__ = inherited;
       }
       return object;
-    },
-
-    // TODO(sorvell): move out of here?
-    _log: console.log.apply.bind(console.log, console),
-    _warn: console.warn.apply.bind(console.warn, console),
-    _error: console.error.apply.bind(console.error, console),
-    _logf: function(/* args*/) {
-      return this._logPrefix.concat([this.is]).concat(Array.prototype.slice.call(arguments, 0));
-    },
-    _logPrefix: (function(){
-      var color = window.chrome || (/firefox/i.test(navigator.userAgent));
-      return color ? ['%c[%s::%s]:', 'font-weight: bold; background-color:#EEEE00;'] : ['[%s::%s]:'];
-    })()
+    }
 
   };
 
@@ -161,10 +141,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return Boolean(obj && obj.__isPolymerInstance__);
   };
 
-  // TODO(sjmiles): ad hoc telemetry
+  // telemetry
   Polymer.telemetry.instanceCount = 0;
 
-  // mixin
+  // TODO(sorvell): avoid doing this? seeing everything public on this prototype
+  // is probably useful.
   Polymer.Base.mixin(Polymer.Base, Events.Mixin);
   Polymer.Base.mixin(Polymer.Base, Attributes.Mixin);
   Polymer.Base.mixin(Polymer.Base, Template.Mixin);
