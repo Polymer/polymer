@@ -12,10 +12,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script>
 
-Polymer.Debouncer = function Debouncer() {
+Polymer.Debouncer = function Debouncer(context) {
+  this.context = context;
   var self = this;
-  this.boundComplete = function() {
-    self.complete();
+  this.boundFlush = function() {
+    self.flush();
   };
 };
 
@@ -26,31 +27,36 @@ Polymer.Utils.mixin(Polymer.Debouncer.prototype, {
     this.finish = function() {
       Polymer.Async.cancel(h);
     };
-    h = Polymer.Async.run(this.boundComplete, wait);
+    h = Polymer.Async.run(this.boundFlush, wait);
     this.callback = callback;
   },
 
-  stop: function() {
+  cancel: function() {
     if (this.finish) {
       this.finish();
       this.finish = null;
     }
   },
 
-  complete: function() {
+  flush: function() {
     if (this.finish) {
-      this.stop();
-      this.callback();
+      this.cancel();
+      this.callback.call(this.context);
     }
+  },
+
+  isActive: function() {
+    return Boolean(this.finish);
   }
 
 });
 
-Polymer.Debouncer.debounce = function(debouncer, callback, wait) {
+Polymer.Debouncer.debounce = function(debouncer, callback, wait, context) {
+  context = context || this;
   if (debouncer) {
-    debouncer.stop();
+    debouncer.cancel();
   } else {
-    debouncer = new Polymer.Debouncer();
+    debouncer = new Polymer.Debouncer(context);
   }
   debouncer.go(callback, wait);
   return debouncer;
