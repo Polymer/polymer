@@ -40,7 +40,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <tr><td>bar (computed):</td><td>{{bar}}</td></tr>
       <tr><td>nard (computed below):</td><td>{{nard}}</td></tr>
     </table>
-    <x-client foo="{{foo}}" ziz="{{ziz}}" bar="{{bar}}" nard="{{nard}}" nard2="{{nard}}"></x-client>
+    <x-client foo="{{foo}}" ziz="{{ziz}}" bar="{{bar}}" nard="{{nard}}" nard2="{{nard}}" nug="{{nug}}"></x-client>
   </template>
 
   <template id="x-client">
@@ -70,17 +70,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var template = document.querySelector('template#x-template');
 
-    class XProperties extends HTMLElement {
+    class XHost extends HTMLElement {
 
       createdCallback() {
-        Polymer.Data.configureDefaults(this, {
+        var dom = Polymer.Data.stamp(template, this);
+        this.createShadowRoot().appendChild(dom);
+        //this.attachShadow({mode: 'open'}).appendChild(dom);
+        Polymer.Data.configureProperties(this, {
           foo: Polymer.AttributeToProperty.valueForAttribute(this, 'foo') || 'foo',
           ziz: Polymer.AttributeToProperty.valueForAttribute(this, 'ziz') || 'ziz'
         }, template);
-        var dom = Polymer.Data.stamp(template, this);
-        this.createShadowRoot().appendChild(dom);
-        Polymer.Data.takeDefaults(this);
-        //this.attachShadow({mode: 'open'}).appendChild(dom);
 
         if (this.hasAttribute('runtime')) {
           Polymer.Data.addPropertyEffect(this, 'foo', {
@@ -121,28 +120,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         console.log(logEl(this), 'nardChanged', value);
       }
 
+      nugChanged(value) {
+        console.log(logEl(this), 'nugChanged', value);
+      }
+
     }
 
-    Polymer.Data.createReadOnlyProperty(XProperties, 'ziz');
-    Polymer.Data.createReflectedProperty(XProperties, 'ziz');
-    Polymer.Data.createObserver(XProperties, 'ziz', 'zizChanged');
-    Polymer.Data.createObserver(XProperties, 'foo', 'fooChanged');
-    Polymer.Data.addPropertyEffect(XProperties, 'foo', {
+    Polymer.Data.createReadOnlyProperty(XHost, 'ziz');
+    Polymer.Data.createReflectedProperty(XHost, 'ziz');
+    Polymer.Data.createObserver(XHost, 'ziz', 'zizChanged');
+    Polymer.Data.createObserver(XHost, 'foo', 'fooChanged');
+    Polymer.Data.addPropertyEffect(XHost, 'foo', {
       fn: function() {
         console.log(logEl(this), 'custom', arguments);
       }
     });
 
-    Polymer.Data.createNotifyingProperty(XProperties, 'foo');
-    Polymer.Data.createComputedProperty(XProperties, 'bar', 'computeBar(foo, ziz)');
-    Polymer.Data.createObserver(XProperties, 'bar', 'barChanged');
-    Polymer.Data.createMultiObserver(XProperties, 'stuffChanged(foo, ziz)');
+    Polymer.Data.createNotifyingProperty(XHost, 'foo');
+    Polymer.Data.createComputedProperty(XHost, 'bar', 'computeBar(foo, ziz)');
+    Polymer.Data.createObserver(XHost, 'bar', 'barChanged');
+    Polymer.Data.createMultiObserver(XHost, 'stuffChanged(foo, ziz)');
 
-    Polymer.Data.createObserver(XProperties, 'nard','nardChanged');
+    Polymer.Data.createObserver(XHost, 'nard','nardChanged');
+    Polymer.Data.createObserver(XHost, 'nug', 'nugChanged');
 
-    Polymer.Data.bindTemplate(XProperties, template);
+    Polymer.Data.bindTemplate(XHost, template);
 
-    document.registerElement('x-properties', XProperties);
+    document.registerElement('x-host', XHost);
 
     // ---------------
 
@@ -151,15 +155,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     class XClient extends HTMLElement {
 
       createdCallback() {
-        Polymer.Data.configureDefaults(this, {
-          foo: Polymer.AttributeToProperty.valueForAttribute(this, 'foo') || 'foo',
-          ziz: Polymer.AttributeToProperty.valueForAttribute(this, 'ziz') || 'ziz',
-          bar: Polymer.AttributeToProperty.valueForAttribute(this, 'bar') || 'bar'
-        }, clientTemplate);
         var dom = Polymer.Data.stamp(clientTemplate, this);
         this.createShadowRoot().appendChild(dom);
-        Polymer.Data.takeDefaults(this);
         //this.attachShadow({mode: 'open'}).appendChild(dom);
+        Polymer.Data.configureProperties(this, {
+          foo: Polymer.AttributeToProperty.valueForAttribute(this, 'foo') || 'foo',
+          ziz: Polymer.AttributeToProperty.valueForAttribute(this, 'ziz') || 'ziz',
+          bar: Polymer.AttributeToProperty.valueForAttribute(this, 'bar') || 'bar',
+          nug: Polymer.AttributeToProperty.valueForAttribute(this, 'nug') || 'nug'
+        }, clientTemplate);
       }
 
       zizChanged(value) {
@@ -185,10 +189,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       nardChanged(value) {
         console.log(logEl(this), 'nardChanged', value);
+        this.nug = '*' + this.nug;
+        console.log(logEl(this), 'new nug value:', this.nug);
       }
 
       nard2Changed(value) {
         console.log(logEl(this), 'nard2Changed', value);
+      }
+
+      nugChanged(value) {
+        console.log(logEl(this), 'nugChanged', value);
       }
 
     }
@@ -203,48 +213,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     Polymer.Data.createObserver(XClient, 'nard','nardChanged');
     Polymer.Data.createObserver(XClient, 'nard2','nard2Changed');
     Polymer.Data.createNotifyingProperty(XClient, 'nard');
+    Polymer.Data.createObserver(XClient, 'nug','nugChanged');
+    Polymer.Data.createNotifyingProperty(XClient, 'nug');
     Polymer.Data.bindTemplate(XClient, clientTemplate);
 
     document.registerElement('x-client', XClient);
 
-    // ---------------
-
-    class XPropertiesSub extends XProperties {
-
-      createdCallback() {
-
-        super.createdCallback();
-
-        Polymer.Data.addPropertyEffect(this, 'foo', {
-          fn: function() {
-            console.log(logEl(this), 'custom3', arguments);
-          }
-        });
-
-      }
-
-      fooChanged2(value) {
-        console.log(logEl(this), 'fooChanged2', value);
-      }
-
-    }
-
-    Polymer.Data.createObserver(XPropertiesSub, 'foo',
-      'fooChanged2');
-
-    document.registerElement('x-properties-sub', XPropertiesSub);
-
   })();
   </script>
 
-  <x-properties id="el1" runtime foo="foo-thing"></x-properties>
+  <x-host id="el1" runtime foo="foo-thing"></x-host>
 
-  <x-client id="el2" foo="foo-attr"></x-client>
+  <!-- <x-client id="el2" foo="foo-attr"></x-client> -->
 
-<!--   <x-properties id="el2"></x-properties>
-
-  <x-properties-sub id="el3" runtime></x-properties-sub>
- -->
    <script>
 
     var logEl = window.logEl;

@@ -122,7 +122,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       if (changedProps || inst._setPropInterim) {
         props = changedProps;
-        // Setup property queueing
+        // Setup client property queueing
         inst._setPropClients = inst._setPropClients || new Map();
         inst._setPropQueue = {};
         inst.__data__ = this._mixin(inst.__data__ || {}, changedProps);
@@ -133,23 +133,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._mixin(props, inst._setPropQueue);
           computedProps = this._mixin(computedProps || {}, inst._setPropQueue);
           changedProps = inst._setPropQueue;
-          this._setPropQueue = {};
+          inst._setPropQueue = {};
         }
         // Notify
         inst._setPropInterim = inst._setPropInterim ?
           this._mixin(inst._setPropInterim, props) : props;
         this.notifyProperties(inst, fromAbove ? computedProps : props);
-        if (runId != inst._runId) {
-          // Re-entry protection; only run the last time through
-          return;
-        } else {
+        // Re-entry protection; only run the last time through
+        if (runId == inst._runId) {
           props = inst._setPropInterim;
           inst._setPropInterim = null;
-        }
-        // Run annotation effects
-        this._runEffects(inst, inst._propagateEffects, props);
-        if (inst._hasConfigured) {
-          // Recurse to children
+          // Run annotation effects
+          this._runEffects(inst, inst._propagateEffects, props);
+          // Recurse to clients
           inst._setPropClients.forEach(function(v, client) {
             if (client != this) {
               lib.setProperties(client, client._setPropQueue, true);
@@ -157,11 +153,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           });
           inst._setPropClients = null;
           // Run observer effects
+          inst._setPropClients = null;
           this._runEffects(inst, inst._observerEffects, props);
-        } else {
-          inst._setPropInterim = props;
         }
-        inst._setPropClients = null;
       }
       return props;
     },
@@ -269,48 +263,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _hostStack: [],
 
-    configureDefaults: function(inst, props, deferTakeDefaults) {
-      inst._setPropQueue = props;
-      if (!deferTakeDefaults) {
-        this.takeDefaults(inst);
-      }
-    },
-
-    takeDefaults: function(inst) {
+    configureProperties: function(inst, props) {
       if (this._hostStack.length) {
-        return;
+        inst._setPropQueue = props;
+      } else {
+        this.setProperties(inst, props, true, true);
       }
-      this.setProperties(inst, inst._setPropQueue, true, true);
-      if (inst._clients) {
-        for (var i=0; i<inst._clients.length; i++) {
-          this.takeDefaults(inst._clients[i]);
-        }
-      }
-      inst._hasConfigured = true;
-      this._runEffects(inst, inst._observerEffects, inst._setPropInterim);
     },
 
     _registerClient: function(client) {
       var host = this._hostStack[this._hostStack.length-1];
       if (host) {
-        host._clients.push(client);
+        host._setPropClients.set(client, true);
       }
     },
 
     stamp: function(template, inst) {
       this._registerClient(inst);
-      inst._clients = [];
+      inst._setPropClients = new Map();
       this._hostStack.push(inst);
       var dom = Polymer.Template.stamp(template, inst);
       this.setupBindings(inst, dom, template.content._notes);
       this._hostStack.pop(inst);
-      // TODO(sorvell): can't takeDefaults here if we want
-      // users to make Shadow DOM since may cause observers to 
-      // run and they may depend on the state of the dom (e.g. set to this.root)
-      // inst.root = dom;
-      // if (!this._hostStack.length) {
-      //   this.takeDefaults(inst);
-      // }
       return dom;
     }
 
