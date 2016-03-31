@@ -7,21 +7,16 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="../lib/style-properties.html">
-<link rel="import" href="../lib/settings.html">
-<link rel="import" href="../lib/style-defaults.html">
-<link rel="import" href="../lib/style-cache.html">
-<link rel="import" href="../lib/style-util.html">
+<link rel="import" href="style-util.html">
 <script>
 Polymer.ApplyShim = (function(){
   'use strict';
 
-  var propertyUtils = Polymer.StyleProperties;
   var styleUtil = Polymer.StyleUtil;
 
-  var MIXIN_MATCH = propertyUtils.rx.MIXIN_MATCH;
-  var VAR_ASSIGN = propertyUtils.rx.VAR_ASSIGN;
-  var VAR_MATCH = propertyUtils.rx.VAR_MATCH;
+  var MIXIN_MATCH = styleUtil.rx.MIXIN_MATCH;
+  var VAR_ASSIGN = styleUtil.rx.VAR_ASSIGN;
+  var VAR_MATCH = styleUtil.rx.VAR_MATCH;
   var APPLY_NAME_CLEAN = /;\s*/m;
 
   // map of mixin to property names
@@ -141,69 +136,20 @@ Polymer.ApplyShim = (function(){
     return prefix + 'var(' + value + ',var(' + fallback + '));';
   }
 
-  function fixOrderInShadowDOMInstances(proto) {
-    var s = proto._template &&
-      proto._template.content.querySelector('style');
-    if (s) {
-      var selector = proto.extends ? '[is=' + proto.is + ']' : proto.is;
-      // TODO(sorvell): won't work in attachShadow
-      // could keep an instance map instead of the querySelectorAll.
-      var e$ = document.querySelectorAll('html /deep/ ' + selector);
-      for (var j=0, e; (j < e$.length) && (e = e$[j]); j++) {
-        var c = e.shadowRoot && e.shadowRoot.firstElementChild;
-        if (c && c.localName === 'style') {
-          c.parentNode.replaceChild(s.cloneNode(true), c);
-        }
-      }
-    }
-  }
-
-  // TODO(sorvell): Temporary ordering fixup. This approach can be refined
-  // to do less work, or this might be ok if the fast answer is build.
-  function fixOrder() {
-    // TODO(sorvell): make compatible with lazyRegister
-    if (Polymer.StyleUtil.HAS_NATIVE_VARIABLES) {
-      // in reverse registration order.
-      var r$ = Polymer.telemetry.registrations;
-      for (var i=r$.length-1, proto; i>=0; i--) {
-        proto = r$[i];
-        // TODO(sorvell): abort if the element has not fully registered; need
-        // to work out issues with lazyRegister
-        if (!proto.__hasRegisterFinished) {
-          continue;
-        }
-        // FIX registrations
-        var s = !Polymer.Settings.useNativeShadow ?
-            document.head.querySelector('style[scope=' + proto.is + ']') :
-            proto._template && proto._template.content.querySelector('style');
-        if (s) {
-          s.parentNode.removeChild(s);
-        }
-        // TODO(sorvell): this re-does significant work that could be factored away.
-        // re-shim styles...
-        proto._prepShimStyles();
-        // FIX instances with shadowRoot
-        if (Polymer.Settings.useNativeShadow) {
-          fixOrderInShadowDOMInstances(proto);
-        }
-      }
-    }
-  }
-
-  Polymer.RenderStatus.whenReady(function() {
-    if (document.readyState === 'loading') {
-      addEventListener('DOMContentLoaded', fixOrder);
-    } else {
-      fixOrder();
-    }
-  });
-
   return {
     transform: function(styles) {
-      styleUtil.forRulesInStyles(styles, this.transformRule);
+      styleUtil.forRulesInStyles(styles, this.transformRule.bind(this));
     },
     transformRule: function(rule) {
-      var cssText = rule.parsedCssText;
+      rule.cssText = this.transformCssText(rule.parsedCssText);
+      // :root was only used for variable assignment in property shim,
+      // but generates invalid selectors with real properties.
+      // replace with `:host > *`, which serves the same effect
+      if (rule.selector === ':root') {
+        rule.selector = ':host > *';
+      }
+    },
+    transformCssText: function(cssText) {
       // fix shim variables
       cssText = cssText.replace(VAR_MATCH, fixVars);
       // produce variables
@@ -213,13 +159,7 @@ Polymer.ApplyShim = (function(){
       cssText = cssText.replace(MIXIN_MATCH, function(all, name) {
         return apply(all, name, defaults);
       });
-      rule.cssText = cssText;
-      // :root was only used for variable assignment in property shim,
-      // but generates invalid selectors with real properties.
-      // replace with `:host > *`, which serves the same effect
-      if (rule.selector === ':root') {
-        rule.selector = ':host > *';
-      }
+      return cssText;
     }
   };
 })();
