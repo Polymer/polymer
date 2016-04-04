@@ -62,7 +62,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _complexObserverEffect: function(source, value, effect) {
       var fn = this[effect.method];
       if (fn) {
-        var args = Polymer.Bind._marshalArgs(this.__data__, effect, source, value);
+        var args = Polymer.Bind._marshalArgs.call(this, this.__data__,
+                                                  effect, source, value);
         if (args) {
           fn.apply(this, args);
         }
@@ -79,7 +80,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _computeEffect: function(source, value, effect) {
       var fn = this[effect.method];
       if (fn) {
-        var args = Polymer.Bind._marshalArgs(this.__data__, effect, source, value);
+        var args = Polymer.Bind._marshalArgs.call(this, this.__data__,
+                                                  effect, source, value);
         if (args) {
           var computedvalue = fn.apply(this, args);
           this.__setProperty(effect.name, computedvalue);
@@ -98,7 +100,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var computedHost = this._rootDataHost || this;
       var fn = computedHost[effect.method];
       if (fn) {
-        var args = Polymer.Bind._marshalArgs(this.__data__, effect, source, value);
+        var args = Polymer.Bind._marshalArgs.call(computedHost, this.__data__,
+                                                  effect, source, value);
         if (args) {
           var computedvalue = fn.apply(computedHost, args);
           if (effect.negate) {
@@ -121,9 +124,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _marshalArgs: function(model, effect, path, value) {
       var values = [];
       var args = effect.args;
-      // Actually we should return early as soon as we see an `undefined`,
-      // but dom-repeat relies on this behavior.
-      var bailoutEarly = (args.length > 1 || effect.dynamicFn);
+
+      var bailoutEarly;
+      if (Polymer.Bind.expressionDidEvaluateOnce(this, effect)) {
+        bailoutEarly = false;
+      } else {
+        bailoutEarly = (args.length > 1 || effect.dynamicFn);
+      }
+
       for (var i=0, l=args.length; i<l; i++) {
         var arg = args[i];
         var name = arg.name;
@@ -152,7 +160,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           values[i] = v;
         }
       }
+      if (bailoutEarly) {
+        Polymer.Bind.markExpressionAsDidRun(this, effect);
+      }
       return values;
+    },
+
+    expressionDidEvaluateOnce: function(model, effect) {
+      return (model.__readyExpressions &&
+              model.__readyExpressions[effect.expression]);
+    },
+
+    markExpressionAsDidRun: function(model, effect) {
+      var store = model.__readyExpressions;
+      if (!store) {
+        store = model.__readyExpressions = {};
+      }
+      var expression = effect.expression;
+      if (!store[expression]) {
+        store[expression] = true;
+      }
     }
 
   });
