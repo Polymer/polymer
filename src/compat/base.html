@@ -37,11 +37,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // `this` context is a prototype, not an instance
     registerCallback: function() {
-      this.__behaviors = Behaviors.prepBehaviors(this, this.behaviors);
-      this.__meta = Behaviors.createMeta(this, this.__behaviors);
       this._template = Template.prepTemplate(this, this._template);
-      Data.createProperties(this, this.__meta.properties);
-      Data.createMultiObservers(this, this.__meta.observers);
+      // new behaviors / meta (ignores any behaviors from superclass)
+      var behaviors = this.hasOwnProperty('behaviors') ? 
+        Behaviors.prepBehaviors(this, this.behaviors) : [];
+      var meta = Behaviors.createMeta(this, behaviors);
+      if (meta.properties) {
+        Data.createProperties(this, meta.properties);
+      }
+      if (meta.observers) {
+        Data.createMultiObservers(this, meta.observers);
+      }
+      // create meta/behaviors for runtime processing (merge with superclass)
+      if (this.__meta) {
+        this.__meta = Behaviors.copyMeta(this.__meta);
+        Behaviors.mergeMeta(this.__meta, meta);
+      } else {
+        this.__meta = meta;  
+      }
+      this.__behaviors = this.__behaviors ? this.__behaviors.concat(behaviors) :
+        behaviors;
       if (this._template) {
         Polymer.StyleUtil.prepStyleIncludes(this._template.content);
         Data.bindTemplate(this, this._template);
@@ -51,25 +66,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createdCallback: function() {
       Polymer.telemetry.instanceCount++;
-      // TODO(sorvell): can we drop 'created'?
       Behaviors.callMethod(this, 'created');
-      this.root = this;
-      Events.addListeners(this, this.__meta.listeners);
-      Attributes.applyAttributes(this, this.__meta.hostAttributes);
+      if (this.__meta.listeners) {
+        Events.addListeners(this, this.__meta.listeners);
+      }
+      if (this.__meta.hostAttributes) {
+        Attributes.applyAttributes(this, this.__meta.hostAttributes);
+      }
       if (this._template) {
         var dom = Data.stamp(this._template, this);
-        // stamp!
-        //this.root = this.attachShadow({mode: 'open'});
         this.root = this.createShadowRoot();
         Data.configureProperties(this);
         this.root.appendChild(dom);
       } else {
+        this.root = this;
         Data.configureProperties(this);
       }
       Behaviors.callMethod(this, 'ready');
     },
-
-    ready: function() {},
 
     // reserved for canonical behavior
     attachedCallback: function() {
@@ -77,15 +91,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Behaviors.callMethod(this, 'attached');
     },
 
-    attached: function() {},
-
     // reserved for canonical behavior
     detachedCallback: function() {
       this.isAttached = false;
       Behaviors.callMethod(this, 'detached');
     },
-
-    detached: function() {},
 
     /**
      * Copies own properties (including accessor descriptors) from a source
