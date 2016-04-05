@@ -10,7 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="annotations.html">
-<link rel="import" href="../events/gesture-event-listeners.html">
+<link rel="import" href="../events/event-listeners.html">
 <script>
 (function() {
 
@@ -115,51 +115,20 @@ TODO(sjmiles): this module should produce either syntactic metadata
 
 */
 
-  // import
-  var EventListeners = Polymer.GestureEventListeners;
+  class TemplateStamper {
 
-  Polymer.Template = {
+    constructor(events, annotator=Polymer.Annotations) {
+      this.events = events;
+      this.annotator = annotator;
+    }
 
-    // construct `$` map (from id annotations)
-    createIdMap: function(dom, notes) {
-      var map = {};
-      for (var i=0, l=notes.length, a; (i<l) && (a=notes[i]); i++) {
-        if (a.id) {
-          map[a.id] = Polymer.Annotations.findAnnotatedNode(dom, a);
-        }
+    stamp(template, inst) {
+      // Polyfill support: bootstrap the template if it has not already been
+      if (template && !template.content &&
+          window.HTMLTemplateElement && HTMLTemplateElement.decorate) {
+        HTMLTemplateElement.decorate(template);
       }
-      return map;
-    },
-
-    // install event listeners (from event annotations)
-    installEventListeners: function(dom, notes, host) {
-      for (var i=0, l=notes.length, a; (i<l) && (a=notes[i]); i++) {
-        if (a.events && a.events.length) {
-          var node = Polymer.Annotations.findAnnotatedNode(dom, a);
-          for (var j=0, e$=a.events, e; (j<e$.length) && (e=e$[j]); j++) {
-            this.addMethodListener(node, e.name, e.value, host);
-          }
-        }
-      }
-    },
-
-    addMethodListener: function(node, eventName, methodName, host) {
-      EventListeners.addMethodListener(node, eventName, methodName, host);
-    },
-
-    // push configuration references at configure time
-    installTemplateContent: function(dom, notes) {
-      for (var i=0; i<notes.length; i++) {
-        var a = notes[i];
-        if (a.templateContent) {
-          var node = Polymer.Annotations.findAnnotatedNode(dom, a);
-          node._content = a.templateContent;
-        }
-      }
-    },
-
-    stamp: function(template, inst) {
-      var notes = Polymer.Annotations.parseAnnotations(template);
+      var notes = this.annotator.parseAnnotations(template);
       var dom = document.importNode(template._content || template.content, true);
       inst.$ = this.createIdMap(dom, notes);
       this.installTemplateContent(dom, notes);
@@ -167,7 +136,49 @@ TODO(sjmiles): this module should produce either syntactic metadata
       return dom;
     }
 
-  };
+    // construct `$` map (from id annotations)
+    createIdMap(dom, notes) {
+      var map = {};
+      for (var i=0, l=notes.length, a; (i<l) && (a=notes[i]); i++) {
+        if (a.id) {
+          map[a.id] = this.annotator.findAnnotatedNode(dom, a);
+        }
+      }
+      return map;
+    }
+
+    // install event listeners (from event annotations)
+    installEventListeners(dom, notes, host) {
+      for (var i=0, l=notes.length, a; (i<l) && (a=notes[i]); i++) {
+        if (a.events && a.events.length) {
+          var node = this.annotator.findAnnotatedNode(dom, a);
+          for (var j=0, e$=a.events, e; (j<e$.length) && (e=e$[j]); j++) {
+            this.addMethodListener(node, e.name, e.value, host);
+          }
+        }
+      }
+    }
+
+    addMethodListener(node, eventName, methodName, host) {
+      if (this.events) {
+        this.events.addMethodListener(node, eventName, methodName, host);
+      }
+    }
+
+    // push configuration references at configure time
+    installTemplateContent(dom, notes) {
+      for (var i=0; i<notes.length; i++) {
+        var a = notes[i];
+        if (a.templateContent) {
+          var node = this.annotator.findAnnotatedNode(dom, a);
+          node._content = a.templateContent;
+        }
+      }
+    }
+
+  }
+
+  Polymer.TemplateStamper = TemplateStamper;
 
 })();
 </script>

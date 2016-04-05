@@ -11,17 +11,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="property-effects.html">
-<link rel="import" href="../template/template.html">
 
 <script>
 (function() {
 
   'use strict';
-  var Data = Object.create(Polymer.PropertyEffects);
 
-  Polymer.Utils.mixin(Data, {
+  class BatchedEffects extends Polymer.PropertyEffects {
 
-    addPropertyEffect: function(model, property, effect) {
+    constructor(templateStamper, attributes, annotator) {
+      super(attributes, annotator);
+      this._currentEffects = null;
+      // Not a correct assign polyfill-- only use where proto's don't matter!
+      // _mixin: Object.assign ? Object.assign : Polymer.Utils.mixin,
+      this._mixin = Polymer.Utils.mixin;
+      this._effectUid = 0;
+      // TODO(sorvell): need to be static or this ok?
+      this._hostStack = [];
+      this.templateStamper = templateStamper;
+    }
+
+    addPropertyEffect(model, property, effect) {
       model = this.getModel(model);
       if (!model.setProperties) {
         var lib = this;
@@ -32,76 +42,74 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           lib.set(this, prop, value);
         };
       }
-      Polymer.PropertyEffects.addPropertyEffect.apply(this, arguments);
+      super.addPropertyEffect.apply(this, arguments);
       if (this._currentEffects) {
         var effects = this._currentEffects[property] ||
           (this._currentEffects[property] = []);
         effects.push(effect);
       }
-    },
+    }
 
-    _currentEffects: null,
-
-    _accumulateEffects: function(model, name, fn, args) {
+    _accumulateEffects(model, name, fn, args) {
       model = this.getModel(model);
       this._currentEffects = this._ensureEffects(model, name);
       fn.apply(this, args);
       this._currentEffects = null;
-    },
+    }
 
     // -- read only ----------------------------------------------
 
-    createReadOnlyProperty: function(model, property) {
+    createReadOnlyProperty(model, property) {
       model = this.getModel(model);
-      Polymer.PropertyEffects.createReadOnlyProperty.apply(this, arguments);
+      super.createReadOnlyProperty.apply(this, arguments);
       this._ensureEffects(model, '_isReadOnly')[property] = true;
-    },
+    }
 
     // -- observer ----------------------------------------------
 
-    createObserver: function(model) {
+    createObserver(model) {
       this._accumulateEffects(model, '_observerEffects',
-        Polymer.PropertyEffects.createObserver, arguments);
-    },
+        super.createObserver, arguments);
+    }
 
     // -- notify ----------------------------------------------
 
-    createNotifyingProperty: function(model) {
+    createNotifyingProperty(model) {
       this._accumulateEffects(model, '_notifyEffects',
-        Polymer.PropertyEffects.createNotifyingProperty, arguments);
-    },
+        super.createNotifyingProperty, arguments);
+    }
 
     // -- reflect ----------------------------------------------
 
-    createReflectedProperty: function(model) {
+    createReflectedProperty(model) {
       this._accumulateEffects(model, '_propagateEffects',
-        Polymer.PropertyEffects.createReflectedProperty, arguments);
-    },
+        super.createReflectedProperty, arguments);
+    }
 
     // -- complexObserver ----------------------------------------------
 
-    createMultiObserver: function(model) {
+    createMultiObserver(model) {
       this._accumulateEffects(model, '_observerEffects',
-        Polymer.PropertyEffects.createMultiObserver, arguments);
-    },
+        super.createMultiObserver, arguments);
+    }
 
     // -- computed ----------------------------------------------
 
-    createComputedProperty: function(model) {
+    createComputedProperty(model) {
       this._accumulateEffects(model, '_computedEffects',
-        Polymer.PropertyEffects.createComputedProperty, arguments);
-    },
+        super.createComputedProperty, arguments);
+    }
 
     // -- annotation ----------------------------------------------
 
-    bindTemplate: function(model, template) {
+    bindTemplate(model, template) {
       this._accumulateEffects(model, '_propagateEffects',
-        Polymer.PropertyEffects.bindTemplate, [model, template]);
-    },
+        super.bindTemplate, [model, template]);
+    }
 
     // -- set properties machinery
 
-    setProperties: function(inst, props, fromAbove) {
+    setProperties(inst, props, fromAbove) {
       var runId = (inst._runId = ((inst._runId || 0) + 1));
       // Dirty check / filter props with effects
       var changedProps;
@@ -155,28 +163,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._flushPropClients(inst);
       }
       return props;
-    },
+    }
 
-    _flushPropClients: function(inst) {
+    _flushPropClients(inst) {
       var lib = this;
+      // TODO(sorvell): perf check forEach.
       inst._setPropClients.forEach(function(v, client) {
         if (client != this) {
           lib.setProperties(client, client._setPropQueue, true);
         }
       });
       inst._setPropClients = null;
-    },
+    }
 
-    set: function(inst, path, value) {
+    set(inst, path, value) {
       path = Array.isArray(path) ? path.join('.') : path;
       this._propertySetter(inst, path, value);
-    },
+    }
 
-    // Not a correct assign polyfill-- only use where proto's don't matter!
-    // _mixin: Object.assign ? Object.assign : Polymer.Utils.mixin,
-    _mixin: Polymer.Utils.mixin,
-
-    notifyProperties: function(inst, props) {
+    notifyProperties(inst, props) {
       if (props) {
         var host = inst.dataHost;
         if (host && host.setProperties) {
@@ -185,19 +190,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._dispatchNotifyProperties(inst, props);
         }
       }
-    },
+    }
 
-    _dispatchNotifyProperties: function(inst, props) {
+    _dispatchNotifyProperties(inst, props) {
       var fx = inst._notifyEffects;
       for (var prop in props) {
         if ((fx && fx[prop]) || this._rootForPath(prop) !== prop) {
-          Polymer.EventDispatch.fire(inst, prop + '-changed',
-            {value: props[prop]});
+          this.fire(inst, prop + '-changed', {value: props[prop]});
         }
       }
-    },
+    }
 
-    _setNotifyProperties: function(inst, host, props) {
+    _setNotifyProperties(inst, host, props) {
       var fx = inst._notifyEffects;
       var hostProps = {};
       for (var prop in props) {
@@ -210,18 +214,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       this.setProperties(host, hostProps);
-    },
+    }
 
-    _addNotifyListener: function(node, inst, info) {
+    _addNotifyListener(node, inst, info) {
       if (!node.setProperties) {
-        Polymer.PropertyEffects._addNotifyListener.apply(this, arguments);
+        super._addNotifyListener.apply(this, arguments);
       } else {
         node._hostBindings = node._hostBindings || {};
         node._hostBindings[info.property] = info.path;
       }
-    },
+    }
 
-    _propertySetter: function(inst, property, value) {
+    _propertySetter(inst, property, value) {
       if (inst._setPropClients) {
         inst._setPropQueue[property] = value;
       } else {
@@ -229,9 +233,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         props[property] = value;
         this.setProperties(inst, props);
       }
-    },
+    }
 
-    _setPropertyToNode: function(model, node, property, value) {
+    _setPropertyToNode(model, node, property, value) {
       if (node.setProperties) {
         if (!node._isReadOnly || !node._isReadOnly[property]) {
           node._setPropQueue = node._setPropQueue || {};
@@ -241,11 +245,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       } else {
         node[property] = value;
       }
-    },
+    }
 
-    _effectUid: 0,
-
-    _runEffects: function(inst, effects, props) {
+    _runEffects(inst, effects, props) {
       var ran;
       if (effects) {
         var id = this._effectUid++;
@@ -266,39 +268,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       return ran;
-    },
+    }
 
-    _hostStack: [],
-
-    configureProperties: function(inst, props) {
+    configureProperties(inst, props) {
       if (this._hostStack.length) {
         inst._setPropQueue = props;
       } else {
         this.setProperties(inst, props, true, true);
       }
-    },
+    }
 
-    _registerClient: function(client) {
+    _registerClient(client) {
       var host = this._hostStack[this._hostStack.length-1];
       if (host) {
         host._setPropClients.set(client, true);
       }
-    },
+    }
 
-    stamp: function(template, inst) {
+    stamp(template, inst) {
       this._registerClient(inst);
       inst._setPropClients = new Map();
       this._hostStack.push(inst);
-      var dom = Polymer.Template.stamp(template, inst);
+      var dom = this.templateStamper.stamp(template, inst);
       this.setupBindings(inst, dom, template.content._notes);
       this._hostStack.pop(inst);
       return dom;
     }
 
-  });
+  }
 
   // export
-  Polymer.Data = Data;
+  Polymer.BatchedEffects = BatchedEffects;
 
 })();
 </script>
