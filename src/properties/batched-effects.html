@@ -19,16 +19,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   class BatchedEffects extends Polymer.PropertyEffects {
 
-    constructor(templateStamper, attributes, annotator) {
-      super(attributes, annotator);
+    constructor(templateStamp, attributes, annotations) {
+      super(attributes, annotations);
       this._currentEffects = null;
       // Not a correct assign polyfill-- only use where proto's don't matter!
       // _mixin: Object.assign ? Object.assign : Polymer.Utils.mixin,
       this._mixin = Polymer.Utils.mixin;
       this._effectUid = 0;
-      // TODO(sorvell): need to be static or this ok?
-      this._hostStack = [];
-      this.templateStamper = templateStamper;
+      this.templateStamp = templateStamp || 
+        (Polymer.TemplateStamp && new Polymer.TemplateStamp());
     }
 
     addPropertyEffect(model, property, effect) {
@@ -271,7 +270,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     configureProperties(inst, props) {
-      if (this._hostStack.length) {
+      if (this.constructor._hostStack.length) {
         inst._setPropQueue = props;
       } else {
         this.setProperties(inst, props, true, true);
@@ -279,23 +278,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _registerClient(client) {
-      var host = this._hostStack[this._hostStack.length-1];
+      var host = 
+        this.constructor._hostStack[this.constructor._hostStack.length-1];
       if (host) {
         host._setPropClients.set(client, true);
       }
     }
 
     stamp(template, inst) {
+      if (!this.templateStamp) {
+        console.warn(`In order to call \`stamp\` a template stamping delegate is 
+          required`);
+        return;
+      }
       this._registerClient(inst);
       inst._setPropClients = new Map();
-      this._hostStack.push(inst);
-      var dom = this.templateStamper.stamp(template, inst);
+      this.constructor._hostStack.push(inst);
+      var dom = this.templateStamp.stamp(template, inst);
       this.setupBindings(inst, dom, template.content._notes);
-      this._hostStack.pop(inst);
+      this.constructor._hostStack.pop(inst);
       return dom;
     }
 
   }
+
+  BatchedEffects._hostStack = [];
 
   // export
   Polymer.BatchedEffects = BatchedEffects;

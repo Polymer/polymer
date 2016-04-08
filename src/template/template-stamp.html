@@ -9,8 +9,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../utils/boot.html">
-<link rel="import" href="annotations.html">
-<link rel="import" href="../events/event-listeners.html">
 <script>
 (function() {
 
@@ -115,11 +113,22 @@ TODO(sjmiles): this module should produce either syntactic metadata
 
 */
 
-  class TemplateStamper {
+  class TemplateStamp {
 
-    constructor(events, annotator=Polymer.Annotations) {
-      this.events = events;
-      this.annotator = annotator;
+    // events: *optional* event listener delegate that defaults to 
+    // Polymer.EventListeners if it is loaded and is required to implement
+    // `addMethodListener`.
+    // annotations: *required* annotation delegate that defaults to 
+    // Polymer.Annotations if it is loaded.
+    constructor(events, annotations) {
+      this.events = events || 
+        (Polymer.EventListeners && new Polymer.EventListeners());
+      this.annotations = annotations || 
+        (Polymer.Annotations && new Polymer.Annotations());
+      // annotations is required
+      if (!this.annotations) {
+        throw 'TemplateStamp constructor requires `annotations`.';
+      }
     }
 
     stamp(template, inst) {
@@ -128,57 +137,51 @@ TODO(sjmiles): this module should produce either syntactic metadata
           window.HTMLTemplateElement && HTMLTemplateElement.decorate) {
         HTMLTemplateElement.decorate(template);
       }
-      var notes = this.annotator.parseAnnotations(template);
+      var notes = this.annotations.parseAnnotations(template);
       var dom = document.importNode(template._content || template.content, true);
-      inst.$ = this.createIdMap(dom, notes);
-      this.installTemplateContent(dom, notes);
-      this.installEventListeners(dom, notes, inst);
+      // TODO(sorvell): to what extent should this functionality be pluggable?
+      inst.$ = {};
+      for (var i=0, l=notes.length, note; (i<l) && (note=notes[i]); i++) {
+        this.applyIdToMap(inst.$, dom, note);
+        this.applyTemplateContent(dom, note);
+        this.applyEventListener(dom, note, inst);
+      }
       return dom;
     }
 
     // construct `$` map (from id annotations)
-    createIdMap(dom, notes) {
-      var map = {};
-      for (var i=0, l=notes.length, a; (i<l) && (a=notes[i]); i++) {
-        if (a.id) {
-          map[a.id] = this.annotator.findAnnotatedNode(dom, a);
-        }
+    applyIdToMap(map, dom, note) {
+      if (note.id) {
+        map[note.id] = this.annotations.findAnnotatedNode(dom, note);
       }
-      return map;
     }
 
     // install event listeners (from event annotations)
-    installEventListeners(dom, notes, host) {
-      for (var i=0, l=notes.length, a; (i<l) && (a=notes[i]); i++) {
-        if (a.events && a.events.length) {
-          var node = this.annotator.findAnnotatedNode(dom, a);
-          for (var j=0, e$=a.events, e; (j<e$.length) && (e=e$[j]); j++) {
-            this.addMethodListener(node, e.name, e.value, host);
+    applyEventListener(dom, note, host) {
+      if (note.events && note.events.length) {
+        var node = this.annotations.findAnnotatedNode(dom, note);
+        for (var j=0, e$=note.events, e; (j<e$.length) && (e=e$[j]); j++) {
+          if (this.events) {
+            this.events.addMethodListener(node, e.name, e.value, host);
+          } else {
+            console.warn('Cannot add event', e.name, 
+              'event listener delegate to `TemplateStamp`.');
           }
         }
       }
     }
 
-    addMethodListener(node, eventName, methodName, host) {
-      if (this.events) {
-        this.events.addMethodListener(node, eventName, methodName, host);
-      }
-    }
-
     // push configuration references at configure time
-    installTemplateContent(dom, notes) {
-      for (var i=0; i<notes.length; i++) {
-        var a = notes[i];
-        if (a.templateContent) {
-          var node = this.annotator.findAnnotatedNode(dom, a);
-          node._content = a.templateContent;
-        }
+    applyTemplateContent(dom, note) {
+      if (note.templateContent) {
+        var node = this.annotations.findAnnotatedNode(dom, note);
+        node._content = note.templateContent;
       }
     }
 
   }
 
-  Polymer.TemplateStamper = TemplateStamper;
+  Polymer.TemplateStamp = TemplateStamp;
 
 })();
 </script>
