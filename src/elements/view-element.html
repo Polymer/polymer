@@ -1,0 +1,123 @@
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../events/gestures.html">
+<link rel="import" href="../events/event-listeners.html">
+<link rel="import" href="../template/template-stamp.html">
+<link rel="import" href="../attributes/attribute-to-from-property.html">
+<link rel="import" href="../properties/batched-effects.html">
+
+<script>
+(function() {
+
+  'use strict';
+
+  var Events = new Polymer.EventListeners(Polymer.Gestures);
+  var Attributes = new Polymer.AttributeToFromProperty();
+  var TemplateStamp = new Polymer.TemplateStamp(Events);
+  var Data = new Polymer.BatchedEffects(TemplateStamp, Attributes);
+
+  let callbacks;
+  let afterNextRender = function(cb) {
+    if (callbacks) {
+      callbacks.push(cb);
+    } else {
+      callbacks = [cb];
+      requestAnimationFrame(function() {
+        callbacks.forEach(function(fn) {
+          fn();
+        });
+        callbacks = null;
+      });
+    }
+  }
+
+  class ViewElement extends HTMLElement {
+    
+    attachedCallback() {
+      if (!this.__hasAttached) {
+        this.__hasAttached = true;
+        this.firstAttached();
+      }
+    }
+
+    firstAttached() {
+      if (!this.constructor.prototype.hasOwnProperty('__hasEffects')) {
+        this.constructor.prototype.__hasEffects = true;
+        this.installEffects(this.constructor.prototype);
+      }
+      var dom = this.stampDom();
+      this.configureProperties();
+      this.attachDom(dom);
+      afterNextRender(() => { 
+        this.asyncInit();
+      });
+      this.rendered();
+    }
+
+    installEffects() {
+      if (this.template) {
+        Data.bindTemplate(this.constructor, this.template);
+      }
+    }
+
+    rendered() {}
+
+    configureProperties() {
+      var props = this.getDefaultPropertyValues();
+      if (props) {
+        Data.configureProperties(this, props);
+      }
+    }
+
+    getDefaultPropertyValues() {
+      return {};
+    }
+
+    stampDom() {
+      if (this.template) {
+        return Data.stamp(this.template, this);
+      }
+    }
+
+    attachDom(dom) {
+      if (dom) {
+        if (!this.shadowRoot) {
+          this.createShadowRoot();
+        }
+        this.shadowRoot.appendChild(dom);
+      }
+    }
+
+    asyncInit() {
+      this.addListeners();
+      this.ensureAttributes();
+    }
+
+    addListeners() {}
+
+    ensureAttributes() {
+      var attrs = this.getDefaultAttributeValues();
+      if (attrs) {
+        Attributes.ensureAttributes(this, attrs);
+      }
+    }
+
+    getDefaultAttributeValues() {}
+
+  }
+
+  ViewElement.Events = Events;
+  ViewElement.Attributes = Attributes;
+  ViewElement.Data = Data;
+
+  Polymer.ViewElement = ViewElement;
+
+})();
+</script>

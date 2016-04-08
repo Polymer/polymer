@@ -11,10 +11,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/compat-utils.html">
 <link rel="import" href="behaviors.html">
-<link rel="import" href="../events/compat-events.html">
-<link rel="import" href="../attributes/compat-attributes.html">
-<link rel="import" href="../template/compat-template.html">
-<link rel="import" href="../properties/compat-data.html">
+<link rel="import" href="../events/gestures.html">
+<link rel="import" href="../events/event-listeners.html">
+<link rel="import" href="../template/template-stamp.html">
+<link rel="import" href="../attributes/attribute-to-from-property.html">
+<link rel="import" href="../properties/meta-effects.html">
 
 <script>
 (function() {
@@ -22,11 +23,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   'use strict';
 
   var Utils = Polymer.Utils;
-  var Behaviors = Polymer.CompatBehaviors;
-  var Data = Polymer.CompatData;
-  var Events = Polymer.CompatEvents;
-  var Template = Polymer.CompatTemplate;
-  var Attributes = Polymer.CompatAttributes;
+  var CaseMap = Polymer.CaseMap;
+  var Behaviors = Polymer.Behaviors;
+  var Events = new Polymer.EventListeners(Polymer.Gestures);
+  var Attributes = new Polymer.AttributeToFromProperty();
+  var TemplateStamp = new Polymer.TemplateStamp(Events);
+  var Data = new Polymer.MetaEffects(TemplateStamp, Attributes);
 
   Polymer.Base = {
 
@@ -37,7 +39,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // `this` context is a prototype, not an instance
     registerCallback: function() {
-      this._template = Template.prepTemplate(this, this._template);
+      if (this._template === undefined) {
+        this._template = Polymer.DomModule.import(this.is, 'template');
+      }
       // new behaviors / meta (ignores any behaviors from superclass)
       var behaviors = this.hasOwnProperty('behaviors') ? 
         Behaviors.prepBehaviors(this, this.behaviors) : [];
@@ -68,10 +72,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.telemetry.instanceCount++;
       Behaviors.callMethod(this, 'created');
       if (this.__meta.listeners) {
-        Events.addListeners(this, this.__meta.listeners);
+        var l$ = this.__meta.listeners;
+        for (var i=0, l; (i<l$.length) && (l=l$[i]); i++) {
+          Events.addMethodListener(this, l.event, l.method);
+        }
       }
       if (this.__meta.hostAttributes) {
-        Attributes.applyAttributes(this, this.__meta.hostAttributes);
+        Attributes.ensureAttributes(this, this.__meta.hostAttributes);
       }
       if (this._template) {
         var dom = Data.stamp(this._template, this);
@@ -135,7 +142,130 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         object.__proto__ = inherited;
       }
       return object;
+    },
+
+    /* **** Begin Template **** */
+    /**
+     * Calls `importNode` on the `content` of the `template` specified and
+     * returns a document fragment containing the imported content.
+     *
+     * @method instanceTemplate
+     * @param {HTMLTemplateElement} template HTML template element to instance.
+     * @return {DocumentFragment} Document fragment containing the imported
+     *   template content.
+    */
+    instanceTemplate: function(template) {
+      var dom =
+        document.importNode(template._content || template.content, true);
+      return dom;
+    },
+
+    /**
+     * Rewrites a given URL relative to the original location of the document
+     * containing the `dom-module` for this element.  This method will return
+     * the same URL before and after vulcanization.
+     *
+     * @method resolveUrl
+     * @param {string} url URL to resolve.
+     * @return {string} Rewritten URL relative to the import
+     */
+    resolveUrl: function(url) {
+      // TODO(sorvell): do we want to put the module reference on the prototype?
+      var module = Polymer.DomModule.import(this.is);
+      var root = '';
+      if (module) {
+        var assetPath = module.getAttribute('assetpath') || '';
+        root = Polymer.ResolveUrl.resolveUrl(assetPath, module.ownerDocument.baseURI);
+      }
+      return Polymer.ResolveUrl.resolveUrl(url, root);
+    },
+    /* **** End Template **** */
+
+    /* **** Begin Attributes **** */
+    attributeChangedCallback: function(name, oldValue, newValue) {
+      var property = CaseMap.dashToCamelCase(name);
+      var info = this.__meta.properties && this.__meta.properties[property];
+      if (info && !info.readOnly) {
+        Attributes.attributeToProperty(this, info.attribute, property, 
+          info.type);
+      }
+      Behaviors.callMethod(this, 'attributeChanged', 
+        [name, oldValue, newValue]);
+    },
+
+    serialize: function(value) {
+      return Attributes.serialize(value);
+    },
+
+    deserialize: function(value, type) {
+      return Attributes.deserialize(value, type);
+    },
+
+    reflectPropertyToAttribute: function(property, attribute, value) {
+      Attributes.propertyToAttribute(this, property, attribute, value);
+    },
+
+    serializeValueToAttribute: function(value, attribute, node) {
+      node = node || this;
+      Attributes.valueToAttribute(node, value, attribute, value);
+    },
+
+    /* **** End Attributes **** */
+
+    /* **** Begin Events **** */
+    fire: function(type, detail, options) {
+      options = options || {};
+      detail = (detail === null || detail === undefined) ? {} : detail;
+      var event = new Event(type, {
+        bubbles: options.bubbles === undefined ? true : options.bubbles,
+        cancelable: Boolean(options.cancelable)
+      });
+      event.detail = detail;
+      var node = options.node || this;
+      node.dispatchEvent(event)
+      return event;
+    },
+
+    listen: function(node, eventName, methodName) {
+      node = node || this;
+      node.__eventHandlers = node.__eventHandlers || {};
+      var key = eventName + methodName;
+      if (!node.__eventHandlers[key]) {
+        node.__eventHandlers[key] = 
+          Events.addMethodListener(node, eventName, methodName, this);
+      }
+    },
+
+    unlisten: function(node, eventName, methodName) {
+      node = node || this;
+      var key = eventName + methodName;
+      var handler = node.__eventHandlers && node.__eventHandlers[key];
+      if (handler) {
+        Events.removeListener(node, eventName, handler);
+        node.__eventHandlers[key] = null;
+      }
+    }, 
+    
+    /**
+     * Override scrolling behavior to all direction, one direction, or none.
+     *
+     * Valid scroll directions:
+     *   - 'all': scroll in any direction
+     *   - 'x': scroll only in the 'x' direction
+     *   - 'y': scroll only in the 'y' direction
+     *   - 'none': disable scrolling for this node
+     *
+     * @method setScrollDirection
+     * @param {String=} direction Direction to allow scrolling
+     * Defaults to `all`.
+     * @param {HTMLElement=} node Element to apply scroll direction setting.
+     * Defaults to `this`.
+     */
+    setScrollDirection: function(direction, node) {
+      node = node || this;
+      Polymer.Gestures.setTouchAction(node, direction || 'auto');
     }
+    /* **** End Events **** */
 
   };
 
@@ -156,15 +286,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // telemetry
   Polymer.telemetry.instanceCount = 0;
 
-  // TODO(sorvell): avoid doing this? seeing everything public on this prototype
-  // is probably useful.
-  Polymer.Base.mixin(Polymer.Base, Events.Mixin);
-  Polymer.Base.mixin(Polymer.Base, Attributes.Mixin);
-  Polymer.Base.mixin(Polymer.Base, Template.Mixin);
   Polymer.Base.mixin(Polymer.Base, Polymer.CompatUtils.Mixin);
 
-  Polymer.Element = function() {};
-  Polymer.Element.prototype = Polymer.Base;
+  Polymer.V1Element = function() {};
+  Polymer.V1Element.prototype = Polymer.Base;
 
 })();
 </script>
