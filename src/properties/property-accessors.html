@@ -8,17 +8,25 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
+<link rel="import" href="../utils/case-map.html">
+
 <script>
 (function() {
-  
+
   'use strict';
 
   class PropertyAccessors {
 
+    constructor() {
+      this._emptyFn = function() {};
+    }
+
     createAccessor(model, property, readOnly) {
       model = this.getModel(model);
-      this._ensureEffects(model, '_propertyEffects');
-      var effects = model._propertyEffects[property];
+      var effects = this._ensureEffects(model, '_propertyEffects')[property];
+      if (!effects) {
+        this._addObservedAttribute(model, property);
+      }
       if (!effects || readOnly) {
         effects = effects || (model._propertyEffects[property] = []);
         this._createAccessor(model, property, readOnly);
@@ -50,6 +58,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return effects;
     }
 
+    _addObservedAttribute(model, name) {
+      var attrName = Polymer.CaseMap.camelToDashCase(name);
+      var ctor = model.constructor;
+      if (!ctor.hasOwnProperty('observedAttributes')) {
+        ctor.observedAttributes =
+          ctor.observedAttributes ?
+          ctor.observedAttributes.slice() : [];
+      }
+      ctor.observedAttributes.push(attrName);
+    }
+
     _createAccessor(model, property, readOnly) {
       // TODO(sorvell): kosher to bail here if an accessor already exists?
       if (!readOnly && model.hasOwnProperty(property)) {
@@ -68,6 +87,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       };
       if (readOnly) {
         model['_set' + this._upper(property)] = setter;
+        defun.set = this._emptyFn;
       } else {
         defun.set = setter;
       }

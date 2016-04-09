@@ -26,7 +26,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // _mixin: Object.assign ? Object.assign : Polymer.Utils.mixin,
       this._mixin = Polymer.Utils.mixin;
       this._effectUid = 0;
-      this.templateStamp = templateStamp || 
+      this.templateStamp = templateStamp ||
         (Polymer.TemplateStamp && new Polymer.TemplateStamp());
     }
 
@@ -109,7 +109,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- set properties machinery
 
     setProperties(inst, props, fromAbove) {
-      var runId = (inst._runId = ((inst._runId || 0) + 1));
       // Dirty check / filter props with effects
       var changedProps;
       for (var prop in props) {
@@ -126,21 +125,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           changedProps[prop] = value;
         }
       }
-      if (changedProps || inst._setPropInterim) {
-        props = changedProps;
+      inst.__data__ = this._mixin(inst.__data__ || {}, changedProps);
+      if (!inst._propertyEffectsActive) {
+        inst._setPropQueue = this._mixin(inst._setPropQueue || {}, changedProps);
+      } else {
+        this._processPropertyQueue(inst, changedProps, fromAbove);
+      }
+    }
+
+    _processPropertyQueue(inst, props, fromAbove) {
+      var runId = (inst._runId = ((inst._runId || 0) + 1));
+      if (props || inst._setPropInterim) {
         // Setup client property queueing
         inst._setPropClients = inst._setPropClients || new Map();
         inst._setPropQueue = {};
-        inst.__data__ = this._mixin(inst.__data__ || {}, changedProps);
+        inst._propertyEffectsActive = false;
         // Run computed effects
+        var inputProps = props;
         var computedProps;
-        while (this._runEffects(inst, inst._computedEffects, changedProps)) {
-          this._mixin(inst.__data__, inst._setPropQueue);
+        while (this._runEffects(inst, inst._computedEffects, inputProps)) {
           this._mixin(props, inst._setPropQueue);
           computedProps = this._mixin(computedProps || {}, inst._setPropQueue);
-          changedProps = inst._setPropQueue;
+          inputProps = inst._setPropQueue;
           inst._setPropQueue = {};
         }
+        inst._propertyEffectsActive = true;
         // Notify
         inst._setPropInterim = inst._setPropInterim ?
           this._mixin(inst._setPropInterim, props) : props;
@@ -152,27 +161,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // Run annotation effects
           this._runEffects(inst, inst._propagateEffects, props);
           // Recurse to clients
-          if (inst._setPropClients) {
-            this._flushPropClients(inst);
-          }
+          this._flushPropClients(inst);
           // Run observer effects
           this._runEffects(inst, inst._observerEffects, props);
         }
-      } else if (inst._setPropClients) {
-        this._flushPropClients(inst);
       }
       return props;
     }
 
     _flushPropClients(inst) {
       var lib = this;
-      // TODO(sorvell): perf check forEach.
       inst._setPropClients.forEach(function(v, client) {
-        if (client != this) {
-          lib.setProperties(client, client._setPropQueue, true);
+        if (client._propertyEffectsActive) {
+          lib.configureProperties(client);
         }
       });
       inst._setPropClients = null;
+      inst._propertyEffectsActive = true;
     }
 
     set(inst, path, value) {
@@ -225,25 +230,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _propertySetter(inst, property, value) {
-      if (inst._setPropClients) {
-        inst._setPropQueue[property] = value;
-      } else {
-        var props = {};
-        props[property] = value;
-        this.setProperties(inst, props);
-      }
+      var props = {};
+      props[property] = value;
+      this.setProperties(inst, props);
     }
 
     _setPropertyToNode(model, node, property, value) {
+      var active = node._propertyEffectsActive;
       if (node.setProperties) {
-        if (!node._isReadOnly || !node._isReadOnly[property]) {
-          node._setPropQueue = node._setPropQueue || {};
-          node._setPropQueue[property] = value;
-          model._setPropClients.set(node, true);
-        }
-      } else {
-        node[property] = value;
+        node._propertyEffectsActive = false;
+        model._setPropClients.set(node, true);
       }
+      node[property] = value;
+      node._propertyEffectsActive = active;
     }
 
     _runEffects(inst, effects, props) {
@@ -269,40 +268,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return ran;
     }
 
-    configureProperties(inst, props) {
-      if (this.constructor._hostStack.length) {
-        inst._setPropQueue = props;
-      } else {
-        this.setProperties(inst, props, true, true);
-      }
-    }
-
-    _registerClient(client) {
-      var host = 
-        this.constructor._hostStack[this.constructor._hostStack.length-1];
-      if (host) {
-        host._setPropClients.set(client, true);
-      }
+    configureProperties(inst) {
+      this._processPropertyQueue(inst, inst._setPropQueue, true);
     }
 
     stamp(template, inst) {
       if (!this.templateStamp) {
-        console.warn(`In order to call \`stamp\` a template stamping delegate is 
+        console.warn(`In order to call \`stamp\` a template stamping delegate is
           required`);
         return;
       }
-      this._registerClient(inst);
       inst._setPropClients = new Map();
-      this.constructor._hostStack.push(inst);
       var dom = this.templateStamp.stamp(template, inst);
       this.setupBindings(inst, dom, template.content._notes);
-      this.constructor._hostStack.pop(inst);
       return dom;
     }
 
   }
-
-  BatchedEffects._hostStack = [];
 
   // export
   Polymer.BatchedEffects = BatchedEffects;
