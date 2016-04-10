@@ -120,7 +120,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       archetype._prepBindings();
 
       // boilerplate code
-      archetype._notifyPathUp = this._notifyPathUpImpl;
+      archetype._notifyPathUp = function() {};
       archetype._scopeElementClass = this._scopeElementClassImpl;
       archetype.listen = this._listenImpl;
       archetype._showHideChildren = this._showHideChildrenImpl;
@@ -193,7 +193,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       for (prop in this._instanceProps) {
         archetype._addPropertyEffect(prop, 'function',
-          this._createInstancePropEffector(prop));
+          this._createInstancePropEffector());
       }
     },
 
@@ -215,13 +215,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       archetype._parentProps = c._parentProps;
     },
 
-    // Sets up accessors on the template to call abstract _forwardParentProp
-    // API that should be implemented by Templatizer users to get parent
-    // properties to their template instances.  These accessors are memoized
-    // on the archetype and copied to instances.
+    // Sets up accessors on the template to call abstract
+    // _forwardParentProp/Path API that should be implemented by Templatizer
+    // users to get parent properties to their template instances.  These
+    // accessors are memoized on the archetype and copied to instances.
     _prepParentProperties: function(archetype, template) {
       var parentProps = this._parentProps = archetype._parentProps;
-      if (this._forwardParentProp && parentProps) {
+      if ((this._forwardParentProp || this._forwardParentPath) &&
+          parentProps) {
         // Prototype setup (memoized on archetype)
         var proto = archetype._parentPropProto;
         var prop;
@@ -229,9 +230,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           for (prop in this._instanceProps) {
             delete parentProps[prop];
           }
-          // Create accessors for each parent prop that forward the property
-          // to template instances through abstract _forwardParentProp API
-          // that should be implemented by Templatizer users
+          // Create accessors for each parent prop that forward the property to
+          // template instances through abstract _forwardParentProp/Path API
+          // that should be implemented by Templatizer users.
           var propertyEffects = this.mixin({}, this._propertyEffects);
           var propertyInfo = this.mixin({}, this._propertyInfo);
           var prefixedParentProps = {};
@@ -242,7 +243,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             var effects = [{
               kind: 'function',
               effect: this._createForwardPropEffector(prop),
-              fn: Polymer.Bind._functionEffect
+              fn: Polymer.Bind._functionEffect,
+              pathFn: this._functionPathEffect
             }, {
               kind: 'notify',
               fn: Polymer.Bind._notifyEffect,
@@ -266,36 +268,59 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           Polymer.Bind.prepareModel(template);
           Polymer.Base.prepareModelNotifyPath(template);
           Polymer.Bind.prepareInstance(template);
-          template._forwardParentProp = function(source, value) {
-            self._forwardParentProp(source, value);
+          if (self._forwardParentProp) {
+            template._forwardParentProp = function(prop, value) {
+              self._forwardParentProp(prop, value);
+            }
+          }
+          if (self._forwardParentPath) {
+            template._forwardParentPath = function(path, value) {
+              self._forwardParentPath(path, value);
+            }
           }
         }
         this._extendTemplate(template, proto);
-        template._pathEffector = function(path, value, fromAbove) {
-          return self._pathEffectorImpl(path, value, fromAbove);
-        }
       }
     },
 
+
     _createForwardPropEffector: function(prop) {
-      return function(source, value) {
-        this._forwardParentProp(prop, value);
+      var prefixLength = this._parentPropPrefix.length;
+      return function(path, value) {
+        if (path.indexOf('.') !== -1) {
+          if (this._forwardParentPath) {
+            var newPath = path.slice(prefixLength);
+            this._forwardParentPath(newPath, value);
+          }
+        } else if (this._forwardParentProp) {
+          this._forwardParentProp(prop, value);
+        }
       };
     },
 
     _createHostPropEffector: function(prop) {
       var prefix = this._parentPropPrefix;
-      return function(source, value) {
-        if (source !== prop) return;
-        this.dataHost._templatized.__setProperty(prefix + prop, value);
+      var prefixedProp = prefix + prop;
+      return function(path, value, old, fromAbove) {
+        if (!fromAbove) {
+          var dataHost = this.dataHost;
+          if (path.indexOf('.') !== -1) {
+            dataHost._templatized._notifyPath(prefix + path, value, false);
+          } else {
+            dataHost._templatized.__setProperty(prefixedProp, value, false);
+          }
+        }
       };
     },
 
-    _createInstancePropEffector: function(prop) {
-      return function(source, value, old, fromAbove) {
-        if (source !== prop) return;
+    _createInstancePropEffector: function() {
+      return function(path, value, old, fromAbove) {
         if (!fromAbove) {
-          this.dataHost._forwardInstanceProp(this, prop, value);
+          if (path.indexOf('.') !== -1) {
+            this.dataHost._forwardInstancePath(this, path, value);
+          } else {
+            this.dataHost._forwardInstanceProp(this, path, value);
+          }
         }
       };
     },
@@ -320,31 +345,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // _forwardParentPath: function(path, value) { },
     // _forwardParentProp: function(prop, value) { },
     /* eslint-enable no-unused-vars */
-
-    _notifyPathUpImpl: function(path, value) {
-      var dataHost = this.dataHost;
-      var dot = path.indexOf('.');
-      var root = dot < 0 ? path : path.slice(0, dot);
-      // Call extension point for Templatizer sub-classes
-      dataHost._forwardInstancePath.call(dataHost, this, path, value);
-      if (root in dataHost._parentProps) {
-        dataHost._templatized._notifyPath(dataHost._parentPropPrefix + path, value);
-      }
-    },
-
-    // Overrides Base notify-path module
-    _pathEffectorImpl: function(path, value, fromAbove) {
-      if (this._forwardParentPath) {
-        if (path.indexOf(this._parentPropPrefix) === 0) {
-          var subPath = path.substring(this._parentPropPrefix.length);
-          var model = this._modelForPath(subPath);
-          if (model in this._parentProps) {
-            this._forwardParentPath(subPath, value);
-          }
-        }
-      }
-      Polymer.Base._pathEffector.call(this._templatized, path, value, fromAbove);
-    },
 
     _constructorImpl: function(model, host) {
       this._rootDataHost = host._getRootDataHost();
