@@ -81,7 +81,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- reflect ----------------------------------------------
 
     createReflectedProperty(model) {
-      this._accumulateEffects(model, '_propagateEffects',
+      this._accumulateEffects(model, '_annotationEffects',
         super.createReflectedProperty, arguments);
     }
 
@@ -102,7 +102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- annotation ----------------------------------------------
 
     bindTemplate(model, template) {
-      this._accumulateEffects(model, '_propagateEffects',
+      this._accumulateEffects(model, '_annotationEffects',
         super.bindTemplate, [model, template]);
     }
 
@@ -110,56 +110,70 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     setProperties(inst, props, fromAbove) {
       // Dirty check / filter props with effects
-      var changedProps;
-      for (var prop in props) {
-        var value = props[prop];
-        var rootProperty = this._rootForPath(prop);
-        if (!inst._propertyEffects[rootProperty]) {
-          this._set(inst, prop, value);
-        } else if (this.isPropertyDirty(inst[prop], value)) {
-          if (rootProperty !== prop) {
-            //TODO(kschaaf): ideally this only happens once on entry
-            this._set(inst, prop, value);
-          }
-          changedProps = changedProps || {};
-          changedProps[prop] = value;
-        }
-      }
-      inst.__data__ = this._mixin(inst.__data__ || {}, changedProps);
-      if (!inst._propertyEffectsActive) {
-        inst._setPropQueue = this._mixin(inst._setPropQueue || {}, changedProps);
-      } else {
-        this._processPropertyQueue(inst, changedProps, fromAbove);
+      this._setPendingProperties(inst, props);
+      if (inst._propertyEffectsActive) {
+        this._processPendingProperties(inst, fromAbove);
       }
     }
 
-    _processPropertyQueue(inst, props, fromAbove) {
+    _propertySetter(inst, prop, value) {
+      this._setPendingProperty(inst, prop, prop, value);
+      if (inst._propertyEffectsActive) {
+        this._processPendingProperties(inst, false);
+      }
+    }
+
+    _setPendingProperties(inst, props) {
+      for (var prop in props) {
+        var rootProperty = this._rootForPath(prop);
+        this._setPendingProperty(inst, rootProperty, prop, props[prop]);
+      }
+    }
+
+    _setPendingProperty(inst, rootProperty, prop, value, host) {
+      if (!inst._propertyEffects[rootProperty]) {
+        this._set(inst, prop, value);
+      } else if (this.isPropertyDirty(inst[prop], value)) {
+        if (rootProperty !== prop) {
+          //TODO(kschaaf): ideally this only happens once on entry
+          this._set(inst, prop, value);
+        }
+        inst.__pendingData = inst.__pendingData || {};
+        inst.__pendingData[prop] = value;
+        inst.__data = inst.__data || {};
+        inst.__data[prop] = value;
+        if (host) {
+          host.__pendingClients.set(inst, true);
+        }
+      }
+    }
+
+    _processPendingProperties(inst, fromAbove) {
       var runId = (inst._runId = ((inst._runId || 0) + 1));
-      if (props || inst._setPropInterim) {
+      var props = inst.__pendingData;
+      if (props || inst.__interimData) {
         // Setup client property queueing
-        inst._setPropClients = inst._setPropClients || new Map();
-        inst._setPropQueue = {};
-        inst._propertyEffectsActive = false;
+        inst.__pendingClients = inst.__pendingClients || new Map();
+        inst.__pendingData = {};
         // Run computed effects
         var inputProps = props;
         var computedProps;
         while (this._runEffects(inst, inst._computedEffects, inputProps)) {
-          this._mixin(props, inst._setPropQueue);
-          computedProps = this._mixin(computedProps || {}, inst._setPropQueue);
-          inputProps = inst._setPropQueue;
-          inst._setPropQueue = {};
+          this._mixin(props, inst.__pendingData);
+          computedProps = this._mixin(computedProps || {}, inst.__pendingData);
+          inputProps = inst.__pendingData;
+          inst.__pendingData = {};
         }
-        inst._propertyEffectsActive = true;
         // Notify
-        inst._setPropInterim = inst._setPropInterim ?
-          this._mixin(inst._setPropInterim, props) : props;
+        inst.__interimData = inst.__interimData ?
+          this._mixin(inst.__interimData, props) : props;
         this.notifyProperties(inst, fromAbove ? computedProps : props);
         // Re-entry protection; only run the last time through
         if (runId == inst._runId) {
-          props = inst._setPropInterim;
-          inst._setPropInterim = null;
+          props = inst.__interimData;
+          inst.__interimData = null;
           // Run annotation effects
-          this._runEffects(inst, inst._propagateEffects, props);
+          this._runEffects(inst, inst._annotationEffects, props);
           // Recurse to clients
           this._flushPropClients(inst);
           // Run observer effects
@@ -171,13 +185,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _flushPropClients(inst) {
       var lib = this;
-      inst._setPropClients.forEach(function(v, client) {
+      inst.__pendingClients.forEach(function(v, client) {
         if (client._propertyEffectsActive) {
-          lib.configureProperties(client);
+          lib._processPendingProperties(client, true);
         }
       });
-      inst._setPropClients = null;
-      inst._propertyEffectsActive = true;
+      inst.__pendingClients = null;
     }
 
     set(inst, path, value) {
@@ -229,20 +242,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _propertySetter(inst, property, value) {
-      var props = {};
-      props[property] = value;
-      this.setProperties(inst, props);
-    }
-
-    _setPropertyToNode(model, node, property, value) {
-      var active = node._propertyEffectsActive;
+    _setPropertyToNode(model, node, prop, value) {
       if (node.setProperties) {
-        node._propertyEffectsActive = false;
-        model._setPropClients.set(node, true);
+        this._setPendingProperty(node, prop, prop, value, model);
+      } else {
+        node[prop] = value;
       }
-      node[property] = value;
-      node._propertyEffectsActive = active;
     }
 
     _runEffects(inst, effects, props) {
@@ -269,7 +274,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     configureProperties(inst) {
-      this._processPropertyQueue(inst, inst._setPropQueue, true);
+      this._processPendingProperties(inst, true);
+      inst._propertyEffectsActive = true;
     }
 
     stamp(template, inst) {
@@ -278,10 +284,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           required`);
         return;
       }
-      inst._setPropClients = new Map();
+      inst.__pendingClients = new Map();
       var dom = this.templateStamp.stamp(template, inst);
       this.setupBindings(inst, dom, template.content._notes);
       return dom;
+    }
+
+    // overridden from propertyEffects
+    _runComputedEffect(property, value, old, info) {
+      var result = info.lib._runMethodEffect(this, property, value, old, info);
+      var computedProp = info.methodInfo;
+      info.lib._setPendingProperty(this, computedProp, computedProp, result);
     }
 
   }
