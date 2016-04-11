@@ -22,13 +22,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
-  var Utils = Polymer.Utils;
-  var CaseMap = Polymer.CaseMap;
-  var Behaviors = Polymer.Behaviors;
-  var Events = new Polymer.EventListeners(Polymer.Gestures);
-  var Attributes = new Polymer.AttributeToFromProperty();
-  var TemplateStamp = new Polymer.TemplateStamp(Events);
-  var Data = new Polymer.MetaEffects(TemplateStamp, Attributes);
+  var utils = Polymer.Utils;
+  var caseMap = Polymer.CaseMap;
+  var behaviors = Polymer.Behaviors;
+  var events = new Polymer.EventListeners(Polymer.Gestures);
+  var attributes = new Polymer.AttributeToFromProperty();
+  var templateStamp = new Polymer.TemplateStamp(events);
+  var data = new Polymer.MetaEffects(templateStamp, attributes);
 
   Polymer.Base = {
 
@@ -37,71 +37,76 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // extensions and normal custom elements
     __isPolymerInstance__: true,
 
-    // `this` context is a prototype, not an instance
-    registerCallback: function() {
-      if (this._template === undefined) {
-        this._template = Polymer.DomModule.import(this.is, 'template');
-      }
-      // new behaviors / meta (ignores any behaviors from superclass)
-      var behaviors = this.hasOwnProperty('behaviors') ? 
-        Behaviors.prepBehaviors(this, this.behaviors) : [];
-      var meta = Behaviors.createMeta(this, behaviors);
-      if (meta.properties) {
-        Data.createProperties(this, meta.properties);
-      }
-      if (meta.observers) {
-        Data.createMultiObservers(this, meta.observers);
-      }
-      // create meta/behaviors for runtime processing (merge with superclass)
-      if (this.__meta) {
-        this.__meta = Behaviors.copyMeta(this.__meta);
-        Behaviors.mergeMeta(this.__meta, meta);
-      } else {
-        this.__meta = meta;  
-      }
-      this.__behaviors = this.__behaviors ? this.__behaviors.concat(behaviors) :
-        behaviors;
-      if (this._template) {
-        Polymer.StyleUtil.prepStyleIncludes(this._template.content);
-        Data.bindTemplate(this, this._template);
-      }
-      Behaviors.callMethod(this, 'registered');
-    },
-
     createdCallback: function() {
-      Polymer.telemetry.instanceCount++;
-      Behaviors.callMethod(this, 'created');
-      if (this.__meta.listeners) {
-        var l$ = this.__meta.listeners;
-        for (var i=0, l; (i<l$.length) && (l=l$[i]); i++) {
-          Events.addMethodListener(this, l.event, l.method);
+      var proto = this.constructor.prototype;
+      if (!proto.hasOwnProperty('__hasRegisterFinished')) {
+        proto.__hasRegisterFinished = true;
+        var meta = behaviors.register(proto);
+        if (meta.properties) {
+          data.createProperties(proto, meta.properties);
         }
+        if (meta.observers) {
+          data.createMultiObservers(proto, meta.observers);
+        }
+        if (proto._template === undefined) {
+          proto._template = Polymer.DomModule.import(proto.is, 'template');
+        }
+        if (proto._template) {
+          Polymer.StyleUtil.prepStyleIncludes(proto._template.content);
+          data.bindTemplate(proto, proto._template);
+        }
+        behaviors.callMethod(proto, 'registered');
       }
-      if (this.__meta.hostAttributes) {
-        Attributes.ensureAttributes(this, this.__meta.hostAttributes);
+      Polymer.telemetry.instanceCount++;
+      // apply defaults first.
+      data.applyPropertyDefaults(this);
+      // TODO(sorvell): remove when using V1 Custom Elements.
+      attributes.simulateV1AttributeCallbacks(this);
+      behaviors.callMethod(this, 'created');
+      // TODO(sorvell): doc!! elements can set this flag if they must 
+      // initilize when created and not attached.
+      if (this.initializeWhenCreated) {
+        this.ensureInitialized();
       }
-      if (this._template) {
-        var dom = Data.stamp(this._template, this);
-        this.root = this.createShadowRoot();
-        Data.configureProperties(this);
-        this.root.appendChild(dom);
-      } else {
-        this.root = this;
-        Data.configureProperties(this);
-      }
-      Behaviors.callMethod(this, 'ready');
     },
 
     // reserved for canonical behavior
     attachedCallback: function() {
+      this.ensureInitialized();
       this.isAttached = true;
-      Behaviors.callMethod(this, 'attached');
+      behaviors.callMethod(this, 'attached');
+    },
+
+    ensureInitialized: function() {
+      if (this.__initialized) {
+        return;
+      }
+      this.__initialized = true;
+      if (this.__meta.listeners) {
+        var l$ = this.__meta.listeners;
+        for (var i=0, l; (i<l$.length) && (l=l$[i]); i++) {
+          events.addMethodListener(this, l.event, l.method);
+        }
+      }
+      if (this.__meta.hostAttributes) {
+        attributes.ensureAttributes(this, this.__meta.hostAttributes);
+      }
+      if (this._template) {
+        var dom = data.stamp(this._template, this);
+        this.root = this.createShadowRoot();
+        data.configureProperties(this);
+        this.root.appendChild(dom);
+      } else {
+        this.root = this;
+        data.configureProperties(this);
+      }
+      behaviors.callMethod(this, 'ready');
     },
 
     // reserved for canonical behavior
     detachedCallback: function() {
       this.isAttached = false;
-      Behaviors.callMethod(this, 'detached');
+      behaviors.callMethod(this, 'detached');
     },
 
     /**
@@ -114,7 +119,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {Object} prototype object that was passed as first argument.
      */
     extend: function(prototype, api) {
-      return Utils.extend(prototype, api);
+      return utils.extend(prototype, api);
     },
 
     /**
@@ -130,7 +135,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {Object} Target object that was passed as first argument.
      */
     mixin: function(target, source) {
-      return Utils.mixin(target, source);
+      return utils.mixin(target, source);
     },
 
     // TODO(sorvell): move out of here?
@@ -182,32 +187,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /* **** End Template **** */
 
     /* **** Begin Attributes **** */
-    attributeChangedCallback: function(name, oldValue, newValue) {
-      var property = CaseMap.dashToCamelCase(name);
+    attributeChangedCallback: function(name, old, value) {
+      var property = caseMap.dashToCamelCase(name);
       var info = this.__meta.properties && this.__meta.properties[property];
+      
       if (info && !info.readOnly) {
-        Attributes.attributeToProperty(this, info.attribute, property, 
-          info.type);
+        attributes.attributeToProperty(this, name, value, info.type);
       }
-      Behaviors.callMethod(this, 'attributeChanged', 
-        [name, oldValue, newValue]);
+      behaviors.callMethod(this, 'attributeChanged', [name, old, value]);
     },
 
     serialize: function(value) {
-      return Attributes.serialize(value);
+      return attributes.serialize(value);
     },
 
     deserialize: function(value, type) {
-      return Attributes.deserialize(value, type);
+      return attributes.deserialize(value, type);
     },
 
     reflectPropertyToAttribute: function(property, attribute, value) {
-      Attributes.propertyToAttribute(this, property, attribute, value);
+      attributes.propertyToAttribute(this, property, attribute, value);
     },
 
     serializeValueToAttribute: function(value, attribute, node) {
       node = node || this;
-      Attributes.valueToAttribute(node, value, attribute, value);
+      attributes.valueToAttribute(node, value, attribute, value);
     },
 
     /* **** End Attributes **** */
@@ -232,7 +236,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var key = eventName + methodName;
       if (!node.__eventHandlers[key]) {
         node.__eventHandlers[key] = 
-          Events.addMethodListener(node, eventName, methodName, this);
+          events.addMethodListener(node, eventName, methodName, this);
       }
     },
 
@@ -241,7 +245,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var key = eventName + methodName;
       var handler = node.__eventHandlers && node.__eventHandlers[key];
       if (handler) {
-        Events.removeListener(node, eventName, handler);
+        events.removeListener(node, eventName, handler);
         node.__eventHandlers[key] = null;
       }
     }, 
