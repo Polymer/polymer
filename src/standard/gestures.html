@@ -74,7 +74,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   function ignoreMouse() {
-    if (IS_TOUCH_ONLY) {
+    if (Gestures.mouseHandlersDisabled) {
       return;
     }
     if (!POINTERSTATE.mouse.mouseIgnoreJob) {
@@ -175,6 +175,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var Gestures = {
     gestures: {},
     recognizers: [],
+
+    mouseHandlersDisabled: Polymer.Settings.disableTouchOnlyDetection ? false :
+      IS_TOUCH_ONLY,
 
     deepTargetFind: function(x, y) {
       var node = document.elementFromPoint(x, y);
@@ -310,7 +313,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var i = 0, dep, gd; i < deps.length; i++) {
         dep = deps[i];
         // don't add mouse handlers on iOS because they cause gray selection overlays
-        if (IS_TOUCH_ONLY && MOUSE_EVENTS.indexOf(dep) > -1) {
+        if (this.mouseHandlersDisabled && MOUSE_EVENTS.indexOf(dep) > -1) {
           continue;
         }
         gd = gobj[dep];
@@ -391,10 +394,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // forward `preventDefault` in a clean way
       if (ev.defaultPrevented) {
-        var se = detail.sourceEvent;
-        // sourceEvent may be a touch, which is not preventable this way
-        if (se && se.preventDefault) {
-          se.preventDefault();
+        var preventer = detail.preventer || detail.sourceEvent;
+        if (preventer && preventer.preventDefault) {
+          preventer.preventDefault();
         }
       }
     },
@@ -461,16 +463,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.fire('down', t, e);
     },
     touchstart: function(e) {
-      this.fire('down', Gestures.findOriginalTarget(e), e.changedTouches[0]);
+      this.fire('down', Gestures.findOriginalTarget(e), e.changedTouches[0], e);
     },
     touchend: function(e) {
-      this.fire('up', Gestures.findOriginalTarget(e), e.changedTouches[0]);
+      this.fire('up', Gestures.findOriginalTarget(e), e.changedTouches[0], e);
     },
-    fire: function(type, target, event) {
+    fire: function(type, target, event, preventer) {
       Gestures.fire(target, type, {
         x: event.clientX,
         y: event.clientY,
         sourceEvent: event,
+        preventer: preventer,
         prevent: function(e) {
           return Gestures.prevent(e);
         }
@@ -596,11 +599,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // reset started state on up
         this.info.state = 'end';
         this.info.addMove({x: ct.clientX, y: ct.clientY});
-        this.fire(t, ct);
+        this.fire(t, ct, e);
       }
     },
 
-    fire: function(target, touch) {
+    fire: function(target, touch, preventer) {
       var secondlast = this.info.moves[this.info.moves.length - 2];
       var lastmove = this.info.moves[this.info.moves.length - 1];
       var dx = lastmove.x - this.info.x;
@@ -619,6 +622,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         ddx: ddx,
         ddy: ddy,
         sourceEvent: touch,
+        preventer: preventer,
         hover: function() {
           return Gestures.deepTargetFind(touch.clientX, touch.clientY);
         }
@@ -662,13 +666,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     touchstart: function(e) {
-      this.save(e.changedTouches[0]);
+      this.save(e.changedTouches[0], e);
     },
     touchend: function(e) {
-      this.forward(e.changedTouches[0]);
+      this.forward(e.changedTouches[0], e);
     },
 
-    forward: function(e) {
+    forward: function(e, preventer) {
       var dx = Math.abs(e.clientX - this.info.x);
       var dy = Math.abs(e.clientY - this.info.y);
       var t = Gestures.findOriginalTarget(e);
@@ -679,7 +683,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           Gestures.fire(t, 'tap', {
             x: e.clientX,
             y: e.clientY,
-            sourceEvent: e
+            sourceEvent: e,
+            preventer: preventer
           });
         }
       }
