@@ -171,17 +171,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Notify
         inst.__interimData = inst.__interimData ?
           this._mixin(inst.__interimData, props) : props;
-        this.notifyProperties(inst, fromAbove ? computedProps : props);
+        // avoid notifications unless active
+        if (inst._propertyEffectsActive) {
+          this.notifyProperties(inst, fromAbove ? computedProps : props);
+        }
         // Re-entry protection; only run the last time through
         if (runId == inst._runId) {
           props = inst.__interimData;
-          inst.__interimData = null;
           // Run annotation effects
           this._runEffects(inst, inst._annotationEffects, props);
           // Recurse to clients
           this._flushPropClients(inst);
-          // Run observer effects
-          this._runEffects(inst, inst._observerEffects, props);
+          // avoid observers unless active
+          if (inst._propertyEffectsActive) {
+            inst.__interimData = null;
+            // Run observer effects
+            this._runEffects(inst, inst._observerEffects, props);
+          }
         }
       }
       return props;
@@ -277,9 +283,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return ran;
     }
 
-    configureProperties(inst) {
-      this._processPendingProperties(inst, true);
+    enablePropertyEffects(inst) {
       inst._propertyEffectsActive = true;
+      this._processPendingProperties(inst, true);
     }
 
     stamp(template, inst) {
@@ -291,6 +297,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       inst.__pendingClients = new Map();
       var dom = this.templateStamp.stamp(template, inst);
       this.setupBindings(inst, dom, template.content._notes);
+      // NOTE: We must propagate data down to clients right after 
+      // stamping and before `enablePropertyEffects` is called.
+      this._processPendingProperties(inst, true);
       return dom;
     }
 
