@@ -193,8 +193,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!model._bindListeners) {
         model._bindListeners = [];
       }
-      var fn = this._notedListenerFactory(property, path,
-        this._isStructured(path), negated);
+      var fn = this._notedListenerFactory(property, path, negated);
       var eventName = event ||
         (Polymer.CaseMap.camelToDashCase(property) + '-changed');
       model._bindListeners.push({
@@ -206,19 +205,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     },
 
-    _isStructured: function(path) {
-      return path.indexOf('.') > 0;
+    // Returns the `head` or root for a path. E.g. 'foo.bar.quux' => 'foo'
+    _rootForPath: function(path) {
+      var idx = path.indexOf('.');
+      if (idx === -1) {
+        return path;
+      } else {
+        return path.slice(0, idx);
+      }
     },
 
     _isEventBogus: function(e, target) {
       return e.path && e.path[0] !== target;
     },
 
-    _notedListenerFactory: function(property, path, isStructured, negated) {
+    _notedListenerFactory: function(property, path, negated) {
+      var root = this._rootForPath(path);
+      var isStructured = root !== path;
+
       return function(target, value, targetPath) {
         if (targetPath) {
           this._notifyPath(this._fixPath(path, property, targetPath), value);
         } else {
+          var pinfo = this._propertyInfo[root];
+          if (pinfo && pinfo.computed) {
+            return;
+          }
+
           // TODO(sorvell): even though we have a `value` argument, we *must*
           // lookup the current value of the property. Multiple listeners and
           // queued events during configuration can theoretically lead to
@@ -231,7 +244,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
 
           if (!isStructured) {
-            this[path] = value;
+            this.__setProperty(path, value, false);
           } else {
             // TODO(kschaaf): dirty check avoids null references when the object has gone away
             if (this.__data__[path] != value) {
