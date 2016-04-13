@@ -283,10 +283,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
         }
-        // notify runtime-bound paths
-        if (this._boundPaths) {
-          this._notifyBoundPaths(path, value);
-        }
       },
 
       _annotationPathEffect: function(path, value, effect) {
@@ -344,14 +340,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       linkPaths: function(to, from) {
         this._boundPaths = this._boundPaths || {};
+
         if (from) {
-          this._boundPaths[to] = from;
+          this._boundPaths[to] = this._addLinkPathEffect(to, from);
           // this.set(to, this._get(from));
         } else {
           this.unlinkPaths(to);
           // this.set(to, from);
         }
       },
+
+      _addLinkPathEffect: function(to, from) {
+        var locked = false;
+        var makeLinkPathEffect = function(thisPath, thatPath) {
+          return function(path, value) {
+            if (locked) return;
+            // We only forward deep property changes, deeper than `thisPath`.
+            // Shouldn't we open this up?
+            if (path.indexOf(thisPath + '.') !== 0) return;
+
+            locked = true;
+            var newPath = this._fixPath(thatPath, thisPath, path)
+            try {
+              // Don't pass fromAbove et.al., we forward a notification as if
+              // it came from `this`, not from above or down under.
+              this._notifyPath(newPath, value);
+            } finally {
+              locked = false;
+            }
+          };
+        };
+
+        return [
+          this.addPropertyEffect(this._modelForPath(to),
+                                 makeLinkPathEffect(to, from)),
+          this.addPropertyEffect(this._modelForPath(from),
+                                 makeLinkPathEffect(from, to))
+        ];
+      },
+
 
       /**
        * Removes a data path alias previously established with `linkPaths`.
@@ -363,19 +390,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} path Target path to unlink.
        */
       unlinkPaths: function(path) {
-        if (this._boundPaths) {
-          delete this._boundPaths[path];
-        }
-      },
-
-      _notifyBoundPaths: function(path, value) {
-        for (var a in this._boundPaths) {
-          var b = this._boundPaths[a];
-          if (path.indexOf(a + '.') == 0) {
-            this._notifyPath(this._fixPath(b, a, path), value);
-          } else if (path.indexOf(b + '.') == 0) {
-            this._notifyPath(this._fixPath(a, b, path), value);
+        var fx = this._boundPaths && this._boundPaths[path];
+        if (fx) {
+          for (var i=0, l=fx.length; i<l; i++) {
+            this.removePropertyEffect(fx[i]);
           }
+          this._boundPaths[path] = undefined;
         }
       },
 
