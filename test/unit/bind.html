@@ -1022,6 +1022,85 @@ suite('order of effects', function() {
   });
 });
 
+suite('notifications do not echo', function() {
+
+  test('upwards notification does not echo downwards (simple binding)',
+       function() {
+    var el = document.createElement('x-downwards-notification-does-not-echo');
+    var sender = el.$.sender1;
+
+    var called = 0;
+    sender._propertySetter = function() {
+      called += 1;
+    };
+
+    // ensure 'private' API is actually used, in case we refactor
+    el.foo = 'quux';
+    assert.equal(called, 1);
+
+    // We can't use simple property assignment b/c we mocked that method
+    // above, so we do it manually
+    sender.__data__['binding'] = 'bar';
+    sender._notifyChange('binding');
+
+    assert.equal(el.foo, 'bar');
+    assert.equal(called, 1);
+  });
+
+  test('upwards notification does not echo downwards (deep binding)',
+       function() {
+    var el = document.createElement('x-downwards-notification-does-not-echo');
+    var sender = el.$.sender2;
+
+    var called = 0;
+    sender._propertySetter = function() {
+      called += 1;
+    };
+
+    // ensure 'private' API is actually used, in case we refactor
+    el.foo = {bar: 'quux'};
+    assert.equal(called, 1);
+
+    // We can't use simple property assignment b/c we mocked that method
+    // above, so we do it manually
+    sender.__data__['binding'] = 'quod';
+    sender._notifyChange('binding');
+
+    assert.deepEqual(el.foo, {bar: 'quod'});
+    assert.equal(called, 1);
+  });
+
+  test('upwards notification does not echo downwards (path notification)',
+       function() {
+    var el = document.createElement('x-downwards-notification-does-not-echo');
+    var sender = el.$.sender2;
+
+    var called = 0;
+    sender._notifyPath = function() {
+      called += 1;
+    };
+
+    // Ensure that the object at foo is completely shared between both
+    // instances
+    sender.__data__['binding'] = {baz: 'quux'};
+    el.foo = {bar: sender.__data__['binding']};
+
+    // ensure 'private' API is actually used, in case we refactor
+    el.set('foo.bar.baz', 'quod');
+    assert.equal(called, 1);
+    // Ensure object is shared data
+    assert.equal(sender.binding.baz, 'quod');
+
+    // We can't use set b/c we mocked _notifyPath
+    sender.binding.baz = 'anil';
+    sender._notifyPathUp('binding.baz', 'anil');
+
+    assert.deepEqual(el.foo, {bar: {baz: 'anil'}});
+    assert.equal(called, 1);
+  });
+
+});
+
 </script>
 
 </body>
