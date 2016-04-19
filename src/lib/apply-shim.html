@@ -20,53 +20,62 @@ Polymer.ApplyShim = (function(){
   var APPLY_NAME_CLEAN = /;\s*/m;
 
   // map of mixin to property names
-  // --foo: {border: 2px} -> (--foo, {border: '2px'})
-  var mixinMap = Object.create(null);
+  // --foo: {border: 2px} -> (--foo, ['border'])
+  var mixinMap = {};
 
   function mapSet(name, prop) {
     name = name.trim();
-    var old = mixinMap[name];
-    if (old) {
-      var reset = diff(old, prop);
-      reset.forEach(function(r) {
-        prop[r] = 'initial';
-      })
-    }
     mixinMap[name] = prop;
   }
 
-  // get(--foo) -> '--foo-border: 2px;'
   function mapGet(name) {
     name = name.trim();
     return mixinMap[name];
   }
 
-  function diff(oldProp, newProp) {
+  // return properties that are not used by the new definition of a mixin
+  // diff([a, b], [b]) -> [a]
+  function diff(oldSet, newSet) {
     var diff = [];
-    Object.keys(oldProp).forEach(function(p) {
-      if (!newProp[p]) {
-        diff.push(p);
+    if (oldSet && oldSet.length) {
+      for (var i = 0, old; i < oldSet.length; i++) {
+        old = oldSet[i];
+        if (newSet.indexOf(old) === -1) {
+          diff.push(old);
+        }
       }
-    });
+    }
     return diff;
   }
 
-  function flattenMixin(name, props) {
-    return Object.keys(props).map(function(p){
-      return name + '-' + p + ':' + props[p];
-    }).join(';') + ';';
+  //
+  function flattenMixin(mixinName, propNames, propMap, resetProps) {
+    var out = [];
+    var i, p, v;
+    // reset variables that are overriden by the current mixin
+    for (i = 0; i < resetProps.length; i++) {
+      p = resetProps[i];
+      out.push(mixinName + '-' + p + ': initial');
+    }
+    // set variables defined by current mixin
+    for (i = 0; i < propNames.length; i++) {
+      p = propNames[i];
+      v = propMap[p];
+      out.push(mixinName + '-' + p + ': ' + v);
+    }
+    return out.join(';\n');
   }
 
-  function applyVars(name, props, defaults) {
-    return Object.keys(props).map(function(p){
-      var fallback = defaults && defaults[p];
-      var parts = [p, ': var(', name, '-', p];
+  function applyVars(mixinName, propNames, fallbacks) {
+    return propNames.map(function(p) {
+      var fallback = fallbacks && fallbacks[p];
+      var parts = [p, ': var(', mixinName, '-', p];
       if (fallback) {
         parts.push(',', fallback);
       }
       parts.push(')');
       return parts.join('');
-    }).join('; ');
+    }).join(';\n');
   }
 
   function textToProps(text) {
@@ -86,59 +95,75 @@ Polymer.ApplyShim = (function(){
     return out;
   }
 
-  function assign(all, name, property, mixin) {
+  function assign(matchText, propertyName, valueProperty, valueMixin) {
     // handle case where property value is a mixin
-    if (property) {
-      property.replace(VAR_MATCH, function(all, prefix, value){
+    if (valueProperty) {
+      VAR_MATCH.lastIndex = 0;
+      var m = VAR_MATCH.exec(valueProperty);
+      if (m) {
+        var value = m[2];
         if (mapGet(value)){
-          mixin = '@apply ' + value + ';';
+          valueMixin = '@apply ' + value + ';';
         }
-      });
+      }
     }
-    if (!mixin) {
-      return all;
+    if (!valueMixin) {
+      return matchText;
     }
-    var defaults = collectDefaults(mixin);
-    mixin = mixin.replace(MIXIN_MATCH, function(all, name) {
-      return apply(all, name, defaults);
-    });
-    var prefix = all.slice(0, all.indexOf('--'));
-    var subprops = textToProps(mixin);
-    mapSet(name, subprops);
-    return prefix + flattenMixin(name, subprops);
+    valueMixin = consumeMixins(valueMixin);
+    var prefix = matchText.slice(0, matchText.indexOf('--'));
+    var mixinProps = textToProps(valueMixin);
+    var propNames = Object.keys(mixinProps);
+    var oldProps = mapGet(propertyName);
+    var resetProps = diff(oldProps, propNames);
+    mapSet(propertyName, propNames);
+    return prefix + flattenMixin(propertyName, propNames, mixinProps, resetProps);
   }
 
-  function apply(all, name, defaults) {
-    var prefix = all.slice(0, all.indexOf('@apply'));
-    name = name.replace(APPLY_NAME_CLEAN, '');
-    var mixin = mapGet(name);
+  function apply(matchText, mixinName, fallbacks) {
+    var prefix = matchText.slice(0, matchText.indexOf('@apply'));
+    mixinName = mixinName.replace(APPLY_NAME_CLEAN, '');
     var vars = '';
+    var mixin = mapGet(mixinName);
     if (mixin) {
-      vars = applyVars(name, mixin, defaults) + ';';
+      vars = applyVars(mixinName, mixin, fallbacks) + ';';
     }
     return prefix + vars;
   }
 
-  function collectDefaults(cssText) {
-    return textToProps(cssText.replace(MIXIN_MATCH,
-      function(all) {
-        return all.slice(0, all.indexOf('@apply'));
-      })
-    );
+  function collectDefaultsBeforeApply(fullText) {
+    // search for properties from last @apply up to (but not including) this @apply
+    var applyPos = fullText.indexOf('@apply');
+    // find props defined before this @apply, after last @apply
+    var textBeforeApply = fullText.slice(0, applyPos);
+    return textToProps(textBeforeApply);
   }
 
   // fix shim'd var syntax
   // var(--a, --b) -> var(--a, var(--b));
-  function fixVars(all, prefix, value, fallback) {
+  function fixVars(matchText, prefix, value, fallback) {
     if (!fallback || fallback.indexOf('--') !== 0) {
-      return all;
+      return matchText;
     }
     return prefix + 'var(' + value + ',var(' + fallback + '));';
   }
 
-  return {
+  function consumeMixins(text) {
+    var m, matchText, mixinName;
+    MIXIN_MATCH.lastIndex = 0;
+    while((m = MIXIN_MATCH.exec(text))) {
+      matchText = m[0];
+      mixinName = m[1];
+      var defaults = collectDefaultsBeforeApply(text);
+      text = text.replace(matchText, apply(matchText, mixinName, defaults));
+    }
+    return text;
+  }
+
+  var ApplyShim = {
+    _map: mixinMap,
     transform: function(styles) {
-      styleUtil.forRulesInStyles(styles, this.transformRule.bind(this));
+      styleUtil.forRulesInStyles(styles, this._boundTransformRule);
     },
     transformRule: function(rule) {
       rule.cssText = this.transformCssText(rule.parsedCssText);
@@ -154,13 +179,12 @@ Polymer.ApplyShim = (function(){
       cssText = cssText.replace(VAR_MATCH, fixVars);
       // produce variables
       cssText = cssText.replace(VAR_ASSIGN, assign);
-      var defaults = collectDefaults(cssText);
       // consume mixins
-      cssText = cssText.replace(MIXIN_MATCH, function(all, name) {
-        return apply(all, name, defaults);
-      });
-      return cssText;
+      return consumeMixins(cssText);
     }
   };
+
+  ApplyShim._boundTransformRule = ApplyShim.transformRule.bind(ApplyShim);
+  return ApplyShim;
 })();
 </script>
