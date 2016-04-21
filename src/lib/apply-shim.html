@@ -33,45 +33,9 @@ Polymer.ApplyShim = (function(){
     return mixinMap[name];
   }
 
-  // return properties that are not used by the new definition of a mixin
-  // diffProperties([a, b], [b]) -> [a]
-  function diffProperties(oldSet, newSet) {
-    var diff = [];
-    if (oldSet && oldSet.length) {
-      for (var i = 0, old; i < oldSet.length; i++) {
-        old = oldSet[i];
-        if (newSet.indexOf(old) === -1) {
-          diff.push(old);
-        }
-      }
-    }
-    return diff;
-  }
-
-  // produce variables in place of a mixin definition
-  // 'foo', ['background'], {background: 'red'} -> '--foo-background: red'
-  // 'foo', ['color'], {color: 'blue'} -> '--foo-background: inital; --foo-color: red'
-  function defineMixinProperties(mixinName, propNames, propMap, oldProps) {
-    var out = [];
-    var i, p, v;
-    // set variables defined by current mixin
-    for (i = 0; i < propNames.length; i++) {
-      p = propNames[i];
-      v = propMap[p];
-      out.push(mixinName + '-' + p + ': ' + v);
-    }
-    // reset variables that are overriden by the current mixin
-    var resetProps = diffProperties(oldProps, propNames);
-    for (i = 0; i < resetProps.length; i++) {
-      p = resetProps[i];
-      out.push(mixinName + '-' + p + ': initial');
-    }
-    return out.join(';\n') + ';';
-  }
-
   // "parse" a mixin definition into a map of properties and values
-  // textToProps('border: 2px solid black') -> ('border', '2px solid black')
-  function textToProps(text) {
+  // cssTextToMap('border: 2px solid black') -> ('border', '2px solid black')
+  function cssTextToMap(text) {
     var props = text.split(';');
     var out = {};
     for (var i = 0, p, sp; i < props.length; i++) {
@@ -88,7 +52,7 @@ Polymer.ApplyShim = (function(){
     return out;
   }
 
-  function mixinAssignment(matchText, propertyName, valueProperty, valueMixin) {
+  function produceCssProperties(matchText, propertyName, valueProperty, valueMixin) {
     // handle case where property value is a mixin
     if (valueProperty) {
       VAR_MATCH.lastIndex = 0;
@@ -103,13 +67,28 @@ Polymer.ApplyShim = (function(){
     if (!valueMixin) {
       return matchText;
     }
-    var mixinAsProperties = mixinApplication(valueMixin);
+    var mixinAsProperties = consumeCssProperties(valueMixin);
     var prefix = matchText.slice(0, matchText.indexOf('--'));
-    var mixinProps = textToProps(mixinAsProperties);
-    var propNames = Object.keys(mixinProps);
-    var oldProps = mapGet(propertyName);
-    mapSet(propertyName, propNames);
-    return prefix + defineMixinProperties(propertyName, propNames, mixinProps, oldProps);
+    var mixinValues = cssTextToMap(mixinAsProperties);
+    var oldProperties = mapGet(propertyName);
+    var combinedProps = mixinValues;
+    if (oldProperties) {
+      combinedProps = Polymer.Base.mixin(oldProperties, mixinValues);
+    } else {
+      mapSet(propertyName, combinedProps);
+    }
+    var out = [];
+    var p, v;
+    // set variables defined by current mixin
+    for (p in mixinValues) {
+      v = mixinValues[p];
+      // if property not defined by current mixin, set initial
+      if (v === undefined) {
+        v = 'initial';
+      }
+      out.push(propertyName + '-' + p + ': ' + v);
+    }
+    return prefix + out.join('; ') + ';';
   }
 
   // fix shim'd var syntax
@@ -123,31 +102,30 @@ Polymer.ApplyShim = (function(){
   }
 
   // produce variable consumption at the site of mixin consumption
-  // @apply --foo; -> forAll ${propname} in --foo ~> --foo-${propname}: ${value}
-  function applyMixinProperties(mixinName, fallbacks) {
+  // @apply --foo; -> for all props (${propname}: var(--foo-${propname}, ${fallback[propname]}}))
+  // Example:
+  // border: var(--foo-border); padding: var(--foo-padding, 2px)
+  function atApplyToCssProperties(mixinName, fallbacks) {
     mixinName = mixinName.replace(APPLY_NAME_CLEAN, '');
-    var out = '';
+    var vars = [];
     var mixinProperties = mapGet(mixinName);
     if (mixinProperties) {
-      var vars = [];
-      for (var i = 0, p, f, parts; i < mixinProperties.length; i++) {
-        p = mixinProperties[i];
+      var p, parts, f;
+      for (p in mixinProperties) {
         f = fallbacks && fallbacks[p];
         parts = [p, ': var(', mixinName, '-', p];
-        // if a property is defined in this rule, use it as a fallback to this variable
         if (f) {
           parts.push(',', f);
         }
         parts.push(')');
         vars.push(parts.join(''));
       }
-      out = vars.join(';\n');
     }
-    return out;
+    return vars.join('; ');
   }
 
   // replace mixin consumption with variable consumption
-  function mixinApplication(text) {
+  function consumeCssProperties(text) {
     var m;
     // loop over text until all mixins with defintions have been applied
     while((m = MIXIN_MATCH.exec(text))) {
@@ -161,10 +139,12 @@ Polymer.ApplyShim = (function(){
       // find props defined before this @apply
       var textBeforeApply = text.slice(0, applyPos);
       var textAfterApply = text.slice(afterApplyPos);
-      var defaults = textToProps(textBeforeApply);
-      var replacement = applyMixinProperties(mixinName, defaults);
+      var defaults = cssTextToMap(textBeforeApply);
+      var replacement = atApplyToCssProperties(mixinName, defaults);
       // use regex match position to replace mixin, keep linear processing time
       text = [textBeforeApply, replacement, textAfterApply].join('');
+      // move regex search to _after_ replacement
+      MIXIN_MATCH.lastIndex = idx + replacement.length;
     }
     return text;
   }
@@ -187,9 +167,9 @@ Polymer.ApplyShim = (function(){
       // fix shim variables
       cssText = cssText.replace(VAR_MATCH, fixVars);
       // produce variables
-      cssText = cssText.replace(VAR_ASSIGN, mixinAssignment);
+      cssText = cssText.replace(VAR_ASSIGN, produceCssProperties);
       // consume mixins
-      return mixinApplication(cssText);
+      return consumeCssProperties(cssText);
     }
   };
 
