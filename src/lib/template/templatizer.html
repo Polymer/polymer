@@ -233,7 +233,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // Create accessors for each parent prop that forward the property to
           // template instances through abstract _forwardParentProp/Path API
           // that should be implemented by Templatizer users.
-          var propertyEffects = this.mixin({}, this._propertyEffects);
+          var propertyEffects = {};
           var propertyInfo = this.mixin({}, this._propertyInfo);
           var prefixedParentProps = {};
           for (prop in parentProps) {
@@ -251,6 +251,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               effect: {event:
                 Polymer.CaseMap.camelToDashCase(parentProp) + '-changed'}
             }];
+            if (template !== this) {
+              effects.push({
+                kind: 'function',
+                effect: this._createNotifyUpListener(prop),
+                fn: Polymer.Bind._functionEffect,
+                pathFn: this._functionPathEffect,
+                customNotifyUp: true
+              });
+            }
             propertyEffects[parentProp] = effects;
             propertyInfo[parentProp] = {};
             prefixedParentProps[parentProp] = true;
@@ -283,6 +292,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    _createNotifyUpListener: function(prop) {
+      // We simulate something like the following upwards annotation:
+      //
+      //   <x-host>                                 <---|
+      //     <x-templatizer>                            |
+      //       <template _parent_prop="{{prop}}">     --|
+      //                      ...content...
+      // The template sends a notification upwards directly to the host
+      // (skipping (this) templatizer).
+      var prefix = this._parentPropPrefix;
+      //                            translate:   _parent_prop -> prop
+      var fn = Polymer.Bind._notedListenerFactory(prefix + prop, prop, false);
+      return function(path, value, old, fromAbove) {
+        if (!fromAbove && path.indexOf('.') !== -1) {
+          var ev = {
+            target: this,
+            detail: {
+              path: path,
+              value: value
+            }
+          };
+          // This effect is memoized, so we cannot prestore the host.
+          var host = this.parentElement.dataHost;
+          host._notifyListener(fn, ev);
+        }
+      }
+    },
 
     _createForwardPropEffector: function(prop) {
       var prefixLength = this._parentPropPrefix.length;
@@ -299,6 +335,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _createHostPropEffector: function(prop) {
+      // Essentially a custom notify up implementation, but has to notify
+      // sidewards b/c of the following DOM structure:
+      //
+      //   <x-templatizer>
+      //     <TemplateInstance>   --|
+      //     <template>           <-|
+      //  A concrete TemplateInstance sends a notification to the template
+      //  (class or type).
+      //  Translate:   prop -> _parent_prop
       var prefix = this._parentPropPrefix;
       var prefixedProp = prefix + prop;
       return function(path, value, old, fromAbove) {
@@ -325,15 +370,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       };
     },
 
-    // Extends template with parent property info & effects and seed pre-bound data
+    // Extends template with parent property info & effects and seed pre-bound
+    // data
     _extendTemplate: function(template, proto) {
-      template._propertyEffects = proto._propertyEffects;
+      template._propertyEffects = this._mixPropertyEffects(
+          template._propertyEffects, proto._propertyEffects);
       template._propertyInfo = proto._propertyInfo;
       var prefixedParentProps = proto.prefixedParentProps;
       for (var p in prefixedParentProps) {
         var val = template[p];
         template.__data__[p] = val;
       }
+    },
+
+    _mixPropertyEffects: function(target, source) {
+      // target = target ? Polymer.Base.chainObject({}, target) : {};
+      if (!target) {
+        target = {};
+      }
+      for (var prop in source) {
+        var effects = source[prop];
+        if (prop in target) {
+          // inplace concat instead?
+          target[prop] = target[prop].concat(effects);
+        } else {
+          // slice to get shallow copy?
+          target[prop] = effects;
+        }
+      }
+      return target;
     },
 
     // Extension points for Templatizer sub-classes

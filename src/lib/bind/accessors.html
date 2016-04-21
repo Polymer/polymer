@@ -272,18 +272,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     setupBindListeners: function(inst) {
       var b$ = inst._bindListeners;
       for (var i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
-        // Property listeners:
-        // <node>.on.<property>-changed: <path]> = e.detail.value
-        //console.log('[_setupBindListener]: [%s][%s] listening for [%s][%s-changed]', this.localName, info.path, info.id || info.index, info.property);
-        //
-        // TODO(sorvell): fix templatizer to support this before uncommenting
-        // Optimization: only add bind listeners if the bound property is notifying...
+        // TODO: Optimization: only add bind listeners if the bound property
+        // is notifying...
         var node = inst._nodes[info.index];
-        //var p = node._propertyInfo && node._propertyInfo[info.property];
-        //if (node._prepParentProperties || !node._propertyInfo || (p && p.notify)) {
-          this._addNotifyListener(node, inst, info.event, info.changedFn);
-        //}
+        // Add DOM Event listener
+        this._addNotifyListener(node, inst, info.event, info.changedFn);
+        // For path notifications add a property effect
+        if (node.addPropertyEffect) {
+          this._addNotifyEffect(node, inst, info.property, info.changedFn);
+        }
       }
+    },
+
+    _addNotifyEffect: function(node, instance, property, fn) {
+      node.addPropertyEffect(property, function(path, value, old, fromAbove) {
+        if (!fromAbove && path.indexOf('.') !== -1) {
+          var ev = {
+            target: this,
+            detail: {
+              path: path,
+              value: value
+            }
+          };
+          instance._notifyListener(fn, ev);
+        }
+      });
     },
 
     // TODO(sorvell): note, adding these synchronously may impact performance,
