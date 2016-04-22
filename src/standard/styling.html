@@ -49,12 +49,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // empty) so that other dynamic stylesheets can always be placed
         // after the element's main stylesheet.
         // This helps ensure element styles are always in registration order.
-        if (!nativeShadow && settings.cssBuild !== 'shady') {
+        if (!nativeShadow) {
           if (settings.cssBuild === 'shady') {
-            this._scopeStyle = document.head.querySelector('style[scope="' + this.is + '"]');
-          } else {
-            this._scopeStyle = styleUtil.applyStylePlaceHolder(this.is);
+            var builtStyle = document.head.querySelector('style[scope="' + this.is + '"]');
+            if (builtStyle) {
+              // built style was already extracted from the template
+              this._styles = [builtStyle];
+              // scopestyle should point to the comment node before the built style
+              this._scopeStyle = builtStyle.previousSibling;
+              return;
+            }
           }
+          this._scopeStyle = styleUtil.applyStylePlaceHolder(this.is);
         }
       },
 
@@ -74,7 +80,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // do we really need to output static shimmed styles?
           // only if no custom properties are used since otherwise
           // styles are applied via property shimming.
-          if (!this._needsStyleProperties() && this._styles.length) {
+          var needsStyleProperties = this._needsStyleProperties();
+          if (settings.cssBuild === 'shady') {
+            // if the build is shady, then we styles are already applied
+            if (needsStyleProperties) {
+              // static built style is unnecessary
+              var builtStyle = this._styles[0];
+              builtStyle.parentNode.removeChild(builtStyle);
+            }
+          } else if (!needsStyleProperties && this._styles.length){
             styleUtil.applyCss(cssText, this.is,
               nativeShadow ? this._template.content : null, this._scopeStyle);
           }
