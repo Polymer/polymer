@@ -25,10 +25,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var styleTransformer = Polymer.StyleTransformer;
     var styleExtends = Polymer.StyleExtends;
 
+    var settings = Polymer.Settings;
+
     Polymer.Base._addFeature({
 
       _prepElement: function(element) {
-        if (this._encapsulateStyle) {
+        // To help encapsulate style,
+        // decorate all dom in this element's template with class="style-scope element-name"
+        // This is only needed if using shadydom and the css build has not targeted shady dom
+        if (this._encapsulateStyle && settings.cssBuild !== 'shady') {
           styleTransformer.element(element, this.is,
             this._scopeCssViaAttr);
         }
@@ -36,19 +41,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _prepStyles: function() {
-        // under shady dom we always output a shimmed style (which may be
+        if (this._encapsulateStyle === undefined) {
+          this._encapsulateStyle = !nativeShadow;
+        }
+        // under shady dom, unless css build has targeted shady dom and done this work already,
+        // we always output a shimmed style (which may be
         // empty) so that other dynamic stylesheets can always be placed
         // after the element's main stylesheet.
         // This helps ensure element styles are always in registration order.
-        if (!nativeShadow) {
-          this._scopeStyle = styleUtil.applyStylePlaceHolder(this.is);
+        if (!nativeShadow && settings.cssBuild !== 'shady') {
+          if (settings.cssBuild === 'shady') {
+            this._scopeStyle = document.head.querySelector('style[scope="' + this.is + '"]');
+          } else {
+            this._scopeStyle = styleUtil.applyStylePlaceHolder(this.is);
+          }
         }
       },
 
       _prepShimStyles: function() {
         if (this._template) {
-          if (this._encapsulateStyle === undefined) {
-            this._encapsulateStyle = !nativeShadow;
+          // We can avoid *all* shimming if native properties are used
+          // and there is a css build targeted for the dom setting.
+          if (settings.useNativeCSSProperties && settings.targetedCssBuild) {
+            return;
           }
           this._styles = this._styles || this._collectStyles();
           // prepare to shim style properties.
