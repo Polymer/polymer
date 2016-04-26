@@ -17,7 +17,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.StyleProperties = (function() {
     'use strict';
 
-    var nativeShadow = Polymer.Settings.useNativeShadow;
     var matchesSelector = Polymer.DomApi.matchesSelector;
     var styleUtil = Polymer.StyleUtil;
     var styleTransformer = Polymer.StyleTransformer;
@@ -263,8 +262,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (settings.cssBuild === 'shady') {
             var hostSelector = styleTransformer
             ._calcHostScope(element.is, element.extends);
-            // ':root' -> 'x-foo > *.x-foo'
-            selectors = [hostSelector + ' > *.' + hostSelector];
+            // ':root' -> 'x-foo > *.x-foo' for elements
+            // ':root' -> 'html' for custom-style
+            selectors = ['html', hostSelector + ' > *.' + hostSelector];
           }
           styles._scopeStyleProperties =
             this.selectedPropertiesFromStyles(styles, selectors);
@@ -326,7 +326,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._elementKeyframeTransforms(element, scopeSelector);
         return styleTransformer.elementStyles(element, function(rule) {
           self.applyProperties(rule, properties);
-          if (!nativeShadow &&
+          if (!settings.useNativeShadow &&
               !Polymer.StyleUtil.isKeyframesSelector(rule) &&
               rule.cssText) {
             // NOTE: keyframe transforms only scope munge animation names, so it
@@ -341,7 +341,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _elementKeyframeTransforms: function(element, scopeSelector) {
         var keyframesRules = element._styles._keyframes;
         var keyframeTransforms = {};
-        if (!nativeShadow && keyframesRules) {
+        if (!settings.useNativeShadow && keyframesRules) {
           // For non-ShadowDOM, we transform all known keyframes rules in
           // advance for the current scope. This allows us to catch keyframes
           // rules that appear anywhere in the stylesheet:
@@ -419,7 +419,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.transformStyles(element, properties, selector);
         // if shady and we have a cached style that is not style, decrement
         var s = element._customStyle;
-        if (s && !nativeShadow && (s !== style)) {
+        if (s && !settings.useNativeShadow && (s !== style)) {
           s._useCount--;
           if (s._useCount <= 0 && s.parentNode) {
             s.parentNode.removeChild(s);
@@ -427,9 +427,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // apply styling always under native or if we generated style
         // or the cached style is not in document(!)
-        if (nativeShadow || (!style || !style.parentNode)) {
+        if (settings.useNativeShadow || (!style || !style.parentNode)) {
           // update existing style only under native
-          if (nativeShadow && element._customStyle) {
+          if (settings.useNativeShadow && element._customStyle) {
             element._customStyle.textContent = cssText;
             style = element._customStyle;
           // otherwise, if we have css to apply, do so
@@ -437,7 +437,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // apply css after the scope style of the element to help with
             // style precedence rules.
             style = styleUtil.applyCss(cssText, selector,
-              nativeShadow ? element.root : null, element._scopeStyle);
+              settings.useNativeShadow ? element.root : null, element._scopeStyle);
           }
         }
         // ensure this style is our custom style and increment its use count.
