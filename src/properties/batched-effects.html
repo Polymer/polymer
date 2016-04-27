@@ -25,7 +25,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Not a correct assign polyfill-- only use where proto's don't matter!
       // _mixin: Object.assign ? Object.assign : Polymer.Utils.mixin,
       this._mixin = Polymer.Utils.mixin;
-      this._effectUid = 0;
       this.templateStamp = templateStamp ||
         (Polymer.TemplateStamp && new Polymer.TemplateStamp());
       // arguments are required
@@ -34,7 +33,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    addPropertyEffect(model, property, effect) {
+    addPropertyEffect(model, property, effect, type) {
       model = this.getModel(model);
       if (!model.setProperties) {
         var lib = this;
@@ -46,16 +45,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         };
       }
       super.addPropertyEffect.apply(this, arguments);
-      if (this._currentEffects) {
-        var effects = this._currentEffects[property] ||
-          (this._currentEffects[property] = []);
-        effects.push(effect);
-      }
+      // Effects without a type specified default to run at `observer` timing
+      var currentEffects = this._currentEffects ||
+        this._ensureEffects(model, type || '_observerEffects')
+      var effects = currentEffects[property] || (currentEffects[property] = []);
+      effects.push(effect);
     }
 
-    _accumulateEffects(model, name, fn, args) {
+    _accumulateEffects(model, type, fn, args) {
       model = this.getModel(model);
-      this._currentEffects = this._ensureEffects(model, name);
+      this._currentEffects = this._ensureEffects(model, type);
       fn.apply(this, args);
       this._currentEffects = null;
     }
@@ -85,7 +84,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- reflect ----------------------------------------------
 
     createReflectedProperty(model) {
-      this._accumulateEffects(model, '_annotationEffects',
+      this._accumulateEffects(model, '_propagateEffects',
         super.createReflectedProperty, arguments);
     }
 
@@ -106,7 +105,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- annotation ----------------------------------------------
 
     bindTemplate(model, template) {
-      this._accumulateEffects(model, '_annotationEffects',
+      this._accumulateEffects(model, '_propagateEffects',
         super.bindTemplate, [model, template]);
     }
 
@@ -149,16 +148,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (host) {
           host.__pendingClients.set(inst, true);
         }
+        return true;
       }
     }
 
     _processPendingProperties(inst, fromAbove) {
       var runId = (inst._runId = ((inst._runId || 0) + 1));
       var props = inst.__pendingData;
+      inst.__pendingData = null;
       if (props || inst.__interimData) {
         // Setup client property queueing
         inst.__pendingClients = inst.__pendingClients || new Map();
-        inst.__pendingData = {};
         // Run computed effects
         var inputProps = props;
         var computedProps;
@@ -166,7 +166,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._mixin(props, inst.__pendingData);
           computedProps = this._mixin(computedProps || {}, inst.__pendingData);
           inputProps = inst.__pendingData;
-          inst.__pendingData = {};
+          inst.__pendingData = null;
         }
         // Notify
         inst.__interimData = inst.__interimData ?
@@ -179,14 +179,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (runId == inst._runId) {
           props = inst.__interimData;
           // Run annotation effects
-          this._runEffects(inst, inst._annotationEffects, props);
+          this._runEffects(inst, inst._propagateEffects, props);
           // Recurse to clients
           this._flushPropClients(inst);
           // avoid observers unless active
           if (inst._propertyEffectsActive) {
             inst.__interimData = null;
             // Run observer effects
-            this._runEffects(inst, inst._observerEffects, props);
+            this._runEffects(inst, inst._observerEffects, props, fromAbove);
           }
         }
       }
@@ -195,7 +195,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _flushPropClients(inst) {
       var lib = this;
-      inst.__pendingClients.forEach(function(v, client) {
+      inst.__pendingClients.forEach(function _forEachClient(v, client) {
         if (client._propertyEffectsActive) {
           lib._processPendingProperties(client, true);
         }
@@ -261,10 +261,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _runEffects(inst, effects, props) {
+    _runEffects(inst, effects, props, fromAbove) {
       var ran;
       if (effects) {
-        var id = this._effectUid++;
+        var id = BatchedEffects._effectUid++;
         for (var prop in props) {
           var val = props[prop];
           var rootProperty = this._rootForPath(prop);
@@ -273,8 +273,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
               if (this._pathMatchesEffect(prop, fx) &&
                 (!fx.info || fx.info.lastRun !== id)) {
-                fx.fn.call(inst, prop, val, undefined, fx.info);
-                fx.info.lastRun = id;
+                fx.fn.call(inst, prop, val, undefined, fx.info, fromAbove);
+                if (fx.info) {
+                  fx.info.lastRun = id;
+                }
                 ran = true;
               }
             }
@@ -289,16 +291,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._processPendingProperties(inst, true);
     }
 
+    disablePropertyEffects(inst) {
+      inst._propertyEffectsActive = false;
+    }
+
     stamp(template, inst) {
-      if (!this.templateStamp) {
-        console.warn(`In order to call \`stamp\` a template stamping delegate is
-          required`);
-        return;
-      }
       inst.__pendingClients = new Map();
       var dom = this.templateStamp.stamp(template, inst);
-      this.setupBindings(inst, dom, template.content._notes);
-      // NOTE: We must propagate data down to clients right after 
+      var notes = (template._content || template.content)._notes;
+      this.setupBindings(inst, dom, notes);
+      // NOTE: We must propagate data down to clients right after
       // stamping and before `enablePropertyEffects` is called.
       this._processPendingProperties(inst, true);
       return dom;
@@ -312,6 +314,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
   }
+
+  BatchedEffects._effectUid = 0;
 
   // export
   Polymer.BatchedEffects = BatchedEffects;
