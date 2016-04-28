@@ -228,25 +228,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // Test if the rules in these styles matches the given `element` and if so,
       // collect any custom properties into `props`.
-      propertyDataFromStyles: function(styles, element) {
+      propertyDataFromStyles: function(styles, element, matchSelf) {
         var props = {}, self = this;
         // generates a unique key for these matches
         var o = [], i = 0;
+        var rootReplacement = element.is ? styleTransformer._calcHostScope(element.is, element.extends) : 'html';
         styleUtil.forRulesInStyles(styles, function(rule) {
           // TODO(sorvell): we could trim the set of rules at declaration
           // time to only include ones that have properties
           if (!rule.propertyInfo) {
             self.decorateRule(rule);
           }
+          var selectorToMatch = rule.transformedSelector || rule.parsedSelector;
+          if (matchSelf && rule.parsedSelector === ':root') {
+            selectorToMatch = rootReplacement;
+          }
+          var parentRule = rule.parent;
+          if (parentRule.type === styleUtil.parser.types.MEDIA_RULE) {
+            var matchMedia = parentRule.selector.match(/@media[^(]*(\([^)]*\))/);
+            if (matchMedia) {
+              // if parent rule is a non matching @media rule, skip this rule
+              if (!window.matchMedia(matchMedia[1]).matches) {
+                return true;
+              }
+            }
+          }
           // match element against transformedSelector: selector may contain
           // unwanted uniquification and parsedSelector does not directly match
           // for :host selectors.
-          if (element && rule.propertyInfo.properties &&
-              matchesSelector.call(element, rule.transformedSelector
-                || rule.parsedSelector)) {
-            self.collectProperties(rule, props);
-            // produce numeric key for these matches for lookup
-            addToBitMask(i, o);
+          if (element && rule.propertyInfo.properties) {
+              if (matchesSelector.call(element, selectorToMatch)) {
+                self.collectProperties(rule, props);
+                // produce numeric key for these matches for lookup
+                addToBitMask(i, o);
+              }
           }
           i++;
         });
@@ -257,17 +272,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // collect any custom properties into `props`.
       scopePropertiesFromStyles: function(styles, element) {
         if (!styles._scopeStyleProperties) {
-          var selectors = this.SCOPE_SELECTORS;
-          // selectors have already been calculated in shady build
-          if (settings.cssBuild === 'shady') {
-            var hostSelector = styleTransformer
-            ._calcHostScope(element.is, element.extends);
-            // ':root' -> 'x-foo > *.x-foo' for elements
-            // ':root' -> 'html' for custom-style
-            selectors = ['html', hostSelector + ' > *.' + hostSelector];
-          }
+          // var selectors = this.SCOPE_SELECTORS;
+          // if (styleUtil.cssBuildTypeForModule(element.is) === 'shady') {
+          //   var hostSelector = styleTransformer
+          //   ._calcHostScope(element.is, element.extends);
+          //   // ':root' -> 'x-foo > *.x-foo' for elements
+          //   // ':root' -> 'html' for custom-style
+          //   selectors = [':root', 'html', hostSelector + ' > *.' + hostSelector];
+          // }
           styles._scopeStyleProperties =
-            this.selectedPropertiesFromStyles(styles, selectors);
+            this.propertyDataFromStyles(styles, element, true).properties;
+            // this.selectedPropertiesFromStyles(styles, selectors);
         }
         return styles._scopeStyleProperties;
       },
@@ -279,15 +294,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // :host(...) and then matching these against self.
       hostPropertiesFromStyles: function(styles, element) {
         if (!styles._hostStyleProperties) {
-          var selectors = this.HOST_SELECTORS;
-          // selectors in shady build have already been calculated
-          if (settings.cssBuild === 'shady') {
-            var hostSelector = styleTransformer
-            ._calcHostScope(element.is, element.extends);
-            selectors = [hostSelector, 'html', hostSelector + ' > *'];
-          }
+          // var selectors = this.HOST_SELECTORS;
+          // if (styleUtil.cssBuildTypeForModule(element.is) === 'shady') {
+          //   var hostSelector = styleTransformer
+          //   ._calcHostScope(element.is, element.extends);
+          //   selectors = [hostSelector, hostSelector + ' > *'];
+          // }
           styles._hostStyleProperties =
-            this.selectedPropertiesFromStyles(styles, selectors);
+            this.propertyDataFromStyles(styles, element, true).properties;
+            // this.selectedPropertiesFromStyles(styles, selectors);
         }
         return styles._hostStyleProperties;
       },
@@ -303,7 +318,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           });
           for (var i = 0; i < selectors.length; i++) {
             for (var j = 0; j < parsedSelectors.length; j++) {
-              if (parsedSelectors[j] === selectors[i]) {
+              if (parsedSelectors[j].indexOf(selectors[i]) === 0) {
                 self.collectProperties(rule, props);
                 return;
               }
