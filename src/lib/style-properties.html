@@ -228,7 +228,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // Test if the rules in these styles matches the given `element` and if so,
       // collect any custom properties into `props`.
-      propertyDataFromStyles: function(styles, element, matchSelf) {
+      propertyDataFromStyles: function(styles, element, matchRoot, matchHost) {
         var props = {}, self = this;
         // generates a unique key for these matches
         var o = [], i = 0;
@@ -239,9 +239,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (!rule.propertyInfo) {
             self.decorateRule(rule);
           }
+          // TODO(dfreedm): needs refactoring...
+          // need to transform :host under ShadowDOM because `:host` does not work with `matches`
+          if (settings.useNativeShadow && matchHost && !rule.transformedSelector && rule.parsedSelector.indexOf(':host') >= 0) {
+            var hostScope = styleTransformer._calcHostScope(element.is, element.extends);
+            styleTransformer.rule(rule, element.is, hostScope);
+            rule.selector = rule.parsedSelector;
+          }
+
           var selectorToMatch = rule.transformedSelector || rule.parsedSelector;
-          if (matchSelf && rule.parsedSelector === ':root') {
-            selectorToMatch = rootReplacement;
+          if (matchRoot) {
+            selectorToMatch = rule.parsedSelector === ':root' ? rootReplacement : '';
           }
           var parentRule = rule.parent;
           if (parentRule.type === styleUtil.parser.types.MEDIA_RULE) {
@@ -256,7 +264,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // match element against transformedSelector: selector may contain
           // unwanted uniquification and parsedSelector does not directly match
           // for :host selectors.
-          if (element && rule.propertyInfo.properties) {
+          if (element && rule.propertyInfo.properties && selectorToMatch) {
               if (matchesSelector.call(element, selectorToMatch)) {
                 self.collectProperties(rule, props);
                 // produce numeric key for these matches for lookup
@@ -301,7 +309,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           //   selectors = [hostSelector, hostSelector + ' > *'];
           // }
           styles._hostStyleProperties =
-            this.propertyDataFromStyles(styles, element, true).properties;
+            this.propertyDataFromStyles(styles, element, null, true).properties;
             // this.selectedPropertiesFromStyles(styles, selectors);
         }
         return styles._hostStyleProperties;
