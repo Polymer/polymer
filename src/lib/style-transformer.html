@@ -96,11 +96,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       elementStyles: function(element, callback) {
         var styles = element._styles;
         var cssText = '';
+        var cssBuildType = styleUtil.cssBuildTypeForModule(element.is);
         for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-          var rules = styleUtil.rulesForStyle(s);
+          var rules = styleUtil.rulesForStyle(s, cssBuildType);
           // no need to shim selectors if settings.useNativeShadow, also
           // a shady css build will already have transformed selectors
-          cssText += (settings.useNativeShadow || styleUtil.cssBuildTypeForModule(element.is) === 'shady') ?
+          cssText += (settings.useNativeShadow || cssBuildType === 'shady') ?
             styleUtil.toCssText(rules, callback) :
             this.css(rules, element.is, element.extends, callback,
             element._scopeCssViaAttr) + '\n\n';
@@ -148,6 +149,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // transforms a css rule to a scoped rule.
       _transformRule: function(rule, transformer, scope, hostScope) {
+        // NOTE: save transformedSelector for subsequent matching of elements
+        // against selectors (e.g. when calculating style properties)
+        rule.selector = rule.transformedSelector =
+          this._transformRuleCss(rule, transformer, scope, hostScope);
+      },
+
+      _transformRuleCss: function(rule, transformer, scope, hostScope) {
         var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
         // we want to skip transformation of rules that appear in keyframes,
         // because they are keyframe selectors, not element selectors.
@@ -156,10 +164,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             p$[i] = transformer.call(this, p, scope, hostScope);
           }
         }
-        // NOTE: save transformedSelector for subsequent matching of elements
-        // against selectors (e.g. when calculating style properties)
-        rule.selector = rule.transformedSelector =
-          p$.join(COMPLEX_SELECTOR_SEP);
+        return p$.join(COMPLEX_SELECTOR_SEP);
       },
 
       _transformComplexSelector: function(selector, scope, hostScope) {

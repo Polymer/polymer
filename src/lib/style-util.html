@@ -44,9 +44,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
+      forActiveRulesInStyles: function(styles, styleRuleCallback, keyframesRuleCallback) {
+        if (styles) {
+          for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
+            this.forEachRule(
+                this.rulesForStyle(s),
+                styleRuleCallback,
+                keyframesRuleCallback,
+                true
+              );
+          }
+        }
+      },
+
       rulesForStyle: function(style) {
         if (!style.__cssRules && style.textContent) {
-          style.__cssRules =  this.parser.parse(style.textContent);
+          var buildType = this.getCssBuildType(style);
+          style.__cssRules = this.parser.parse(style.textContent, buildType);
         }
         return style.__cssRules;
       },
@@ -59,16 +73,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             rule.parent.type === this.ruleTypes.KEYFRAMES_RULE;
       },
 
-      forEachRule: function(node, styleRuleCallback, keyframesRuleCallback) {
+      forEachRule: function(node, styleRuleCallback, keyframesRuleCallback, onlyActiveRules) {
         if (!node) {
           return;
         }
         var skipRules = false;
+        if (onlyActiveRules) {
+          if (node.type === this.ruleTypes.MEDIA_RULE) {
+            var matchMedia = node.selector.match(this.rx.MEDIA_MATCH);
+            if (matchMedia) {
+              // if rule is a non matching @media rule, skip subrules
+              if (!window.matchMedia(matchMedia[1]).matches) {
+                skipRules = true;
+              }
+            }
+          }
+        }
         if (node.type === this.ruleTypes.STYLE_RULE) {
-          skipRules = styleRuleCallback(node);
+          styleRuleCallback(node);
         } else if (keyframesRuleCallback &&
                    node.type === this.ruleTypes.KEYFRAMES_RULE) {
-          skipRules = keyframesRuleCallback(node);
+          keyframesRuleCallback(node);
         } else if (node.type === this.ruleTypes.MIXIN_RULE) {
           skipRules = true;
         }
@@ -202,6 +227,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,()]*)|(?:[^;()]*\([^;)]*\)+))[\s]*?\)/gi,
         VAR_CONSUMED: /(--[\w-]+)\s*([:,;)]|$)/gi,
         ANIMATION_MATCH: /(animation\s*:)|(animation-name\s*:)/,
+        MEDIA_MATCH: /@media[^(]*(\([^)]*\))/,
         IS_VAR: /^--/,
         BRACKETED: /\{[^}]*\}/g,
         HOST_PREFIX: '(?:^|[^.#[:])',

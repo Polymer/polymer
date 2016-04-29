@@ -228,112 +228,85 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // Test if the rules in these styles matches the given `element` and if so,
       // collect any custom properties into `props`.
-      propertyDataFromStyles: function(styles, element, matchRoot, matchHost) {
+      propertyDataFromStyles: function(styles, element) {
         var props = {}, self = this;
         // generates a unique key for these matches
         var o = [], i = 0;
-        var rootReplacement = element.is ? styleTransformer._calcHostScope(element.is, element.extends) : 'html';
-        styleUtil.forRulesInStyles(styles, function(rule) {
+        styleUtil.forActiveRulesInStyles(styles, function(rule) {
           // TODO(sorvell): we could trim the set of rules at declaration
           // time to only include ones that have properties
           if (!rule.propertyInfo) {
             self.decorateRule(rule);
           }
-          // TODO(dfreedm): needs refactoring...
-          // need to transform :host under ShadowDOM because `:host` does not work with `matches`
-          if (settings.useNativeShadow && matchHost && !rule.transformedSelector && rule.parsedSelector.indexOf(':host') >= 0) {
-            var hostScope = styleTransformer._calcHostScope(element.is, element.extends);
-            styleTransformer.rule(rule, element.is, hostScope);
-            rule.selector = rule.parsedSelector;
-          }
-
-          var selectorToMatch = rule.transformedSelector || rule.parsedSelector;
-          if (matchRoot) {
-            selectorToMatch = rule.parsedSelector === ':root' ? rootReplacement : '';
-          }
-          var parentRule = rule.parent;
-          if (parentRule.type === styleUtil.parser.types.MEDIA_RULE) {
-            var matchMedia = parentRule.selector.match(/@media[^(]*(\([^)]*\))/);
-            if (matchMedia) {
-              // if parent rule is a non matching @media rule, skip this rule
-              if (!window.matchMedia(matchMedia[1]).matches) {
-                return true;
-              }
-            }
-          }
           // match element against transformedSelector: selector may contain
           // unwanted uniquification and parsedSelector does not directly match
           // for :host selectors.
+          var selectorToMatch = rule.transformedSelector || rule.parsedSelector;
           if (element && rule.propertyInfo.properties && selectorToMatch) {
-              if (matchesSelector.call(element, selectorToMatch)) {
-                self.collectProperties(rule, props);
-                // produce numeric key for these matches for lookup
-                addToBitMask(i, o);
-              }
+            if (matchesSelector.call(element, selectorToMatch)) {
+              self.collectProperties(rule, props);
+              // produce numeric key for these matches for lookup
+              addToBitMask(i, o);
+            }
           }
           i++;
         });
         return {properties: props, key: o};
       },
 
-      // Test if a rule matches scope criteria (* or :root) and if so,
-      // collect any custom properties into `props`.
-      scopePropertiesFromStyles: function(styles, element) {
-        if (!styles._scopeStyleProperties) {
-          // var selectors = this.SCOPE_SELECTORS;
-          // if (styleUtil.cssBuildTypeForModule(element.is) === 'shady') {
-          //   var hostSelector = styleTransformer
-          //   ._calcHostScope(element.is, element.extends);
-          //   // ':root' -> 'x-foo > *.x-foo' for elements
-          //   // ':root' -> 'html' for custom-style
-          //   selectors = [':root', 'html', hostSelector + ' > *.' + hostSelector];
-          // }
-          styles._scopeStyleProperties =
-            this.propertyDataFromStyles(styles, element, true).properties;
-            // this.selectedPropertiesFromStyles(styles, selectors);
-        }
-        return styles._scopeStyleProperties;
-      },
-
-      // Test if a rule matches host criteria (:host) and if so,
-      // collect any custom properties into `props`.
-      //
-      // TODO(sorvell): this should change to collecting properties from any
-      // :host(...) and then matching these against self.
-      hostPropertiesFromStyles: function(styles, element) {
-        if (!styles._hostStyleProperties) {
-          // var selectors = this.HOST_SELECTORS;
-          // if (styleUtil.cssBuildTypeForModule(element.is) === 'shady') {
-          //   var hostSelector = styleTransformer
-          //   ._calcHostScope(element.is, element.extends);
-          //   selectors = [hostSelector, hostSelector + ' > *'];
-          // }
-          styles._hostStyleProperties =
-            this.propertyDataFromStyles(styles, element, null, true).properties;
-            // this.selectedPropertiesFromStyles(styles, selectors);
-        }
-        return styles._hostStyleProperties;
-      },
-
-      selectedPropertiesFromStyles: function(styles, selectors) {
-        var props = {}, self = this;
-        styleUtil.forRulesInStyles(styles, function(rule) {
+      hostAndRootPropertiesFromStyles: function(styles, element) {
+        var hostProps = {}, rootProps = {}, self = this;
+        styleUtil.forActiveRulesInStyles(styles, function(rule) {
           if (!rule.propertyInfo) {
             self.decorateRule(rule);
           }
-          var parsedSelectors = rule.parsedSelector.split(',').map(function(r){
-            return r.trim();
-          });
-          for (var i = 0; i < selectors.length; i++) {
-            for (var j = 0; j < parsedSelectors.length; j++) {
-              if (parsedSelectors[j].indexOf(selectors[i]) === 0) {
-                self.collectProperties(rule, props);
-                return;
+          var hostScope = element.is ?
+            styleTransformer._calcHostScope(element.is, element.extends) :
+             'html';
+          var parsedSelector = rule.parsedSelector;
+          var isRoot = parsedSelector === ':root';
+          var isHost = parsedSelector.indexOf(':host') === 0;
+          // rule._buildType is set for rules from custom-styles, or the dom-module of the element has it
+          var cssBuildType = rule._buildType || (element.is && styleUtil.cssBuildTypeForModule(element.is));
+          if (cssBuildType === 'shady') {
+            // :root -> x-foo > *.x-foo for elements and html for custom-style
+            isRoot = parsedSelector === (hostScope + '> *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
+            // :host -> x-foo for elements, but sub-rules have .x-foo in them
+            isHost = !isRoot && parsedSelector.indexOf(hostScope) === 0;
+          }
+          if (cssBuildType === 'shadow') {
+            isRoot = parsedSelector === ':host > *' || parsedSelector === 'html';
+            isHost = isHost && !isRoot;
+          }
+          if (!isRoot && !isHost) {
+            return;
+          }
+          var selectorToMatch = hostScope;
+          if (isHost) {
+            // need to transform :host under ShadowDOM because `:host` does not work with `matches`
+            if (settings.useNativeShadow && !rule.transformedSelector) {
+              // transform :host into a matchable selector
+              rule.transformedSelector =
+                styleTransformer._transformRuleCss(
+                  rule,
+                  styleTransformer._transformComplexSelector,
+                  element.is,
+                  hostScope
+                );
+            }
+            selectorToMatch = rule.transformedSelector || hostScope;
+          }
+          if (element && rule.propertyInfo.properties && selectorToMatch) {
+            if (matchesSelector.call(element, selectorToMatch)) {
+              if (isHost) {
+                self.collectProperties(rule, hostProps);
+              } else {
+                self.collectProperties(rule, rootProps);
               }
             }
           }
         });
-        return props;
+        return {rootProps: rootProps, hostProps: hostProps};
       },
 
       transformStyles: function(element, properties, scopeSelector) {
@@ -507,12 +480,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       rx: styleUtil.rx,
-
-      HOST_SELECTORS: [':host'],
-      // :root for elements and custom-styles without native custom properties
-      // html for custom-styles with native custom properties
-      // :host > * for elements with native custom properties
-      SCOPE_SELECTORS: [':root', 'html', ':host > *'],
       XSCOPE_NAME: 'x-scope'
 
     };
