@@ -366,38 +366,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {HTMLLinkElement} The link element for the URL to be loaded.
      */
     importHref: function(href, onload, onerror, optAsync) {
-      var l = document.createElement('link');
-      l.rel = 'import';
-      l.href = href;
+      var link = document.createElement('link');
+      link.rel = 'import';
+      link.href = href;
       var list = Polymer.Base.importHref.imported = 
         Polymer.Base.importHref.imported || {};
-      var loaded = list[l.href];
-      l = loaded || l;
+      var cached = list[link.href];
+      var imprt = cached || link;
       var self = this;
       if (onload) {
-        l.addEventListener('load', function(e) {
+        var loadListener = function(e) {
+          e.target.__firedLoad = true;
+          e.target.removeEventListener('load', loadListener);
           return onload.call(self, e);
-        });
+        }
+        imprt.addEventListener('load', loadListener);
       }
       if (onerror) {
-        l.addEventListener('error', function(e) {
+        var errorListener = function(e) {
+          e.target.__firedError = true;
+          e.target.removeEventListener('error', errorListener);
           return onerror.call(self, e);
-        });
-      }
-      if (loaded) {
-        if (onload && loaded.import && 
-            loaded.import.readyState === 'complete') {
-          onload.call(this, {target: loaded});
         }
+        imprt.addEventListener('error', errorListener);
+      }
+      // if already loaded/erroed, fire 'fake' load/error event
+      if (cached) {
+        if (cached.__firedLoad) {
+          cached.dispatchEvent(new Event('load'));
+        }
+        if (cached.__firedError) {
+          cached.dispatchEvent(new Event('error'));
+        }
+      // otherwise put in dom!
       } else {
-        list[l.href] = l;
+        list[link.href] = link;
         optAsync = Boolean(optAsync);
         if (optAsync) {
-          l.setAttribute('async', '');
+          link.setAttribute('async', '');
         }
-        document.head.appendChild(l);
+        document.head.appendChild(link);
       }
-      return l;
+      return imprt;
     },
 
     /**
