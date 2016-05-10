@@ -1,4 +1,10 @@
-<!-- Instructions: https://github.com/Polymer/polymer/blob/master/CONTRIBUTING.md#filing-bugs -->
+<!--
+If you are asking a question rather than filing a bug, try one of these instead:
+- StackOverflow (http://stackoverflow.com/questions/tagged/polymer)
+- Polymer Slack Channel (https://bit.ly/polymerslack)
+- Mailing List (https://groups.google.com/forum/#!forum/polymer-dev)
+-->
+<!-- Instructions For Filing a Bug: https://github.com/Polymer/polymer/blob/master/CONTRIBUTING.md#filing-bugs -->
 ### Description
 <!-- Example: Error thrown when calling `appendChild` on Polymer element -->
 

@@ -23,15 +23,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 </head>
 <body>
 <script>
+suite('Polymer.Base', function() {
 
 var Child;
 var instance;
 
 setup(function() {
   // Ensure a clean environment for each test.
-  /* global Base */
-  window.Base = Polymer.Base;
-  window.Child = Object.create(Base);
+  Child = Object.create(Polymer.Base);
+  Child.is = 'x-child';
   Child._registerFeatures = function() {};
   Child._initFeatures = function() {};
   Child._setAttributeToProperty = function() {};
@@ -41,15 +41,15 @@ setup(function() {
       this[name].apply(this, args || []);
     }
   };
-  window.instance = Object.create(Child);
+  instance = Object.create(Child);
 });
 
 suite('addFeature', function() {
 
   test('mixes the feature into Base', function() {
-    assert.notOk(Base.someProperty);
-    Base._addFeature({someProperty: 123});
-    assert.equal(Base.someProperty, 123);
+    assert.notOk(Polymer.Base.someProperty);
+    Polymer.Base._addFeature({someProperty: 123});
+    assert.equal(Polymer.Base.someProperty, 123);
   });
 
 });
@@ -139,6 +139,59 @@ suite('attributeChangedCallback', function() {
 
 });
 
+suite('Logging', function() {
+  var logStub;
+  setup(function() {
+    logStub = sinon.stub(console, 'log');
+  });
+  teardown(function() {
+    logStub.restore();
+  });
+
+  test('logger is an entry point for console', function() {
+    Polymer.Base._logger('log', ['hi']);
+    assert.equal(logStub.callCount, 1);
+  });
+
+  test('only allow logging methods', function() {
+    var warnStub = sinon.stub(console, 'warn');
+    var errorStub = sinon.stub(console, 'error');
+    var dirStub = sinon.stub(console, 'dir');
+    var args = ['hi'];
+    Polymer.Base._logger('warn', args);
+    Polymer.Base._logger('error', args);
+    Polymer.Base._logger('dir', args);
+    warnStub.restore();
+    errorStub.restore();
+    dirStub.restore();
+    assert.equal(warnStub.callCount, 1);
+    assert.equal(errorStub.callCount, 1);
+    assert.equal(dirStub.callCount, 0);
+  });
+
+  test('logging methods accept strings or an array', function() {
+    var expected = ['hello', 'world'];
+    Polymer.Base._log('hello', 'world');
+    assert.deepEqual(logStub.args[0], expected, 'strings');
+    Polymer.Base._log(['hello', 'world']);
+    assert.deepEqual(logStub.args[1], expected, 'array');
+  });
+
+  test('logf will print the element name and function', function() {
+    Child.created = function() {
+      this._log(this._logf('ready', 'ready now!'));
+    }
+    instance.createdCallback();
+    assert.equal(logStub.callCount, 1);
+    var expected = Polymer.Base._logPrefix.concat([
+      'x-child',
+      'ready',
+      'ready now!'
+    ]);
+    assert.deepEqual(logStub.args[0], expected);
+  });
+});
+});
 </script>
 </body>
 </html>

@@ -1,5 +1,57 @@
 # Change Log
 
+##[v1.4.0](https://github.com/Polymer/polymer/tree/v1.4.0) (2016-03-18)
+- Fast check in createdCallback to see if registration has finished. ([commit](https://github.com/Polymer/polymer/commit/a3fce19))
+
+- even more lazy: defer template lookup and style collection until finish register time. ([commit](https://github.com/Polymer/polymer/commit/103f790))
+
+- fix lint errors. ([commit](https://github.com/Polymer/polymer/commit/d7a2baa))
+
+- * turn on lazy registration via `Polymer.Settings.lazyRegister` * ensure registration finished by calling `Element.prototype.ensureRegisterFinished()` ([commit](https://github.com/Polymer/polymer/commit/31c785d))
+
+- remove crufty smoke test. ([commit](https://github.com/Polymer/polymer/commit/3dd1b61))
+
+- fix lint issues ([commit](https://github.com/Polymer/polymer/commit/0447228))
+
+- Change `forceRegister` to `eagerRegister` and add `Polymer.Settings.eagerRegister` flag. ([commit](https://github.com/Polymer/polymer/commit/f6597ec))
+
+- Add `forceRegister` flag to force an element to fully register when `Polymer` is called. Normally, some work is deferred until the first element instance is created. ([commit](https://github.com/Polymer/polymer/commit/d53323d))
+
+- Call registered no prototype. ([commit](https://github.com/Polymer/polymer/commit/812db6a))
+
+- Lazy register features we can be deferred until first instance. This is an optimization which can speed up page load time when elements are registered but not needed at time of first paint/interaction ([commit](https://github.com/Polymer/polymer/commit/31702ff))
+
+- Do not reflect uppercase properties ([commit](https://github.com/Polymer/polymer/commit/72d35e0))
+
+- Make sure event.path is an array ([commit](https://github.com/Polymer/polymer/commit/2dfdd7b))
+
+- fix testing failures on assert.notInclude of null ([commit](https://github.com/Polymer/polymer/commit/8066919))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/58e6713))
+
+##[v1.3.1](https://github.com/Polymer/polymer/tree/v1.3.1) (2016-03-02)
+- Fix lint errors. ([commit](https://github.com/Polymer/polymer/commit/44d06f1))
+
+- Add test. ([commit](https://github.com/Polymer/polymer/commit/02660c1))
+
+- Fix lint error. ([commit](https://github.com/Polymer/polymer/commit/e2c5f9e))
+
+- Ensure that dom-bind always waits until DOMContentLoaded to render. This ensures a script can install api on the dom-bind prior to it rendering. Previously dom-bind waited for first render, but an early parser yield can make this occur unexpectedly early. ([commit](https://github.com/Polymer/polymer/commit/cc0e9df))
+
+- Refine fix for #3461 so that the decision to apply a static or property stylesheet relies on the same info. ([commit](https://github.com/Polymer/polymer/commit/ff96f9e))
+
+- Clean the .eslintignore ([commit](https://github.com/Polymer/polymer/commit/04d06a5))
+
+- [ci skip] Add header for those asking questions ([commit](https://github.com/Polymer/polymer/commit/9d6111c))
+
+- Fixes #3461: Only avoid creating a statically scoped stylesheet when properties are consumed in an element, properly excluding properties produced as a result of consumption. ([commit](https://github.com/Polymer/polymer/commit/e26a806))
+
+- tweaks to new README ([commit](https://github.com/Polymer/polymer/commit/809352d))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/4f3f463))
+
+- Updated the README.md for a non-technical user to understand ([commit](https://github.com/Polymer/polymer/commit/0729cef))
+
 ##[v1.3.0](https://github.com/Polymer/polymer/tree/v1.3.0) (2016-02-22)
 - [ci skip] Add instructions to pull request template ([commit](https://github.com/Polymer/polymer/commit/933c920))
 

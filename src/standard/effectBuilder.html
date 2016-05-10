@@ -65,9 +65,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               event: Polymer.CaseMap.camelToDashCase(p) + '-changed'});
           }
           if (prop.reflectToAttribute) {
-            this._addPropertyEffect(p, 'reflect', {
-              attribute: Polymer.CaseMap.camelToDashCase(p)
-            });
+            var attr = Polymer.CaseMap.camelToDashCase(p);
+            if (attr[0] === '-') {
+              this._warn(this._logf('_addPropertyEffects', 'Property ' + p + ' cannot be reflected to attribute ' + attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property instead.'));
+            } else {
+              this._addPropertyEffect(p, 'reflect', {
+                attribute: attr
+              });
+            }
           }
           if (prop.readOnly) {
             // Ensure accessor is created
@@ -98,7 +103,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           trigger: null,
           name: name,
           dynamicFn: dynamicFn
-        })
+        });
       }
     },
 
@@ -168,18 +173,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._addAnnotatedComputationEffect(note, part, index);
         } else if (!part.literal) {
           // add 'annotation' binding effect for property 'model'
-          this._addPropertyEffect(part.model, 'annotation', {
-            kind: note.kind,
-            index: index,
-            name: note.name,
-            propertyName: note.propertyName,
-            value: part.value,
-            isCompound: note.isCompound,
-            compoundIndex: part.compoundIndex,
-            event: part.event,
-            customEvent: part.customEvent,
-            negate: part.negate
-          });
+          if (note.kind === 'attribute' && note.name[0] === '-') {
+            this._warn(this._logf('_addAnnotationEffect', 'Cannot set attribute ' + note.name + ' because "-" is not a valid attribute starting character'));
+          } else {
+            this._addPropertyEffect(part.model, 'annotation', {
+              kind: note.kind,
+              index: index,
+              name: note.name,
+              propertyName: note.propertyName,
+              value: part.value,
+              isCompound: note.isCompound,
+              compoundIndex: part.compoundIndex,
+              event: part.event,
+              customEvent: part.customEvent,
+              negate: part.negate
+            });
+          }
         }
       }
     },
@@ -313,16 +322,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _applyEffectValue: function(info, value) {
       var node = this._nodes[info.index];
       var property = info.name;
+
+      value = this._computeFinalAnnotationValue(node, property, value, info);
+
+      // For better interop, dirty check before setting when custom events
+      // are used, since the target element may not dirty check (e.g. <input>)
+      if (info.customEvent && node[property] === value) {
+        return;
+      }
+
+      if (info.kind == 'attribute') {
+        this.serializeValueToAttribute(value, property, node);
+      } else {
+        var pinfo = node._propertyInfo && node._propertyInfo[property];
+        if (pinfo && pinfo.readOnly) {
+          return;
+        }
+        // Ideally we would call setProperty using fromAbove: true to avoid
+        // spinning the wheel needlessly, but we found that users were listening
+        // for change events outside of bindings
+        this.__setProperty(property, value, false, node);
+      }
+    },
+
+    _computeFinalAnnotationValue: function(node, property, value, info) {
+      if (info.negate) {
+        value = !value;
+      }
+
       if (info.isCompound) {
         var storage = node.__compoundStorage__[property];
         storage[info.compoundIndex] = value;
         value = storage.join('');
       }
-      // special processing for 'class' and 'className'; 'class' handled
-      // when attr is serialized.
-      if (info.kind == 'attribute') {
-        this.serializeValueToAttribute(value, property, node);
-      } else {
+
+      if (info.kind !== 'attribute') {
         // TODO(sorvell): consider pre-processing the following two string
         // comparisons in the hot path so this can be a boolean check
         if (property === 'className') {
@@ -333,15 +367,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             (node.localName == 'input' && property == 'value')) {
           value = value == undefined ? '' : value;
         }
-        // Ideally we would call setProperty using fromAbove: true to avoid
-        // spinning the wheel needlessly, but we found that users were listening
-        // for change events outside of bindings
-        var pinfo;
-        if (!node._propertyInfo || !(pinfo = node._propertyInfo[property]) ||
-          !pinfo.readOnly) {
-          this.__setProperty(property, value, false, node);
-        }
       }
+      return value;
     },
 
     _executeStaticEffects: function() {

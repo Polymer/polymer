@@ -25,13 +25,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         value = this._get(effect.value);
         this.__data__[effect.value] = value;
       }
-      var calc = effect.negate ? !value : value;
-      // For better interop, dirty check before setting when custom events
-      // are used, since the target element may not dirty check (e.g. <input>)
-      if (!effect.customEvent ||
-          this._nodes[effect.index][effect.name] !== calc) {
-        return this._applyEffectValue(effect, calc);
-      }
+      this._applyEffectValue(effect, value);
     },
 
     _reflectEffect: function(source, value, effect) {
@@ -101,9 +95,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var args = Polymer.Bind._marshalArgs(this.__data__, effect, source, value);
         if (args) {
           var computedvalue = fn.apply(computedHost, args);
-          if (effect.negate) {
-            computedvalue = !computedvalue;
-          }
           this._applyEffectValue(effect, computedvalue);
         }
       } else if (effect.dynamicFn) {
@@ -130,19 +121,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var v;
         if (arg.literal) {
           v = arg.value;
-        } else if (arg.structured) {
-          v = Polymer.Base._get(name, model);
+        } else if (path === name) {
+          v = value;
         } else {
+          // Take advantage of the fact that all values sent through the path
+          // notifications system are cached on the model. Trivially, all the
+          // user properties can be looked up there as well.
           v = model[name];
+          if (v === undefined && arg.structured) {
+            // All initial values and base assignments don't go through the
+            // notifications API, so we must construct/evaluate the correct
+            // value. (E.g. you assign a new object to `this.foo`, but your
+            // observer actually listens to `foo.bar.quux`)
+            v = Polymer.Base._get(name, model);
+          }
         }
         if (bailoutEarly && v === undefined) {
           return;
         }
         if (arg.wildcard) {
           // Only send the actual path changed info if the change that
-          // caused the observer to run matched the wildcard
-          var baseChanged = (name.indexOf(path + '.') === 0);
-          var matches = (effect.trigger.name.indexOf(name) === 0 && !baseChanged);
+          // caused the observer to run matches this arg. Note that this holds
+          // also true when `path === name`. We can skip this check b/c then
+          // `name` and `v` already have the values we want.
+          // Read the following as: `head(path) === name`.
+          var matches = path.indexOf(name + '.') === 0;
           values[i] = {
             path: matches ? path : name,
             value: matches ? value : v,
