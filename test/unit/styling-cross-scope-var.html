@@ -67,12 +67,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           padding: 8px;
           border: var(--scope-var);
         }
+
+        :host(.foo) {
+          border: var(--scope-var-foo);
+        }
       </style>
       Host property
     </template>
     <script>
     HTMLImports.whenReady(function() {
       Polymer({is: 'x-host-property'});
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-host-host-property">
+    <template>
+      <x-host-property id="hosted"></x-host-property>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({is: 'x-host-host-property'});
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-produce-use-property">
+    <template>
+      <style>
+        :host {
+          --scope-var: 6px solid steelblue;
+          --scope-var-foo: 8px solid steelblue;
+        }
+      </style>
+      <x-host-host-property id="hosted"></x-host-host-property>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({is: 'x-produce-use-property'});
     });
     </script>
   </dom-module>
@@ -771,6 +803,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     assertComputed(styled.$.child.$.me, '2px');
   });
+
+  test('Nested element uses style cache when attached and updateStyles is called', function() {
+    var l = document.querySelectorAll('style').length;
+    var e1 = document.createElement('x-produce-use-property');
+    var e1t = e1.$.hosted.$.hosted;
+    var e2 = document.createElement('x-produce-use-property');
+    var e2t = e2.$.hosted.$.hosted;
+    document.body.appendChild(e1);
+    document.body.appendChild(e2);
+    CustomElements.takeRecords();
+    if (styled.shadyRoot) {
+      assert.equal(document.querySelectorAll('style').length, l+1);
+    }
+    assertComputed(e1t, '6px');
+    assertComputed(e2t, '6px');
+    e1.customStyle['--scope-var'] = '8px solid purple';
+    e2.customStyle['--scope-var'] = '8px solid purple';
+    Polymer.updateStyles();
+    assertComputed(e1t, '8px');
+    assertComputed(e2t, '8px');
+    if (styled.shadyRoot) {
+      assert.equal(document.querySelectorAll('style').length, l+1);
+    }
+    e1.customStyle['--scope-var'] = null;
+    e2.customStyle['--scope-var'] = null;
+    Polymer.updateStyles();
+    assertComputed(e1t, '6px');
+    assertComputed(e2t, '6px');
+    if (styled.shadyRoot) {
+      assert.equal(document.querySelectorAll('style').length, l+1);
+    }
+  })
 
   test('updateStyles changes own properties based on customStyle changes', function() {
     styled.$.child.customStyle['--child-scope-var'] = '30px solid orange';
