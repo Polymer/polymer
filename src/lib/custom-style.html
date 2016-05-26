@@ -163,19 +163,30 @@ Note, all features of `custom-style` are available when defining styles as part 
         e.textContent = styleUtil.cssFromModules(this.include, true) +
           e.textContent;
       }
-      if (e.textContent) {
-        var buildType = styleUtil.getCssBuildType(this);
-        // css build will already process document rule and apply shim
-        if (!styleUtil.isTargetedBuild(buildType)) {
-          styleUtil.forEachRule(styleUtil.rulesForStyle(e, buildType),
-            function(rule) {
-              styleTransformer.documentRule(rule);
-              if (settings.useNativeCSSProperties && !buildType) {
-                applyShim.transformRule(rule);
-              }
+      if (!e.textContent) {
+        return;
+      }
+      var buildType = styleUtil.getCssBuildType(this);
+      // css build will already process document rule and apply shim
+      if (!styleUtil.isTargetedBuild(buildType)) {
+        styleUtil.forEachRule(styleUtil.rulesForStyle(e, buildType),
+          function(rule) {
+            styleTransformer.documentRule(rule);
+            if (settings.useNativeCSSProperties && !buildType) {
+              applyShim.transformRule(rule);
             }
-          );
+          }
+        );
+      }
+      // if we use native custom properties, no need to apply any property shimming
+      if (settings.useNativeCSSProperties) {
+        // but if there's no build, then the shimmed styles must be applied.
+        if (!buildType) {
+          e.textContent = styleUtil.toCssText(
+            styleUtil.rulesForStyle(e, buildType));
         }
+      // otherwise needs property shimming...
+      } else {
         // Allow all custom-styles defined in this turn to register
         // before applying any properties. This helps ensure that all properties
         // are defined before any are consumed.
@@ -190,9 +201,6 @@ Note, all features of `custom-style` are available when defining styles as part 
         // yield that makes A wait for textContent. This reorders its
         // `_apply` after B.
         // This case should only occur with native webcomponents.
-        if (settings.useNativeCSSProperties) {
-          return;
-        }
         var self = this;
         var fn = function fn() {
           self._applyCustomProperties();
