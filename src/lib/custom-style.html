@@ -122,6 +122,7 @@ Note, all features of `custom-style` are available when defining styles as part 
       // NOTE: we cannot just check attached because custom elements in
       // HTMLImports do not get attached.
       this.__appliedElement = this.__appliedElement || this;
+      this.__cssBuild = styleUtil.getCssBuildType(this)
       this._tryApply();
     },
 
@@ -135,9 +136,11 @@ Note, all features of `custom-style` are available when defining styles as part 
         if (this.parentNode &&
           (this.parentNode.localName !== 'dom-module')) {
           this._appliesToDocument = true;
+          var e = this.__appliedElement;
           // used applied element from HTMLImports polyfill or this
-          var e = this.__appliedElement || this;
-          styleDefaults.addStyle(e);
+          if (!settings.useNativeCSSProperties) {
+            styleDefaults.addStyle(e);
+          }
           // we may not have any textContent yet due to parser yielding
           // if so, wait until we do...
           if (e.textContent || this.include) {
@@ -166,19 +169,21 @@ Note, all features of `custom-style` are available when defining styles as part 
       if (!e.textContent) {
         return;
       }
-      var buildType = styleUtil.getCssBuildType(this);
-      // css build will already process document rule and apply shim
-      if (!styleUtil.isTargetedBuild(buildType)) {
+      var buildType = this.__cssBuild;
+      // static shimming 
+      // (css build will already process document rule and apply shim)
+      if (!buildType) {
         styleUtil.forEachRule(styleUtil.rulesForStyle(e, buildType),
           function(rule) {
             styleTransformer.documentRule(rule);
-            if (settings.useNativeCSSProperties && !buildType) {
+            if (settings.useNativeCSSProperties) {
               applyShim.transformRule(rule);
             }
           }
         );
       }
-      // if we use native custom properties, no need to apply any property shimming
+      // custom properties shimming 
+      // (if we use native custom properties, no need to apply any property shimming)
       if (settings.useNativeCSSProperties) {
         // but if there's no build, then the shimmed styles must be applied.
         if (!buildType) {
