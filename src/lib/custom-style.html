@@ -56,8 +56,7 @@ Example:
     }
 
   </style>
-  
-  
+
   <dom-module id="shared-style">
     <template>
       <style>
@@ -67,13 +66,13 @@ Example:
       </style>
     </template>
   </dom-module>
-  
+
   <style is="custom-style" include="shared-style">
-    
+
     body {
       background-color: var(--shared-background-color);
     }
-    
+
   </style>
 </head>
 <body>
@@ -123,6 +122,10 @@ Note, all features of `custom-style` are available when defining styles as part 
       // HTMLImports do not get attached.
       this.__appliedElement = this.__appliedElement || this;
       this.__cssBuild = styleUtil.getCssBuildType(this)
+      // forward css-build status to applied element in main document
+      if (this.__appliedElement !== this) {
+        this.__appliedElement.__cssBuild = this.__cssBuild;
+      }
       this._tryApply();
     },
 
@@ -170,16 +173,16 @@ Note, all features of `custom-style` are available when defining styles as part 
         return;
       }
       var buildType = this.__cssBuild;
-      // static shimming 
+      // static shimming
       // (css build will already process document rule and apply shim)
-      // cases: 
+      // cases:
       // build = shady, use = shady => do nothing
       // build = shadow, use = shadow => do nothing
       // build = shady, use = shadow => not supported
       // build = shadow, use = shady => needs shimming.
       // build = none => needs shimming
       if (!styleUtil.isTargetedBuild(buildType)) {
-        styleUtil.forEachRule(styleUtil.rulesForStyle(e, buildType),
+        styleUtil.forEachRule(styleUtil.rulesForStyle(e),
           function(rule) {
             styleTransformer.documentRule(rule);
             if (settings.useNativeCSSProperties && !buildType) {
@@ -188,13 +191,13 @@ Note, all features of `custom-style` are available when defining styles as part 
           }
         );
       }
-      // custom properties shimming 
+      // custom properties shimming
       // (if we use native custom properties, no need to apply any property shimming)
       if (settings.useNativeCSSProperties) {
         // but if there's no targeted build, then the shimmed styles must be applied.
         if (!styleUtil.isTargetedBuild(buildType)) {
           e.textContent = styleUtil.toCssText(
-            styleUtil.rulesForStyle(e, buildType));
+            styleUtil.rulesForStyle(e));
         }
       // otherwise needs property shimming...
       } else {
@@ -237,12 +240,6 @@ Note, all features of `custom-style` are available when defining styles as part 
         return;
       }
       element.textContent = styleUtil.toCssText(rules, function(rule) {
-        if (settings.useNativeCSSProperties) {
-          if (!styleUtil.getCssBuildType(element)) {
-            Polymer.ApplyShim.transformRule(rule);
-          }
-          return;
-        }
         var css = rule.cssText = rule.parsedCssText;
         if (rule.propertyInfo && rule.propertyInfo.cssText) {
           // remove property assignments
