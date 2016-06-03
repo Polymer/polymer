@@ -9,6 +9,67 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <link rel="import" href="style-util.html">
 <script>
+/**
+ * The apply shim simulates the behavior of `@apply` proposed at 
+ * https://tabatkins.github.io/specs/css-apply-rule/.
+ * The approach is to convert a property like this:
+ *
+ *    --foo: {color: red; background: blue;}
+ *
+ * to this:
+ *
+ *    --foo-color: red;
+ *    --foo-background: blue;
+ *
+ * Then where `@apply --foo` is used, that is converted to:
+ *
+ *    color: var(--foo-color);
+ *    background: var(--foo-background);
+ *
+ * This approach generally works but there are some issues and limitations.
+ * Consider, for example, that somewhere *between* where `--foo` is set and used,
+ * another element sets it to:
+ *
+ *    --foo: { border: 2px solid red; }
+ *
+ * We must now ensure that the color and background from the previous setting 
+ * do not apply. This is accomplished by changing the property set to this:
+ *
+ *    --foo-border: 2px solid red;
+ *    --foo-color: initial;
+ *    --foo-background: initial;
+ *
+ * This works but introduces one new issue. 
+ * Consider this setup at the point where the `@apply` is used:
+ *
+ *    background: orange;
+ *    @apply --foo;
+ *
+ * In this case the background will be unset (initial) rather than the desired
+ * `orange`. We address this by altering the property set to use a fallback
+ * value like this:
+ *
+ *    color: var(--foo-color);
+ *    background: var(--foo-background, orange);
+ *    border: var(--foo-border);
+ *
+ * Note that the default is retained in the property set and the `background` is 
+ * the desired `orange`. This leads us to a limitation.
+ * 
+ * Limitation 1:
+
+ * Only properties in the rule where the `@apply`
+ * is used are considered as default values. 
+ * If another rule matches the element and sets `background` with
+ * less specificity than the rule in which `@apply` appears, 
+ * the `background` will not be set.
+ *
+ * Limitation 2:
+ *
+ * When using Polymer's `updateStyles` api, new properties may not be set for 
+ * `@apply` properties.
+
+*/
 Polymer.ApplyShim = (function(){
   'use strict';
 
@@ -73,6 +134,8 @@ Polymer.ApplyShim = (function(){
     var oldProperties = mapGet(propertyName);
     var combinedProps = mixinValues;
     if (oldProperties) {
+      // NOTE: since we use mixin, the map of properties is updated here
+      // and this is what we want.
       combinedProps = Polymer.Base.mixin(oldProperties, mixinValues);
     } else {
       mapSet(propertyName, combinedProps);

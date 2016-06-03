@@ -232,6 +232,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var props = {}, self = this;
         // generates a unique key for these matches
         var o = [], i = 0;
+        // note: active rules excludes non-matching @media rules
         styleUtil.forActiveRulesInStyles(styles, function(rule) {
           // TODO(sorvell): we could trim the set of rules at declaration
           // time to only include ones that have properties
@@ -256,6 +257,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       hostAndRootPropertiesForScope: function(scope) {
         var hostProps = {}, rootProps = {}, self = this;
+        // note: active rules excludes non-matching @media rules
         styleUtil.forActiveRulesInStyles(scope._styles, function(rule, style) {
           if (!rule.propertyInfo) {
             self.decorateRule(rule);
@@ -269,15 +271,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var parsedSelector = rule.parsedSelector;
           var isRoot = parsedSelector === ':root';
           var isHost = parsedSelector.indexOf(':host') === 0;
-          // rule._buildType is set for rules from custom-styles, or the dom-module of the element has it
-          var cssBuildType = scope.__cssBuild || style.__cssBuild;
-          if (cssBuildType === 'shady') {
+          // build info is either in scope (when scope is an element) or in the style
+          // when scope is the default scope; note: this allows default scope to have
+          // mixed mode built and unbuilt styles.
+          var cssBuild = scope.__cssBuild || style.__cssBuild;
+          if (cssBuild === 'shady') {
             // :root -> x-foo > *.x-foo for elements and html for custom-style
             isRoot = parsedSelector === (hostScope + '> *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
             // :host -> x-foo for elements, but sub-rules have .x-foo in them
             isHost = !isRoot && parsedSelector.indexOf(hostScope) === 0;
           }
-          if (cssBuildType === 'shadow') {
+          if (cssBuild === 'shadow') {
             isRoot = parsedSelector === ':host > *' || parsedSelector === 'html';
             isHost = isHost && !isRoot;
           }
@@ -479,9 +483,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       /* Applies a set of properties to an element's style natively (used to
-       * support element.customStyle / element.updateStyles
+       * support element.customStyle / element.updateStyles)
        */
-      // TODO(dfreedm): @apply.
       updateNativeStyleProperties: function(element, properties) {
         // remove existing properties
         for (var i=0; i < element.style.length; i++) {
