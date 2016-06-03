@@ -10,7 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="style-util.html">
 <script>
 /**
- * The apply shim simulates the behavior of `@apply` proposed at 
+ * The apply shim simulates the behavior of `@apply` proposed at
  * https://tabatkins.github.io/specs/css-apply-rule/.
  * The approach is to convert a property like this:
  *
@@ -18,13 +18,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
  *
  * to this:
  *
- *    --foo-color: red;
- *    --foo-background: blue;
+ *    --foo_-_color: red;
+ *    --foo_-_background: blue;
  *
  * Then where `@apply --foo` is used, that is converted to:
  *
- *    color: var(--foo-color);
- *    background: var(--foo-background);
+ *    color: var(--foo_-_color);
+ *    background: var(--foo_-_background);
  *
  * This approach generally works but there are some issues and limitations.
  * Consider, for example, that somewhere *between* where `--foo` is set and used,
@@ -32,14 +32,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
  *
  *    --foo: { border: 2px solid red; }
  *
- * We must now ensure that the color and background from the previous setting 
+ * We must now ensure that the color and background from the previous setting
  * do not apply. This is accomplished by changing the property set to this:
  *
- *    --foo-border: 2px solid red;
- *    --foo-color: initial;
- *    --foo-background: initial;
+ *    --foo_-_border: 2px solid red;
+ *    --foo_-_color: initial;
+ *    --foo_-_background: initial;
  *
- * This works but introduces one new issue. 
+ * This works but introduces one new issue.
  * Consider this setup at the point where the `@apply` is used:
  *
  *    background: orange;
@@ -49,24 +49,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
  * `orange`. We address this by altering the property set to use a fallback
  * value like this:
  *
- *    color: var(--foo-color);
- *    background: var(--foo-background, orange);
- *    border: var(--foo-border);
+ *    color: var(--foo_-_color);
+ *    background: var(--foo_-_background, orange);
+ *    border: var(--foo_-_border);
  *
- * Note that the default is retained in the property set and the `background` is 
+ * Note that the default is retained in the property set and the `background` is
  * the desired `orange`. This leads us to a limitation.
- * 
+ *
  * Limitation 1:
 
  * Only properties in the rule where the `@apply`
- * is used are considered as default values. 
+ * is used are considered as default values.
  * If another rule matches the element and sets `background` with
- * less specificity than the rule in which `@apply` appears, 
+ * less specificity than the rule in which `@apply` appears,
  * the `background` will not be set.
  *
  * Limitation 2:
  *
- * When using Polymer's `updateStyles` api, new properties may not be set for 
+ * When using Polymer's `updateStyles` api, new properties may not be set for
  * `@apply` properties.
 
 */
@@ -79,6 +79,10 @@ Polymer.ApplyShim = (function(){
   var VAR_ASSIGN = styleUtil.rx.VAR_ASSIGN;
   var VAR_MATCH = styleUtil.rx.VAR_MATCH;
   var APPLY_NAME_CLEAN = /;\s*/m;
+
+  // separator used between mixin-name and mixin-property-name when producing properties
+  // NOTE: plain '-' may cause collisions in user styles
+  var MIXIN_VAR_SEP = '_-_';
 
   // map of mixin to property names
   // --foo: {border: 2px} -> (--foo, ['border'])
@@ -149,7 +153,7 @@ Polymer.ApplyShim = (function(){
       if (v === undefined) {
         v = 'initial';
       }
-      out.push(propertyName + '-' + p + ': ' + v);
+      out.push(propertyName + MIXIN_VAR_SEP + p + ': ' + v);
     }
     return prefix + out.join('; ') + ';';
   }
@@ -165,9 +169,9 @@ Polymer.ApplyShim = (function(){
   }
 
   // produce variable consumption at the site of mixin consumption
-  // @apply --foo; -> for all props (${propname}: var(--foo-${propname}, ${fallback[propname]}}))
+  // @apply --foo; -> for all props (${propname}: var(--foo_-_${propname}, ${fallback[propname]}}))
   // Example:
-  // border: var(--foo-border); padding: var(--foo-padding, 2px)
+  // border: var(--foo_-_border); padding: var(--foo_-_padding, 2px)
   function atApplyToCssProperties(mixinName, fallbacks) {
     mixinName = mixinName.replace(APPLY_NAME_CLEAN, '');
     var vars = [];
@@ -176,7 +180,7 @@ Polymer.ApplyShim = (function(){
       var p, parts, f;
       for (p in mixinProperties) {
         f = fallbacks && fallbacks[p];
-        parts = [p, ': var(', mixinName, '-', p];
+        parts = [p, ': var(', mixinName, MIXIN_VAR_SEP, p];
         if (f) {
           parts.push(',', f);
         }
@@ -214,6 +218,7 @@ Polymer.ApplyShim = (function(){
 
   var ApplyShim = {
     _map: mixinMap,
+    _separator: MIXIN_VAR_SEP,
     transform: function(styles) {
       styleUtil.forRulesInStyles(styles, this._boundTransformRule);
     },
