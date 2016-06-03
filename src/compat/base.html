@@ -58,8 +58,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           Polymer.StyleUtil.prepStyleIncludes(proto._template.content);
           data.bindTemplate(proto, proto._template);
         } else if (proto.initializeWhenCreated === undefined) {
+          // TODO(sorvell): bad because these elements stamp before they have
+          // a dataHost and therefore they cannot notify default values to the host.
           // non-template elements always initialize.
-          proto.initializeWhenCreated = true;
+          //proto.initializeWhenCreated = true;
         }
         behaviors.callMethod(proto, 'registered');
       }
@@ -99,6 +101,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       } else {
         this.root = this;
       }
+      data.recordInstanceProperties(this);
       data.enablePropertyEffects(this);
       behaviors.callMethod(this, 'ready');
     },
@@ -251,21 +254,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     listen: function(node, eventName, methodName) {
       node = node || this;
-      node.__eventHandlers = node.__eventHandlers || {};
+      var hbl = this.__boundListeners || 
+        (this.__boundListeners = new WeakMap());
+      var bl = hbl.get(node);
+      if (!bl) {
+        bl = {};
+        hbl.set(node, bl);
+      }
       var key = eventName + methodName;
-      if (!node.__eventHandlers[key]) {
-        node.__eventHandlers[key] = 
-          events.addMethodListener(node, eventName, methodName, this);
+      if (!bl[key]) {
+        bl[key] = events.addMethodListener(node, eventName, methodName, this);
       }
     },
 
     unlisten: function(node, eventName, methodName) {
       node = node || this;
+      var bl = this.__boundListeners && this.__boundListeners.get(node);
       var key = eventName + methodName;
-      var handler = node.__eventHandlers && node.__eventHandlers[key];
+      var handler = bl && bl[key];
       if (handler) {
         events.removeListener(node, eventName, handler);
-        node.__eventHandlers[key] = null;
+        bl[key] = null;
       }
     }, 
     
