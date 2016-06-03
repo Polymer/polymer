@@ -172,7 +172,6 @@ Note, all features of `custom-style` are available when defining styles as part 
       if (!e.textContent) {
         return;
       }
-      var buildType = this.__cssBuild;
       // static shimming
       // (css build will already process document rule and apply shim)
       // cases:
@@ -181,10 +180,21 @@ Note, all features of `custom-style` are available when defining styles as part 
       // build = shady, use = shadow => not supported
       // build = shadow, use = shady => needs shimming.
       // build = none => needs shimming
-      if (!styleUtil.isTargetedBuild(buildType)) {
-        styleUtil.forEachRule(styleUtil.rulesForStyle(e),
+
+      var buildType = this.__cssBuild;
+      var targetedBuild = styleUtil.isTargetedBuild(buildType);
+
+      // bail early if the style is already built for current settings
+      if (settings.useNativeCSSProperties && targetedBuild) {
+        return;
+      }
+      var styleRules = styleUtil.rulesForStyle(e);
+      if (!targetedBuild) {
+        styleUtil.forEachRule(styleRules,
           function(rule) {
+            // shim the selector for current runtime settings
             styleTransformer.documentRule(rule);
+            // run the apply shim if unbuilt and using native css custom properties
             if (settings.useNativeCSSProperties && !buildType) {
               applyShim.transformRule(rule);
             }
@@ -194,11 +204,8 @@ Note, all features of `custom-style` are available when defining styles as part 
       // custom properties shimming
       // (if we use native custom properties, no need to apply any property shimming)
       if (settings.useNativeCSSProperties) {
-        // but if there's no targeted build, then the shimmed styles must be applied.
-        if (!styleUtil.isTargetedBuild(buildType)) {
-          e.textContent = styleUtil.toCssText(
-            styleUtil.rulesForStyle(e));
-        }
+        // there's no targeted build, so the shimmed styles must be applied.
+        e.textContent = styleUtil.toCssText(styleRules);
       // otherwise needs property shimming...
       } else {
         // Allow all custom-styles defined in this turn to register
