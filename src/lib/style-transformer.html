@@ -9,13 +9,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="style-util.html">
+<link rel="import" href="settings.html">
 
 <script>
 
   Polymer.StyleTransformer = (function() {
 
-    var nativeShadow = Polymer.Settings.useNativeShadow;
     var styleUtil = Polymer.StyleUtil;
+    var settings = Polymer.Settings;
 
     /* Transforms ShadowDOM styling into ShadyDOM styling
 
@@ -95,9 +96,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       elementStyles: function(element, callback) {
         var styles = element._styles;
         var cssText = '';
+        var cssBuildType = element.__cssBuild;
         for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
           var rules = styleUtil.rulesForStyle(s);
-          cssText += nativeShadow ?
+          // no need to shim selectors if settings.useNativeShadow, also
+          // a shady css build will already have transformed selectors
+          // NOTE: This method may be called as part of static or property shimming.
+          // When there is a targeted build it will not be called for static shimming,
+          // but when the property shim is used it is called and should opt out of
+          // static shimming work when a proper build exists.
+          cssText += (settings.useNativeShadow || cssBuildType === 'shady') ?
             styleUtil.toCssText(rules, callback) :
             this.css(rules, element.is, element.extends, callback,
             element._scopeCssViaAttr) + '\n\n';
@@ -145,6 +153,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // transforms a css rule to a scoped rule.
       _transformRule: function(rule, transformer, scope, hostScope) {
+        // NOTE: save transformedSelector for subsequent matching of elements
+        // against selectors (e.g. when calculating style properties)
+        rule.selector = rule.transformedSelector =
+          this._transformRuleCss(rule, transformer, scope, hostScope);
+      },
+
+      _transformRuleCss: function(rule, transformer, scope, hostScope) {
         var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
         // we want to skip transformation of rules that appear in keyframes,
         // because they are keyframe selectors, not element selectors.
@@ -153,10 +168,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             p$[i] = transformer.call(this, p, scope, hostScope);
           }
         }
-        // NOTE: save transformedSelector for subsequent matching of elements
-        // against selectors (e.g. when calculating style properties)
-        rule.selector = rule.transformedSelector =
-          p$.join(COMPLEX_SELECTOR_SEP);
+        return p$.join(COMPLEX_SELECTOR_SEP);
       },
 
       _transformComplexSelector: function(selector, scope, hostScope) {
@@ -195,7 +207,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else if (selector.indexOf(HOST) >=0) {
           // :host(...) -> scopeName...
           selector = selector.replace(HOST_PAREN, function(m, host, paren) {
-            return hostScope + paren;
+            return (m.indexOf(hostScope) === -1 ? hostScope : '') + paren;
           });
           // now normal :host
           selector = selector.replace(HOST, hostScope);
@@ -229,14 +241,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // reset selector in case this is redone.
         rule.selector = rule.parsedSelector;
         this.normalizeRootSelector(rule);
-        if (!nativeShadow) {
+        if (!settings.useNativeShadow) {
           this._transformRule(rule, this._transformDocumentSelector);
         }
       },
 
       normalizeRootSelector: function(rule) {
         if (rule.selector === ROOT) {
-          rule.selector = 'body';
+          rule.selector = 'html';
         }
       },
 

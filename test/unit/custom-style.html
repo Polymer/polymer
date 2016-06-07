@@ -284,32 +284,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </dom-module>
 
   <script>
+  HTMLImports.whenReady(function() {
+    Polymer({
+      is: 'x-baz'
+    });
+
+    Polymer({
+      is: 'x-bar'
+    });
+
+    Polymer({
+      is: 'x-foo'
+    });
+
+    Polymer({
+      is: 'x-red-text'
+    });
+
+    Polymer({
+      is: 'x-blue-bold-text'
+    });
+  })
+  </script>
+
+  <script>
 
     suite('custom-style', function() {
 
-      var xBar, xFoo;
+      var xBar, xFoo, stylesBuilt;
 
       suiteSetup(function() {
-
-        Polymer({
-          is: 'x-baz'
-        });
-
-        Polymer({
-          is: 'x-bar'
-        });
-
-        Polymer({
-          is: 'x-foo'
-        });
-
-        Polymer({
-          is: 'x-red-text'
-        });
-
-        Polymer({
-          is: 'x-blue-bold-text'
-        });
+        var customStyle = document.querySelector('style[is="custom-style"]');
+        stylesBuilt = Polymer.StyleUtil.getCssBuildType(customStyle);
 
         xBar = document.querySelector('x-bar');
         xFoo = document.querySelector('x-foo');
@@ -335,9 +341,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
 
       test('custom properties registered as defaults', function() {
-        var props = Polymer.StyleDefaults._styleProperties;
-        assert.property(props, '--italic');
-        assert.property(props, '--bag');
+        var propsToCheck = ['--italic'];
+        if (Polymer.Settings.useNativeCSSProperties || stylesBuilt) {
+          var sep = Polymer.ApplyShim._separator;
+          propsToCheck.push('--bag' + sep + 'margin', '--bag' + sep + 'border');
+        } else {
+          propsToCheck.push('--bag');
+        }
+        if (Polymer.Settings.useNativeCSSProperties) {
+          var cs = getComputedStyle(document.documentElement);
+          propsToCheck.forEach(function(p) {
+            assert.ok(cs.getPropertyValue(p));
+          });
+        } else {
+          var props = Polymer.StyleDefaults._styleProperties;
+          propsToCheck.forEach(function(p) {
+            assert.property(props, p);
+          });
+        }
       });
 
       test('custom properties with space before semicolon', function() {
@@ -357,13 +378,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       test('custom-styles apply normal and property values to main document', function() {
         var bag = document.querySelector('.bag');
         var italic = document.querySelector('.italic');
-        assertComputed(document.body, '10px', 'margin-top');
         assertComputed(bag, '1px');
         assertComputed(italic, 'italic', 'font-style');
       });
 
       test('imported custom-styles apply', function() {
-        assertComputed(document.body, '10px', 'padding-top');
+        if (stylesBuilt && !Polymer.Settings.useNativeCSSProperties) {
+          // css build will test this by using vulcanize.
+          // this inlines the custom-style after the consumption point, and changes the timing for custom property shim
+          // Force an update style for this weird corner case in the tests
+          Polymer.updateStyles();
+        }
         var v = document.querySelector('.import-var');
         var m = document.querySelector('.import-mixin');
         assertComputed(v, '3px');
@@ -389,10 +414,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       test('custom-styles apply to pseudo elements', function() {
         var e = document.querySelector('#after');
         assertComputed(e, '11px', null, '::after');
-      });
-
-      test('@apply in :root rule that also defines properties', function() {
-        assertComputed(document.body, '12px');
       });
 
       test('style paths in included dom-modules loaded in import', function() {

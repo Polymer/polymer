@@ -12,6 +12,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../lib/debounce.html">
 
 <script>
+(function() {
+
+  'use strict';
 
   Polymer.Base._addFeature({
 
@@ -363,28 +366,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {HTMLLinkElement} The link element for the URL to be loaded.
      */
     importHref: function(href, onload, onerror, optAsync) {
-      var l = document.createElement('link');
-      l.rel = 'import';
-      l.href = href;
-
-      optAsync = Boolean(optAsync);
-      if (optAsync) {
-        l.setAttribute('async', '');
-      }
-
+      var link = document.createElement('link');
+      link.rel = 'import';
+      link.href = href;
+      var list = Polymer.Base.importHref.imported = 
+        Polymer.Base.importHref.imported || {};
+      var cached = list[link.href];
+      var imprt = cached || link;
       var self = this;
       if (onload) {
-        l.onload = function(e) {
+        var loadListener = function(e) {
+          e.target.__firedLoad = true;
+          e.target.removeEventListener('load', loadListener);
           return onload.call(self, e);
         }
+        imprt.addEventListener('load', loadListener);
       }
       if (onerror) {
-        l.onerror = function(e) {
+        var errorListener = function(e) {
+          e.target.__firedError = true;
+          e.target.removeEventListener('error', errorListener);
           return onerror.call(self, e);
         }
+        imprt.addEventListener('error', errorListener);
       }
-      document.head.appendChild(l);
-      return l;
+      // if already loaded/erroed, fire 'fake' load/error event
+      if (cached) {
+        if (cached.__firedLoad) {
+          cached.dispatchEvent(new Event('load'));
+        }
+        if (cached.__firedError) {
+          cached.dispatchEvent(new Event('error'));
+        }
+      // otherwise put in dom!
+      } else {
+        list[link.href] = link;
+        optAsync = Boolean(optAsync);
+        if (optAsync) {
+          link.setAttribute('async', '');
+        }
+        document.head.appendChild(link);
+      }
+      return imprt;
     },
 
     /**
@@ -431,4 +454,5 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   });
 
+})();
 </script>
