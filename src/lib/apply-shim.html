@@ -1,0 +1,247 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="style-util.html">
+<script>
+/**
+ * The apply shim simulates the behavior of `@apply` proposed at
+ * https://tabatkins.github.io/specs/css-apply-rule/.
+ * The approach is to convert a property like this:
+ *
+ *    --foo: {color: red; background: blue;}
+ *
+ * to this:
+ *
+ *    --foo_-_color: red;
+ *    --foo_-_background: blue;
+ *
+ * Then where `@apply --foo` is used, that is converted to:
+ *
+ *    color: var(--foo_-_color);
+ *    background: var(--foo_-_background);
+ *
+ * This approach generally works but there are some issues and limitations.
+ * Consider, for example, that somewhere *between* where `--foo` is set and used,
+ * another element sets it to:
+ *
+ *    --foo: { border: 2px solid red; }
+ *
+ * We must now ensure that the color and background from the previous setting
+ * do not apply. This is accomplished by changing the property set to this:
+ *
+ *    --foo_-_border: 2px solid red;
+ *    --foo_-_color: initial;
+ *    --foo_-_background: initial;
+ *
+ * This works but introduces one new issue.
+ * Consider this setup at the point where the `@apply` is used:
+ *
+ *    background: orange;
+ *    @apply --foo;
+ *
+ * In this case the background will be unset (initial) rather than the desired
+ * `orange`. We address this by altering the property set to use a fallback
+ * value like this:
+ *
+ *    color: var(--foo_-_color);
+ *    background: var(--foo_-_background, orange);
+ *    border: var(--foo_-_border);
+ *
+ * Note that the default is retained in the property set and the `background` is
+ * the desired `orange`. This leads us to a limitation.
+ *
+ * Limitation 1:
+
+ * Only properties in the rule where the `@apply`
+ * is used are considered as default values.
+ * If another rule matches the element and sets `background` with
+ * less specificity than the rule in which `@apply` appears,
+ * the `background` will not be set.
+ *
+ * Limitation 2:
+ *
+ * When using Polymer's `updateStyles` api, new properties may not be set for
+ * `@apply` properties.
+
+*/
+Polymer.ApplyShim = (function(){
+  'use strict';
+
+  var styleUtil = Polymer.StyleUtil;
+
+  var MIXIN_MATCH = styleUtil.rx.MIXIN_MATCH;
+  var VAR_ASSIGN = styleUtil.rx.VAR_ASSIGN;
+  var VAR_MATCH = styleUtil.rx.VAR_MATCH;
+  var APPLY_NAME_CLEAN = /;\s*/m;
+
+  // separator used between mixin-name and mixin-property-name when producing properties
+  // NOTE: plain '-' may cause collisions in user styles
+  var MIXIN_VAR_SEP = '_-_';
+
+  // map of mixin to property names
+  // --foo: {border: 2px} -> (--foo, ['border'])
+  var mixinMap = {};
+
+  function mapSet(name, prop) {
+    name = name.trim();
+    mixinMap[name] = prop;
+  }
+
+  function mapGet(name) {
+    name = name.trim();
+    return mixinMap[name];
+  }
+
+  // "parse" a mixin definition into a map of properties and values
+  // cssTextToMap('border: 2px solid black') -> ('border', '2px solid black')
+  function cssTextToMap(text) {
+    var props = text.split(';');
+    var out = {};
+    for (var i = 0, p, sp; i < props.length; i++) {
+      p = props[i];
+      if (p) {
+        sp = p.split(':');
+        // ignore lines that aren't definitions like @media
+        if (sp.length > 1) {
+          // some properties may have ':' in the value, like data urls
+          out[sp[0].trim()] = sp.slice(1).join(':');
+        }
+      }
+    }
+    return out;
+  }
+
+  function produceCssProperties(matchText, propertyName, valueProperty, valueMixin) {
+    // handle case where property value is a mixin
+    if (valueProperty) {
+      VAR_MATCH.lastIndex = 0;
+      var m = VAR_MATCH.exec(valueProperty);
+      if (m) {
+        var value = m[2];
+        if (mapGet(value)){
+          valueMixin = '@apply ' + value + ';';
+        }
+      }
+    }
+    if (!valueMixin) {
+      return matchText;
+    }
+    var mixinAsProperties = consumeCssProperties(valueMixin);
+    var prefix = matchText.slice(0, matchText.indexOf('--'));
+    var mixinValues = cssTextToMap(mixinAsProperties);
+    var oldProperties = mapGet(propertyName);
+    var combinedProps = mixinValues;
+    if (oldProperties) {
+      // NOTE: since we use mixin, the map of properties is updated here
+      // and this is what we want.
+      combinedProps = Polymer.Base.mixin(oldProperties, mixinValues);
+    } else {
+      mapSet(propertyName, combinedProps);
+    }
+    var out = [];
+    var p, v;
+    // set variables defined by current mixin
+    for (p in combinedProps) {
+      v = mixinValues[p];
+      // if property not defined by current mixin, set initial
+      if (v === undefined) {
+        v = 'initial';
+      }
+      out.push(propertyName + MIXIN_VAR_SEP + p + ': ' + v);
+    }
+    return prefix + out.join('; ') + ';';
+  }
+
+  // fix shim'd var syntax
+  // var(--a, --b) -> var(--a, var(--b));
+  function fixVars(matchText, prefix, value, fallback) {
+    // if fallback doesn't exist, or isn't a broken variable, abort
+    if (!fallback || fallback.indexOf('--') !== 0) {
+      return matchText;
+    }
+    return [prefix, 'var(', value, ', var(', fallback, '));'].join('');
+  }
+
+  // produce variable consumption at the site of mixin consumption
+  // @apply --foo; -> for all props (${propname}: var(--foo_-_${propname}, ${fallback[propname]}}))
+  // Example:
+  // border: var(--foo_-_border); padding: var(--foo_-_padding, 2px)
+  function atApplyToCssProperties(mixinName, fallbacks) {
+    mixinName = mixinName.replace(APPLY_NAME_CLEAN, '');
+    var vars = [];
+    var mixinProperties = mapGet(mixinName);
+    if (mixinProperties) {
+      var p, parts, f;
+      for (p in mixinProperties) {
+        f = fallbacks && fallbacks[p];
+        parts = [p, ': var(', mixinName, MIXIN_VAR_SEP, p];
+        if (f) {
+          parts.push(',', f);
+        }
+        parts.push(')');
+        vars.push(parts.join(''));
+      }
+    }
+    return vars.join('; ');
+  }
+
+  // replace mixin consumption with variable consumption
+  function consumeCssProperties(text) {
+    var m;
+    // loop over text until all mixins with defintions have been applied
+    while((m = MIXIN_MATCH.exec(text))) {
+      var matchText = m[0];
+      var mixinName = m[1];
+      var idx = m.index;
+      // collect properties before apply to be "defaults" if mixin might override them
+      // match includes a "prefix", so find the start and end positions of @apply
+      var applyPos = idx + matchText.indexOf('@apply');
+      var afterApplyPos = idx + matchText.length;
+      // find props defined before this @apply
+      var textBeforeApply = text.slice(0, applyPos);
+      var textAfterApply = text.slice(afterApplyPos);
+      var defaults = cssTextToMap(textBeforeApply);
+      var replacement = atApplyToCssProperties(mixinName, defaults);
+      // use regex match position to replace mixin, keep linear processing time
+      text = [textBeforeApply, replacement, textAfterApply].join('');
+      // move regex search to _after_ replacement
+      MIXIN_MATCH.lastIndex = idx + replacement.length;
+    }
+    return text;
+  }
+
+  var ApplyShim = {
+    _map: mixinMap,
+    _separator: MIXIN_VAR_SEP,
+    transform: function(styles) {
+      styleUtil.forRulesInStyles(styles, this._boundTransformRule);
+    },
+    transformRule: function(rule) {
+      rule.cssText = this.transformCssText(rule.parsedCssText);
+      // :root was only used for variable assignment in property shim,
+      // but generates invalid selectors with real properties.
+      // replace with `:host > *`, which serves the same effect
+      if (rule.selector === ':root') {
+        rule.selector = ':host > *';
+      }
+    },
+    transformCssText: function(cssText) {
+      // fix shim variables
+      cssText = cssText.replace(VAR_MATCH, fixVars);
+      // produce variables
+      cssText = cssText.replace(VAR_ASSIGN, produceCssProperties);
+      // consume mixins
+      return consumeCssProperties(cssText);
+    }
+  };
+
+  ApplyShim._boundTransformRule = ApplyShim.transformRule.bind(ApplyShim);
+  return ApplyShim;
+})();
+</script>

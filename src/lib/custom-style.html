@@ -10,6 +10,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="style-util.html">
 <link rel="import" href="style-transformer.html">
 <link rel="import" href="style-defaults.html">
+<link rel="import" href="apply-shim.html">
+<link rel="import" href="settings.html">
 
 <!--
 
@@ -55,6 +57,23 @@ Example:
 
   </style>
 
+  <dom-module id="shared-style">
+    <template>
+      <style>
+        :root {
+          --shared-background-color: #bada55;
+        }
+      </style>
+    </template>
+  </dom-module>
+
+  <style is="custom-style" include="shared-style">
+
+    body {
+      background-color: var(--shared-background-color);
+    }
+
+  </style>
 </head>
 <body>
 
@@ -76,6 +95,9 @@ Note, all features of `custom-style` are available when defining styles as part 
   var cssParse = Polymer.CssParse;
   var styleDefaults = Polymer.StyleDefaults;
   var styleTransformer = Polymer.StyleTransformer;
+  var applyShim = Polymer.ApplyShim;
+
+  var settings = Polymer.Settings;
 
   Polymer({
 
@@ -89,6 +111,8 @@ Note, all features of `custom-style` are available when defining styles as part 
        * Specify `include` to identify a `dom-module` containing style data which
        * should be used within the `custom-style`. By using `include` style data
        * may be shared between multiple different `custom-style` elements.
+       *
+       * To include multiple `dom-modules`, use `include="module1 module2"`.
        */
       include: String
     },
@@ -96,6 +120,12 @@ Note, all features of `custom-style` are available when defining styles as part 
     ready: function() {
       // NOTE: we cannot just check attached because custom elements in
       // HTMLImports do not get attached.
+      this.__appliedElement = this.__appliedElement || this;
+      this.__cssBuild = styleUtil.getCssBuildType(this)
+      // forward css-build status to applied element in main document
+      if (this.__appliedElement !== this) {
+        this.__appliedElement.__cssBuild = this.__cssBuild;
+      }
       this._tryApply();
     },
 
@@ -109,9 +139,11 @@ Note, all features of `custom-style` are available when defining styles as part 
         if (this.parentNode &&
           (this.parentNode.localName !== 'dom-module')) {
           this._appliesToDocument = true;
+          var e = this.__appliedElement;
           // used applied element from HTMLImports polyfill or this
-          var e = this.__appliedElement || this;
-          styleDefaults.addStyle(e);
+          if (!settings.useNativeCSSProperties) {
+            styleDefaults.addStyle(e);
+          }
           // we may not have any textContent yet due to parser yielding
           // if so, wait until we do...
           if (e.textContent || this.include) {
@@ -132,15 +164,50 @@ Note, all features of `custom-style` are available when defining styles as part 
     // apply custom properties!
     _apply: function(deferProperties) {
       // used applied element from HTMLImports polyfill or this
-      var e = this.__appliedElement || this;
+      var e = this.__appliedElement;
       if (this.include) {
         e.textContent = styleUtil.cssFromModules(this.include, true) +
           e.textContent;
       }
-      if (e.textContent) {
-        styleUtil.forEachRule(styleUtil.rulesForStyle(e), function(rule) {
-          styleTransformer.documentRule(rule);
-        });
+      if (!e.textContent) {
+        return;
+      }
+      // static shimming
+      // (css build will already process document rule and apply shim)
+      // cases:
+      // build = shady, use = shady => do nothing
+      // build = shadow, use = shadow => do nothing
+      // build = shady, use = shadow => not supported
+      // build = shadow, use = shady => needs shimming.
+      // build = none => needs shimming
+
+      var buildType = this.__cssBuild;
+      var targetedBuild = styleUtil.isTargetedBuild(buildType);
+
+      // bail early if the style is already built for current settings
+      if (settings.useNativeCSSProperties && targetedBuild) {
+        return;
+      }
+      var styleRules = styleUtil.rulesForStyle(e);
+      if (!targetedBuild) {
+        styleUtil.forEachRule(styleRules,
+          function(rule) {
+            // shim the selector for current runtime settings
+            styleTransformer.documentRule(rule);
+            // run the apply shim if unbuilt and using native css custom properties
+            if (settings.useNativeCSSProperties && !buildType) {
+              applyShim.transformRule(rule);
+            }
+          }
+        );
+      }
+      // custom properties shimming
+      // (if we use native custom properties, no need to apply any property shimming)
+      if (settings.useNativeCSSProperties) {
+        // there's no targeted build, so the shimmed styles must be applied.
+        e.textContent = styleUtil.toCssText(styleRules);
+      // otherwise needs property shimming...
+      } else {
         // Allow all custom-styles defined in this turn to register
         // before applying any properties. This helps ensure that all properties
         // are defined before any are consumed.
@@ -157,7 +224,7 @@ Note, all features of `custom-style` are available when defining styles as part 
         // This case should only occur with native webcomponents.
         var self = this;
         var fn = function fn() {
-          self._applyCustomProperties(e);
+          self._applyCustomProperties();
         }
         if (this._pendingApplyProperties) {
           cancelAnimationFrame(this._pendingApplyProperties);
@@ -171,10 +238,14 @@ Note, all features of `custom-style` are available when defining styles as part 
       }
     },
 
-    _applyCustomProperties: function(element) {
+    _applyCustomProperties: function() {
+      var element = this.__appliedElement;
       this._computeStyleProperties();
       var props = this._styleProperties;
       var rules = styleUtil.rulesForStyle(element);
+      if (!rules) {
+        return;
+      }
       element.textContent = styleUtil.toCssText(rules, function(rule) {
         var css = rule.cssText = rule.parsedCssText;
         if (rule.propertyInfo && rule.propertyInfo.cssText) {

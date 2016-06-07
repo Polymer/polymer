@@ -1,5 +1,74 @@
 # Change Log
 
+##[v1.5.0](https://github.com/Polymer/polymer/tree/v1.5.0) (2016-05-31)
+- Fix test in Firefox that was hacked to work in Canary (instead filed https://bugs.chromium.org/p/chromium/issues/detail?id=614198). ([commit](https://github.com/Polymer/polymer/commit/1e2aed5))
+
+- remove unneeded argument ([commit](https://github.com/Polymer/polymer/commit/4a99b83))
+
+- slight optimization, avoid work if no cssText is set. ([commit](https://github.com/Polymer/polymer/commit/ce0bf86))
+
+- More efficient fix for #3661. Re-uses cached style element that needs to be replaced in the document rather than creating a new one. ([commit](https://github.com/Polymer/polymer/commit/63f91ae))
+
+- Fixes #3661: ensure that cached style points to the applied style for Shady DOM styling. This ensures that the cache can be used to determine if a style needs to be applied to the document and prevents extra unnecessary styles from being added. This could happen when a property cascaded to a nested element and updateStyles was called after properties have changed. ([commit](https://github.com/Polymer/polymer/commit/717fc3a))
+
+- Fix flakey attached/detached timing test. ([commit](https://github.com/Polymer/polymer/commit/04da868))
+
+- remove HTML comment ([commit](https://github.com/Polymer/polymer/commit/d339b28))
+
+- add more style[include] doc ([commit](https://github.com/Polymer/polymer/commit/b8fd12d))
+
+- Update the package.json name to match the actual npm published package. (#3570) ([commit](https://github.com/Polymer/polymer/commit/e57eb49))
+
+- Remove unused event cache store (#3591) ([commit](https://github.com/Polymer/polymer/commit/364ede9))
+
+- [ci skip] sudo should be "required" ([commit](https://github.com/Polymer/polymer/commit/c0e0a73))
+
+- transition to travis trusty images ([commit](https://github.com/Polymer/polymer/commit/b7c0b1f))
+
+- fine, console.dir then ([commit](https://github.com/Polymer/polymer/commit/c8cb3be))
+
+- fix ie missing console.table for stubbing ([commit](https://github.com/Polymer/polymer/commit/6d39644))
+
+- Support the devtools console.log api (multiple strings) for polymer logging ([commit](https://github.com/Polymer/polymer/commit/909ee82))
+
+- Compute and use correct annotation value during config ([commit](https://github.com/Polymer/polymer/commit/1b02e96))
+
+- Set propertyName on parent props for config phase. ([commit](https://github.com/Polymer/polymer/commit/d9c03a4))
+
+- Refactorings around how computational expressions get their arguments ([commit](https://github.com/Polymer/polymer/commit/677f10c))
+
+- Fix safari 7 again ([commit](https://github.com/Polymer/polymer/commit/b30f962))
+
+- Expose public API to reset mouse cancelling for testing touch ([commit](https://github.com/Polymer/polymer/commit/18bf9d4))
+
+- Delay detached callback with the same strategy as attached callback ([commit](https://github.com/Polymer/polymer/commit/7a244fa))
+
+- [ci skip] Add missing dom5 devDependency ([commit](https://github.com/Polymer/polymer/commit/5e2050a))
+
+- Don't use `translate` as a method for testing ([commit](https://github.com/Polymer/polymer/commit/f80346f))
+
+- Only fix prototype when registering at first create time. ([commit](https://github.com/Polymer/polymer/commit/7ad2bff))
+
+- Fixes #3525: Makes lazy registration compatible with platforms (like IE10) on which a custom element's prototype must be simulated. ([commit](https://github.com/Polymer/polymer/commit/4834651))
+
+- make sure gulp-cli 1 is used ([commit](https://github.com/Polymer/polymer/commit/29067ca))
+
+- Ensure Annotator recognizes dynamic fn as dependency for parent props. ([commit](https://github.com/Polymer/polymer/commit/15ff463))
+
+- [ci skip] Update CHANGELOG ([commit](https://github.com/Polymer/polymer/commit/223aa34))
+
+- Enabling caching of node_modules on Travis ([commit](https://github.com/Polymer/polymer/commit/6b6ec5d))
+
+- Fix undefined class attribute in undefined template scope ([commit](https://github.com/Polymer/polymer/commit/e21c59e))
+
+- Use a parser based html minification ([commit](https://github.com/Polymer/polymer/commit/0536e35))
+
+- Call _notifyPath instead of notifyPath in templatizer ([commit](https://github.com/Polymer/polymer/commit/067b7ed))
+
+- Keep it real for notifyPath. ([commit](https://github.com/Polymer/polymer/commit/40a1f79))
+
+- Null debounced callback to set for GC. ([commit](https://github.com/Polymer/polymer/commit/f366c1c))
+
 ##[v1.4.0](https://github.com/Polymer/polymer/tree/v1.4.0) (2016-03-18)
 - Fast check in createdCallback to see if registration has finished. ([commit](https://github.com/Polymer/polymer/commit/a3fce19))
 
