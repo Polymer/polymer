@@ -39,7 +39,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         } else {
           this._ownStylePropertyNames = this._styles && this._styles.length ?
-            propertyUtils.decorateStyles(this._styles) :
+            propertyUtils.decorateStyles(this._styles, this) :
             null;
         }
       },
@@ -144,9 +144,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             _scopeSelector: this._scopeSelector,
             _styleProperties: this._styleProperties
           };
-          scopeData.key.customStyle = {};
-          this.mixin(scopeData.key.customStyle, this.customStyle);
-          scope._styleCache.store(this.is, info, scopeData.key, this._styles);
+          // the scope cache does not evaluate if @media rules, :host(), or :host-context() rules defined in this element have changed
+          // therefore, if we detect those rules, we opt-out of the scope cache
+          var scopeCacheable = this._styles.every(function(s) {
+            return s._cacheable;
+          });
+          if (scopeCacheable) {
+            scopeData.key.customStyle = {};
+            this.mixin(scopeData.key.customStyle, this.customStyle);
+            scope._styleCache.store(this.is, info, scopeData.key, this._styles);
+          }
+          // global cache key is all property values consumed in this element,
+          // we _can_ use the global cache with @media, :host(), and :host-context() rules, as _computeStyleProperties will determine if those properties have changed
           if (!globalCached) {
             // save in global cache
             styleCache.store(this.is, Object.create(info), this._ownStyleProperties,
