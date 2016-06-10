@@ -28,17 +28,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // decorates styles with rule info and returns an array of used style
       // property names
       decorateStyles: function(styles, scope) {
-        var self = this, props = {}, keyframes = [];
-        // assume all styles are cacheable
-        for (var idx = 0; i < styles.length; i++) {
-          styles[idx]._cacheable = true;
-        }
+        var self = this, props = {}, keyframes = [], styleIndex = 0;
         styleUtil.forRulesInStyles(styles, function(rule, style) {
           self.decorateRule(rule);
+          // mark in-order position of ast rule in styles block, used for cache key
+          rule.index = styleIndex++;
           self.walkHostAndRootProperties(scope, rule, style, function(info) {
             // we can't cache styles with :host and :root props in @media rules
             if (rule.parent.type === styleUtil.ruleTypes.MEDIA_RULE) {
-              style._cacheable = false;
+              scope._notCacheable = true;
             }
             if (info.isHost) {
               // check if the selector is in the form of `:host-context()` or `:host()`
@@ -46,7 +44,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               var hostContextOrFunction = info.selector.split(' ').some(function(s) {
                 return s.indexOf(scope.is) === 0 && s.length !== scope.is.length;
               });
-              style._cacheable = style._cacheable && !hostContextOrFunction;
+              scope._notCacheable = scope._notCacheable || hostContextOrFunction;
             }
           });
           self.collectPropertiesInCssText(rule.propertyInfo.cssText, props);
