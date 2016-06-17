@@ -146,9 +146,6 @@ Note, all features of `custom-style` are available when defining styles as part 
           if (!settings.useNativeCSSProperties) {
             styleDefaults.addStyle(e);
           }
-          if (Polymer.RenderStatus.hasRendered()) {
-            updateDebouncer = debounce(updateDebouncer, this._updateStyles);
-          }
           // we may not have any textContent yet due to parser yielding
           // if so, wait until we do...
           if (e.textContent || this.include) {
@@ -232,18 +229,35 @@ Note, all features of `custom-style` are available when defining styles as part 
         // `_apply` after B.
         // This case should only occur with native webcomponents.
         var self = this;
+        // if Polymer is ready when this element tries to apply styling then,
+        // it has been loaded async and needs to trigger a full updateStyles
+        // to guarantee properies update correctly.
+        this.__needsUpdateStyles = Polymer.RenderStatus.hasRendered() && 
+          (this.__needsUpdateStyles !== false);
         var fn = function fn() {
-          self._applyCustomProperties();
-        }
-        if (this._pendingApplyProperties) {
-          cancelAnimationFrame(this._pendingApplyProperties);
-          this._pendingApplyProperties = null;
+          self._flushCustomProperties();
         }
         if (deferProperties) {
-          this._pendingApplyProperties = requestAnimationFrame(fn);
+          if (!this.__scheduledPropertiesFlush) {
+            this.__scheduledPropertiesFlush = true;
+            Polymer.RenderStatus.whenReady(fn);
+          }
         } else {
           fn();
         }
+      }
+    },
+
+    _flushCustomProperties: function() {
+      this.__scheduledPropertiesFlush = false;
+      // if this style has not yet applied at all and it was loaded asynchronously
+      // (detected by Polymer being ready when this element tried to apply), then
+      // do a full updateStyles to ensure that 
+      if (this.__needsUpdateStyles) {
+        this.__needsUpdateStyles = false;
+        updateDebouncer = debounce(updateDebouncer, this._updateStyles);
+      } else {
+        this._applyCustomProperties();
       }
     },
 
