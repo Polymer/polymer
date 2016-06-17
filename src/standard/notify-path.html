@@ -88,7 +88,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       // Note: this implemetation only accepts key-based array paths
-      _notifyPath: function(path, value, fromAbove) {
+      _notifyPath: function(path, value, fromAbove, origin, originalProperty) {
         var old = this._propertySetter(path, value);
         // manual dirty checking for now...
         // NaN is always not equal to itself,
@@ -98,7 +98,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // console.group((this.localName || this.dataHost.id + '-' + this.dataHost.dataHost.index) + '#' + (this.id || this.index) + ' ' + path, value);
           // Take path effects at this level for exact path matches,
           // and notify down for any bindings to a subset of this path
-          this._pathEffector(path, value);
+          this._pathEffector(path, value, fromAbove, origin, originalProperty);
           // Send event to notify the path change upwards
           // Optimization: don't notify up if we know the notification
           // is coming from above already (avoid wasted event dispatch)
@@ -150,12 +150,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {*} value Value to set at the specified path.
        * @param {Object=} root Root object from which the path is evaluated.
       */
-      set: function(path, value, root) {
-        var prop = root || this;
+      set: function(path, value, fromAbove, origin, originalProperty) {
         var parts = this._getPathParts(path);
-        var array;
-        var last = parts[parts.length-1];
         if (parts.length > 1) {
+          var prop = this;
+          var array;
+          var last = parts[parts.length-1];
           // Loop over path parts[0..n-2] and dereference
           for (var i=0; i<parts.length-1; i++) {
             var part = parts[i];
@@ -202,12 +202,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // Set value to object at end of path
           prop[last] = value;
           // Notify observers of path change
-          if (!root) {
-            this._notifyPath(parts.join('.'), value);
-          }
+          this._notifyPath(parts.join('.'), value, fromAbove,
+                           origin, originalProperty);
         } else {
-          // Simple property set
-          prop[path] = value;
+          this.__setProperty(path, value, undefined, fromAbove,
+                             origin, originalProperty)
         }
       },
 
@@ -267,7 +266,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return prop;
       },
 
-      _pathEffector: function(path, value) {
+      _pathEffector: function(path, value, fromAbove, origin, originalProperty) {
         // get root property
         var model = this._modelForPath(path);
         // search property effects of the root property for 'annotation' effects
@@ -277,7 +276,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // use memoized path functions
             var fxFn = fx.pathFn;
             if (fxFn) {
-              fxFn.call(this, path, value, fx.effect);
+              fxFn.call(this, path, value, fx.effect, fromAbove,
+                        origin, originalProperty);
             }
           }
         }
@@ -287,17 +287,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      _annotationPathEffect: function(path, value, effect) {
-        if (effect.value === path || effect.value.indexOf(path + '.') === 0) {
+      _annotationPathEffect: function(path, value, effect, fromAbove,
+                                      origin, originalProperty) {
+
+        // Consider:
+        // <that-node that-property="{{ thisPath }}" />
+        var thatNode = this._nodes[effect.index];
+        var thatProperty = effect.name;
+        var thisPath = effect.value;
+
+        // Do not propagate downwards if the origin of this change is this
+        // exact binding
+        if (origin && originalProperty &&
+            origin === thatNode &&
+            originalProperty === thatProperty) {
+          return;
+        }
+
+        if (thisPath === path || thisPath.indexOf(path + '.') === 0) {
           // TODO(sorvell): ideally the effect function is on this prototype
           // so we don't have to call it like this.
           Polymer.Bind._annotationEffect.call(this, path, value, effect);
-        } else if ((path.indexOf(effect.value + '.') === 0) && !effect.negate) {
-          // locate the bound node
-          var node = this._nodes[effect.index];
-          if (node && node._notifyPath) {
-            var p = this._fixPath(effect.name , effect.value, path);
-            node._notifyPath(p, value, true);
+        } else if ((path.indexOf(thisPath + '.') === 0) && !effect.negate) {
+          if (thatNode && thatNode._notifyPath) {
+            var newPath = this._fixPath(thatProperty, thisPath, path);
+            thatNode._notifyPath(newPath, value, true);
           }
         }
       },
