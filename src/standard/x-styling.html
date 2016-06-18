@@ -12,7 +12,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../lib/settings.html">
 <link rel="import" href="../lib/style-defaults.html">
 <link rel="import" href="../lib/style-cache.html">
-<link rel="import" href="../lib/apply-shim.html">
+
 <script>
   (function() {
     'use strict';
@@ -22,7 +22,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var propertyUtils = Polymer.StyleProperties;
     var styleTransformer = Polymer.StyleTransformer;
     var styleDefaults = Polymer.StyleDefaults;
-    var applyShim = Polymer.ApplyShim;
 
     var nativeShadow = Polymer.Settings.useNativeShadow;
     var nativeVariables = Polymer.Settings.useNativeCSSProperties;
@@ -31,13 +30,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _prepStyleProperties: function() {
         // note: an element should produce an x-scope stylesheet
-        // if it has any _stylePropertyNames
-        if (nativeVariables) {
-          // css build takes care of apply shim, so avoid doing this work.
-          if (!this.__cssBuild) {
-            applyShim.transform(this._styles);
-          }
-        } else {
+        // if it has any _ownStylePropertyNames
+        if (!nativeVariables) {
           this._ownStylePropertyNames = this._styles && this._styles.length ?
             propertyUtils.decorateStyles(this._styles, this) :
             null;
@@ -109,7 +103,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           .propertyDataFromStyles(scope._styles, this);
         // the scope cache does not evaluate if @media rules, :host(), or :host-context() rules defined in this element have changed
         // therefore, if we detect those rules, we opt-out of the scope cache
-        var scopeCacheable = !this._notCacheable;
+        var scopeCacheable = !this.__notStyleScopeCacheable;
         // look in scope cache
         if (scopeCacheable) {
           scopeData.key.customStyle = this.customStyle;
@@ -261,13 +255,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * for setting `customStyle` and then calling `updateStyles`.
       */
       updateStyles: function(properties) {
-        if (this.isAttached) {
-          if (properties) {
-            this.mixin(this.customStyle, properties);
-          }
-          if (nativeVariables) {
-            propertyUtils.updateNativeStyleProperties(this, this.customStyle);
-          } else {
+        if (properties) {
+          this.mixin(this.customStyle, properties);
+        }
+        if (nativeVariables) {
+          propertyUtils.updateNativeStyleProperties(this, this.customStyle);
+        } else {
+          // actually process styling changes iff attached
+          if (this.isAttached) {
             // skip applying properties to self if not used
             if (this._needsStyleProperties()) {
               this._updateStyleProperties();
@@ -276,11 +271,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             } else {
               this._styleProperties = null;
             }
-            if (this._styleCache) {
-              this._styleCache.clear();
-            }
+          // if called when an element is not attached, invalidate 
+          // styling by unsetting scopeSelector.
+          } else {
+            this._scopeSelector = null;
           }
-          // always apply properties to root
+          if (this._styleCache) {
+            this._styleCache.clear();
+          }
+          // go down...
           this._updateRootStyles();
         }
       },
