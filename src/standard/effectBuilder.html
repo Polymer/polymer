@@ -35,6 +35,73 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var prop = Polymer.Bind.addPropertyEffect(this, property, kind, effect);
       // memoize path function for faster lookup.
       prop.pathFn = this['_' + prop.kind + 'PathEffect'];
+      return prop;
+    },
+
+    _ensureOwnEffects: function(property) {
+      // Move the property effects from the prototype to the instance, so
+      // we can mutate them. We use prototypal inheritance here to go cheap.
+      var pE = this._propertyEffects;
+      if (pE) {
+        if (!this.hasOwnProperty('_propertyEffects')) {
+          pE = this._propertyEffects = Polymer.Base.chainObject({}, pE);
+        }
+
+        // Shallow-copy the effects array for this property, to the instance.
+        if (pE[property] && !pE.hasOwnProperty(property)) {
+          pE[property] = pE[property].slice();
+        }
+      }
+    },
+
+    addPropertyEffect: function(property, fn) {
+      this._ensureOwnEffects(property);
+
+      // We have to create the underlying trigger machinery here, if this is
+      // the first effect of the property.
+      var effects = Polymer.Bind.ensurePropertyEffects(this, property);
+      if (effects.length === 0) {
+        // The current value will be masked by the descriptor, read it ...
+        var val = this[property];
+        Polymer.Bind._createAccessors(this, property);
+        // ... and put it in our data store
+        this.__data__[property] = val;
+      }
+
+      // Theoretically the effects must be sorted again, but `function`-effects
+      // are executed last anyway, so we can skip this for now. NOTE that, if
+      // you add a custom effect inside another effect, t.i. the notification-
+      // loop is already running, mutating the effects in place like we do here
+      // would be usually catastrophic. This 'just' works b/c we prestore the
+      // loop-length in our for-loops (see `effectEffects`). Note as well that
+      // the  newly added effect will not be executed before the next
+      // notification we have to propagate. This is intended and a bonus point
+      // for appending only.
+      return this._addPropertyEffect(property, 'function', fn);
+    },
+
+    removePropertyEffect: function(fx) {
+      // Since effects can be removed as a side-effect, t.i. within a running
+      // effects-loop, we must ensure not to shorten the effects-array in
+      // place, otherwise the for-loop would break. On the other side removing
+      // an effect must be immediate, so we use a flag here to indicate that
+      // this effect should be skipped.
+      fx.disabled = true;
+
+      // We then slice and splice and reassign the effects-array. This new
+      // array will be used not before the next notification we have to
+      // propagate.
+      var property = fx.trigger;
+      var effects = property && this._propertyEffects &&
+                    this._propertyEffects[property];
+      if (effects) {
+        var index = effects.indexOf(fx);
+        if (index !== -1) {
+          effects = effects.slice();
+          effects.splice(index, 1);
+          this._propertyEffects[property] = effects;
+        }
+      }
     },
 
     // prototyping
@@ -180,7 +247,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               kind: note.kind,
               index: index,
               name: note.name,
-              propertyName: note.propertyName,
               value: part.value,
               isCompound: note.isCompound,
               compoundIndex: part.compoundIndex,
@@ -319,10 +385,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    _applyEffectValue: function(info, value) {
-      var node = this._nodes[info.index];
-      var property = info.name;
-
+    _applyEffectValue: function(node, property, value, info) {
       value = this._computeFinalAnnotationValue(node, property, value, info);
 
       // For better interop, dirty check before setting when custom events
@@ -338,10 +401,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (pinfo && pinfo.readOnly) {
           return;
         }
-        // Ideally we would call setProperty using fromAbove: true to avoid
-        // spinning the wheel needlessly, but we found that users were listening
-        // for change events outside of bindings
-        this.__setProperty(property, value, false, node);
+        this.__setProperty(property, value, true, node);
       }
     },
 
