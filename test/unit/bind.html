@@ -1023,6 +1023,149 @@ suite('order of effects', function() {
   });
 });
 
+suite('custom user effects', function() {
+
+  test('Add custom effect', function() {
+    var el = document.createElement('x-custom-effect');
+
+    var called = 0;
+    el.addPropertyEffect('foo', function(path, value, old) {
+      called += 1;
+      assert.equal(path, 'foo');
+      assert.equal(value, 'bar');
+      assert.equal(old, undefined);
+    });
+
+    el.foo = 'bar';
+    assert.equal(called, 1);
+  });
+
+  test('Remove custom effect', function() {
+    var el = document.createElement('x-custom-effect');
+
+    var called = 0;
+    var fx = el.addPropertyEffect('foo', function() {
+      called += 1;
+    });
+
+    el.removePropertyEffect(fx);
+
+    el.foo = 'bar';
+    assert.equal(called, 0);
+  });
+
+  test('Ensure old values are sent', function() {
+    var el = document.createElement('x-custom-effect');
+    el.foo = 'bar';
+
+    var called = 0;
+    el.addPropertyEffect('foo', function(path, value, old) {
+      called += 1;
+      assert.equal(old, 'bar');
+    });
+
+    el.foo = 'quux';
+    assert.equal(called, 1);
+  });
+
+  test('Ensure path effects can be seen', function() {
+    var el = document.createElement('x-custom-effect');
+    el.foo = {bar: 'quux'};
+
+    var called = 0;
+    el.addPropertyEffect('foo', function(path, value, old) {
+      called += 1;
+      assert.equal(path, 'foo.bar');
+      assert.equal(value, 'quod');
+      assert.equal(old, undefined);  // always undefined for structured paths!
+    });
+
+    el.set('foo.bar', 'quod');
+    assert.equal(called, 1);
+  });
+
+  test('Ensure independence', function() {
+    var el1 = document.createElement('x-custom-effect');
+    var called = 0;
+    el1.addPropertyEffect('foo', function() {
+      called += 1;
+    });
+
+    var el2 = document.createElement('x-custom-effect');
+
+    el2.foo = 'bar';
+    assert.equal(called, 0);
+  });
+
+  test('Ensure independence (property effects already created on prototype)',
+       function() {
+    Polymer({
+      is: 'x-custom-effect2',
+      properties: {
+        foo: {
+          observer: '_foo'
+        }
+      },
+      _foo: function(){}
+    });
+    var el1 = document.createElement('x-custom-effect2');
+
+    var called = 0;
+    el1.addPropertyEffect('foo', function() {
+      called += 1;
+    });
+    el1.foo = 'bar';
+    assert.equal(called, 1);
+
+    var el2 = document.createElement('x-custom-effect2');
+    el2.foo = 'bar';
+    assert.equal(called, 1);
+  });
+
+  test('Removing an effect as a side-effect does not break the running ' +
+       'effect loop', function() {
+    var el = document.createElement('x-custom-effect');
+
+    var called = 0;
+    var fx = el.addPropertyEffect('foo', function() {
+      el.removePropertyEffect(fx);
+    });
+    el.addPropertyEffect('foo', function() {
+      called += 1;
+    });
+
+    el.foo = 'bar';
+    assert.equal(called, 1);
+  });
+
+  test('Adding an effect as a side-effect does not invoke it immediately',
+       function() {
+    var el = document.createElement('x-custom-effect');
+
+    var called = 0;
+    var firstRun = true;
+    el.addPropertyEffect('foo', function() {
+      if (firstRun) {
+        el.addPropertyEffect('foo', function() {
+          called += 1;
+        });
+        firstRun = false;
+      }
+    });
+
+    el.foo = 'bar';
+    assert.equal(firstRun, false);
+    assert.equal(called, 0);
+
+    el.foo = 'quod';
+    assert.equal(called, 1);
+
+
+  });
+
+
+});
+
 </script>
 
 </body>
