@@ -96,8 +96,10 @@ Note, all features of `custom-style` are available when defining styles as part 
   var styleDefaults = Polymer.StyleDefaults;
   var styleTransformer = Polymer.StyleTransformer;
   var applyShim = Polymer.ApplyShim;
-
+  var debounce = Polymer.Debounce;
   var settings = Polymer.Settings;
+
+  var updateDebouncer;
 
   Polymer({
 
@@ -126,9 +128,16 @@ Note, all features of `custom-style` are available when defining styles as part 
       if (this.__appliedElement !== this) {
         this.__appliedElement.__cssBuild = this.__cssBuild;
       }
+      // needed becuase elements in imports do not get 'attached'
+      // TODO(sorvell): we could only do this iff this.ownerDocument != document;
+      // however, if we do that, we also have to change the `attached`
+      // code to go at `_beforeAttached` time because this is when 
+      // elements produce styles (otherwise this breaks @apply shim)
       this._tryApply();
     },
 
+    // needed to support dynamic custom styles created outside document
+    // and then added to it.
     attached: function() {
       this._tryApply();
     },
@@ -142,6 +151,11 @@ Note, all features of `custom-style` are available when defining styles as part 
           var e = this.__appliedElement;
           // used applied element from HTMLImports polyfill or this
           if (!settings.useNativeCSSProperties) {
+            // if default style properties exist when 
+            // this element tries to apply styling then,
+            // it has been loaded async and needs to trigger a full updateStyles
+            // to guarantee properties it provides update correctly.
+            this.__needsUpdateStyles = styleDefaults.hasStyleProperties();
             styleDefaults.addStyle(e);
           }
           // we may not have any textContent yet due to parser yielding
@@ -160,9 +174,13 @@ Note, all features of `custom-style` are available when defining styles as part 
       }
     },
 
+    _updateStyles: function() {
+      Polymer.updateStyles();
+    },
+
     // polyfill this style with root scoping and
     // apply custom properties!
-    _apply: function(deferProperties) {
+    _apply: function(initialApply) {
       // used applied element from HTMLImports polyfill or this
       var e = this.__appliedElement;
       if (this.include) {
@@ -180,7 +198,6 @@ Note, all features of `custom-style` are available when defining styles as part 
       // build = shady, use = shadow => not supported
       // build = shadow, use = shady => needs shimming.
       // build = none => needs shimming
-
       var buildType = this.__cssBuild;
       var targetedBuild = styleUtil.isTargetedBuild(buildType);
 
@@ -224,17 +241,25 @@ Note, all features of `custom-style` are available when defining styles as part 
         // This case should only occur with native webcomponents.
         var self = this;
         var fn = function fn() {
-          self._applyCustomProperties();
+          self._flushCustomProperties();
         }
-        if (this._pendingApplyProperties) {
-          cancelAnimationFrame(this._pendingApplyProperties);
-          this._pendingApplyProperties = null;
-        }
-        if (deferProperties) {
-          this._pendingApplyProperties = requestAnimationFrame(fn);
+        if (initialApply) {
+          Polymer.RenderStatus.whenReady(fn);
         } else {
           fn();
         }
+      }
+    },
+
+    _flushCustomProperties: function() {
+      // if this style has not yet applied at all and it was loaded asynchronously
+      // (detected by Polymer being ready when this element tried to apply), then
+      // do a full updateStyles to ensure that 
+      if (this.__needsUpdateStyles) {
+        this.__needsUpdateStyles = false;
+        updateDebouncer = debounce(updateDebouncer, this._updateStyles);
+      } else {
+        this._applyCustomProperties();
       }
     },
 
