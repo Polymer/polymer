@@ -7,27 +7,47 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-
+<link rel="import" href="dom-api.html">
 <link rel="import" href="style-transformer.html">
+<link rel="import" href="style-util.html">
+<link rel="import" href="settings.html">
 
 <script>
 
   Polymer.StyleProperties = (function() {
     'use strict';
 
-    var nativeShadow = Polymer.Settings.useNativeShadow;
     var matchesSelector = Polymer.DomApi.matchesSelector;
     var styleUtil = Polymer.StyleUtil;
     var styleTransformer = Polymer.StyleTransformer;
+
+    var settings = Polymer.Settings;
 
     return {
 
       // decorates styles with rule info and returns an array of used style
       // property names
-      decorateStyles: function(styles) {
-        var self = this, props = {}, keyframes = [];
-        styleUtil.forRulesInStyles(styles, function(rule) {
+      decorateStyles: function(styles, scope) {
+        var self = this, props = {}, keyframes = [], ruleIndex = 0;
+        var scopeSelector = styleTransformer._calcHostScope(scope.is, scope.extends);
+        styleUtil.forRulesInStyles(styles, function(rule, style) {
           self.decorateRule(rule);
+          // mark in-order position of ast rule in styles block, used for cache key
+          rule.index = ruleIndex++;
+          self.whenHostOrRootRule(scope, rule, style, function(info) {
+            // we can't cache styles with :host and :root props in @media rules
+            if (rule.parent.type === styleUtil.ruleTypes.MEDIA_RULE) {
+              scope.__notStyleScopeCacheable = true;
+            }
+            if (info.isHost) {
+              // check if the selector is in the form of `:host-context()` or `:host()`
+              // if so, this style is not cacheable
+              var hostContextOrFunction = info.selector.split(' ').some(function(s) {
+                return s.indexOf(scopeSelector) === 0 && s.length !== scopeSelector.length;
+              });
+              scope.__notStyleScopeCacheable = scope.__notStyleScopeCacheable || hostContextOrFunction;
+            }
+          });
           self.collectPropertiesInCssText(rule.propertyInfo.cssText, props);
         }, function onKeyframesRule(rule) {
           keyframes.push(rule);
@@ -73,7 +93,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var any;
           while ((m = rx.exec(cssText))) {
             // note: group 2 is var, 3 is mixin
-            properties[m[1]] = (m[2] || m[3]).trim();
+            properties[m[1].trim()] = (m[2] || m[3]).trim();
             any = true;
           }
           return any;
@@ -94,11 +114,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       collectPropertiesInCssText: function(cssText, props) {
         var m;
-        while ((m = this.rx.VAR_CAPTURE.exec(cssText))) {
-          props[m[1]] = true;
-          var def = m[2];
-          if (def && def.match(this.rx.IS_VAR)) {
-            props[def] = true;
+        while ((m = this.rx.VAR_CONSUMED.exec(cssText))) {
+          var name = m[1];
+          // This regex catches all variable names, and following non-whitespace char
+          // If next char is not ':', then variable is a consumer
+          if (m[2] !== ':') {
+            props[name] = true;
           }
         }
       },
@@ -117,7 +138,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // given a property value, returns the reified value
       // a property value may be:
       // (1) a literal value like: red or 5px;
-      // (2) a variable value like: var(--a), var(--a, red), or var(--a, --b);
+      // (2) a variable value like: var(--a), var(--a, red), or var(--a, --b) or
+      // var(--a, var(--b));
       // (3) a literal mixin value like { properties }. Each of these properties
       // can have values that are: (a) literal, (b) variables, (c) @apply mixins.
       valueForProperty: function(property, props) {
@@ -131,9 +153,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             var self = this;
             var fn = function(all, prefix, value, fallback) {
               var propertyValue = (self.valueForProperty(props[value], props) ||
-                (props[fallback] ?
-                self.valueForProperty(props[fallback], props) :
-                fallback));
+                // fallback may be --a or var(--a) or literal
+                self.valueForProperty(props[fallback] || fallback, props) ||
+                fallback);
               return prefix + (propertyValue || '');
             };
             property = property.replace(this.rx.VAR_MATCH, fn);
@@ -147,7 +169,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var parts = property.split(';');
         for (var i=0, p, m; i<parts.length; i++) {
           if ((p = parts[i])) {
-            m = p.match(this.rx.MIXIN_MATCH);
+            this.rx.MIXIN_MATCH.lastIndex = 0;
+            m = this.rx.MIXIN_MATCH.exec(p);
             if (m) {
               p = this.valueForProperty(props[m[1]], props);
             } else {
@@ -225,8 +248,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       propertyDataFromStyles: function(styles, element) {
         var props = {}, self = this;
         // generates a unique key for these matches
-        var o = [], i = 0;
-        styleUtil.forRulesInStyles(styles, function(rule) {
+        var o = [];
+        // note: active rules excludes non-matching @media rules
+        styleUtil.forActiveRulesInStyles(styles, function(rule) {
           // TODO(sorvell): we could trim the set of rules at declaration
           // time to only include ones that have properties
           if (!rule.propertyInfo) {
@@ -235,55 +259,87 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // match element against transformedSelector: selector may contain
           // unwanted uniquification and parsedSelector does not directly match
           // for :host selectors.
-          if (element && rule.propertyInfo.properties &&
-              matchesSelector.call(element, rule.transformedSelector
-                || rule.parsedSelector)) {
-            self.collectProperties(rule, props);
-            // produce numeric key for these matches for lookup
-            addToBitMask(i, o);
+          var selectorToMatch = rule.transformedSelector || rule.parsedSelector;
+          if (element && rule.propertyInfo.properties && selectorToMatch) {
+            if (matchesSelector.call(element, selectorToMatch)) {
+              self.collectProperties(rule, props);
+              // produce numeric key for these matches for lookup
+              addToBitMask(rule.index, o);
+            }
           }
-          i++;
         });
         return {properties: props, key: o};
       },
 
-      // Test if a rule matches scope criteria (* or :root) and if so,
-      // collect any custom properties into `props`.
-      scopePropertiesFromStyles: function(styles) {
-        if (!styles._scopeStyleProperties) {
-          styles._scopeStyleProperties =
-            this.selectedPropertiesFromStyles(styles, this.SCOPE_SELECTORS);
+      whenHostOrRootRule: function(scope, rule, style, callback) {
+        if (!rule.propertyInfo) {
+          self.decorateRule(rule);
         }
-        return styles._scopeStyleProperties;
-      },
-
-      // Test if a rule matches host criteria (:host) and if so,
-      // collect any custom properties into `props`.
-      //
-      // TODO(sorvell): this should change to collecting properties from any
-      // :host(...) and then matching these against self.
-      hostPropertiesFromStyles: function(styles) {
-        if (!styles._hostStyleProperties) {
-          styles._hostStyleProperties =
-            this.selectedPropertiesFromStyles(styles, this.HOST_SELECTORS);
+        if (!rule.propertyInfo.properties) {
+          return;
         }
-        return styles._hostStyleProperties;
-      },
-
-      selectedPropertiesFromStyles: function(styles, selectors) {
-        var props = {}, self = this;
-        styleUtil.forRulesInStyles(styles, function(rule) {
-          if (!rule.propertyInfo) {
-            self.decorateRule(rule);
+        var hostScope = scope.is ?
+        styleTransformer._calcHostScope(scope.is, scope.extends) :
+        'html';
+        var parsedSelector = rule.parsedSelector;
+        var isRoot = parsedSelector === ':root';
+        var isHost = parsedSelector.indexOf(':host') === 0;
+        // build info is either in scope (when scope is an element) or in the style
+        // when scope is the default scope; note: this allows default scope to have
+        // mixed mode built and unbuilt styles.
+        var cssBuild = scope.__cssBuild || style.__cssBuild;
+        if (cssBuild === 'shady') {
+          // :root -> x-foo > *.x-foo for elements and html for custom-style
+          isRoot = parsedSelector === (hostScope + '> *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
+          // :host -> x-foo for elements, but sub-rules have .x-foo in them
+          isHost = !isRoot && parsedSelector.indexOf(hostScope) === 0;
+        }
+        if (cssBuild === 'shadow') {
+          isRoot = parsedSelector === ':host > *' || parsedSelector === 'html';
+          isHost = isHost && !isRoot;
+        }
+        if (!isRoot && !isHost) {
+          return;
+        }
+        var selectorToMatch = hostScope;
+        if (isHost) {
+          // need to transform :host under ShadowDOM because `:host` does not work with `matches`
+          if (settings.useNativeShadow && !rule.transformedSelector) {
+            // transform :host into a matchable selector
+            rule.transformedSelector =
+            styleTransformer._transformRuleCss(
+              rule,
+              styleTransformer._transformComplexSelector,
+              scope.is,
+              hostScope
+            );
           }
-          for (var i=0; i < selectors.length; i++) {
-            if (rule.parsedSelector === selectors[i]) {
-              self.collectProperties(rule, props);
-              return;
-            }
-          }
+          selectorToMatch = rule.transformedSelector || hostScope;
+        }
+        callback({
+          selector: selectorToMatch,
+          isHost: isHost,
+          isRoot: isRoot
         });
-        return props;
+      },
+
+      hostAndRootPropertiesForScope: function(scope) {
+        var hostProps = {}, rootProps = {}, self = this;
+        // note: active rules excludes non-matching @media rules
+        styleUtil.forActiveRulesInStyles(scope._styles, function(rule, style) {
+          // if scope is StyleDefaults, use _element for matchesSelector
+          self.whenHostOrRootRule(scope, rule, style, function(info) {
+            var element = scope._element || scope;
+            if (matchesSelector.call(element, info.selector)) {
+              if (info.isHost) {
+                self.collectProperties(rule, hostProps);
+              } else {
+                self.collectProperties(rule, rootProps);
+              }
+            }
+          });
+        });
+        return {rootProps: rootProps, hostProps: hostProps};
       },
 
       transformStyles: function(element, properties, scopeSelector) {
@@ -299,7 +355,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._elementKeyframeTransforms(element, scopeSelector);
         return styleTransformer.elementStyles(element, function(rule) {
           self.applyProperties(rule, properties);
-          if (!nativeShadow &&
+          if (!settings.useNativeShadow &&
               !Polymer.StyleUtil.isKeyframesSelector(rule) &&
               rule.cssText) {
             // NOTE: keyframe transforms only scope munge animation names, so it
@@ -314,7 +370,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _elementKeyframeTransforms: function(element, scopeSelector) {
         var keyframesRules = element._styles._keyframes;
         var keyframeTransforms = {};
-        if (!nativeShadow && keyframesRules) {
+        if (!settings.useNativeShadow && keyframesRules) {
           // For non-ShadowDOM, we transform all known keyframes rules in
           // advance for the current scope. This allows us to catch keyframes
           // rules that appear anywhere in the stylesheet:
@@ -355,7 +411,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // note: we use only the scope class (.x-foo-42) and not the hostSelector
       // (x-foo) to scope :host rules; this helps make property host rules
       // have low specificity. They are overrideable by class selectors but,
-      // unfortunately, not by type selectors (e.g. overriding via 
+      // unfortunately, not by type selectors (e.g. overriding via
       // `.special` is ok, but not by `x-foo`).
       _scopeSelector: function(rule, hostRx, hostSelector, viaAttr, scopeId) {
         rule.transformedSelector = rule.transformedSelector || rule.selector;
@@ -392,7 +448,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.transformStyles(element, properties, selector);
         // if shady and we have a cached style that is not style, decrement
         var s = element._customStyle;
-        if (s && !nativeShadow && (s !== style)) {
+        if (s && !settings.useNativeShadow && (s !== style)) {
           s._useCount--;
           if (s._useCount <= 0 && s.parentNode) {
             s.parentNode.removeChild(s);
@@ -400,7 +456,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // apply styling always under native or if we generated style
         // or the cached style is not in document(!)
-        if (nativeShadow) {
+        if (settings.useNativeShadow) {
           // update existing style only under native
           if (element._customStyle) {
             element._customStyle.textContent = cssText;
@@ -409,7 +465,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           } else if (cssText) {
             // apply css after the scope style of the element to help with
             // style precedence rules.
-            style = styleUtil.applyCss(cssText, selector, element.root);
+            style = styleUtil.applyCss(cssText, selector, element.root,
+              element._scopeStyle);
           }
         } else {
           // shady and no cache hit
@@ -437,7 +494,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return style;
       },
-      
+
       // customStyle properties are applied if they are truthy or 0. Otherwise,
       // they are skipped; this allows properties previously set in customStyle
       // to be easily reset to inherited values.
@@ -451,25 +508,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      rx: {
-        VAR_ASSIGN: /(?:^|[;\s{]\s*)(--[\w-]*?)\s*:\s*(?:([^;{]*)|{([^}]*)})(?:(?=[;\s}])|$)/gi,
-        MIXIN_MATCH: /(?:^|\W+)@apply[\s]*\(([^)]*)\)/i,
-        // note, this supports:
-        // var(--a)
-        // var(--a, --b)
-        // var(--a, fallback-literal)
-        // var(--a, fallback-literal(with-one-nested-parentheses))
-        VAR_MATCH: /(^|\W+)var\([\s]*([^,)]*)[\s]*,?[\s]*((?:[^,()]*)|(?:[^;()]*\([^;)]*\)))[\s]*?\)/gi,
-        VAR_CAPTURE: /\([\s]*(--[^,\s)]*)(?:,[\s]*(--[^,\s)]*))?(?:\)|,)/gi,
-        ANIMATION_MATCH: /(animation\s*:)|(animation-name\s*:)/,
-        IS_VAR: /^--/,
-        BRACKETED: /\{[^}]*\}/g,
-        HOST_PREFIX: '(?:^|[^.#[:])',
-        HOST_SUFFIX: '($|[.:[\\s>+~])'
+      /* Applies a set of properties to an element's style natively (used to
+       * support element.customStyle / element.updateStyles)
+       */
+      updateNativeStyleProperties: function(element, properties) {
+        // remove existing properties
+        for (var i=0; i < element.style.length; i++) {
+          element.style.removeProperty(element.style[i]);
+        }
+        // apply properties
+        for (var p in properties) {
+          // NOTE: for bc with shim, don't apply null values.
+          if (properties[p] !== null) {
+            element.style.setProperty(p, properties[p]);
+          }
+        }
       },
 
-      HOST_SELECTORS: [':host'],
-      SCOPE_SELECTORS: [':root'],
+      rx: styleUtil.rx,
       XSCOPE_NAME: 'x-scope'
 
     };

@@ -9,9 +9,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../lib/async.html">
+<link rel="import" href="../lib/settings.html">
 <link rel="import" href="../lib/debounce.html">
 
 <script>
+(function() {
+
+  'use strict';
 
   Polymer.Base._addFeature({
 
@@ -363,28 +367,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {HTMLLinkElement} The link element for the URL to be loaded.
      */
     importHref: function(href, onload, onerror, optAsync) {
-      var l = document.createElement('link');
-      l.rel = 'import';
-      l.href = href;
-
-      optAsync = Boolean(optAsync);
-      if (optAsync) {
-        l.setAttribute('async', '');
-      }
-
+      var link = document.createElement('link');
+      link.rel = 'import';
+      link.href = href;
+      var list = Polymer.Base.importHref.imported = 
+        Polymer.Base.importHref.imported || {};
+      var cached = list[link.href];
+      var imprt = cached || link;
       var self = this;
       if (onload) {
-        l.onload = function(e) {
+        var loadListener = function(e) {
+          e.target.__firedLoad = true;
+          e.target.removeEventListener('load', loadListener);
           return onload.call(self, e);
         }
+        imprt.addEventListener('load', loadListener);
       }
       if (onerror) {
-        l.onerror = function(e) {
+        var errorListener = function(e) {
+          e.target.__firedError = true;
+          e.target.removeEventListener('error', errorListener);
           return onerror.call(self, e);
         }
+        imprt.addEventListener('error', errorListener);
       }
-      document.head.appendChild(l);
-      return l;
+      // if already loaded/erroed, fire 'fake' load/error event
+      if (cached) {
+        if (cached.__firedLoad) {
+          cached.dispatchEvent(new Event('load'));
+        }
+        if (cached.__firedError) {
+          cached.dispatchEvent(new Event('error'));
+        }
+      // otherwise put in dom!
+      } else {
+        list[link.href] = link;
+        optAsync = Boolean(optAsync);
+        if (optAsync) {
+          link.setAttribute('async', '');
+        }
+        document.head.appendChild(link);
+      }
+      return imprt;
     },
 
     /**
@@ -431,4 +455,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   });
 
+  /*
+    We patch importHref under the CE polyfill for 2 separate reasons:
+    (1) performance optimization: CE registrations upgrade the entire document
+    tree including imports. Therefore if an import is loaded every element 
+    registered will upgrade the entire doc tree. This is $ and is optimized 
+    via batching to occur once at startup (before WebComponentsReady). We
+    override importHref here so that we can batch upgrades until after the 
+    import has loded, leveraging the same batching optimization.
+    (2) the CE polyfill upgrades elements in HI in the wrong order. They upgrade
+    after all scripts in the import have run rather than being interleaved with 
+    them. Therefore, any script that depends on a previous custom element in 
+    the import will fail. By deferring upgrades until after async imports load
+    we reduce the chance of a problem because upgrade time dependencies are 
+    no longer an issue. (e.g. `dom-module` is a registration time dependency 
+    when `lazyRegister` is not used and it is specially handled in `dom-module`;
+    `custom-style` is an upgrade time dependency native css properties are used).
+
+  */
+  if (!Polymer.Settings.useNativeCustomElements) {
+    var importHref = Polymer.Base.importHref;
+    Polymer.Base.importHref = function(href, onload, onerror, optAsync) {
+      CustomElements.ready = false;
+      var loadFn = function(e) {
+        CustomElements.upgradeDocumentTree(document);
+        CustomElements.ready = true;
+        if (onload) {
+          return onload.call(this, e);
+        }
+      }
+      return importHref.call(this, href, loadFn, onerror, optAsync);
+    }
+  }
+
+})();
 </script>

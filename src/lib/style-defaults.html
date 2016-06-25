@@ -9,12 +9,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <link rel="import" href="style-util.html">
 <link rel="import" href="style-cache.html">
+<link rel="import" href="settings.html">
 <script>
 
   Polymer.StyleDefaults = (function() {
 
     var styleProperties = Polymer.StyleProperties;
     var StyleCache = Polymer.StyleCache;
+    var nativeVariables = Polymer.Settings.useNativeCSSProperties;
 
     var api = {
 
@@ -22,6 +24,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _properties: null,
       customStyle: {},
       _styleCache: new StyleCache(),
+      _element: Polymer.DomApi.wrap(document.documentElement),
 
       addStyle: function(style) {
         this._styles.push(style);
@@ -33,17 +36,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       get _styleProperties() {
         if (!this._properties) {
           // force rules to reparse since they may be out of date
-          styleProperties.decorateStyles(this._styles);
+          styleProperties.decorateStyles(this._styles, this);
           // NOTE: reset cache for own properties; it may have been set when
           // an element in an import applied styles (e.g. custom-style)
           this._styles._scopeStyleProperties = null;
           this._properties = styleProperties
-            .scopePropertiesFromStyles(this._styles);
+            .hostAndRootPropertiesForScope(this).rootProps;
           // mixin customStyle
           styleProperties.mixinCustomStyle(this._properties, this.customStyle);
           styleProperties.reify(this._properties);
         }
         return this._properties;
+      },
+
+      hasStyleProperties: function() {
+        return Boolean(this._properties);
       },
 
       _needsStyleProperties: function() {},
@@ -78,6 +85,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           s = this._styles[i];
           s = s.__importElement || s;
           s._apply();
+        }
+        if (nativeVariables) {
+          styleProperties.updateNativeStyleProperties(document.documentElement, this.customStyle);
         }
       }
 

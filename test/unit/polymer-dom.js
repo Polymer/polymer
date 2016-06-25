@@ -704,11 +704,13 @@ suite('Polymer.dom accessors', function() {
     var after = document.createElement('div');
     Polymer.dom(noDistribute).insertBefore(before, child);
     Polymer.dom(noDistribute).appendChild(after);
+    Polymer.dom.flush();
     assert.equal(Polymer.dom(noDistribute).firstChild, before, 'firstChild incorrect');
     assert.equal(Polymer.dom(noDistribute).lastChild, after, 'lastChild incorrect');
     assert.equal(Polymer.dom(before).nextSibling, child, 'nextSibling incorrect');
     assert.equal(Polymer.dom(child).nextSibling, after, 'nextSibling incorrect');
     assert.equal(Polymer.dom(after).previousSibling, child, 'previousSibling incorrect');
+    assert.equal(Polymer.dom(after).nextSibling, null, 'nextSibling incorrect');
     assert.equal(Polymer.dom(child).previousSibling, before, 'previousSibling incorrect');
   });
 
@@ -719,11 +721,13 @@ suite('Polymer.dom accessors', function() {
     var after = document.createElement('div');
     Polymer.dom(distribute).insertBefore(before, child);
     Polymer.dom(distribute).appendChild(after);
+    Polymer.dom.flush();
     assert.equal(Polymer.dom(distribute).firstChild, before, 'firstChild incorrect');
     assert.equal(Polymer.dom(distribute).lastChild, after, 'lastChild incorrect');
     assert.equal(Polymer.dom(before).nextSibling, child, 'nextSibling incorrect');
     assert.equal(Polymer.dom(child).nextSibling, after, 'nextSibling incorrect');
     assert.equal(Polymer.dom(after).previousSibling, child, 'previousSibling incorrect');
+    assert.equal(Polymer.dom(after).nextSibling, null, 'nextSibling incorrect');
     assert.equal(Polymer.dom(child).previousSibling, before, 'previousSibling incorrect');
   });
 
