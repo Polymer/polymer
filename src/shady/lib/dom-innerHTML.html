@@ -1,0 +1,131 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<script>
+
+Polymer.domInnerHTML = (function() {
+
+  // Cribbed from ShadowDOM polyfill
+  // https://github.com/webcomponents/webcomponentsjs/blob/master/src/ShadowDOM/wrappers/HTMLElement.js#L28
+  /////////////////////////////////////////////////////////////////////////////
+  // innerHTML and outerHTML
+
+  // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-end.html#escapingString
+  var escapeAttrRegExp = /[&\u00A0"]/g;
+  var escapeDataRegExp = /[&\u00A0<>]/g;
+
+  function escapeReplace(c) {
+    switch (c) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case '\u00A0':
+        return '&nbsp;';
+    }
+  }
+
+  function escapeAttr(s) {
+    return s.replace(escapeAttrRegExp, escapeReplace);
+  }
+
+  function escapeData(s) {
+    return s.replace(escapeDataRegExp, escapeReplace);
+  }
+
+  function makeSet(arr) {
+    var set = {};
+    for (var i = 0; i < arr.length; i++) {
+      set[arr[i]] = true;
+    }
+    return set;
+  }
+
+  // http://www.whatwg.org/specs/web-apps/current-work/#void-elements
+  var voidElements = makeSet([
+    'area',
+    'base',
+    'br',
+    'col',
+    'command',
+    'embed',
+    'hr',
+    'img',
+    'input',
+    'keygen',
+    'link',
+    'meta',
+    'param',
+    'source',
+    'track',
+    'wbr'
+  ]);
+
+  var plaintextParents = makeSet([
+    'style',
+    'script',
+    'xmp',
+    'iframe',
+    'noembed',
+    'noframes',
+    'plaintext',
+    'noscript'
+  ]);
+
+  function getOuterHTML(node, parentNode, composed) {
+    switch (node.nodeType) {
+      case Node.ELEMENT_NODE:
+        //var tagName = node.tagName.toLowerCase();
+        var tagName = node.localName;
+        var s = '<' + tagName;
+        var attrs = node.attributes;
+        for (var i = 0, attr; (attr = attrs[i]); i++) {
+          s += ' ' + attr.name + '="' + escapeAttr(attr.value) + '"';
+        }
+        s += '>';
+        if (voidElements[tagName]) {
+          return s;
+        }
+        return s + getInnerHTML(node, composed) + '</' + tagName + '>';
+      case Node.TEXT_NODE:
+        var data = node.data;
+        if (parentNode && plaintextParents[parentNode.localName]) {
+          return data;
+        }
+        return escapeData(data);
+      case Node.COMMENT_NODE:
+        return '<!--' + node.data + '-->';
+      default:
+        console.error(node);
+        throw new Error('not implemented');
+    }
+  }
+
+  function getInnerHTML(node, composed) {
+    if (node instanceof HTMLTemplateElement)
+      node = node.content;
+    var s = '';
+    var c$ = Polymer.dom(node).childNodes;
+    for (var i=0, l=c$.length, child; (i<l) && (child=c$[i]); i++) {
+      s += getOuterHTML(child, node, composed);
+    }
+    return s;
+  }
+
+  return {
+    getInnerHTML: getInnerHTML
+  };
+
+})();
+
+</script>

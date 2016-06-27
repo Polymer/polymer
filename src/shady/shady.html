@@ -1,0 +1,299 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/debounce.html">
+<link rel="import" href="lib/array-splice.html">
+<link rel="import" href="lib/dom-tree-api.html">
+<link rel="import" href="lib/dom-api.html">
+<link rel="import" href="lib/dom-api-shady.html">
+<link rel="import" href="lib/dom-api-flush.html">
+<link rel="import" href="lib/dom-api-event.html">
+<link rel="import" href="lib/dom-api-classlist.html">
+<link rel="import" href="lib/dom-api-effective-nodes-observer.html">
+<link rel="import" href="lib/dom-api-distributed-nodes-observer.html">
+<link rel="import" href="distributor-v1.html">
+<link rel="import" href="distributor-v0.html">
+<script>
+
+  (function() {
+    
+    var DomApi = Polymer.DomApi;
+    var TreeApi = Polymer.TreeApi;
+
+    /**
+      Implements a pared down version of ShadowDOM's scoping, which is easy to
+      polyfill across browsers.
+    */
+    class ShadyRoot extends DocumentFragment {
+      
+      constructor(host, useV0) {
+        super();
+        if (!host) {
+          throw 'Must provide a host';
+        }
+        // root <=> host
+        host.shadyRoot = this;
+        this.host = host;
+        // logical dom setup
+        TreeApi.Logical.saveChildNodes(host);
+        TreeApi.Logical.saveChildNodes(this);
+        // state flags
+        this._clean = false;
+        this._hasDistributed = false;
+        this._distributor = useV0 ? 
+          new Polymer.ShadyDistributorV0(this) : 
+          new Polymer.ShadyDistributorV1(this);
+        // TODO(sorvell): host state flags were set here next, needed?
+      }
+
+      get _insertionPoints() {
+        return this.__insertionPoints || (this.__insertionPoints = []);
+      }
+
+      set _insertionPoints(insertionPoints) {
+        this.__insertionPoints = insertionPoints;
+      }
+
+      // async render the "top" distributor (this is all that is needed to 
+      // distribute this host.
+      update() {
+        var host = this._findDistributionRoot(this.host) || this;
+        return host.shadyRoot.debounceRender();
+      }
+
+      // returns the host that's the top of this host's distribution tree
+      _findDistributionRoot(element) {
+        while (element && this._elementNeedsDistribution(element)) {
+          element = this.root.ownerRootForNode(element);
+        }
+        return element;
+      }
+
+      // Return true if a host's children includes
+      // an insertion point that selects selectively
+      _elementNeedsDistribution(element) {
+        var c$ = TreeApi.Logical.getChildNodes(element);
+        for (var i=0, c; i < c$.length; i++) {
+          c = c$[i];
+          if (this._distributor.isInsertionPoint(c)) {
+            return this.root.ownerRootForNode(element);
+          }
+        }
+      }
+
+      // async render this root!
+      // TODO(sorvell): consider using a single async queue.
+      debounceRender() {
+        this._renderDebouncer = Polymer.Debouncer.debounce(this._renderDebouncer,
+          this.render, null, this);
+        return this._renderDebouncer;
+      }
+
+      render() {
+        if (this._renderDebouncer) {
+          this._renderDebouncer.cancel();
+          this._renderDebouncer = null;
+        }
+        if (!this._clean) {
+          // TODO(sorvell): updating insertion points is $ so optable
+          if (!this._skipUpdateInsertionPoints) {
+            this.updateInsertionPoints();
+          }
+          // logical
+          this.distribute();
+          // physical
+          this.compose();
+        }
+      }
+
+      distribute() {
+        var dirtyRoots = this._distributor.distribute();
+        for (var i=0; i<dirtyRoots.length; i++) {
+          dirtyRoots[i].render();
+        }
+      }
+
+      updateInsertionPoints() {
+        var i$ = this._insertionPoints = this._distributor.getInsertionPoints();
+        // ensure insertionPoints's and their parents have logical dom info.
+        // save logical tree info
+        // a. for shadyRoot
+        // b. for insertion points (fallback)
+        // c. for parents of insertion points
+        for (var i=0, c; i < i$.length; i++) {
+          c = i$[i];
+          TreeApi.Logical.saveChildNodes(c);
+          TreeApi.Logical.saveChildNodes(TreeApi.Logical.getParentNode(c));
+        }
+      }
+
+      compose() {
+        // compose self
+        // note: it's important to mark this clean before distribution
+        // so that attachment that provokes additional distribution (e.g.
+        // adding something to your parentNode) works
+        this._clean = true;
+        this._composeTree();
+        // NOTE: send a signal to insertion points that we have distributed
+        // which informs effective children observers
+        notifyContentObservers(this);
+        // TODO(sorvell): See fast paths here in Polymer v1
+        // (these seem unnecessary)  
+        // NOTE: send a signal to any Polymer.dom node observers
+        // to report the initial set of childNodes
+        if (!this._hasDistributed) {
+          notifyInitialDistribution(this.host);
+        }
+        this._hasDistributed = true;
+      }
+
+      // Reify dom such that it is at its correct rendering position
+      // based on logical distribution.
+      _composeTree() {
+        this._updateChildNodes(this.host, this._composeNode(this.host));
+        var p$ = this._insertionPoints || [];
+        for (var i=0, l=p$.length, p, parent; (i<l) && (p=p$[i]); i++) {
+          parent = TreeApi.Logical.getParentNode(p);
+          if (!parent._useContent && (parent !== this.host) &&
+            (parent !== this)) {
+            this._updateChildNodes(parent, this._composeNode(parent));
+          }
+        }
+      }
+
+      // Returns the list of nodes which should be rendered inside `node`.
+      _composeNode(node) {
+        var children = [];
+        var c$ = TreeApi.Logical.getChildNodes(node.shadyRoot || node);
+        for (var i = 0; i < c$.length; i++) {
+          var child = c$[i];
+          if (this._distributor.isInsertionPoint(child)) {
+            var distributedNodes = child._distributedNodes;
+            for (var j = 0; j < distributedNodes.length; j++) {
+              var distributedNode = distributedNodes[j];
+              if (this._distributor.isFinalDestination(child, distributedNode)) {
+                children.push(distributedNode);
+              }
+            }
+          } else {
+            children.push(child);
+          }
+        }
+        return children;
+      }
+
+      // Ensures that the rendered node list inside `container` is `children`.
+      _updateChildNodes(container, children) {
+        var composed = TreeApi.Composed.getChildNodes(container);
+        var splices =
+          Polymer.ArraySplice.calculateSplices(children, composed);
+        // process removals
+        for (var i=0, d=0, s; (i<splices.length) && (s=splices[i]); i++) {
+          for (var j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
+            // check if the node is still where we expect it is before trying
+            // to remove it; this can happen if Polymer.dom moves a node and
+            // then schedules its previous host for distribution resulting in
+            // the node being removed here.
+            if (TreeApi.Composed.getParentNode(n) === container) {
+              TreeApi.Composed.removeChild(container, n);
+            }
+            composed.splice(s.index + d, 1);
+          }
+          d -= s.addedCount;
+        }
+        // process adds
+        for (var i=0, s, next; (i<splices.length) && (s=splices[i]); i++) { //eslint-disable-line no-redeclare
+          next = composed[s.index];
+          for (j=s.index, n; j < s.index + s.addedCount; j++) {
+            n = children[j];
+            TreeApi.Composed.insertBefore(container, n, next);
+            // TODO(sorvell): is this splice strictly needed?
+            composed.splice(j, 0, n);
+          }
+        }
+      }
+
+      // TODO(sorvell): move... dom mutation
+      appendChild(node) {
+        this.insertBefore(node);
+        return node;
+      }
+
+      insertBefore(node, ref_node) {
+        TreeApi.Logical.recordInsertBefore(node, this, ref_node);
+        this._clean = false;
+        this.update();
+        return node;
+      }
+
+      // TODO(sorvell): util
+      ownerRootForNode(node) {
+        if (!node) {
+          return;
+        }
+        var root = node.__ownerShadyRoot;
+        if (root === undefined) {
+          if (node instanceof ShadyRoot) {
+            root = node;
+          } else {
+            var parent = TreeApi.Logical.getParentNode(node);
+            if (parent) {
+              root = parent instanceof ShadyRoot ?
+                parent :
+                this.ownerRootForNode(parent);
+            } else {
+             root = null;
+            }
+          }
+          // memo-ize result for performance but only memo-ize a false-y
+          // result if node is in the document. This avoids a problem where a root
+          // can be cached while an element is inside a fragment.
+          // If this happens and we cache the result, the value can become stale
+          // because for perf we avoid processing the subtree of added fragments.
+          if (root || document.documentElement.contains(node)) {
+            node.__ownerShadyRoot = root;
+          }
+        }
+        return root;
+      }
+
+    }
+
+    // TODO(sorvell): observation...
+    function notifyContentObservers(root) {
+      for (var i=0, c; i < root._insertionPoints.length; i++) {
+        c = root._insertionPoints[i];
+        if (DomApi.hasApi(c)) {
+          Polymer.dom(c).notifyObserver();
+        }
+      }
+    }
+
+    function notifyInitialDistribution(host) {
+      if (DomApi.hasApi(host)) {
+        Polymer.dom(host).notifyObserver();
+      }
+    }
+
+    var needsUpgrade = window.CustomElements && !CustomElements.useNative;
+
+    function upgradeLogicalChildren(children) {
+      if (needsUpgrade && children) {
+        for (var i=0; i < children.length; i++) {
+          CustomElements.upgrade(children[i]);
+        }
+      }
+    }
+
+    Polymer.ShadyRoot = ShadyRoot;
+
+  })();
+
+</script>
