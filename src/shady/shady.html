@@ -45,7 +45,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         TreeApi.Logical.saveChildNodes(host);
         TreeApi.Logical.saveChildNodes(this);
         // state flags
-        this._clean = false;
+        this._clean = true;
         this._hasDistributed = false;
         this._distributor = useV0 ? 
           new Polymer.ShadyDistributorV0(this) : 
@@ -53,19 +53,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // TODO(sorvell): host state flags were set here next, needed?
       }
 
-      get _insertionPoints() {
-        return this.__insertionPoints || (this.__insertionPoints = []);
-      }
-
-      set _insertionPoints(insertionPoints) {
-        this.__insertionPoints = insertionPoints;
-      }
-
       // async render the "top" distributor (this is all that is needed to 
       // distribute this host.
       update() {
-        var host = this._findDistributionRoot(this.host) || this;
-        return host.shadyRoot.debounceRender();
+        if (this._clean) {
+          var host = this._findDistributionRoot(this.host) || this;
+          if (host.shadyRoot._clean) {
+            host.shadyRoot._clean = false;
+            this._clean = false;
+            Polymer.dom.addDebouncer(host.shadyRoot.debounceRender());
+          }
+        }
       }
 
       // returns the host that's the top of this host's distribution tree
@@ -132,6 +130,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           TreeApi.Logical.saveChildNodes(c);
           TreeApi.Logical.saveChildNodes(TreeApi.Logical.getParentNode(c));
         }
+      }
+
+      get _insertionPoints() {
+        return this.__insertionPoints || (this.__insertionPoints = []);
+      }
+
+      set _insertionPoints(insertionPoints) {
+        this.__insertionPoints = insertionPoints;
       }
 
       compose() {
@@ -220,20 +226,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      // TODO(sorvell): move... dom mutation
-      appendChild(node) {
-        this.insertBefore(node);
-        return node;
-      }
-
-      insertBefore(node, ref_node) {
-        TreeApi.Logical.recordInsertBefore(node, this, ref_node);
-        this._clean = false;
-        this.update();
-        return node;
-      }
-
       // TODO(sorvell): util
+      getInsertionPointTag() {
+        return this._distributor.insertionPointTag;
+      }
+
       ownerRootForNode(node) {
         if (!node) {
           return;
@@ -262,6 +259,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         return root;
+      }
+
+      // TODO(sorvell): move... dom mutation
+      appendChild(node) {
+        this.insertBefore(node);
+        return node;
+      }
+
+      insertBefore(node, ref_node) {
+        TreeApi.Logical.recordInsertBefore(node, this, ref_node);
+        this.update();
+        return node;
       }
 
     }

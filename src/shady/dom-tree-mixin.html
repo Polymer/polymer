@@ -1,0 +1,360 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../utils/utils.html">
+<link rel="import" href="dom-tree-mutation.html">
+<link rel="import" href="dom-innerHTML.html">
+<script>
+(function() {
+  'use strict';
+
+  var TreeApi = Polymer.TreeApi;
+  var getInnerHTML = Polymer.domInnerHTML.getInnerHTML;
+
+  var nativeCloneNode = Element.prototype.cloneNode;
+  var nativeImportNode = Document.prototype.importNode;
+  var nativeSetAttribute = Element.prototype.setAttribute;
+  var nativeRemoveAttribute = Element.prototype.removeAttribute;
+
+  var DomTreeMutation = Polymer.DomTreeMutation;
+
+  var DomTreeMixin = {
+
+    appendChild: function(node) {
+      return this.insertBefore(node);
+    },
+
+    // cases in which we may not be able to just do standard native call
+    // 1. container has a shadyRoot (needsDistribution IFF the shadyRoot
+    // has an insertion point)
+    // 2. container is a shadyRoot (don't distribute, instead set
+    // container to container.host.
+    // 3. node is <content> (host of container needs distribution)
+    insertBefore: function(node, ref_node) {
+      if (ref_node && TreeApi.Logical.getParentNode(ref_node) !== this) {
+        throw Error('The ref_node to be inserted before is not a child ' +
+          'of this node');
+      }
+      // remove node from its current position iff it's in a tree.
+      if (node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) {
+        var parent = TreeApi.Logical.getParentNode(node);
+        DomTreeMutation.removeNodeFromParent(node, parent);
+      }
+      if (!DomTreeMutation.addNode(this, node, ref_node)) {
+        if (ref_node) {
+          // if ref_node is <content> replace with first distributed node
+          ref_node = ref_node.localName === CONTENT ?
+            DomTreeMutation.firstComposedNode(ref_node) : ref_node;
+        }
+        // if adding to a shadyRoot, add to host instead
+        var container = this instanceof Polymer.ShadyRoot ? 
+          this.host : this;
+        if (ref_node) {
+          TreeApi.Composed.insertBefore(container, node, ref_node);
+        } else {
+          TreeApi.Composed.appendChild(container, node);
+        }
+      }
+      // TODO(sorvell): notify
+      //this.notifyObserver();
+      return node;
+    },
+
+    /**
+      Removes the given `node` from the element's `lightChildren`.
+      This method also performs dom composition.
+    */
+    removeChild: function(node) {
+      if (TreeApi.Logical.getParentNode(node) !== this) {
+        throw Error('The node to be removed is not a child of this node: ' +
+          node);
+      }
+      if (!DomTreeMutation.removeNode(this, node)) {
+        // if removing from a shadyRoot, remove form host instead
+        var container = this instanceof Polymer.ShadyRoot ?
+          this.host : 
+          this;
+        // not guaranteed to physically be in container; e.g.
+        // undistributed nodes.
+        var parent = TreeApi.Composed.getParentNode(node);
+        if (container === parent) {
+          TreeApi.Composed.removeChild(container, node);
+        }
+      }
+      // TODO(sorvell): notify
+      //this.notifyObserver();
+      return node;
+    },
+
+    replaceChild: function(node, ref_node) {
+      this.insertBefore(node, ref_node);
+      this.removeChild(ref_node);
+      return node;
+    },
+
+    // TODO(sorvell): consider doing native QSA and filtering results.
+    querySelector: function(selector) {
+      // match selector and halt on first result.
+      var result = DomTreeMutation._query(function(n) {
+        return DomTreeMutation.matchesSelector.call(n, selector);
+      }, this, function(n) {
+        return Boolean(n);
+      })[0];
+      return result || null;
+    },
+
+    querySelectorAll: function(selector) {
+      return DomTreeMutation._query(function(n) {
+        return DomTreeMutation.matchesSelector.call(n, selector);
+      }, this.node);
+    },
+
+    getDestinationInsertionPoints: function() {
+      return this._destinationInsertionPoints || [];
+    },
+
+    getDistributedNodes: function() {
+      return this._distributedNodes || [];
+    },
+
+    getAssignedNodes: function() {
+      return this._assignedNodes || [];
+    },
+
+
+    setAttribute: function(name, value) {
+      nativeSetAttribute.call(this, name, value);
+      DomTreeMutation.maybeDistributeParent(this);
+    },
+
+    removeAttribute: function(name) {
+      nativeRemoveAttribute.call(this, name);
+      DomTreeMutation.maybeDistributeParent(this);
+    },
+
+    cloneNode: function(deep) {
+      var n = nativeCloneNode.call(this, false);
+      if (deep) {
+        var c$ = this.childNodes;
+        for (var i=0, nc; i < c$.length; i++) {
+          nc = c$[i].cloneNode(true);
+          n.appendChild(nc);
+        }
+      }
+      return n;
+    },
+
+    importNode: function(externalNode, deep) {
+      // for convenience use this node's ownerDoc if the node isn't a document
+      var doc = this instanceof Document ? this :
+        this.ownerDocument;
+      var n = nativeImportNode.call(doc, externalNode, false);
+      if (deep) {
+        var c$ = TreeApi.Logical.getChildNodes(externalNode);
+        var d = dom(n);
+        for (var i=0, nc; i < c$.length; i++) {
+          nc = doc.importNode(c$[i], true);
+          d.appendChild(nc);
+        }
+      }
+      return n;
+    }
+
+  };
+
+  // accessors...
+  Object.defineProperties(DomTreeMixin, {
+
+    activeElement: {
+      get: function() {
+        var active = document.activeElement;
+        if (!active) {
+          return null;
+        }
+        var isShadyRoot = !!(this instanceof Polymer.ShadyRoot);
+        if (this !== document) {
+          // If this node isn't a document or shady root, then it doesn't have
+          // an active element.
+          if (!isShadyRoot) {
+            return null;
+          }
+          // If this shady root's host is the active element or the active
+          // element is not a descendant of the host (in the composed tree),
+          // then it doesn't have an active element.
+          if (this.host === active ||
+              !this.host.contains(active)) {
+            return null;
+          }
+        }
+        // This node is either the document or a shady root of which the active
+        // element is a (composed) descendant of its host; iterate upwards to
+        // find the active element's most shallow host within it.
+        var activeRoot = dom(active).getOwnerRoot();
+        while (activeRoot && activeRoot !== this) {
+          active = activeRoot.host;
+          activeRoot = DomTreeMutation._ownerRootForNode(this);
+        }
+        if (this === document) {
+          // This node is the document, so activeRoot should be null.
+          return activeRoot ? null : active;
+        } else {
+          // This node is a non-document shady root, and it should be
+          // activeRoot.
+          return activeRoot === this ? active : null;
+        }
+      },
+      configurable: true
+    },
+
+    childNodes: {
+      get: function() {
+        var c$ = TreeApi.Logical.getChildNodes(this);
+        return Array.isArray(c$) ? c$ : TreeApi.arrayCopyChildNodes(this);
+      },
+      configurable: true
+    },
+
+    children: {
+      get: function() {
+        if (TreeApi.Logical.hasChildNodes(this)) {
+          return Array.prototype.filter.call(this.childNodes, function(n) {
+            return (n.nodeType === Node.ELEMENT_NODE);
+          });
+        } else {
+          return TreeApi.arrayCopyChildren(this);
+        }
+      },
+      configurable: true
+    },
+
+    parentNode: {
+      get: function() {
+        return TreeApi.Logical.getParentNode(this);
+      },
+      configurable: true
+    },
+
+    firstChild: {
+      get: function() {
+        return TreeApi.Logical.getFirstChild(this);
+      },
+      configurable: true
+    },
+
+    lastChild: {
+      get: function() {
+        return TreeApi.Logical.getLastChild(this);
+      },
+      configurable: true
+    },
+
+    nextSibling: {
+      get: function() {
+        return TreeApi.Logical.getNextSibling(this);
+      },
+      configurable: true
+    },
+
+    previousSibling: {
+      get: function() {
+        return TreeApi.Logical.getPreviousSibling(this);
+      },
+      configurable: true
+    },
+
+    firstElementChild: {
+      get: function() {
+        return TreeApi.Logical.getFirstElementChild(this);
+      },
+      configurable: true
+    },
+
+    lastElementChild: {
+      get: function() {
+        return TreeApi.Logical.getLastElementChild(this);
+      },
+      configurable: true
+    },
+
+    nextElementSibling: {
+      get: function() {
+        return TreeApi.Logical.getNextElementSibling(this);
+      },
+      configurable: true
+    },
+
+    previousElementSibling: {
+      get: function() {
+        return TreeApi.Logical.getPreviousElementSibling(this);
+      },
+      configurable: true
+    },
+
+    // textContent / innerHTML
+    // TODO(sorvell): how to do this?
+    // textContent: {
+    //   get: function() {
+    //     var nt = this.node.nodeType;
+    //     if (nt === Node.TEXT_NODE || nt === Node.COMMENT_NODE) {
+    //       return this.node.textContent;
+    //     } else {
+    //       var tc = [];
+    //       for (var i = 0, cn = this.childNodes, c; (c = cn[i]); i++) {
+    //         if (c.nodeType !== Node.COMMENT_NODE) {
+    //           tc.push(c.textContent);
+    //         }
+    //       }
+    //       return tc.join('');
+    //     }
+    //   },
+    //   set: function(text) {
+    //     var nt = this.node.nodeType;
+    //     if (nt === Node.TEXT_NODE || nt === Node.COMMENT_NODE) {
+    //       this.node.textContent = text;
+    //     } else {
+    //       this._clear();
+    //       if (text) {
+    //         this.appendChild(document.createTextNode(text));
+    //       }
+    //     }
+    //   },
+    //   configurable: true
+    // },
+
+    // TODO(sorvell): how to do this?
+    // innerHTML: {
+    //   get: function() {
+    //     var nt = this.node.nodeType;
+    //     if (nt === Node.TEXT_NODE || nt === Node.COMMENT_NODE) {
+    //       return null;
+    //     } else {
+    //       return getInnerHTML(this.node);
+    //     }
+    //   },
+    //   set: function(text) {
+    //     var nt = this.node.nodeType;
+    //     if (nt !== Node.TEXT_NODE || nt !== Node.COMMENT_NODE) {
+    //       this._clear();
+    //       var d = document.createElement('div');
+    //       d.innerHTML = text;
+    //       // here, appendChild may move nodes async so we cannot rely
+    //       // on node position when copying
+    //       var c$ = TreeApi.arrayCopyChildNodes(d);
+    //       for (var i=0; i < c$.length; i++) {
+    //         this.appendChild(c$[i]);
+    //       }
+    //     }
+    //   },
+    //   configurable: true
+    // }
+
+  });
+
+})();
+</script>
