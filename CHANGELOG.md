@@ -1,5 +1,70 @@
 # Change Log
 
+##[v1.6.0](https://github.com/Polymer/polymer/tree/v1.6.0) (2016-06-29)
+- Fix test to account for pseudo element differences x-browser. ([commit](https://github.com/Polymer/polymer/commit/54a462d))
+
+- Restore functionality of selectors like `:host(.foo)::after`. ([commit](https://github.com/Polymer/polymer/commit/ff88e17))
+
+- add comment. ([commit](https://github.com/Polymer/polymer/commit/e770343))
+
+- re-support selectors like `:host[inline]` since this was previously supported under shady-dom. ([commit](https://github.com/Polymer/polymer/commit/4e51ef6))
+
+- fix linting ([commit](https://github.com/Polymer/polymer/commit/4817d61))
+
+- Add test for not matching `x-foox-bar` given `:host(x-bar)` used inside `x-foo` ([commit](https://github.com/Polymer/polymer/commit/4e08fa1))
+
+- fix test in IE/FF. ([commit](https://github.com/Polymer/polymer/commit/ec111f1))
+
+- simplify :host fixup ([commit](https://github.com/Polymer/polymer/commit/c3355fd))
+
+- Fixes #3739: correctly shim `:host(.element-name)` as `element-name.element-name`. ([commit](https://github.com/Polymer/polymer/commit/997240a))
+
+- Fixes #3734: address HI/CE timing issue in importHref. Fixes upgrade time dependencies of scripts on previous elements in async imports. ([commit](https://github.com/Polymer/polymer/commit/84662b9))
+
+- Ensure element scope selectors are updated correctly when updateStyles is called when element is not in dom. ([commit](https://github.com/Polymer/polymer/commit/6d90480))
+
+- add comment. ([commit](https://github.com/Polymer/polymer/commit/620e59f))
+
+- remove unneeded flag. ([commit](https://github.com/Polymer/polymer/commit/b5b8a2a))
+
+- Fixes #3730 and inspired by (https://github.com/Polymer/polymer/pull/3585) ([commit](https://github.com/Polymer/polymer/commit/ab431ed))
+
+- custom-style triggers updateStyles if root scope (StyleDefaults) has style properties when the custom-style is created. ([commit](https://github.com/Polymer/polymer/commit/4852f6c))
+
+- Fix _patchMatchesEffect. (#3631) ([commit](https://github.com/Polymer/polymer/commit/b78e5af))
+
+- Fixes #3555. Ensure selectors including `::content` without a prefix … (#3721) ([commit](https://github.com/Polymer/polymer/commit/1058896))
+
+- Fixes #3530. When `updateStyles` is called and an element is not attached, invalidate its styling so that when it is attached, its custom properties will be updated. ([commit](https://github.com/Polymer/polymer/commit/ae4a07e))
+
+- Make sure effect functions receive latest values ([commit](https://github.com/Polymer/polymer/commit/34b2c79))
+
+- [ci skip] data binding edge case smoke test ([commit](https://github.com/Polymer/polymer/commit/a54c1f2))
+
+- Use `whenReady` to apply custom styles. ([commit](https://github.com/Polymer/polymer/commit/129488b))
+
+- Use firefox 46 for testing ([commit](https://github.com/Polymer/polymer/commit/fbe5b0f))
+
+- Need to wait until render to test. ([commit](https://github.com/Polymer/polymer/commit/92293f9))
+
+- address feedback ([commit](https://github.com/Polymer/polymer/commit/4dc780a))
+
+- Fix lint, use query params instead of duplicate file. ([commit](https://github.com/Polymer/polymer/commit/e4880d9))
+
+- Ensure custom styles updated after adding custom-style async. Fixes #3705. ([commit](https://github.com/Polymer/polymer/commit/f770438))
+
+- Store cacheablility on the scope ([commit](https://github.com/Polymer/polymer/commit/bc9519e))
+
+- fix decorateStyles with custom-style ([commit](https://github.com/Polymer/polymer/commit/57a6769))
+
+- Do not scope cache elements with media rules, :host(), or :host-context() selectors ([commit](https://github.com/Polymer/polymer/commit/5c3b917))
+
+- Support preventDefault() on touch (#3693) ([commit](https://github.com/Polymer/polymer/commit/b9c874e))
+
+- Shim CSS Mixins in terms of CSS Custom Properties (#3587) ([commit](https://github.com/Polymer/polymer/commit/6c0acef))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/adef722))
+
 ##[v1.5.0](https://github.com/Polymer/polymer/tree/v1.5.0) (2016-05-31)
 - Fix test in Firefox that was hacked to work in Canary (instead filed https://bugs.chromium.org/p/chromium/issues/detail?id=614198). ([commit](https://github.com/Polymer/polymer/commit/1e2aed5))
 
