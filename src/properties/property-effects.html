@@ -44,14 +44,114 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    // Prototype setup ----------------------------------------
+
+    addPropertyEffect(model, path, effect, readOnly) {
+      model = this.getModel(model);
+      var property = this._rootForPath(path);
+      var effects = this._ensureEffects(model, '_propertyEffects')[property];
+      if (!effects) {
+        effects = model._propertyEffects[property] = [];
+        // TODO(sorvell): kosher to bail here if an accessor already exists?
+        if (!readOnly && model.hasOwnProperty(property)) {
+          console.warn('Accessor already exists for', property, 'on', model);
+        } else {
+          this.createAccessor(model, property, readOnly);
+        }
+        if (!readOnly) {
+          this._addObservedAttribute(model, property);
+        }
+      }
+      if (effect && !readOnly) {
+        effect.path = path;
+        effects.push(effect);
+      }
+    }
+
+    _ensureEffects(model, name) {
+      var effects = model[name];
+      if (!effects) {
+        effects = model[name] = {};
+      } else if (!model.hasOwnProperty(name)) {
+        effects = model[name] = Object.create(model[name]);
+        for (var p in effects) {
+          // TODO(kschaaf): replace with fast array copy #!%&$!
+          effects[p] = effects[p].slice();
+        }
+      }
+      return effects;
+    }
+
+    _rootForPath(path) {
+      var dot = path.indexOf('.');
+      return (dot < 0) ? path : path.slice(0, dot);
+    }
+
+    _addObservedAttribute(model, name) {
+      var attrName = Polymer.CaseMap.camelToDashCase(name);
+      var ctor = model.constructor;
+      if (!ctor.hasOwnProperty('observedAttributes')) {
+        ctor.observedAttributes =
+          ctor.observedAttributes ?
+          ctor.observedAttributes.slice() : [];
+      }
+      ctor.observedAttributes.push(attrName);
+    }
+
+    // Runtime ----------------------------------------
+
+    setProperty(inst, property, value) {
+      this.setPendingProperty(inst, property, value);
+      this.flush(inst);
+    }
+
+    validate(inst, props, oldProps, changedProps) {
+      for (var p in changedProps) {
+        var effects = inst._propertyEffects[p];
+        this._runEffects(inst, p, changedProps[p], oldProps[p], effects);
+      }
+    }
+
+    _runEffects(inst, property, value, old, effects) {
+      for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
+        if (this._pathMatchesEffect(property, fx)) {
+          fx.fn.call(inst, property, value, old, fx.info);
+        }
+      }
+    }
+
+    _pathMatchesEffect(path, effect) {
+      var effectArg = effect.path;
+      return (effectArg == path) ||
+        (effectArg.indexOf(path + '.') === 0) ||
+        (/* effect.trigger.wildcard && */ path.indexOf(effectArg) === 0);
+    }
+
+    executeStaticEffects(inst) {
+      if (this._propertyEffects && this._propertyEffects.__static__) {
+        this._runEffects(inst, '__static__', null, null, this._propertyEffects.__static__);
+      }
+    }
+
     // TODO(kschaaf): rather than create+run, consider closing over
     // run in create to avoid extra info object creation, otoh maybe
     // its good for debugging?
 
     // -- readOnly ----------------------------------------------
 
-    createReadOnlyProperty(model, property) {
-      this.createAccessor(model, property, true);
+    createReadOnlyProperty(model, property, privateSetter) {
+      model = this.getModel(model);
+      this.addPropertyEffect(model, property, null, true);
+      var lib = this;
+      if (privateSetter) {
+        model['_set' + this._upper(property)] = function(value) {
+          lib.setProperty(this, property, value);
+        }
+      }
+    }
+
+    _upper(name) {
+      return name[0].toUpperCase() + name.substring(1);
     }
 
     // -- observer ----------------------------------------------
@@ -61,13 +161,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         fn: this._runObserverEffect,
         info: {
           methodName: methodName,
-          context: this.getModel(context || model)
+          context: context ? this.getModel(context) : null
         }
       });
     }
 
     _runObserverEffect(property, value, old, info) {
-      var fn = info.context[info.methodName];
+      var fn = (info.context || this)[info.methodName];
       if (fn) {
         fn.call(this, value, old);
       } else {
@@ -88,7 +188,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _runNotifyEffect(property, value, old, info) {
-      this.dispatchEvent(new CustomEvent(info.eventName, {value: value}));
+      this.dispatchEvent(new CustomEvent(info.eventName, {
+        bubbles: false,
+        detail: { value: value }
+      }));
     }
 
     // -- reflect ----------------------------------------------
@@ -179,13 +282,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         value = info.lib._get(this, info.value);
         this.__data[info.value] = value;
       }
-      var calc = info.negate ? !value : value;
-      // For better interop, dirty check before setting when custom events
-      // are used, since the target element may not dirty check (e.g. <input>)
-      if (!info.customEvent ||
-          this._nodes[info.index][info.name] !== calc) {
-        return info.lib._applyEffectValue(this, info, calc);
-      }
+      info.lib._applyEffectValue(this, info, value);
     }
 
     _get(inst, path) {
@@ -221,9 +318,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         storage[info.compoundIndex] = value;
         value = storage.join('');
       }
+      if (info.negate) {
+        value = !value;
+      }
       // special processing for 'class' and 'className'; 'class' handled
       // when attr is serialized.
-      if (info.kind == 'attribute') {
+      if (info.customEvent && node[property] == value) {
+        // For better interop, dirty check before setting when custom events
+        // are used, since the target element may not dirty check (e.g. <input>)
+      } else if (info.kind == 'attribute') {
         this.attributes.valueToAttribute(node, value, property);
       } else {
         // TODO(sorvell): --- class scoping was here ---
@@ -381,15 +484,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var targetPath = e.detail && e.detail.path;
         if (targetPath) {
           path = this._fixPath(path, property, e.detail.path);
-          this._propertySetter(inst, path, e.detail.value);
+          this.setProperty(inst, path, e.detail.value);
         } else {
           var value = e.target[property];
-          if (path !== rootProperty) {
-            this._set(inst, path, value);
-            this._propertySetter(inst, path, value);
-          } else {
-            inst[rootProperty] = value;
-          }
+          this.setProperty(inst, path, value);
         }
       }
     }
@@ -413,11 +511,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         methodInfo: methodInfo,
         dynamicFn: dynamicFn
       };
-      for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
-        if (!arg.literal) {
-          this.addPropertyEffect(model, arg.rootProperty, {
-            fn: effectFn, info: info
-          });
+      if (sig.static) {
+        this.addPropertyEffect(model, '__static__', {
+          fn: effectFn, info: info
+        });
+      } else {
+        for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
+          if (!arg.literal) {
+            this.addPropertyEffect(model, arg.rootProperty, {
+              fn: effectFn, info: info
+            });
+          }
         }
       }
       if (dynamicFn) {
