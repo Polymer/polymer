@@ -38,6 +38,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!host) {
           throw 'Must provide a host';
         }
+        // TODO(sorvell): set a fake local name so this element can be
+        // distinguished from a DocumentFragment when patching.
+        this.localName = 'ShadyRoot';
         // root <=> host
         host.shadyRoot = this;
         this.host = host;
@@ -57,22 +60,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // distribute this host.
       update() {
         if (this._clean) {
-          var host = this._findDistributionRoot(this.host) || this;
-          if (host.shadyRoot._clean) {
-            host.shadyRoot._clean = false;
+          var distributionRoot = this._findDistributionRoot(this.host) || this;
+          if (distributionRoot._clean) {
+            distributionRoot._clean = false;
             this._clean = false;
-            host.shadyRoot.debounceRender()
-            Polymer.ShadyDom.addDebouncer(host.shadyRoot.debounceRender());
+            distributionRoot.debounceRender()
+            Polymer.ShadyDom.addDebouncer(distributionRoot.debounceRender());
           }
         }
       }
 
       // returns the host that's the top of this host's distribution tree
       _findDistributionRoot(element) {
-        while (element && this._elementNeedsDistribution(element)) {
-          element = this.root.ownerRootForNode(element);
+        var root = Polymer.ShadyDom.ownerRootForNode(element);
+        while (root && this._elementNeedsDistribution(root.host)) {
+          root = Polymer.ShadyDom.ownerRootForNode(root.host);
         }
-        return element;
+        return root;
       }
 
       // Return true if a host's children includes
@@ -82,7 +86,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i=0, c; i < c$.length; i++) {
           c = c$[i];
           if (this._distributor.isInsertionPoint(c)) {
-            return this.root.ownerRootForNode(element);
+            return Polymer.ShadyDom.ownerRootForNode(element);
           }
         }
       }
@@ -242,75 +246,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this._distributor.insertionPointTag;
       }
 
-      ownerRootForNode(node) {
-        if (!node) {
-          return;
-        }
-        var root = node.__ownerShadyRoot;
-        if (root === undefined) {
-          if (node instanceof ShadyRoot) {
-            root = node;
-          } else {
-            var parent = Tree.Logical.getParentNode(node);
-            if (parent) {
-              root = parent instanceof ShadyRoot ?
-                parent :
-                this.ownerRootForNode(parent);
-            } else {
-             root = null;
-            }
-          }
-          // memo-ize result for performance but only memo-ize a false-y
-          // result if node is in the document. This avoids a problem where a root
-          // can be cached while an element is inside a fragment.
-          // If this happens and we cache the result, the value can become stale
-          // because for perf we avoid processing the subtree of added fragments.
-          if (root || document.documentElement.contains(node)) {
-            node.__ownerShadyRoot = root;
-          }
-        }
-        return root;
-      }
-
-      // TODO(sorvell): move... dom mutation
-      appendChild(node) {
-        this.insertBefore(node);
-        return node;
-      }
-
-      insertBefore(node, ref_node) {
-        Tree.Logical.recordInsertBefore(node, this, ref_node);
-        this.update();
-        return node;
-      }
-
     }
 
     // TODO(sorvell): observation...
-    function notifyContentObservers(root) {
-      for (var i=0, c; i < root._insertionPoints.length; i++) {
-        c = root._insertionPoints[i];
-        if (DomApi.hasApi(c)) {
-          Polymer.dom(c).notifyObserver();
-        }
-      }
-    }
+    // function notifyContentObservers(root) {
+    //   for (var i=0, c; i < root._insertionPoints.length; i++) {
+    //     c = root._insertionPoints[i];
+    //     if (DomApi.hasApi(c)) {
+    //       Polymer.dom(c).notifyObserver();
+    //     }
+    //   }
+    // }
 
-    function notifyInitialDistribution(host) {
-      if (DomApi.hasApi(host)) {
-        Polymer.dom(host).notifyObserver();
-      }
-    }
+    // function notifyInitialDistribution(host) {
+    //   if (DomApi.hasApi(host)) {
+    //     Polymer.dom(host).notifyObserver();
+    //   }
+    // }
 
-    var needsUpgrade = window.CustomElements && !CustomElements.useNative;
+    // var needsUpgrade = window.CustomElements && !CustomElements.useNative;
 
-    function upgradeLogicalChildren(children) {
-      if (needsUpgrade && children) {
-        for (var i=0; i < children.length; i++) {
-          CustomElements.upgrade(children[i]);
-        }
-      }
-    }
+    // function upgradeLogicalChildren(children) {
+    //   if (needsUpgrade && children) {
+    //     for (var i=0; i < children.length; i++) {
+    //       CustomElements.upgrade(children[i]);
+    //     }
+    //   }
+    // }
 
     Polymer.ShadyDom.ShadyRoot = ShadyRoot;
 
