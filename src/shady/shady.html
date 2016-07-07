@@ -9,23 +9,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/debounce.html">
-<link rel="import" href="lib/array-splice.html">
-<link rel="import" href="lib/dom-tree-api.html">
-<link rel="import" href="lib/dom-api.html">
-<link rel="import" href="lib/dom-api-shady.html">
-<link rel="import" href="lib/dom-api-flush.html">
-<link rel="import" href="lib/dom-api-event.html">
-<link rel="import" href="lib/dom-api-classlist.html">
-<link rel="import" href="lib/dom-api-effective-nodes-observer.html">
-<link rel="import" href="lib/dom-api-distributed-nodes-observer.html">
+<link rel="import" href="../utils/array-splice.html">
+<link rel="import" href="utils.html">
+<link rel="import" href="tree.html">
+<!-- TODO(sorvell): event, classlist, and notification...
+<!-- <link rel="import" href="lib/dom-api-event.html"> -->
+<!-- <link rel="import" href="lib/dom-api-classlist.html"> -->
+<!-- <link rel="import" href="lib/dom-api-effective-nodes-observer.html"> -->
+<!-- <link rel="import" href="lib/dom-api-distributed-nodes-observer.html"> -->
 <link rel="import" href="distributor-v1.html">
 <link rel="import" href="distributor-v0.html">
+<link rel="import" href="patch.html">
+<link rel="import" href="flush.html">
 <script>
 
   (function() {
     
-    var DomApi = Polymer.DomApi;
-    var TreeApi = Polymer.TreeApi;
+    var Tree = Polymer.ShadyDom.Tree;
 
     /**
       Implements a pared down version of ShadowDOM's scoping, which is easy to
@@ -42,14 +42,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         host.shadyRoot = this;
         this.host = host;
         // logical dom setup
-        TreeApi.Logical.saveChildNodes(host);
-        TreeApi.Logical.saveChildNodes(this);
+        Tree.Logical.saveChildNodes(host);
+        Tree.Logical.saveChildNodes(this);
         // state flags
         this._clean = true;
         this._hasDistributed = false;
         this._distributor = useV0 ? 
-          new Polymer.ShadyDistributorV0(this) : 
-          new Polymer.ShadyDistributorV1(this);
+          new Polymer.ShadyDom.DistributorV0(this) : 
+          new Polymer.ShadyDom.DistributorV1(this);
         // TODO(sorvell): host state flags were set here next, needed?
       }
 
@@ -61,7 +61,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (host.shadyRoot._clean) {
             host.shadyRoot._clean = false;
             this._clean = false;
-            Polymer.dom.addDebouncer(host.shadyRoot.debounceRender());
+            host.shadyRoot.debounceRender()
+            Polymer.ShadyDom.addDebouncer(host.shadyRoot.debounceRender());
           }
         }
       }
@@ -77,7 +78,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Return true if a host's children includes
       // an insertion point that selects selectively
       _elementNeedsDistribution(element) {
-        var c$ = TreeApi.Logical.getChildNodes(element);
+        var c$ = Tree.Logical.getChildNodes(element);
         for (var i=0, c; i < c$.length; i++) {
           c = c$[i];
           if (this._distributor.isInsertionPoint(c)) {
@@ -127,8 +128,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // c. for parents of insertion points
         for (var i=0, c; i < i$.length; i++) {
           c = i$[i];
-          TreeApi.Logical.saveChildNodes(c);
-          TreeApi.Logical.saveChildNodes(TreeApi.Logical.getParentNode(c));
+          Tree.Logical.saveChildNodes(c);
+          Tree.Logical.saveChildNodes(Tree.Logical.getParentNode(c));
         }
       }
 
@@ -140,6 +141,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__insertionPoints = insertionPoints;
       }
 
+      hasInsertionPoint() {
+        return this._distributor.hasInsertionPoint();
+      }
+
       compose() {
         // compose self
         // note: it's important to mark this clean before distribution
@@ -147,15 +152,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // adding something to your parentNode) works
         this._clean = true;
         this._composeTree();
+        // TODO(sorvell): notification.
         // NOTE: send a signal to insertion points that we have distributed
         // which informs effective children observers
-        notifyContentObservers(this);
+        //notifyContentObservers(this);
         // TODO(sorvell): See fast paths here in Polymer v1
         // (these seem unnecessary)  
         // NOTE: send a signal to any Polymer.dom node observers
         // to report the initial set of childNodes
         if (!this._hasDistributed) {
-          notifyInitialDistribution(this.host);
+          //notifyInitialDistribution(this.host);
         }
         this._hasDistributed = true;
       }
@@ -166,7 +172,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._updateChildNodes(this.host, this._composeNode(this.host));
         var p$ = this._insertionPoints || [];
         for (var i=0, l=p$.length, p, parent; (i<l) && (p=p$[i]); i++) {
-          parent = TreeApi.Logical.getParentNode(p);
+          parent = Tree.Logical.getParentNode(p);
           if (!parent._useContent && (parent !== this.host) &&
             (parent !== this)) {
             this._updateChildNodes(parent, this._composeNode(parent));
@@ -177,14 +183,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Returns the list of nodes which should be rendered inside `node`.
       _composeNode(node) {
         var children = [];
-        var c$ = TreeApi.Logical.getChildNodes(node.shadyRoot || node);
+        var c$ = Tree.Logical.getChildNodes(node.shadyRoot || node);
         for (var i = 0; i < c$.length; i++) {
           var child = c$[i];
           if (this._distributor.isInsertionPoint(child)) {
             var distributedNodes = child._distributedNodes;
             for (var j = 0; j < distributedNodes.length; j++) {
               var distributedNode = distributedNodes[j];
-              if (this._distributor.isFinalDestination(child, distributedNode)) {
+              if (this.isFinalDestination(child, distributedNode)) {
                 children.push(distributedNode);
               }
             }
@@ -195,9 +201,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return children;
       }
 
+      isFinalDestination(insertionPoint, node) {
+        return this._distributor.isFinalDestination(
+          insertionPoint, node);
+      }
+
       // Ensures that the rendered node list inside `container` is `children`.
       _updateChildNodes(container, children) {
-        var composed = TreeApi.Composed.getChildNodes(container);
+        var composed = Tree.Composed.getChildNodes(container);
         var splices =
           Polymer.ArraySplice.calculateSplices(children, composed);
         // process removals
@@ -207,8 +218,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // to remove it; this can happen if Polymer.dom moves a node and
             // then schedules its previous host for distribution resulting in
             // the node being removed here.
-            if (TreeApi.Composed.getParentNode(n) === container) {
-              TreeApi.Composed.removeChild(container, n);
+            if (Tree.Composed.getParentNode(n) === container) {
+              Tree.Composed.removeChild(container, n);
             }
             composed.splice(s.index + d, 1);
           }
@@ -219,7 +230,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           next = composed[s.index];
           for (j=s.index, n; j < s.index + s.addedCount; j++) {
             n = children[j];
-            TreeApi.Composed.insertBefore(container, n, next);
+            Tree.Composed.insertBefore(container, n, next);
             // TODO(sorvell): is this splice strictly needed?
             composed.splice(j, 0, n);
           }
@@ -240,7 +251,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (node instanceof ShadyRoot) {
             root = node;
           } else {
-            var parent = TreeApi.Logical.getParentNode(node);
+            var parent = Tree.Logical.getParentNode(node);
             if (parent) {
               root = parent instanceof ShadyRoot ?
                 parent :
@@ -268,7 +279,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       insertBefore(node, ref_node) {
-        TreeApi.Logical.recordInsertBefore(node, this, ref_node);
+        Tree.Logical.recordInsertBefore(node, this, ref_node);
         this.update();
         return node;
       }
@@ -301,7 +312,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    Polymer.ShadyRoot = ShadyRoot;
+    Polymer.ShadyDom.ShadyRoot = ShadyRoot;
 
   })();
 

@@ -7,7 +7,6 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="dom-innerHTML.html">
 <script>
 (function() {
 
@@ -19,10 +18,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var nativeRemoveChild = Element.prototype.removeChild;
 
   /**
-   * TreeApi is a dom manipulation library used by Shady/Polymer.dom to
+   * Tree is a dom manipulation library used by Shady/Polymer.dom to
    * manipulate composed and logical trees.
    */
-  Polymer.TreeApi = {
+  var Tree = {
 
     // sad but faster than slice...
     arrayCopyChildNodes: function(parent) {
@@ -52,7 +51,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   };
 
-  Polymer.TreeApi.Logical = {
+  Tree.Logical = {
 
     hasParentNode: function(node) {
       return Boolean(node.__dom && node.__dom.parentNode);
@@ -89,32 +88,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // logical data is available and instead we do an explicit undefined check.
     getParentNode: function(node) {
       return node.__dom && node.__dom.parentNode !== undefined ?
-        node.__dom.parentNode : node.parentNode;
+        node.__dom.parentNode : Tree.Composed.getParentNode(node);
     },
 
     getFirstChild: function(node) {
       return node.__dom && node.__dom.firstChild !== undefined ?
-        node.__dom.firstChild : node.firstChild;
+        node.__dom.firstChild : Tree.Composed.getFirstChild(node);
     },
 
     getLastChild: function(node) {
       return node.__dom && node.__dom.lastChild  !== undefined ?
-        node.__dom.lastChild : node.lastChild;
+        node.__dom.lastChild : Tree.Composed.getLastChild(node);
     },
 
     getNextSibling: function(node) {
       return node.__dom && node.__dom.nextSibling  !== undefined ?
-        node.__dom.nextSibling : node.nextSibling;
+        node.__dom.nextSibling : Tree.Composed.getNextSibling(node);
     },
 
     getPreviousSibling: function(node) {
       return node.__dom && node.__dom.previousSibling  !== undefined ?
-        node.__dom.previousSibling : node.previousSibling;
+        node.__dom.previousSibling : Tree.Composed.getPreviousSibling(node);
     },
 
     getFirstElementChild: function(node) {
       return node.__dom && node.__dom.firstChild !== undefined ?
-        this._getFirstElementChild(node) : node.firstElementChild;
+        this._getFirstElementChild(node) : 
+        Tree.Composed.getFirstElementChild(node);
     },
 
     _getFirstElementChild: function(node) {
@@ -127,7 +127,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     getLastElementChild: function(node) {
       return node.__dom && node.__dom.lastChild !== undefined ?
-        this._getLastElementChild(node) : node.lastElementChild;
+        this._getLastElementChild(node) : 
+        Tree.Composed.getLastElementChild(node);
     },
 
     _getLastElementChild: function(node) {
@@ -140,7 +141,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     getNextElementSibling: function(node) {
       return node.__dom && node.__dom.nextSibling !== undefined ?
-        this._getNextElementSibling(node) : node.nextElementSibling;
+        this._getNextElementSibling(node) : 
+        Tree.Composed.getNextElementSibling(node);
     },
 
     _getNextElementSibling: function(node) {
@@ -153,7 +155,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     getPreviousElementSibling: function(node) {
       return node.__dom && node.__dom.previousSibling !== undefined ?
-        this._getPreviousElementSibling(node) : node.previousElementSibling;
+        this._getPreviousElementSibling(node) : 
+        Tree.Composed.getPreviousElementSibling(node);
     },
 
     _getPreviousElementSibling: function(node) {
@@ -175,17 +178,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node.__dom = node.__dom || {};
         node.__dom.firstChild = node.firstChild;
         node.__dom.lastChild = node.lastChild;
-        node.__dom.childNodes = [];
-        for (var n=node.firstChild; n; n=n.nextSibling) {
+        var c$ = node.__dom.childNodes = Tree.arrayCopyChildNodes(node);
+        for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
           n.__dom = n.__dom || {};
           n.__dom.parentNode = node;
-          node.__dom.childNodes.push(n);
-          n.__dom.nextSibling = n.nextSibling;
-          n.__dom.previousSibling = n.previousSibling;
+          n.__dom.nextSibling = c$[i+1] || null;
+          n.__dom.previousSibling = c$[i-1] || null;
+          Polymer.ShadyDom.patch(n);
         }
+        Polymer.ShadyDom.patch(node);
       }
     },
 
+    // TODO(sorvell): may need to patch saveChildNodes iff the tree has
+    // already been distributed.
+    // NOTE: ensure `node` is patched...
     recordInsertBefore: function(node, container, ref_node) {
       container.__dom.childNodes = null;
       // handle document fragments
@@ -193,8 +200,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // TODO(sorvell): remember this for patching:
         // the act of setting this info can affect patched nodes
         // getters; therefore capture childNodes before patching.
-        for (var n=node.firstChild; n; n=n.nextSibling) {
-          this._linkNode(n, container, ref_node);
+        for (var n=Tree.Composed.getFirstChild(node); n; 
+          n=Tree.Composed.getNextSibling(n)) {
+          this._linkNode(n, container, ref_node);  
         }
       } else {
         this._linkNode(node, container, ref_node);
@@ -202,6 +210,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _linkNode: function(node, container, ref_node) {
+      Polymer.ShadyDom.patch(node);
+      ref_node = ref_node || null;
       node.__dom = node.__dom || {};
       container.__dom = container.__dom || {};
       if (ref_node) {
@@ -265,14 +275,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // TODO(sorvell): composed tree manipulation is made available
   // (1) to maninpulate the composed tree, and (2) to track changes
   // to the tree for optional patching pluggability.
-  Polymer.TreeApi.Composed = {
+  Tree.Composed = {
 
     getChildNodes: function(node) {
-      return Polymer.TreeApi.arrayCopyChildNodes(node);
+      return Polymer.Tree.arrayCopyChildNodes(node);
     },
 
     getParentNode: function(node) {
       return node.parentNode;
+    },
+
+    getFirstChild: function(node) {
+      return node.firstChild;
+    },
+
+    getLastChild: function(node) {
+      return node.lastChild;
+    },
+
+    getNextSibling: function(node) {
+      return node.nextSibling;
+    },
+
+    getPreviousSibling: function(node) {
+      return node.previousSibling;
+    },
+
+    getFirstElementChild: function(node) {
+      return node.firstElementChild;
+    },
+
+    getLastElementChild: function(node) {
+      return node.lastElementChild;
+    },
+
+    getNextElementSibling: function(node) {
+      return node.nextElementSibling;
+    },
+
+    getPreviousElementSibling: function(node) {
+      return node.previousElementSibling;
     },
 
     // composed tracking needs to reset composed children here in case
@@ -296,6 +338,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
   };
+
+  Polymer.ShadyDom.Tree = Tree;
 
 })();
 </script>

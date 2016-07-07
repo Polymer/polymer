@@ -7,6 +7,9 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="tree.html">
+<link rel="import" href="element-mixin.html">
+<link rel="import" href="../utils/utils.html">
 <script>
 
 /**
@@ -22,15 +25,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 (function() {
 
-  // ******* Only patch if we're using Shady DOM *******
-  if (Polymer.Settings.useShadow) {
-    return;
-  }
-
-  var baseFinishDistribute = Polymer.Base._finishDistribute;
-  var TreeApi = Polymer.TreeApi;
-  var DomApi = Polymer.DomApi;
-  var dom = Polymer.dom;
+  var Tree = Polymer.ShadyDom.Tree;
 
   var nativeInsertBefore = Element.prototype.insertBefore;
   var nativeAppendChild = Element.prototype.appendChild;
@@ -41,59 +36,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // information. We patch an element's parent's to make this rule more 
   // likely to be satisfied.
   // Also note that any use of qS/qSA must be done in a patched node.
-  Polymer.Base._finishDistribute = function() {
-    var hasDistributed = this.root._hasDistributed;
-    if (!hasDistributed) {
-      //   var i$ = this.shadyRoot._insertionPoints;
-      //   for (var i=0, c; i < i$.length; i++) {
-      //     c = i$[i];
-      //     Polymer.dom(c.parentNode);
-      //     Polymer.dom(c);
-      //   }
-      // TODO(sorvell): ensure top element's parents are wrapped (helped A2
-      // since it uses qSA on the fragment containing stamped custom elements)
-      // note that getOwnerRoot will patch all parents but there should be an 
-      // explicit easier way to do this. 
-      if (!this.dataHost && document.documentElement.contains(this)) {
-        var n = this.parentNode;
-        while (n) {
-          Polymer.dom(n);
-          n = n.parentNode;
-        }
-      }
-    }
-    baseFinishDistribute.call(this);
-    if (!hasDistributed) {
-      var c$ = TreeApi.Logical.getChildNodes(this);
-      for (var i=0; i < c$.length; i++) {
-        Polymer.dom(c$[i]);
-      }
-      Polymer.dom(this);
-      Polymer.dom(this.root);
-    }
-  };
+  // Polymer.Base._finishDistribute = function() {
+  //   var hasDistributed = this.root._hasDistributed;
+  //   if (!hasDistributed) {
+  //     //   var i$ = this.shadyRoot._insertionPoints;
+  //     //   for (var i=0, c; i < i$.length; i++) {
+  //     //     c = i$[i];
+  //     //     Polymer.dom(c.parentNode);
+  //     //     Polymer.dom(c);
+  //     //   }
+  //     // TODO(sorvell): ensure top element's parents are wrapped (helped A2
+  //     // since it uses qSA on the fragment containing stamped custom elements)
+  //     // note that getOwnerRoot will patch all parents but there should be an 
+  //     // explicit easier way to do this. 
+  //     if (!this.dataHost && document.documentElement.contains(this)) {
+  //       var n = this.parentNode;
+  //       while (n) {
+  //         Polymer.dom(n);
+  //         n = n.parentNode;
+  //       }
+  //     }
+  //   }
+  //   baseFinishDistribute.call(this);
+  //   if (!hasDistributed) {
+  //     var c$ = Tree.Logical.getChildNodes(this);
+  //     for (var i=0; i < c$.length; i++) {
+  //       Polymer.dom(c$[i]);
+  //     }
+  //     Polymer.dom(this);
+  //     Polymer.dom(this.root);
+  //   }
+  // };
 
 
   var excluded = ['head'];
 
-  Polymer.telemetry.patched = 0;
+  Polymer.ShadyDom.patchedCount = 0;
   
-  var ctor = Polymer.DomApi.ctor;
-  Polymer.DomApi.ctor = function(node) {
-    Polymer.DomApi.patch(node);
-    return new ctor(node);
-  }
-
-  Polymer.DomApi.ctor.prototype = ctor.prototype;
-
-  Polymer.DomApi.patch = function(node) {
+  Polymer.ShadyDom.patch = function(node) {
     if (!node.__patched &&
       (!node.localName || !excluded.indexOf(node.localName) >= 0)) {
-      TreeApi.Logical.saveChildNodes(node);
-      if (!TreeApi.Composed.hasParentNode(node)) {
-        TreeApi.Composed.saveParentNode(node);
+      Tree.Logical.saveChildNodes(node);
+      if (!Tree.Composed.hasParentNode(node)) {
+        Tree.Composed.saveParentNode(node);
       }
-      TreeApi.Composed.saveChildNodes(node);
+      Tree.Composed.saveChildNodes(node);
       // TODO(sorvell): correctly patch non-element nodes.
       if (node.nodeType !== Node.TEXT_NODE) {
         node.__patched = true;
@@ -102,30 +89,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   };
 
-  Polymer.DomApi.ctor.prototype.unpatch = function() {
-    this.flush();
-    patchImpl.unpatch(this.node);
+  Polymer.ShadyDom.unpatch = function(node) {
+    patchImpl.unpatch(node);
   };
 
-  Polymer.DomApi.ctor.prototype.remove = function() {
-    this.parentNode.removeChild(this.node);
-    this.flush();
-    this.unpatch();
-  };
-
-  // allows attribute setting to be patched  
-  var nativeSetAttribute = Element.prototype.setAttribute;
-  Polymer.DomApi.ctor.prototype.setAttribute = function(name, value) {
-    nativeSetAttribute.call(this.node, name, value);
-    this._maybeDistributeParent();
-  };
-
-  var nativeRemoveAttribute = Element.prototype.removeAttribute;
-  Polymer.DomApi.ctor.prototype.removeAttribute = function(name, value) {
-    nativeRemoveAttribute.call(this.node, name);
-    this._maybeDistributeParent();
-  };
-
+  // Polymer.DomApi.ctor.prototype.remove = function() {
+  //   this.parentNode.removeChild(this);
+  //   this.flush();
+  //   this.unpatch();
+  // };
 
   var log = false;
 
@@ -151,7 +123,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     protoCache: {},
     
     patch: function(node) {
-      Polymer.telemetry.patched++;
+      Polymer.ShadyDom.patchedCount++;
       log && console.warn('patch node', node);
       if (this.hasPrototypeDescriptors) {
         this.patchPrototype(node);
@@ -165,16 +137,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node.localName || node.nodeType;
       var proto = this.protoCache[name];
       if (!proto) {
-        proto = this.protoCache[name] = this.createPatchedPrototype(node);
+        proto = this.protoCache[name] = this.createPatchedPrototype(node.__proto__);
       }
       node.__proto__ = proto;
     },
 
-    createPatchedPrototype: function(node) {
-      var sourceProto = node.__proto__;
-      var newProto = Object.create(sourceProto);
-      newProto.__sourceProto__ = sourceProto;
-      this.patchObject(newProto);
+    createPatchedPrototype: function(prototype) {
+      var newProto = Object.create(prototype);
+      newProto.__sourceProto__ = prototype;
+      //this.patchObject(newProto);
+      Polymer.Utils.extend(newProto, Polymer.ShadyDom.ElementMixin);
       return newProto;
     },
 
@@ -193,31 +165,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     patchMethod: function(obj, name) {
       var orig = obj[name];
       obj['_$' + name + '$_'] = orig;
-      obj[name] = function() {
-        log && console.warn(this, name, arguments);
-        return dom(this)[name].apply(this.__domApi, arguments);
-      };
+      obj[name] = Polymer.ShadyDom.ElementMixin[name];
+      // obj[name] = function() {
+      //   log && console.warn(this, name, arguments);
+      //   return dom(this)[name].apply(this.__domApi, arguments);
+      // };
     },
 
     patchAccessor: function(obj, name, writable, shouldCache) {
       if (shouldCache) {
         this.cacheAccessor(obj, name);
       }
-      var info = {
-        get: function() {
-          var r = dom(this)[name];
-          log && console.info(this, 'get', name, r);
-          return r;
-        },
-        configurable: true
-      };
-      if (writable) {
-        info.set = function(value) {
-          log && console.info(this, 'set', name);
-          dom(this)[name] = value;
-        };
+      // var info = {
+      //   get: function() {
+      //     var r = dom(this)[name];
+      //     log && console.info(this, 'get', name, r);
+      //     return r;
+      //   },
+      //   configurable: true
+      // };
+      // if (writable) {
+      //   info.set = function(value) {
+      //     log && console.info(this, 'set', name);
+      //     dom(this)[name] = value;
+      //   };
+      // }
+      // Object.defineProperty(obj, name, info);
+
+      var info = Object.getOwnPropertyDescriptor(Polymer.ElementMixin, name);
+      if (info) {
+        Object.defineProperty(obj, name, info);
+      } else {
+        console.warn('cannot patch', name);
       }
-      Object.defineProperty(obj, name, info);
     },
 
     cacheAccessor: function(obj, name) {
@@ -253,84 +233,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     
   };
 
-  Polymer.DomApi.patchImpl = patchImpl;
-
-  // NOTE: patch logical implementations here so we can use 
-  // composed getters
-  // TODO(sorvell): may need to patch saveChildNodes iff the tree has
-  // already been distributed.
-  TreeApi.Logical.recordInsertBefore = function(node, container, ref_node) {
-    // ensure import node is patched...
-    Polymer.dom(node);
-    container.__dom.childNodes = null;
-    // handle document fragments
-    if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-      // TODO(sorvell): remember this for patching:
-      // the act of setting this info can affect patched nodes
-      // getters; therefore capture childNodes before patching.
-      for (var n=TreeApi.Composed.getFirstChild(node); n; 
-        n=TreeApi.Composed.getNextSibling(n)) {
-        this._linkNode(n, container, ref_node);  
-      }
-    } else {
-      this._linkNode(node, container, ref_node);
-    }
-  }
-
-  TreeApi.Logical.getParentNode = function(node) {
-    return node.__dom && node.__dom.parentNode || 
-      TreeApi.Composed.getParentNode(node);
-  };
-
-  TreeApi.Logical.getFirstChild = function(node) {
-    return node.__dom && node.__dom.firstChild || 
-      TreeApi.Composed.getFirstChild(node);
-  };
-
-  TreeApi.Logical.getLastChild = function(node) {
-    return node.__dom && node.__dom.lastChild || 
-      TreeApi.Composed.getLastChild(node);
-  };
-
-  TreeApi.Logical.getNextSibling = function(node) {
-    return node.__dom && node.__dom.nextSibling || 
-      TreeApi.Composed.getNextSibling(node);
-  };
-
-  TreeApi.Logical.getPreviousSibling = function(node) {
-    return node.__dom && node.__dom.previousSibling || 
-      TreeApi.Composed.getPreviousSibling(node);
-  };
-
-  TreeApi.Logical.getFirstElementChild = function(node) {
-    return node.__dom && node.__dom.firstChild ? 
-      this._getFirstElementChild(node) :
-      TreeApi.Composed.getFirstElementChild(node);
-  };
-
-  TreeApi.Logical.getLastElementChild = function(node) {
-    return node.__dom && node.__dom.lastChild ? 
-      this._getLastElementChild(node) :
-      TreeApi.Composed.getLastElementChild(node);
-  };
-
-  TreeApi.Logical.getNextElementSibling = function(node) {
-    return node.__dom && node.__dom.nextSibling ? 
-      this._getNextElementSibling(node) :
-      TreeApi.Composed.getNextElementSibling(node);
-  };
-
-  TreeApi.Logical.getPreviousElementSibling = function(node) {
-    return node.__dom && node.__dom.previousSibling ? 
-      this._getPreviousElementSibling(node) :
-      TreeApi.Composed.getPreviousElementSibling(node);
-  };
-
-
   // TODO(sorvell): This is largely copy/pasted from the Logical tree
   // implementation. The code could be factored such that it could be shared
   // but there are perf trade offs to consider.
-  TreeApi.Composed = {
+  Tree.Composed = {
 
     hasParentNode: function(node) {
       return Boolean(node.__dom && node.__dom.$parentNode !== undefined);
@@ -342,7 +248,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     getChildNodes: function(node) {
       return this.hasChildNodes(node) ? this._getChildNodes(node) :
-        (!node.__patched && TreeApi.arrayCopy(node.childNodes));
+        (!node.__patched && Tree.arrayCopy(node.childNodes));
     },
 
     _getChildNodes: function(node) {
@@ -395,7 +301,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     getLastElementChild: function(node) {
       return node.__patched ? this._getLastElementChild(node) : 
-        node.firstElementChild;
+        node.lastElementChild;
     },
 
     _getLastElementChild: function(node) {
@@ -437,13 +343,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node.__dom = node.__dom || {};
         node.__dom.$firstChild = node.firstChild;
         node.__dom.$lastChild = node.lastChild;
-        node.__dom.$childNodes = [];
-        for (var n=node.firstChild; n; n=n.nextSibling) {
+        // node.__dom.$childNodes = [];
+        // for (var n=node.firstChild; n; n=n.nextSibling) {
+        //   n.__dom = n.__dom || {};
+        //   n.__dom.$parentNode = node;
+        //   node.__dom.$childNodes.push(n);
+        //   n.__dom.$nextSibling = n.nextSibling;
+        //   n.__dom.$previousSibling = n.previousSibling;
+        // }
+        var c$ = node.__dom.$childNodes = Tree.arrayCopyChildNodes(node);
+        for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
           n.__dom = n.__dom || {};
           n.__dom.$parentNode = node;
-          node.__dom.$childNodes.push(n);
-          n.__dom.$nextSibling = n.nextSibling;
-          n.__dom.$previousSibling = n.previousSibling;
+          n.__dom.$nextSibling = c$[i+1] || null;
+          n.__dom.$previousSibling = c$[i-1] || null;
         }
       }
     },
@@ -588,11 +501,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
   // patch important nodes
-  if (window.document) {
-    Polymer.dom(document);
-    if (document.body) {
-      Polymer.dom(document.body);
-    }
+  // if (window.document) {
+  //   Polymer.dom(document);
+  //   if (document.body) {
+  //     Polymer.dom(document.body);
+  //   }
+  // }
+
+  var createRootAndEnsurePatched = function(node, useV0) {
+    Polymer.ShadyDom.patch(node);
+    var root = new Polymer.ShadyDom.ShadyRoot(node, useV0);
+    Polymer.ShadyDom.patch(root);
+    return root;
+  }
+
+  // TODO(sorvell): transparent at the cost of intrusiveness.
+  // Consider instead patching some dom creation lib?
+  Element.prototype.createShadowRoot = function() {
+    return createRootAndEnsurePatched(this, true);
+  }
+
+  Element.prototype.attachShadow = function(dictionary) {
+    return createRootAndEnsurePatched(this);
   }
 
 })();
