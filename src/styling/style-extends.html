@@ -1,0 +1,101 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="style-util.html">
+
+<script>
+
+Polymer.StyleExtends = (function() {
+
+  var styleUtil = Polymer.StyleUtil;
+
+  return {
+
+    hasExtends: function(cssText) {
+      return Boolean(cssText.match(this.rx.EXTEND));
+    },
+
+    transform: function(style) {
+      var rules = styleUtil.rulesForStyle(style);
+      var self = this;
+      styleUtil.forEachRule(rules, function(rule) {
+        self._mapRuleOntoParent(rule);
+        if (rule.parent) {
+          var m;
+          while ((m = self.rx.EXTEND.exec(rule.cssText))) {
+            var extend = m[1];
+            var extendor = self._findExtendor(extend, rule);
+            if (extendor) {
+              self._extendRule(rule, extendor);
+            }
+          }
+        }
+        rule.cssText = rule.cssText.replace(self.rx.EXTEND, '');
+      });
+      // strip unused % selectors
+      return styleUtil.toCssText(rules, function(rule) {
+        if (rule.selector.match(self.rx.STRIP)) {
+          rule.cssText = '';
+        }
+      }, true);
+    },
+
+    _mapRuleOntoParent: function(rule) {
+      if (rule.parent) {
+        var map = rule.parent.map || (rule.parent.map = {});
+        var parts = rule.selector.split(',');
+        for (var i=0, p; i < parts.length; i++) {
+          p = parts[i];
+          map[p.trim()] = rule;
+        }
+        return map;
+      }
+    },
+
+    _findExtendor: function(extend, rule) {
+      return rule.parent && rule.parent.map && rule.parent.map[extend] ||
+        this._findExtendor(extend, rule.parent);
+    },
+
+    _extendRule: function(target, source) {
+      if (target.parent !== source.parent) {
+        this._cloneAndAddRuleToParent(source, target.parent);
+      }
+      target.extends = target.extends || [];
+      target.extends.push(source);
+      // TODO: this misses `%foo, .bar` as an unetended selector but
+      // this seems rare and could possibly be unsupported.
+      source.selector = source.selector.replace(this.rx.STRIP, '');
+      source.selector = (source.selector && source.selector + ',\n') +
+        target.selector;
+      if (source.extends) {
+        source.extends.forEach(function(e) {
+          this._extendRule(target, e);
+        }, this);
+      }
+    },
+
+    _cloneAndAddRuleToParent: function(rule, parent) {
+      rule = Object.create(rule);
+      rule.parent = parent;
+      if (rule.extends) {
+        rule.extends = rule.extends.slice();
+      }
+      parent.rules.push(rule);
+    },
+
+    rx: {
+      EXTEND: /@extends\(([^)]*)\)\s*?;/gim,
+      STRIP: /%[^,]*$/
+    }
+
+  };
+
+})();
+</script>
