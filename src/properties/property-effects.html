@@ -46,34 +46,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // Prototype setup ----------------------------------------
 
-    addPropertyEffect(model, path, effect, readOnly) {
+    addPropertyEffect(model, path, type, effect) {
       model = this.getModel(model);
       var property = this._rootForPath(path);
-      var effects = this._ensureEffects(model, '_propertyEffects')[property];
+      // _propertyEffects only used to track whether an accessor has been created or not
+      var effects = this._ensureOwnMappedArray(model, '_propertyEffects')[property];
       if (!effects) {
         effects = model._propertyEffects[property] = [];
-        // TODO(sorvell): kosher to bail here if an accessor already exists?
-        if (!readOnly && model.hasOwnProperty(property)) {
-          console.warn('Accessor already exists for', property, 'on', model);
-        } else {
-          this.createAccessor(model, property, readOnly);
-        }
-        if (!readOnly) {
-          this._addObservedAttribute(model, property);
-        }
+        this.createAccessor(model, property, type == Types.READ_ONLY);
       }
-      if (effect && !readOnly) {
+      // effects are accumulated into arrays per property based on type
+      if (effect) {
         effect.path = path;
+        effects.push(effect);
+        effects = this._ensureOwnMappedArray(model, type)[property];
+        if (!effects) {
+          effects = model[type][property] = [];
+        }
         effects.push(effect);
       }
     }
 
-    _ensureEffects(model, name) {
-      var effects = model[name];
+    _ensureOwnMappedArray(model, type) {
+      var effects = model[type];
       if (!effects) {
-        effects = model[name] = {};
-      } else if (!model.hasOwnProperty(name)) {
-        effects = model[name] = Object.create(model[name]);
+        effects = model[type] = {};
+      } else if (!model.hasOwnProperty(type)) {
+        effects = model[type] = Object.create(model[type]);
         for (var p in effects) {
           // TODO(kschaaf): replace with fast array copy #!%&$!
           effects[p] = effects[p].slice();
@@ -85,17 +84,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _rootForPath(path) {
       var dot = path.indexOf('.');
       return (dot < 0) ? path : path.slice(0, dot);
-    }
-
-    _addObservedAttribute(model, name) {
-      var attrName = Polymer.CaseMap.camelToDashCase(name);
-      var ctor = model.constructor;
-      if (!ctor.hasOwnProperty('observedAttributes')) {
-        ctor.observedAttributes =
-          ctor.observedAttributes ?
-          ctor.observedAttributes.slice() : [];
-      }
-      ctor.observedAttributes.push(attrName);
     }
 
     // Runtime ----------------------------------------
@@ -133,15 +121,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    // TODO(kschaaf): rather than create+run, consider closing over
-    // run in create to avoid extra info object creation, otoh maybe
-    // its good for debugging?
-
     // -- readOnly ----------------------------------------------
 
     createReadOnlyProperty(model, property, privateSetter) {
       model = this.getModel(model);
-      this.addPropertyEffect(model, property, null, true);
+      this.addPropertyEffect(model, property, Types.READ_ONLY);
       var lib = this;
       if (privateSetter) {
         model['_set' + this._upper(property)] = function(value) {
@@ -157,7 +141,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- observer ----------------------------------------------
 
     createObserver(model, property, methodName, context) {
-      this.addPropertyEffect(model, property, {
+      this.addPropertyEffect(model, property, Types.OBSERVE, {
         fn: this._runObserverEffect,
         info: {
           methodName: methodName,
@@ -178,7 +162,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- notify ----------------------------------------------
 
     createNotifyingProperty(model, property) {
-      this.addPropertyEffect(model, property, {
+      this.addPropertyEffect(model, property, Types.NOTIFY, {
         fn: this._runNotifyEffect,
         info: {
           lib: this,
@@ -197,7 +181,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- reflect ----------------------------------------------
 
     createReflectedProperty(model, property) {
-      this.addPropertyEffect(model, property, {
+      this.addPropertyEffect(model, property, Types.PROPAGATE, {
         fn: this._runReflectEffect,
         info: {
           lib: this,
@@ -214,7 +198,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createMultiObserver(model, expression) {
       var sig = this._parseMethod(expression);
-      this._createMethodEffect(model, sig, this._runMultiObserverEffect);
+      this._createMethodEffect(model, sig, Types.OBSERVE,
+        this._runMultiObserverEffect);
     }
 
     _runMultiObserverEffect(property, value, old, info) {
@@ -225,7 +210,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createComputedProperty(model, property, expression) {
       var sig = this._parseMethod(expression);
-      this._createMethodEffect(model, sig, this._runComputedEffect, property);
+      this._createMethodEffect(model, sig, Types.COMPUTE,
+        this._runComputedEffect, property);
     }
 
     _runComputedEffect(property, value, old, info) {
@@ -257,7 +243,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (part.signature) {
           this._addAnnotatedComputationEffect(model, note, part, index);
         } else if (!part.literal) {
-          this.addPropertyEffect(model, part.rootProperty, {
+          this.addPropertyEffect(model, part.rootProperty, Types.PROPAGATE, {
             fn: this._runAnnotationEffect,
             info:  {
               lib: this,
@@ -345,7 +331,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _addAnnotatedComputationEffect(model, note, part, index) {
-      this._createMethodEffect(model, part.signature,
+      this._createMethodEffect(model, part.signature, Types.PROPAGATE,
         this._runAnnotationComputationEffect, {
           index: index,
           isCompound: note.isCompound,
@@ -492,6 +478,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    _pathMatchesEffect(path, effect) {
+      var effectArg = effect.path;
+      return (effectArg == path) ||
+        (effectArg.indexOf(path + '.') === 0) ||
+        (/* effect.trigger.wildcard && */ path.indexOf(effectArg) === 0);
+    }
+
     _fixPath(property, root, path) {
       return property + path.slice(root.length);
     }
@@ -502,7 +495,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // -- for method-based effects (complexObserver & computed) --------------
 
-    _createMethodEffect(model, sig, effectFn, methodInfo) {
+    _createMethodEffect(model, sig, type, effectFn, methodInfo) {
       var dynamicFn = sig.dynamicFn;
       var info = {
         lib: this,
@@ -512,20 +505,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         dynamicFn: dynamicFn
       };
       if (sig.static) {
-        this.addPropertyEffect(model, '__static__', {
+        this.addPropertyEffect(model, '__static__', type, {
           fn: effectFn, info: info
         });
       } else {
         for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
           if (!arg.literal) {
-            this.addPropertyEffect(model, arg.rootProperty, {
+            this.addPropertyEffect(model, arg.rootProperty, type, {
               fn: effectFn, info: info
             });
           }
         }
       }
       if (dynamicFn) {
-        this._addPropertyEffect(model, sig.methodName, {
+        this._addPropertyEffect(model, sig.methodName, type, {
           fn: effectFn, info: info
         });
       }
@@ -699,6 +692,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+  }
+
+  var Types = PropertyEffects.Types = {
+    COMPUTE: '_computeEffects',
+    NOTIFY: '_notifyEffects',
+    PROPAGATE: '_propagateEffects',
+    OBSERVE: '_observeEffects',
+    READ_ONLY: '_readOnly'
   }
 
   // export
