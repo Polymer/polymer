@@ -7,275 +7,245 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="tree.html">
+<link rel="import" href="element-mixin.html">
+<link rel="import" href="../utils/utils.html">
 <script>
+
+/**
+ * Experimental import that patches elements that interacts with Shady DOM 
+ * such that tree traversal and mutation apis act like they would under
+ * Shadow DOM.
+ *
+ * This import enables interaction with Shady DOM powered custom elements mostly
+ * without the need to use `Polymer.dom` and can therefore enable better 
+ * interoperation with 3rd party code, libraries, and frameworks that use DOM
+ * tree manipulation apis.
+ */
+
 (function() {
 
-  'use strict';
+  var Tree = Polymer.ShadyDom.Tree;
 
-  // native add/remove
   var nativeInsertBefore = Element.prototype.insertBefore;
   var nativeAppendChild = Element.prototype.appendChild;
   var nativeRemoveChild = Element.prototype.removeChild;
 
-  /**
-   * Tree is a dom manipulation library used by Shady/Polymer.dom to
-   * manipulate composed and logical trees.
-   */
-  var Tree = {
+  // NOTE: any manipulation of a node must occur in a patched parent
+  // so that the parent can cleanup the node's composed and logical 
+  // information. We patch an element's parent's to make this rule more 
+  // likely to be satisfied.
+  // Also note that any use of qS/qSA must be done in a patched node.
+  // Polymer.Base._finishDistribute = function() {
+  //   var hasDistributed = this.root._hasDistributed;
+  //   if (!hasDistributed) {
+  //     //   var i$ = this.shadyRoot._insertionPoints;
+  //     //   for (var i=0, c; i < i$.length; i++) {
+  //     //     c = i$[i];
+  //     //     Polymer.dom(c.parentNode);
+  //     //     Polymer.dom(c);
+  //     //   }
+  //     // TODO(sorvell): ensure top element's parents are wrapped (helped A2
+  //     // since it uses qSA on the fragment containing stamped custom elements)
+  //     // note that getOwnerRoot will patch all parents but there should be an 
+  //     // explicit easier way to do this. 
+  //     if (!this.dataHost && document.documentElement.contains(this)) {
+  //       var n = this.parentNode;
+  //       while (n) {
+  //         Polymer.dom(n);
+  //         n = n.parentNode;
+  //       }
+  //     }
+  //   }
+  //   baseFinishDistribute.call(this);
+  //   if (!hasDistributed) {
+  //     var c$ = Tree.Logical.getChildNodes(this);
+  //     for (var i=0; i < c$.length; i++) {
+  //       Polymer.dom(c$[i]);
+  //     }
+  //     Polymer.dom(this);
+  //     Polymer.dom(this.root);
+  //   }
+  // };
 
-    // sad but faster than slice...
-    arrayCopyChildNodes: function(parent) {
-      var copy=[], i=0;
-      for (var n=parent.firstChild; n; n=n.nextSibling) {
-        copy[i++] = n;
-      }
-      return copy;
-    },
 
-    arrayCopyChildren: function(parent) {
-      var copy=[], i=0;
-      for (var n=parent.firstElementChild; n; n=n.nextElementSibling) {
-        copy[i++] = n;
-      }
-      return copy;
-    },
+  var excluded = ['head'];
 
-    arrayCopy: function(a$) {
-      var l = a$.length;
-      var copy = new Array(l);
-      for (var i=0; i < l; i++) {
-        copy[i] = a$[i];
+  Polymer.ShadyDom.patchedCount = 0;
+  
+  Polymer.ShadyDom.patch = function(node) {
+    if (!node.__patched &&
+      (!node.localName || !excluded.indexOf(node.localName) >= 0)) {
+      Tree.Logical.saveChildNodes(node);
+      if (!Tree.Composed.hasParentNode(node)) {
+        Tree.Composed.saveParentNode(node);
       }
-      return copy;
+      Tree.Composed.saveChildNodes(node);
+      // TODO(sorvell): correctly patch non-element nodes.
+      // necessary, for example, when a textNode is not distributed
+      // in that case it's parentNode is logical.
+      if (node.nodeType !== Node.TEXT_NODE) {
+        node.__patched = true;
+        patchImpl.patch(node);
+      }
     }
-
   };
 
-  Tree.Logical = {
+  Polymer.ShadyDom.unpatch = function(node) {
+    patchImpl.unpatch(node);
+  };
 
-    hasParentNode: function(node) {
-      return Boolean(node.__dom && node.__dom.parentNode);
-    },
+  // Polymer.DomApi.ctor.prototype.remove = function() {
+  //   this.parentNode.removeChild(this);
+  //   this.flush();
+  //   this.unpatch();
+  // };
 
-    hasChildNodes: function(node) {
-      return Boolean(node.__dom && node.__dom.childNodes !== undefined);
-    },
+  var log = false;
 
-    getChildNodes: function(node) {
-      // note: we're distinguishing here between undefined and false-y:
-      // hasChildNodes uses undefined check to see if this element has logical
-      // children; the false-y check indicates whether or not we should rebuild
-      // the cached childNodes array.
-      return this.hasChildNodes(node) ? this._getChildNodes(node) :
-        node.childNodes;
-    },
+  var patchImpl = {
+    
+    hasPrototypeDescriptors: Boolean(Object.getOwnPropertyDescriptor(
+      Node.prototype, 'textContent')),
+    
+    methods: ['appendChild', 'insertBefore', 'removeChild', 'replaceChild',
+      'querySelector', 'querySelectorAll', 'getDestinationInsertionPoints', 
+      'cloneNode', 'setAttribute', 'removeAttribute'],
+    // <content>: getDistributedNodes
 
-    _getChildNodes: function(node) {
-      if (!node.__dom.childNodes) {
-        node.__dom.childNodes = [];
-        for (var n=node.__dom.firstChild; n; n=n.__dom.nextSibling) {
-          node.__dom.childNodes.push(n);
-        }
-      }
-      return node.__dom.childNodes;
-    },
+    containerAccessors: ['childNodes', 
+      'firstChild', 'lastChild',
+      'children',
+      'firstElementChild', 'lastElementChild'
+    ],
 
-    // NOTE: __dom can be created under 2 conditions: (1) an element has a
-    // logical tree, or (2) an element is in a logical tree. In case (1), the
-    // element will store firstChild/lastChild, and in case (2), the element
-    // will store parentNode, nextSibling, previousSibling. This means that
-    // the mere existence of __dom is not enough to know if the requested
-    // logical data is available and instead we do an explicit undefined check.
-    getParentNode: function(node) {
-      return node.__dom && node.__dom.parentNode !== undefined ?
-        node.__dom.parentNode : Tree.Composed.getParentNode(node);
-    },
+    nodeAccessors: [
+      'parentNode', 'nextSibling', 'previousSibling',
+      'parentElement', 'nextElementSibling', 'previousElementSibling'
+    ],
 
-    getFirstChild: function(node) {
-      return node.__dom && node.__dom.firstChild !== undefined ?
-        node.__dom.firstChild : Tree.Composed.getFirstChild(node);
-    },
+    containerWritableAccessors: ['textContent', 'innerHTML'],
 
-    getLastChild: function(node) {
-      return node.__dom && node.__dom.lastChild  !== undefined ?
-        node.__dom.lastChild : Tree.Composed.getLastChild(node);
-    },
-
-    getNextSibling: function(node) {
-      return node.__dom && node.__dom.nextSibling  !== undefined ?
-        node.__dom.nextSibling : Tree.Composed.getNextSibling(node);
-    },
-
-    getPreviousSibling: function(node) {
-      return node.__dom && node.__dom.previousSibling  !== undefined ?
-        node.__dom.previousSibling : Tree.Composed.getPreviousSibling(node);
-    },
-
-    getFirstElementChild: function(node) {
-      return node.__dom && node.__dom.firstChild !== undefined ?
-        this._getFirstElementChild(node) : 
-        Tree.Composed.getFirstElementChild(node);
-    },
-
-    _getFirstElementChild: function(node) {
-      var n = node.__dom.firstChild;
-      while (n && n.nodeType !== Node.ELEMENT_NODE) {
-        n = n.__dom.nextSibling;
-      }
-      return n;
-    },
-
-    getLastElementChild: function(node) {
-      return node.__dom && node.__dom.lastChild !== undefined ?
-        this._getLastElementChild(node) : 
-        Tree.Composed.getLastElementChild(node);
-    },
-
-    _getLastElementChild: function(node) {
-      var n = node.__dom.lastChild;
-      while (n && n.nodeType !== Node.ELEMENT_NODE) {
-        n = n.__dom.previousSibling;
-      }
-      return n;
-    },
-
-    getNextElementSibling: function(node) {
-      return node.__dom && node.__dom.nextSibling !== undefined ?
-        this._getNextElementSibling(node) : 
-        Tree.Composed.getNextElementSibling(node);
-    },
-
-    _getNextElementSibling: function(node) {
-      var n = node.__dom.nextSibling;
-      while (n && n.nodeType !== Node.ELEMENT_NODE) {
-        n = n.__dom.nextSibling;
-      }
-      return n;
-    },
-
-    getPreviousElementSibling: function(node) {
-      return node.__dom && node.__dom.previousSibling !== undefined ?
-        this._getPreviousElementSibling(node) : 
-        Tree.Composed.getPreviousElementSibling(node);
-    },
-
-    _getPreviousElementSibling: function(node) {
-      var n = node.__dom.previousSibling;
-      while (n && n.nodeType !== Node.ELEMENT_NODE) {
-        n = n.__dom.previousSibling;
-      }
-      return n;
-    },
-
-    // Capture the list of light children. It's important to do this before we
-    // start transforming the DOM into "rendered" state.
-    // Children may be added to this list dynamically. It will be treated as the
-    // source of truth for the light children of the element. This element's
-    // actual children will be treated as the rendered state once this function
-    // has been called.
-    saveChildNodes: function(node) {
-      if (!this.hasChildNodes(node)) {
-        node.__dom = node.__dom || {};
-        node.__dom.firstChild = node.firstChild;
-        node.__dom.lastChild = node.lastChild;
-        var c$ = node.__dom.childNodes = Tree.arrayCopyChildNodes(node);
-        for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
-          n.__dom = n.__dom || {};
-          n.__dom.parentNode = node;
-          n.__dom.nextSibling = c$[i+1] || null;
-          n.__dom.previousSibling = c$[i-1] || null;
-          Polymer.ShadyDom.patch(n);
-        }
-        Polymer.ShadyDom.patch(node);
-      }
-    },
-
-    // TODO(sorvell): may need to patch saveChildNodes iff the tree has
-    // already been distributed.
-    // NOTE: ensure `node` is patched...
-    recordInsertBefore: function(node, container, ref_node) {
-      container.__dom.childNodes = null;
-      // handle document fragments
-      if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-        var c$ = Tree.arrayCopyChildNodes(node);
-        for (var i=0; i < c$.length; i++) {
-          this._linkNode(c$[i], container, ref_node);  
-        }
-        // cleanup logical dom in doc fragment.
-        node.__dom = node.__dom || {};
-        node.__dom.firstChild = node.__dom.lastChild = undefined;
-        node.__dom.childNodes = null;
+    protoCache: {},
+    
+    patch: function(node) {
+      Polymer.ShadyDom.patchedCount++;
+      log && console.warn('patch node', node);
+      Tree.Composed.saveComposedData(node);
+      if (this.hasPrototypeDescriptors) {
+        this.patchPrototype(node);
       } else {
-        this._linkNode(node, container, ref_node);
+        this.patchObject(node, true);
       }
     },
 
-    _linkNode: function(node, container, ref_node) {
-      Polymer.ShadyDom.patch(node);
-      ref_node = ref_node || null;
-      node.__dom = node.__dom || {};
-      container.__dom = container.__dom || {};
-      if (ref_node) {
-        ref_node.__dom = ref_node.__dom || {};
+    patchPrototype: function(node) {
+      var name = node.is || (node.getAttribute && node.getAttribute('is')) ||
+        node.localName || node.nodeType;
+      var proto = this.protoCache[name];
+      if (!proto) {
+        proto = this.protoCache[name] = this.createPatchedPrototype(node.__proto__);
       }
-      // update ref_node.previousSibling <-> node
-      node.__dom.previousSibling = ref_node ? ref_node.__dom.previousSibling :
-        container.__dom.lastChild;
-      if (node.__dom.previousSibling) {
-        node.__dom.previousSibling.__dom.nextSibling = node;
+      node.__proto__ = proto;
+    },
+
+    createPatchedPrototype: function(prototype) {
+      var newProto = Object.create(prototype);
+      newProto.__sourceProto__ = prototype;
+      this.patchObject(newProto);
+      //Polymer.Utils.extend(newProto, Polymer.ShadyDom.ElementMixin);
+      return newProto;
+    },
+
+    patchObject: function(obj, cacheAccesors) {
+      this.methods.forEach(function(m) {
+        this.patchMethod(obj, m);
+      }, this);
+      this.containerAccessors.forEach(function(n) {
+        this.patchAccessor(obj, n, false, cacheAccesors);
+      }, this);
+      this.containerWritableAccessors.forEach(function(n) {
+        this.patchAccessor(obj, n, true, cacheAccesors);
+      }, this);
+      this.nodeAccessors.forEach(function(n) {
+        this.patchAccessor(obj, n, false, cacheAccesors);
+      }, this);
+    },
+
+    patchMethod: function(obj, name) {
+      var orig = obj[name];
+      obj['_$' + name + '$_'] = orig;
+      obj[name] = Polymer.ShadyDom.ElementMixin[name];
+      // obj[name] = function() {
+      //   log && console.warn(this, name, arguments);
+      //   return dom(this)[name].apply(this.__domApi, arguments);
+      // };
+    },
+
+    patchAccessor: function(obj, name, writable, shouldCache) {
+      if (shouldCache) {
+        this.cacheAccessor(obj, name);
       }
-      // update node <-> ref_node
-      node.__dom.nextSibling = ref_node;
-      if (node.__dom.nextSibling) {
-        node.__dom.nextSibling.__dom.previousSibling = node;
-      }
-      // update node <-> container
-      node.__dom.parentNode = container;
-      if (ref_node) {
-        if (ref_node === container.__dom.firstChild) {
-          container.__dom.firstChild = node;
-        }
+      // var info = {
+      //   get: function() {
+      //     var r = dom(this)[name];
+      //     log && console.info(this, 'get', name, r);
+      //     return r;
+      //   },
+      //   configurable: true
+      // };
+      // if (writable) {
+      //   info.set = function(value) {
+      //     log && console.info(this, 'set', name);
+      //     dom(this)[name] = value;
+      //   };
+      // }
+      // Object.defineProperty(obj, name, info);
+
+      var info = Object.getOwnPropertyDescriptor(Polymer.ElementMixin, name);
+      if (info) {
+        Object.defineProperty(obj, name, info);
       } else {
-        container.__dom.lastChild = node;
-        if (!container.__dom.firstChild) {
-          container.__dom.firstChild = node;
-        }
+        console.warn('cannot patch', name);
       }
-      // remove caching of childNodes
-      container.__dom.childNodes = null;
     },
 
-    recordRemoveChild: function(node, container) {
-      node.__dom = node.__dom || {};
-      container.__dom = container.__dom || {};
-      if (node === container.__dom.firstChild) {
-        container.__dom.firstChild = node.__dom.nextSibling;
+    cacheAccessor: function(obj, name) {
+      var cache = obj.__descriptorCache = obj.__descriptorCache || {};
+      cache[name] = Object.getOwnPropertyDescriptor(obj, name);
+    },
+
+    unpatch: function(obj) {
+      if (obj.__sourceProto__) {
+        obj.__proto__ = obj.__sourceProto__;
+      } else {
+        this.methods.forEach(function(m) {
+          this.unpatchMethod(obj, m);
+        }, this);
+        this.accessors.forEach(function(n) {
+          this.unpatchAccessor(obj, n);
+        }, this);
+        this.writableAccessors.forEach(function(n) {
+          this.unpatchAccessor(obj, n);
+        }, this);
       }
-      if (node === container.__dom.lastChild) {
-        container.__dom.lastChild = node.__dom.previousSibling;
-      }
-      var p = node.__dom.previousSibling;
-      var n = node.__dom.nextSibling;
-      if (p) {
-        p.__dom.nextSibling = n;
-      }
-      if (n) {
-        n.__dom.previousSibling = p;
-      }
-      // When an element is removed, logical data is no longer tracked.
-      // Explicitly set `undefined` here to indicate this. This is disginguished
-      // from `null` which is set if info is null.
-      node.__dom.parentNode = node.__dom.previousSibling =
-        node.__dom.nextSibling = undefined;
-      // remove caching of childNodes
-      container.__dom.childNodes = null;
+      obj.__patched = false;
+    },
+
+    unpatchMethod: function(obj, name) {
+      delete obj[name];
+    },
+
+    unpatchAccessor: function(obj, name) {
+      var info = obj.__descriptorCache[name];
+      Object.defineProperty(obj, name, info);
     }
+    
+  };
 
-  }
-
-  // TODO(sorvell): composed tree manipulation is made available
-  // (1) to maninpulate the composed tree, and (2) to track changes
-  // to the tree for optional patching pluggability.
+  // TODO(sorvell): This is largely copy/pasted from the Logical tree
+  // implementation. The code could be factored such that it could be shared
+  // but there are perf trade offs to consider.
   Tree.Composed = {
 
     hasParentNode: function(node) {
@@ -536,7 +506,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   };
 
-  Polymer.ShadyDom.Tree = Tree;
+  // patch important nodes
+  // if (window.document) {
+  //   Polymer.dom(document);
+  //   if (document.body) {
+  //     Polymer.dom(document.body);
+  //   }
+  // }
+
+  var createRootAndEnsurePatched = function(node, useV0) {
+    Polymer.ShadyDom.patch(node);
+    var root = new Polymer.ShadyDom.ShadyRoot(node, useV0);
+    Polymer.ShadyDom.patch(root);
+    return root;
+  }
+
+  // TODO(sorvell): transparent at the cost of intrusiveness.
+  // Consider instead patching some dom creation lib?
+  Element.prototype.createShadowRoot = function() {
+    return createRootAndEnsurePatched(this, true);
+  }
+
+  Element.prototype.attachShadow = function(dictionary) {
+    return createRootAndEnsurePatched(this);
+  }
+
+  DocumentFragment.prototype.appendChild = function(node) {
+    Polymer.ShadyDom.patch(this);
+    return this.appendChild(node);
+  }
 
 })();
+
 </script>
