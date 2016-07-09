@@ -59,22 +59,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // async render the "top" distributor (this is all that is needed to 
       // distribute this host.
       update() {
-        if (this._clean) {
-          var distributionRoot = this._findDistributionRoot(this.host) || this;
-          if (distributionRoot._clean) {
-            distributionRoot._clean = false;
-            this._clean = false;
-            distributionRoot.debounceRender()
-            Polymer.ShadyDom.addDebouncer(distributionRoot.debounceRender());
-          }
+        var distributionRoot = this._findDistributionRoot(this.host);
+        //console.log('update from', this.host, 'root', distributionRoot.host, distributionRoot._clean);
+        if (distributionRoot._clean) {
+          distributionRoot._clean = false;
+          //console.log('triggered render on', distributionRoot.host);
+          distributionRoot.debounceRender()
+          Polymer.ShadyDom.addDebouncer(distributionRoot.debounceRender());
         }
       }
 
       // returns the host that's the top of this host's distribution tree
       _findDistributionRoot(element) {
-        var root = Polymer.ShadyDom.ownerRootForNode(element);
-        while (root && this._elementNeedsDistribution(root.host)) {
-          root = Polymer.ShadyDom.ownerRootForNode(root.host);
+        var root = element.shadyRoot;
+        while (element && this._elementNeedsDistribution(element)) {
+          root = Polymer.ShadyDom.ownerRootForNode(element);
+          element = root && root.host;
         }
         return root;
       }
@@ -92,7 +92,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       // async render this root!
-      // TODO(sorvell): consider using a single async queue.
       debounceRender() {
         this._renderDebouncer = Polymer.Debouncer.debounce(this._renderDebouncer,
           this.render, null, this);
@@ -100,6 +99,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       render() {
+        //console.log('render', this.host);
         if (this._renderDebouncer) {
           this._renderDebouncer.cancel();
           this._renderDebouncer = null;
@@ -113,13 +113,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.distribute();
           // physical
           this.compose();
+          this._clean = true;
         }
+      }
+
+      forceRender() {
+        this._clean = false;
+        this.render();
       }
 
       distribute() {
         var dirtyRoots = this._distributor.distribute();
-        for (var i=0; i<dirtyRoots.length; i++) {
-          dirtyRoots[i].render();
+        for (var i=0, root; i<dirtyRoots.length; i++) {
+          dirtyRoots[i].forceRender();
         }
       }
 
@@ -138,6 +144,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       get _insertionPoints() {
+        if (!this.__insertionPoints) {
+          this.updateInsertionPoints();
+        }
         return this.__insertionPoints || (this.__insertionPoints = []);
       }
 
@@ -154,7 +163,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // note: it's important to mark this clean before distribution
         // so that attachment that provokes additional distribution (e.g.
         // adding something to your parentNode) works
-        this._clean = true;
         this._composeTree();
         // TODO(sorvell): notification.
         // NOTE: send a signal to insertion points that we have distributed
@@ -177,8 +185,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var p$ = this._insertionPoints || [];
         for (var i=0, l=p$.length, p, parent; (i<l) && (p=p$[i]); i++) {
           parent = Tree.Logical.getParentNode(p);
-          if (!parent._useContent && (parent !== this.host) &&
-            (parent !== this)) {
+          if ((parent !== this.host) && (parent !== this)) {
             this._updateChildNodes(parent, this._composeNode(parent));
           }
         }
