@@ -19,13 +19,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createAccessor(model, property, readOnly) {
       model = this.getModel(model);
-      var val;
-      // model is normally a prototype; to support dynamically adding accessors
-      // to instances which may already have values set on them, we read the
-      // value first and set it into the accessor after creation
-      if (model.hasOwnProperty(property)) {
-        val = model[property];
-      }
+      this.saveAccessorValue(model, property);
       var lib = this;
       Object.defineProperty(model, property, {
         get: function() {
@@ -35,8 +29,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           lib.setProperty(this, property, value);
         }
       });
-      if (val !== undefined) {
-        model[property] = val;
+    }
+
+    saveAccessorValue(model, property) {
+      if (model.hasOwnProperty(property)) {
+        if (!model.__dataProto) {
+          model.__dataProto = {};
+        } else if (!model.hasOwnProperty('__dataProto')) {
+          model.__dataProto = Object.create(model.__dataProto);
+        }
+        model.__dataProto[property] = model[property];
       }
     }
 
@@ -63,11 +65,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     setPendingProperty(inst, property, value) {
       if (!inst.__data) {
         inst.__data = {};
-        inst.__dataPending = {};
-        inst.__dataOld = {};
       }
       var old = inst.__data[property];
       if (this.shouldPropChange(value, old)) {
+        if (!inst.__dataPending) {
+          inst.__dataPending = {};
+          inst.__dataOld = {};
+        }
         // Ensure old is captured from the last turn
         if (!(property in inst.__dataPending)) {
           inst.__dataOld[property] = old;
@@ -91,14 +95,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     flush(inst) {
-      var oldProps = inst.__dataOld;
-      var changedProps = inst.__dataPending;
-      inst.__dataPending = {};
-      inst.__dataOld = {};
-      if (inst.validate) {
-        inst.validate(inst.__data, oldProps, changedProps);
-      } else {
-        this.validate(inst, inst.__data, oldProps, changedProps);
+      if (inst.__dataPending) {
+        var oldProps = inst.__dataOld;
+        var changedProps = inst.__dataPending;
+        inst.__dataPending = null;
+        if (inst.validate) {
+          inst.validate(inst.__data, oldProps, changedProps);
+        } else {
+          this.validate(inst, inst.__data, oldProps, changedProps);
+        }
       }
     }
 

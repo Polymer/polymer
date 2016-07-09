@@ -38,21 +38,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         model.setProperties = function(props, fromAbove) {
           lib.setProperties(this, props, fromAbove);
         };
-        model.set = model.notifyPath = function(prop, value) {
-          lib.set(this, prop, value);
+        model.set = model.notifyPath = function(path, value) {
+          lib.set(this, path, value);
         };
+        model.get = function(path) {
+          lib.get(this, path)
+        }
       }
       super.addPropertyEffect.apply(this, arguments);
     }
 
     // -- set properties machinery
 
-    setProperties(inst, props, fromAbove) {
+    setProperties(inst, props) {
       for (var prop in props) {
         this.setPendingProperty(inst, prop, props[prop]);
       }
       if (inst._propertyEffectsActive) {
-        inst._fromAbove = fromAbove;
         if (inst.asyncEffects) {
           this.invalidate(inst);
         } else {
@@ -61,10 +63,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    setProperty(inst, prop, value, fromAbove) {
+    setProperty(inst, prop, value) {
       this.setPendingProperty(inst, prop, value);
       if (inst._propertyEffectsActive) {
-        inst._fromAbove = fromAbove;
         if (inst.asyncEffects) {
           this.invalidate(inst);
         } else {
@@ -81,6 +82,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._set(inst, prop, value);
       }
       return super.setPendingProperty(inst, prop, value);
+    }
+
+    flush(inst, fromAbove) {
+      inst._fromAbove = inst._fromAbove || fromAbove;
+      super.flush(inst);
+      inst._fromAbove = false;
     }
 
     validate(inst, currentProps, oldProps, changedProps) {
@@ -112,8 +119,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._mixin(changedProps, inst.__dataPending);
           computedProps = this._mixin(computedProps || {}, inst.__dataPending);
           inputProps = inst.__dataPending;
-          inst.__dataPending = {};
-          inst.__dataOld = {};
+          inst.__dataPending = null;
         }
         return computedProps;
       }
@@ -121,15 +127,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _runPropagationEffects(inst, changedProps) {
       inst.__pendingClients = inst.__pendingClients || new Map();
+      // Propagate pending changes to clients
       this._runEffects(inst, Types.PROPAGATE, changedProps);
-      if (!inst._propertyEffectsActive) {
-        this._runEffects(inst, Types.PROPAGATE, {__static__: true});
-      }
-      // Recurse to clients
+      // Flush all clients
       inst.__pendingClients.forEach((v, client) => {
         if (client._propertyEffectsActive) {
-          client._fromAbove = true;
-          this.flush(client);
+          this.flush(client, true);
         } else {
           this.ensureStamped(client);
         }
@@ -142,9 +145,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.setProperty(inst, path, value);
     }
 
+    get(inst, path) {
+      path = Array.isArray(path) ? path.join('.') : path;
+      this._get(inst, path);
+    }
+
     _notifyProperties(inst, changedProps, computedProps) {
       var props = inst._fromAbove ? computedProps : changedProps;
-      inst._fromAbove = false;
       var runId = (inst._runId = ((inst._runId || 0) + 1));
       inst.__interimData = inst.__interimData ?
         this._mixin(inst.__interimData, changedProps) : changedProps;
@@ -226,7 +233,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
               if (this._pathMatchesEffect(prop, fx) &&
                 (!fx.info || fx.info.lastRun !== id)) {
-                fx.fn.call(inst, prop, val, oldProps && oldProps[prop], fx.info);
+                fx.fn.call(inst, prop, val, oldProps && oldProps[prop], fx.info, inst._fromAbove);
                 if (fx.info) {
                   fx.info.lastRun = id;
                 }
@@ -253,23 +260,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     enablePropertyEffects(inst, quiet) {
       inst._propertyEffectsActive = true;
-      inst._fromAbove = quiet;
-      this.flush(inst);
-      // var changedProps = inst.__dataPending;
-      // var oldProps = inst.__dataOld;
-      // inst.__dataPending = {};
-      // inst.__dataOld = {};
-      // changedProps = this._notifyProperties(inst, changedProps);
-      // if (changedProps) {
-      //   this._runEffects(inst, Types.OBSERVE, changedProps, oldProps);
-      // }
+      this.flush(inst, quiet);
     }
 
     disablePropertyEffects(inst) {
       inst._propertyEffectsActive = false;
     }
 
-    setTemplate(inst, template) {
+    init(inst, template) {
+      if (inst.XXXXX__dataProto) {
+        inst.__data = Object.create(inst.__dataProto);
+        inst.__dataPending = Object.create(inst.__dataProto);
+        inst.__dataOld = {};
+      }
       inst.__dataTemplate = template;
     }
 

@@ -21,8 +21,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     class Templatizer {
 
       constructor(batchedEffects) {
-        this.batchedEffects = batchedEffects ||
-          (Polymer.BatchedEffects && new Polymer.BatchedEffects());
+        var self = this;
+        this.batchedEffects = batchedEffects || new Polymer.BatchedEffects();
         // arguments are required
         if (!this.batchedEffects) {
           throw 'PropertyEffects constructor requires `batchedEffects` delegate.';
@@ -50,10 +50,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Anonymous class created by the templatizer
         var batchedEffects = this.batchedEffects;
         var ctor = class TemplateInstance {
-          constructor(props) {
-            var dataHost = this.dataHost = template.dataHost;
-            if (dataHost) {
-              this._rootDataHost = dataHost._rootDataHost || dataHost;
+          constructor(host, props) {
+            this.dataHost = host;
+            if (host) {
+              this._rootDataHost = host.dataHost ?
+                host.dataHost._rootDataHost || host.dataHost : host;
             }
             this._hostProps = template._content._hostProps;
             this._configureProperties(props);
@@ -103,11 +104,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
           forwardProperty(prop, value) {
-            var host = template.dataHost;
             batchedEffects.setPendingProperty(this, prop, value);
+            if (this.dataHost.__pendingClients) {
+              this.dataHost.__pendingClients.set(this, true);
+            }
+          }
+          flush() {
+            batchedEffects.flush(this, true);
           }
         }
         ctor.options = options;
+        // TODO(kschaaf): event listeners created need to be decorated with e.model
         this.batchedEffects.bindTemplate(ctor, template);
         this._prepInstanceProperties(ctor, template, options);
         this._prepHostProperties(ctor, template, options);
@@ -135,7 +142,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       _prepInstanceProperties(ctor, template, options) {
-        var hostProps = template._content._hostProps;
+        var hostProps = template._content._hostProps || {};
         for (var iprop in options.instanceProps) {
           delete hostProps[iprop];
           if (options.fwdInstancePropToHost) {
