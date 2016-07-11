@@ -60,12 +60,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (effect) {
         effect.path = path;
         effects.push(effect);
-        effects = this._ensureOwnMappedArray(model, type)[property];
-        if (!effects) {
-          effects = model[type][property] = [];
-        }
-        effects.push(effect);
       }
+      effects = this._ensureOwnMappedArray(model, type)[property];
+      if (!effects) {
+        effects = model[type][property] = [];
+      }
+      effects.push(effect);
       return val;
     }
 
@@ -183,13 +183,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- reflect ----------------------------------------------
 
     createReflectedProperty(model, property) {
-      this.addPropertyEffect(model, property, Types.PROPAGATE, {
-        fn: this._runReflectEffect,
-        info: {
-          lib: this,
-          attrName: CaseMap.camelToDashCase(property)
-        }
-      });
+      var attr = CaseMap.camelToDashCase(property);
+      if (attr[0] === '-') {
+        console.warn('Property ' + property + ' cannot be reflected to attribute ' +
+          attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property instead.');
+      } else {
+        this.addPropertyEffect(model, property, Types.PROPAGATE, {
+          fn: this._runReflectEffect,
+          info: {
+            lib: this,
+            attrName: attr
+          }
+        });
+      }
     }
 
     _runReflectEffect(property, value, old, info) {
@@ -231,8 +237,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var b$ = note.bindings;
         for (var j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
           if (this._shouldAddListener(binding)) {
-            this._addAnnotatedListener(model, i,
-              binding.name, binding.parts[0].value, binding.parts[0].event);
+            this._addAnnotatedListener(model, i, binding.name,
+              binding.parts[0].value,
+              binding.parts[0].event,
+              binding.parts[0].negate);
           }
           this._addAnnotationEffect(model, binding, i);
         }
@@ -245,22 +253,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (part.signature) {
           this._addAnnotatedComputationEffect(model, note, part, index);
         } else if (!part.literal) {
-          this.addPropertyEffect(model, part.rootProperty, Types.PROPAGATE, {
-            fn: this._runAnnotationEffect,
-            info:  {
-              lib: this,
-              kind: note.kind,
-              index: index,
-              name: note.name,
-              propertyName: note.propertyName,
-              value: part.value,
-              isCompound: note.isCompound,
-              compoundIndex: part.compoundIndex,
-              event: part.event,
-              customEvent: part.customEvent,
-              negate: part.negate
-            }
-          });
+          if (note.kind === 'attribute' && note.name[0] === '-') {
+            console.warn('Cannot set attribute ' + note.name +
+              ' because "-" is not a valid attribute starting character');
+          } else {
+            this.addPropertyEffect(model, part.rootProperty, Types.PROPAGATE, {
+              fn: this._runAnnotationEffect,
+              info:  {
+                lib: this,
+                kind: note.kind,
+                index: index,
+                name: note.name,
+                propertyName: note.propertyName,
+                value: part.value,
+                isCompound: note.isCompound,
+                compoundIndex: part.compoundIndex,
+                event: part.event,
+                customEvent: part.customEvent,
+                negate: part.negate
+              }
+            });
+          }
         }
       }
     }
@@ -326,7 +339,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           value = value == undefined ? '' : value;
         }
         // TODO(kschaaf): --- from above was here ---
-        this._setPropertyToNode(model, node, property, value);
+        if (!node._readOnly || !node._readOnly[property]) {
+          this._setPropertyToNode(model, node, property, value);
+        }
       }
     }
 
@@ -374,7 +389,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (note.templateContent) {
             this._processAnnotations(note.templateContent._notes);
             var pp = note.templateContent._hostProps =
-              this._discoverTemplatehostProps(note.templateContent._notes);
+              this._discoverTemplateHostProps(note.templateContent._notes);
             var bindings = [];
             for (var prop in pp) {
               bindings.push({
@@ -399,7 +414,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // the path members in content._hostProps. Each outer template merges
     // inner _hostProps to propagate inner parent property needs to outer
     // templates.
-    _discoverTemplatehostProps(notes) {
+    _discoverTemplateHostProps(notes) {
       var pp = {};
       for (var i=0, n; (i<notes.length) && (n=notes[i]); i++) {
         // Find all bindings to parent.* and spread them into _parentPropChain
@@ -413,6 +428,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                   pp[rootProperty] = true;
                 }
               }
+              pp[p.signature.methodName] = true;
             } else {
               if (p.rootProperty) {
                 pp[p.rootProperty] = true;
@@ -434,11 +450,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
              effect.kind != 'attribute' &&
              effect.kind != 'text' &&
              !effect.isCompound &&
-             effect.parts[0].mode === '{' &&
-             !effect.parts[0].negate;
+             effect.parts[0].mode === '{';
     }
 
-    _addAnnotatedListener(model, index, property, path, event) {
+    _addAnnotatedListener(model, index, property, path, event, negate) {
       if (!model._bindListeners) {
         model._bindListeners = [];
       }
@@ -448,7 +463,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         index: index,
         property: property,
         path: path,
-        event: eventName
+        event: eventName,
+        negate: negate
       });
     }
 
@@ -464,11 +480,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var lib = this;
       var rootProperty = this._rootForPath(info.path);
       node.addEventListener(info.event, function(e) {
-        return lib._notifyListener(e, inst, info.property, info.path, rootProperty);
+        return lib._notifyListener(e, inst, info.property, info.path,
+          rootProperty, info.negate);
       });
     }
 
-    _notifyListener(e, inst, property, path, rootProperty) {
+    _notifyListener(e, inst, property, path, rootProperty, negate) {
       if (!this._isEventBogus(e, e.target)) {
         //TODO(kschaaf): no support for firing path in change events yet; want?
         var targetPath = e.detail && e.detail.path;
@@ -477,6 +494,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.setProperty(inst, path, e.detail.value);
         } else {
           var value = e.target[property];
+          value = negate ? !value : value;
           this.setProperty(inst, path, value);
         }
       }
@@ -616,7 +634,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // path & value are used to fill in wildcard descriptor when effect is
     // being called as a result of a path notification
-    _marshalArgs(model, info) {
+    _marshalArgs(model, info, path, value) {
       var values = [];
       var args = info.args;
       for (var i=0, l=args.length; i<l; i++) {
@@ -631,18 +649,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           v = model[name];
         }
         if (arg.wildcard) {
-          // TODO(kschaaf): paths/wildcards
-          //debugger
-          console.warn('wildcard args not yet supported,', info);
-          // // Only send the actual path changed info if the change that
-          // // caused the observer to run matched the wildcard
-          // var baseChanged = (name.indexOf(path + '.') === 0);
-          // var matches = (info.trigger.name.indexOf(name) === 0 && !baseChanged);
-          // values[i] = {
-          //   path: matches ? path : name,
-          //   value: matches ? value : v,
-          //   base: v
-          // };
+          // Only send the actual path changed info if the change that
+          // caused the observer to run matched the wildcard
+          var baseChanged = (name.indexOf(path + '.') === 0);
+          var matches = (path.indexOf(name) === 0 && !baseChanged);
+          values[i] = {
+            path: matches ? path : name,
+            value: matches ? value : v,
+            base: v
+          };
         } else {
           values[i] = v;
         }

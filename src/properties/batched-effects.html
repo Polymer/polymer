@@ -52,7 +52,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     setProperties(inst, props) {
       for (var prop in props) {
-        this.setPendingProperty(inst, prop, props[prop]);
+        if (!inst._readOnly || !inst._readOnly[prop]) {
+          this.setPendingProperty(inst, prop, props[prop]);
+        }
       }
       if (inst._propertyEffectsActive) {
         if (inst.asyncEffects) {
@@ -94,19 +96,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Compute
       var computedProps = this._runComputedEffects(inst, changedProps, oldProps);
       // Notify
-      if (inst._propertyEffectsActive) {
-        changedProps = this._notifyProperties(inst, changedProps, computedProps);
-      }
-      if (changedProps) {
+      var props = this._notifyProperties(inst, changedProps, computedProps, oldProps);
+      if (props) {
+        oldProps = props.oldProps;
+        changedProps = props.changedProps;
         // Propagate
         this._runPropagationEffects(inst, changedProps);
-        if (inst._propertyEffectsActive) {
-          // Observe
-          this._runEffects(inst, Types.OBSERVE, changedProps, oldProps);
-        } else {
-          inst.__dataPending = changedProps;
-          inst.__dataOld = oldProps;
-        }
+        // Observe
+        this._runEffects(inst, Types.OBSERVE, changedProps, oldProps);
       }
     }
 
@@ -150,11 +147,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._get(inst, path);
     }
 
-    _notifyProperties(inst, changedProps, computedProps) {
+    _notifyProperties(inst, changedProps, computedProps, oldProps) {
       var props = inst._fromAbove ? computedProps : changedProps;
       var runId = (inst._runId = ((inst._runId || 0) + 1));
       inst.__interimData = inst.__interimData ?
         this._mixin(inst.__interimData, changedProps) : changedProps;
+      inst.__interimDataOld = inst.__interimDataOld ?
+        this._mixin(inst.__interimDataOld, oldProps) : oldProps;
       var host = inst.dataHost;
       if (host && host.setProperties) {
         this._setNotifyProperties(inst, host, props);
@@ -163,8 +162,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       if (runId == inst._runId) {
         changedProps = inst.__interimData;
+        oldProps = inst.__interimDataOld;
         inst.__interimData = null;
-        return changedProps;
+        inst.__interimDataOld = null;
+        return {changedProps: changedProps, oldProps: oldProps};
       }
     }
 
@@ -189,11 +190,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var prop in props) {
         var val = props[prop];
         var rootProperty = this._rootForPath(prop);
-        var hostPath = inst._hostBindings && inst._hostBindings[rootProperty];
-        if (hostPath && ((fx && fx[rootProperty]) || rootProperty !== prop)) {
-          prop = this._fixPath(hostPath, rootProperty, prop);
+        var hostBinding = inst._hostBindings && inst._hostBindings[rootProperty];
+        if (hostBinding && ((fx && fx[rootProperty]) || rootProperty !== prop)) {
+          prop = this._fixPath(hostBinding.path, rootProperty, prop);
           hostProps = hostProps || {};
-          hostProps[prop] = val;
+          hostProps[prop] = hostBinding.negate ? !val : val;
         }
       }
       if (hostProps) {
@@ -204,10 +205,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _addNotifyListener(node, inst, info) {
       if (!node.setProperties) {
         super._addNotifyListener.apply(this, arguments);
-      } else {
-        node._hostBindings = node._hostBindings || {};
-        node._hostBindings[info.property] = info.path;
       }
+      node._hostBindings = node._hostBindings || {};
+      node._hostBindings[info.property] = info;
     }
 
     _setPropertyToNode(model, node, prop, value) {
@@ -268,7 +268,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     init(inst, template) {
-      if (inst.XXXXX__dataProto) {
+      if (inst.__dataProto) {
         inst.__data = Object.create(inst.__dataProto);
         inst.__dataPending = Object.create(inst.__dataProto);
         inst.__dataOld = {};
