@@ -26,19 +26,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
 
   var Tree = Polymer.ShadyDom.Tree;
+  var Mixins = Polymer.ShadyDom.Mixins;
 
   var nativeInsertBefore = Element.prototype.insertBefore;
   var nativeAppendChild = Element.prototype.appendChild;
   var nativeRemoveChild = Element.prototype.removeChild;
 
-  var excluded = ['head'];
-
   Polymer.ShadyDom.patchedCount = 0;
   
   Polymer.ShadyDom.patch = function(node) {
-    if (!node.__patched &&
-      (!node.localName || !excluded.indexOf(node.localName) >= 0)) {
-      // TODO(sorvell): patch timing is messed up. Ideally, this flag is *not*
+    if (!node.__patched && patchImpl.canPatchNode(node)) {
+      // TODO(sorvell): Ideally, this flag is *not*
       // on the instance. It is here to avoid re-entrancy.
       // To fix this, saveChildNodes should *not* patch.
       node.__patched = true;
@@ -62,6 +60,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var patchImpl = {
 
     CANDIDATE: 'CustomElementCandidate',
+
+    canPatchNode: function(node) {
+      switch (node) {
+        case document.head:
+        case document.documentElement:
+          return false;
+        default: 
+          return true;
+      }
+      return true;
+    },
     
     hasPrototypeDescriptors: Boolean(Object.getOwnPropertyDescriptor(
       Node.prototype, 'textContent')),
@@ -72,13 +81,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.ShadyDom.patchedCount++;
       log && console.warn('patch node', node);
       Tree.Composed.saveComposedData(node);
-      var isElement = Boolean(node.nodeType === Node.ELEMENT_NODE || 
-        node.nodeType === Node.DOCUMENT_NODE ||
-        node.nodeType === Node.DOCUMENT_FRAGMENT_NODE);
       if (this.hasPrototypeDescriptors) {
-        node.__proto__ = this.prototypeForNode(node, isElement);
+        node.__proto__ = this.prototypeForNode(node);
       } else {
-        this.patchObject(node, isElement);
+        this.patchObject(node, this.mixinForNode(node));
       }
     },
 
@@ -95,11 +101,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    prototypeForNode: function(node, isElement) {
+    mixinForNode: function(node) {
+      switch (node.nodeType) {
+        case Node.ELEMENT_NODE:
+          return Mixins.Element;
+        case Node.DOCUMENT_FRAGMENT_NODE:
+          return Mixins.Fragment;
+        case Node.DOCUMENT_NODE:
+          return Mixins.Document;
+        default:
+          return Mixins.Node;
+      }
+    },
+
+    prototypeForNode: function(node) {
       var cacheName = this.cacheIdForNode(node);
       var proto = this.protoCache[cacheName];
       if (!proto) {
-        proto = this.createPatchedPrototype(node.__proto__, isElement);
+        proto = Object.create(node.__proto__);
+        proto.__sourceProto = node.__proto__;
+        this.patchObject(proto, this.mixinForNode(node));
         if (cacheName) {
           this.protoCache[cacheName] = proto;
         } else {
@@ -109,18 +130,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return proto;
     },
 
-    createPatchedPrototype: function(prototype, isElement) {
-      var newProto = Object.create(prototype);
-      newProto.__sourceProto = prototype;
-      this.patchObject(newProto, isElement);
-      return newProto;
-    },
-
-    patchObject: function(object, isElement) {
-      var patch = isElement ? 
-        Polymer.ShadyDom.ElementMixin : 
-        Polymer.ShadyDom.NodeMixin;
-      Polymer.Utils.extend(object, patch)
+    patchObject: function(object, patchProto) {
+      Polymer.Utils.extend(object, patchProto)
       return object;
     },
 

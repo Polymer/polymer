@@ -331,11 +331,95 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       this._queryElements(Tree.Logical.getChildNodes(node), matcher, 
         halter, list);
+    },
+
+    activeElementForNode: function(node) {
+      var active = document.activeElement;
+      if (!active) {
+        return null;
+      }
+      var isShadyRoot = !!(node instanceof Polymer.ShadyDom.ShadyRoot);
+      if (node !== document) {
+        // If this node isn't a document or shady root, then it doesn't have
+        // an active element.
+        if (!isShadyRoot) {
+          return null;
+        }
+        // If this shady root's host is the active element or the active
+        // element is not a descendant of the host (in the composed tree),
+        // then it doesn't have an active element.
+        if (node.host === active ||
+            !node.host.contains(active)) {
+          return null;
+        }
+      }
+      // This node is either the document or a shady root of which the active
+      // element is a (composed) descendant of its host; iterate upwards to
+      // find the active element's most shallow host within it.
+      var activeRoot = this.ownerRootForNode(active);
+      while (activeRoot && activeRoot !== node) {
+        active = activeRoot.host;
+        activeRoot = this.ownerRootForNode(active);
+      }
+      if (node === document) {
+        // This node is the document, so activeRoot should be null.
+        return activeRoot ? null : active;
+      } else {
+        // This node is a non-document shady root, and it should be
+        // activeRoot.
+        return activeRoot === node ? active : null;
+      }
     }
 
   };
 
-  var ElementMixin = {
+  var NodeMixin = {};
+
+  Object.defineProperties(NodeMixin, {
+    parentElement: {
+      get() {
+        return Tree.Logical.getParentNode(this);
+      },
+      configurable: true
+    },
+
+    parentNode: {
+      get() {
+        return Tree.Logical.getParentNode(this);
+      },
+      configurable: true
+    },
+
+    nextSibling: {
+      get() {
+        return Tree.Logical.getNextSibling(this);
+      },
+      configurable: true
+    },
+
+    previousSibling: {
+      get() {
+        return Tree.Logical.getPreviousSibling(this);
+      },
+      configurable: true
+    },
+
+    nextElementSibling: {
+      get() {
+        return Tree.Logical.getNextElementSibling(this);
+      },
+      configurable: true
+    },
+
+    previousElementSibling: {
+      get() {
+        return Tree.Logical.getPreviousElementSibling(this);
+      },
+      configurable: true
+    }
+  });
+
+  var FragmentMixin = {
 
     appendChild: function(node) {
       return this.insertBefore(node);
@@ -430,29 +514,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     },
 
-    getDestinationInsertionPoints: function() {
-      return this._destinationInsertionPoints || [];
-    },
-
-    getDistributedNodes: function() {
-      return this._distributedNodes || [];
-    },
-
-    getAssignedNodes: function() {
-      return this._assignedNodes || [];
-    },
-
-
-    setAttribute: function(name, value) {
-      nativeSetAttribute.call(this, name, value);
-      mixinImpl.maybeDistributeParent(this);
-    },
-
-    removeAttribute: function(name) {
-      nativeRemoveAttribute.call(this, name);
-      mixinImpl.maybeDistributeParent(this);
-    },
-
     cloneNode: function(deep) {
       var n = nativeCloneNode.call(this, false);
       if (deep) {
@@ -483,55 +544,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   };
 
-  // accessors...
-  Object.defineProperties(ElementMixin, {
-
-    activeElement: {
-      get() {
-        var active = document.activeElement;
-        if (!active) {
-          return null;
-        }
-        var isShadyRoot = !!(this instanceof Polymer.ShadyDom.ShadyRoot);
-        if (this !== document) {
-          // If this node isn't a document or shady root, then it doesn't have
-          // an active element.
-          if (!isShadyRoot) {
-            return null;
-          }
-          // If this shady root's host is the active element or the active
-          // element is not a descendant of the host (in the composed tree),
-          // then it doesn't have an active element.
-          if (this.host === active ||
-              !this.host.contains(active)) {
-            return null;
-          }
-        }
-        // This node is either the document or a shady root of which the active
-        // element is a (composed) descendant of its host; iterate upwards to
-        // find the active element's most shallow host within it.
-        var activeRoot = mixinImpl.ownerRootForNode(active);
-        while (activeRoot && activeRoot !== this) {
-          active = activeRoot.host;
-          activeRoot = mixinImpl.ownerRootForNode(this);
-        }
-        if (this === document) {
-          // This node is the document, so activeRoot should be null.
-          return activeRoot ? null : active;
-        } else {
-          // This node is a non-document shady root, and it should be
-          // activeRoot.
-          return activeRoot === this ? active : null;
-        }
-      },
-      configurable: true
-    },
-
-    shadowRoot: {
-      get() { 
-        return this.shadyRoot;
-      }
-    },
+  Object.defineProperties(FragmentMixin, {
 
     childNodes: {
       get() {
@@ -582,8 +595,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       configurable: true
     },
 
+    // TODO(srovell): strictly speaking fragments do not have textContent
+    // or innerHTML but ShadowRoots do and are not easily distinguishable.
     // textContent / innerHTML
-    // TODO(sorvell): how to do this?
     textContent: {
       get() {
         if (this.childNodes) {
@@ -626,59 +640,84 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   });
 
-  var NodeMixin = {};
+  var ElementMixin = {
 
-  Object.defineProperties(NodeMixin, {
-    parentElement: {
-      get() {
-        return Tree.Logical.getParentNode(this);
-      },
-      configurable: true
+    getDestinationInsertionPoints: function() {
+      return this._destinationInsertionPoints || [];
     },
 
-    parentNode: {
-      get() {
-        return Tree.Logical.getParentNode(this);
-      },
-      configurable: true
+    getDistributedNodes: function() {
+      return this._distributedNodes || [];
     },
 
-    nextSibling: {
-      get() {
-        return Tree.Logical.getNextSibling(this);
-      },
-      configurable: true
+    getAssignedNodes: function() {
+      return this._assignedNodes || [];
     },
 
-    previousSibling: {
-      get() {
-        return Tree.Logical.getPreviousSibling(this);
-      },
-      configurable: true
+
+    setAttribute: function(name, value) {
+      nativeSetAttribute.call(this, name, value);
+      mixinImpl.maybeDistributeParent(this);
     },
 
-    nextElementSibling: {
-      get() {
-        return Tree.Logical.getNextElementSibling(this);
-      },
-      configurable: true
-    },
-
-    previousElementSibling: {
-      get() {
-        return Tree.Logical.getPreviousElementSibling(this);
-      },
-      configurable: true
+    removeAttribute: function(name) {
+      nativeRemoveAttribute.call(this, name);
+      mixinImpl.maybeDistributeParent(this);
     }
+
+  };
+
+  Object.defineProperties(ElementMixin, {
+
+    shadowRoot: {
+      get() { 
+        return this.shadyRoot;
+      }
+    }
+
   });
 
-  Polymer.Utils.extend(ElementMixin, NodeMixin);
-  ElementMixin.__patched = 'ElementMixin';
-  NodeMixin.__patched = 'NodeMixin';
+  var ActiveElementMixin = {};
+  Object.defineProperties(ActiveElementMixin, {
 
-  Polymer.ShadyDom.NodeMixin = NodeMixin;
-  Polymer.ShadyDom.ElementMixin = ElementMixin;
+    activeElement: {
+      get() {
+        return mixinImpl.activeElementForNode(this);
+      }
+    }
+
+  });
+
+  // TODO(sorvell): put in utils.
+  function extendAll(obj /* , ... */) {
+    var p$ = Array.prototype.slice.call(arguments, 1);
+    for (var i=0; i < p$.length; i++) {
+      Polymer.Utils.extend(obj, p$[i]);
+    }
+    return obj;
+  }
+
+  Polymer.ShadyDom.Mixins = {
+    
+    Node: extendAll({__patched: 'Node'}, NodeMixin),
+
+    Fragment: extendAll({__patched: 'Fragment'}, 
+      NodeMixin, FragmentMixin, ActiveElementMixin),
+
+    Element: extendAll({__patched: 'Element'}, 
+      NodeMixin, FragmentMixin, ElementMixin, ActiveElementMixin),
+
+    // Note: activeElement cannot be patched on document!
+    Document: extendAll({__patched: 'Document'}, 
+      NodeMixin, FragmentMixin, ElementMixin)
+
+  };
   Polymer.ShadyDom.ownerRootForNode = mixinImpl.ownerRootForNode;
+
+  // TODO(sorvell): should we expose some Polymer.dom thing for unpatchable stuff?
+  Polymer.ShadyDom.activeElementForNode = function(node) {
+    return mixinImpl.activeElementForNode(node);
+  }
 
 })();
 </script>
