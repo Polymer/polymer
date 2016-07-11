@@ -1,0 +1,198 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../lib/style-util.html">
+<link rel="import" href="../lib/resolve-url.html">
+<link rel="import" href="../lib/style-transformer.html">
+<link rel="import" href="../lib/style-extends.html">
+<link rel="import" href="../lib/settings.html">
+<link rel="import" href="../lib/apply-shim.html">
+
+<script>
+
+  (function() {
+
+    var prepElement = Polymer.Base._prepElement;
+    var nativeShadow = Polymer.Settings.useNativeShadow;
+
+    var styleUtil = Polymer.StyleUtil;
+    var styleTransformer = Polymer.StyleTransformer;
+    var styleExtends = Polymer.StyleExtends;
+    var applyShim = Polymer.ApplyShim;
+
+    var settings = Polymer.Settings;
+
+    Polymer.Base._addFeature({
+
+      _prepElement: function(element) {
+        // To help encapsulate style,
+        // decorate all dom in this element's template with class="style-scope element-name"
+        // This is only needed if using Shady DOM and the css build has not targeted shady dom.
+        // If there is a Shadow DOM targeted build, then dom encapsulation *is* needed.
+        // NOTE: `_encapsulateStyle` is only true unde Shady DOM.
+        if (this._encapsulateStyle && this.__cssBuild !== 'shady') {
+          styleTransformer.element(element, this.is,
+            this._scopeCssViaAttr);
+        }
+        prepElement.call(this, element);
+      },
+
+      _prepStyles: function() {
+        if (this._encapsulateStyle === undefined) {
+          this._encapsulateStyle = !nativeShadow;
+        }
+        // under shady dom, we always output a shimmed style (which may be
+        // empty) so that other dynamic stylesheets can always be placed
+        // after the element's main stylesheet.
+        // This helps ensure element styles are always in registration order.
+        if (!nativeShadow) {
+          this._scopeStyle = styleUtil.applyStylePlaceHolder(this.is);
+        }
+        this.__cssBuild = styleUtil.cssBuildTypeForModule(this.is);
+      },
+
+      _prepShimStyles: function() {
+        if (this._template) {
+          // We can avoid *all* shimming if native properties are used
+          // and there is a shadow css build and we are using native shadow.
+          var hasTargetedCssBuild = styleUtil.isTargetedBuild(this.__cssBuild);
+          if (settings.useNativeCSSProperties && this.__cssBuild === 'shadow' 
+            && hasTargetedCssBuild) {
+            return;
+          }
+          this._styles = this._styles || this._collectStyles();
+          // fixup usage of @apply. Note: this must be done before style
+          // css is calculated.
+          // css build takes care of apply shim, so avoid doing this work.
+          if (settings.useNativeCSSProperties && !this.__cssBuild) {
+            applyShim.transform(this._styles);
+          }
+          // calculate element static styling (with a targeted build and native
+          // properties, there's only 1 style and no need to parse it!
+          var cssText = settings.useNativeCSSProperties && hasTargetedCssBuild ? 
+            (this._styles.length && this._styles[0].textContent.trim()) : 
+            styleTransformer.elementStyles(this);
+          // prepare to shim style properties.
+          this._prepStyleProperties();
+          // apply static styles iff
+          // no custom properties are used (otherwise
+          // styles are applied via property shimming)
+          if (!this._needsStyleProperties() && cssText){
+            styleUtil.applyCss(cssText, this.is,
+              nativeShadow ? this._template.content : null, this._scopeStyle);
+          }
+        } else {
+          this._styles = [];
+        }
+      },
+
+      // search for extra style modules via `styleModules`
+      // TODO(sorvell): consider dropping support for `styleModules`
+      _collectStyles: function() {
+        var styles = [];
+        var cssText = '', m$ = this.styleModules;
+        if (m$) {
+          for (var i=0, l=m$.length, m; (i<l) && (m=m$[i]); i++) {
+            cssText += styleUtil.cssFromModule(m);
+          }
+        }
+        cssText += styleUtil.cssFromModule(this.is);
+        // check if we have a disconnected template and add styles from that
+        // if so; if our template has no parent or is not in our dom-module...
+        var p = this._template && this._template.parentNode;
+        if (this._template && (!p || p.id.toLowerCase() !== this.is)) {
+          cssText += styleUtil.cssFromElement(this._template);
+        }
+        if (cssText) {
+          var style = document.createElement('style');
+          style.textContent = cssText;
+          // extends!!
+          if (styleExtends.hasExtends(style.textContent)) {
+            // TODO(sorvell): variable is not used, should it update `style.textContent`?
+            cssText = styleExtends.transform(style);
+          }
+          styles.push(style);
+        }
+        return styles;
+      },
+
+      // instance-y
+      // add scoping class whenever an element is added to localDOM
+      _elementAdd: function(node) {
+        if (this._encapsulateStyle) {
+          // If __styleScoped is set, this is a one-time optimization to
+          // avoid scoping pre-scoped document fragments
+          if (node.__styleScoped) {
+            node.__styleScoped = false;
+          } else {
+            styleTransformer.dom(node, this.is, this._scopeCssViaAttr);
+          }
+        }
+      },
+
+      // remove scoping class whenever an element is removed from localDOM
+      _elementRemove: function(node) {
+        if (this._encapsulateStyle) {
+          styleTransformer.dom(node, this.is, this._scopeCssViaAttr, true);
+        }
+      },
+
+      /**
+       * Apply style scoping to the specified `container` and all its
+       * descendants. If `shouldObserve` is true, changes to the container are
+       * monitored via mutation observer and scoping is applied.
+       *
+       * This method is useful for ensuring proper local DOM CSS scoping
+       * for elements created in this local DOM scope, but out of the
+       * control of this element (i.e., by a 3rd-party library)
+       * when running in non-native Shadow DOM environments.
+       *
+       * @method scopeSubtree
+       * @param {Element} container Element to scope.
+       * @param {boolean} shouldObserve When true, monitors the container
+       *   for changes and re-applies scoping for any future changes.
+       */
+      scopeSubtree: function(container, shouldObserve) {
+        if (nativeShadow) {
+          return;
+        }
+        var self = this;
+        var scopify = function(node) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            var className = node.getAttribute('class');
+            node.setAttribute('class', self._scopeElementClass(node, className));
+            var n$ = node.querySelectorAll('*');
+            for (var i=0, n; (i<n$.length) && (n=n$[i]); i++) {
+              className = n.getAttribute('class');
+              n.setAttribute('class', self._scopeElementClass(n, className));
+            }
+          }
+        };
+        scopify(container);
+        if (shouldObserve) {
+          var mo = new MutationObserver(function(mxns) {
+            for (var i=0, m; (i<mxns.length) && (m=mxns[i]); i++) {
+              if (m.addedNodes) {
+                for (var j=0; j < m.addedNodes.length; j++) {
+                  scopify(m.addedNodes[j]);
+                }
+              }
+            }
+          });
+          mo.observe(container, {childList: true, subtree: true});
+          return mo;
+        }
+      }
+
+    });
+
+  })();
+
+</script>
