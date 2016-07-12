@@ -88,7 +88,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         distributed = this.maybeDistributeParent(node);
         Tree.Logical.recordRemoveChild(node, logicalParent);
         // remove node from root and distribute it iff needed
-        if (ownerRoot && this._removeDistributedChildren(ownerRoot, node)) {
+        if (ownerRoot && (this._removeDistributedChildren(ownerRoot, node) ||
+          logicalParent.localName === ownerRoot.getInsertionPointTag())) {
           // TODO(sorvell): invalidation flipped
           ownerRoot._invalidInsertionPoints = true;
           ownerRoot.update();
@@ -161,12 +162,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         (Tree.Logical.getParentNode(fragContent).nodeType !==
         Node.DOCUMENT_FRAGMENT_NODE);
       var hasContent = fragContent || (node.localName === insertionPointTag);
-      // There are 2 possible cases where a distribution may need to occur:
+      // There are 3 possible cases where a distribution may need to occur:
       // 1. <content> being inserted (the host of the shady root where
       //    content is inserted needs distribution)
       // 2. children being inserted into parent with a shady root (parent
       //    needs distribution)
-      if (hasContent) {
+      // 3. container is an insertionPoint
+      if (hasContent || (container.localName === insertionPointTag)) {
         if (ownerRoot) {
           // note, insertion point list update is handled after node
           // mutations are complete
@@ -295,6 +297,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this._nodeNeedsDistribution(parent)) {
         parent.shadyRoot.update();
         return true;
+      }
+    },
+
+    maybeDistributeAttributeChange: function(node, name) {
+      var distribute = (node.localName === 'content' && name === 'select') ||
+        (node.localName === 'slot' && name === 'name');
+      if (distribute) {
+        var root = this.ownerRootForNode(node);
+        if (root) {
+          root.update();
+        }
       }
     },
 
@@ -657,12 +670,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     setAttribute: function(name, value) {
       nativeSetAttribute.call(this, name, value);
-      mixinImpl.maybeDistributeParent(this);
+      if (!mixinImpl.maybeDistributeParent(this)) {
+        mixinImpl.maybeDistributeAttributeChange(this, name);
+      }
     },
 
     removeAttribute: function(name) {
       nativeRemoveAttribute.call(this, name);
-      mixinImpl.maybeDistributeParent(this);
+      if (!mixinImpl.maybeDistributeParent(this)) {
+        mixinImpl.maybeDistributeAttributeChange(this, name);
+      };
     }
 
   };
