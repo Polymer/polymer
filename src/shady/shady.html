@@ -31,13 +31,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Implements a pared down version of ShadowDOM's scoping, which is easy to
       polyfill across browsers.
     */
-    class ShadyRoot extends DocumentFragment {
+    class ShadyRoot {
       
       constructor(host, useV0) {
-        super();
         if (!host) {
           throw 'Must provide a host';
         }
+        var frag = document.createDocumentFragment();
+        // TODO(sorvell): optimize!
+        Polymer.ShadyDom.patch(frag);
+        var p = Object.create(frag.__proto__);
+        Polymer.Utils.extend(p, ShadyMixin);
+        frag.__proto__ = p;
+        frag._init(host, useV0);
+        return frag;
+      }
+
+    }
+
+    var ShadyMixin = {
+
+      _init: function(host, useV0) {
         // TODO(sorvell): set a fake local name so this element can be
         // distinguished from a DocumentFragment when patching.
         // FF doesn't allow this to be `localName`
@@ -55,11 +69,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           new Polymer.ShadyDom.DistributorV0(this) : 
           new Polymer.ShadyDom.DistributorV1(this);
         // TODO(sorvell): host state flags were set here next, needed?
-      }
+      },
 
       // async render the "top" distributor (this is all that is needed to 
       // distribute this host.
-      update() {
+      update: function() {
         var distributionRoot = this._findDistributionRoot(this.host);
         //console.log('update from', this.host, 'root', distributionRoot.host, distributionRoot._clean);
         if (distributionRoot._clean) {
@@ -68,21 +82,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           distributionRoot.debounceRender()
           Polymer.ShadyDom.addDebouncer(distributionRoot.debounceRender());
         }
-      }
+      },
 
       // returns the host that's the top of this host's distribution tree
-      _findDistributionRoot(element) {
+      _findDistributionRoot: function(element) {
         var root = element.shadyRoot;
         while (element && this._elementNeedsDistribution(element)) {
           root = Polymer.ShadyDom.ownerRootForNode(element);
           element = root && root.host;
         }
         return root;
-      }
+      },
 
       // Return true if a host's children includes
       // an insertion point that selects selectively
-      _elementNeedsDistribution(element) {
+      _elementNeedsDistribution: function(element) {
         var c$ = Tree.Logical.getChildNodes(element);
         for (var i=0, c; i < c$.length; i++) {
           c = c$[i];
@@ -90,16 +104,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             return Polymer.ShadyDom.ownerRootForNode(element);
           }
         }
-      }
+      },
 
       // async render this root!
-      debounceRender() {
+      debounceRender: function() {
         this._renderDebouncer = Polymer.Debouncer.debounce(this._renderDebouncer,
           this.render, null, this);
         return this._renderDebouncer;
-      }
+      },
 
-      render() {
+      render: function() {
         //console.log('render', this.host);
         if (this._renderDebouncer) {
           this._renderDebouncer.cancel();
@@ -116,21 +130,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.compose();
           this._clean = true;
         }
-      }
+      },
 
-      forceRender() {
+      forceRender: function() {
         this._clean = false;
         this.render();
-      }
+      },
 
-      distribute() {
+      distribute: function() {
         var dirtyRoots = this._distributor.distribute();
         for (var i=0, root; i<dirtyRoots.length; i++) {
           dirtyRoots[i].forceRender();
         }
-      }
+      },
 
-      updateInsertionPoints() {
+      updateInsertionPoints: function() {
         var i$ = this._insertionPoints = this._distributor.getInsertionPoints();
         // ensure insertionPoints's and their parents have logical dom info.
         // save logical tree info
@@ -142,24 +156,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           Tree.Logical.saveChildNodes(c);
           Tree.Logical.saveChildNodes(Tree.Logical.getParentNode(c));
         }
-      }
+      },
 
       get _insertionPoints() {
         if (!this.__insertionPoints) {
           this.updateInsertionPoints();
         }
         return this.__insertionPoints || (this.__insertionPoints = []);
-      }
+      },
 
       set _insertionPoints(insertionPoints) {
         this.__insertionPoints = insertionPoints;
-      }
+      },
 
-      hasInsertionPoint() {
+      hasInsertionPoint: function() {
         return this._distributor.hasInsertionPoint();
-      }
+      },
 
-      compose() {
+      compose: function() {
         // compose self
         // note: it's important to mark this clean before distribution
         // so that attachment that provokes additional distribution (e.g.
@@ -177,11 +191,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           //notifyInitialDistribution(this.host);
         }
         this._hasDistributed = true;
-      }
+      },
 
       // Reify dom such that it is at its correct rendering position
       // based on logical distribution.
-      _composeTree() {
+      _composeTree: function() {
         this._updateChildNodes(this.host, this._composeNode(this.host));
         var p$ = this._insertionPoints || [];
         for (var i=0, l=p$.length, p, parent; (i<l) && (p=p$[i]); i++) {
@@ -190,10 +204,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._updateChildNodes(parent, this._composeNode(parent));
           }
         }
-      }
+      },
 
       // Returns the list of nodes which should be rendered inside `node`.
-      _composeNode(node) {
+      _composeNode: function(node) {
         var children = [];
         var c$ = Tree.Logical.getChildNodes(node.shadyRoot || node);
         for (var i = 0; i < c$.length; i++) {
@@ -211,15 +225,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         return children;
-      }
+      },
 
-      isFinalDestination(insertionPoint, node) {
+      isFinalDestination: function(insertionPoint, node) {
         return this._distributor.isFinalDestination(
           insertionPoint, node);
-      }
+      },
 
       // Ensures that the rendered node list inside `container` is `children`.
-      _updateChildNodes(container, children) {
+      _updateChildNodes: function(container, children) {
         var composed = Tree.Composed.getChildNodes(container);
         var splices =
           Polymer.ArraySplice.calculateSplices(children, composed);
@@ -247,10 +261,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             composed.splice(j, 0, n);
           }
         }
-      }
+      },
 
       // TODO(sorvell): util
-      getInsertionPointTag() {
+      getInsertionPointTag: function() {
         return this._distributor.insertionPointTag;
       }
 
@@ -281,6 +295,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     //     }
     //   }
     // }
+
+    Polymer.ShadyDom.isShadyRoot = function(obj) {
+      return Boolean(obj.__localName === 'ShadyRoot');
+    }
 
     Polymer.ShadyDom.ShadyRoot = ShadyRoot;
 
