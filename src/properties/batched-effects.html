@@ -172,16 +172,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _dispatchNotifyProperties(inst, props) {
       var fx = inst._notifyEffects;
       for (var prop in props) {
-        var info = fx && fx[prop] && fx[prop][0].info;
-        if (info || this._rootForPath(prop) !== prop) {
-          var event = (info && info.eventName) ||
-            Polymer.CaseMap.camelToDashCase(prop) + '-changed';
-          inst.dispatchEvent(new CustomEvent(event, {
-            bubbles: false,
-            detail: { value: props[prop] }
-          }));
+        var rootProperty = this._rootForPath(prop);
+        var info = fx && fx[rootProperty] && fx[rootProperty][0].info;
+        if (info || rootProperty !== prop) {
+          this._dispatchNotification(inst, info, prop, props[prop]);
         }
       }
+    }
+
+    _dispatchNotification(inst, info, prop, value) {
+      var event = (info && info.eventName) ||
+        Polymer.CaseMap.camelToDashCase(prop) + '-changed';
+      inst.dispatchEvent(new CustomEvent(event, {
+        bubbles: false,
+        detail: { value: value }
+      }));
     }
 
     _setNotifyProperties(inst, host, props) {
@@ -190,11 +195,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var prop in props) {
         var val = props[prop];
         var rootProperty = this._rootForPath(prop);
-        var hostBinding = inst._hostBindings && inst._hostBindings[rootProperty];
-        if (hostBinding && ((fx && fx[rootProperty]) || rootProperty !== prop)) {
-          prop = this._fixPath(hostBinding.path, rootProperty, prop);
-          hostProps = hostProps || {};
-          hostProps[prop] = hostBinding.negate ? !val : val;
+        var info = fx && fx[rootProperty] && fx[rootProperty][0].info;
+        if (info || rootProperty !== prop) {
+          var hostBinding = inst._hostBindings && inst._hostBindings[rootProperty];
+          if (hostBinding) {
+            prop = this._fixPath(hostBinding.path, rootProperty, prop);
+            hostProps = hostProps || {};
+            hostProps[prop] = hostBinding.negate ? !val : val;
+          } else {
+            this._dispatchNotification(inst, info, prop, val);
+          }
         }
       }
       if (hostProps) {
