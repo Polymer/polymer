@@ -1,0 +1,436 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+  <link rel="import" href="../../src/shady/shady.html">
+</head>
+<body>
+<template></template>
+<script>
+
+// TODO(sorvell): cannot register element in main document under polyfill.
+var registered = false;
+function registerTestElement() {
+  if (registered) return;
+  var template = document.querySelector('template');
+  Polymer({
+    is: 'x-content-test',
+    _template: template
+  });
+  registered = true;
+}
+
+/**
+ * Test the `<content>` element distribution algorithm by verifying the
+ * resulting composed tree structure.
+ */
+function testRender(descr, hostInnerHtml, shadowRootHtml, expectedHtml) {
+  test(descr, function() {
+    registerTestElement();
+    // Create an instance of the test element.
+    var host = document.createElement('x-content-test');
+    document.body.appendChild(host);
+    CustomElements.takeRecords();
+    // Populate the initial pool of light DOM children.
+    host.innerHTML = hostInnerHtml;
+    // Pretend we're stamping the template contents.
+    host.shadyRoot.innerHTML = shadowRootHtml
+    // Invoke distribution and verify the resulting tree.
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), expectedHtml);
+    document.body.removeChild(host);
+  });
+}
+
+testRender('Empty shadow', 'abc', '', '');
+testRender('Simple shadow', 'abc', 'def', 'def');
+testRender('Fallback shadow', 'abc',
+           '<content select="xxx">fallback</content>', 'fallback');
+testRender('Content', 'abc',
+           '<content>fallback</content>', 'abc');
+testRender('Content before', 'abc',
+           'before<content>fallback</content>', 'beforeabc');
+testRender('Content after', 'abc',
+           '<content>fallback</content>after', 'abcafter');
+
+suite('render content', function() {
+  testRender('no select', '<a href="">Link</a> <b>bold</b>',
+             '<content></content>',
+             '<a href="">Link</a> <b>bold</b>');
+  testRender('select ""', '<a href="">Link</a> <b>bold</b>',
+             '<content select=""></content>',
+             '<a href="">Link</a> <b>bold</b>');
+  testRender('select *', '<a href="">Link</a> <b>bold</b>',
+             '<content select="*"></content>',
+             '<a href="">Link</a><b>bold</b>');
+
+  testRender('select .a',
+             '<a class="a">a</a> <a class="b">b</a>',
+             '<content select=".a"></content>',
+             '<a class="a">a</a>');
+
+  testRender('select .b .a',
+             '<a class="a">a</a> <a class="b">b</a>',
+             '<content select=".b"></content><content select=".a"></content>',
+             '<a class="b">b</a><a class="a">a</a>');
+
+  testRender('select .b .a 2',
+             '<a class="a">a</a> <a class="b">b</a> <a class="b">c</a>',
+             '<content select=".b"></content><content select=".a"></content>',
+             '<a class="b">b</a><a class="b">c</a><a class="a">a</a>');
+
+  testRender('select [c] *',
+             '<span>a</span><span>b</span><span c>c</span><span>d</span>',
+             '<content select="[c]"></content><content></content>',
+             '<span c="">c</span><span>a</span><span>b</span><span>d</span>');
+});
+
+
+test('Reproject', function() {
+  registerTestElement();
+  var host = document.createElement('x-content-test');
+  document.body.appendChild(host);
+  CustomElements.takeRecords();
+  host.innerHTML = '<a></a>';
+  // pre-distirbution grab first composed node.
+  var a = getComposedChildAtIndex(host, 0);
+  
+  host.shadyRoot.innerHTML = '<x-content-test id="p"></x-content-test>';
+  // force upgrade on polyfilled browsers
+  var p = host.shadyRoot.firstChild;
+  CustomElements.takeRecords();
+  p.innerHTML = '<b></b><content></content>';
+  var b = p.firstChild;
+  var content = p.lastChild;
+
+  p.shadyRoot.innerHTML =
+      'a: <content select=a></content>b: <content select=b></content>';
+  var textNodeA = p.shadyRoot.firstChild;
+  var contentA = p.shadyRoot.childNodes[1];
+  var textNodeB = p.shadyRoot.childNodes[2];
+  var contentB = p.shadyRoot.childNodes[3];
+
+  function testRender() {
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host),
+        '<x-content-test id="p">a: <a></a>b: <b></b></x-content-test>');
+
+    assertArrayEqual(host.__dom.childNodes, [a]);
+    assert.strictEqual(a.__dom.parentNode, host);
+    assertArrayEqual(host.shadyRoot.__dom.childNodes, [p]);
+    assert.strictEqual(p.__dom.parentNode, host.shadyRoot);
+    assertArrayEqual(p.__dom.childNodes, [b, content]);
+    assert.strictEqual(b.__dom.parentNode, p);
+    assert.strictEqual(content.__dom.parentNode, p);
+    assertArrayEqual(p.shadyRoot.__dom.childNodes,
+        [textNodeA, contentA, textNodeB, contentB]);
+  }
+
+  testRender();
+  testRender();
+  document.body.removeChild(host);
+});
+
+
+suite('Mutate light DOM', function() {
+  var host;
+
+  setup(function() {
+    host = document.createElement('x-content-test');
+    document.body.appendChild(host);
+    CustomElements.takeRecords();
+  });
+
+  teardown(function() {
+    document.body.removeChild(host);
+  })
+
+  test('removeAllChildNodes - mutate host', function() {
+    host.innerHTML = '<a>Hello</a>';
+    
+    host.shadyRoot.innerHTML = '<content>fallback</content>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+
+    host.firstChild.textContent = '';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a></a>');
+
+    host.innerHTML = '';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), 'fallback');
+  });
+
+
+  test('removeAllChildNodes - mutate shadow', function() {
+    host.innerHTML = '<a>Hello</a>';
+    
+    host.shadyRoot.innerHTML = '<content></content><b>after</b>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b>after</b>');
+
+    host.shadyRoot.childNodes[1].textContent = '';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
+
+    host.shadyRoot.innerHTML = '';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '');
+  });
+
+  test('removeAllChildNodes - mutate shadow fallback', function() {
+    host.innerHTML = '<a>Hello</a>';
+    
+    host.shadyRoot.innerHTML = '<content select="xxx"><b>fallback</b></content>';
+    var b = host.shadyRoot.firstChild.firstChild;
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<b>fallback</b>');
+
+    b.textContent = '';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<b></b>');
+
+    host.shadyRoot.firstChild.innerHTML = '';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '');
+
+    host.shadyRoot.innerHTML = '';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '');
+  });
+
+  test('removeChild - mutate host', function() {
+    host.innerHTML = '<a>Hello</a>';
+    
+    host.shadyRoot.innerHTML = '<content>fallback</content>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+
+    host.firstChild.removeChild(host.firstChild.firstChild);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a></a>');
+
+    host.innerHTML = '';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), 'fallback');
+  });
+
+  test('removeChild - mutate host 2', function() {
+    host.innerHTML = '<a></a><b></b>';
+    var a = getComposedChildAtIndex(host, 0);
+    var b = getComposedChildAtIndex(host, 1);
+
+    host.shadyRoot.innerHTML = '<content>fallback</content>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a></a><b></b>');
+
+    host.removeChild(b);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a></a>');
+
+    host.removeChild(a);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), 'fallback');
+  });
+
+  test('removeChild - mutate shadow', function() {
+    host.innerHTML = '<a>Hello</a>';
+    
+    host.shadyRoot.innerHTML = '<content></content><b>after</b>';
+    var b = host.shadyRoot.lastChild;
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b>after</b>');
+
+    b.removeChild(b.firstChild);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
+
+    host.shadyRoot.removeChild(b);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+
+    host.shadyRoot.removeChild(host.shadyRoot.firstChild);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '');
+  });
+
+  test('setAttribute select', function() {
+    host.innerHTML = '<a>Hello</a><b>World</b>';
+
+    
+    host.shadyRoot.innerHTML = '<content select="b">fallback b</content>' +
+                            '<content select="a">fallback a</content>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<b>World</b><a>Hello</a>');
+
+    host.shadyRoot.firstChild.setAttribute('select', 'xxx');
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), 'fallback b<a>Hello</a>');
+
+    host.shadyRoot.firstChild.setAttribute('select', '');
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b>World</b>fallback a');
+  });
+
+  test('appendChild - mutate host', function() {
+    host.innerHTML = '<a>Hello</a>';
+    host.shadyRoot.innerHTML = '<content></content>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.appendChild(b);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
+  });
+
+  test('appendChild - mutate shadow', function() {
+    host.innerHTML = '<a>Hello</a>';
+    host.shadyRoot.innerHTML = '<content></content>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.shadyRoot.appendChild(b);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a><b></b>');
+  });
+
+  test('insertBefore - mutate host', function() {
+    host.innerHTML = '<a>Hello</a>';
+    var a = getComposedChildAtIndex(host, 0);
+    host.shadyRoot.innerHTML = '<content></content>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.insertBefore(b, a);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<b></b><a>Hello</a>');
+  });
+
+  test('insertBefore - mutate shadow', function() {
+    host.innerHTML = '<a>Hello</a>';
+
+    
+    host.shadyRoot.innerHTML = '<content></content>';
+    var content = host.shadyRoot.firstChild;
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+
+    var b = document.createElement('b');
+    host.shadyRoot.insertBefore(b, content);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<b></b><a>Hello</a>');
+  });
+
+  test('replaceChild - mutate host', function() {
+    host.innerHTML = '<a>Hello</a>';
+    host.shadyRoot.innerHTML = '<content></content>';
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+    var b = document.createElement('b');
+    host.replaceChild(b, host.firstChild);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<b></b>');
+  });
+
+  test('replaceChild - mutate shadow', function() {
+    host.innerHTML = '<a>Hello</a>';
+    host.shadyRoot.innerHTML = '<content></content>';
+    var content = host.shadyRoot.firstChild;
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<a>Hello</a>');
+    var b = document.createElement('b');
+    host.shadyRoot.replaceChild(b, content);
+    Polymer.ShadyDom.flush();
+    assert.strictEqual(getComposedHTML(host), '<b></b>');
+  });
+
+  test('querySelectorAll (shadyRoot)', function() {
+    host.innerHTML = '<div id="main"></div>';
+    host.shadyRoot.innerHTML = '<content></content><span id="main"></span>' +
+      '<x-content-test></x-content-test>';
+    // force upgrade on polyfilled browsers
+    CustomElements.takeRecords();
+    Polymer.ShadyDom.flush();
+    var hostLocalMain = getComposedChildAtIndex(host.shadyRoot, 1);
+    var child = getComposedChildAtIndex(host.shadyRoot, 100);
+    child.innerHTML = '<div id="sub"></div>';
+    var childLightSub = getComposedChildAtIndex(child, 0);
+    child.shadyRoot.innerHTML = '<content></content><span id="sub"></span>';
+    var childLocalSub = child.shadyRoot.lastChild;
+    Polymer.ShadyDom.flush();
+    assert.deepEqual(host.root.querySelectorAll('span#main'), [hostLocalMain]);
+    assert.deepEqual(host.root.querySelectorAll('div#sub'), [childLightSub]);
+    assert.deepEqual(child.root.querySelectorAll('span#sub'), [childLocalSub]);
+  });
+
+  test('querySelectorAll (light dom)', function() {
+    host.innerHTML = '<div id="main"></div>';
+    var hostLightMain = getComposedChildAtIndex(host, 0);
+    host.shadyRoot.innerHTML = '<content></content><span id="main"></span>' +
+      '<x-content-test></x-content-test>';
+    var child = getComposedChildAtIndex(host.shadyRoot, 100);
+    CustomElements.takeRecords();
+    child.innerHTML = '<div id="sub"></div>';
+    var childLightSub = getComposedChildAtIndex(child, 100) ;
+    child.shadyRoot.innerHTML = '<content></content><span id="sub"></span>';
+    Polymer.ShadyDom.flush();
+    assert.deepEqual(host.querySelectorAll('div#main'), [hostLightMain]);
+    assert.deepEqual(host.querySelectorAll('#sub'), []);
+    assert.deepEqual(child.querySelectorAll('div#sub'), [childLightSub]);
+  });
+
+});
+
+function getEffectiveChildNodes(node) {
+  var list = [];
+  var c$ = node.childNodes;
+  for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+    if (c.localName && (c.localName === 'content' || c.localName === 'slot')) {
+      list = list.concat(c.getDistributedNodes());
+    } else {
+      list.push(c);
+    }
+  }
+  return list;
+}
+
+function getComposedHTML(node) {
+  return Polymer.ShadyDom.getInnerHTML(node, function(n) {
+    return getEffectiveChildNodes(n.shadyRoot || n);
+  });
+}
+
+function getComposedChildAtIndex(node, index) {
+  var c$ = getEffectiveChildNodes(node);
+  if (c$) {
+    index = index || 0;
+    index = Math.max(0, Math.min(index, c$.length-1));
+    return c$[index];
+  }
+}
+
+function assertArrayEqual(a, b, msg) {
+  assert.equal(a.length, b.length, msg);
+  for (var i = 0; i < a.length; i++) {
+    assert.equal(a[i], b[i], msg);
+  }
+}
+
+</script>
+</body>
+</html>
