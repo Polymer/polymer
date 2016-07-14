@@ -44,8 +44,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       Tree.Composed.saveChildNodes(node);
       patchImpl.patch(node);
-    } else if (node.__patched === patchImpl.CANDIDATE) {
-      patchImpl.patch(node);
     }
   };
 
@@ -56,8 +54,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var log = false;
 
   var patchImpl = {
-
-    CANDIDATE: 'CustomElementCandidate',
 
     canPatchNode: function(node) {
       switch (node) {
@@ -82,6 +78,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this.hasPrototypeDescriptors) {
         node.__proto__ = this.prototypeForNode(node);
       } else {
+        console.warn('Patching instance rather than prototype', node);
         this.patchObject(node, this.mixinForNode(node));
       }
     },
@@ -90,10 +87,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var name = node.localName || node.__localName || '';
       var is = (node.getAttribute && node.getAttribute('is')) || '';
       var isCE = Boolean(name.indexOf('-') >=0 || is);
-      var cacheName = (name || is).toLowerCase() || node.nodeType;
+      var cacheName = (is || name).toLowerCase() || node.nodeType;
       // TODO(sorvell): this cacheability check fails for un-upgraded 
       // type extension elements (need to lookup against native prototype);
-      var canCache = Boolean(!isCE || node.__proto__ !== HTMLElement.prototype);
+      var canCache = Boolean(!isCE || 
+        (node.__proto__ !== HTMLElement.prototype && 
+        node.__proto__ !== HTMLUnknownElement.prototype));
+      
       if (canCache) {
         return cacheName;
       }
@@ -121,8 +121,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.patchObject(proto, this.mixinForNode(node));
         if (cacheName) {
           this.protoCache[cacheName] = proto;
-        } else {
-          node.__patched = this.CANDIDATE;
         }
       }
       return proto;
@@ -133,31 +131,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return object;
     },
 
-    // TODO(sorvell): re-support unpatching for non-proto patched nodes.
     unpatch: function(obj) {
       if (obj.__sourceProto) {
         obj.__proto__ = obj.__sourceProto;
-      } else {
-        this.methods.forEach(function(m) {
-          this.unpatchMethod(obj, m);
-        }, this);
-        this.accessors.forEach(function(n) {
-          this.unpatchAccessor(obj, n);
-        }, this);
-        this.writableAccessors.forEach(function(n) {
-          this.unpatchAccessor(obj, n);
-        }, this);
       }
-      obj.__patched = false;
-    },
-
-    unpatchMethod: function(obj, name) {
-      delete obj[name];
-    },
-
-    unpatchAccessor: function(obj, name) {
-      var info = obj.__descriptorCache[name];
-      Object.defineProperty(obj, name, info);
     }
     
   };
@@ -171,8 +148,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return root;
   }
 
-  // TODO(sorvell): transparent at the cost of intrusiveness.
-  // Consider instead patching some dom creation lib?
+  // NOTE: transparent at the cost of intrusiveness.
   Element.prototype.createShadowRoot = function() {
     return createRootAndEnsurePatched(this, true);
   }
@@ -183,10 +159,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // TODO(sorvell): super experimental auto patching of document fragment
   // via appendChild. This either needs to be expanded or contracted.
-  DocumentFragment.prototype.appendChild = function(node) {
-    Polymer.ShadyDom.patch(this);
-    return this.appendChild(node);
-  }
+  // DocumentFragment.prototype.appendChild = function(node) {
+  //   Polymer.ShadyDom.patch(this);
+  //   return this.appendChild(node);
+  // }
 
 })();
 
