@@ -1,0 +1,191 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="tree.html">
+<link rel="import" href="element-mixin.html">
+<link rel="import" href="../utils/utils.html">
+<script>
+
+/**
+ * Experimental import that patches elements that interacts with Shady DOM 
+ * such that tree traversal and mutation apis act like they would under
+ * Shadow DOM.
+ *
+ * This import enables interaction with Shady DOM powered custom elements mostly
+ * without the need to use `Polymer.dom` and can therefore enable better 
+ * interoperation with 3rd party code, libraries, and frameworks that use DOM
+ * tree manipulation apis.
+ */
+
+(function() {
+
+  'use strict';
+
+  var Tree = Polymer.ShadyDom.Tree;
+  var Mixins = Polymer.ShadyDom.Mixins;
+
+  var nativeInsertBefore = Element.prototype.insertBefore;
+  var nativeAppendChild = Element.prototype.appendChild;
+  var nativeRemoveChild = Element.prototype.removeChild;
+
+  Polymer.ShadyDom.patchedCount = 0;
+  
+  Polymer.ShadyDom.patch = function(node) {
+    if (!node.__patched && patchImpl.canPatchNode(node)) {
+      Tree.Logical.saveChildNodes(node);
+      if (!Tree.Composed.hasParentNode(node)) {
+        Tree.Composed.saveParentNode(node);
+      }
+      Tree.Composed.saveChildNodes(node);
+      patchImpl.patch(node);
+    } else if (node.__patched === patchImpl.CANDIDATE) {
+      patchImpl.patch(node);
+    }
+  };
+
+  Polymer.ShadyDom.unpatch = function(node) {
+    patchImpl.unpatch(node);
+  };
+
+  var log = false;
+
+  var patchImpl = {
+
+    CANDIDATE: 'CustomElementCandidate',
+
+    canPatchNode: function(node) {
+      switch (node) {
+        case document.head:
+        case document.documentElement:
+          return false;
+        default: 
+          return true;
+      }
+      return true;
+    },
+    
+    hasPrototypeDescriptors: Boolean(Object.getOwnPropertyDescriptor(
+      Node.prototype, 'textContent')),
+    
+    protoCache: {},
+    
+    patch: function(node) {
+      Polymer.ShadyDom.patchedCount++;
+      log && console.warn('patch node', node);
+      Tree.Composed.saveComposedData(node);
+      if (this.hasPrototypeDescriptors) {
+        node.__proto__ = this.prototypeForNode(node);
+      } else {
+        this.patchObject(node, this.mixinForNode(node));
+      }
+    },
+
+    cacheIdForNode: function(node) {
+      var name = node.localName || node.__localName || '';
+      var is = (node.getAttribute && node.getAttribute('is')) || '';
+      var isCE = Boolean(name.indexOf('-') >=0 || is);
+      var cacheName = (name || is).toLowerCase() || node.nodeType;
+      // TODO(sorvell): this cacheability check fails for un-upgraded 
+      // type extension elements (need to lookup against native prototype);
+      var canCache = Boolean(!isCE || node.__proto__ !== HTMLElement.prototype);
+      if (canCache) {
+        return cacheName;
+      }
+    },
+
+    mixinForNode: function(node) {
+      switch (node.nodeType) {
+        case Node.ELEMENT_NODE:
+          return Mixins.Element;
+        case Node.DOCUMENT_FRAGMENT_NODE:
+          return Mixins.Fragment;
+        case Node.DOCUMENT_NODE:
+          return Mixins.Document;
+        default:
+          return Mixins.Node;
+      }
+    },
+
+    prototypeForNode: function(node) {
+      var cacheName = this.cacheIdForNode(node);
+      var proto = this.protoCache[cacheName];
+      if (!proto) {
+        proto = Object.create(node.__proto__);
+        proto.__sourceProto = node.__proto__;
+        this.patchObject(proto, this.mixinForNode(node));
+        if (cacheName) {
+          this.protoCache[cacheName] = proto;
+        } else {
+          node.__patched = this.CANDIDATE;
+        }
+      }
+      return proto;
+    },
+
+    patchObject: function(object, patchProto) {
+      Polymer.Utils.extend(object, patchProto)
+      return object;
+    },
+
+    // TODO(sorvell): re-support unpatching for non-proto patched nodes.
+    unpatch: function(obj) {
+      if (obj.__sourceProto) {
+        obj.__proto__ = obj.__sourceProto;
+      } else {
+        this.methods.forEach(function(m) {
+          this.unpatchMethod(obj, m);
+        }, this);
+        this.accessors.forEach(function(n) {
+          this.unpatchAccessor(obj, n);
+        }, this);
+        this.writableAccessors.forEach(function(n) {
+          this.unpatchAccessor(obj, n);
+        }, this);
+      }
+      obj.__patched = false;
+    },
+
+    unpatchMethod: function(obj, name) {
+      delete obj[name];
+    },
+
+    unpatchAccessor: function(obj, name) {
+      var info = obj.__descriptorCache[name];
+      Object.defineProperty(obj, name, info);
+    }
+    
+  };
+
+  var createRootAndEnsurePatched = function(node, useV0) {
+    Polymer.ShadyDom.patch(node);
+    var root = new Polymer.ShadyDom.ShadyRoot(node, useV0);
+    Polymer.ShadyDom.patch(root);
+    return root;
+  }
+
+  // TODO(sorvell): transparent at the cost of intrusiveness.
+  // Consider instead patching some dom creation lib?
+  Element.prototype.createShadowRoot = function() {
+    return createRootAndEnsurePatched(this, true);
+  }
+
+  Element.prototype.attachShadow = function(dictionary) {
+    return createRootAndEnsurePatched(this);
+  }
+
+  // TODO(sorvell): super experimental auto patching of document fragment
+  // via appendChild. This either needs to be expanded or contracted.
+  DocumentFragment.prototype.appendChild = function(node) {
+    Polymer.ShadyDom.patch(this);
+    return this.appendChild(node);
+  }
+
+})();
+
+</script>
