@@ -17,124 +17,100 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   class PropertyAccessors {
 
-    constructor() {
-      this._emptyFn = function() {};
-    }
-
     createAccessor(model, property, readOnly) {
       model = this.getModel(model);
-      var effects = this._ensureEffects(model, '_propertyEffects')[property];
-      if (!effects) {
-        this._addObservedAttribute(model, property);
-      }
-      if (!effects || readOnly) {
-        effects = effects || (model._propertyEffects[property] = []);
-        this._createAccessor(model, property, readOnly);
-      }
-      return effects;
+      this.saveAccessorValue(model, property);
+      var lib = this;
+      Object.defineProperty(model, property, {
+        get: function() {
+          return this.__data && this.__data[property];
+        },
+        set: readOnly ? function() { } : function(value) {
+          lib.setProperty(this, property, value);
+        }
+      });
     }
 
-    addPropertyEffect(model, property, effect) {
-      var root = this._rootForPath(property);
-      effect.path = property;
-      this.createAccessor(model, root).push(effect);
+    saveAccessorValue(model, property) {
+      if (model.hasOwnProperty(property)) {
+        if (!model.__dataProto) {
+          model.__dataProto = {};
+        } else if (!model.hasOwnProperty('__dataProto')) {
+          model.__dataProto = Object.create(model.__dataProto);
+        }
+        model.__dataProto[property] = model[property];
+      }
     }
 
     getModel(model) {
       return typeof model == 'function' ? model.prototype : model;
     }
 
-    _ensureEffects(model, name) {
-      var effects = model[name];
-      if (!effects) {
-        effects = model[name] = {};
-      } else if (!model.hasOwnProperty(name)) {
-        effects = model[name] = Object.create(model[name]);
-        for (var p in effects) {
-          // TODO(kschaaf): replace with fast array copy #!%&$!
-          effects[p] = effects[p].slice();
+    createAcessorsForAttributes(model, attrs) {
+      var attrs = attrs || model.observedAttributes;
+      if (attrs) {
+        for (var i=0; i<attrs.length; i++) {
+          var property = Polymer.CaseMap.dashToCamelCase(attrs[i]);
+          this.createAccessor(model, property);
         }
       }
-      return effects;
     }
 
-    _addObservedAttribute(model, name) {
-      var attrName = Polymer.CaseMap.camelToDashCase(name);
-      var ctor = model.constructor;
-      if (!ctor.hasOwnProperty('observedAttributes')) {
-        ctor.observedAttributes =
-          ctor.observedAttributes ?
-          ctor.observedAttributes.slice() : [];
+    setProperty(inst, property, value) {
+      if (this.setPendingProperty(inst, property, value)) {
+        this.invalidate(inst);
       }
-      ctor.observedAttributes.push(attrName);
     }
 
-    _createAccessor(model, property, readOnly) {
-      // TODO(sorvell): kosher to bail here if an accessor already exists?
-      if (!readOnly && model.hasOwnProperty(property)) {
-        console.warn('Accessor already exists for', property, 'on', model);
-        return;
-      }
-      var self = this;
-      var defun = {
-        get: function() {
-          // TODO(sjmiles): elide delegation for performance, good ROI?
-          return this.__data && this.__data[property];
-        }
-      };
-      var setter = function(value) {
-        self._propertySetter(this, property, value);
-      };
-      if (readOnly) {
-        model['_set' + this._upper(property)] = setter;
-        defun.set = this._emptyFn;
-      } else {
-        defun.set = setter;
-      }
-      Object.defineProperty(model, property, defun);
-    }
-
-    _upper(name) {
-      return name[0].toUpperCase() + name.substring(1);
-    }
-
-    _propertySetter(inst, property, value) {
+    setPendingProperty(inst, property, value) {
       if (!inst.__data) {
         inst.__data = {};
       }
       var old = inst.__data[property];
-      if (this.isPropertyDirty(value, old)) {
+      if (this.shouldPropChange(value, old)) {
+        if (!inst.__dataPending) {
+          inst.__dataPending = {};
+          inst.__dataOld = {};
+        }
+        // Ensure old is captured from the last turn
+        if (!(property in inst.__dataOld)) {
+          inst.__dataOld[property] = old;
+        }
         inst.__data[property] = value;
-        var rootProperty = this._rootForPath(property);
-        var effects = inst._propertyEffects[rootProperty];
-        if (effects) {
-          this._runEffects(inst, property, value, old, effects);
-        }
-      }
-      return old;
-    }
-
-    _runEffects(inst, property, value, old, effects) {
-      for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
-        if (this._pathMatchesEffect(property, fx)) {
-          fx.fn.call(inst, property, value, old, fx.info);
-        }
+        inst.__dataPending[property] = value;
+        return true;
       }
     }
 
-    _pathMatchesEffect(path, effect) {
-      var effectArg = effect.path;
-      return (effectArg == path) ||
-        (effectArg.indexOf(path + '.') === 0) ||
-        (/* effect.trigger.wildcard && */ path.indexOf(effectArg) === 0);
+    invalidate(inst) {
+      if (!inst.__dataInvalid) {
+        inst.__dataInvalid = true;
+        Promise.resolve().then(() => {
+          if (inst.__dataInvalid) {
+            inst.__dataInvalid = false;
+            this.flush(inst)
+          }
+        });
+      }
     }
 
-    _rootForPath(path) {
-      var dot = path.indexOf('.');
-      return (dot < 0) ? path : path.slice(0, dot);
+    flush(inst) {
+      if (inst.__dataPending) {
+        var oldProps = inst.__dataOld;
+        var changedProps = inst.__dataPending;
+        inst.__dataPending = null;
+        if (inst.validate) {
+          inst.validate(inst.__data, oldProps, changedProps);
+        } else {
+          this.validate(inst, inst.__data, oldProps, changedProps);
+        }
+      }
     }
 
-    isPropertyDirty(value, old) {
+    validate(inst, props, oldProps, changedProps) {
+    }
+
+    shouldPropChange(value, old) {
       return ((old !== value && (old === old || value === value)) ||
         (typeof value == 'object'));
     }

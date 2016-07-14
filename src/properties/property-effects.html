@@ -44,30 +44,116 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    // TODO(kschaaf): rather than create+run, consider closing over
-    // run in create to avoid extra info object creation, otoh maybe
-    // its good for debugging?
+    // Prototype setup ----------------------------------------
+
+    addPropertyEffect(model, path, type, effect) {
+      model = this.getModel(model);
+      var property = this._rootForPath(path);
+      // _propertyEffects only used to track whether an accessor has been created or not
+      var effects = this._ensureOwnMappedArray(model, '_propertyEffects')[property];
+      var val;
+      if (!effects) {
+        effects = model._propertyEffects[property] = [];
+        val = this.createAccessor(model, property, type == Types.READ_ONLY);
+      }
+      // effects are accumulated into arrays per property based on type
+      if (effect) {
+        effect.path = path;
+        effects.push(effect);
+      }
+      effects = this._ensureOwnMappedArray(model, type)[property];
+      if (!effects) {
+        effects = model[type][property] = [];
+      }
+      effects.push(effect);
+      return val;
+    }
+
+    _ensureOwnMappedArray(model, type) {
+      var effects = model[type];
+      if (!effects) {
+        effects = model[type] = {};
+      } else if (!model.hasOwnProperty(type)) {
+        effects = model[type] = Object.create(model[type]);
+        for (var p in effects) {
+          // TODO(kschaaf): replace with fast array copy #!%&$!
+          effects[p] = effects[p].slice();
+        }
+      }
+      return effects;
+    }
+
+    _rootForPath(path) {
+      var dot = path.indexOf('.');
+      return (dot < 0) ? path : path.slice(0, dot);
+    }
+
+    // Runtime ----------------------------------------
+
+    setProperty(inst, property, value) {
+      this.setPendingProperty(inst, property, value);
+      this.flush(inst);
+    }
+
+    validate(inst, props, oldProps, changedProps) {
+      for (var p in changedProps) {
+        var effects = inst._propertyEffects[p];
+        this._runEffects(inst, p, changedProps[p], oldProps[p], effects);
+      }
+    }
+
+    _runEffects(inst, property, value, old, effects) {
+      for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
+        if (this._pathMatchesEffect(property, fx)) {
+          fx.fn.call(inst, property, value, old, fx.info);
+        }
+      }
+    }
+
+    _pathMatchesEffect(path, effect) {
+      var effectArg = effect.path;
+      return (effectArg == path) ||
+        (effectArg.indexOf(path + '.') === 0) ||
+        (/* effect.trigger.wildcard && */ path.indexOf(effectArg) === 0);
+    }
+
+    executeStaticEffects(inst) {
+      if (this._propertyEffects && this._propertyEffects.__static__) {
+        this._runEffects(inst, '__static__', null, null, this._propertyEffects.__static__);
+      }
+    }
 
     // -- readOnly ----------------------------------------------
 
-    createReadOnlyProperty(model, property) {
-      this.createAccessor(model, property, true);
+    createReadOnlyProperty(model, property, privateSetter) {
+      model = this.getModel(model);
+      this.addPropertyEffect(model, property, Types.READ_ONLY);
+      var lib = this;
+      if (privateSetter) {
+        model['_set' + this._upper(property)] = function(value) {
+          lib.setProperty(this, property, value);
+        }
+      }
+    }
+
+    _upper(name) {
+      return name[0].toUpperCase() + name.substring(1);
     }
 
     // -- observer ----------------------------------------------
 
     createObserver(model, property, methodName, context) {
-      this.addPropertyEffect(model, property, {
+      this.addPropertyEffect(model, property, Types.OBSERVE, {
         fn: this._runObserverEffect,
         info: {
           methodName: methodName,
-          context: this.getModel(context || model)
+          context: context ? this.getModel(context) : null
         }
       });
     }
 
     _runObserverEffect(property, value, old, info) {
-      var fn = info.context[info.methodName];
+      var fn = (info.context || this)[info.methodName];
       if (fn) {
         fn.call(this, value, old);
       } else {
@@ -78,7 +164,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // -- notify ----------------------------------------------
 
     createNotifyingProperty(model, property) {
-      this.addPropertyEffect(model, property, {
+      this.addPropertyEffect(model, property, Types.NOTIFY, {
         fn: this._runNotifyEffect,
         info: {
           lib: this,
@@ -88,19 +174,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _runNotifyEffect(property, value, old, info) {
-      this.dispatchEvent(new CustomEvent(info.eventName, {value: value}));
+      this.dispatchEvent(new CustomEvent(info.eventName, {
+        bubbles: false,
+        detail: { value: value }
+      }));
     }
 
     // -- reflect ----------------------------------------------
 
     createReflectedProperty(model, property) {
-      this.addPropertyEffect(model, property, {
-        fn: this._runReflectEffect,
-        info: {
-          lib: this,
-          attrName: CaseMap.camelToDashCase(property)
-        }
-      });
+      var attr = CaseMap.camelToDashCase(property);
+      if (attr[0] === '-') {
+        console.warn('Property ' + property + ' cannot be reflected to attribute ' +
+          attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property instead.');
+      } else {
+        this.addPropertyEffect(model, property, Types.PROPAGATE, {
+          fn: this._runReflectEffect,
+          info: {
+            lib: this,
+            attrName: attr
+          }
+        });
+      }
     }
 
     _runReflectEffect(property, value, old, info) {
@@ -111,7 +206,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createMultiObserver(model, expression) {
       var sig = this._parseMethod(expression);
-      this._createMethodEffect(model, sig, this._runMultiObserverEffect);
+      this._createMethodEffect(model, sig, Types.OBSERVE,
+        this._runMultiObserverEffect);
     }
 
     _runMultiObserverEffect(property, value, old, info) {
@@ -122,7 +218,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createComputedProperty(model, property, expression) {
       var sig = this._parseMethod(expression);
-      this._createMethodEffect(model, sig, this._runComputedEffect, property);
+      this._createMethodEffect(model, sig, Types.COMPUTE,
+        this._runComputedEffect, property);
     }
 
     _runComputedEffect(property, value, old, info) {
@@ -140,8 +237,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var b$ = note.bindings;
         for (var j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
           if (this._shouldAddListener(binding)) {
-            this._addAnnotatedListener(model, i,
-              binding.name, binding.parts[0].value, binding.parts[0].event);
+            this._addAnnotatedListener(model, i, binding.name,
+              binding.parts[0].value,
+              binding.parts[0].event,
+              binding.parts[0].negate);
           }
           this._addAnnotationEffect(model, binding, i);
         }
@@ -154,38 +253,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (part.signature) {
           this._addAnnotatedComputationEffect(model, note, part, index);
         } else if (!part.literal) {
-          this.addPropertyEffect(model, part.rootProperty, {
-            fn: this._runAnnotationEffect,
-            info:  {
-              lib: this,
-              kind: note.kind,
-              index: index,
-              name: note.name,
-              propertyName: note.propertyName,
-              value: part.value,
-              isCompound: note.isCompound,
-              compoundIndex: part.compoundIndex,
-              event: part.event,
-              customEvent: part.customEvent,
-              negate: part.negate
-            }
-          });
+          if (note.kind === 'attribute' && note.name[0] === '-') {
+            console.warn('Cannot set attribute ' + note.name +
+              ' because "-" is not a valid attribute starting character');
+          } else {
+            this.addPropertyEffect(model, part.rootProperty, Types.PROPAGATE, {
+              fn: this._runAnnotationEffect,
+              info:  {
+                lib: this,
+                kind: note.kind,
+                index: index,
+                name: note.name,
+                propertyName: note.propertyName,
+                value: part.value,
+                isCompound: note.isCompound,
+                compoundIndex: part.compoundIndex,
+                event: part.event,
+                customEvent: part.customEvent,
+                negate: part.negate
+              }
+            });
+          }
         }
       }
     }
 
     _runAnnotationEffect(property, value, old, info) {
+      // TODO(kschaaf): this is broken: always using the root property value
+      // breaks the unification of path & property notification
       if (property != info.value) {
         value = info.lib._get(this, info.value);
         this.__data[info.value] = value;
       }
-      var calc = info.negate ? !value : value;
-      // For better interop, dirty check before setting when custom events
-      // are used, since the target element may not dirty check (e.g. <input>)
-      if (!info.customEvent ||
-          this._nodes[info.index][info.name] !== calc) {
-        return info.lib._applyEffectValue(this, info, calc);
-      }
+      info.lib._applyEffectValue(this, info, value);
     }
 
     _get(inst, path) {
@@ -221,9 +321,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         storage[info.compoundIndex] = value;
         value = storage.join('');
       }
+      if (info.negate) {
+        value = !value;
+      }
       // special processing for 'class' and 'className'; 'class' handled
       // when attr is serialized.
-      if (info.kind == 'attribute') {
+      if (info.customEvent && node[property] == value) {
+        // For better interop, dirty check before setting when custom events
+        // are used, since the target element may not dirty check (e.g. <input>)
+      } else if (info.kind == 'attribute') {
         this.attributes.valueToAttribute(node, value, property);
       } else {
         // TODO(sorvell): --- class scoping was here ---
@@ -233,7 +339,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           value = value == undefined ? '' : value;
         }
         // TODO(kschaaf): --- from above was here ---
-        this._setPropertyToNode(model, node, property, value);
+        if (!node._readOnly || !node._readOnly[property]) {
+          this._setPropertyToNode(model, node, property, value);
+        }
       }
     }
 
@@ -242,7 +350,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _addAnnotatedComputationEffect(model, note, part, index) {
-      this._createMethodEffect(model, part.signature,
+      this._createMethodEffect(model, part.signature, Types.PROPAGATE,
         this._runAnnotationComputationEffect, {
           index: index,
           isCompound: note.isCompound,
@@ -251,7 +359,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           name: note.name,
           negate: part.negate,
           part: part
-        }
+        }, true
       );
     }
 
@@ -280,14 +388,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // Recurse into nested templates & bind parent props
           if (note.templateContent) {
             this._processAnnotations(note.templateContent._notes);
-            var pp = note.templateContent._parentProps =
-              this._discoverTemplateParentProps(note.templateContent._notes);
+            var pp = note.templateContent._hostProps =
+              this._discoverTemplateHostProps(note.templateContent._notes);
             var bindings = [];
             for (var prop in pp) {
               bindings.push({
                 index: note.index,
                 kind: 'property',
-                name: '_parent_' + prop,
+                name: '_host_' + prop,
                 parts: [{
                   mode: '{',
                   rootProperty: prop,
@@ -303,10 +411,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     // Finds all bindings in template content and stores the path roots in
-    // the path members in content._parentProps. Each outer template merges
-    // inner _parentProps to propagate inner parent property needs to outer
+    // the path members in content._hostProps. Each outer template merges
+    // inner _hostProps to propagate inner parent property needs to outer
     // templates.
-    _discoverTemplateParentProps(notes) {
+    _discoverTemplateHostProps(notes) {
       var pp = {};
       for (var i=0, n; (i<notes.length) && (n=notes[i]); i++) {
         // Find all bindings to parent.* and spread them into _parentPropChain
@@ -320,6 +428,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                   pp[rootProperty] = true;
                 }
               }
+              pp[p.signature.methodName] = true;
             } else {
               if (p.rootProperty) {
                 pp[p.rootProperty] = true;
@@ -327,9 +436,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
         }
-        // Merge child _parentProps into this _parentProps
+        // Merge child _hostProps into this _hostProps
         if (n.templateContent) {
-          var tpp = n.templateContent._parentProps;
+          var tpp = n.templateContent._hostProps;
           Polymer.Base.mixin(pp, tpp);
         }
       }
@@ -341,11 +450,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
              effect.kind != 'attribute' &&
              effect.kind != 'text' &&
              !effect.isCompound &&
-             effect.parts[0].mode === '{' &&
-             !effect.parts[0].negate;
+             effect.parts[0].mode === '{';
     }
 
-    _addAnnotatedListener(model, index, property, path, event) {
+    _addAnnotatedListener(model, index, property, path, event, negate) {
       if (!model._bindListeners) {
         model._bindListeners = [];
       }
@@ -355,7 +463,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         index: index,
         property: property,
         path: path,
-        event: eventName
+        event: eventName,
+        negate: negate
       });
     }
 
@@ -371,27 +480,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var lib = this;
       var rootProperty = this._rootForPath(info.path);
       node.addEventListener(info.event, function(e) {
-        return lib._notifyListener(e, inst, info.property, info.path, rootProperty);
+        return lib._notifyListener(e, inst, info.property, info.path,
+          rootProperty, info.negate);
       });
     }
 
-    _notifyListener(e, inst, property, path, rootProperty) {
+    _notifyListener(e, inst, property, path, rootProperty, negate) {
       if (!this._isEventBogus(e, e.target)) {
         //TODO(kschaaf): no support for firing path in change events yet; want?
         var targetPath = e.detail && e.detail.path;
         if (targetPath) {
           path = this._fixPath(path, property, e.detail.path);
-          this._propertySetter(inst, path, e.detail.value);
+          this.setProperty(inst, path, e.detail.value);
         } else {
           var value = e.target[property];
-          if (path !== rootProperty) {
-            this._set(inst, path, value);
-            this._propertySetter(inst, path, value);
-          } else {
-            inst[rootProperty] = value;
-          }
+          value = negate ? !value : value;
+          this.setProperty(inst, path, value);
         }
       }
+    }
+
+    _pathMatchesEffect(path, effect) {
+      var effectArg = effect.path;
+      return (effectArg == path) ||
+        (effectArg.indexOf(path + '.') === 0) ||
+        (/* effect.trigger.wildcard && */ path.indexOf(effectArg) === 0);
     }
 
     _fixPath(property, root, path) {
@@ -404,34 +517,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // -- for method-based effects (complexObserver & computed) --------------
 
-    _createMethodEffect(model, sig, effectFn, methodInfo) {
-      var dynamicFn = sig.dynamicFn;
+    _createMethodEffect(model, sig, type, effectFn, methodInfo, dynamic) {
       var info = {
         lib: this,
         methodName: sig.methodName,
         args: sig.args,
         methodInfo: methodInfo,
-        dynamicFn: dynamicFn
+        dynamicFn: dynamic
       };
-      for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
-        if (!arg.literal) {
-          this.addPropertyEffect(model, arg.rootProperty, {
-            fn: effectFn, info: info
-          });
+      if (sig.static) {
+        this.addPropertyEffect(model, '__static__', type, {
+          fn: effectFn, info: info
+        });
+      } else {
+        for (var i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
+          if (!arg.literal) {
+            this.addPropertyEffect(model, arg.rootProperty, type, {
+              fn: effectFn, info: info
+            });
+          }
         }
       }
-      if (dynamicFn) {
-        this._addPropertyEffect(model, sig.methodName, {
+      if (dynamic) {
+        this.addPropertyEffect(model, sig.methodName, type, {
           fn: effectFn, info: info
         });
       }
     }
 
     _runMethodEffect(inst, property, value, old, info) {
-      var fn = inst[info.methodName];
+      // TODO(kschaaf): ideally rootDataHost would be a detail of Templatizer only
+      var context = inst._rootDataHost || inst;
+      var fn = context[info.methodName];
       if (fn) {
         var args = this._marshalArgs(inst.__data, info, property, value);
-        return fn.apply(inst, args);
+        return fn.apply(context, args);
       } else if (!info.dynamicFn) {
         console.warn('method `' + info.methodName + '` not defined');
       }
@@ -514,7 +634,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // path & value are used to fill in wildcard descriptor when effect is
     // being called as a result of a path notification
-    _marshalArgs(model, info) {
+    _marshalArgs(model, info, path, value) {
       var values = [];
       var args = info.args;
       for (var i=0, l=args.length; i<l; i++) {
@@ -529,18 +649,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           v = model[name];
         }
         if (arg.wildcard) {
-          // TODO(kschaaf): paths/wildcards
-          //debugger
-          console.warn('wildcard args not yet supported,', info);
-          // // Only send the actual path changed info if the change that
-          // // caused the observer to run matched the wildcard
-          // var baseChanged = (name.indexOf(path + '.') === 0);
-          // var matches = (info.trigger.name.indexOf(name) === 0 && !baseChanged);
-          // values[i] = {
-          //   path: matches ? path : name,
-          //   value: matches ? value : v,
-          //   base: v
-          // };
+          // Only send the actual path changed info if the change that
+          // caused the observer to run matched the wildcard
+          var baseChanged = (name.indexOf(path + '.') === 0);
+          var matches = (path.indexOf(name) === 0 && !baseChanged);
+          values[i] = {
+            path: matches ? path : name,
+            value: matches ? value : v,
+            base: v
+          };
         } else {
           values[i] = v;
         }
@@ -595,6 +712,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+  }
+
+  var Types = PropertyEffects.Types = {
+    COMPUTE: '_computeEffects',
+    NOTIFY: '_notifyEffects',
+    PROPAGATE: '_propagateEffects',
+    OBSERVE: '_observeEffects',
+    READ_ONLY: '_readOnly'
   }
 
   // export

@@ -21,9 +21,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     constructor(templateStamp, attributes, annotations) {
       super(attributes, annotations);
-      this._currentEffects = null;
-      // Not a correct assign polyfill-- only use where proto's don't matter!
-      // _mixin: Object.assign ? Object.assign : Polymer.Utils.mixin,
       this._mixin = Polymer.Utils.mixin;
       this._effectUid = 0;
       this.templateStamp = templateStamp ||
@@ -41,228 +38,203 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         model.setProperties = function(props, fromAbove) {
           lib.setProperties(this, props, fromAbove);
         };
-        model.set = model.notifyPath = function(prop, value) {
-          lib.set(this, prop, value);
+        model.set = model.notifyPath = function(path, value) {
+          lib.set(this, path, value);
         };
+        model.get = function(path) {
+          lib.get(this, path)
+        }
       }
       super.addPropertyEffect.apply(this, arguments);
-      if (this._currentEffects) {
-        var effects = this._currentEffects[property] ||
-          (this._currentEffects[property] = []);
-        effects.push(effect);
-      }
-    }
-
-    _accumulateEffects(model, name, fn, args) {
-      model = this.getModel(model);
-      this._currentEffects = this._ensureEffects(model, name);
-      fn.apply(this, args);
-      this._currentEffects = null;
-    }
-
-    // -- read only ----------------------------------------------
-
-    createReadOnlyProperty(model, property) {
-      model = this.getModel(model);
-      super.createReadOnlyProperty.apply(this, arguments);
-      this._ensureEffects(model, '_isReadOnly')[property] = true;
-    }
-
-    // -- observer ----------------------------------------------
-
-    createObserver(model) {
-      this._accumulateEffects(model, '_observerEffects',
-        super.createObserver, arguments);
-    }
-
-    // -- notify ----------------------------------------------
-
-    createNotifyingProperty(model) {
-      this._accumulateEffects(model, '_notifyEffects',
-        super.createNotifyingProperty, arguments);
-    }
-
-    // -- reflect ----------------------------------------------
-
-    createReflectedProperty(model) {
-      this._accumulateEffects(model, '_annotationEffects',
-        super.createReflectedProperty, arguments);
-    }
-
-    // -- complexObserver ----------------------------------------------
-
-    createMultiObserver(model) {
-      this._accumulateEffects(model, '_observerEffects',
-        super.createMultiObserver, arguments);
-    }
-
-    // -- computed ----------------------------------------------
-
-    createComputedProperty(model) {
-      this._accumulateEffects(model, '_computedEffects',
-        super.createComputedProperty, arguments);
-    }
-
-    // -- annotation ----------------------------------------------
-
-    bindTemplate(model, template) {
-      this._accumulateEffects(model, '_annotationEffects',
-        super.bindTemplate, [model, template]);
     }
 
     // -- set properties machinery
 
-    setProperties(inst, props, fromAbove) {
-      // Dirty check / filter props with effects
-      this._setPendingProperties(inst, props);
-      if (inst._propertyEffectsActive) {
-        this._processPendingProperties(inst, fromAbove);
-      }
-    }
-
-    _propertySetter(inst, prop, value) {
-      this._setPendingProperty(inst, prop, value);
-      if (inst._propertyEffectsActive) {
-        this._processPendingProperties(inst, false);
-      }
-    }
-
-    _setPendingProperties(inst, props) {
+    setProperties(inst, props) {
       for (var prop in props) {
-        this._setPendingProperty(inst, prop, props[prop]);
+        if (!inst._readOnly || !inst._readOnly[prop]) {
+          this.setPendingProperty(inst, prop, props[prop]);
+        }
+      }
+      if (inst._propertyEffectsActive) {
+        if (inst.asyncEffects) {
+          this.invalidate(inst);
+        } else {
+          this.flush(inst);
+        }
       }
     }
 
-    _setPendingProperty(inst, prop, value, host) {
+    setProperty(inst, prop, value) {
+      this.setPendingProperty(inst, prop, value);
+      if (inst._propertyEffectsActive) {
+        if (inst.asyncEffects) {
+          this.invalidate(inst);
+        } else {
+          this.flush(inst);
+        }
+      }
+    }
+
+    setPendingProperty(inst, prop, value) {
       var rootProperty = this._rootForPath(prop);
       if (!inst._propertyEffects[rootProperty]) {
         this._set(inst, prop, value);
-      } else if (this.isPropertyDirty(inst[prop], value)) {
-        if (rootProperty !== prop) {
-          //TODO(kschaaf): ideally this only happens once on entry
-          this._set(inst, prop, value);
-        }
-        inst.__pendingData = inst.__pendingData || {};
-        inst.__pendingData[prop] = value;
-        inst.__data = inst.__data || {};
-        inst.__data[prop] = value;
-        if (host) {
-          host.__pendingClients.set(inst, true);
-        }
+      } else if (rootProperty !== prop) {
+        this._set(inst, prop, value);
+      }
+      return super.setPendingProperty(inst, prop, value);
+    }
+
+    flush(inst, fromAbove) {
+      inst._fromAbove = inst._fromAbove || fromAbove;
+      super.flush(inst);
+      inst._fromAbove = false;
+    }
+
+    validate(inst, currentProps, oldProps, changedProps) {
+      // Compute
+      var computedProps = this._runComputedEffects(inst, changedProps, oldProps);
+      // Notify
+      var props = this._notifyProperties(inst, changedProps, computedProps, oldProps);
+      if (props) {
+        oldProps = props.oldProps;
+        changedProps = props.changedProps;
+        // Propagate
+        this._runPropagationEffects(inst, changedProps);
+        // Observe
+        this._runEffects(inst, Types.OBSERVE, changedProps, oldProps);
       }
     }
 
-    _processPendingProperties(inst, fromAbove) {
-      var runId = (inst._runId = ((inst._runId || 0) + 1));
-      var props = inst.__pendingData;
-      if (props || inst.__interimData) {
-        // Setup client property queueing
-        inst.__pendingClients = inst.__pendingClients || new Map();
-        inst.__pendingData = {};
-        // Run computed effects
-        var inputProps = props;
+    _runComputedEffects(inst, changedProps, oldProps) {
+      if (inst[Types.COMPUTE]) {
+        var inputProps = changedProps;
         var computedProps;
-        while (this._runEffects(inst, inst._computedEffects, inputProps)) {
-          this._mixin(props, inst.__pendingData);
-          computedProps = this._mixin(computedProps || {}, inst.__pendingData);
-          inputProps = inst.__pendingData;
-          inst.__pendingData = {};
+        while (this._runEffects(inst, Types.COMPUTE, inputProps)) {
+          this._mixin(oldProps, inst.__dataOld);
+          this._mixin(changedProps, inst.__dataPending);
+          computedProps = this._mixin(computedProps || {}, inst.__dataPending);
+          inputProps = inst.__dataPending;
+          inst.__dataPending = null;
         }
-        // Notify
-        inst.__interimData = inst.__interimData ?
-          this._mixin(inst.__interimData, props) : props;
-        // avoid notifications unless active
-        if (inst._propertyEffectsActive) {
-          this.notifyProperties(inst, fromAbove ? computedProps : props);
-        }
-        // Re-entry protection; only run the last time through
-        if (runId == inst._runId) {
-          props = inst.__interimData;
-          // Run annotation effects
-          this._runEffects(inst, inst._annotationEffects, props);
-          // Recurse to clients
-          this._flushPropClients(inst);
-          // avoid observers unless active
-          if (inst._propertyEffectsActive) {
-            inst.__interimData = null;
-            // Run observer effects
-            this._runEffects(inst, inst._observerEffects, props);
-          }
-        }
+        return computedProps;
       }
-      return props;
     }
 
-    _flushPropClients(inst) {
-      var lib = this;
-      inst.__pendingClients.forEach(function(v, client) {
+    _runPropagationEffects(inst, changedProps) {
+      inst.__pendingClients = inst.__pendingClients || new Map();
+      // Propagate pending changes to clients
+      this._runEffects(inst, Types.PROPAGATE, changedProps);
+      // Flush all clients
+      inst.__pendingClients.forEach((v, client) => {
         if (client._propertyEffectsActive) {
-          lib._processPendingProperties(client, true);
+          this.flush(client, true);
+        } else {
+          this.ensureStamped(client);
         }
       });
       inst.__pendingClients = null;
     }
 
+    // Cannot name class method `set` in class due to Safari ES6 implementation
+    // Patched into the prototype as `set` after this class definition
     __set(inst, path, value) {
       path = Array.isArray(path) ? path.join('.') : path;
-      this._propertySetter(inst, path, value);
+      this.setProperty(inst, path, value);
     }
 
-    notifyProperties(inst, props) {
-      if (props) {
-        var host = inst.dataHost;
-        if (host && host.setProperties) {
-          this._setNotifyProperties(inst, host, props);
-        } else {
-          this._dispatchNotifyProperties(inst, props);
-        }
+    get(inst, path) {
+      path = Array.isArray(path) ? path.join('.') : path;
+      this._get(inst, path);
+    }
+
+    _notifyProperties(inst, changedProps, computedProps, oldProps) {
+      var props = inst._fromAbove ? computedProps : changedProps;
+      var runId = (inst._runId = ((inst._runId || 0) + 1));
+      inst.__interimData = inst.__interimData ?
+        this._mixin(inst.__interimData, changedProps) : changedProps;
+      inst.__interimDataOld = inst.__interimDataOld ?
+        this._mixin(inst.__interimDataOld, oldProps) : oldProps;
+      var host = inst.dataHost;
+      if (host && host.setProperties) {
+        this._setNotifyProperties(inst, host, props);
+      } else {
+        this._dispatchNotifyProperties(inst, props);
+      }
+      if (runId == inst._runId) {
+        changedProps = inst.__interimData;
+        oldProps = inst.__interimDataOld;
+        inst.__interimData = null;
+        inst.__interimDataOld = null;
+        return {changedProps: changedProps, oldProps: oldProps};
       }
     }
 
     _dispatchNotifyProperties(inst, props) {
       var fx = inst._notifyEffects;
       for (var prop in props) {
-        if ((fx && fx[prop]) || this._rootForPath(prop) !== prop) {
-          inst.dispatchEvent(
-            new CustomEvent(prop + '-changed', {value: props[prop]}));
+        var rootProperty = this._rootForPath(prop);
+        var info = fx && fx[rootProperty] && fx[rootProperty][0].info;
+        if (info || rootProperty !== prop) {
+          this._dispatchNotification(inst, info, prop, props[prop]);
         }
       }
     }
 
+    _dispatchNotification(inst, info, prop, value) {
+      var event = (info && info.eventName) ||
+        Polymer.CaseMap.camelToDashCase(prop) + '-changed';
+      inst.dispatchEvent(new CustomEvent(event, {
+        bubbles: false,
+        detail: { value: value }
+      }));
+    }
+
     _setNotifyProperties(inst, host, props) {
       var fx = inst._notifyEffects;
-      var hostProps = {};
+      var hostProps;
       for (var prop in props) {
         var val = props[prop];
         var rootProperty = this._rootForPath(prop);
-        var hostPath = inst._hostBindings && inst._hostBindings[rootProperty];
-        if (hostPath && ((fx && fx[rootProperty]) || rootProperty !== prop)) {
-          prop = this._fixPath(hostPath, rootProperty, prop);
-          hostProps[prop] = val;
+        var info = fx && fx[rootProperty] && fx[rootProperty][0].info;
+        if (info || rootProperty !== prop) {
+          var hostBinding = inst._hostBindings && inst._hostBindings[rootProperty];
+          if (hostBinding) {
+            prop = this._fixPath(hostBinding.path, rootProperty, prop);
+            hostProps = hostProps || {};
+            hostProps[prop] = hostBinding.negate ? !val : val;
+          } else {
+            this._dispatchNotification(inst, info, prop, val);
+          }
         }
       }
-      this.setProperties(host, hostProps);
+      if (hostProps) {
+        this.setProperties(host, hostProps);
+      }
     }
 
     _addNotifyListener(node, inst, info) {
       if (!node.setProperties) {
         super._addNotifyListener.apply(this, arguments);
-      } else {
-        node._hostBindings = node._hostBindings || {};
-        node._hostBindings[info.property] = info.path;
       }
+      node._hostBindings = node._hostBindings || {};
+      node._hostBindings[info.property] = info;
     }
 
     _setPropertyToNode(model, node, prop, value) {
       if (node.setProperties) {
-        this._setPendingProperty(node, prop, value, model);
+        if (this.setPendingProperty(node, prop, value)) {
+          model.__pendingClients.set(node, true);
+        }
       } else {
         node[prop] = value;
       }
     }
 
-    _runEffects(inst, effects, props) {
+    _runEffects(inst, type, props, oldProps) {
       var ran;
+      var effects = inst[type];
       if (effects) {
         var id = this._effectUid++;
         for (var prop in props) {
@@ -273,8 +245,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
               if (this._pathMatchesEffect(prop, fx) &&
                 (!fx.info || fx.info.lastRun !== id)) {
-                fx.fn.call(inst, prop, val, undefined, fx.info);
-                fx.info.lastRun = id;
+                fx.fn.call(inst, prop, val, oldProps && oldProps[prop], fx.info, inst._fromAbove);
+                if (fx.info) {
+                  fx.info.lastRun = id;
+                }
                 ran = true;
               }
             }
@@ -296,26 +270,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    enablePropertyEffects(inst) {
+    enablePropertyEffects(inst, quiet) {
       inst._propertyEffectsActive = true;
-      // TODO(sorvell): this cannot be fromAbove true, becuase notifications of
-      // default values will not be seen.
-      //this._processPendingProperties(inst, true);
-      this._processPendingProperties(inst);
+      this.flush(inst, quiet);
+    }
+
+    disablePropertyEffects(inst) {
+      inst._propertyEffectsActive = false;
+    }
+
+    init(inst, template) {
+      if (inst.__dataProto) {
+        inst.__data = Object.create(inst.__dataProto);
+        inst.__dataPending = Object.create(inst.__dataProto);
+        inst.__dataOld = {};
+      }
+      inst.__dataTemplate = template;
+    }
+
+    ensureEnabled(inst, quiet) {
+      if (!inst._propertyEffectsActive) {
+        this.enablePropertyEffects(inst, quiet);
+      }
+    }
+
+    ensureStamped(inst, template, quiet) {
+      template = template || inst.__dataTemplate;
+      if (template && !inst.__dataDom) {
+        inst.__dataDom = this.stamp(template, inst);
+        this.recordInstanceProperties(this);
+      }
+      this.ensureEnabled(inst);
+      return inst.__dataDom;
     }
 
     stamp(template, inst) {
-      if (!this.templateStamp) {
-        console.warn(`In order to call \`stamp\` a template stamping delegate is
-          required`);
-        return;
-      }
       inst.__pendingClients = new Map();
       var dom = this.templateStamp.stamp(template, inst);
-      this.setupBindings(inst, dom, template.content._notes);
-      // NOTE: We must propagate data down to clients right after 
-      // stamping and before `enablePropertyEffects` is called.
-      this._processPendingProperties(inst, true);
+      var notes = (template._content || template.content)._notes;
+      this.setupBindings(inst, dom, notes);
       return dom;
     }
 
@@ -323,10 +316,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _runComputedEffect(property, value, old, info) {
       var result = info.lib._runMethodEffect(this, property, value, old, info);
       var computedProp = info.methodInfo;
-      info.lib._setPendingProperty(this, computedProp, result);
+      info.lib.setPendingProperty(this, computedProp, result);
     }
 
   }
+
+  var Types = BatchedEffects.Types;
 
   // NOTE: Safari can't deal with an ES6 style function named `set`
   BatchedEffects.prototype.set = BatchedEffects.prototype.__set;
