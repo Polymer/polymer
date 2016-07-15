@@ -83,22 +83,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
-    cacheIdForNode: function(node) {
-      var name = node.localName || node.__localName || '';
-      var is = (node.getAttribute && node.getAttribute('is')) || '';
-      var isCE = Boolean(name.indexOf('-') >=0 || is);
-      var cacheName = (is || name).toLowerCase() || node.nodeType;
-      // TODO(sorvell): this cacheability check fails for un-upgraded 
-      // type extension elements (need to lookup against native prototype);
-      var canCache = Boolean(!isCE || 
-        (node.__proto__ !== HTMLElement.prototype && 
-        node.__proto__ !== HTMLUnknownElement.prototype));
-      
-      if (canCache) {
-        return cacheName;
-      }
-    },
-
     mixinForNode: function(node) {
       switch (node.nodeType) {
         case Node.ELEMENT_NODE:
@@ -113,17 +97,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     prototypeForNode: function(node) {
-      var cacheName = this.cacheIdForNode(node);
-      var proto = this.protoCache[cacheName];
-      if (!proto) {
-        proto = Object.create(node.__proto__);
-        proto.__sourceProto = node.__proto__;
-        this.patchObject(proto, this.mixinForNode(node));
-        if (cacheName) {
-          this.protoCache[cacheName] = proto;
-        }
+      var proto = node.__proto__;
+      if (!proto.hasOwnProperty('__patchProto')) {
+        var patchProto = Object.create(proto);
+        patchProto.__sourceProto = proto;
+        this.patchObject(patchProto, this.mixinForNode(node));
+        proto.__patchProto = patchProto;
       }
-      return proto;
+      return proto.__patchProto;
     },
 
     patchObject: function(object, patchProto) {
