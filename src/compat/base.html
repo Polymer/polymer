@@ -41,7 +41,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     __isPolymerInstance__: true,
 
     createdCallback: function() {
-      // note: `this.constructor.prototype` is wrong in Safari so make sure to 
+      // note: `this.constructor.prototype` is wrong in Safari so make sure to
       // use `__proto__`
       var proto = this.__proto__;
       if (!proto.hasOwnProperty('__hasRegisterFinished')) {
@@ -58,6 +58,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (proto._template) {
           Polymer.StyleUtil.prepStyleIncludes(proto._template.content);
+          Polymer.StyleUtil.normalizeForBC(proto._template.content);
           data.bindTemplate(proto, proto._template);
         } else if (proto.initializeWhenCreated === undefined) {
           // TODO(sorvell): bad because these elements stamp before they have
@@ -68,45 +69,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         behaviors.callMethod(proto, 'registered');
       }
       Polymer.telemetry.instanceCount++;
-      if (this._template) {
-        data.init(this, this._template);
-      }
+      // setup batched effects library; will call initialize when flushing
+      data.prepare(this, this.initialize);
       // apply defaults first.
       data.setPropertyDefaults(this);
+      behaviors.callMethod(this, 'created');
       // TODO(sorvell): remove when using V1 Custom Elements.
       attributes.simulateV1AttributeCallbacks(this);
-      behaviors.callMethod(this, 'created');
-      // TODO(sorvell): doc!! elements can set this flag if they must
-      // initilize when created and not attached.
-      if (this.initializeWhenCreated) {
-        this.ensureInitialized();
-      }
-    },
+   },
 
     // reserved for canonical behavior
     attachedCallback: function() {
-      this.ensureInitialized();
+      data.flush(this);
       this.isAttached = true;
       behaviors.callMethod(this, 'attached');
     },
 
-    ensureInitialized: function() {
-      if (this.__initialized) {
-        return;
-      }
-      this.__initialized = true;
+    initialize: function() {
       var self = this;
       Polymer.AsyncRender.afterRender(function() {
         self.initializeSelf();
       });
       if (this._template) {
-        var dom = data.ensureStamped(this);
+        var dom = data.stamp(this, this._template);
         this.root = this.createShadowRoot();
         this.root.appendChild(dom);
       } else {
-        data.ensureEnabled(this);
         this.root = this;
       }
+      data.flush(this);
       behaviors.callMethod(this, 'ready');
     },
 
