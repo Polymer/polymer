@@ -46,8 +46,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       template._styleAst = ast;
     }
     prepareHost(host, template) {
+      let ownPropertyNames;
       if (!template._prepared) {
         this._prepareTemplate(template, host.localName);
+        if (this.nativeCss) {
+          ownPropertyNames = [];
+        } else {
+          ownPropertyNames = Polymer.StyleProperties.decorateStyles([{__cssRules: template._styleAst}], host, this.nativeShadow);
+        }
+        if (!ownPropertyNames.length) {
+          let cssText = Polymer.StyleTransformer.elementStyles(host, {__cssRules: template._styleAst}, this.nativeShadow);
+          Polymer.StyleUtil.applyCss(cssText, host.localName, this.nativeShadow ? template.content : null, template._placeholder)
+        }
+        template._ownPropertyNames = ownPropertyNames;
         template._prepared = true;
       }
       if (!this.nativeShadow) {
@@ -61,19 +72,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         host.__styleProperties = null;
         host.__ownStyleProperties = null;
         host.__scopeSelector = null;
-        host.__ownStylePropertyNames = Polymer.StyleProperties.decorateStyles([host.__style], {_element: host, is: host.localName});
+        host.__ownStylePropertyNames = template._ownPropertyNames;
       }
     }
-    applyStyle(host, props) {
-      // TODO: use caching
-      let style = host.__style;
+    applyStyle(host, overrideProps) {
       if (this.nativeCss) {
-        // do something with props
-        style.textContent = Polymer.StyleTransformer.elementStyles(host, style, this.nativeShadow);
-        Polymer.StyleUtil.applyStyle(style, this.nativeShadow ? host.shadowRoot : null, host.__placeholder);
+        Polymer.StyleProperties.updateNativeStyleProperties(host, overrideProps);
       } else {
-        this._updateProperties(host, props);
+        this._updateProperties(host, overrideProps);
         if (host.__ownStylePropertyNames.length) {
+          // TODO: use caching
           this._applyStyleProperties(host);
         }
       }
@@ -88,7 +96,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       return style;
     }
-    _updateProperties(host) {
+    _updateProperties(host, overrideProps) {
       let ownerRoot = Polymer.Utils.ownerRootForNode(host);
       let owner = ownerRoot && ownerRoot.host || document;
       let ownerProperties = owner.__styleProperties;
@@ -98,6 +106,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let propertiesMatchingHost = Polymer.StyleProperties.propertyDataFromStyles([owner.__style], host).properties;
       Object.assign(props, propertiesMatchingHost);
       Object.assign(props, hostAndRootProps.rootProps);
+      Object.assign(props, overrideProps);
       Polymer.StyleProperties.reify(props);
       host.__styleProperties = props;
       let ownProps = {};
@@ -109,6 +118,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  Polymer.StyleLib = new StyleLib(!Boolean(Polymer.ShadyDom), false);
+  Polymer.StyleLib = new StyleLib(!Boolean(Polymer.ShadyDom), true);
 })();
 </script>
