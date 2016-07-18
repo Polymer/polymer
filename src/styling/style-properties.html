@@ -21,7 +21,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       p.oMatchesSelector || p.webkitMatchesSelector;
     var styleUtil = Polymer.StyleUtil;
     var styleTransformer = Polymer.StyleTransformer;
-    var settings = {useNativeShadow: true};
 
     var IS_IE = navigator.userAgent.match('Trident');
 
@@ -29,14 +28,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // decorates styles with rule info and returns an array of used style
       // property names
-      decorateStyles: function(styles, scope) {
+      decorateStyles: function(styles, scope, isNativeShadow) {
         var self = this, props = {}, keyframes = [], ruleIndex = 0;
         var scopeSelector = styleTransformer._calcHostScope(scope.is, scope.extends);
         styleUtil.forRulesInStyles(styles, function(rule, style) {
           self.decorateRule(rule);
           // mark in-order position of ast rule in styles block, used for cache key
           rule.index = ruleIndex++;
-          self.whenHostOrRootRule(scope, rule, style, function(info) {
+          self.whenHostOrRootRule(scope, rule, style, isNativeShadow, function(info) {
             // we can't cache styles with :host and :root props in @media rules
             if (rule.parent.type === styleUtil.ruleTypes.MEDIA_RULE) {
               scope.__notStyleScopeCacheable = true;
@@ -273,15 +272,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return {properties: props, key: o};
       },
 
-      whenHostOrRootRule: function(scope, rule, style, callback) {
+      whenHostOrRootRule: function(scope, rule, style, isNativeShadow, callback) {
         if (!rule.propertyInfo) {
           self.decorateRule(rule);
         }
         if (!rule.propertyInfo.properties) {
           return;
         }
-        var hostScope = scope.is ?
-        styleTransformer._calcHostScope(scope.is, scope.extends) :
+        var hostScope = scope.localName ?
+        styleTransformer._calcHostScope(scope.localName, scope.extends) :
         'html';
         var parsedSelector = rule.parsedSelector;
         var isRoot = parsedSelector === ':root';
@@ -306,7 +305,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var selectorToMatch = hostScope;
         if (isHost) {
           // need to transform :host under ShadowDOM because `:host` does not work with `matches`
-          if (settings.useNativeShadow && !rule.transformedSelector) {
+          if (isNativeShadow && !rule.transformedSelector) {
             // transform :host into a matchable selector
             rule.transformedSelector =
             styleTransformer._transformRuleCss(
@@ -325,12 +324,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       },
 
-      hostAndRootPropertiesForScope: function(scope) {
+      hostAndRootPropertiesForScope: function(scope, styles, isNativeShadow) {
         var hostProps = {}, rootProps = {}, self = this;
         // note: active rules excludes non-matching @media rules
-        styleUtil.forActiveRulesInStyles(scope._styles, function(rule, style) {
+        styleUtil.forActiveRulesInStyles(styles, function(rule, style) {
           // if scope is StyleDefaults, use _element for matchesSelector
-          self.whenHostOrRootRule(scope, rule, style, function(info) {
+          self.whenHostOrRootRule(scope, rule, style, isNativeShadow, function(info) {
             var element = scope._element || scope;
             if (matchesSelector.call(element, info.selector)) {
               if (info.isHost) {
@@ -344,20 +343,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return {rootProps: rootProps, hostProps: hostProps};
       },
 
-      transformStyles: function(element, properties, scopeSelector) {
+      transformStyles: function(element, properties, scopeSelector, isNativeShadow) {
         var self = this;
         var hostSelector = styleTransformer
-          ._calcHostScope(element.is, element.extends);
+          ._calcHostScope(element.localName);
         var rxHostSelector = element.extends ?
           '\\' + hostSelector.slice(0, -1) + '\\]' :
           hostSelector;
         var hostRx = new RegExp(this.rx.HOST_PREFIX + rxHostSelector +
           this.rx.HOST_SUFFIX);
         var keyframeTransforms =
-          this._elementKeyframeTransforms(element, scopeSelector);
-        return styleTransformer.elementStyles(element, function(rule) {
+          this._elementKeyframeTransforms(element, scopeSelector, isNativeShadow);
+        return styleTransformer.elementStyles(element, element.__style, isNativeShadow, function(rule) {
           self.applyProperties(rule, properties);
-          if (!settings.useNativeShadow &&
+          if (!isNativeShadow &&
               !Polymer.StyleUtil.isKeyframesSelector(rule) &&
               rule.cssText) {
             // NOTE: keyframe transforms only scope munge animation names, so it
@@ -369,10 +368,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       },
 
-      _elementKeyframeTransforms: function(element, scopeSelector) {
-        var keyframesRules = element._styles._keyframes;
+      _elementKeyframeTransforms: function(element, scopeSelector, isNativeShadow) {
+        var keyframesRules = element.__style._keyframes;
         var keyframeTransforms = {};
-        if (!settings.useNativeShadow && keyframesRules) {
+        if (!isNativeShadow && keyframesRules) {
           // For non-ShadowDOM, we transform all known keyframes rules in
           // advance for the current scope. This allows us to catch keyframes
           // rules that appear anywhere in the stylesheet:
@@ -444,13 +443,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      applyElementStyle: function(element, properties, selector, style) {
+      applyElementStyle: function(element, properties, selector, style, isNativeShadow) {
         // calculate cssText to apply
         var cssText = style ? style.textContent || '' :
-          this.transformStyles(element, properties, selector);
+          this.transformStyles(element, properties, selector, isNativeShadow);
         // if shady and we have a cached style that is not style, decrement
-        var s = element._customStyle;
-        if (s && !settings.useNativeShadow && (s !== style)) {
+        var s = element.__customStyle;
+        if (s && !isNativeShadow && (s !== style)) {
           s._useCount--;
           if (s._useCount <= 0 && s.parentNode) {
             s.parentNode.removeChild(s);
@@ -458,17 +457,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // apply styling always under native or if we generated style
         // or the cached style is not in document(!)
-        if (settings.useNativeShadow) {
+        if (isNativeShadow) {
           // update existing style only under native
-          if (element._customStyle) {
-            element._customStyle.textContent = cssText;
-            style = element._customStyle;
+          if (element.__customStyle) {
+            element.__customStyle.textContent = cssText;
+            style = element.__customStyle;
           // otherwise, if we have css to apply, do so
           } else if (cssText) {
             // apply css after the scope style of the element to help with
             // style precedence rules.
-            style = styleUtil.applyCss(cssText, selector, element.root,
-              element._scopeStyle);
+            style = styleUtil.applyCss(cssText, selector, element.shadowRoot,
+              element.__placeholder);
           }
         } else {
           // shady and no cache hit
@@ -477,11 +476,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // style precedence rules.
             if (cssText) {
               style = styleUtil.applyCss(cssText, selector, null,
-                element._scopeStyle);
+                element.__placeholder);
             }
           // shady and cache hit but not in document
           } else if (!style.parentNode) {
-            styleUtil.applyStyle(style, null, element._scopeStyle);
+            styleUtil.applyStyle(style, null, element.__placeholder);
           }
 
         }
@@ -489,10 +488,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (style) {
           style._useCount = style._useCount || 0;
           // increment use count if we changed styles
-          if (element._customStyle != style) {
+          if (element.__customStyle != style) {
             style._useCount++;
           }
-          element._customStyle = style;
+          element.__customStyle = style;
         }
         // @media rules may be stale in IE 10 and 11
         if (IS_IE) {

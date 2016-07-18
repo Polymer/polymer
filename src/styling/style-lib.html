@@ -11,39 +11,104 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="style-transformer.html">
 <link rel="import" href="style-util.html">
+<link rel="import" href="style-properties.html">
 <link rel="import" href="apply-shim.html">
 <script>
 (function() {
   'use strict';
 
-  let StyleLib = {
+  class StyleLib {
+    constructor(nativeShadow, nativeCss) {
+      this.nativeShadow = nativeShadow;
+      this.nativeCss = nativeCss;
+      this.scopeCounter = {};
+    }
+    _generateScopeSelector(name) {
+      let id = this.scopeCounter[name] = (this.scopeCounter[name] || 0) + 1;
+      return name + '-' + id;
+    }
     _prepareTemplate(template, tagname) {
       let cssText = '';
-      template.content.querySelectorAll('style').forEach(s => {
+      let styles = template.content.querySelectorAll('style');
+      for (let i = 0; i < styles.length; i++) {
+        let s = styles[i];
         cssText += s.textContent;
-        s.remove();
-      });
-      template._styleAst = Polymer.CssParse.parse(cssText);
-      template._placeholder = Polymer.StyleUtil.applyStylePlaceHolder(tagname);
-      Polymer.StyleTransformer.dom(template.content, tagname);
-    },
+        s.parentNode.removeChild(s);
+      }
+      if (!this.nativeShadow) {
+        template._placeholder = Polymer.StyleUtil.applyStylePlaceHolder(tagname);
+        Polymer.StyleTransformer.dom(template.content, tagname);
+      }
+      let ast = Polymer.CssParse.parse(cssText);
+      if (this.nativeCss) {
+        Polymer.StyleUtil.forEachRule(ast, rule => Polymer.ApplyShim.transformRule(rule));
+      }
+      template._styleAst = ast;
+    }
     prepareHost(host, template) {
       if (!template._prepared) {
         this._prepareTemplate(template, host.localName);
         template._prepared = true;
       }
-      Polymer.StyleTransformer.element(host, host.localName);
+      if (!this.nativeShadow) {
+        Polymer.StyleTransformer.element(host, host.localName);
+      }
       let style = document.createElement('style');
       style.__cssRules = template._styleAst;
-      style.__placeholder = template._placeholder;
       host.__style = style;
-    },
-    applyProperties(host) {
-      let style = host.__style;
-      style.textContent = Polymer.StyleTransformer.css(style.__cssRules, host.localName);
-      Polymer.StyleUtil.applyStyle(style, null, style.__placeholder);
+      host.__placeholder = template._placeholder;
+      if (!this.nativeCss) {
+        host.__styleProperties = null;
+        host.__ownStyleProperties = null;
+        host.__scopeSelector = null;
+        host.__ownStylePropertyNames = Polymer.StyleProperties.decorateStyles([host.__style], {_element: host, is: host.localName});
+      }
     }
-  };
-  Polymer.StyleLib = StyleLib;
+    applyStyle(host, props) {
+      // TODO: use caching
+      let style = host.__style;
+      if (this.nativeCss) {
+        // do something with props
+        style.textContent = Polymer.StyleTransformer.elementStyles(host, style, this.nativeShadow);
+        Polymer.StyleUtil.applyStyle(style, this.nativeShadow ? host.shadowRoot : null, host.__placeholder);
+      } else {
+        this._updateProperties(host, props);
+        if (host.__ownStylePropertyNames.length) {
+          this._applyStyleProperties(host);
+        }
+      }
+    }
+    _applyStyleProperties(host) {
+      let style = host.__style;
+      let oldScopeSelector = host.__scopeSelector;
+      host.__scopeSelector = this._generateScopeSelector(host.localName);
+      style = Polymer.StyleProperties.applyElementStyle(host, host.__styleProperties, host.__scopeSelector, null, this.nativeShadow);
+      if (!this.nativeShadow) {
+        Polymer.StyleProperties.applyElementScopeSelector(host, host.__scopeSelector, oldScopeSelector);
+      }
+      return style;
+    }
+    _updateProperties(host) {
+      let ownerRoot = Polymer.Utils.ownerRootForNode(host);
+      let owner = ownerRoot && ownerRoot.host || document;
+      let ownerProperties = owner.__styleProperties;
+      let props = Object.create(ownerProperties || null);
+      let hostAndRootProps = Polymer.StyleProperties.hostAndRootPropertiesForScope(host, [host.__style], this.nativeShadow);
+      Object.assign(props, hostAndRootProps.hostProps);
+      let propertiesMatchingHost = Polymer.StyleProperties.propertyDataFromStyles([owner.__style], host).properties;
+      Object.assign(props, propertiesMatchingHost);
+      Object.assign(props, hostAndRootProps.rootProps);
+      Polymer.StyleProperties.reify(props);
+      host.__styleProperties = props;
+      let ownProps = {};
+      for (let i = 0; i < host.__ownStylePropertyNames.length; i++) {
+        let n = host.__ownStylePropertyNames[i];
+        ownProps[n] = props[n];
+      }
+      host.__ownStyleProperties = ownProps;
+    }
+  }
+
+  Polymer.StyleLib = new StyleLib(!Boolean(Polymer.ShadyDom), false);
 })();
 </script>
