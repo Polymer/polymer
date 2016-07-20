@@ -8,6 +8,7 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="style-transformer.html">
 <link rel="import" href="style-util.html">
@@ -42,7 +43,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var ast = Polymer.CssParse.parse(cssText);
       if (this.nativeCss) {
         Polymer.StyleUtil.forEachRule(ast, function(rule) {
-          Polymer.ApplyShim.transformRule(rule)
+          Polymer.ApplyShim.transformRule(rule);
         });
       }
       template._styleAst = ast;
@@ -56,13 +57,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (!ownPropertyNames.length) {
           var cssText = Polymer.StyleTransformer.elementStyles(host, {__cssRules: template._styleAst}, this.nativeShadow);
-          Polymer.StyleUtil.applyCss(cssText, host.localName, this.nativeShadow ? template.content : null, template._placeholder)
+          if (cssText.length) {
+            Polymer.StyleUtil.applyCss(cssText, host.localName, this.nativeShadow ? template.content : null, template._placeholder)
+          }
         }
         template._ownPropertyNames = ownPropertyNames;
         template._prepared = true;
-      }
-      if (!this.nativeShadow) {
-        Polymer.StyleTransformer.element(host, host.localName);
       }
       var style = document.createElement('style');
       style.__cssRules = template._styleAst;
@@ -83,6 +83,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (host.__ownStylePropertyNames.length) {
           // TODO: use caching
           this._applyStyleProperties(host);
+        }
+        this._applyToDescendants(host);
+      }
+    }
+    _applyToDescendants(host) {
+      var root = host.shadowRoot;
+      for (var i = 0, c; i < root.children.length; i++) {
+        c = root.children[i];
+        if (c.__style) {
+          this.applyStyle(c);
         }
       }
     }
@@ -110,14 +120,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.StyleProperties.reify(props);
       host.__styleProperties = props;
       var ownProps = {};
-      for (var i = 0; i < host.__ownStylePropertyNames.length; i++) {
-        var n = host.__ownStylePropertyNames[i];
+      for (var i = 0, n; i < host.__ownStylePropertyNames.length; i++) {
+        n = host.__ownStylePropertyNames[i];
         ownProps[n] = props[n];
       }
       host.__ownStyleProperties = ownProps;
     }
   }
 
-  Polymer.StyleLib = new StyleLib(!Boolean(Polymer.ShadyDom), false);
+  var nativeShadow = !Boolean(Polymer.ShadyDom);
+  // chrome 49 has semi-working css vars, check if box-shadow works
+  // safari 9.1 has a recalc bug: https://bugs.webkit.org/show_bug.cgi?id=155782
+  var nativeCss = (!navigator.userAgent.match('AppleWebKit/601') && window.CSS
+          && CSS.supports && CSS.supports('box-shadow', '0 0 0 var(--foo)'));
+
+  Polymer.StyleLib = new StyleLib(nativeShadow, nativeCss);
+  Polymer.StyleUtil.NATIVE_VARIABLES = nativeCss;
 })();
 </script>
