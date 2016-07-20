@@ -52,6 +52,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   }
 
+  var hostCount = 0;
+
   function extendWithPolymerBase(superClass) {
 
     return class extends superClass {
@@ -84,6 +86,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           if (proto._template) {
             Polymer.StyleUtil.prepStyleIncludes(proto._template.content);
+            // BREAKME(kschaaf): for short-term bc, but intend to break
             Polymer.StyleUtil.normalizeForBC(proto._template.content);
             data.bindTemplate(proto, proto._template);
           } else if (proto.initializeWhenCreated === undefined) {
@@ -95,10 +98,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           behaviors.callMethod(proto, 'registered');
         }
         Polymer.telemetry.instanceCount++;
-        // setup batched effects library; will call initialize when flushing
-        data.prepare(this, this.initialize);
         // apply defaults first.
         data.setPropertyDefaults(this);
+        // setup batched effects library; will call initialize when flushing
+        data.prepare(this, this.initialize);
         behaviors.callMethod(this, 'created');
         // TODO(sorvell): remove when using V1 Custom Elements.
         attributes.simulateV1AttributeCallbacks(this);
@@ -110,7 +113,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       attachedCallback() {
-        data.flush(this);
+        if (!hostCount && !this.__dataInitialized) {
+          data.flush(this);
+        }
         this.isAttached = true;
         behaviors.callMethod(this, 'attached');
       }
@@ -122,13 +127,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
         if (this._template) {
           var dom = data.stamp(this, this._template);
-          data.flush(this);
           this.root = this.createShadowRoot();
+          hostCount++;
           this.root.appendChild(dom);
+          hostCount--;
         } else {
           this.root = this;
-          data.flush(this);
         }
+        data.flush(this);
         behaviors.callMethod(this, 'ready');
       }
 
@@ -481,13 +487,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // TODO(kschaaf): notify-path API maybe should move to batched effects
       // definitelly needs to be done differently due to Safari class impl not
       // liking get/set class method names
-      get(path, root) {
-        return nyi();
-      }
+      // get(path, root) {
+      //   return nyi();
+      // }
 
-      set(path, value, root) {
-        return nyi();
-      }
+      // set(path, value, root) {
+      //   return nyi();
+      // }
 
       push(path) {
         return nyi();
@@ -797,15 +803,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Cross-platform helper for setting an element's CSS `transform` property.
        *
-       * @method transform
+       * @method transformText
        * @param {String} transform Transform setting.
        * @param {HTMLElement=} node Element to apply the transform to.
        * Defaults to `this`
        */
-      transform(transform, node) {
+      transform(transformText, node) {
         node = node || this;
-        node.style.webkitTransform = transform;
-        node.style.transform = transform;
+        node.style.webkitTransform = transformText;
+        node.style.transform = transformText;
       }
 
       /**
@@ -844,6 +850,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.telemetry.instanceCount = 0;
 
   Polymer.Element = extendElement;
+
+  // bc
+  Polymer.Base = extendWithPolymerBase(class {}).prototype;
 
 })();
 </script>
