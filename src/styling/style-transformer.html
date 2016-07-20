@@ -15,8 +15,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   (function() {
     'use strict';
 
-    var settings = {useNativeShadow: true};
-
     var styleUtil = Polymer.StyleUtil;
 
     /* Transforms ShadowDOM styling into ShadyDOM styling
@@ -43,74 +41,61 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // Given a node and scope name, add a scoping class to each node
       // in the tree. This facilitates transforming css into scoped rules.
-      dom: function(node, scope, useAttr, shouldRemoveScope) {
-        this._transformDom(node, scope || '', useAttr, shouldRemoveScope);
+      dom: function(node, scope, shouldRemoveScope) {
+        this._transformDom(node, scope || '', shouldRemoveScope);
       },
 
-      _transformDom: function(node, selector, useAttr, shouldRemoveScope) {
+      _transformDom: function(node, selector, shouldRemoveScope) {
         if (node.setAttribute) {
-          this.element(node, selector, useAttr, shouldRemoveScope);
+          this.element(node, selector, shouldRemoveScope);
         }
-        var c$ = Polymer.dom(node).childNodes;
+        var c$ = node.childNodes;
         for (var i=0; i<c$.length; i++) {
-          this._transformDom(c$[i], selector, useAttr, shouldRemoveScope);
+          this._transformDom(c$[i], selector, shouldRemoveScope);
         }
       },
 
-      element: function(element, scope, useAttr, shouldRemoveScope) {
-        if (useAttr) {
-          if (shouldRemoveScope) {
-            element.removeAttribute(SCOPE_NAME);
-          } else {
-            element.setAttribute(SCOPE_NAME, scope);
-          }
-        } else {
-          // note: if using classes, we add both the general 'style-scope' class
-          // as well as the specific scope. This enables easy filtering of all
-          // `style-scope` elements
-          if (scope) {
-            // note: svg on IE does not have classList so fallback to class
-            if (element.classList) {
-              if (shouldRemoveScope) {
-                element.classList.remove(SCOPE_NAME);
-                element.classList.remove(scope);
-              } else {
-                element.classList.add(SCOPE_NAME);
-                element.classList.add(scope);
+      element: function(element, scope, shouldRemoveScope) {
+        // note: if using classes, we add both the general 'style-scope' class
+        // as well as the specific scope. This enables easy filtering of all
+        // `style-scope` elements
+        if (scope) {
+          // note: svg on IE does not have classList so fallback to class
+          if (element.classList) {
+            if (shouldRemoveScope) {
+              element.classList.remove(SCOPE_NAME);
+              element.classList.remove(scope);
+            } else {
+              element.classList.add(SCOPE_NAME);
+              element.classList.add(scope);
+            }
+          } else if (element.getAttribute) {
+            var c = element.getAttribute(CLASS);
+            if (shouldRemoveScope) {
+              if (c) {
+                element.setAttribute(CLASS, c.replace(SCOPE_NAME, '')
+                .replace(scope, ''));
               }
-            } else if (element.getAttribute) {
-              var c = element.getAttribute(CLASS);
-              if (shouldRemoveScope) {
-                if (c) {
-                  element.setAttribute(CLASS, c.replace(SCOPE_NAME, '')
-                    .replace(scope, ''));
-                }
-              } else {
-                element.setAttribute(CLASS, (c ? c + ' ' : '') +
-                  SCOPE_NAME + ' ' + scope);
-              }
+            } else {
+              element.setAttribute(CLASS, (c ? c + ' ' : '') +
+              SCOPE_NAME + ' ' + scope);
             }
           }
         }
       },
 
-      elementStyles: function(element, callback) {
-        var styles = element._styles;
-        var cssText = '';
+      elementStyles: function(element, style, isNativeShadow, callback) {
         var cssBuildType = element.__cssBuild;
-        for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
-          var rules = styleUtil.rulesForStyle(s);
-          // no need to shim selectors if settings.useNativeShadow, also
-          // a shady css build will already have transformed selectors
-          // NOTE: This method may be called as part of static or property shimming.
-          // When there is a targeted build it will not be called for static shimming,
-          // but when the property shim is used it is called and should opt out of
-          // static shimming work when a proper build exists.
-          cssText += (settings.useNativeShadow || cssBuildType === 'shady') ?
-            styleUtil.toCssText(rules, callback) :
-            this.css(rules, element.is, element.extends, callback,
-            element._scopeCssViaAttr) + '\n\n';
-        }
+        var rules = styleUtil.rulesForStyle(style);
+        // no need to shim selectors if settings.useNativeShadow, also
+        // a shady css build will already have transformed selectors
+        // NOTE: This method may be called as part of static or property shimming.
+        // When there is a targeted build it will not be called for static shimming,
+        // but when the property shim is used it is called and should opt out of
+        // static shimming work when a proper build exists.
+        var cssText = (isNativeShadow || cssBuildType === 'shady') ?
+        styleUtil.toCssText(rules, callback) :
+        this.css(rules, element.localName, null, callback) + '\n\n';
         return cssText.trim();
       },
 
@@ -118,9 +103,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // a string of scoped css where each selector is transformed to include
       // a class created from the scope. ShadowDOM selectors are also transformed
       // (e.g. :host) to use the scoping selector.
-      css: function(rules, scope, ext, callback, useAttr) {
+      css: function(rules, scope, ext, callback) {
         var hostScope = this._calcHostScope(scope, ext);
-        scope = this._calcElementScope(scope, useAttr);
+        scope = this._calcElementScope(scope);
         var self = this;
         return styleUtil.toCssText(rules, function(rule) {
           if (!rule.isScoped) {
@@ -133,11 +118,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       },
 
-      _calcElementScope: function (scope, useAttr) {
+      _calcElementScope: function (scope) {
         if (scope) {
-          return useAttr ?
-            CSS_ATTR_PREFIX + scope + CSS_ATTR_SUFFIX :
-            CSS_CLASS_PREFIX + scope;
+          return CSS_CLASS_PREFIX + scope;
         } else {
           return '';
         }
@@ -306,8 +289,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var CONTENT = '::content';
     var SCOPE_JUMP = /::content|::shadow|\/deep\//;
     var CSS_CLASS_PREFIX = '.';
-    var CSS_ATTR_PREFIX = '[' + SCOPE_NAME + '~=';
-    var CSS_ATTR_SUFFIX = ']';
     var PSEUDO_PREFIX = ':';
     var CLASS = 'class';
     var CONTENT_START = new RegExp('^(' + CONTENT + ')');
