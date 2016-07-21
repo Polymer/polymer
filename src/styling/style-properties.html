@@ -7,6 +7,7 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="style-settings.html">
 <link rel="import" href="style-transformer.html">
 <link rel="import" href="style-util.html">
 
@@ -23,19 +24,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var styleTransformer = Polymer.StyleTransformer;
 
     var IS_IE = navigator.userAgent.match('Trident');
+    var nativeShadow = Polymer.StyleSettings.nativeShadow;
 
     var StyleProperties = {
 
       // decorates styles with rule info and returns an array of used style
       // property names
-      decorateStyles: function(styles, scope, isNativeShadow) {
+      decorateStyles: function(rules, scope) {
         var self = this, props = {}, keyframes = [], ruleIndex = 0;
         var scopeSelector = styleTransformer._calcHostScope(scope.localName, scope.extends);
-        styleUtil.forRulesInStyles(styles, function(rule, style) {
+        var cssBuild = rules.__cssBuild;
+        styleUtil.forEachRule(rules, function(rule) {
           self.decorateRule(rule);
           // mark in-order position of ast rule in styles block, used for cache key
           rule.index = ruleIndex++;
-          self.whenHostOrRootRule(scope, rule, style, isNativeShadow, function(info) {
+          self.whenHostOrRootRule(scope, rule, cssBuild, function(info) {
             // we can't cache styles with :host and :root props in @media rules
             if (rule.parent.type === styleUtil.ruleTypes.MEDIA_RULE) {
               scope.__notStyleScopeCacheable = true;
@@ -54,7 +57,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           keyframes.push(rule);
         });
         // Cache all found keyframes rules for later reference:
-        styles._keyframes = keyframes;
+        rules._keyframes = keyframes;
         // return this list of property names *consumes* in these styles.
         var names = [];
         for (var i in props) {
@@ -246,12 +249,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // Test if the rules in these styles matches the given `element` and if so,
       // collect any custom properties into `props`.
-      propertyDataFromStyles: function(styles, element) {
+      propertyDataFromStyles: function(rules, element) {
         var props = {}, self = this;
         // generates a unique key for these matches
         var o = [];
         // note: active rules excludes non-matching @media rules
-        styleUtil.forActiveRulesInStyles(styles, function(rule) {
+        styleUtil.forEachRule(rules, function(rule) {
           // TODO(sorvell): we could trim the set of rules at declaration
           // time to only include ones that have properties
           if (!rule.propertyInfo) {
@@ -268,11 +271,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               addToBitMask(rule.index, o);
             }
           }
-        });
+        }, null, true);
         return {properties: props, key: o};
       },
 
-      whenHostOrRootRule: function(scope, rule, style, isNativeShadow, callback) {
+      whenHostOrRootRule: function(scope, rule, cssBuild, callback) {
         if (!rule.propertyInfo) {
           self.decorateRule(rule);
         }
@@ -288,7 +291,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // build info is either in scope (when scope is an element) or in the style
         // when scope is the default scope; note: this allows default scope to have
         // mixed mode built and unbuilt styles.
-        var cssBuild = scope.__cssBuild || style.__cssBuild;
         if (cssBuild === 'shady') {
           // :root -> x-foo > *.x-foo for elements and html for custom-style
           isRoot = parsedSelector === (hostScope + '> *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
@@ -305,7 +307,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var selectorToMatch = hostScope;
         if (isHost) {
           // need to transform :host under ShadowDOM because `:host` does not work with `matches`
-          if (isNativeShadow && !rule.transformedSelector) {
+          if (nativeShadow && !rule.transformedSelector) {
             // transform :host into a matchable selector
             rule.transformedSelector =
             styleTransformer._transformRuleCss(
@@ -324,12 +326,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       },
 
-      hostAndRootPropertiesForScope: function(scope, styles, isNativeShadow) {
+      hostAndRootPropertiesForScope: function(scope, rules) {
         var hostProps = {}, rootProps = {}, self = this;
         // note: active rules excludes non-matching @media rules
-        styleUtil.forActiveRulesInStyles(styles, function(rule, style) {
+        var cssBuild = rules.__cssBuild;
+        styleUtil.forEachRule(rules, function(rule) {
           // if scope is StyleDefaults, use _element for matchesSelector
-          self.whenHostOrRootRule(scope, rule, style, isNativeShadow, function(info) {
+          self.whenHostOrRootRule(scope, rule, cssBuild, function(info) {
             var element = scope._element || scope;
             if (matchesSelector.call(element, info.selector)) {
               if (info.isHost) {
@@ -339,11 +342,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               }
             }
           });
-        });
+        }, null, true);
         return {rootProps: rootProps, hostProps: hostProps};
       },
 
-      transformStyles: function(element, properties, scopeSelector, isNativeShadow) {
+      transformStyles: function(element, properties, scopeSelector) {
         var self = this;
         var hostSelector = styleTransformer
           ._calcHostScope(element.localName);
@@ -352,11 +355,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           hostSelector;
         var hostRx = new RegExp(this.rx.HOST_PREFIX + rxHostSelector +
           this.rx.HOST_SUFFIX);
+        var rules = element.__styleRules;
         var keyframeTransforms =
-          this._elementKeyframeTransforms(element, scopeSelector, isNativeShadow);
-        return styleTransformer.elementStyles(element, element.__style, isNativeShadow, function(rule) {
+          this._elementKeyframeTransforms(element, rules, scopeSelector);
+        return styleTransformer.elementStyles(element, rules, function(rule) {
           self.applyProperties(rule, properties);
-          if (!isNativeShadow &&
+          if (!nativeShadow &&
               !Polymer.StyleUtil.isKeyframesSelector(rule) &&
               rule.cssText) {
             // NOTE: keyframe transforms only scope munge animation names, so it
@@ -367,10 +371,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       },
 
-      _elementKeyframeTransforms: function(element, scopeSelector, isNativeShadow) {
-        var keyframesRules = element.__style._keyframes;
+      _elementKeyframeTransforms: function(element, rules, scopeSelector) {
+        var keyframesRules = rules._keyframes;
         var keyframeTransforms = {};
-        if (!isNativeShadow && keyframesRules) {
+        if (nativeShadow && keyframesRules) {
           // For non-ShadowDOM, we transform all known keyframes rules in
           // advance for the current scope. This allows us to catch keyframes
           // rules that appear anywhere in the stylesheet:
@@ -435,13 +439,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      applyElementStyle: function(element, properties, selector, style, isNativeShadow) {
+      applyElementStyle: function(element, properties, selector, style) {
         // calculate cssText to apply
         var cssText = style ? style.textContent || '' :
-          this.transformStyles(element, properties, selector, isNativeShadow);
+          this.transformStyles(element, properties, selector);
         // if shady and we have a cached style that is not style, decrement
         var s = element.__customStyle;
-        if (s && !isNativeShadow && (s !== style)) {
+        if (s && !nativeShadow && (s !== style)) {
           s._useCount--;
           if (s._useCount <= 0 && s.parentNode) {
             s.parentNode.removeChild(s);
@@ -449,7 +453,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // apply styling always under native or if we generated style
         // or the cached style is not in document(!)
-        if (isNativeShadow) {
+        if (nativeShadow) {
           // update existing style only under native
           if (element.__customStyle) {
             element.__customStyle.textContent = cssText;
@@ -490,23 +494,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           style.textContent = style.textContent;
         }
         return style;
-      },
-
-      /* Applies a set of properties to an element's style natively (used to
-       * support element.customStyle / element.updateStyles)
-       */
-      updateNativeStyleProperties: function(element, properties) {
-        // remove existing properties
-        for (var i=0; i < element.style.length; i++) {
-          element.style.removeProperty(element.style[i]);
-        }
-        // apply properties
-        for (var p in properties) {
-          // NOTE: for bc with shim, don't apply null values.
-          if (properties[p] !== null) {
-            element.style.setProperty(p, properties[p]);
-          }
-        }
       },
 
       rx: styleUtil.rx,
