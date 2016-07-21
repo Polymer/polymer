@@ -32,12 +32,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     class XTemplatizer extends HTMLElement {
 
+      constructor() {
+        this.createdCallback();
+      }
+
       createdCallback() {
         this.prop = 0;
       }
 
+      connectedCallback() {
+        this.attachedCallback();
+      }
+
       attachedCallback() {
-        data.enablePropertyEffects(this);
+        data.flush(this);
         var template = this.querySelector('template');
         var self = this;
         var ctor = templatizer.templatize(template, {
@@ -49,7 +57,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             console.log('instance prop changed:', prop, value);
           },
           instanceProps: {
-            inst: 'inst'
+            instProp: 'instProp'
           }
         });
         this.inst = new ctor(this);
@@ -65,11 +73,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </script>
 
   <template id="x-host">
-    <x-templatizer>
+    <!-- TODO(kschaaf): dataHost (which templatizer currently relies on to get
+         rootDataHost) not set correctly unless element is annotated -->
+    <x-templatizer id="foo">
       host: <input value="{{prop::input}}">
       <template>
-        <div on-tap="handleTap">from host: <input value="{{prop::input}}"> {{compute(prop)}}</div>
-        <div>instance: <input value="{{inst::input}}"></div>
+        <div on-tap="handleTap">from host: <input value="{{prop::input}}"></div>
+        <div>{{compute(prop, instProp)}}</div>
+        <div>instance: <input value="{{instProp::input}}"></div>
       </template>
     </x-templatizer>
   </template>
@@ -84,18 +95,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     class XHost extends HTMLElement {
 
+      constructor() {
+        this.createdCallback();
+      }
+
       createdCallback() {
-        data.init(template);
+        data.prepare(this, function() {
+          this.createShadowRoot().appendChild(data.stamp(this, template));
+        });
         this.prop = 100;
       }
 
-      attachedCallback() {
-        var dom = data.ensureStamped(this);
-        this.createShadowRoot().appendChild(dom);
+      connectedCallback() {
+        this.attachedCallback();
       }
 
-      compute(prop) {
-        return 'computed: ' + prop;
+      attachedCallback() {
+        data.flush(this);
+      }
+
+      compute(prop, instProp) {
+        return 'computed: ' + prop + ' ' + instProp;
       }
 
       handleTap() {
