@@ -58,10 +58,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
   suite('scoped-styling', function() {
 
-  function assertComputed(element, value, property) {
-    var computed = getComputedStyle(element);
+  function assertComputed(element, value, property, pseudo) {
+    var computed = getComputedStyle(element, pseudo);
     property = property || 'border-top-width';
-    assert.equal(computed[property], value, 'computed style incorrect for ' + property);
+    if (Array.isArray(value)) {
+      assert.oneOf(computed[property], value, 'computed style incorrect for ' + property);
+    } else {
+      assert.equal(computed[property], value, 'computed style incorrect for ' + property);
+    }
   }
 
   var styled = document.querySelector('x-styled');
@@ -73,7 +77,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   test(':host, :host(...)', function() {
     assertComputed(styled, '1px');
     assertComputed(styledWide, '2px');
-
+    assertComputed(styled, ['', 'none'], 'content', '::after');
+    assertComputed(styledWide, ['"-content-"', '-content-'], 'content', '::after');
   });
 
   test(':host-context(...)', function() {
@@ -408,6 +413,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var s2 = document.createElement('x-shared2');
       document.body.appendChild(s2);
       assertComputed(s2, '4px');
+    });
+
+    test(':host with superset of element tag selector does not leak', function() {
+      var t = document.createElement('div');
+      t.textContent = 'host leak test';
+      t.classList.add('x-shared1');
+      document.body.appendChild(t);
+      assertComputed(t, 'auto', 'top');
+    });
+
+    test(':host(...) with non-matching type selector does not leak', function() {
+      var t = document.createElement('x-shared1x-shared2');
+      t.textContent = ':host(non-matching-type-selector)';
+      document.body.appendChild(t);
+      assertComputed(t, '0px');
+      t = document.createElement('x-shared2x-shared1');
+      t.textContent = ':host(non-matching-type-selector)';
+      document.body.appendChild(t);
+      assertComputed(t, '0px');
     });
 
 });
