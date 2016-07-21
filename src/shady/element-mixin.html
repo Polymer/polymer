@@ -20,6 +20,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var nativeImportNode = Document.prototype.importNode;
   var nativeSetAttribute = Element.prototype.setAttribute;
   var nativeRemoveAttribute = Element.prototype.removeAttribute;
+  var origAddEventListener = Element.prototype.addEventListener;
 
   var mixinImpl = {
 
@@ -383,9 +384,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   };
 
-  var NodeMixin = {};
+  var NodeMixin = {
+    getRootNode: function() {
+      return mixinImpl.ownerRootForNode(this);
+    }
+
+  };
 
   Object.defineProperties(NodeMixin, {
+    
+    isConnected: {
+      get() {
+        return document.contains(this);
+      },
+      configurable: true
+    },
+
     parentElement: {
       get() {
         return Tree.Logical.getParentNode(this);
@@ -424,6 +438,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     previousElementSibling: {
       get() {
         return Tree.Logical.getPreviousElementSibling(this);
+      },
+      configurable: true
+    },
+
+    assignedSlot: {
+      get() {
+        return this._assignedSlot;
       },
       configurable: true
     }
@@ -550,6 +571,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       return n;
+    },
+
+    // TODO(sorvell): removeEventListener + weakmap...
+    addEventListener: function(type, fn) {
+      function wrappedFn(e) {
+        e.__target = e.target;
+        var proto = Polymer.ShadyDom.patchImpl.prototypeForObject(e);
+        if (proto) {
+          e.__proto__ = proto;
+        }
+        return fn(e);
+      }
+      return origAddEventListener.call(this, type, wrappedFn);
     }
 
   };
@@ -716,6 +750,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _activeElement: activeElementDescriptor
   });
 
+  var EventMixin = {
+    
+    __patched: 'Event',
+
+    // TODO(sorvell): simulate event.deepPath(). This probably incorrect for
+    // non-bubbling events.
+    deepPath() {
+      if (!this.__deepPath) {
+        var deepPath = [];
+        var current = this.__target;
+        while (current) {
+          deepPath.push(current);
+          var contents = current.getDestinationInsertionPoints &&
+            current.getDestinationInsertionPoints();
+          if (contents && contents.length) {
+            for (var i = 0; i < contents.length - 1; i++) {
+              deepPath.push(contents[i]);
+            }
+            current = contents[contents.length - 1];
+          } else if (current.assignedSlot) {
+            current = current.assignedSlot;
+          } else {
+            current = current.parentNode || current.host;
+          }
+        }
+        // event deepPath includes window in most recent native implementations
+        deepPath.push(window);
+        this.__deepPath = deepPath;
+      }
+      return this.__deepPath;
+    },
+
+    get target() {
+      var current = this.currentTarget;
+      var currentRoot = current && Polymer.ShadyDom.ownerRootForNode(current);
+      var p$ = this.path;
+      for (var i=0; i < p$.length; i++) {
+        if (Polymer.ShadyDom.ownerRootForNode(p$[i]) === currentRoot) {
+          return p$[i];
+        }
+      }
+    }
+
+  };
+
   // TODO(sorvell): put in utils.
   function extendAll(obj /* , ... */) {
     var p$ = Array.prototype.slice.call(arguments, 1);
@@ -737,7 +816,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // Note: activeElement cannot be patched on document!
     Document: extendAll({__patched: 'Document'}, 
-      NodeMixin, FragmentMixin, ElementMixin, UnderActiveElementMixin)
+      NodeMixin, FragmentMixin, ElementMixin, UnderActiveElementMixin),
+
+    Event: EventMixin
 
   };
   Polymer.ShadyDom.ownerRootForNode = mixinImpl.ownerRootForNode;

@@ -76,39 +76,50 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       log && console.warn('patch node', node);
       Tree.Composed.saveComposedData(node);
       if (this.hasPrototypeDescriptors) {
-        node.__proto__ = this.prototypeForNode(node);
+        var proto = this.prototypeForObject(node);
+        if (proto) {
+          node.__proto__ = proto;
+        }
       } else {
         console.warn('Patching instance rather than prototype', node);
         this.patchObject(node, this.mixinForNode(node));
       }
     },
 
-    mixinForNode: function(node) {
-      switch (node.nodeType) {
+    mixinForObject: function(obj) {
+      switch (obj.nodeType) {
         case Node.ELEMENT_NODE:
           return Mixins.Element;
         case Node.DOCUMENT_FRAGMENT_NODE:
           return Mixins.Fragment;
         case Node.DOCUMENT_NODE:
           return Mixins.Document;
-        default:
+        case Node.TEXT_NODE:
+        case Node.COMMENT_NODE:
           return Mixins.Node;
+      }
+      if (obj instanceof Event) {
+        return Mixins.Event;
       }
     },
 
-    prototypeForNode: function(node) {
-      var proto = node.__proto__;
+    prototypeForObject: function(obj) {
+      var proto = obj.__proto__;
       if (!proto.hasOwnProperty('__patchProto')) {
-        var patchProto = Object.create(proto);
-        patchProto.__sourceProto = proto;
-        this.patchObject(patchProto, this.mixinForNode(node));
+        var patchProto = null;
+        var mixin = this.mixinForObject(obj);
+        if (mixin) {
+          patchProto = Object.create(proto);
+          patchProto.__sourceProto = proto;
+          this.patchObject(patchProto, mixin);
+        }
         proto.__patchProto = patchProto;
       }
       return proto.__patchProto;
     },
 
     patchObject: function(object, patchProto) {
-      Polymer.Utils.extend(object, patchProto)
+      Polymer.Utils.extend(object, patchProto);
       return object;
     },
 
