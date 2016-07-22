@@ -21,6 +21,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var nativeSetAttribute = Element.prototype.setAttribute;
   var nativeRemoveAttribute = Element.prototype.removeAttribute;
   var origAddEventListener = Element.prototype.addEventListener;
+  var origRemoveEventListener = Element.prototype.removeEventListener;
 
   var mixinImpl = {
 
@@ -574,8 +575,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     // TODO(sorvell): removeEventListener + weakmap...
-    addEventListener: function(type, fn) {
-      function wrappedFn(e) {
+    addEventListener: function(type, fn, capture) {
+      if (!this.__eventListenerCount) {
+        this.__eventListenerCount = 0;
+      }
+      this.__eventListenerCount++;
+      var wrappedFn = function(e) {
         e.__target = e.target;
         var proto = Polymer.ShadyDom.patchImpl.prototypeForObject(e);
         if (proto) {
@@ -583,7 +588,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return fn(e);
       }
-      return origAddEventListener.call(this, type, wrappedFn);
+      fn.__eventWrapper = wrappedFn;
+      return origAddEventListener.call(this, type, wrappedFn, capture);
+    },
+
+    removeEventListener: function(type, fn, capture) {
+      var wrapper = fn.__eventWrapper;
+      origRemoveEventListener.call(this, type, wrapper || fn, capture);
+      if (wrapper) {
+        fn.__eventWrapper = null;
+        this.__eventListenerCount--;
+      }
     }
 
   };
