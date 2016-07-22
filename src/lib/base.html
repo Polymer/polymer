@@ -30,9 +30,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // `this` context is a prototype, not an instance
     registerCallback: function() {
-      // TODO(sjmiles): perhaps this method should be called from polymer-bootstrap?
-      this._desugarBehaviors(); // abstract
-      this._doBehavior('beforeRegister'); // abstract
+      /*
+        When lazyRegister is 'max' defer all behavior work until first element
+        creation. 
+        When set, a behavior cannot setup an element's `is` or 
+        custom constructor via defining `factoryImpl`.
+        We do call beforeRegister on the prototype to preserve
+        the ability to use it in ES6. This orders the element 
+        prototype's `beforeRegister` before behaviors' rather than after
+        as in the normal case.
+      */
+      if (settings.lazyRegister === 'max') {
+        if (this.beforeRegister) {
+          this.beforeRegister();
+        }
+      } else {
+        this._desugarBehaviors(); // abstract
+        this._doBehavior('beforeRegister'); // abstract
+      }
       this._registerFeatures();  // abstract
       if (!settings.lazyRegister) {
         this.ensureRegisterFinished();
@@ -61,7 +76,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _ensureRegisterFinished: function(proto) {
-      if (proto.__hasRegisterFinished !== proto.is) {
+      if (proto.__hasRegisterFinished !== proto.is || !proto.is) {
+        // apply behavior's beforeRegister at first instance time
+        // IFF `lazyRegister` is 'max'
+        if (settings.lazyRegister === 'max') {
+          proto._desugarBehaviors(); // abstract
+          proto._doBehaviorOnly('beforeRegister'); // abstract
+        }
         proto.__hasRegisterFinished = proto.is;
         if (proto._finishRegisterFeatures) {
           proto._finishRegisterFeatures();
