@@ -77,7 +77,8 @@ Polymer.ApplyShim = (function(){
 
   var MIXIN_MATCH = styleUtil.rx.MIXIN_MATCH;
   var VAR_ASSIGN = styleUtil.rx.VAR_ASSIGN;
-  var VAR_MATCH = styleUtil.rx.VAR_MATCH;
+  // match var(--a, --b) to make var(--a, var(--b));
+  var BAD_VAR = /var\(\s*(--[^,]*),\s*(--[^)]*)\)/g;
   var APPLY_NAME_CLEAN = /;\s*/m;
 
   // separator used between mixin-name and mixin-property-name when producing properties
@@ -120,14 +121,11 @@ Polymer.ApplyShim = (function(){
   function produceCssProperties(matchText, propertyName, valueProperty, valueMixin) {
     // handle case where property value is a mixin
     if (valueProperty) {
-      VAR_MATCH.lastIndex = 0;
-      var m = VAR_MATCH.exec(valueProperty);
-      if (m) {
-        var value = m[2];
-        if (mapGet(value)){
+      styleUtil.processVariableAndFallback(valueProperty, function(prefix, value) {
+        if (value && mapGet(value)) {
           valueMixin = '@apply ' + value + ';';
         }
-      }
+      });
     }
     if (!valueMixin) {
       return matchText;
@@ -160,12 +158,9 @@ Polymer.ApplyShim = (function(){
 
   // fix shim'd var syntax
   // var(--a, --b) -> var(--a, var(--b));
-  function fixVars(matchText, prefix, value, fallback) {
+  function fixVars(matchText, varA, varB) {
     // if fallback doesn't exist, or isn't a broken variable, abort
-    if (!fallback || fallback.indexOf('--') !== 0) {
-      return matchText;
-    }
-    return [prefix, 'var(', value, ', var(', fallback, '));'].join('');
+    return 'var(' + varA + ',' + 'var(' + varB + '));';
   }
 
   // produce variable consumption at the site of mixin consumption
@@ -233,7 +228,7 @@ Polymer.ApplyShim = (function(){
     },
     transformCssText: function(cssText) {
       // fix shim variables
-      cssText = cssText.replace(VAR_MATCH, fixVars);
+      cssText = cssText.replace(BAD_VAR, fixVars);
       // produce variables
       cssText = cssText.replace(VAR_ASSIGN, produceCssProperties);
       // consume mixins
