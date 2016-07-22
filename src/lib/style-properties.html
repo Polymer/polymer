@@ -20,6 +20,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var matchesSelector = Polymer.DomApi.matchesSelector;
     var styleUtil = Polymer.StyleUtil;
     var styleTransformer = Polymer.StyleTransformer;
+    var IS_IE = navigator.userAgent.match('Trident');
 
     var settings = Polymer.Settings;
 
@@ -29,6 +30,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // property names
       decorateStyles: function(styles, scope) {
         var self = this, props = {}, keyframes = [], ruleIndex = 0;
+        var scopeSelector = styleTransformer._calcHostScope(scope.is, scope.extends);
         styleUtil.forRulesInStyles(styles, function(rule, style) {
           self.decorateRule(rule);
           // mark in-order position of ast rule in styles block, used for cache key
@@ -36,15 +38,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           self.whenHostOrRootRule(scope, rule, style, function(info) {
             // we can't cache styles with :host and :root props in @media rules
             if (rule.parent.type === styleUtil.ruleTypes.MEDIA_RULE) {
-              scope._notCacheable = true;
+              scope.__notStyleScopeCacheable = true;
             }
             if (info.isHost) {
               // check if the selector is in the form of `:host-context()` or `:host()`
               // if so, this style is not cacheable
               var hostContextOrFunction = info.selector.split(' ').some(function(s) {
-                return s.indexOf(scope.is) === 0 && s.length !== scope.is.length;
+                return s.indexOf(scopeSelector) === 0 && s.length !== scopeSelector.length;
               });
-              scope._notCacheable = scope._notCacheable || hostContextOrFunction;
+              scope.__notStyleScopeCacheable = scope.__notStyleScopeCacheable || hostContextOrFunction;
             }
           });
           self.collectPropertiesInCssText(rule.propertyInfo.cssText, props);
@@ -289,7 +291,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var cssBuild = scope.__cssBuild || style.__cssBuild;
         if (cssBuild === 'shady') {
           // :root -> x-foo > *.x-foo for elements and html for custom-style
-          isRoot = parsedSelector === (hostScope + '> *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
+          isRoot = parsedSelector === (hostScope + ' > *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
           // :host -> x-foo for elements, but sub-rules have .x-foo in them
           isHost = !isRoot && parsedSelector.indexOf(hostScope) === 0;
         }
@@ -313,7 +315,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               hostScope
             );
           }
-          selectorToMatch = rule.transformedSelector || hostScope;
+          // parsedSelector fallback for 'shady' css build
+          selectorToMatch = rule.transformedSelector || rule.parsedSelector;
         }
         callback({
           selector: selectorToMatch,
@@ -490,6 +493,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             style._useCount++;
           }
           element._customStyle = style;
+        }
+        // @media rules may be stale in IE 10 and 11
+        if (IS_IE) {
+          style.textContent = style.textContent;
         }
         return style;
       },

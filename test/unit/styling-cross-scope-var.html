@@ -728,9 +728,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <div>Should be mediumaquamarine</div>
   </template>
   <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-super-complex'
+      });
+    });
+  </script>
+</dom-module>
+
+<dom-module id="x-update-styles">
+  <template>
+    <style>
+      :host {
+        --border: 10px solid red;
+      }
+
+      :host([active]) {
+        --consumer: 6px solid orange;
+      }
+
+      :host {
+        display: block;
+        border: var(--border);
+      }
+    </style>
+    <x-variable-consumer id="child" class="foo"></x-variable-consumer>
+  </template>
+  <script>
   HTMLImports.whenReady(function() {
     Polymer({
-      is: 'x-super-complex'
+      is: 'x-update-styles',
+      properties: {
+        active: {
+          reflectToAttribute: true,
+          observer: '_activeChanged'
+        }
+      },
+
+      _activeChanged: function() {
+        this.updateStyles();
+      }
     });
   });
   </script>
@@ -941,6 +978,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     styled.$.child.updateStyles();
     assertComputed(styled.$.child.$.me, '2px');
   });
+
+  test('updateStyles on when element when not attached', function() {
+    var x = document.createElement('x-update-styles');
+    document.body.appendChild(x);
+    CustomElements.takeRecords();
+    assertComputed(x, '10px');
+    document.body.removeChild(x);
+    CustomElements.takeRecords();
+    x.updateStyles({'--border': '8px solid orange'});
+    document.body.appendChild(x);
+    CustomElements.takeRecords();
+    assertComputed(x, '8px');
+  });
+
+  test('updateStyles called in observer when element not attached', function() {
+    var x = document.createElement('x-update-styles');
+    document.body.appendChild(x);
+    CustomElements.takeRecords();
+    assertComputed(x.$.child, '0px');
+    x.active = true;
+    assertComputed(x.$.child, '6px');
+    x.active = false;
+    assertComputed(x.$.child, '0px');
+    var scopeSelector = x.$.child._scopeSelector;
+    document.body.removeChild(x);
+    CustomElements.takeRecords();
+    x.active = true;
+    document.body.appendChild(x);
+    CustomElements.takeRecords();
+    if (styled.shadyRoot && !Polymer.Settings.useNativeCSSProperties) {
+      assert.notEqual(scopeSelector, x.$.child._scopeSelector);
+      assert.isTrue(x.$.child.classList.contains(x.$.child._scopeSelector));
+      assert.isFalse(x.$.child.classList.contains(scopeSelector));
+    }
+    assertComputed(x.$.child, '6px');
+  });
+
+
 
   test('styles update based on root customStyle changes', function() {
     assertComputed(styled.$.dynamic, '0px');
