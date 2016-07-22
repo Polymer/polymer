@@ -51,7 +51,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             document.importNode(template.content, true));
         }
         this._slotListener = function(e) {
-          console.log('slot changed!', e.target);
+          console.log(e.type, e.target, 'assignedNodes', e.target.assignedNodes());
         }
         this.shadowRoot.querySelector('slot').addEventListener('slotchange', 
           this._slotListener);
@@ -74,25 +74,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </x-base-v1>
 
   <script>
+    
+    function filterMutations(mxns, target) {
+      return mxns.filter(function(mxn) {
+        Polymer.ShadyDom.patch(mxn.target);
+        var targetOk = (target.getRootNode() === mxn.target.getRootNode());
+        if (targetOk) {
+          if (mxn.addedNodes) {
+            mxn.addedNodes = Array.from(mxn.addedNodes).filter(function(n) {
+              Polymer.ShadyDom.patch(n);
+              return target.getRootNode() === n.getRootNode();
+            });
+          }
+        }
+        return targetOk && (!mxn.addedNodes || mxn.addedNodes.length);
+      });
+    }
+
     // TODO(sorvell): limited MO wrapper with caveats:
     // * will not catch non-distributed children!
     // * cannot properly filter removedNodes (due to not being able to tell where they came from)
     function observe(callback, target, options) {
       Polymer.ShadyDom.patch(target);
       var observer = new MutationObserver(function(mxns) {
-        var mxns = mxns.filter(function(mxn) {
-          Polymer.ShadyDom.patch(mxn.target);
-          var targetOk = (target.getRootNode() === mxn.target.getRootNode());
-          if (targetOk) {
-            if (mxn.addedNodes) {
-              mxn.addedNodes = Array.from(mxn.addedNodes).filter(function(n) {
-                Polymer.ShadyDom.patch(n);
-                return target.getRootNode() === n.getRootNode();
-              });
-            }
-          }
-          return targetOk && (!mxn.addedNodes || mxn.addedNodes.length);
-        });
+        mxns = filterMutations(mxns, target);
         if (mxns.length) {
           callback(mxns);
         }
