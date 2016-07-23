@@ -16,77 +16,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var userPolymer = window.Polymer;
 
-    window.Polymer = function(prototype, mixin) {
+    window.Polymer = function(info, mixin) {
       // if input is a `class` (aka a function with a prototype), use the prototype
       // remember that the `constructor` will never be called
-      if (typeof prototype === 'function') {
-        prototype = prototype.prototype;
-      }
-      // if there is no prototype, use a default empty object
-      if (!prototype) {
-        prototype = {};
+      var klass;
+      if (typeof info === 'function') {
+        klass = info;
+      } else {
+        klass = Polymer.Element(getNativeConstructor(info.extends));
+        Polymer.Utils.extend(klass.prototype, info);
       }
       // support mixin for properties on ES6 classes...
       if (mixin) {
-        Polymer.Utils.extend(prototype, mixin);
+        Polymer.Utils.extend(klass.prototype, mixin);
       }
-
-      // desugar the prototype and return a factory object
-      prototype = desugar(prototype);
-      var options = {
-        prototype: prototype
-      };
-      // NOTE: we're specifically supporting older Chrome versions here
-      // (specifically Chrome 39) that throw when options.extends is undefined.
-      if (prototype.extends) {
-        options.extends = prototype.extends;
+      if (klass.prototype.extends) {
+        klass.extends = klass.prototype.extends;
       }
-      Polymer.telemetry._registrate(prototype);
-      document.registerElement(prototype.is, options);
-      // TODO(sorvell): implement constructor.
-      var PolymerConstructor = function(props) {
-        return Polymer.Base.create(prototype.is, props);
-      };
-      PolymerConstructor.prototype = prototype;
-      return PolymerConstructor;
+      Polymer.telemetry._registrate(klass.prototype);
+      if (window.customElements) {
+        customElements.define(klass.prototype.is, klass);
+        return klass;
+      } else {
+        return document.registerElement(klass.prototype.is, klass);
+      }
     };
 
-    var nativePrototypes = {};
-
-    var getExtendedNativePrototype = function(tag) {
-      var p = nativePrototypes[tag];
-      if (!p) {
-        var np = getNativePrototype(tag);
-        p = Polymer.Utils.extend(Object.create(np), Polymer.Base);
-        nativePrototypes[tag] = p;
-      }
-      return p;
-    };
+    var nativeConstructors = {};
 
     /**
-     * Returns the native element prototype for the tag specified.
+     * Returns the native element constructor for the tag specified.
      *
-     * @method getNativePrototype
+     * @method getNativeConstructor
      * @param {string} tag  HTML tag name.
-     * @return {Object} Native prototype for specified tag.
+     * @return {Object} Native constructor for specified tag.
     */
-    var getNativePrototype = function(tag) {
-      return Object.getPrototypeOf(document.createElement(tag));
-    }
-
-    var desugar = function(prototype) {
-      // Note: need to chain user prototype with the correct type-extended
-      // version of Polymer.Base; this is especially important when you can't
-      // prototype swizzle (e.g. IE10), since CustomElements uses getPrototypeOf
-      if (!prototype.__isPolymerInstance__) {
-        var base = Polymer.Base;
-        if (prototype.extends) {
-          base = getExtendedNativePrototype(prototype.extends);
+    var getNativeConstructor = function(tag) {
+      if (tag) {
+        // TODO(kschaaf): hack, for now, needs to be removed; needed to allow
+        // subclassing from overwridden constructors in CEv1 polyfill
+        return window['HTML' + tag[0].toUpperCase() + tag.slice(1) + 'Element'];
+        var c = nativeConstructors[tag];
+        if (!c) {
+          c = document.createElement(tag).constructor;
+          nativeConstructors[tag] = c;
         }
-        prototype = Polymer.Base.chainObject(prototype, base);
+        return c;
+      } else {
+        return HTMLElement;
       }
-      return prototype;
-    };
+    }
 
     if (userPolymer) {
       for (var i in userPolymer) {

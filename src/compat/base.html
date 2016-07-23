@@ -30,282 +30,837 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var attributes = new Polymer.AttributeToFromProperty();
   var data = new Polymer.MetaEffects(templateStamp, attributes);
 
+  function nyi() {
+    console.warn('Not yet implemented:', arguments.callee.caller.name);
+  }
+
+  var classCache = new Map();
+
+  var hostStack = {
+
+    stack: [],
+
+    isEmpty() {
+      return !this.stack.length;
+    },
+
+    registerHost(inst) {
+      if (this.stack.length) {
+        var host = this.stack[this.stack.length-1];
+        data.enqueueClient(host, inst);
+      }
+    },
+
+    beginHosting(inst) {
+      this.stack.push(inst);
+    },
+
+    endHosting(inst) {
+      var stackLen = this.stack.length;
+      if (stackLen && this.stack[stackLen-1] == inst) {
+        this.stack.pop();
+      }
+    }
+
+  }
+
   // for BC
   Polymer.Gestures = Polymer.GestureEventListeners.lib;
 
-  Polymer.Base = {
+  function extendElement(superClass) {
 
-    // Used for `isInstance` type checking; cannot use `instanceof` because
-    // there is no common Polymer.Base in the prototype chain between type
-    // extensions and normal custom elements
-    __isPolymerInstance__: true,
+    var klass = classCache.get(superClass);
 
-    createdCallback: function() {
-      // note: `this.constructor.prototype` is wrong in Safari so make sure to 
-      // use `__proto__`
-      var proto = this.__proto__;
-      if (!proto.hasOwnProperty('__hasRegisterFinished')) {
-        proto.__hasRegisterFinished = true;
-        var meta = behaviors.register(proto);
-        if (meta.properties) {
-          data.createProperties(proto, meta.properties);
-        }
-        if (meta.observers) {
-          data.createMultiObservers(proto, meta.observers);
-        }
-        if (proto._template === undefined) {
-          proto._template = Polymer.DomModule.import(proto.is, 'template');
-        }
-        if (proto._template) {
-          Polymer.StyleUtil.prepStyleIncludes(proto._template.content);
-          data.bindTemplate(proto, proto._template);
-        } else if (proto.initializeWhenCreated === undefined) {
-          // TODO(sorvell): bad because these elements stamp before they have
-          // a dataHost and therefore they cannot notify default values to the host.
-          // non-template elements always initialize.
-          //proto.initializeWhenCreated = true;
-        }
-        behaviors.callMethod(proto, 'registered');
-      }
-      Polymer.telemetry.instanceCount++;
-      if (this._template) {
-        data.init(this, this._template);
-      }
-      // apply defaults first.
-      data.setPropertyDefaults(this);
-      // TODO(sorvell): remove when using V1 Custom Elements.
-      attributes.simulateV1AttributeCallbacks(this);
-      behaviors.callMethod(this, 'created');
-      // TODO(sorvell): doc!! elements can set this flag if they must
-      // initilize when created and not attached.
-      if (this.initializeWhenCreated) {
-        this.ensureInitialized();
-      }
-    },
-
-    // reserved for canonical behavior
-    attachedCallback: function() {
-      this.ensureInitialized();
-      this.isAttached = true;
-      behaviors.callMethod(this, 'attached');
-    },
-
-    ensureInitialized: function() {
-      if (this.__initialized) {
-        return;
-      }
-      this.__initialized = true;
-      var self = this;
-      Polymer.AsyncRender.afterRender(function() {
-        self.initializeSelf();
-      });
-      if (this._template) {
-        var dom = data.ensureStamped(this);
-        this.root = this.createShadowRoot();
-        this.root.appendChild(dom);
-      } else {
-        data.ensureEnabled(this);
-        this.root = this;
-      }
-      behaviors.callMethod(this, 'ready');
-    },
-
-    initializeSelf: function() {
-      if (this.__initializedSelf) {
-        return;
-      }
-      this.__initializedSelf = true;
-      if (this.__meta.listeners) {
-        var l$ = this.__meta.listeners;
-        for (var i=0, l; (i<l$.length) && (l=l$[i]); i++) {
-          events.addMethodListener(this, l.event, l.method);
-        }
-      }
-      if (this.__meta.hostAttributes) {
-        var a$ = this.__meta.hostAttributes;
-        for (var a in a$) {
-          attributes.ensureAttribute(this, a, a$[a]);
-        }
-      }
-    },
-
-    // reserved for canonical behavior
-    detachedCallback: function() {
-      this.isAttached = false;
-      behaviors.callMethod(this, 'detached');
-    },
-
-    /**
-     * Copies own properties (including accessor descriptors) from a source
-     * object to a target object.
-     *
-     * @method extend
-     * @param {Object} prototype Target object to copy properties to.
-     * @param {Object} api Source object to copy properties from.
-     * @return {Object} prototype object that was passed as first argument.
-     */
-    extend: function(prototype, api) {
-      return utils.extend(prototype, api);
-    },
-
-    /**
-     * Copies props from a source object to a target object.
-     *
-     * Note, this method uses a simple `for...in` strategy for enumerating
-     * properties.  To ensure only `ownProperties` are copied from source
-     * to target and that accessor implementations are copied, use `extend`.
-     *
-     * @method mixin
-     * @param {Object} target Target object to copy properties to.
-     * @param {Object} source Source object to copy properties from.
-     * @return {Object} Target object that was passed as first argument.
-     */
-    mixin: function(target, source) {
-      return utils.mixin(target, source);
-    },
-
-    // TODO(sorvell): move out of here?
-    chainObject: function(object, inherited) {
-      if (object && inherited && object !== inherited) {
-        if (!Object.__proto__) {
-          object = this.extend(Object.create(inherited), object);
-        }
-        object.__proto__ = inherited;
-      }
-      return object;
-    },
-
-    /* **** Begin Template **** */
-    /**
-     * Calls `importNode` on the `content` of the `template` specified and
-     * returns a document fragment containing the imported content.
-     *
-     * @method instanceTemplate
-     * @param {HTMLTemplateElement} template HTML template element to instance.
-     * @return {DocumentFragment} Document fragment containing the imported
-     *   template content.
-    */
-    instanceTemplate: function(template) {
-      var dom =
-        document.importNode(template._content || template.content, true);
-      return dom;
-    },
-
-    /**
-     * Rewrites a given URL relative to the original location of the document
-     * containing the `dom-module` for this element.  This method will return
-     * the same URL before and after vulcanization.
-     *
-     * @method resolveUrl
-     * @param {string} url URL to resolve.
-     * @return {string} Rewritten URL relative to the import
-     */
-    resolveUrl: function(url) {
-      // TODO(sorvell): do we want to put the module reference on the prototype?
-      var module = Polymer.DomModule.import(this.is);
-      var root = '';
-      if (module) {
-        var assetPath = module.getAttribute('assetpath') || '';
-        root = Polymer.ResolveUrl.resolveUrl(assetPath, module.ownerDocument.baseURI);
-      }
-      return Polymer.ResolveUrl.resolveUrl(url, root);
-    },
-    /* **** End Template **** */
-
-    /* **** Begin Attributes **** */
-    attributeChangedCallback: function(name, old, value) {
-      var property = caseMap.dashToCamelCase(name);
-      var info = this.__meta.properties && this.__meta.properties[property];
-
-      if (info && !info.readOnly) {
-        attributes.attributeToProperty(this, name, value, info.type);
-      }
-      behaviors.callMethod(this, 'attributeChanged', [name, old, value]);
-    },
-
-    serialize: function(value) {
-      return attributes.serialize(value);
-    },
-
-    deserialize: function(value, type) {
-      return attributes.deserialize(value, type);
-    },
-
-    reflectPropertyToAttribute: function(property, attribute, value) {
-      attributes.propertyToAttribute(this, property, attribute, value);
-    },
-
-    serializeValueToAttribute: function(value, attribute, node) {
-      node = node || this;
-      attributes.valueToAttribute(node, value, attribute, value);
-    },
-
-    /* **** End Attributes **** */
-
-    /* **** Begin Events **** */
-    fire: function(type, detail, options) {
-      options = options || {};
-      detail = (detail === null || detail === undefined) ? {} : detail;
-      var event = new Event(type, {
-        bubbles: options.bubbles === undefined ? true : options.bubbles,
-        cancelable: Boolean(options.cancelable)
-      });
-      event.detail = detail;
-      var node = options.node || this;
-      node.dispatchEvent(event)
-      return event;
-    },
-
-    listen: function(node, eventName, methodName) {
-      node = node || this;
-      var hbl = this.__boundListeners ||
-        (this.__boundListeners = new WeakMap());
-      var bl = hbl.get(node);
-      if (!bl) {
-        bl = {};
-        hbl.set(node, bl);
-      }
-      var key = eventName + methodName;
-      if (!bl[key]) {
-        bl[key] = events.addMethodListener(node, eventName, methodName, this);
-      }
-    },
-
-    unlisten: function(node, eventName, methodName) {
-      node = node || this;
-      var bl = this.__boundListeners && this.__boundListeners.get(node);
-      var key = eventName + methodName;
-      var handler = bl && bl[key];
-      if (handler) {
-        events.removeListener(node, eventName, handler);
-        bl[key] = null;
-      }
-    },
-
-    /**
-     * Override scrolling behavior to all direction, one direction, or none.
-     *
-     * Valid scroll directions:
-     *   - 'all': scroll in any direction
-     *   - 'x': scroll only in the 'x' direction
-     *   - 'y': scroll only in the 'y' direction
-     *   - 'none': disable scrolling for this node
-     *
-     * @method setScrollDirection
-     * @param {String=} direction Direction to allow scrolling
-     * Defaults to `all`.
-     * @param {HTMLElement=} node Element to apply scroll direction setting.
-     * Defaults to `this`.
-     */
-    setScrollDirection: function(direction, node) {
-      node = node || this;
-      events.constructor.lib.setTouchAction(node, direction || 'auto');
+    if (!klass) {
+      klass = extendWithPolymerBase(superClass);
+      classCache.set(superClass, klass);
     }
-    /* **** End Events **** */
+
+    return class extends klass {};
+
+  }
+
+  function extendWithPolymerBase(superClass) {
+
+    return class extends superClass {
+
+      // Used for `isInstance` type checking; cannot use `instanceof` because
+      // there is no common Polymer.Base in the prototype chain between type
+      // extensions and normal custom elements
+      get __isPolymerInstance() { return true }
+
+      constructor() {
+        super();
+        this.createdCallback();
+      }
+
+      createdCallback() {
+        // note: `this.constructor.prototype` is wrong in Safari so make sure to
+        // use `__proto__`
+        var proto = this.__proto__;
+        if (!proto.hasOwnProperty('__hasRegisterFinished')) {
+          proto.__hasRegisterFinished = true;
+          var meta = behaviors.register(proto);
+          if (meta.properties) {
+            data.createProperties(proto, meta.properties);
+          }
+          if (meta.observers) {
+            data.createMultiObservers(proto, meta.observers);
+          }
+          if (proto._template === undefined) {
+            proto._template = Polymer.DomModule.import(proto.is, 'template');
+          }
+          if (proto._template) {
+            Polymer.StyleUtil.prepStyleIncludes(proto._template.content);
+            // BREAKME(kschaaf): for short-term bc, but intend to break
+            Polymer.StyleUtil.normalizeForBC(proto._template.content);
+            data.bindTemplate(proto, proto._template);
+          } else if (proto.initializeWhenCreated === undefined) {
+            // TODO(sorvell): bad because these elements stamp before they have
+            // a dataHost and therefore they cannot notify default values to the host.
+            // non-template elements always initialize.
+            //proto.initializeWhenCreated = true;
+          }
+          behaviors.callMethod(proto, 'registered');
+        }
+        Polymer.telemetry.instanceCount++;
+        // setup batched effects library; will call initialize when flushing
+        data.prepare(this, this.initialize);
+        // add self to host's pending client list
+        hostStack.registerHost(this);
+        // apply defaults first.
+        data.setPropertyDefaults(this);
+        behaviors.callMethod(this, 'created');
+        // TODO(sorvell): remove when using V1 Custom Elements.
+        attributes.simulateV1AttributeCallbacks(this);
+      }
+
+      // reserved for canonical behavior
+      connectedCallback() {
+        this.attachedCallback();
+      }
+
+      attachedCallback() {
+        if (hostStack.isEmpty()) {
+          data.flush(this);
+        }
+        this.isAttached = true;
+        behaviors.callMethod(this, 'attached');
+      }
+
+      initialize() {
+        var self = this;
+        Polymer.AsyncRender.afterRender(function() {
+          self.initializeSelf();
+        });
+        if (this._template) {
+          hostStack.beginHosting(this);
+          var dom = data.stamp(this, this._template);
+          this.root = this.createShadowRoot();
+          this.root.appendChild(dom);
+          hostStack.endHosting(this);
+        } else {
+          this.root = this;
+        }
+        data.flush(this);
+        behaviors.callMethod(this, 'ready');
+      }
+
+      initializeSelf() {
+        if (this.__initializedSelf) {
+          return;
+        }
+        this.__initializedSelf = true;
+        if (this.__meta.listeners) {
+          var l$ = this.__meta.listeners;
+          for (var i=0, l; (i<l$.length) && (l=l$[i]); i++) {
+            events.addMethodListener(this, l.event, l.method);
+          }
+        }
+        if (this.__meta.hostAttributes) {
+          var a$ = this.__meta.hostAttributes;
+          for (var a in a$) {
+            attributes.ensureAttribute(this, a, a$[a]);
+          }
+        }
+      }
+
+      // reserved for canonical behavior
+      disconnectedCallback() {
+        this.detachedCallback();
+      }
+
+      detachedCallback() {
+        this.isAttached = false;
+        behaviors.callMethod(this, 'detached');
+      }
+
+      /**
+       * Copies own properties (including accessor descriptors) from a source
+       * object to a target object.
+       *
+       * @method extend
+       * @param {Object} prototype Target object to copy properties to.
+       * @param {Object} api Source object to copy properties from.
+       * @return {Object} prototype object that was passed as first argument.
+       */
+      extend(prototype, api) {
+        return utils.extend(prototype, api);
+      }
+
+      /**
+       * Copies props from a source object to a target object.
+       *
+       * Note, this method uses a simple `for...in` strategy for enumerating
+       * properties.  To ensure only `ownProperties` are copied from source
+       * to target and that accessor implementations are copied, use `extend`.
+       *
+       * @method mixin
+       * @param {Object} target Target object to copy properties to.
+       * @param {Object} source Source object to copy properties from.
+       * @return {Object} Target object that was passed as first argument.
+       */
+      mixin(target, source) {
+        return utils.mixin(target, source);
+      }
+
+      // TODO(sorvell): move out of here?
+      chainObject(object, inherited) {
+        if (object && inherited && object !== inherited) {
+          if (!Object.__proto__) {
+            object = this.extend(Object.create(inherited), object);
+          }
+          object.__proto__ = inherited;
+        }
+        return object;
+      }
+
+      /* **** Begin Template **** */
+      /**
+       * Calls `importNode` on the `content` of the `template` specified and
+       * returns a document fragment containing the imported content.
+       *
+       * @method instanceTemplate
+       * @param {HTMLTemplateElement} template HTML template element to instance.
+       * @return {DocumentFragment} Document fragment containing the imported
+       *   template content.
+      */
+      instanceTemplate(template) {
+        var dom =
+          document.importNode(template._content || template.content, true);
+        return dom;
+      }
+
+      /**
+       * Rewrites a given URL relative to the original location of the document
+       * containing the `dom-module` for this element.  This method will return
+       * the same URL before and after vulcanization.
+       *
+       * @method resolveUrl
+       * @param {string} url URL to resolve.
+       * @return {string} Rewritten URL relative to the import
+       */
+      resolveUrl(url) {
+        // TODO(sorvell): do we want to put the module reference on the prototype?
+        var module = Polymer.DomModule.import(this.is);
+        var root = '';
+        if (module) {
+          var assetPath = module.getAttribute('assetpath') || '';
+          root = Polymer.ResolveUrl.resolveUrl(assetPath, module.ownerDocument.baseURI);
+        }
+        return Polymer.ResolveUrl.resolveUrl(url, root);
+      }
+      /* **** End Template **** */
+
+      /* **** Begin Attributes **** */
+      attributeChangedCallback(name, old, value) {
+        var property = caseMap.dashToCamelCase(name);
+        var info = this.__meta.properties && this.__meta.properties[property];
+
+        if (info && !info.readOnly) {
+          attributes.attributeToProperty(this, name, value, info.type);
+        }
+        behaviors.callMethod(this, 'attributeChanged', [name, old, value]);
+      }
+
+      serialize(value) {
+        return attributes.serialize(value);
+      }
+
+      deserialize(value, type) {
+        return attributes.deserialize(value, type);
+      }
+
+      reflectPropertyToAttribute(property, attribute, value) {
+        attributes.propertyToAttribute(this, property, attribute, value);
+      }
+
+      serializeValueToAttribute(value, attribute, node) {
+        node = node || this;
+        attributes.valueToAttribute(node, value, attribute, value);
+      }
+
+      /* **** End Attributes **** */
+
+      /* **** Begin Events **** */
+      fire(type, detail, options) {
+        options = options || {};
+        detail = (detail === null || detail === undefined) ? {} : detail;
+        var event = new Event(type, {
+          bubbles: options.bubbles === undefined ? true : options.bubbles,
+          cancelable: Boolean(options.cancelable)
+        });
+        event.detail = detail;
+        var node = options.node || this;
+        node.dispatchEvent(event)
+        return event;
+      }
+
+      listen(node, eventName, methodName) {
+        node = node || this;
+        var hbl = this.__boundListeners ||
+          (this.__boundListeners = new WeakMap());
+        var bl = hbl.get(node);
+        if (!bl) {
+          bl = {};
+          hbl.set(node, bl);
+        }
+        var key = eventName + methodName;
+        if (!bl[key]) {
+          bl[key] = events.addMethodListener(node, eventName, methodName, this);
+        }
+      }
+
+      unlisten(node, eventName, methodName) {
+        node = node || this;
+        var bl = this.__boundListeners && this.__boundListeners.get(node);
+        var key = eventName + methodName;
+        var handler = bl && bl[key];
+        if (handler) {
+          events.removeListener(node, eventName, handler);
+          bl[key] = null;
+        }
+      }
+
+      /**
+       * Override scrolling behavior to all direction, one direction, or none.
+       *
+       * Valid scroll directions:
+       *   - 'all': scroll in any direction
+       *   - 'x': scroll only in the 'x' direction
+       *   - 'y': scroll only in the 'y' direction
+       *   - 'none': disable scrolling for this node
+       *
+       * @method setScrollDirection
+       * @param {String=} direction Direction to allow scrolling
+       * Defaults to `all`.
+       * @param {HTMLElement=} node Element to apply scroll direction setting.
+       * Defaults to `this`.
+       */
+      setScrollDirection(direction, node) {
+        node = node || this;
+        events.constructor.lib.setTouchAction(node, direction || 'auto');
+      }
+      /* **** End Events **** */
+
+      /**
+       * Convenience method to run `querySelector` on this local DOM scope.
+       *
+       * This function calls `Polymer.dom(this.root).querySelector(slctr)`.
+       *
+       * @method $$
+       * @param {string} slctr Selector to run on this local DOM scope
+       * @return {Element} Element found by the selector, or null if not found.
+       */
+      $$(slctr) {
+        return $Array.copy(this.root.querySelector(slctr));
+      }
+
+      domHost() {
+        return nyi();
+      }
+
+      distributeContent(updateInsertionPoints) {
+        return nyi();
+      }
+
+      /**
+       * Returns a list of nodes that are the effective childNodes. The effective
+       * childNodes list is the same as the element's childNodes except that
+       * any `<content>` elements are replaced with the list of nodes distributed
+       * to the `<content>`, the result of its `getDistributedNodes` method.
+       *
+       * @method getEffectiveChildNodes
+       * @return {Array<Node>} List of effctive child nodes.
+       */
+      getEffectiveChildNodes() {
+        var list = [];
+        var c$ = this.childNodes;
+        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if (c.localName === 'content') {
+            var d$ = c.getDistributedNodes();
+            for (var j=0; j < d$.length; j++) {
+              list.push(d$[j]);
+            }
+          } else {
+            list.push(c);
+          }
+        }
+        return list;
+      }
+
+      /**
+       * Returns a list of elements that are the effective children. The effective
+       * children list is the same as the element's children except that
+       * any `<content>` elements are replaced with the list of elements
+       * distributed to the `<content>`.
+       *
+       * @method getEffectiveChildren
+       * @return {Array<Node>} List of effctive children.
+       */
+      getEffectiveChildren() {
+        var list = this.getEffectiveChildNodes();
+        return list.filter(function(n) {
+          return (n.nodeType === Node.ELEMENT_NODE);
+        });
+      }
+
+      /**
+       * Returns a string of text content that is the concatenation of the
+       * text content's of the element's effective childNodes (the elements
+       * returned by <a href="#getEffectiveChildNodes>getEffectiveChildNodes</a>.
+       *
+       * @method getEffectiveTextContent
+       * @return {Array<Node>} List of effctive children.
+       */
+      getEffectiveTextContent() {
+        var cn = this.getEffectiveChildNodes();
+        var tc = [];
+        for (var i=0, c; (c = cn[i]); i++) {
+          if (c.nodeType !== Node.COMMENT_NODE) {
+            tc.push(c.textContent);
+          }
+        }
+        return tc.join('');
+      }
+
+      queryEffectiveChildren(slctr) {
+        var e$ = this.queryDistributedElements(slctr);
+        return e$ && e$[0];
+      }
+
+      queryAllEffectiveChildren(slctr) {
+        return this.queryDistributedElements(slctr);
+      }
+
+      /**
+       * Returns a list of nodes distributed to this element's `<content>`.
+       *
+       * If this element contains more than one `<content>` in its local DOM,
+       * an optional selector may be passed to choose the desired content.
+       *
+       * @method getContentChildNodes
+       * @param {String=} slctr CSS selector to choose the desired
+       *   `<content>`.  Defaults to `content`.
+       * @return {Array<Node>} List of distributed nodes for the `<content>`.
+       */
+      getContentChildNodes(slctr) {
+        var content = this.root.querySelector(slctr || 'content');
+        return content ? content.getDistributedNodes() : [];
+      }
+
+      /**
+       * Returns a list of element children distributed to this element's
+       * `<content>`.
+       *
+       * If this element contains more than one `<content>` in its
+       * local DOM, an optional selector may be passed to choose the desired
+       * content.  This method differs from `getContentChildNodes` in that only
+       * elements are returned.
+       *
+       * @method getContentChildNodes
+       * @param {String=} slctr CSS selector to choose the desired
+       *   `<content>`.  Defaults to `content`.
+       * @return {Array<HTMLElement>} List of distributed nodes for the
+       *   `<content>`.
+       */
+      getContentChildren(slctr) {
+        return this.getContentChildNodes(slctr).filter(function(n) {
+          return (n.nodeType === Node.ELEMENT_NODE);
+        });
+      }
+
+      isLightDescendant(node) {
+        return nyi();
+      }
+
+      isLocalDescendant(node) {
+        return nyi();
+      }
+
+      scopeSubtree(container, shouldObserve) {
+        return nyi();
+      }
+
+      getComputedStyleValue(property) {
+        return nyi();
+      }
+
+      updateStyles(properties) {
+        return nyi();
+      }
+
+      // data
+
+      // TODO(kschaaf): notify-path API maybe should move to batched effects
+      // definitelly needs to be done differently due to Safari class impl not
+      // liking get/set class method names
+      // get(path, root) {
+      //   return nyi();
+      // }
+
+      // set(path, value, root) {
+      //   return nyi();
+      // }
+
+      push(path) {
+        return nyi();
+      }
+
+      pop(path) {
+        return nyi();
+      }
+
+      shift(path) {
+        return nyi();
+      }
+
+      unshift(path) {
+        return nyi();
+      }
+
+      splice(path, start) {
+        return nyi();
+      }
+
+      arrayDelete(arrayOrPath, item) {
+        var index;
+        if (Array.isArray(arrayOrPath)) {
+          index = arrayOrPath.indexOf(item);
+          if (index >= 0) {
+            return arrayOrPath.splice(index, 1);
+          }
+        } else {
+          return nyi();
+        }
+      }
+
+      linkPaths(to, from) {
+        return nyi();
+      }
+
+      unlinkPaths(path) {
+        return nyi();
+      }
+
+      notifyPath(path, value, fromAbove) {
+        return nyi();
+      }
+
+      notifySplices(path, splices) {
+        return nyi();
+      }
+
+      // debounce
+
+      /**
+       * Call `debounce` to collapse multiple requests for a named task into
+       * one invocation which is made after the wait time has elapsed with
+       * no new request.  If no wait time is given, the callback will be called
+       * at microtask timing (guaranteed before paint).
+       *
+       *     debouncedClickAction(e) {
+       *       // will not call `processClick` more than once per 100ms
+       *       this.debounce('click', function() {
+       *        this.processClick();
+       *       } 100);
+       *     }
+       *
+       * @method debounce
+       * @param {String} jobName String to indentify the debounce job.
+       * @param {Function} callback Function that is called (with `this`
+       *   context) when the wait time elapses.
+       * @param {number} wait Optional wait time in milliseconds (ms) after the
+       *   last signal that must elapse before invoking `callback`
+       */
+      debounce(jobName, callback, wait) {
+        this._debouncers = this._debouncers || {};
+        return this._debouncers[jobName] = Polymer.Debouncer.debounce(
+          this._debouncers[jobName], callback, wait, this);
+      }
+
+      /**
+       * Returns whether a named debouncer is active.
+       *
+       * @method isDebouncerActive
+       * @param {String} jobName The name of the debouncer started with `debounce`
+       * @return {boolean} Whether the debouncer is active (has not yet fired).
+       */
+      isDebouncerActive(jobName) {
+        this._debouncers = this._debouncers || {};
+        var debouncer = this._debouncers[jobName];
+        return !!(debouncer && debouncer.isActive());
+      }
+
+      /**
+       * Immediately calls the debouncer `callback` and inactivates it.
+       *
+       * @method flushDebouncer
+       * @param {String} jobName The name of the debouncer started with `debounce`
+       */
+      flushDebouncer(jobName) {
+        this._debouncers = this._debouncers || {};
+        var debouncer = this._debouncers[jobName];
+        if (debouncer) {
+          debouncer.flush();
+        }
+      }
+
+      /**
+       * Cancels an active debouncer.  The `callback` will not be called.
+       *
+       * @method cancelDebouncer
+       * @param {String} jobName The name of the debouncer started with `debounce`
+       */
+      cancelDebouncer(jobName) {
+        this._debouncers = this._debouncers || {}
+        var debouncer = this._debouncers[jobName];
+        if (debouncer) {
+          debouncer.cancel();
+        }
+      }
+
+      /**
+       * Runs a callback function asyncronously.
+       *
+       * By default (if no waitTime is specified), async callbacks are run at
+       * microtask timing, which will occur before paint.
+       *
+       * @method async
+       * @param {Function} callback The callback function to run, bound to `this`.
+       * @param {number=} waitTime Time to wait before calling the
+       *   `callback`.  If unspecified or 0, the callback will be run at microtask
+       *   timing (before paint).
+       * @return {number} Handle that may be used to cancel the async job.
+       */
+      async(callback, waitTime) {
+        var self = this;
+        return Polymer.Async.run(function() {
+          callback.call(self);
+        }, waitTime);
+      }
+
+      /**
+       * Cancels an async operation started with `async`.
+       *
+       * @method cancelAsync
+       * @param {number} handle Handle returned from original `async` call to
+       *   cancel.
+       */
+      cancelAsync(handle) {
+        Polymer.Async.cancel(handle);
+      }
+
+      // other
+
+      /**
+       * Convenience method for creating an element and configuring it.
+       *
+       * @method create
+       * @param {string} tag HTML element tag to create.
+       * @param {Object} props Object of properties to configure on the
+       *    instance.
+       * @return {Element} Newly created and configured element.
+       */
+      create(tag, props) {
+        var elt = document.createElement(tag);
+        if (props) {
+          if (elt.setProperties) {
+            elt.setProperties(props);
+          } else {
+            for (var n in props) {
+              elt[n] = props[n];
+            }
+          }
+        }
+        return elt;
+      }
+
+      getNativePrototype(tag) {
+        return nyi();
+      }
+
+      getPropertyInfo(property) {
+        return nyi();
+      }
+
+      /**
+       * Convenience method for importing an HTML document imperatively.
+       *
+       * This method creates a new `<link rel="import">` element with
+       * the provided URL and appends it to the document to start loading.
+       * In the `onload` callback, the `import` property of the `link`
+       * element will contain the imported document contents.
+       *
+       * @method importHref
+       * @param {string} href URL to document to load.
+       * @param {Function} onload Callback to notify when an import successfully
+       *   loaded.
+       * @param {Function} onerror Callback to notify when an import
+       *   unsuccessfully loaded.
+       * @param {boolean} optAsync True if the import should be loaded `async`.
+       *   Defaults to `false`.
+       * @return {HTMLLinkElement} The link element for the URL to be loaded.
+       */
+      importHref(href, onload, onerror, optAsync) {
+        var l = document.createElement('link');
+        l.rel = 'import';
+        l.href = href;
+
+        optAsync = Boolean(optAsync);
+        if (optAsync) {
+          l.setAttribute('async', '');
+        }
+
+        var self = this;
+        if (onload) {
+          l.onload = function(e) {
+            return onload.call(self, e);
+          }
+        }
+        if (onerror) {
+          l.onerror = function(e) {
+            return onerror.call(self, e);
+          }
+        }
+        document.head.appendChild(l);
+        return l;
+      }
+
+      elementMatches(selector, node) {
+        return nyi();
+      }
+
+      /**
+       * Removes an HTML attribute from one node, and adds it to another.
+       *
+       * @method attributeFollows
+       * @param {String} name HTML attribute name
+       * @param {HTMLElement} toElement New element to add the attribute to.
+       * @param {HTMLElement} fromElement Old element to remove the attribute from.
+       */
+      attributeFollows(name, toElement, fromElement) {
+        if (fromElement) {
+          Polymer.dom(fromElement).removeAttribute(name);
+        }
+        if (toElement) {
+          Polymer.dom(toElement).setAttribute(name, '');
+        }
+      }
+
+      /**
+       * Removes a class from one node, and adds it to another.
+       *
+       * @method classFollows
+       * @param {String} name CSS class name
+       * @param {HTMLElement} toElement New element to add the class to.
+       * @param {HTMLElement} fromElement Old element to remove the class from.
+       */
+      classFollows(name, toElement, fromElement) {
+        if (fromElement) {
+          Polymer.dom(fromElement).classList.remove(name);
+        }
+        if (toElement) {
+          Polymer.dom(toElement).classList.add(name);
+        }
+      }
+
+      /**
+       * Toggles an HTML attribute on or off.
+       *
+       * @method toggleAttribute
+       * @param {String} name HTML attribute name
+       * @param {boolean=} bool Boolean to force the attribute on or off.
+       *    When unspecified, the state of the attribute will be reversed.
+       * @param {HTMLElement=} node Node to target.  Defaults to `this`.
+       */
+      toggleAttribute(name, bool, node) {
+        node = node || this;
+        if (arguments.length == 1) {
+          bool = !node.hasAttribute(name);
+        }
+        if (bool) {
+          node.setAttribute(name, '');
+        } else {
+          node.removeAttribute(name);
+        }
+      }
+
+
+      /**
+       * Toggles a CSS class on or off.
+       *
+       * @method toggleClass
+       * @param {String} name CSS class name
+       * @param {boolean=} bool Boolean to force the class on or off.
+       *    When unspecified, the state of the class will be reversed.
+       * @param {HTMLElement=} node Node to target.  Defaults to `this`.
+       */
+      toggleClass(name, bool, node) {
+        node = node || this;
+        if (arguments.length == 1) {
+          bool = !node.classList.contains(name);
+        }
+        if (bool) {
+          node.classList.add(name);
+        } else {
+          node.classList.remove(name);
+        }
+      }
+
+      /**
+       * Cross-platform helper for setting an element's CSS `transform` property.
+       *
+       * @method transformText
+       * @param {String} transform Transform setting.
+       * @param {HTMLElement=} node Element to apply the transform to.
+       * Defaults to `this`
+       */
+      transform(transformText, node) {
+        node = node || this;
+        node.style.webkitTransform = transformText;
+        node.style.transform = transformText;
+      }
+
+      /**
+       * Cross-platform helper for setting an element's CSS `translate3d`
+       * property.
+       *
+       * @method translate3d
+       * @param {number} x X offset.
+       * @param {number} y Y offset.
+       * @param {number} z Z offset.
+       * @param {HTMLElement=} node Element to apply the transform to.
+       * Defaults to `this`.
+       */
+      translate3d(x, y, z, node) {
+        node = node || this;
+        this.transform('translate3d(' + x + ',' + y + ',' + z + ')', node);
+      }
+
+    }
 
   };
-
-  Polymer.Base = Polymer.Base.chainObject(Polymer.Base, HTMLElement.prototype);
 
   if (window.CustomElements) {
     Polymer.instanceof = CustomElements.instanceof;
@@ -322,10 +877,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // telemetry
   Polymer.telemetry.instanceCount = 0;
 
-  Polymer.Base.mixin(Polymer.Base, Polymer.CompatUtils.Mixin);
+  Polymer.Element = extendElement;
 
-  Polymer.V1Element = function() {};
-  Polymer.V1Element.prototype = Polymer.Base;
+  // bc
+  Polymer.Base = extendWithPolymerBase(class {}).prototype;
 
 })();
 </script>

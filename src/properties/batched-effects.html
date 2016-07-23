@@ -56,7 +56,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.setPendingProperty(inst, prop, props[prop]);
         }
       }
-      if (inst._propertyEffectsActive) {
+      if (inst.__dataInitialized) {
         if (inst.asyncEffects) {
           this.invalidate(inst);
         } else {
@@ -67,7 +67,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     setProperty(inst, prop, value) {
       this.setPendingProperty(inst, prop, value);
-      if (inst._propertyEffectsActive) {
+      if (inst.__dataInitialized) {
         if (inst.asyncEffects) {
           this.invalidate(inst);
         } else {
@@ -87,9 +87,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     flush(inst, fromAbove) {
-      inst._fromAbove = inst._fromAbove || fromAbove;
-      super.flush(inst);
-      inst._fromAbove = false;
+      if (!inst.__dataInitialized) {
+        inst.__dataInitialized = true;
+        if (inst.__dataCallback) {
+          inst.__dataCallback();
+        }
+      }
+      if (inst.__dataPending || inst.__dataPendingClients) {
+        inst.__dataFromAbove = inst.__dataFromAbove || fromAbove;
+        super.flush(inst);
+        inst.__dataFromAbove = false;
+      }
     }
 
     validate(inst, currentProps, oldProps, changedProps) {
@@ -101,7 +109,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         oldProps = props.oldProps;
         changedProps = props.changedProps;
         // Propagate
-        this._runPropagationEffects(inst, changedProps);
+        this._runEffects(inst, Types.PROPAGATE, changedProps);
+        // Flush clients
+        this.flushClients(inst);
         // Observe
         this._runEffects(inst, Types.OBSERVE, changedProps, oldProps);
       }
@@ -122,22 +132,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _runPropagationEffects(inst, changedProps) {
-      inst.__pendingClients = inst.__pendingClients || new Map();
-      // Propagate pending changes to clients
-      this._runEffects(inst, Types.PROPAGATE, changedProps);
-      // Flush all clients
-      var self = this;
-      inst.__pendingClients.forEach(function(v, client) {
-        if (client._propertyEffectsActive) {
-          self.flush(client, true);
-        } else {
-          self.ensureStamped(client);
-        }
-      });
-      inst.__pendingClients = null;
-    }
-
     // Cannot name class method `set` or `get` in class due to Safari ES6 implementation
     // Patched into the prototype as after this class definition
     __set(inst, path, value) {
@@ -151,12 +145,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _notifyProperties(inst, changedProps, computedProps, oldProps) {
-      var props = inst._fromAbove ? computedProps : changedProps;
+      var props = inst.__dataFromAbove ? computedProps : changedProps;
       var runId = (inst._runId = ((inst._runId || 0) + 1));
-      inst.__interimData = inst.__interimData ?
-        this._mixin(inst.__interimData, changedProps) : changedProps;
-      inst.__interimDataOld = inst.__interimDataOld ?
-        this._mixin(inst.__interimDataOld, oldProps) : oldProps;
+      inst.__dataInterim = inst.__dataInterim ?
+        this._mixin(inst.__dataInterim, changedProps) : changedProps;
+      inst.__dataInterimOld = inst.__dataInterimOld ?
+        this._mixin(inst.__dataInterimOld, oldProps) : oldProps;
       var host = inst.dataHost;
       if (host && host.setProperties) {
         this._setNotifyProperties(inst, host, props);
@@ -164,10 +158,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._dispatchNotifyProperties(inst, props);
       }
       if (runId == inst._runId) {
-        changedProps = inst.__interimData;
-        oldProps = inst.__interimDataOld;
-        inst.__interimData = null;
-        inst.__interimDataOld = null;
+        changedProps = inst.__dataInterim;
+        oldProps = inst.__dataInterimOld;
+        inst.__dataInterim = null;
+        inst.__dataInterimOld = null;
         return {changedProps: changedProps, oldProps: oldProps};
       }
     }
@@ -226,7 +220,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _setPropertyToNode(model, node, prop, value) {
       if (node.setProperties) {
         if (this.setPendingProperty(node, prop, value)) {
-          model.__pendingClients.set(node, true);
+          this.enqueueClient(model, node);
         }
       } else {
         node[prop] = value;
@@ -246,7 +240,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
               if (this._pathMatchesEffect(prop, fx) &&
                 (!fx.info || fx.info.lastRun !== id)) {
-                fx.fn.call(inst, prop, val, oldProps && oldProps[prop], fx.info, inst._fromAbove);
+                fx.fn.call(inst, prop, val, oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
                 if (fx.info) {
                   fx.info.lastRun = id;
                 }
@@ -259,8 +253,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return ran;
     }
 
-    // TODO(sorvell): lazy property support
-    // note: had this in enablePropertyEffects, but templatizer.
+    prepare(inst, callback) {
+      inst.__dataCallback = callback;
+      if (inst.__dataProto) {
+        inst.__data = Object.create(inst.__dataProto);
+        inst.__dataPending = Object.create(inst.__dataProto);
+        inst.__dataOld = {};
+      } else {
+        inst.__data = {};
+      }
+      this.recordInstanceProperties(inst);
+      // ensure element enables & flushes even if disconnected
+      // this.enqueueFlush(inst);
+    }
+
+    enqueueFlush(inst) {
+      if (!this.flushQueue) {
+        this.flushQueue = [inst];
+        var self = this;
+        Promise.resolve().then(function() {
+          self.flushFlushQueue();
+        });
+      } else {
+        this.flushQueue.push(inst);
+      }
+    }
+
+    flushFlushQueue() {
+      var q = this.flushQueue;
+      this.flushQueue = null;
+      for (var i=0; i<q.length; i++) {
+        this.flush(q[i]);
+      }
+    }
+
     recordInstanceProperties(inst) {
       for (var p in inst._propertyEffects) {
         if (inst.hasOwnProperty(p)) {
@@ -271,43 +297,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    enablePropertyEffects(inst, quiet) {
-      inst._propertyEffectsActive = true;
-      this.flush(inst, quiet);
-    }
-
-    disablePropertyEffects(inst) {
-      inst._propertyEffectsActive = false;
-    }
-
-    init(inst, template) {
-      if (inst.__dataProto) {
-        inst.__data = Object.create(inst.__dataProto);
-        inst.__dataPending = Object.create(inst.__dataProto);
-        inst.__dataOld = {};
-      }
-      inst.__dataTemplate = template;
-    }
-
-    ensureEnabled(inst, quiet) {
-      if (!inst._propertyEffectsActive) {
-        this.enablePropertyEffects(inst, quiet);
-      }
-    }
-
-    ensureStamped(inst, template, quiet) {
-      template = template || inst.__dataTemplate;
-      if (template && !inst.__dataDom) {
-        inst.__dataDom = this.stamp(template, inst);
-        this.recordInstanceProperties(this);
-      }
-      this.ensureEnabled(inst);
-      return inst.__dataDom;
-    }
-
-    stamp(template, inst) {
-      inst.__pendingClients = new Map();
-      var dom = this.templateStamp.stamp(template, inst);
+    stamp(inst, template) {
+      var dom = this.templateStamp.stamp(inst, template);
       var notes = (template._content || template.content)._notes;
       this.setupBindings(inst, dom, notes);
       return dom;
@@ -320,11 +311,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       info.lib.setPendingProperty(this, computedProp, result);
     }
 
+    enqueueClient(inst, client) {
+      inst.__dataPendingClients = inst.__dataPendingClients || new Map();
+      if (client !== inst) {
+        inst.__dataPendingClients.set(client, true);
+      }
+    }
+
+    flushClients(inst) {
+      // Flush all clients
+      var clients = inst.__dataPendingClients;
+      if (clients) {
+        var self = this;
+        clients.forEach(function(v, client) {
+          if (client.__data) {
+            self.flush(client, true);
+          }
+        });
+        inst.__dataPendingClients = null;
+      }
+    }
+
   }
 
   var Types = BatchedEffects.Types;
 
-  // NOTE: Safari can't deal with an ES6 style function named `set`/`get`
+  // NOTE: Safari can't deal with an ES6 style function named `set` or `get`
   BatchedEffects.prototype.set = BatchedEffects.prototype.__set;
   BatchedEffects.prototype.get = BatchedEffects.prototype.__get;
 

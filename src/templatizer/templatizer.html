@@ -20,12 +20,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     class Templatizer {
 
-      constructor(batchedEffects) {
+      constructor(data) {
         var self = this;
-        this.batchedEffects = batchedEffects || new Polymer.BatchedEffects();
+        this.data = data || new Polymer.BatchedEffects();
         // arguments are required
-        if (!this.batchedEffects) {
-          throw 'PropertyEffects constructor requires `batchedEffects` delegate.';
+        if (!this.data) {
+          throw 'PropertyEffects constructor requires `data` delegate.';
         }
       }
 
@@ -48,7 +48,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _createConstructor(template, options) {
         // Anonymous class created by the templatizer
-        var batchedEffects = this.batchedEffects;
+        var data = this.data;
         var ctor = class TemplateInstance {
           constructor(host, props) {
             this.dataHost = host;
@@ -59,14 +59,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._hostProps = template._content._hostProps;
             this._configureProperties(props);
             //TODO(kschaaf): id marshalling unnecessary
-            this.root = batchedEffects.stamp(template, this);
+            this.root = data.stamp(this, template);
             // Save list of stamped children
             var children = this.children = [];
             for (var n = this.root.firstChild; n; n=n.nextSibling) {
               children.push(n);
               n._templateInstance = this;
             }
-            batchedEffects.enablePropertyEffects(this, true);
+            data.flush(this, true);
           }
           _showHideChildren(hide) {
             var c = this.children;
@@ -94,9 +94,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
           _configureProperties(props) {
-            for (var iprop in options.instanceProps) {
-              if (iprop in props) {
-                this[iprop] = props[iprop];
+            if (props) {
+              for (var iprop in options.instanceProps) {
+                if (iprop in props) {
+                  this[iprop] = props[iprop];
+                }
               }
             }
             for (var hprop in this._hostProps) {
@@ -104,18 +106,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
           forwardProperty(prop, value) {
-            batchedEffects.setPendingProperty(this, prop, value);
-            if (this.dataHost.__pendingClients) {
-              this.dataHost.__pendingClients.set(this, true);
-            }
+            data.setPendingProperty(this, prop, value);
+            data.enqueueClient(this.dataHost, this);
           }
           flush() {
-            batchedEffects.flush(this, true);
+            data.flush(this, true);
           }
+          dispatchEvent() { }
         }
         ctor.options = options;
         // TODO(kschaaf): event listeners created need to be decorated with e.model
-        this.batchedEffects.bindTemplate(ctor, template);
+        this.data.bindTemplate(ctor, template);
         this._prepInstanceProperties(ctor, template, options);
         this._prepHostProperties(ctor, template, options);
         return ctor;
@@ -124,14 +125,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _prepHostProperties(ctor, template, options) {
         if (options.fwdHostPropToInstance) {
           var hostProps = template._content._hostProps;
-          this.batchedEffects.disablePropertyEffects(template);
           for (var prop in hostProps) {
-            this.batchedEffects.addPropertyEffect(template,'_host_' + prop,
+            this.data.addPropertyEffect(template,'_host_' + prop,
               Polymer.BatchedEffects.Types.PROPAGATE,
               {fn: this._createHP2IEffector(prop, options)});
-            this.batchedEffects.createNotifyingProperty(template, '_host_' + prop);
+            this.data.createNotifyingProperty(template, '_host_' + prop);
           }
-          this.batchedEffects.enablePropertyEffects(template);
+          if (template.__dataProto) {
+           template.setProperties(template.__dataProto);
+          }
         }
       }
 
@@ -146,33 +148,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var iprop in options.instanceProps) {
           delete hostProps[iprop];
           if (options.fwdInstancePropToHost) {
-            this.batchedEffects.addPropertyEffect(ctor, iprop,
+            this.data.addPropertyEffect(ctor, iprop,
               Polymer.BatchedEffects.Types.OBSERVE,
               {fn: this._createIP2HEffector(iprop, options)});
           }
         }
         if (options.fwdHostPropToInstance && template.dataHost) {
           for (var hprop in hostProps) {
-            this.batchedEffects.addPropertyEffect(ctor, hprop,
+            this.data.addPropertyEffect(ctor, hprop,
               Polymer.BatchedEffects.Types.OBSERVE,
-              {fn: this._fwdHostPropToHost})
+              {fn: this._createHP2HEffector(template)})
           }
         }
       }
 
       _createIP2HEffector(instProp, options) {
-        return function(prop, value, old, info, fromAbove) {
+        return function fwdInstPropToHost(prop, value, old, info, fromAbove) {
           if (!fromAbove) {
             options.fwdInstancePropToHost.call(this, this, prop, value);
           }
         }
       }
 
-      _fwdHostPropToHost(prop, value, old, info, fromAbove) {
-        if (!fromAbove) {
-          // TODO(kschaaf) This does not take advantage of the efficient
-          // upward flow in batched effects
-          this.dataHost[prop] = value;
+      _createHP2HEffector(template) {
+        return function fwdHostPropToHost(prop, value, old, info, fromAbove) {
+          if (!fromAbove) {
+            // TODO(kschaaf) This does not take advantage of the efficient
+            // upward flow in batched effects
+            template['_host_' + prop] = value;
+          }
         }
       }
 
