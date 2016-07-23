@@ -36,6 +36,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var classCache = new Map();
 
+  var hostStack = {
+
+    stack: [],
+
+    isEmpty() {
+      return !this.stack.length;
+    },
+
+    registerHost(inst) {
+      if (this.stack.length) {
+        var host = this.stack[this.stack.length-1];
+        data.enqueueClient(host, inst);
+      }
+    },
+
+    beginHosting(inst) {
+      this.stack.push(inst);
+    },
+
+    endHosting(inst) {
+      var stackLen = this.stack.length;
+      if (stackLen && this.stack[stackLen-1] == inst) {
+        this.stack.pop();
+      }
+    }
+
+  }
+
   // for BC
   Polymer.Gestures = Polymer.GestureEventListeners.lib;
 
@@ -51,8 +79,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return class extends klass {};
 
   }
-
-  var hostCount = 0;
 
   function extendWithPolymerBase(superClass) {
 
@@ -100,6 +126,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Polymer.telemetry.instanceCount++;
         // setup batched effects library; will call initialize when flushing
         data.prepare(this, this.initialize);
+        // add self to host's pending client list
+        hostStack.registerHost(this);
         // apply defaults first.
         data.setPropertyDefaults(this);
         behaviors.callMethod(this, 'created');
@@ -113,7 +141,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       attachedCallback() {
-        if (!hostCount && !this.__dataInitialized) {
+        if (hostStack.isEmpty()) {
           data.flush(this);
         }
         this.isAttached = true;
@@ -126,11 +154,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           self.initializeSelf();
         });
         if (this._template) {
+          hostStack.beginHosting(this);
           var dom = data.stamp(this, this._template);
           this.root = this.createShadowRoot();
-          hostCount++;
           this.root.appendChild(dom);
-          hostCount--;
+          hostStack.endHosting(this);
         } else {
           this.root = this;
         }

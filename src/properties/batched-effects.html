@@ -109,7 +109,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         oldProps = props.oldProps;
         changedProps = props.changedProps;
         // Propagate
-        this._runPropagationEffects(inst, changedProps);
+        this._runEffects(inst, Types.PROPAGATE, changedProps);
+        // Flush clients
+        this.flushClients(inst);
         // Observe
         this._runEffects(inst, Types.OBSERVE, changedProps, oldProps);
       }
@@ -128,20 +130,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return computedProps;
       }
-    }
-
-    _runPropagationEffects(inst, changedProps) {
-      inst.__dataPendingClients = inst.__dataPendingClients || new Map();
-      // Propagate pending changes to clients
-      this._runEffects(inst, Types.PROPAGATE, changedProps);
-      // Flush all clients
-      var self = this;
-      inst.__dataPendingClients.forEach(function(v, client) {
-        if (client.__data) {
-          self.flush(client, true);
-        }
-      });
-      inst.__dataPendingClients = null;
     }
 
     // Cannot name class method `set` or `get` in class due to Safari ES6 implementation
@@ -232,7 +220,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _setPropertyToNode(model, node, prop, value) {
       if (node.setProperties) {
         if (this.setPendingProperty(node, prop, value)) {
-          model.__dataPendingClients.set(node, true);
+          this.enqueueClient(model, node);
         }
       } else {
         node[prop] = value;
@@ -313,12 +301,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var dom = this.templateStamp.stamp(inst, template);
       var notes = (template._content || template.content)._notes;
       this.setupBindings(inst, dom, notes);
-      inst.__dataPendingClients = new Map();
-      if (inst._nodes) {
-        for (var i=0; i<inst._nodes.length; i++) {
-          inst.__dataPendingClients.set(inst._nodes[i], true);
-        }
-      }
       return dom;
     }
 
@@ -327,6 +309,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var result = info.lib._runMethodEffect(this, property, value, old, info);
       var computedProp = info.methodInfo;
       info.lib.setPendingProperty(this, computedProp, result);
+    }
+
+    enqueueClient(inst, client) {
+      inst.__dataPendingClients = inst.__dataPendingClients || new Map();
+      if (client !== inst) {
+        inst.__dataPendingClients.set(client, true);
+      }
+    }
+
+    flushClients(inst) {
+      // Flush all clients
+      var clients = inst.__dataPendingClients;
+      if (clients) {
+        var self = this;
+        clients.forEach(function(v, client) {
+          if (client.__data) {
+            self.flush(client, true);
+          }
+        });
+        inst.__dataPendingClients = null;
+      }
     }
 
   }
