@@ -1,185 +1,78 @@
-# Polymer
+# Polymer "alacarte"
+Exploratory code working up towards the Polymer 2.0 release.
+## Overarching goals
+* Custom Elements and Shadow DOM v1 support
+* Polymer 2.0 components look just like “vanilla” web components from the outside
+  * Remove the need for `Polymer.dom` calls
+  * Remove the requirement for `set`/`notifyPath` path notifications in data-binding
+* Rough edges sanded off of current data binding system
+  * Batch changes and run effects for set of changes in well-defined order (compute, notify, propagate, observe)
+  * Remove multi-property `undefined` rule
+  * TBD: provide alternatives to object-identify array tracking
+* Improved code factoring
+  * Refactored into decoupled libraries that can stand on their own and be composed using raw ES6 classes
+  * Any optional parts (e.g. shady shim, style shim, template elements, etc.) opt-in and not loaded/required by default
+* Provide a minimally-breaking API surface area from Polymer 1.0, to the extent allowed given the above goals
 
-[![Build Status](https://travis-ci.org/Polymer/polymer.svg?branch=master)](https://travis-ci.org/Polymer/polymer)
+## How to use & caveats
+Alacarte includes a Polymer 1.0 "Backward Compatibility" (BC) layer loadable via `alacarte/polymer.html` that attempts to provide as close to the same API and semantics for using Polymer as possible.  Notes on usage:
+* In order to test existing code that references `polymer/polymer.html`, you'll need to check out `alacarte` as `polymer`, or else redirect `polymer/polymer.html` to `alacarte/polymer.html`.
+* At this moment, the Shady DOM shim is not included in `polymer.html`, meaning elements that create shadow roots will only run in Chrome.  To opt-in to testing Shady DOM, load `alacarte/src/shady/shady.html` in your app/demo.  When loaded, all browsers will use Shady DOM, even where native Shadow DOM exists.
+* The Shady DOM shim currently does not automatically shim styles.  As such, styling will not be correct when using Shady DOM (although the tree traversal API's will be properly scoped).
+* To use the Custom Elements V1 polyfill, check out / bower link the `v1-polymer-edits` branch of `webcomponentsjs` and load `webcomponentsjs/webcomponents-lite.js`.  That branch also supports a switch to fall back to the old V0 polyfill (`?wc-ce=v0`).
+* You should continue to use `created` and `attached` Polymer callbacks when using the V1 CE polyfill, despite the name changes in the V1 spec.
 
-Polymer lets you build encapsulated, re-usable elements that work just like HTML elements, to use in building web applications.
+## Not yet implemented
+* Some utility functions are not yet implemented
+    * A number of utility functions that were previously on the Polymer 1.0 element prototype are not ported over yet.  These will warn with "not yet implemented" warnings.
+* Shady DOM styling is not yet integrated
+* Array notification API's not yet implemented
+* `<array-selector>` not yet implemented
 
-```html
-<!-- Polyfill Web Components for older browsers -->
-<script src="webcomponentsjs/webcomponents-lite.min.js"></script>
+## Breaking Changes
+This is a list of proposed/intentional breaking changes as implemented in the current incantation of this repo.  If you find changes that broke existing code or rules, please raise and we'll need to decide whether they are expected/intentional or not.
 
-<!-- Import element -->
-<link rel="import" href="google-map.html">
+Note that some of the items listed below have been temporarily shimmed to make testing existing code easier, but will be removed in the future.
 
-<!-- Use element -->
-<google-map latitude="37.790" longitude="-122.390"></google-map>
-```
+### Styling
+* Drop invalid syntax
+  * :root {}
+    * Should be :host > * {}
+  * var(--a, --b)
+    * Should be var(--a, var(--b))
+  * @apply(--foo)
+    * Should be @apply --foo;
+* Native CSS Custom Properties by default
+* TBD: Drop `element.customStyle`
 
-## Getting Started
+### Element definitions
+* TBD: `dom-if`, `dom-repeat`, `dom-bind`, `array-selector`, etc. will not included in `polymer.html` by default (going forward; they currently are); users should import those elements when needed
+* TBD: Type extension elements may be handled differently due to lack of browser support for `is` in V1 spec
 
-Check out [polymer-project.org](https://www.polymer-project.org) for all of the library documentation, including getting started guides, tutorials, developer reference, and more.
+### Polymer element prototype
+* Methods starting with `_` are not guaranteed to exist (most have been removed)
 
-Or if you'd just like to download the library, check out our [releases page](https://github.com/polymer/polymer/releases).
+### Element lifecycle
+* Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
+* `lazyRegister` option removed and is now “on” by default
 
-## Polymer in 1 Minute
+### Data
+* Template not stamped & data system not initialized (observers, bindings, etc.) until attached (or until microtask, if we go the async by default route)
+  * Fallout from V1 changes, since attributes not readable in constructor
+* Inline computed annotations run unconditionally at initialization, regardless if any arguments are defined (and will see undefined for undefined arguments)
+* Inline computed annotations are always “dynamic” (e.g. setting/changing the function will cause the binding to re-compute)
+* Other method effects (multi-prop observers, computed) called once at initialization if any arguments are defined (and will see undefined for undefined arguments)
+‘notify’ events not fired when value changes as result of binding from host 
+* In order for a property to be deserialized from its attribute, it must be declared in the `properties` metadata object
 
-The Polymer library is a lightweight sugaring layer on top of the [web components](http://webcomponents.org/) API's to help in building your own web components. It adds convenient features to make it easy to build complex elements:
-
-**Create and register a custom element**
-
-```js
-/**
- * A not-very-useful inline element
- */
-Polymer({
-    is: 'my-element'
-});
-```
-
-```html
-<!-- use the element -->
-<my-element></my-element>
-```
-
-**Add markup to your element**
-
-```html
-<!-- define the markup that your element will use -->
-<dom-module id="my-simple-namecard">
-  <template>
-    <div>
-      Hi! My name is <span>Jane</span>
-    </div>
-  </template>
-
-  <script>
-    Polymer({
-        is: 'my-simple-namecard'
-    });
-  </script>
-</dom-module>
-```
-
-**Configure properties on your element...**
-
-```js
-// Create an element that takes a property
-Polymer({
-    is: 'my-property-namecard',
-    properties: {
-      myName: {
-        type: String
-      }
-    },
-    ready: function() {
-      this.textContent = 'Hi! My name is ' + this.myName;
-    }
-});
-```
-
-**...and have them set using declarative attributes**
-
-```html
-<!-- using the element -->
-<my-property-namecard my-name="Jim"></my-property-namecard>
-```
-
-> Hi! My name is Jim
-
-**Bind data into your element using the familiar mustache-syntax**
-
-```html
-<!-- define markup with bindings -->
-<dom-module id="my-bound-namecard">
-  <template>
-    <div>
-      Hi! My name is <span>{{myName}}</span>
-    </div>
-  </template>
-
-  <script>
-    Polymer({
-      is: 'my-bound-namecard',
-      properties: {
-        myName: {
-          type: String
-        }
-      }
-    });
-  </script>
-</dom-module>
-```
-
-```html
-<!-- using the element -->
-<my-bound-namecard my-name="Josh"></my-bound-namecard>
-```
-
-> Hi! My name is Josh
-
-**Style the internals of your element, without the style leaking out**
-
-```html
-<!-- add style to your element -->
-<dom-module id="my-styled-namecard">
-  <template>
-    <style>
-      /* This would be crazy in non webcomponents. */
-      span {
-        font-weight: bold;
-      }
-    </style>
-
-    <div>
-      Hi! My name is <span>{{myName}}</span>
-    </div>
-  </template>
-
-  <script>
-    Polymer({
-      is: 'my-styled-namecard',
-      properties: {
-        myName: {
-          type: String
-        }
-      }
-    });
-  </script>
-</dom-module>
-```
-
-```html
-<!-- using the element -->
-<my-styled-namecard my-name="Jesse"></my-styled-namecard>
-```
-
-> Hi! My name is **Jesse**
-
-**and so much more!**
-
-Web components are an incredibly powerful new set of primitives baked into the web platform, and open up a whole new world of possibility when it comes to componentizing front-end code and easily creating powerful, immersive, app-like experiences on the web.
-
-By being based on Web Components, elements built with Polymer are:
-
-* Built from the platform up
-* Self-contained
-* Don't require an overarching framework - are interoperable across frameworks
-* Re-usable
-
-## Contributing
-
-The Polymer team loves contributions from the community! Take a look at our [contributing guide](CONTRIBUTING.md) for more information on how to contribute.
-
-## Communicating with the Polymer team
-
-Beyond Github, we try to have a variety of different lines of communication available:
-
-* [Blog](https://blog.polymer-project.org/)
-* [Twitter](https://twitter.com/polymer)
-* [Google+ community](https://plus.google.com/communities/115626364525706131031)
-* [Mailing list](https://groups.google.com/forum/#!forum/polymer-dev)
-* [Slack channel](https://bit.ly/polymerslack)
-
-# License
-
-The Polymer library uses a BSD-like license available [here](./LICENSE.txt)
+Other
+* Shadow DOM v1
+  * `<content select="...">` → `<slot name="...">`
+  * Selectively distributed content needs to add `slot` attribute
+* Custom Elements v1
+  * Applies to any “raw” custom elements (e.g. test-fixture)
+    * createdCallback → constructor
+      * Basically can only set instance properties
+      * Must not inspect attributes, children, parent
+    * attachedCallback → connectedCallback
+* Alacarte code uses limited ES2015 syntax (mostly just `class`, so it can be run without transpilation in current Chrome, Safari, FF, and Edge; note Safari 9 does not currently support `=>`, among others).  Transpilation is required to run in IE11.
