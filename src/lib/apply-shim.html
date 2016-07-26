@@ -121,6 +121,16 @@ Polymer.ApplyShim = (function(){
     return out;
   }
 
+  function invalidateMixinEntry(mixinEntry) {
+    var currentProto = ApplyShim.__currentElementProto;
+    var currentElementName = currentProto && currentProto.is;
+    for (var elementName in mixinEntry.dependants) {
+      if (elementName !== currentElementName) {
+        mixinEntry.dependants[elementName].__mixinsInvalid = true;
+      }
+    }
+  }
+
   function produceCssProperties(matchText, propertyName, valueProperty, valueMixin) {
     // handle case where property value is a mixin
     if (valueProperty) {
@@ -138,30 +148,35 @@ Polymer.ApplyShim = (function(){
     var mixinValues = cssTextToMap(mixinAsProperties);
     var combinedProps = mixinValues;
     var mixinEntry = mapGet(propertyName);
-    if (mixinEntry) {
+    var oldProps = mixinEntry && mixinEntry.properties;
+    if (oldProps) {
       // NOTE: since we use mixin, the map of properties is updated here
       // and this is what we want.
-      combinedProps = Polymer.Base.mixin(mixinEntry.properties, mixinValues);
-      var currentProto = ApplyShim.__currentElementProto;
-      var currentElementName = currentProto && currentProto.is;
-      for (var elementName in mixinEntry.dependants) {
-        if (elementName !== currentElementName) {
-          mixinEntry.dependants[elementName].__mixinsInvalid = true;
-        }
-      }
+      combinedProps = Object.create(oldProps);
+      combinedProps = Polymer.Base.mixin(combinedProps, mixinValues);
     } else {
       mapSet(propertyName, combinedProps);
     }
     var out = [];
     var p, v;
     // set variables defined by current mixin
+    var needToInvalidate = false;
     for (p in combinedProps) {
       v = mixinValues[p];
       // if property not defined by current mixin, set initial
       if (v === undefined) {
         v = 'initial';
       }
+      if (oldProps && !(p in oldProps)) {
+        needToInvalidate = true;
+      }
       out.push(propertyName + MIXIN_VAR_SEP + p + ': ' + v);
+    }
+    if (needToInvalidate) {
+      invalidateMixinEntry(mixinEntry);
+    }
+    if (mixinEntry) {
+      mixinEntry.properties = combinedProps;
     }
     return prefix + out.join('; ') + ';';
   }
