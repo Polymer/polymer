@@ -86,12 +86,15 @@ Polymer.ApplyShim = (function(){
   var MIXIN_VAR_SEP = '_-_';
 
   // map of mixin to property names
-  // --foo: {border: 2px} -> (--foo, ['border'])
+  // --foo: {border: 2px} -> {properties: {(--foo, ['border'])}, dependants: {'element-name': proto}}
   var mixinMap = {};
 
-  function mapSet(name, prop) {
+  function mapSet(name, props) {
     name = name.trim();
-    mixinMap[name] = prop;
+    mixinMap[name] = {
+      properties: props,
+      dependants: {}
+    };
   }
 
   function mapGet(name) {
@@ -118,6 +121,16 @@ Polymer.ApplyShim = (function(){
     return out;
   }
 
+  function invalidateMixinEntry(mixinEntry) {
+    var currentProto = ApplyShim.__currentElementProto;
+    var currentElementName = currentProto && currentProto.is;
+    for (var elementName in mixinEntry.dependants) {
+      if (elementName !== currentElementName) {
+        mixinEntry.dependants[elementName].__applyShimInvalid = true;
+      }
+    }
+  }
+
   function produceCssProperties(matchText, propertyName, valueProperty, valueMixin) {
     // handle case where property value is a mixin
     if (valueProperty) {
@@ -133,25 +146,37 @@ Polymer.ApplyShim = (function(){
     var mixinAsProperties = consumeCssProperties(valueMixin);
     var prefix = matchText.slice(0, matchText.indexOf('--'));
     var mixinValues = cssTextToMap(mixinAsProperties);
-    var oldProperties = mapGet(propertyName);
     var combinedProps = mixinValues;
-    if (oldProperties) {
+    var mixinEntry = mapGet(propertyName);
+    var oldProps = mixinEntry && mixinEntry.properties;
+    if (oldProps) {
       // NOTE: since we use mixin, the map of properties is updated here
       // and this is what we want.
-      combinedProps = Polymer.Base.mixin(oldProperties, mixinValues);
+      combinedProps = Object.create(oldProps);
+      combinedProps = Polymer.Base.mixin(combinedProps, mixinValues);
     } else {
       mapSet(propertyName, combinedProps);
     }
     var out = [];
     var p, v;
     // set variables defined by current mixin
+    var needToInvalidate = false;
     for (p in combinedProps) {
       v = mixinValues[p];
       // if property not defined by current mixin, set initial
       if (v === undefined) {
         v = 'initial';
       }
+      if (oldProps && !(p in oldProps)) {
+        needToInvalidate = true;
+      }
       out.push(propertyName + MIXIN_VAR_SEP + p + ': ' + v);
+    }
+    if (needToInvalidate) {
+      invalidateMixinEntry(mixinEntry);
+    }
+    if (mixinEntry) {
+      mixinEntry.properties = combinedProps;
     }
     return prefix + out.join('; ') + ';';
   }
@@ -170,10 +195,14 @@ Polymer.ApplyShim = (function(){
   function atApplyToCssProperties(mixinName, fallbacks) {
     mixinName = mixinName.replace(APPLY_NAME_CLEAN, '');
     var vars = [];
-    var mixinProperties = mapGet(mixinName);
-    if (mixinProperties) {
+    var mixinEntry = mapGet(mixinName);
+    if (mixinEntry) {
+      var currentProto = ApplyShim.__currentElementProto;
+      if (currentProto) {
+        mixinEntry.dependants[currentProto.is] = currentProto;
+      }
       var p, parts, f;
-      for (p in mixinProperties) {
+      for (p in mixinEntry.properties) {
         f = fallbacks && fallbacks[p];
         parts = [p, ': var(', mixinName, MIXIN_VAR_SEP, p];
         if (f) {
@@ -214,8 +243,11 @@ Polymer.ApplyShim = (function(){
   var ApplyShim = {
     _map: mixinMap,
     _separator: MIXIN_VAR_SEP,
-    transform: function(styles) {
+    transform: function(styles, elementProto) {
+      this.__currentElementProto = elementProto;
       styleUtil.forRulesInStyles(styles, this._boundTransformRule);
+      elementProto.__applyShimInvalid = false;
+      this.__currentElementProto = null;
     },
     transformRule: function(rule) {
       rule.cssText = this.transformCssText(rule.parsedCssText);
