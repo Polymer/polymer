@@ -134,6 +134,7 @@ Polymer.ApplyShim = (function(){
   function produceCssProperties(matchText, propertyName, valueProperty, valueMixin) {
     // handle case where property value is a mixin
     if (valueProperty) {
+      // form: --mixin2: var(--mixin1), where --mixin1 is in the map
       styleUtil.processVariableAndFallback(valueProperty, function(prefix, value) {
         if (value && mapGet(value)) {
           valueMixin = '@apply ' + value + ';';
@@ -178,6 +179,19 @@ Polymer.ApplyShim = (function(){
     if (mixinEntry) {
       mixinEntry.properties = combinedProps;
     }
+    // because the mixinMap is global, the mixin might conflict with
+    // a different scope's simple variable definition:
+    // Example:
+    // some style somewhere:
+    // --mixin1:{ ... }
+    // --mixin2: var(--mixin1);
+    // some other element:
+    // --mixin1: 10px solid red;
+    // --foo: var(--mixin1);
+    // In this case, we leave the original variable definition in place.
+    if (valueProperty) {
+      prefix = matchText + ';' + prefix;
+    }
     return prefix + out.join('; ') + ';';
   }
 
@@ -196,6 +210,12 @@ Polymer.ApplyShim = (function(){
     mixinName = mixinName.replace(APPLY_NAME_CLEAN, '');
     var vars = [];
     var mixinEntry = mapGet(mixinName);
+    // if we depend on a mixin before it is created
+    // make a sentinel entry in the map to add this element as a dependency for when it is defined.
+    if (!mixinEntry) {
+      mapSet(mixinName, {});
+      mixinEntry = mapGet(mixinName);
+    }
     if (mixinEntry) {
       var currentProto = ApplyShim.__currentElementProto;
       if (currentProto) {
