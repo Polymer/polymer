@@ -80,6 +80,7 @@ Polymer.ApplyShim = (function(){
   // match var(--a, --b) to make var(--a, var(--b));
   var BAD_VAR = /var\(\s*(--[^,]*),\s*(--[^)]*)\)/g;
   var APPLY_NAME_CLEAN = /;\s*/m;
+  var INITIAL_INHERIT = /^\s*(initial)|(inherit)\s*$/;
 
   // separator used between mixin-name and mixin-property-name when producing properties
   // NOTE: plain '-' may cause collisions in user styles
@@ -102,10 +103,40 @@ Polymer.ApplyShim = (function(){
     return mixinMap[name];
   }
 
+  var measureElement;
+  function getInitialValueForProperty(property) {
+    if (!measureElement) {
+      measureElement = document.createElement('meta');
+      measureElement.style.all = 'initial';
+      document.head.appendChild(measureElement);
+    }
+    return window.getComputedStyle(measureElement).getPropertyValue(property);
+  }
+
+  function replaceInitialOrInherit(property, value) {
+    var match = INITIAL_INHERIT.exec(value);
+    if (match) {
+      if (match[1]) {
+        // initial
+        // replace `initial` with the concrete initial value for this property
+        value = getInitialValueForProperty(property);
+      } else {
+        // inherit
+        // with this purposfully illegal value, the variable will be invalid at
+        // compute time (https://www.w3.org/TR/css-variables/#invalid-at-computed-value-time)
+        // and for inheriting values, will behave similarly
+        // we cannot support the same behavior for non inheriting values like 'border'
+        value = 'apply-shim-inherit';
+      }
+    }
+    return value;
+  }
+
   // "parse" a mixin definition into a map of properties and values
   // cssTextToMap('border: 2px solid black') -> ('border', '2px solid black')
   function cssTextToMap(text) {
     var props = text.split(';');
+    var property, value;
     var out = {};
     for (var i = 0, p, sp; i < props.length; i++) {
       p = props[i];
@@ -113,8 +144,10 @@ Polymer.ApplyShim = (function(){
         sp = p.split(':');
         // ignore lines that aren't definitions like @media
         if (sp.length > 1) {
+          property = sp[0].trim();
           // some properties may have ':' in the value, like data urls
-          out[sp[0].trim()] = sp.slice(1).join(':');
+          value = replaceInitialOrInherit(property, sp.slice(1).join(':'));
+          out[property] = value;
         }
       }
     }
