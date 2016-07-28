@@ -55,6 +55,8 @@ Note that some of the items listed below have been temporarily shimmed to make t
 ### Element lifecycle
 * Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
 * `lazyRegister` option removed and is now “on” by default
+* Experimental: `listeners` and `hostAttributes` are deferred until "afterNextRender", since the majority uses of these should not be initial paint-blocking.  Please help identify use cases where paint-blocking host attributes/listeners are useful/needed.
+* Requst to early-users: We would really like to remove the `ready` callback, since its use is generally anti-pattern-ish, and it's hard to document when a "one-shot callback that runs after all local dom & observers have flushed" should actually be used, as opposed to running said code in an observer.  In exploring alacarte, please try to avoid `ready` and help identify use cases where it is useful/needed.
 
 ### Data
 * Template not stamped & data system not initialized (observers, bindings, etc.) until attached (or until microtask, if we go the async by default route)
