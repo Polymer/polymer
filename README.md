@@ -37,12 +37,21 @@ Alacarte includes a Polymer 1.0 "Backward Compatibility" (BC) layer loadable via
     * A number of utility functions that were previously on the Polymer 1.0 element prototype are not ported over yet.  These will warn with "not yet implemented" warnings.
 * Array notification API's not yet implemented.  Note due to removal of object/array dirty check, you should be able to just make changes using normal array methods, then re-set the array to an element and it will "re-go"
 * `<array-selector>` not yet implemented
+* `Polymer.dom`: currently *most* of this is emulated, but some api's may be missing. Please file issues after checking to see if the missing behavior is an intended breaking change.
 * `Polymer.dom.observeNodes`: we're likely going to provide a breaking replacement for this that's more in the spirit of ShadowDom V1.
 
 ## Breaking Changes
 This is a list of proposed/intentional breaking changes as implemented in the current incantation of this repo.  If you find changes that broke existing code or rules, please raise and we'll need to decide whether they are expected/intentional or not.
 
 Note that some of the items listed below have been temporarily shimmed to make testing existing code easier, but will be removed in the future.
+
+## ShadyDOM
+We've removed the need to use `Polymer.dom` by patching the dom as necessary so that the api is mostly equivalent to ShadowDOM. The result is not as correct as the ShadowDOM polyfill, but it's also less intrusive since nodes are not wrapped but patched on demand. Currently all dom tree accessors and mutation and query methods should be patched on relevant nodes. Some nodes that could/should be patched are not currently. For testing/debugging, you can test if a node is patched by looking at the `__patched` property. Please note that `MutationObservers` are *not* patched and will return incorrect information. There are 2 workarounds until a better replacement for `Polymer.dom.observeNodes` is implemented. The `slotchange` event is implemented. You can use a filtering strategy to capture mutations in the same root as the observed element as shown here: https://github.com/PolymerLabs/alacarte/blob/master/test/smoke/shady-slot-observer.html#L78.
+
+## Events
+Events that are listened to on patched elements are patched. They have the (beginnings of) the ShadowDOM V1 spec info for events: 
+* `target` should be the same target as in ShadowDOM, also the same as `Polymer.dom(element).localTarget`
+* `deepPath()` should be the same as in ShadowDOM, also the same as `Polymer.dom(element).path`. Note that `Polymer.dom(element).rootTarget` has been removed and instead you should use `element.deepPath()[0]`.
 
 ### Styling
 * Drop invalid syntax
