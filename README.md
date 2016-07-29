@@ -49,9 +49,9 @@ Note that some of the items listed below have been temporarily shimmed to make t
 We've removed the need to use `Polymer.dom` by patching the dom as necessary so that the api is mostly equivalent to ShadowDOM. The result is not as correct as the ShadowDOM polyfill, but it's also less intrusive since nodes are not wrapped but patched on demand. Currently all dom tree accessors and mutation and query methods should be patched on relevant nodes. Some nodes that could/should be patched are not currently. For testing/debugging, you can test if a node is patched by looking at the `__patched` property. Please note that `MutationObservers` are *not* patched and will return incorrect information. There are 2 workarounds until a better replacement for `Polymer.dom.observeNodes` is implemented. The `slotchange` event is implemented. You can use a filtering strategy to capture mutations in the same root as the observed element as shown here: https://github.com/PolymerLabs/alacarte/blob/master/test/smoke/shady-slot-observer.html#L78.
 
 ## Events
-Events that are listened to on patched elements are patched. They have the (beginnings of) the ShadowDOM V1 spec info for events: 
-* `target` should be the same target as in ShadowDOM, also the same as `Polymer.dom(element).localTarget`
-* `deepPath()` should be the same as in ShadowDOM, also the same as `Polymer.dom(element).path`. Note that `Polymer.dom(element).rootTarget` has been removed and instead you should use `element.deepPath()[0]`.
+Events that are listened to on patched elements are patched. They have the (beginnings of the) ShadowDOM V1 spec info for events: 
+* `target` should be the same target as in ShadowDOM, also the same as `Polymer.dom(event).localTarget`
+* `deepPath()` should be the same as in ShadowDOM, also the same as `Polymer.dom(event).path`. Note that `Polymer.dom(event).rootTarget` has been removed and instead you should use `event.deepPath()[0]`.
 
 ### Styling
 * Drop invalid syntax
