@@ -17,7 +17,8 @@ Exploratory code working up towards the Polymer 2.0 release.
 ## How to use & caveats
 Alacarte includes a Polymer 1.0 "Backward Compatibility" (BC) layer loadable via `alacarte/polymer.html` that attempts to provide as close to the same API and semantics for using Polymer as possible.  Notes on usage:
 * In order to test existing code that references `polymer/polymer.html`, you'll need to check out `alacarte` as `polymer`, or else redirect `polymer/polymer.html` to `alacarte/polymer.html`.
-* At this moment, the Shady DOM shim is not included in `polymer.html`, meaning elements that create shadow roots will only run in Chrome.  To opt-in to testing Shady DOM, load `alacarte/src/shady/shady.html` in your app/demo.  When loaded, all browsers will use Shady DOM, even where native Shadow DOM exists.
+* ShadowDOM V1 is used *by default* if it is available (Chrome 54). To force ShadowDOM V0 to be used, set `Polymer.shadowDomV0=true` or `?shadowDomV0=true`.
+* ShadyDom is used when the requested version of ShadowDOM is not available OR when `ShadyDom.force=true` or `?forceShadyDom=true`.
 * By default, `Polymer()` will attempt to register V1 `customElements.define` if present (via polyfill or native), but will fallback to V0 `document.registerElement`
 * To use the Custom Elements V1 polyfill, check out / bower link the `v1-polymer-edits` branch of `webcomponentsjs` and load `webcomponentsjs/webcomponents-lite.js`.  You can control which polyfill/native support is used via these query string flags:
   - `?wc-ce=v1` uses V1 polyfill & uses native V1 when present (start Canary with `--enable-blink-features=CustomElementsV1` flag to test native V1 support)
@@ -36,6 +37,7 @@ Alacarte includes a Polymer 1.0 "Backward Compatibility" (BC) layer loadable via
     * A number of utility functions that were previously on the Polymer 1.0 element prototype are not ported over yet.  These will warn with "not yet implemented" warnings.
 * Array notification API's not yet implemented.  Note due to removal of object/array dirty check, you should be able to just make changes using normal array methods, then re-set the array to an element and it will "re-go"
 * `<array-selector>` not yet implemented
+* `Polymer.dom.observeNodes`: we're likely going to provide a breaking replacement for this that's more in the spirit of ShadowDom V1.
 
 ## Breaking Changes
 This is a list of proposed/intentional breaking changes as implemented in the current incantation of this repo.  If you find changes that broke existing code or rules, please raise and we'll need to decide whether they are expected/intentional or not.
