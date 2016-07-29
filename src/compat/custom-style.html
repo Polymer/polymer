@@ -12,26 +12,61 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
 (function() {
 
-  Polymer({
+  var styleUtil = Polymer.StyleUtil;
+  var styleTransformer = Polymer.styleTransformer;
 
-    is: 'custom-style',
-    extends: 'style',
+  class CustomStyle extends HTMLStyleElement {
 
-    ready: function() {
-      // NOTE: we cannot just check attached because custom elements in
-      // HTMLImports do not get attached.
-      var e = this.__appliedElement = this.__appliedElement || this;
+    constructor() {
+      this.createdCallback();
+    }
+
+    createdCallback() {
+      var e = this.__appliedElement = (this.__appliedElement || this);
+      var self = this;
+      this._processIncludes();
+      this._observeContent();
+      if (this.textContent) {
+        this._apply();
+      }
+    }
+
+    _processIncludes() {
       var include = this.getAttribute('include');
       if (include) {
+        var e = this.__appliedElement;
         e.textContent = Polymer.CompatStyleUtil.includeToCssText(include) +
           e.textContent;
         this.removeAttribute('include');
       }
-      // BREAKME(kschaaf): for short-term bc, but intend to break
-      e.textContent = Polymer.CompatStyleUtil.normalizeCSSTextForBC(e.textContent);
     }
 
-  });
+    _observeContent() {
+      var self = this;
+      var observer = new MutationObserver(function() {
+        observer.disconnect();
+        self._apply(true);
+      });
+      observer.observe(this.__appliedElement, {childList: true});
+    }
+
+    _apply() {
+      var e = this.__appliedElement;
+      // BREAKME(kschaaf): for short-term bc, but intend to break
+      e.textContent = Polymer.CompatStyleUtil.normalizeCSSTextForBC(e.textContent);
+      Polymer.StyleLib.applyDocumentStyle(e);
+    }
+
+  }
+
+  CustomStyle.extends = 'style';
+  var name = 'custom-style';
+
+  if (window.customElements) {
+    customElements.define(name, CustomStyle);
+  } else {
+    CustomStyle = document.registerElement(name, CustomStyle);
+  }
 
 })();
 </script>
