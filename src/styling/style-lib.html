@@ -25,6 +25,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     nativeShadow: Polymer.StyleSettings.nativeShadow,
     nativeCss: Polymer.StyleSettings.nativeCssVariables,
     nativeCssApply: Polymer.StyleSettings.nativeCssApply,
+    _rootOwner: document.documentElement,
     _generateScopeSelector(name) {
       var id = this.scopeCounter[name] = (this.scopeCounter[name] || 0) + 1;
       return name + '-' + id;
@@ -71,24 +72,52 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this.nativeCss) {
         this._updateNativeProperties(host, overrideProps);
       } else {
+        this.ensureRootStyleApplied();
         this._updateProperties(host, overrideProps);
         if (host.__ownStylePropertyNames && host.__ownStylePropertyNames.length) {
           // TODO: use caching
           this._applyStyleProperties(host);
         }
-        this._applyToDescendants(host);
+        var root = this._isRootOwner(host) ? host : host.shadowRoot;
+        this._applyToDescendants(root);
       }
     },
-    _applyToDescendants(host) {
-      var root = host.shadowRoot;
-      if (root) {
-        for (var i = 0, c; i < root.children.length; i++) {
-          c = root.children[i];
-          if (c.__styleRules) {
-            this.applyStyle(c);
-          }
+    ensureRootStyleApplied() {
+      if (!this._rootOwner.__appliedRootStyle) {
+        this._applyRootStyle();
+      }
+    },
+    invalidateRootStyle() {
+      this._rootOwner.__appliedRootStyle = false;
+    },
+    _applyRootStyle() {
+      var root = this._rootOwner;
+      if (!this.nativeCss) { 
+        this._updateProperties(root);
+        var s$ = root.__scopeElements;
+        for (var i=0; i < s$.length; i++) {
+          Polymer.StyleProperties.applyCustomStyle(s$[i], 
+            root.__styleProperties);
         }
       }
+      root.__appliedRootStyle = true;
+    },
+    _applyToDescendants(root) {
+      var c$ = root.children;
+      for (var i = 0, c; i < c$.length; i++) {
+        c = c$[i];
+        if (c.shadowRoot) {
+          this.applyStyle(c);
+        }
+        this._applyToDescendants(c);
+      }
+    },
+    _styleOwnerForNode(node) {
+      var root = Polymer.Utils.ownerRootForNode(node);
+      return ShadyDom.isShadyRoot(root) ? root.host : this._rootOwner;
+    },
+    _isRootOwner(node) {
+      return (node === this._rootOwner);
     },
     _applyStyleProperties(host) {
       var oldScopeSelector = host.__scopeSelector;
@@ -100,11 +129,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return style;
     },
     _updateProperties(host, overrideProps) {
-      var ownerRoot = Polymer.Utils.ownerRootForNode(host);
-      var owner = ownerRoot && ownerRoot.host || document;
-      if (!owner.__styleProperties) {
-        this._updateProperties(owner);
-      }
+      var owner = this._styleOwnerForNode(host);
       var ownerProperties = owner.__styleProperties;
       var props = Object.create(ownerProperties || null);
       var hostAndRootProps = Polymer.StyleProperties.hostAndRootPropertiesForScope(host, host.__styleRules);
@@ -141,7 +166,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       element.__customStyleProperties = propertyNames;
     },
     applyDocumentStyle(style) {
+      var shouldAdd = !Boolean(style.__cssRules);
       var rules = Polymer.StyleUtil.rulesForStyle(style);
+      if (shouldAdd) {
+        var root = this._rootOwner;
+        root.__scopeElements = root.__scopeElements || [];
+        root.__scopeElements.push(style); 
+        // keep 1 aggregated set of style rules for the root.
+        root.__styleRules = root.__styleRules || {rules: []};
+        root.__styleRules.rules.push(rules);
+      }
       var self = this;
       Polymer.StyleUtil.forEachRule(rules,
         function(rule) {
@@ -157,10 +191,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       );
       // custom properties shimming
       // (if we use native custom properties, no need to apply any property shimming)
-      //if (settings.useNativeCSSProperties) {
-      // there's no targeted build, so the shimmed styles must be applied.
-      style.textContent = Polymer.StyleUtil.toCssText(rules);
+      if (this.nativeCss) {
+        // TODO(dfreedm): replace build logic.
+        // there's no targeted build, so the shimmed styles must be applied.
+        style.textContent = Polymer.StyleUtil.toCssText(rules);
+      }
     }
+  }
+
+  Polymer.updateStyles = function(properties) {
+    StyleList.invalidateRootStyle();
+    StyleLib.applyStyle(StyleLib._rootOwner, properties);
   }
 
   Polymer.StyleLib = StyleLib;

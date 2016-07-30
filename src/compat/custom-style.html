@@ -23,40 +23,59 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createdCallback() {
       var e = this.__appliedElement = (this.__appliedElement || this);
-      var self = this;
-      this._processIncludes();
-      this._observeContent();
-      if (this.textContent) {
-        this._apply();
+      this._initialize(e);
+      // TODO(sorvell): initialize elements in imports if necessary
+      // (first impl of V1 native custom elements requires this)
+    }
+
+    _initialize(style) {
+      Polymer.StyleLib.invalidateRootStyle();
+      this._processIncludes(style);
+      this._observeContent(style);
+      if (style.textContent) {
+        this._apply(style);
       }
     }
 
-    _processIncludes() {
-      var include = this.getAttribute('include');
+    _processIncludes(style) {
+      var include = style.getAttribute('include');
       if (include) {
-        var e = this.__appliedElement;
-        e.textContent = Polymer.CompatStyleUtil.includeToCssText(include) +
-          e.textContent;
-        this.removeAttribute('include');
+        style.textContent = Polymer.CompatStyleUtil.includeToCssText(include) +
+          style.textContent;
+        style.removeAttribute('include');
       }
     }
 
-    _observeContent() {
+    _observeContent(style) {
       var self = this;
       var observer = new MutationObserver(function() {
         observer.disconnect();
-        self._apply(true);
+        self._apply(style);
       });
-      observer.observe(this.__appliedElement, {childList: true});
+      observer.observe(style, {childList: true});
     }
 
-    _apply() {
-      var e = this.__appliedElement;
+    _apply(style) {
       // BREAKME(kschaaf): for short-term bc, but intend to break
-      e.textContent = Polymer.CompatStyleUtil.normalizeCSSTextForBC(e.textContent);
-      Polymer.StyleLib.applyDocumentStyle(e);
+      style.textContent = 
+        Polymer.CompatStyleUtil.normalizeCSSTextForBC(style.textContent);
+      Polymer.StyleLib.applyDocumentStyle(style);
+      ensureRootStyleApplied()
     }
 
+  }
+
+  // async (so properties can gather), ensure custom styles have shimmed
+  // properties applied
+  var propertyApplyScheduled;
+  function ensureRootStyleApplied() {
+    if (!propertyApplyScheduled) {
+      propertyApplyScheduled = true;
+      Polymer.AsyncRender.beforeRender(function() {
+        Polymer.StyleLib.ensureRootStyleApplied();
+        propertyApplyScheduled = false;
+      });
+    }
   }
 
   CustomStyle.extends = 'style';
