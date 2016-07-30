@@ -27,7 +27,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // Try to add node. Record logical info, track insertion points, perform
     // distribution iff needed. Return true if the add is handled.
     addNode: function(container, node, ref_node) {
-      var ownerRoot = this.ownerRootForNode(container);
+      var ownerRoot = this.ownerShadyRootForNode(container);
       if (ownerRoot) {
         // note: we always need to see if an insertion point is added
         // since this saves logical tree info; however, invalidation state
@@ -83,7 +83,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var logicalParent = Tree.Logical.hasParentNode(node) &&
         Tree.Logical.getParentNode(node);
       var distributed;
-      var ownerRoot = this.ownerRootForNode(node);
+      var ownerRoot = this.ownerShadyRootForNode(node);
       if (logicalParent) {
         // distribute node's parent iff needed
         distributed = this.maybeDistributeParent(node);
@@ -131,16 +131,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var parent = Tree.Logical.getParentNode(node);
           root = parent ? this.ownerRootForNode(parent) : node;
         }
-        // memo-ize result for performance but only memo-ize a false-y
+        // memo-ize result for performance but only memo-ize
         // result if node is in the document. This avoids a problem where a root
         // can be cached while an element is inside a fragment.
         // If this happens and we cache the result, the value can become stale
         // because for perf we avoid processing the subtree of added fragments.
-        if (root || document.documentElement.contains(node)) {
+        if (document.documentElement.contains(node)) {
           node.__ownerShadyRoot = root;
         }
       }
       return root;
+    },
+
+    ownerShadyRootForNode: function(node) {
+      var root = this.ownerRootForNode(node);
+      if (ShadyDom.isShadyRoot(root)) {
+        return root;
+      }
     },
 
     _maybeDistribute: function(node, container, ownerRoot) {
@@ -298,7 +305,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         (node.localName === 'slot' && name === 'name');
       if (distribute) {
         var root = this.ownerRootForNode(node);
-        if (root) {
+        if (root.update) {
           root.update();
         }
       }
@@ -362,10 +369,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // This node is either the document or a shady root of which the active
       // element is a (composed) descendant of its host; iterate upwards to
       // find the active element's most shallow host within it.
-      var activeRoot = this.ownerRootForNode(active);
+      var activeRoot = this.ownerShadyRootForNode(active);
       while (activeRoot && activeRoot !== node) {
         active = activeRoot.host;
-        activeRoot = this.ownerRootForNode(active);
+        activeRoot = this.ownerShadyRootForNode(active);
       }
       if (node === document) {
         // This node is the document, so activeRoot should be null.
@@ -471,7 +478,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (ref_node) {
           // if ref_node is an insertion point replace with first distributed node
           // TODO(sorvell): v0/v1!!
-          var root = mixinImpl.ownerRootForNode(ref_node);
+          var root = mixinImpl.ownerShadyRootForNode(ref_node);
           if (root) {
             ref_node = ref_node.localName === root.getInsertionPointTag() ?
               mixinImpl.firstComposedNode(ref_node) : ref_node;
