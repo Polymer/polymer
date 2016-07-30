@@ -29,7 +29,8 @@ Alacarte includes a Polymer 1.0 "Backward Compatibility" (BC) layer loadable via
 * Style selector shimming is implemented when needed. This is necessary when ShadyDom is in use and provides style encapsulation.
 * Custom properties: 
    * Native css custom properties are used by default (different from 1.0) on all browser that support them: Chrome, FF, Safari 10/Tech Preview. Native @apply is used where supported: Canary + experimental web platform features. When not available, @apply is emulated via custom properties (e.g. --foo { color: red; } becomes --foo_-_color: red;)
-   * Custom properties are shimmed on other browsers (Safari 9, IE/Edge) [A flag will be added to force this on other browsers]. This is currently implemented for elements, not yet implemented for custom-style.
+   * Custom properties are shimmed on other browsers (Safari 9, IE/Edge). This is currently implemented for elements, not yet implemented for custom-style.
+   * To force custom properties to be shimmed: `Polymer.forceShimCssProperties=true` or `?forceShimCssProperties=true`.
 * custom-style: does not currently work in HTMLImports when native v1 custom elements are used (edited)
 
 ## Not yet implemented
