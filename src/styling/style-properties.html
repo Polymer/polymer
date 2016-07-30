@@ -94,14 +94,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           var m, rx = this.rx.VAR_ASSIGN;
           var cssText = rule.parsedCssText;
+          var value;
           var any;
           while ((m = rx.exec(cssText))) {
             // note: group 2 is var, 3 is mixin
-            properties[m[1].trim()] = (m[2] || m[3]).trim();
+            value = (m[2] || m[3]).trim();
+            // value of 'inherit' is equivalent to not setting the property here
+            if (value !== 'inherit') {
+              properties[m[1].trim()] = value;
+            }
             any = true;
           }
           return any;
         }
+
       },
 
       // returns cssText of properties that consume variables/mixins
@@ -155,14 +161,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           } else {
             // case (2) variable
             var self = this;
-            var fn = function(all, prefix, value, fallback) {
-              var propertyValue = (self.valueForProperty(props[value], props) ||
+            var fn = function(prefix, value, fallback, suffix) {
+              var propertyValue = self.valueForProperty(props[value], props);
+              // if value is "initial", then the variable should be treated as unset
+              if (!propertyValue || propertyValue === 'initial') {
                 // fallback may be --a or var(--a) or literal
-                self.valueForProperty(props[fallback] || fallback, props) ||
-                fallback);
-              return prefix + (propertyValue || '');
+                propertyValue = self.valueForProperty(props[fallback] || fallback, props) ||
+                fallback;
+              } else if (propertyValue === 'apply-shim-inherit') {
+                // CSS build will replace `inherit` with `apply-shim-inherit`
+                // for use with native css variables.
+                // Since we have full control, we can use `inherit` directly.
+                propertyValue = 'inherit';
+              }
+              return prefix + (propertyValue || '') + suffix;
             };
-            property = property.replace(this.rx.VAR_MATCH, fn);
+            property = styleUtil.processVariableAndFallback(property, fn);
           }
         }
         return property && property.trim() || '';
@@ -293,7 +307,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // mixed mode built and unbuilt styles.
         if (cssBuild === 'shady') {
           // :root -> x-foo > *.x-foo for elements and html for custom-style
-          isRoot = parsedSelector === (hostScope + '> *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
+          isRoot = parsedSelector === (hostScope + ' > *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
           // :host -> x-foo for elements, but sub-rules have .x-foo in them
           isHost = !isRoot && parsedSelector.indexOf(hostScope) === 0;
         }

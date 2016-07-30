@@ -78,20 +78,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var MIXIN_MATCH = styleUtil.rx.MIXIN_MATCH;
   var VAR_ASSIGN = styleUtil.rx.VAR_ASSIGN;
-  var VAR_MATCH = styleUtil.rx.VAR_MATCH;
+
   var APPLY_NAME_CLEAN = /;\s*/m;
+  var INITIAL_INHERIT = /^\s*(initial)|(inherit)\s*$/;
 
   // separator used between mixin-name and mixin-property-name when producing properties
   // NOTE: plain '-' may cause collisions in user styles
   var MIXIN_VAR_SEP = '_-_';
 
   // map of mixin to property names
-  // --foo: {border: 2px} -> (--foo, ['border'])
+  // --foo: {border: 2px} -> {properties: {(--foo, ['border'])}, dependants: {'element-name': proto}}
   var mixinMap = {};
 
-  function mapSet(name, prop) {
+  function mapSet(name, props) {
     name = name.trim();
-    mixinMap[name] = prop;
+    mixinMap[name] = {
+      properties: props,
+      dependants: {}
+    };
   }
 
   function mapGet(name) {
@@ -99,10 +103,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return mixinMap[name];
   }
 
+  function replaceInitialOrInherit(property, value) {
+    var match = INITIAL_INHERIT.exec(value);
+    if (match) {
+      if (match[1]) {
+        // initial
+        // replace `initial` with the concrete initial value for this property
+        value = ApplyShim._getInitialValueForProperty(property);
+      } else {
+        // inherit
+        // with this purposfully illegal value, the variable will be invalid at
+        // compute time (https://www.w3.org/TR/css-variables/#invalid-at-computed-value-time)
+        // and for inheriting values, will behave similarly
+        // we cannot support the same behavior for non inheriting values like 'border'
+        value = 'apply-shim-inherit';
+      }
+    }
+    return value;
+  }
+
   // "parse" a mixin definition into a map of properties and values
   // cssTextToMap('border: 2px solid black') -> ('border', '2px solid black')
   function cssTextToMap(text) {
     var props = text.split(';');
+    var property, value;
     var out = {};
     for (var i = 0, p, sp; i < props.length; i++) {
       p = props[i];
@@ -110,25 +134,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         sp = p.split(':');
         // ignore lines that aren't definitions like @media
         if (sp.length > 1) {
+          property = sp[0].trim();
           // some properties may have ':' in the value, like data urls
-          out[sp[0].trim()] = sp.slice(1).join(':');
+          value = replaceInitialOrInherit(property, sp.slice(1).join(':'));
+          out[property] = value;
         }
       }
     }
     return out;
   }
 
+  function invalidateMixinEntry(mixinEntry) {
+    var currentProto = ApplyShim.__currentElementProto;
+    var currentElementName = currentProto && currentProto.is;
+    for (var elementName in mixinEntry.dependants) {
+      if (elementName !== currentElementName) {
+        mixinEntry.dependants[elementName].__applyShimInvalid = true;
+      }
+    }
+  }
+
   function produceCssProperties(matchText, propertyName, valueProperty, valueMixin) {
     // handle case where property value is a mixin
     if (valueProperty) {
-      VAR_MATCH.lastIndex = 0;
-      var m = VAR_MATCH.exec(valueProperty);
-      if (m) {
-        var value = m[2];
-        if (mapGet(value)){
+      // form: --mixin2: var(--mixin1), where --mixin1 is in the map
+      styleUtil.processVariableAndFallback(valueProperty, function(prefix, value) {
+        if (value && mapGet(value)) {
           valueMixin = '@apply ' + value + ';';
         }
-      }
+      });
     }
     if (!valueMixin) {
       return matchText;
@@ -136,39 +170,54 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var mixinAsProperties = consumeCssProperties(valueMixin);
     var prefix = matchText.slice(0, matchText.indexOf('--'));
     var mixinValues = cssTextToMap(mixinAsProperties);
-    var oldProperties = mapGet(propertyName);
     var combinedProps = mixinValues;
-    if (oldProperties) {
+    var mixinEntry = mapGet(propertyName);
+    var oldProps = mixinEntry && mixinEntry.properties;
+    if (oldProps) {
       // NOTE: since we use mixin, the map of properties is updated here
       // and this is what we want.
-      combinedProps = Polymer.Utils.mixin(oldProperties, mixinValues);
+      combinedProps = Object.create(oldProps);
+      combinedProps = Polymer.Utils.mixin(combinedProps, mixinValues);
     } else {
       mapSet(propertyName, combinedProps);
     }
     var out = [];
     var p, v;
     // set variables defined by current mixin
+    var needToInvalidate = false;
     for (p in combinedProps) {
       v = mixinValues[p];
       // if property not defined by current mixin, set initial
       if (v === undefined) {
         v = 'initial';
       }
+      if (oldProps && !(p in oldProps)) {
+        needToInvalidate = true;
+      }
       out.push(propertyName + MIXIN_VAR_SEP + p + ': ' + v);
+    }
+    if (needToInvalidate) {
+      invalidateMixinEntry(mixinEntry);
+    }
+    if (mixinEntry) {
+      mixinEntry.properties = combinedProps;
+    }
+    // because the mixinMap is global, the mixin might conflict with
+    // a different scope's simple variable definition:
+    // Example:
+    // some style somewhere:
+    // --mixin1:{ ... }
+    // --mixin2: var(--mixin1);
+    // some other element:
+    // --mixin1: 10px solid red;
+    // --foo: var(--mixin1);
+    // In this case, we leave the original variable definition in place.
+    if (valueProperty) {
+      prefix = matchText + ';' + prefix;
     }
     return prefix + out.join('; ') + ';';
   }
 
-  // BREAKME
-  // fix shim'd var syntax
-  // var(--a, --b) -> var(--a, var(--b));
-  function fixVars(matchText, prefix, value, fallback) {
-    // if fallback doesn't exist, or isn't a broken variable, abort
-    if (!fallback || fallback.indexOf('--') !== 0) {
-      return matchText;
-    }
-    return [prefix, 'var(', value, ', var(', fallback, '));'].join('');
-  }
 
   // produce variable consumption at the site of mixin consumption
   // @apply --foo; -> for all props (${propname}: var(--foo_-_${propname}, ${fallback[propname]}}))
@@ -177,10 +226,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function atApplyToCssProperties(mixinName, fallbacks) {
     mixinName = mixinName.replace(APPLY_NAME_CLEAN, '');
     var vars = [];
-    var mixinProperties = mapGet(mixinName);
-    if (mixinProperties) {
+    var mixinEntry = mapGet(mixinName);
+    // if we depend on a mixin before it is created
+    // make a sentinel entry in the map to add this element as a dependency for when it is defined.
+    if (!mixinEntry) {
+      mapSet(mixinName, {});
+      mixinEntry = mapGet(mixinName);
+    }
+    if (mixinEntry) {
+      var currentProto = ApplyShim.__currentElementProto;
+      if (currentProto) {
+        mixinEntry.dependants[currentProto.is] = currentProto;
+      }
       var p, parts, f;
-      for (p in mixinProperties) {
+      for (p in mixinEntry.properties) {
         f = fallbacks && fallbacks[p];
         parts = [p, ': var(', mixinName, MIXIN_VAR_SEP, p];
         if (f) {
@@ -219,10 +278,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   var ApplyShim = {
+    _measureElement: null,
     _map: mixinMap,
     _separator: MIXIN_VAR_SEP,
-    transformRules: function(rules) {
+    transformRules: function(rules, elementProto) {
+      this.__currentElementProto = elementProto;
       styleUtil.forEachRule(rules, this._boundTransformRule);
+      if (elementProto) {
+        elementProto.__applyShimInvalid = false;
+      }
+      this.__currentElementProto = null;
     },
     transformRule: function(rule) {
       rule.cssText = this.transformCssText(rule.parsedCssText);
@@ -234,13 +299,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
     transformCssText: function(cssText) {
-      // BREAKME
-      // fix shim variables
-      cssText = cssText.replace(VAR_MATCH, fixVars);
       // produce variables
       cssText = cssText.replace(VAR_ASSIGN, produceCssProperties);
       // consume mixins
       return consumeCssProperties(cssText);
+    },
+    _getInitialValueForProperty: function(property) {
+      if (!this._measureElement) {
+        this._measureElement = document.createElement('meta');
+        this._measureElement.style.all = 'initial';
+        document.head.appendChild(this._measureElement);
+      }
+      return window.getComputedStyle(this._measureElement).getPropertyValue(property);
     }
   };
 
