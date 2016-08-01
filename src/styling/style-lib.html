@@ -25,7 +25,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     nativeShadow: Polymer.StyleSettings.nativeShadow,
     nativeCss: Polymer.StyleSettings.nativeCssVariables,
     nativeCssApply: Polymer.StyleSettings.nativeCssApply,
-    _rootOwner: document.documentElement,
+    _documentOwner: document.documentElement,
     _generateScopeSelector(name) {
       var id = this.scopeCounter[name] = (this.scopeCounter[name] || 0) + 1;
       return name + '-' + id;
@@ -69,38 +69,50 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
     applyStyle(host, overrideProps) {
+      this._ensureDocumentApplied();
       if (this.nativeCss) {
         this._updateNativeProperties(host, overrideProps);
       } else {
-        this.ensureRootStyleApplied();
         this._updateProperties(host, overrideProps);
         if (host.__ownStylePropertyNames && host.__ownStylePropertyNames.length) {
           // TODO: use caching
           this._applyStyleProperties(host);
         }
         var root = this._isRootOwner(host) ? host : host.shadowRoot;
-        this._applyToDescendants(root);
-      }
-    },
-    ensureRootStyleApplied() {
-      if (!this._rootOwner.__appliedRootStyle) {
-        this._applyRootStyle();
-      }
-    },
-    invalidateRootStyle() {
-      this._rootOwner.__appliedRootStyle = false;
-    },
-    _applyRootStyle() {
-      var root = this._rootOwner;
-      if (!this.nativeCss) { 
-        this._updateProperties(root);
-        var s$ = root.__scopeElements;
-        for (var i=0; i < s$.length; i++) {
-          Polymer.StyleProperties.applyCustomStyle(s$[i], 
-            root.__styleProperties);
+        // note: some elements may not have a root!
+        if (root) {
+          this._applyToDescendants(root);
         }
       }
-      root.__appliedRootStyle = true;
+    },
+    // marks document styles dirty which means that next time any styling
+    // is applied via `applyStyle`, document styles will be applied.
+    markDocumentDirty() {
+      this._documentOwner.__clean = false;
+    },
+    // Returns true if document styles are dirty. Can be used to determine
+    // if it's necessary to flush styling (Polymer.updateStyles) 
+    // at a given time.
+    isDocumentDirty() {
+      return !this._documentOwner.__clean;
+    },
+    // ensures that document styles (custom-style) have their
+    // custom properties applied
+    _ensureDocumentApplied() {
+      var owner = this._documentOwner;
+      if (!owner.__clean) {
+        if (!this.nativeCss) { 
+          this._updateProperties(owner);
+          var s$ = owner.__documentStyles;
+          if (s$) {
+            for (var i=0; i < s$.length; i++) {
+              Polymer.StyleProperties.applyCustomStyle(s$[i], 
+                owner.__styleProperties);
+            }
+          }
+        }
+        owner.__clean = true;
+      }
     },
     _applyToDescendants(root) {
       var c$ = root.children;
@@ -114,10 +126,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
     _styleOwnerForNode(node) {
       var root = Polymer.Utils.ownerRootForNode(node);
-      return ShadyDom.isShadyRoot(root) ? root.host : this._rootOwner;
+      return root.host || this._documentOwner;
     },
     _isRootOwner(node) {
-      return (node === this._rootOwner);
+      return (node === this._documentOwner);
     },
     _applyStyleProperties(host) {
       var oldScopeSelector = host.__scopeSelector;
@@ -165,13 +177,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       element.__customStyleProperties = propertyNames;
     },
-    applyDocumentStyle(style) {
+    // transforms a style such that it is scope-safe for the document scope.
+    transformForDocument(style) {
       var shouldAdd = !Boolean(style.__cssRules);
       var rules = Polymer.StyleUtil.rulesForStyle(style);
       if (shouldAdd) {
-        var root = this._rootOwner;
-        root.__scopeElements = root.__scopeElements || [];
-        root.__scopeElements.push(style); 
+        var root = this._documentOwner;
+        root.__documentStyles = root.__documentStyles || [];
+        root.__documentStyles.push(style); 
         // keep 1 aggregated set of style rules for the root.
         root.__styleRules = root.__styleRules || {rules: []};
         root.__styleRules.rules.push(rules);
@@ -199,9 +212,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
+  // bc...
   Polymer.updateStyles = function(properties) {
-    StyleList.invalidateRootStyle();
-    StyleLib.applyStyle(StyleLib._rootOwner, properties);
+    StyleLib.markDocumentDirty();
+    StyleLib.applyStyle(StyleLib._documentOwner, properties);
   }
 
   Polymer.StyleLib = StyleLib;

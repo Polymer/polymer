@@ -12,9 +12,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
 (function() {
 
-  var styleUtil = Polymer.StyleUtil;
-  var styleTransformer = Polymer.styleTransformer;
-
   class CustomStyle extends HTMLStyleElement {
 
     constructor() {
@@ -30,17 +27,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _initialize(style) {
-      Polymer.StyleLib.invalidateRootStyle();
+      Polymer.StyleLib.markDocumentDirty();
       this._processIncludes(style);
       this._observeContent(style);
       if (style.textContent) {
-        this._apply(style);
+        this._transform(style);
       }
     }
 
     _processIncludes(style) {
       var include = style.getAttribute('include');
       if (include) {
+        // BREAKME(sorvell): kill this
         style.textContent = Polymer.CompatStyleUtil.includeToCssText(include) +
           style.textContent;
         style.removeAttribute('include');
@@ -51,32 +49,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var self = this;
       var observer = new MutationObserver(function() {
         observer.disconnect();
-        self._apply(style);
+        self._transform(style);
       });
       observer.observe(style, {childList: true});
     }
 
-    _apply(style) {
+    _transform(style) {
       // BREAKME(kschaaf): for short-term bc, but intend to break
       style.textContent = 
         Polymer.CompatStyleUtil.normalizeCSSTextForBC(style.textContent);
-      Polymer.StyleLib.applyDocumentStyle(style);
-      ensureRootStyleApplied()
+      Polymer.StyleLib.transformForDocument(style);
+      enqueueDocumentValidation();
     }
 
   }
 
   // async (so properties can gather), ensure custom styles have shimmed
   // properties applied
-  var propertyApplyScheduled;
-  function ensureRootStyleApplied() {
-    if (!propertyApplyScheduled) {
-      propertyApplyScheduled = true;
-      Polymer.AsyncRender.beforeRender(function() {
-        Polymer.StyleLib.ensureRootStyleApplied();
-        propertyApplyScheduled = false;
-      });
+  var documentValidationScheduled;
+  function enqueueDocumentValidation() {
+    if (!documentValidationScheduled) {
+      documentValidationScheduled = true;
+      if (window.HTMLImports) {
+        HTMLImports.whenReady(validateDocument);
+      } else {
+        Polymer.AsyncRender.beforeRender(validateDocument);
+      }
     }
+  }
+
+  function validateDocument() {
+    if (Polymer.StyleLib.isDocumentDirty()) {
+      Polymer.updateStyles();
+    }
+    documentValidationScheduled = false;
   }
 
   CustomStyle.extends = 'style';
