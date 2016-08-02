@@ -43,37 +43,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       template._styleAst = ast;
     },
     prepareHost(host, template) {
-      if (!template._prepared) {
-        this._prepareTemplate(template, host.localName);
-        var ownPropertyNames = [];
-        if (!this.nativeCss) {
-          ownPropertyNames = Polymer.StyleProperties.decorateStyles(template._styleAst, host);
-        }
-        if (!ownPropertyNames.length || this.nativeCss) {
-          var cssText = Polymer.StyleTransformer.elementStyles(host, template._styleAst);
-          if (cssText.length) {
-            var target = this.nativeShadow ? template.content : null;
-            Polymer.StyleUtil.applyCss(cssText, host.localName, target, template._placeholder)
+      if (template) {
+        if (!template._prepared) {
+          this._prepareTemplate(template, host.localName);
+          var ownPropertyNames = [];
+          if (!this.nativeCss) {
+            ownPropertyNames = Polymer.StyleProperties.decorateStyles(template._styleAst, host);
           }
+          if (!ownPropertyNames.length || this.nativeCss) {
+            var cssText = Polymer.StyleTransformer.elementStyles(host, template._styleAst);
+            if (cssText.length) {
+              var target = this.nativeShadow ? template.content : null;
+              Polymer.StyleUtil.applyCss(cssText, host.localName, target, template._placeholder)
+            }
+          }
+          template._ownPropertyNames = ownPropertyNames;
+          template._prepared = true;
         }
-        template._ownPropertyNames = ownPropertyNames;
-        template._prepared = true;
+        host.__styleRules = template._styleAst;
+        host.__placeholder = template._placeholder;
       }
-      host.__styleRules = template._styleAst;
-      host.__placeholder = template._placeholder;
+      host.__overrideStyleProperties = {};
       if (!this.nativeCss) {
         host.__styleProperties = null;
         host.__ownStyleProperties = null;
         host.__scopeSelector = null;
-        host.__ownStylePropertyNames = template._ownPropertyNames;
+        if (template) {
+          host.__ownStylePropertyNames = template._ownPropertyNames;
+        }
       }
     },
     applyStyle(host, overrideProps) {
       this._ensureDocumentApplied();
+      Polymer.Utils.mixin(host.__overrideStyleProperties, overrideProps);
       if (this.nativeCss) {
-        this._updateNativeProperties(host, overrideProps);
+        this._updateNativeProperties(host, host.__overrideStyleProperties);
       } else {
-        this._updateProperties(host, overrideProps);
+        this._updateProperties(host, host.__overrideStyleProperties);
         if (host.__ownStylePropertyNames && host.__ownStylePropertyNames.length) {
           // TODO: use caching
           this._applyStyleProperties(host);
@@ -91,7 +97,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._documentOwner.__clean = false;
     },
     // Returns true if document styles are dirty. Can be used to determine
-    // if it's necessary to flush styling (Polymer.updateStyles) 
+    // if it's necessary to flush styling (Polymer.updateStyles)
     // at a given time.
     isDocumentDirty() {
       return !this._documentOwner.__clean;
@@ -101,12 +107,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _ensureDocumentApplied() {
       var owner = this._documentOwner;
       if (!owner.__clean) {
-        if (!this.nativeCss) { 
+        if (!owner.__overrideStyleProperties) {
+          owner.__overrideStyleProperties = {};
+        }
+        if (!this.nativeCss) {
           this._updateProperties(owner);
           var s$ = owner.__documentStyles;
           if (s$) {
             for (var i=0; i < s$.length; i++) {
-              Polymer.StyleProperties.applyCustomStyle(s$[i], 
+              Polymer.StyleProperties.applyCustomStyle(s$[i],
                 owner.__styleProperties);
             }
           }
@@ -140,13 +149,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       return style;
     },
-    _updateProperties(host, overrideProps) {
+    _updateProperties(host) {
       var owner = this._styleOwnerForNode(host);
       var ownerProperties = owner.__styleProperties;
       var props = Object.create(ownerProperties || null);
       var hostAndRootProps = Polymer.StyleProperties.hostAndRootPropertiesForScope(host, host.__styleRules);
       var propertiesMatchingHost = Polymer.StyleProperties.propertyDataFromStyles(owner.__styleRules, host).properties;
-      Object.assign(props, hostAndRootProps.hostProps, propertiesMatchingHost, hostAndRootProps.rootProps, overrideProps);
+      Object.assign(
+        props,
+        hostAndRootProps.hostProps,
+        propertiesMatchingHost,
+        hostAndRootProps.rootProps
+      );
+      this._mixinOverrideStyles(props, host.__overrideStyleProperties);
       Polymer.StyleProperties.reify(props);
       host.__styleProperties = props;
       var ownProps = {};
@@ -158,24 +173,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       host.__ownStyleProperties = ownProps;
     },
-    _updateNativeProperties(element, properties) {
-      var oldPropertyNames = element.__customStyleProperties;
-      if (oldPropertyNames) {
-        // remove previous properties
-        for (var i=0; i < oldPropertyNames.length; i++) {
-          element.style.removeProperty(oldPropertyNames[i]);
+    _mixinOverrideStyles(props, overrides) {
+      for (var p in overrides) {
+        var v = overrides[p];
+        // skip override props if they are not truthy or 0
+        // in order to fall back to inherited values
+        if (v || v === 0) {
+          props[p] = v;
         }
       }
-      var propertyNames = [];
-      // apply properties
+    },
+    _updateNativeProperties(element, properties) {
+      // remove previous properties
       for (var p in properties) {
         // NOTE: for bc with shim, don't apply null values.
-        if (properties[p] !== null) {
+        if (p === null) {
+          element.style.removeProperty(p);
+        } else {
           element.style.setProperty(p, properties[p]);
-          propertyNames.push(p);
         }
       }
-      element.__customStyleProperties = propertyNames;
     },
     // transforms a style such that it is scope-safe for the document scope.
     transformForDocument(style) {
@@ -184,7 +201,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (shouldAdd) {
         var root = this._documentOwner;
         root.__documentStyles = root.__documentStyles || [];
-        root.__documentStyles.push(style); 
+        root.__documentStyles.push(style);
         // keep 1 aggregated set of style rules for the root.
         root.__styleRules = root.__styleRules || {rules: []};
         root.__styleRules.rules.push(rules);
