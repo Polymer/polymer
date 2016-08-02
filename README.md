@@ -27,7 +27,7 @@ Alacarte includes a Polymer 1.0 "Backward Compatibility" (BC) layer loadable via
   - `?wc-ce=v0&wc-register` uses V0 polyfill _even if_ native present
 * You should continue to use `created` and `attached` Polymer callbacks when using the V1 CE polyfill, despite the name changes in the V1 spec.
 * Style selector shimming is implemented when needed. This is necessary when ShadyDom is in use and provides style encapsulation.
-* Custom properties: 
+* Custom properties:
    * Native css custom properties are used by default (different from 1.0) on all browser that support them: Chrome, FF, Safari 10/Tech Preview. Native @apply is used where supported: Canary + experimental web platform features. When not available, @apply is emulated via custom properties (e.g. --foo { color: red; } becomes --foo_-_color: red;)
    * Custom properties are shimmed on other browsers (Safari 9, IE/Edge). This is currently implemented for elements, not yet implemented for custom-style.
    * To force custom properties to be shimmed: `Polymer.forceShimCssProperties=true` or `?forceShimCssProperties=true`.
@@ -50,7 +50,7 @@ Note that some of the items listed below have been temporarily shimmed to make t
 We've removed the need to use `Polymer.dom` by patching the dom as necessary so that the api is mostly equivalent to ShadowDOM. The result is not as correct as the ShadowDOM polyfill, but it's also less intrusive since nodes are not wrapped but patched on demand. Currently all dom tree accessors and mutation and query methods should be patched on relevant nodes. Some nodes that could/should be patched are not currently. For testing/debugging, you can test if a node is patched by looking at the `__patched` property. Please note that `MutationObservers` are *not* patched and will return incorrect information. There are 2 workarounds until a better replacement for `Polymer.dom.observeNodes` is implemented. The `slotchange` event is implemented. You can use a filtering strategy to capture mutations in the same root as the observed element as shown here: https://github.com/PolymerLabs/alacarte/blob/master/test/smoke/shady-slot-observer.html#L78.
 
 ## Events
-Events that are listened to on patched elements are patched. They have the (beginnings of the) ShadowDOM V1 spec info for events: 
+Events that are listened to on patched elements are patched. They have the (beginnings of the) ShadowDOM V1 spec info for events:
 * `target` should be the same target as in ShadowDOM, also the same as `Polymer.dom(event).localTarget`
 * `deepPath()` should be the same as in ShadowDOM, also the same as `Polymer.dom(event).path`. Note that `Polymer.dom(event).rootTarget` has been removed and instead you should use `event.deepPath()[0]`.
 
@@ -63,11 +63,16 @@ Events that are listened to on patched elements are patched. They have the (begi
   * @apply(--foo)
     * Should be @apply --foo;
 * Native CSS Custom Properties by default
-* TBD: Drop `element.customStyle`
+* `element.customStyle` has been removed, use `element.updateStyles({}) instead.`
+* `<style>` inside of a `<dom-module>`, but outside of `<template>` is no longer supported
+* Drop scope crossing selectors
+  * ::shadow, /deep/, :host-context()
+* Replace ::content with ::slotted()
+  * Can only style distributed child nodes, must give a compound selector to ::slotted();
 
 ### Element definitions
 * TBD: `dom-if`, `dom-repeat`, `dom-bind`, `array-selector`, etc. will not included in `polymer.html` by default (going forward; they currently are); users should import those elements when needed
-* TBD: For now, all template type extensions have now been changed to standard custom elements that take a `<template>` in their light dom, which allows them to be used in the current native V1 implementation in Canary (which does not yet support `is`) and a future version of Safari (that likely won't support `is`).  e.g. 
+* TBD: For now, all template type extensions have now been changed to standard custom elements that take a `<template>` in their light dom, which allows them to be used in the current native V1 implementation in Canary (which does not yet support `is`) and a future version of Safari (that likely won't support `is`).  e.g.
 
   ```
 <template is="dom-repeat" items="{{items}}">...</template>
@@ -99,7 +104,7 @@ Events that are listened to on patched elements are patched. They have the (begi
 * Inline computed annotations run unconditionally at initialization, regardless if any arguments are defined (and will see undefined for undefined arguments) <-- the inconsistency between this and how normal observers/computed runs is probably not justifiable; will probably revisit
 * Inline computed annotations are always “dynamic” (e.g. setting/changing the function will cause the binding to re-compute)
 * Other method effects (multi-prop observers, computed) called once at initialization if any arguments are defined (and will see undefined for undefined arguments)
-‘notify’ events not fired when value changes as result of binding from host 
+‘notify’ events not fired when value changes as result of binding from host
 * In order for a property to be deserialized from its attribute, it must be declared in the `properties` metadata object
 
 Other
