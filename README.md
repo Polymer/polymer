@@ -46,10 +46,10 @@ This is a list of proposed/intentional breaking changes as implemented in the cu
 
 Note that some of the items listed below have been temporarily shimmed to make testing existing code easier, but will be removed in the future.
 
-## ShadyDOM
+### ShadyDOM
 We've removed the need to use `Polymer.dom` by patching the dom as necessary so that the api is mostly equivalent to ShadowDOM. The result is not as correct as the ShadowDOM polyfill, but it's also less intrusive since nodes are not wrapped but patched on demand. Currently all dom tree accessors and mutation and query methods should be patched on relevant nodes. Some nodes that could/should be patched are not currently. For testing/debugging, you can test if a node is patched by looking at the `__patched` property. Please note that `MutationObservers` are *not* patched and will return incorrect information. There are 2 workarounds until a better replacement for `Polymer.dom.observeNodes` is implemented. The `slotchange` event is implemented. You can use a filtering strategy to capture mutations in the same root as the observed element as shown here: https://github.com/PolymerLabs/alacarte/blob/master/test/smoke/shady-slot-observer.html#L78.
 
-## Events
+### Events
 Events that are listened to on patched elements are patched. They have the (beginnings of the) ShadowDOM V1 spec info for events:
 * `target` should be the same target as in ShadowDOM, also the same as `Polymer.dom(event).localTarget`
 * `deepPath()` should be the same as in ShadowDOM, also the same as `Polymer.dom(event).path`. Note that `Polymer.dom(event).rootTarget` has been removed and instead you should use `event.deepPath()[0]`.
@@ -82,7 +82,7 @@ Events that are listened to on patched elements are patched. They have the (begi
 
   ```
 <dom-repeat items="{{items}}">
-   <template>...</template>
+    <template>...</template>
 </dom-repeat>
   ```
 
@@ -107,7 +107,7 @@ Events that are listened to on patched elements are patched. They have the (begi
 ‘notify’ events not fired when value changes as result of binding from host
 * In order for a property to be deserialized from its attribute, it must be declared in the `properties` metadata object
 
-Other
+### Other
 * Shadow DOM v1
   * `<content select="...">` → `<slot name="...">`
   * Selectively distributed content needs to add `slot` attribute
