@@ -289,12 +289,20 @@ Polymer.ApplyShim = (function(){
     _separator: MIXIN_VAR_SEP,
     transform: function(styles, elementProto) {
       this.__currentElementProto = elementProto;
-      styleUtil.forRulesInStyles(styles, this._boundTransformRule);
-      elementProto.__applyShimInvalid = false;
+      styleUtil.forRulesInStyles(styles, this._boundFindDefinitions);
+      styleUtil.forRulesInStyles(styles, this._boundFindApplications)
+      if (elementProto) {
+        elementProto.__applyShimInvalid = false;
+      }
       this.__currentElementProto = null;
     },
-    transformRule: function(rule) {
-      rule.cssText = this.transformCssText(rule.parsedCssText);
+    _findDefinitions: function(rule) {
+      var cssText = rule.parsedCssText;
+      // fix shim variables
+      cssText = cssText.replace(BAD_VAR, fixVars);
+      // produce variables
+      cssText = cssText.replace(VAR_ASSIGN, produceCssProperties);
+      rule.cssText = cssText;
       // :root was only used for variable assignment in property shim,
       // but generates invalid selectors with real properties.
       // replace with `:host > *`, which serves the same effect
@@ -302,13 +310,13 @@ Polymer.ApplyShim = (function(){
         rule.selector = ':host > *';
       }
     },
-    transformCssText: function(cssText) {
-      // fix shim variables
-      cssText = cssText.replace(BAD_VAR, fixVars);
-      // produce variables
-      cssText = cssText.replace(VAR_ASSIGN, produceCssProperties);
+    _findApplications: function(rule) {
       // consume mixins
-      return consumeCssProperties(cssText);
+      rule.cssText = consumeCssProperties(rule.cssText);
+    },
+    transformRule: function(rule) {
+      this._findDefinitions(rule);
+      this._findApplications(rule);
     },
     _getInitialValueForProperty: function(property) {
       if (!this._measureElement) {
@@ -321,6 +329,8 @@ Polymer.ApplyShim = (function(){
   };
 
   ApplyShim._boundTransformRule = ApplyShim.transformRule.bind(ApplyShim);
+  ApplyShim._boundFindDefinitions = ApplyShim._findDefinitions.bind(ApplyShim);
+  ApplyShim._boundFindApplications = ApplyShim._findApplications.bind(ApplyShim);
   return ApplyShim;
 })();
 </script>
