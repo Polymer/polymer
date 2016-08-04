@@ -52,7 +52,7 @@ We've removed the need to use `Polymer.dom` by patching the dom as necessary so 
 ### Events
 Events that are listened to on patched elements are patched. They have the (beginnings of the) ShadowDOM V1 spec info for events:
 * `target` should be the same target as in ShadowDOM, also the same as `Polymer.dom(event).localTarget`
-* `deepPath()` should be the same as in ShadowDOM, also the same as `Polymer.dom(event).path`. Note that `Polymer.dom(event).rootTarget` has been removed and instead you should use `event.deepPath()[0]`.
+* `deepPath()` should be the same as in ShadowDOM [not implemented yet in [Chrome 54](https://bugs.chromium.org/p/chromium/issues/detail?id=592371)], also the same as `Polymer.dom(event).path`. Note that `Polymer.dom(event).rootTarget` has been removed and instead you should use `event.deepPath()[0]`.
 
 ### Styling
 * Drop invalid syntax
