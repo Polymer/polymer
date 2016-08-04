@@ -71,8 +71,8 @@ Events that are listened to on patched elements are patched. They have the (begi
   * Can only style distributed child nodes, must give a compound selector to ::slotted();
 
 ### Element definitions
-* TBD: `dom-if`, `dom-repeat`, `dom-bind`, `array-selector`, etc. will not included in `polymer.html` by default (going forward; they currently are); users should import those elements when needed
-* TBD: For now, all template type extensions have now been changed to standard custom elements that take a `<template>` in their light dom, which allows them to be used in the current native V1 implementation in Canary (which does not yet support `is`) and a future version of Safari (that likely won't support `is`).  e.g.
+* Extending native elements (`is`): We will not produce `is` elements. Although still included in the v1 custom elements [spec](https://html.spec.whatwg.org/#custom-elements-customized-builtin-example) and scheduled for implementation in Chrome, because Apple [has stated](https://github.com/w3c/webcomponents/issues/509#issuecomment-233419167) it will not implmenent `is`, we will not be encouraging its use. Instead, a wrapper custom element can surround a native element, e.g. `<a is="my-endpoint">...</a>` could become `<my-endpoint><a>...</a></my-endpoint>`. Users will need to change existing `is` elements where necessary.
+* All template type extensions have now been changed to standard custom elements that take a `<template>` in their light dom,  e.g.
 
   ```
 <template is="dom-repeat" items="{{items}}">...</template>
@@ -87,6 +87,21 @@ Events that are listened to on patched elements are patched. They have the (begi
   ```
 
   For the time being, `Polymer()` will automatically wrap template extensions used in Polymer element templates during template processing for backward-compatibility, although we may decide to remove this auto-wrapping in the future.  Templates used in the main document must be manually wrapped.
+* The `custom-style` element has also been changed to a standard custom element that must wrap a style element. In addition, the style element must contain a `type="custom-style"` attribute (so that it does not parse),  e.g.
+  
+ ```
+ <style is="custom-style">...</style>
+   ```
+ 
+   should change to
+ 
+   ```
+ <custom-style>
+     <style type="custom-style">...</style>
+ </custom-style>
+   ```
+
+* TBD: `dom-if`, `dom-repeat`, `dom-bind`, `array-selector`, etc. will not included in `polymer.html` by default (going forward; they currently are); users should import those elements when needed
 
 ### Polymer element prototype
 * Methods starting with `_` are not guaranteed to exist (most have been removed)
