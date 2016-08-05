@@ -206,6 +206,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createMultiObserver(model, expression) {
       var sig = this._parseMethod(expression);
+      if (!sig) {
+        throw new Error("Malformed observer expression '" + expression + "'");
+      }
       this._createMethodEffect(model, sig, Types.OBSERVE,
         this._runMultiObserverEffect);
     }
@@ -218,6 +221,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     createComputedProperty(model, property, expression) {
       var sig = this._parseMethod(expression);
+      if (!sig) {
+        throw new Error("Malformed computed expression '" + expression + "'");
+      }
       this._createMethodEffect(model, sig, Types.COMPUTE,
         this._runComputedEffect, property);
     }
@@ -278,14 +284,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _runAnnotationEffect(property, value, old, info) {
-      // TODO(kschaaf): this is broken: always using the root property value
-      // breaks the unification of path & property notification
-      if (property != info.value) {
-        value = info.lib._get(this, info.value);
-        this.__data[info.value] = value;
+    _runAnnotationEffect(path, value, old, info) {
+      var node;
+      // Subpath notification; set transformed path to client
+      if (path.length > info.value.length &&
+          (node = this._nodes[info.index]).__data) {
+        path = info.lib._fixPath(info.name, info.value, path);
+        info.lib._setPropertyToNode(this, node, path, value);
+      } else {
+        // Root was set; extract subpath value
+        if (path != info.value) {
+          value = info.lib._get(this, info.value);
+          this.__data[info.value] = value;
+        }
+        // Propagate value to child
+        info.lib._applyAnnotationValue(this, info, value);
       }
-      info.lib._applyEffectValue(this, info, value);
     }
 
     _get(inst, path) {
@@ -315,7 +329,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _applyEffectValue(model, info, value) {
+    _applyAnnotationValue(model, info, value) {
       var node = model._nodes[info.index];
       var property = info.name;
       if (info.isCompound) {
@@ -348,7 +362,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _setPropertyToNode(model, node, property, value) {
-      node[property] = value;
+      if (node.__data) {
+        this.setProperty(node, property, value);
+      } else {
+        node[property] = value;
+      }
     }
 
     _addAnnotatedComputationEffect(model, note, part, index) {
@@ -367,7 +385,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
    _runAnnotationComputationEffect(property, value, old, info) {
       var val = info.lib._runMethodEffect(this, property, value, old, info);
-      info.lib._applyEffectValue(this, info.methodInfo, val);
+      info.lib._applyAnnotationValue(this, info.methodInfo, val);
     }
 
     _processAnnotations(notes) {
