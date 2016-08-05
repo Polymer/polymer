@@ -53,6 +53,7 @@ We've removed the need to use `Polymer.dom` by patching the dom as necessary so 
 Events that are listened to on patched elements are patched. They have the (beginnings of the) ShadowDOM V1 spec info for events:
 * `target` should be the same target as in ShadowDOM, also the same as `Polymer.dom(event).localTarget`
 * `composedPath()` should be the same as in ShadowDOM, also the same as `Polymer.dom(event).path`. Note that `Polymer.dom(event).rootTarget` has been removed and instead you should use `event.composedPath()[0]`.
+* `element.unlisten` is not supported for events set up with the `listeners` object in the `Polymer()` call.
 
 ### Styling
 * Drop invalid syntax
