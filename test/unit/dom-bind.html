@@ -1,0 +1,231 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+</head>
+<body>
+
+  <template is="dom-bind" id="earlyDomBind">
+    <div id="earlyBoundChild">{{value}}</div>
+  </template>
+
+  <script>
+  /* global earlyDomBind earlyBoundChild decEl1 decEl2 decDomBind z container needsHost*/
+    earlyDomBind.value = 'hi!';
+  </script>
+
+  <link rel="import" href="../../polymer.html">
+  <link rel="import" href="dom-bind-elements1.html">
+
+  <template is="dom-bind" id="decDomBind">
+    <x-basic id="decEl1" value="{{value}}" notifyingvalue="{{nvalue}}" on-custom="handleEvent" computed="{{compute(dep)}}"></x-basic>
+    <x-basic id="decEl2" value="{{value}}" notifyingvalue="{{nvalue}}"></x-basic>
+    <x-produce-a a={{z}}></x-produce-a>
+    <div id="z">{{z}}</div>
+  </template>
+
+  <div id="container">
+  </div>
+
+  <template is="dom-bind" id="timingDomBind" config="config">
+    <x-needs-host id="needsHost"></x-needs-host>
+  </template>
+
+  <script>
+
+    suite('dom-bind touched before upgrade', function() {
+
+      test('value binds top-down', function() {
+        assert.equal(earlyBoundChild.textContent, 'hi!');
+      });
+
+    });
+
+    suite('declarative dom-bind', function() {
+
+      var domBind;
+      var el1;
+      var el2;
+
+      setup(function() {
+        domBind = decDomBind;
+        el1 = decEl1;
+        el2 = decEl2;
+      });
+
+      test('value binds top-down', function() {
+        domBind.value = 'foo';
+        assert.equal(el1.value, 'foo');
+        assert.equal(el2.value, 'foo');
+      });
+
+      test('notifyingvalue binds from child to child', function() {
+        el1.notifyingvalue = 'bar';
+        assert.equal(domBind.nvalue, 'bar');
+        assert.equal(el2.notifyingvalue, 'bar');
+      });
+
+      test('event listener fires', function() {
+        var count = 0;
+        domBind.handleEvent = function() {
+          count++;
+        };
+        el1.fire('custom');
+        assert.equal(count, 1);
+      });
+
+      test('inline function runs', function() {
+        domBind.compute = function(val) {
+          return val * 10;
+        };
+        domBind.dep = 5;
+        assert.equal(el1.computed, 50);
+      });
+
+      test('initial value notifies to dom-bind', function() {
+        assert.equal(domBind.z, 'a');
+        assert.equal(z.textContent, 'a');
+      });
+
+    });
+
+    suite('imperative dom-bind', function() {
+
+      var domBind;
+      var el1;
+      var el2;
+
+      setup(function() {
+        domBind = document.createElement('template', 'dom-bind');
+        var doc = domBind.content.ownerDocument;
+        el1 = doc.createElement('x-basic');
+        el1.setAttribute('id', 'impEl1');
+        el1.setAttribute('value', '{{value}}');
+        el1.setAttribute('notifyingvalue', '{{nvalue}}');
+        el1.setAttribute('on-custom', 'handleEvent');
+        el1.setAttribute('computed', '{{compute(dep)}}');
+        el2 = doc.createElement('x-basic');
+        el2.setAttribute('id', 'impEl2');
+        el2.setAttribute('value', '{{value}}');
+        el2.setAttribute('notifyingvalue', '{{nvalue}}');
+        domBind.content.appendChild(el1);
+        domBind.content.appendChild(el2);
+        document.body.appendChild(domBind);
+        CustomElements.takeRecords();
+        el1 = domBind.$.impEl1;
+        el2 = domBind.$.impEl2;
+      });
+
+      teardown(function() {
+        if (domBind.parentElement) {
+          domBind.parentElement.removeChild(domBind);
+        }
+      });
+
+      test('value binds top-down', function() {
+        domBind.value = 'foo';
+        assert.equal(el1.value, 'foo');
+        assert.equal(el2.value, 'foo');
+      });
+
+      test('notifyingvalue binds from child to child', function() {
+        el1.notifyingvalue = 'bar';
+        assert.equal(domBind.nvalue, 'bar');
+        assert.equal(el2.notifyingvalue, 'bar');
+      });
+
+      test('event listener fires', function() {
+        var count = 0;
+        domBind.handleEvent = function() {
+          count++;
+        };
+        el1.fire('custom');
+        assert.equal(count, 1);
+      });
+
+      test('inline function runs', function() {
+        domBind.compute = function(val) {
+          return val * 10;
+        };
+        domBind.dep = 5;
+        assert.equal(el1.computed, 50);
+      });
+
+      test('move dom-bind', function() {
+        container.appendChild(domBind);
+        CustomElements.takeRecords();
+        assert.equal(container.firstElementChild, el1);
+        assert.equal(container.firstElementChild.nextElementSibling, el2);
+      });
+
+      test('remove dom-bind', function() {
+        domBind.parentElement.removeChild(domBind);
+        CustomElements.takeRecords();
+        assert(!document.body.contains(el1));
+        assert(!document.body.contains(el2));
+      });
+
+      test('dom-bind distributed when inserted in element attached', function(done) {
+        var el = document.createElement('x-attach-dom-bind');
+        document.body.appendChild(el);
+        setTimeout(function() {
+          assert.equal(el.$.local.textContent, 'hey', 'dom-bind did not distribute');
+          document.body.removeChild(el);
+          done();
+        });
+      });
+
+      test('dom-bind distributed when inserted in element attached (flush)', function() {
+        var el = document.createElement('x-attach-dom-bind');
+        document.body.appendChild(el);
+        Polymer.dom.flush();
+        assert.equal(el.$.local.textContent, 'hey', 'dom-bind did not distribute');
+        document.body.removeChild(el);
+      });
+
+      test('dom-bind distributed when inserted dynamically', function(done) {
+        var el = document.createElement('x-compose');
+        document.body.appendChild(el);
+        Polymer.dom.flush();
+        setTimeout(function() {
+          var t = document.createElement('template', 'dom-bind'),
+          span = document.createElement('span');
+          span.innerHTML = '{{hello}}';
+          t.content.appendChild(span);
+          t.hello = 'hey';
+          Polymer.dom(el.$.local).appendChild(t);
+          setTimeout(function() {
+            assert.equal(el.textContent, 'hey', 'dom-bind did not distribute');
+            document.body.removeChild(el);
+            done();
+          });
+        });
+      });
+
+    });
+
+    suite('timing', function() {
+
+      test('late-loaded import should block stamping', function() {
+        assert.equal(needsHost.config, 'config');
+      });
+
+    });
+
+
+  </script>
+
+  <link rel="import" href="dom-bind-elements2.html">
+</body>
+</html>
