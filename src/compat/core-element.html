@@ -61,13 +61,177 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   class CoreElement extends HTMLElement {
 
+    /*
+    static makeMeta() {
+      this._meta = this.copyMeta(proto.__meta);
+      this.mergeMeta(proto._meta, meta);
+    }
+
+    createMeta: function(host, behaviors) {
+      var b$ = behaviors ? behaviors.slice() : [];
+      b$.push({
+        listeners: host.hasOwnProperty('listeners') && host.listeners,
+        hostAttributes: host.hasOwnProperty('hostAttributes') && host.hostAttributes,
+        properties: host.hasOwnProperty('properties') && host.properties,
+        observers: host.hasOwnProperty('observers') && host.observers
+      });
+      var meta = {};
+      for (var i=0, b; (i<b$.length) && (b=b$[i]); i++) {
+        this.mergeMeta(meta, b);
+      }
+      return meta;
+    },
+
+    mergeMeta: function(meta, addProps) {
+      if (addProps.listeners) {
+        meta.listeners = meta.listeners || [];
+        this._addListeners(meta.listeners, addProps.listeners);
+      }
+      if (addProps.hostAttributes) {
+        meta.hostAttributes = meta.hostAttributes || {};
+        this._addHostAttributes(meta.hostAttributes, addProps.hostAttributes);
+      }
+      if (addProps.properties) {
+        meta.properties = meta.properties || {};
+        this._addProperties(meta.properties, addProps.properties);
+      }
+      if (addProps.observers) {
+        meta.observers = meta.observers || [];
+        this._addObservers(meta.observers, addProps.observers);
+      }
+      return meta;
+    },
+
+    copyMeta: function(meta) {
+      var copy = {};
+      if (meta.listeners) {
+        copy.listeners = meta.listeners.slice();
+      }
+      if (meta.hostAttributes) {
+        Object.create(meta.hostAttributes)
+      }
+      if (meta.properties) {
+        copy.properties = {};
+        for (var i in meta.properties) {
+          copy.properties[i] = Object.create(meta.properties[i]);
+        }
+      }
+      if (meta.observers) {
+        copy.observers = meta.observers.slice();
+      }
+      return copy;
+    },
+
+    _addListeners: function(store, addProps) {
+      for (var i in addProps) {
+        store.push({event: i, method: addProps[i]});
+      }
+    },
+
+    _addHostAttributes: function(store, addProps) {
+      for (var i in addProps) {
+        store[i] = addProps[i];
+      }
+    },
+
+    _addProperties: function(store, addProps) {
+      for (var i in addProps) {
+        if (typeof addProps[i] !== 'object') {
+          addProps[i] = {value: addProps[i]};
+        }
+        if (!store[i]) {
+          store[i] = {
+            // TODO(sorvell): optimization, goes elsewhere?
+            attribute: CaseMap.camelToDashCase(i)
+          };
+        }
+        this._aggregateProperty(store[i], addProps[i]);
+      }
+    },
+
+    _aggregateProperty: function(store, add) {
+      // type: last wins
+      if (add.type) {
+        store.type = add.type;
+      }
+      // value: last wins
+      if (add.value !== undefined) {
+        store.value = add.value;
+      }
+      // reflectToAttr: last wins
+      if (add.reflectToAttribute) {
+        store.reflectToAttribute = add.reflectToAttribute;
+      }
+      // notify: last wins?
+      if (add.notify) {
+        store.notify = add.notify;
+      }
+      // computed: cannot change
+      if (!store.computed) {
+        store.computed = add.computed;
+      }
+      // readOnly: truthy wins
+      if (!store.readOnly) {
+        store.readOnly = Boolean(store.computed) || add.readOnly;
+      }
+      // observer... convert to array
+      if (add.observer) {
+        if (store.observer) {
+          if (typeof store.observer !== 'object') {
+            store.observer = [store.observer];
+          }
+          store.observer.push(add.observer);
+        } else {
+          store.observer = add.observer;
+        }
+      }
+    },
+
+    _addObservers: function(store, list) {
+      for (var i=0; i<list.length; i++) {
+        store.push(list[i]);
+      }
+    }
+    */
     // Non-lazy registration work goes here
     static get observedAttributes() {
       // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
       var currentScript = document._currentScript || document.currentScript;
       this.prototype.__importDoc = currentScript && currentScript.ownerDocument;
       // observedAttributes must be finalized at registration time
-      return behaviors._accumulateObservedAttributes(this.prototype, []);
+      var attrs = this.accumulateObservedAttributes(this);
+      console.log(attrs);
+      return attrs;
+    }
+    
+    static accumulateObservedAttributes(ctor) {
+      if (!ctor.hasOwnProperty('_observedAttributes')) {
+        // crawl down chain as long as we can accumulate.
+        var attrs;
+        if (ctor.accumulateObservedAttributes) {
+          var proto = Object.getPrototypeOf(ctor.prototype);
+          var superCtor = proto && proto.constructor;
+          attrs = ctor.accumulateObservedAttributes(superCtor);
+          var meta = ctor.getOwnMeta && ctor.getOwnMeta();
+          if (meta && meta.properties) {
+            for (var prop in meta.properties) {
+              var attr = Polymer.CaseMap.camelToDashCase(prop);
+              if (attrs.indexOf(attr) < 0) {
+                attrs.push(attr);
+              }
+            }
+          }
+        }
+        ctor._observedAttributes = attrs || [];
+      } 
+      return ctor._observedAttributes.slice();
+    }
+
+    static getOwnMeta() {
+      if (!this.hasOwnProperty('_meta')) {
+        this._meta = this.hasOwnProperty('meta') ? this.meta : null;
+      }
+      return this._meta;
     }
 
     constructor() {
