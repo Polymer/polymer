@@ -9,6 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/case-map.html">
 <link rel="import" href="../utils/async-render.html">
 <link rel="import" href="../events/gesture-event-listeners.html">
@@ -24,6 +25,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
+  var utils = Polymer.Utils;
   var caseMap = Polymer.CaseMap;
   var behaviors = Polymer.Behaviors;
   var events = new Polymer.GestureEventListeners();
@@ -61,159 +63,148 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   class CoreElement extends HTMLElement {
 
-    /*
-    static makeMeta() {
-      this._meta = this.copyMeta(proto.__meta);
-      this.mergeMeta(proto._meta, meta);
+    /* meta data info:
+      At class decoration time, add all of these on the prototype. 
+      We create a flattened list of these things and re-add all of them. 
+      However, this duplicates work since any already decorated superclasses have already made these observers.
+      * properties
+      * observers
+
+      At instnace "lazy ready" time, for the class and all superclasses these must be applied.
+      We create a flattened list of these things.
+      * hostAttributes
+      * listeners
+    */
+
+    static accumulateMeta(ctor) {
+      var meta = ctor.ownMeta;
+      if (meta) {
+        if (!meta._accumulated) {
+          var superCtor = Object.getPrototypeOf(ctor.prototype).constructor;
+          var superMeta = ctor.accumulateMeta(superCtor);
+          if (superMeta) {
+            ctor.mergeListeners(meta, superMeta);
+            ctor.mergeHostAttributes(meta, superMeta);
+            ctor.mergeObservers(meta, superMeta);
+            // should only build properties down to...
+            // something with?
+            ctor.mergeProperties(meta, superMeta);
+          }
+          meta._accumulated = true;   
+        }
+      }
+      return meta;
     }
 
-    createMeta: function(host, behaviors) {
-      var b$ = behaviors ? behaviors.slice() : [];
-      b$.push({
-        listeners: host.hasOwnProperty('listeners') && host.listeners,
-        hostAttributes: host.hasOwnProperty('hostAttributes') && host.hostAttributes,
-        properties: host.hasOwnProperty('properties') && host.properties,
-        observers: host.hasOwnProperty('observers') && host.observers
-      });
-      var meta = {};
-      for (var i=0, b; (i<b$.length) && (b=b$[i]); i++) {
-        this.mergeMeta(meta, b);
-      }
-      return meta;
-    },
-
-    mergeMeta: function(meta, addProps) {
-      if (addProps.listeners) {
-        meta.listeners = meta.listeners || [];
-        this._addListeners(meta.listeners, addProps.listeners);
-      }
-      if (addProps.hostAttributes) {
-        meta.hostAttributes = meta.hostAttributes || {};
-        this._addHostAttributes(meta.hostAttributes, addProps.hostAttributes);
-      }
-      if (addProps.properties) {
-        meta.properties = meta.properties || {};
-        this._addProperties(meta.properties, addProps.properties);
-      }
-      if (addProps.observers) {
-        meta.observers = meta.observers || [];
-        this._addObservers(meta.observers, addProps.observers);
-      }
-      return meta;
-    },
-
-    copyMeta: function(meta) {
-      var copy = {};
-      if (meta.listeners) {
-        copy.listeners = meta.listeners.slice();
-      }
-      if (meta.hostAttributes) {
-        Object.create(meta.hostAttributes)
-      }
-      if (meta.properties) {
-        copy.properties = {};
-        for (var i in meta.properties) {
-          copy.properties[i] = Object.create(meta.properties[i]);
+    static mergeListeners(target, source) {
+      // create listeners array.
+      target._listeners = [];
+      if (target.listeners) {
+        for (var l in target.listeners) {
+          target._listeners.push({event: l, method: target.listeners[l]});
         }
       }
-      if (meta.observers) {
-        copy.observers = meta.observers.slice();
-      }
-      return copy;
-    },
+      // concat source listeners
+      target._listeners = target._listeners.concat(source._listeners);
+    }
 
-    _addListeners: function(store, addProps) {
-      for (var i in addProps) {
-        store.push({event: i, method: addProps[i]});
-      }
-    },
-
-    _addHostAttributes: function(store, addProps) {
-      for (var i in addProps) {
-        store[i] = addProps[i];
-      }
-    },
-
-    _addProperties: function(store, addProps) {
-      for (var i in addProps) {
-        if (typeof addProps[i] !== 'object') {
-          addProps[i] = {value: addProps[i]};
+    static mergeHostAttributes(target, source) {
+      if (target.hostAttributes) {
+        if (source.hostAttributes) {
+          utils.mixin(target.hostAttributes, source.hostAttributes);
         }
-        if (!store[i]) {
-          store[i] = {
-            // TODO(sorvell): optimization, goes elsewhere?
-            attribute: CaseMap.camelToDashCase(i)
-          };
-        }
-        this._aggregateProperty(store[i], addProps[i]);
+      } else {
+        target.hostAttributes = source.hostAttributes || {};
       }
-    },
+      
+    }
 
-    _aggregateProperty: function(store, add) {
+    static mergeObservers(target, source) {
+      target.observers = target.observers ?
+        target.observers.concat(source.observers) : 
+        source.observers || [];
+    }
+
+    static mergeProperties(target, source) {
+      var props = target.properties || {};
+      // set defaults in properties
+      for (var k in props) {
+        var prop = props[k];
+        // TODO(sorvell): suppor this? (value shorthand)
+        if (typeof prop !== 'object') {
+          props[k] = {value: prop};
+        }
+        prop.attribute = caseMap.camelToDashCase(k);
+      }
+      // merge other props
+      for (var p in source.properties) {
+        var sourceProp = source.properties[p];
+        if (!props[p]) {
+          props[p] = sourceProp;
+        } else {
+          this.mergeProperty(props[p], sourceProp);
+        }
+      } 
+      target.properties = props;
+    }
+
+    static mergeProperty(target, source) {
       // type: last wins
-      if (add.type) {
-        store.type = add.type;
+      if (target.type === undefined) {
+        target.type = source.type;
       }
       // value: last wins
-      if (add.value !== undefined) {
-        store.value = add.value;
+      if (target.value === undefined) {
+        target.value = source.value;
       }
       // reflectToAttr: last wins
-      if (add.reflectToAttribute) {
-        store.reflectToAttribute = add.reflectToAttribute;
+      if (!target.reflectToAttribute) {
+        target.reflectToAttribute = source.reflectToAttribute;
       }
       // notify: last wins?
-      if (add.notify) {
-        store.notify = add.notify;
+      if (!target.notify) {
+        target.notify = source.notify;
       }
       // computed: cannot change
-      if (!store.computed) {
-        store.computed = add.computed;
+      if (source.computed) {
+        target.computed = source.computed;
       }
       // readOnly: truthy wins
-      if (!store.readOnly) {
-        store.readOnly = Boolean(store.computed) || add.readOnly;
+      if (!target.readOnly) {
+        target.readOnly = Boolean(target.computed) || source.readOnly;
       }
       // observer... convert to array
-      if (add.observer) {
-        if (store.observer) {
-          if (typeof store.observer !== 'object') {
-            store.observer = [store.observer];
+      if (source.observer) {
+        if (target.observer) {
+          if (typeof target.observer !== 'object') {
+            target.observer = [target.observer];
           }
-          store.observer.push(add.observer);
+          target.observer.push(source.observer);
         } else {
-          store.observer = add.observer;
+          target.observer = source.observer;
         }
       }
-    },
-
-    _addObservers: function(store, list) {
-      for (var i=0; i<list.length; i++) {
-        store.push(list[i]);
-      }
     }
-    */
+
     // Non-lazy registration work goes here
     static get observedAttributes() {
       // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
       var currentScript = document._currentScript || document.currentScript;
       this.prototype.__importDoc = currentScript && currentScript.ownerDocument;
       // observedAttributes must be finalized at registration time
-      var attrs = this.accumulateObservedAttributes(this);
-      console.log(attrs);
-      return attrs;
+      return this.accumulateObservedAttributes(this);
     }
     
     static accumulateObservedAttributes(ctor) {
       if (!ctor.hasOwnProperty('_observedAttributes')) {
-        // crawl down chain as long as we can accumulate.
-        var attrs;
+        var attrs = [];
+        // crawl down chain as long as we have accumulate api.
         if (ctor.accumulateObservedAttributes) {
-          var proto = Object.getPrototypeOf(ctor.prototype);
-          var superCtor = proto && proto.constructor;
-          attrs = ctor.accumulateObservedAttributes(superCtor);
-          var meta = ctor.getOwnMeta && ctor.getOwnMeta();
-          if (meta && meta.properties) {
+          // TODO(sorvell): better way than manually crawling?
+          var superCtor = Object.getPrototypeOf(ctor.prototype).constructor;
+          attrs = attrs.concat(ctor.accumulateObservedAttributes(superCtor));
+          var meta = ctor.ownMeta;
+          if (meta.properties) {
             for (var prop in meta.properties) {
               var attr = Polymer.CaseMap.camelToDashCase(prop);
               if (attrs.indexOf(attr) < 0) {
@@ -222,28 +213,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
         }
-        ctor._observedAttributes = attrs || [];
+        ctor._observedAttributes = attrs;
       } 
-      return ctor._observedAttributes.slice();
+      return ctor._observedAttributes;
     }
 
-    static getOwnMeta() {
-      if (!this.hasOwnProperty('_meta')) {
-        this._meta = this.hasOwnProperty('meta') ? this.meta : null;
+    static get ownMeta() {
+      if (!this.hasOwnProperty('_ownMeta')) {
+        this._ownMeta = this.hasOwnProperty('meta') ? this.meta : {};
       }
-      return this._meta;
+      return this._ownMeta;
     }
 
     constructor() {
       super();
       // note: `this.constructor.prototype` is wrong in Safari so make sure to
       // use `__proto__`
-      var proto = this.__proto__;
-      if (!proto.hasOwnProperty('__hasDecoratedClass')) {
-        proto.is = this.localName;
-        proto.__hasDecoratedClass = true;
-        this.decorateClass();
-      } else if (proto.hasOwnProperty('__hasDecoratedClass')) {
+      var proto = Object.getPrototypeOf(this);
+      if (this.decorateClass(proto)) {
         Polymer.StyleLib.prepareHost(this, proto._template);
       }
       Polymer.telemetry.instanceCount++;
@@ -252,21 +239,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // add self to host's pending client list
       hostStack.registerHost(this);
       // apply defaults first.
-      data.setPropertyDefaults(this);
+      data.setPropertyDefaults(this, this.constructor.ownMeta.properties);
     }
 
-    decorateClass() {
-      var proto = this.__proto__;
-      var meta = behaviors.register(proto);
+    decorateClass(proto) {
+      if (proto.hasOwnProperty('__hasDecoratedClass')) {
+        return true;
+      }
+      var superProto = Object.getPrototypeOf(proto);
+      if (superProto.decorateClass) {
+        this.decorateClass(superProto);
+      }
+      proto.__hasDecoratedClass = true;
+      this.constructor.accumulateMeta(proto.constructor);
+      var meta = this.constructor.ownMeta;
       if (meta.properties) {
         data.createProperties(proto, meta.properties);
       }
       if (meta.observers) {
         data.createMultiObservers(proto, meta.observers);
       }
+      // TODO(sorvell): support more ways to acquire template.
+      // this requires `is` on constructor...
       if (proto._template === undefined) {
-        proto._template = Polymer.DomModule.import(proto.is, 'template', 
-          this.__importDoc);
+        proto._template = Polymer.DomModule.import(proto.constructor.is, 
+          'template', proto.__importDoc);
       }
       if (proto._template) {
         Polymer.CompatStyleUtil.normalizeForBC(proto._template.content);
@@ -287,7 +284,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     ready() {
       var self = this;
       Polymer.AsyncRender.afterRender(function() {
-        self.lazyReady();
+        if (!self.__lazyReadied) {
+          self.__lazyReadied = true;
+          self.lazyReady();
+        }
       });
       if (!this.root) {
         if (this._template) {
@@ -308,18 +308,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     lazyReady() {
-      if (this.__lazyReadied) {
-        return;
-      }
-      this.__lazyReadied = true;
-      if (this.__meta.listeners) {
-        var l$ = this.__meta.listeners;
+      var meta = this.constructor.ownMeta;
+      if (meta._listeners) {
+        var l$ = meta._listeners;
         for (var i=0, l; (i<l$.length) && (l=l$[i]); i++) {
           events.addMethodListener(this, l.event, l.method);
         }
       }
-      if (this.__meta.hostAttributes) {
-        var a$ = this.__meta.hostAttributes;
+      if (meta.hostAttributes) {
+        var a$ = meta.hostAttributes;
         for (var a in a$) {
           attributes.ensureAttribute(this, a, a$[a]);
         }
