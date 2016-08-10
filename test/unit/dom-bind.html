@@ -16,31 +16,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 </head>
 <body>
 
-  <template is="dom-bind" id="earlyDomBind">
-    <div id="earlyBoundChild">{{value}}</div>
-  </template>
+  <dom-bind id="earlyDomBind">
+    <template>
+      <div id="earlyBoundChild">{{value}}</div>
+    </template>
+  </dom-bind>
 
   <script>
-  /* global earlyDomBind earlyBoundChild decEl1 decEl2 decDomBind z container needsHost*/
+    /* global earlyDomBind earlyBoundChild decEl1 decEl2 decDomBind z container needsHost*/
     earlyDomBind.value = 'hi!';
   </script>
 
   <link rel="import" href="../../polymer.html">
   <link rel="import" href="dom-bind-elements1.html">
 
-  <template is="dom-bind" id="decDomBind">
-    <x-basic id="decEl1" value="{{value}}" notifyingvalue="{{nvalue}}" on-custom="handleEvent" computed="{{compute(dep)}}"></x-basic>
-    <x-basic id="decEl2" value="{{value}}" notifyingvalue="{{nvalue}}"></x-basic>
-    <x-produce-a a={{z}}></x-produce-a>
-    <div id="z">{{z}}</div>
-  </template>
+  <dom-bind id="decDomBind">
+    <template>
+      <x-basic id="decEl1" value="{{value}}" notifyingvalue="{{nvalue}}" on-custom="handleEvent" computed="{{compute(dep)}}"></x-basic>
+      <x-basic id="decEl2" value="{{value}}" notifyingvalue="{{nvalue}}"></x-basic>
+      <x-produce-a a={{z}}></x-produce-a>
+      <div id="z">{{z}}</div>
+    </template>
+  </dom-bind>
 
   <div id="container">
   </div>
 
-  <template is="dom-bind" id="timingDomBind" config="config">
-    <x-needs-host id="needsHost"></x-needs-host>
-  </template>
+  <dom-bind id="timingDomBind" config="config">
+    <template>
+      <x-needs-host id="needsHost"></x-needs-host>
+    </template>
+  </dom-bind>
 
   <script>
 
@@ -106,25 +112,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var el1;
       var el2;
 
-      setup(function() {
-        domBind = document.createElement('template', 'dom-bind');
-        var doc = domBind.content.ownerDocument;
+      setup(function(done) {
+        domBind = document.createElement('dom-bind');
+        var template = document.createElement('template');
+
+        domBind.appendChild(template);
+
+        var doc = template.content.ownerDocument;
         el1 = doc.createElement('x-basic');
+
         el1.setAttribute('id', 'impEl1');
         el1.setAttribute('value', '{{value}}');
         el1.setAttribute('notifyingvalue', '{{nvalue}}');
         el1.setAttribute('on-custom', 'handleEvent');
         el1.setAttribute('computed', '{{compute(dep)}}');
+
         el2 = doc.createElement('x-basic');
         el2.setAttribute('id', 'impEl2');
         el2.setAttribute('value', '{{value}}');
         el2.setAttribute('notifyingvalue', '{{nvalue}}');
-        domBind.content.appendChild(el1);
-        domBind.content.appendChild(el2);
+
+        template.content.appendChild(el1);
+        template.content.appendChild(el2);
         document.body.appendChild(domBind);
+
         CustomElements.takeRecords();
-        el1 = domBind.$.impEl1;
-        el2 = domBind.$.impEl2;
+
+        requestAnimationFrame(function() {
+          el1 = domBind.$.impEl1;
+          el2 = domBind.$.impEl2;
+          done();
+        });
       });
 
       teardown(function() {
@@ -162,16 +180,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(el1.computed, 50);
       });
 
-      test('move dom-bind', function() {
+      test('move dom-bind', function(done) {
         container.appendChild(domBind);
         CustomElements.takeRecords();
-        assert.equal(container.firstElementChild, el1);
-        assert.equal(container.firstElementChild.nextElementSibling, el2);
+
+        requestAnimationFrame(function() {
+          assert.equal(container.firstElementChild, el1);
+          assert.equal(container.firstElementChild.nextElementSibling, el2);
+          done();
+        });
       });
 
       test('remove dom-bind', function() {
+        assert(document.body.contains(el1));
+        assert(document.body.contains(el2));
+
         domBind.parentElement.removeChild(domBind);
         CustomElements.takeRecords();
+        
         assert(!document.body.contains(el1));
         assert(!document.body.contains(el2));
       });
@@ -179,19 +205,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       test('dom-bind distributed when inserted in element attached', function(done) {
         var el = document.createElement('x-attach-dom-bind');
         document.body.appendChild(el);
-        setTimeout(function() {
+        
+        requestAnimationFrame(function() {
           assert.equal(el.$.local.textContent, 'hey', 'dom-bind did not distribute');
           document.body.removeChild(el);
           done();
         });
-      });
-
-      test('dom-bind distributed when inserted in element attached (flush)', function() {
-        var el = document.createElement('x-attach-dom-bind');
-        document.body.appendChild(el);
-        Polymer.dom.flush();
-        assert.equal(el.$.local.textContent, 'hey', 'dom-bind did not distribute');
-        document.body.removeChild(el);
       });
 
       test('dom-bind distributed when inserted dynamically', function(done) {
@@ -199,13 +218,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         document.body.appendChild(el);
         Polymer.dom.flush();
         setTimeout(function() {
-          var t = document.createElement('template', 'dom-bind'),
+          var dB = document.createElement('dom-bind');
+          var t = document.createElement('template');
+
+          dB.appendChild(t);
+
           span = document.createElement('span');
           span.innerHTML = '{{hello}}';
+
           t.content.appendChild(span);
-          t.hello = 'hey';
-          Polymer.dom(el.$.local).appendChild(t);
-          setTimeout(function() {
+          dB.hello = 'hey';
+          el.$.local.appendChild(dB);
+
+          requestAnimationFrame(function() {
             assert.equal(el.textContent, 'hey', 'dom-bind did not distribute');
             document.body.removeChild(el);
             done();
