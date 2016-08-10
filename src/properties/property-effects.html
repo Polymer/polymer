@@ -11,6 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/utils.html">
+<link rel="import" href="../utils/path.html">
 <link rel="import" href="property-accessors.html">
 
 <!-- for notify, reflect -->
@@ -48,7 +49,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     addPropertyEffect(model, path, type, effect) {
       model = this.getModel(model);
-      var property = this._rootForPath(path);
+      var property = Polymer.Path.root(path);
       // _propertyEffects only used to track whether an accessor has been created or not
       var effects = this._ensureOwnMappedArray(model, '_propertyEffects')[property];
       var val;
@@ -83,16 +84,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return effects;
     }
 
-    _rootForPath(path) {
-      var dot = path.indexOf('.');
-      return (dot < 0) ? path : path.slice(0, dot);
-    }
-
     // Runtime ----------------------------------------
 
     setProperty(inst, property, value) {
-      this.setPendingProperty(inst, property, value);
-      this.flush(inst);
+      if (this.setPendingProperty(inst, property, value)) {
+        this.flush(inst);
+      }
+    }
+
+    setPendingProperty(inst, property, value) {
+      var rootProperty = Polymer.Path.root(property);
+      if (!inst._propertyEffects[rootProperty]) {
+        Polymer.Path.set(inst, property, value);
+      } else {
+        if (rootProperty !== property) {
+          var info = {};
+          Polymer.Path.set(inst, property, value, info);
+        }
+        return super.setPendingProperty(inst, info ? info.path : property, value);
+      }
     }
 
     validate(inst, props, oldProps, changedProps) {
@@ -168,15 +178,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         fn: this._runNotifyEffect,
         info: {
           lib: this,
-          eventName: CaseMap.camelToDashCase(property) + '-changed'
+          eventName: CaseMap.camelToDashCase(property) + '-changed',
+          property: property
         }
       });
     }
 
-    _runNotifyEffect(property, value, old, info) {
+    _runNotifyEffect(path, value, old, info) {
+      var detail = { value: value };
+      if (info.property !== path) {
+        detail.path = path;
+      }
       this.dispatchEvent(new CustomEvent(info.eventName, {
         bubbles: false,
-        detail: { value: value }
+        detail: detail
       }));
     }
 
@@ -294,38 +309,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       } else {
         // Root was set; extract subpath value
         if (path != info.value) {
-          value = info.lib._get(this, info.value);
+          value = Polymer.Path.get(this, info.value);
           this.__data[info.value] = value;
         }
         // Propagate value to child
         info.lib._applyAnnotationValue(this, info, value);
-      }
-    }
-
-    _get(inst, path) {
-      var prop = inst;
-      var parts = path.split('.');
-      for (var i=0; i<parts.length; i++) {
-        if (!prop) {
-          return;
-        }
-        prop = prop[parts[i]];
-      }
-      return prop;
-    }
-
-    _set(inst, path, value) {
-      var prop = inst;
-      var parts = path.split('.');
-      var i;
-      for (i=0; i<parts.length-1; i++) {
-        if (!prop) {
-          return;
-        }
-        prop = prop[parts[i]];
-      }
-      if (prop) {
-        prop[parts[i]] = value;
       }
     }
 
@@ -400,7 +388,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               if (!p.literal) {
                 p.signature = this._parseMethod(p.value);
                 if (!p.signature) {
-                  p.rootProperty = this._rootForPath(p.value);
+                  p.rootProperty = Polymer.Path.root(p.value);
                 }
               }
             }
@@ -498,7 +486,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _addNotifyListener(node, inst, info) {
       var lib = this;
-      var rootProperty = this._rootForPath(info.path);
+      var rootProperty = Polymer.Path.root(info.path);
       node.addEventListener(info.event, function(e) {
         return lib._notifyListener(e, inst, info.property, info.path,
           rootProperty, info.negate);
@@ -511,13 +499,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var targetPath = e.detail && e.detail.path;
         if (targetPath) {
           path = this._fixPath(path, property, e.detail.path);
-          this.setProperty(inst, path, e.detail.value);
+          this._setPropertyToHost(inst, path, e.detail.value);
         } else {
           var value = e.target[property];
           value = negate ? !value : value;
-          this.setProperty(inst, path, value);
+          this._setPropertyToHost(inst, path, value);
         }
       }
+    }
+
+    _setPropertyToHost(host, path, value) {
+      this.setProperty(host, path, value);
     }
 
     _pathMatchesEffect(path, effect) {
@@ -639,7 +631,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       // if not literal, look for structured path
       if (!a.literal) {
-        a.rootProperty = this._rootForPath(arg);
+        a.rootProperty = Polymer.Path.root(arg);
         // detect structured path (has dots)
         a.structured = arg.indexOf('.') > 0;
         if (a.structured) {
@@ -664,7 +656,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (arg.literal) {
           v = arg.value;
         } else if (arg.structured) {
-          v = this._get(model, name);
+          v = Polymer.Path.get(model, name);
         } else {
           v = model[name];
         }

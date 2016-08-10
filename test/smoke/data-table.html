@@ -1,0 +1,278 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <title>data-table</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+  <script>
+    window.emojiByType = {
+      a: '😎',
+      b: '💰',
+      c: '🚔',
+      d: '💕',
+      e: '👍',
+      f: '🍌'
+    };
+  </script>
+
+  <dom-module id="data-popup">
+    <template strip-whitespace>
+      <style>
+        :host {
+          display: inline-block;
+          background: lightblue;
+          border-radius: 10px;
+          border-bottom-left-radius: 0;
+          border: 1px solid #aaa;
+          box-shadow: 3px 3px 5px #535353;
+          padding: 5px;
+          z-index: 1;
+        }
+      </style>
+      <slot></slot>
+      </template>
+    </template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({
+          is: 'data-popup'
+        });
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="data-cell">
+    <template strip-whitespace>
+      <style>
+        :host {
+          flex: 1;
+          border: 2px solid #aaa;
+          padding: 5px;
+          position: relative;
+          background: #eee;
+        }
+        data-popup {
+          display: none;
+          position: absolute;
+          bottom: calc(100% - 15px);
+          left: calc(100% - 15px);
+        }
+        :host(:hover) data-popup {
+          display: inline-block;
+        }
+        :host[change=up] {
+          background: #afa;
+        }
+        :host[change=down] {
+          background: #faa;
+        }
+        .type {
+          display: inline-block;
+          border-radius: 100%;
+          box-sizing: border-box;
+          padding: 3px 0;
+          background: #aaa;
+          margin-right: 5px;
+          height: 30px;
+          width: 30px;
+          text-align: center;
+        }
+      </style>
+      <div class="type">{{computeTypeIcon(type)}}</div>
+      {{toFixed(value)}}
+      <data-popup>{{value}}</data-popup>
+    </template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({
+          is: 'data-cell',
+          properties: {
+            type: {
+              type: String,
+              notify: true
+            },
+            value: {
+              type: Number,
+              notify: true
+            },
+            change: {
+              reflectToAttribute: true,
+              computed: 'computeChange(value)'
+            }
+          },
+          created: function() {
+            this.fire('register-cell');
+          },
+          computeChange: function(value) {
+            var prev = this._prev;
+            this._prev = value;
+            return value > prev ? 'up' : (value < prev ? 'down' : 'none');
+          },
+          computeTypeIcon: function(type) {
+            return emojiByType[type];
+          },
+          toFixed: function(value) {
+            return Number(value).toFixed(2);
+          }
+        });
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="data-row">
+    <template strip-whitespace>
+      <style>
+        :host {
+          display: flex;
+          flex-direction: row;
+        }
+        .title-cell {
+          flex: 1;
+        }
+        .title {
+          font-weight: bold;
+        }
+        .dominant {
+          font-size: 0.7em;
+        }
+      </style>
+      <div class="title-cell">
+        <div class="title">{{title}}</div>
+        <div class="dominant">Dominant: {{computeDominant(cells.*)}}</div>
+      </div>
+      <template is="dom-repeat" items="{{cells}}" as="cell">
+        <data-cell type="{{cell.type}}" value="{{cell.value}}"></data-cell>
+      </template>
+    </template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({
+          is: 'data-row',
+          properties: {
+            title: {
+              type: String,
+              notify: true
+            },
+            cells: {
+              type: Array,
+              notify: true
+            }
+          },
+          computeDominant: function(info) {
+            var types = this.types = info.base.reduce(function(map, i) {
+              return map[i.type] = (map[i.type] || 0) + 1, map;
+            }, {})
+            return emojiByType[Object.keys(types).sort(function(a, b) {
+              return types[b] - types[a];
+            })[0]];
+          }
+        });
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="data-table">
+    <template strip-whitespace>
+      <style>
+        :host {
+          display: block;
+        }
+      </style>
+      <h3>FPS: {{fps}}</h3>
+      <template is="dom-repeat" items="{{data.tables}}">
+        <h3>Table {{index}}:</h3>
+        <template is="dom-repeat" items="{{data.rows}}" as="row">
+          <data-row title="{{row.title}}" cells="{{row.cells}}"></data-row>
+        </template>
+      </template>
+    </template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({
+          is: 'data-table',
+          properties: {
+            rows: Number,
+            columns: Number,
+            tables: Number,
+            mutations: Number,
+            data: {
+              computed: 'computeData(tables, rows, columns)'
+            }
+          },
+          created: function() {
+            this._fps = 0;
+            this.end = performance.now() + 1000;
+            var cells = this.cells = [];
+            this.addEventListener('register-cell', function(e) {
+              cells.push(e.target);
+            });
+          },
+          computeData: function(tables, rows, columns) {
+            var r = [];
+            for (var i=0; i<rows; i++) {
+              var c = [];
+              for (var j=0; j<columns; j++) {
+                c.push({
+                  value: Math.random() * 10,
+                  type: ['a','b','c','d','e','f'][Math.floor(Math.random()*6)]
+                });
+              }
+              r.push({
+                cells: c,
+                title: 'Row ' + i
+              })
+            }
+            return {
+              tables: new Array(Number(tables)),
+              rows: r
+            }
+          },
+          ready: function() {
+            this.go();
+          },
+          go: function() {
+            for (var i=0; i<this.mutations; i++) {
+              var row = Math.floor(Math.random() * this.rows);
+              var column = Math.floor(Math.random() * this.columns);
+              var type = Math.floor(Math.random() * 6);
+              var delta = (Math.random() > 0.5 ? -1 : 1) * (Math.random() * 5);
+              var d = this.data.rows[row].cells[column];
+              d.type = ['a','b','c','d','e','f'][Math.floor(Math.random()*6)];
+              d.value += delta;
+            }
+            this.set('data', this.data);
+            this._fps++;
+            if (performance.now() > this.end) {
+              this.fps = this._fps;
+              this._fps = 0;
+              this.end = performance.now() + 1000;
+            }
+            var self = this;
+            requestAnimationFrame(function() {
+              self.go();
+            });
+          }
+        });
+      });
+    </script>
+  </dom-module>
+
+  <data-table mutations="30" tables="2" rows="6" columns="10"></data-table>
+
+
+</body>
+</html>

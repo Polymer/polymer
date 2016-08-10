@@ -10,6 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/utils.html">
+<link rel="import" href="../utils/path.html">
 <link rel="import" href="property-effects.html">
 
 <script>
@@ -66,24 +67,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     setProperty(inst, prop, value) {
-      this.setPendingProperty(inst, prop, value);
-      if (inst.__dataInitialized) {
+      if (this.setPendingProperty(inst, prop, value) &&
+          inst.__dataInitialized) {
         if (inst.asyncEffects) {
           this.invalidate(inst);
         } else {
           this.flush(inst);
         }
       }
-    }
-
-    setPendingProperty(inst, prop, value) {
-      var rootProperty = this._rootForPath(prop);
-      if (!inst._propertyEffects[rootProperty]) {
-        this._set(inst, prop, value);
-      } else if (rootProperty !== prop) {
-        this._set(inst, prop, value);
-      }
-      return super.setPendingProperty(inst, prop, value);
     }
 
     flush(inst, fromAbove) {
@@ -145,18 +136,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _notifyProperties(inst, changedProps, computedProps, oldProps) {
+      // Determine which props to notify
       var props = inst.__dataFromAbove ? computedProps : changedProps;
+      // Save interim data for potential re-entry
       var runId = (inst._runId = ((inst._runId || 0) + 1));
       inst.__dataInterim = inst.__dataInterim ?
         this._mixin(inst.__dataInterim, changedProps) : changedProps;
       inst.__dataInterimOld = inst.__dataInterimOld ?
         this._mixin(inst.__dataInterimOld, oldProps) : oldProps;
+      // Notify
+      this._runEffects(inst, Types.NOTIFY, props);
+      // Flush host
       var host = inst.dataHost;
-      if (host && host.setProperties) {
-        this._setNotifyProperties(inst, host, props);
-      } else {
-        this._dispatchNotifyProperties(inst, props);
+      if (host && host.__dataPending) {
+        this.flush(host);
       }
+      // Combine & return interim data only for last entry
       if (runId == inst._runId) {
         changedProps = inst.__dataInterim;
         oldProps = inst.__dataInterimOld;
@@ -164,57 +159,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         inst.__dataInterimOld = null;
         return {changedProps: changedProps, oldProps: oldProps};
       }
-    }
-
-    _dispatchNotifyProperties(inst, props) {
-      var fx = inst._notifyEffects;
-      for (var prop in props) {
-        var rootProperty = this._rootForPath(prop);
-        var info = fx && fx[rootProperty] && fx[rootProperty][0].info;
-        if (info || rootProperty !== prop) {
-          this._dispatchNotification(inst, info, prop, props[prop]);
-        }
-      }
-    }
-
-    _dispatchNotification(inst, info, prop, value) {
-      var event = (info && info.eventName) ||
-        Polymer.CaseMap.camelToDashCase(prop) + '-changed';
-      inst.dispatchEvent(new CustomEvent(event, {
-        bubbles: false,
-        detail: { value: value }
-      }));
-    }
-
-    _setNotifyProperties(inst, host, props) {
-      var fx = inst._notifyEffects;
-      var hostProps;
-      for (var prop in props) {
-        var val = props[prop];
-        var rootProperty = this._rootForPath(prop);
-        var info = fx && fx[rootProperty] && fx[rootProperty][0].info;
-        if (info || rootProperty !== prop) {
-          var hostBinding = inst._hostBindings && inst._hostBindings[rootProperty];
-          if (hostBinding) {
-            prop = this._fixPath(hostBinding.path, rootProperty, prop);
-            hostProps = hostProps || {};
-            hostProps[prop] = hostBinding.negate ? !val : val;
-          } else {
-            this._dispatchNotification(inst, info, prop, val);
-          }
-        }
-      }
-      if (hostProps) {
-        this.setProperties(host, hostProps);
-      }
-    }
-
-    _addNotifyListener(node, inst, info) {
-      if (!node.setProperties) {
-        super._addNotifyListener.apply(this, arguments);
-      }
-      node._hostBindings = node._hostBindings || {};
-      node._hostBindings[info.property] = info;
     }
 
     _setPropertyToNode(model, node, prop, value) {
@@ -227,6 +171,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    _setPropertyToHost(host, path, value) {
+      this.setPendingProperty(host, path, value)
+    }
+
     _runEffects(inst, type, props, oldProps) {
       var ran;
       var effects = inst[type];
@@ -234,7 +182,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var id = this._effectUid++;
         for (var prop in props) {
           var val = props[prop];
-          var rootProperty = this._rootForPath(prop);
+          var rootProperty = Polymer.Path.root(prop);
           var fxs = effects[rootProperty];
           if (fxs) {
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
@@ -263,28 +211,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         inst.__data = {};
       }
       this.recordInstanceProperties(inst);
-      // ensure element enables & flushes even if disconnected
-      // this.enqueueFlush(inst);
-    }
-
-    enqueueFlush(inst) {
-      if (!this.flushQueue) {
-        this.flushQueue = [inst];
-        var self = this;
-        Promise.resolve().then(function() {
-          self.flushFlushQueue();
-        });
-      } else {
-        this.flushQueue.push(inst);
-      }
-    }
-
-    flushFlushQueue() {
-      var q = this.flushQueue;
-      this.flushQueue = null;
-      for (var i=0; i<q.length; i++) {
-        this.flush(q[i]);
-      }
     }
 
     recordInstanceProperties(inst) {
