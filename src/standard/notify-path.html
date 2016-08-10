@@ -8,6 +8,7 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="../lib/case-map.html">
+<link rel="import" href="../lib/path.html">
 <script>
 
   /**
@@ -62,6 +63,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   (function() {
     // Using strict here to ensure fast argument manipulation in array methods
     'use strict';
+
+    var Path = Polymer.Path;
 
     Polymer.Base._addFeature({
       /**
@@ -269,7 +272,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _pathEffector: function(path, value) {
         // get root property
-        var model = this._modelForPath(path);
+        var model = Path.root(path);
         // search property effects of the root property for 'annotation' effects
         var fx$ = this._propertyEffects && this._propertyEffects[model];
         if (fx$) {
@@ -288,43 +291,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _annotationPathEffect: function(path, value, effect) {
-        if (effect.value === path || effect.value.indexOf(path + '.') === 0) {
+        if (Path.matches(effect.value, false, path)) {
           // TODO(sorvell): ideally the effect function is on this prototype
           // so we don't have to call it like this.
           Polymer.Bind._annotationEffect.call(this, path, value, effect);
-        } else if ((path.indexOf(effect.value + '.') === 0) && !effect.negate) {
+        } else if (!effect.negate && Path.isDescendant(effect.value, path)) {
           // locate the bound node
           var node = this._nodes[effect.index];
           if (node && node._notifyPath) {
-            var p = this._fixPath(effect.name , effect.value, path);
-            node._notifyPath(p, value, true);
+            var newPath = Path.translate(effect.value, effect.name, path);
+            node._notifyPath(newPath, value, true);
           }
         }
       },
 
       _complexObserverPathEffect: function(path, value, effect) {
-        if (this._pathMatchesEffect(path, effect)) {
+        if (Path.matches(effect.trigger.name, effect.trigger.wildcard, path)) {
           Polymer.Bind._complexObserverEffect.call(this, path, value, effect);
         }
       },
 
       _computePathEffect: function(path, value, effect) {
-        if (this._pathMatchesEffect(path, effect)) {
+        if (Path.matches(effect.trigger.name, effect.trigger.wildcard, path)) {
           Polymer.Bind._computeEffect.call(this, path, value, effect);
         }
       },
 
       _annotatedComputationPathEffect: function(path, value, effect) {
-        if (this._pathMatchesEffect(path, effect)) {
+        if (Path.matches(effect.trigger.name, effect.trigger.wildcard, path)) {
           Polymer.Bind._annotatedComputationEffect.call(this, path, value, effect);
         }
-      },
-
-      _pathMatchesEffect: function(path, effect) {
-        var effectArg = effect.trigger.name;
-        return (effectArg == path) ||
-          (effectArg.indexOf(path + '.') === 0) ||
-          (effect.trigger.wildcard && path.indexOf(effectArg + '.') === 0);
       },
 
       /**
@@ -364,20 +360,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _notifyBoundPaths: function(path, value) {
         for (var a in this._boundPaths) {
           var b = this._boundPaths[a];
-          if (path.indexOf(a + '.') == 0) {
-            this._notifyPath(this._fixPath(b, a, path), value);
-          } else if (path.indexOf(b + '.') == 0) {
-            this._notifyPath(this._fixPath(a, b, path), value);
+          if (Path.isDescendant(a, path)) {
+            this._notifyPath(Path.translate(a, b, path), value);
+          } else if (Path.isDescendant(b, path)) {
+            this._notifyPath(Path.translate(b, a, path), value);
           }
         }
       },
 
-      _fixPath: function(property, root, path) {
-        return property + path.slice(root.length);
-      },
-
       _notifyPathUp: function(path, value) {
-        var rootName = this._modelForPath(path);
+        var rootName = Path.root(path);
         var dashCaseName = Polymer.CaseMap.camelToDashCase(rootName);
         var eventName = dashCaseName + this._EVENT_CHANGED;
         // use a cached event here (_useCache: true) for efficiency
@@ -385,11 +377,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           path: path,
           value: value
         }, {bubbles: false, _useCache: true});
-      },
-
-      _modelForPath: function(path) {
-        var dot = path.indexOf('.');
-        return (dot < 0) ? path : path.slice(0, dot);
       },
 
       _EVENT_CHANGED: '-changed',
@@ -611,8 +598,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           _complexObserverPathEffect: Polymer.Base._complexObserverPathEffect,
           _annotatedComputationPathEffect: Polymer.Base._annotatedComputationPathEffect,
           _computePathEffect: Polymer.Base._computePathEffect,
-          _modelForPath: Polymer.Base._modelForPath,
-          _pathMatchesEffect: Polymer.Base._pathMatchesEffect,
           _notifyBoundPaths: Polymer.Base._notifyBoundPaths,
           _getPathParts: Polymer.Base._getPathParts
         });
