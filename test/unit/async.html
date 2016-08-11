@@ -131,6 +131,81 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       });
 
+    test('`flush` synchronously runs all functions queued with microtask' +
+      ' timing.', function() {
+        var callCount1 = 0;
+        var callCount2 = 0;
+        var callCount3 = 0;
+        var callback1 = function() {
+          callCount1++;
+        };
+        var callback2 = function() {
+          callCount2++;
+        };
+        var callback3 = function() {
+          callCount3++;
+        };
+        Polymer.Async.run(callback1);
+        Polymer.Async.run(callback2);
+        Polymer.Async.run(callback3);
+        Polymer.Async.flush();
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 1);
+      });
+
+    test('`flush` rethrows any error thrown by a dequeued callback and leaves' +
+      ' any remaining callbacks in the queue.', function(done) {
+        var callCount1 = 0;
+        var callCount2 = 0;
+        var callCount3 = 0;
+        var callback1Error = new Error("callback1Error");
+        var callback1 = function() {
+          callCount1++;
+          throw callback1Error;
+        };
+        var callback2Error = new Error("callback2Error");
+        var callback2 = function() {
+          callCount2++;
+          throw callback2Error;
+        };
+        var callback3 = function() {
+          callCount3++;
+        };
+        Polymer.Async.run(callback1);
+        Polymer.Async.run(callback2);
+        Polymer.Async.run(callback3);
+        try {
+          Polymer.Async.flush();
+          assert.fail();
+        } catch (err) {
+          assert.equal(err, callback1Error);
+        }
+        // `callback1` throws, so items later in the queue were not dequeued or
+        // called during the flush.
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 0);
+        assert.equal(callCount3, 0);
+        try {
+          Polymer.Async.flush();
+          assert.fail();
+        } catch (err) {
+          assert.equal(err, callback2Error);
+        }
+        // `callback2` throws, so items later in the queue were not dequeued or
+        // called during the flush.
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 0);
+        Promise.resolve().then(function() {
+          // `callback3` was called in another microtask.
+          assert.equal(callCount1, 1);
+          assert.equal(callCount2, 1);
+          assert.equal(callCount3, 1);
+          done();
+        });
+      });
+
   });
 
   suite('Cancelling functions queued without a `waitTime` argument',
