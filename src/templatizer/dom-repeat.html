@@ -129,7 +129,8 @@ Then the `observe` property should be configured as follows:
        * to stamp and that that each template instance should bind to.
        */
       items: {
-        type: Array
+        type: Array,
+        notify: true
       },
 
       /**
@@ -241,8 +242,8 @@ Then the `observe` property should be configured as follows:
     },
 
     observers: [
-      // '_itemsChanged(items.*)'
-      '_itemsChanged(items)'
+      '_itemsChanged(items.*)'
+      // '_itemsChanged(items)'
     ],
 
     created: function() {
@@ -288,11 +289,11 @@ Then the `observe` property should be configured as follows:
         var self = this;
         this._ctor = templatizer.templatize(template, {
           instanceProps: instanceProps,
-          fwdHostPropToInstance: function(prop, value) {
+          fwdHostPropToInstance: function(host, prop, value) {
             var i$ = self._instances;
             for (var i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
               if (!inst.isPlaceholder) {
-                inst.forwardProperty(prop, value);
+                inst.forwardProperty(prop, value, host);
               }
             }
           },
@@ -383,7 +384,6 @@ Then the `observe` property should be configured as follows:
     },
 
     _itemsChanged: function(change) {
-      change = {path: 'items'};
       if (change.path == 'items') {
         if (Array.isArray(this.items)) {
           this.collection = Polymer.Collection.for(this.items);
@@ -679,9 +679,9 @@ Then the `observe` property should be configured as follows:
       var inst = this._instances[idx];
       if (!inst.isPlaceholder) {
         //TODO(sorvell): why is this necessary?
-        if (inst._children) {
-          for (var i=0; i<inst._children.length; i++) {
-            var el = inst._children[i];
+        if (inst.children) {
+          for (var i=0; i<inst.children.length; i++) {
+            var el = inst.children[i];
             inst.root.appendChild(el);
           }
         }
@@ -731,7 +731,7 @@ Then the `observe` property should be configured as follows:
         inst = this._stampInstance(idx, key);
       }
       var beforeRow = this._instances[idx + 1];
-      var beforeNode = beforeRow && !beforeRow.isPlaceholder ? beforeRow._children[0] : this;
+      var beforeNode = beforeRow && !beforeRow.isPlaceholder ? beforeRow.children[0] : this;
       this.parentNode.insertBefore(inst.root, beforeNode);
       this._instances[idx] = inst;
       return inst;
@@ -766,12 +766,8 @@ Then the `observe` property should be configured as follows:
         var idx = this._keyToInstIdx[key];
         var inst = this._instances[idx];
         if (inst && !inst.isPlaceholder) {
-          if (dot >= 0) {
-            path = this.as + '.' + path.substring(dot+1);
-            inst._notifyPath(path, value, true);
-          } else {
-            inst.__setProperty(this.as, value, true);
-          }
+          path = this.as + ((dot >= 0) ? ('.' + path.substring(dot+1)) : '');
+          inst.set(path, value);
         }
       }
     },

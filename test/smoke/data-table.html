@@ -114,7 +114,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               computed: 'computeChange(value)'
             }
           },
-          created: function() {
+          attached: function() {
             this.fire('register-cell');
           },
           computeChange: function(value) {
@@ -192,13 +192,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           display: block;
         }
       </style>
+      <button on-tap="toggleRunning">{{computeRunning(running)}}</button>
+      <input value-as-number="{{tables::input}}" type="number" style="width:35px;" placeholder="tables">
+      <input value-as-number="{{rows::input}}" type="number" style="width:35px;" placeholder="rows">
+      <input value-as-number="{{columns::input}}" type="number" style="width:35px;" placeholder="columns">
+      <br><br>
+      <select value="{{strategy::change}}">
+        <option value="reset">(Mutate in place x n), reset</option>
+        <option value="reset-each">(Mutate in place, reset) x n</option>
+        <option value="path">(Set path from top) x n</option>
+        <option value="path-leaf">(Set path from leaf) x n</option>
+      </select>
+      n = <input value-as-number="{{mutations::input}}" type="number" style="width:35px;">
+      <br><br>
       <h3>FPS: {{fps}}</h3>
-      <template is="dom-repeat" items="{{data.tables}}">
-        <h3>Table {{index}}:</h3>
-        <template is="dom-repeat" items="{{data.rows}}" as="row">
-          <data-row title="{{row.title}}" cells="{{row.cells}}"></data-row>
+      <h3>Op time: {{toFixed(optime, 2)}}</h3>
+      <div xhidden>
+        <template is="dom-repeat" items="{{tableData}}">
+          <h3>Table {{index}}:</h3>
+          <template is="dom-repeat" items="{{data}}" as="row">
+            <data-row title="{{row.title}}" cells="{{row.cells}}"></data-row>
+          </template>
         </template>
-      </template>
+      </div>
     </template>
     <script>
       HTMLImports.whenReady(function() {
@@ -209,8 +225,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             columns: Number,
             tables: Number,
             mutations: Number,
+            strategy: String,
+            running: {
+              type: Boolean,
+              value: true
+            },
             data: {
-              computed: 'computeData(tables, rows, columns)'
+              computed: 'computeData(rows, columns)'
+            },
+            tableData: {
+              computed: 'computeTableData(tables)'
+            },
+            optime: {
+              value: 0
             }
           },
           created: function() {
@@ -218,10 +245,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this.end = performance.now() + 1000;
             var cells = this.cells = [];
             this.addEventListener('register-cell', function(e) {
-              cells.push(e.target);
+              var cell = e.composedPath()[0];
+              cell.id = 'cell-' + cells.length;
+              cells.push(cell);
             });
           },
-          computeData: function(tables, rows, columns) {
+          toggleRunning: function() {
+            this.running = !this.running;
+            if (this.running) {
+              this.go();
+            }
+          },
+          computeRunning: function(running) {
+            return running ? 'Pause' : 'Run';
+          },
+          computeData: function(rows, columns) {
             var r = [];
             for (var i=0; i<rows; i++) {
               var c = [];
@@ -236,25 +274,62 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                 title: 'Row ' + i
               })
             }
-            return {
-              tables: new Array(Number(tables)),
-              rows: r
-            }
+            return r;
+          },
+          computeTableData: function(tables) {
+            return new Array(Number(tables));
+          },
+          toFixed: function(value, decimals) {
+            return value.toFixed(decimals);
           },
           ready: function() {
             this.go();
           },
           go: function() {
+            var optime = 0;
             for (var i=0; i<this.mutations; i++) {
+              var type = ['a','b','c','d','e','f'][Math.floor(Math.random()*6)];
+              var delta = (Math.random() > 0.5 ? -1 : 1) * (Math.random() * 5);
               var row = Math.floor(Math.random() * this.rows);
               var column = Math.floor(Math.random() * this.columns);
-              var type = Math.floor(Math.random() * 6);
-              var delta = (Math.random() > 0.5 ? -1 : 1) * (Math.random() * 5);
-              var d = this.data.rows[row].cells[column];
-              d.type = ['a','b','c','d','e','f'][Math.floor(Math.random()*6)];
-              d.value += delta;
+              var d = this.data[row].cells[column];
+              if (this.strategy == 'reset' || this.strategy == 'reset-each') {
+                d.type = type;
+                d.value += delta;
+                if (this.strategy == 'reset-each') {
+                  var start = performance.now();
+                  this.set('data', this.data);
+                  optime += (performance.now() - start);
+                }
+              } else if (this.strategy == 'path') {
+                var path = ['data', row, 'cells', column].join('.');
+                var props = {};
+                props[path + '.type'] = type;
+                props[path + '.value'] = d.value + delta;
+                var start = performance.now();
+                this.setProperties(props);
+                optime += (performance.now() - start);
+              } else if (this.strategy == 'path-leaf') {
+                var c = this.cells[Math.floor(this.cells.length * Math.random())];
+                var props = {
+                  type: type,
+                  value: c.value + delta
+                };
+                var start = performance.now();
+                c.setProperties(props);
+                optime += (performance.now() - start);
+              }
             }
-            this.set('data', this.data);
+            if (optime) {
+              // this.optime = (this.optime * 9 + (optime / this.mutations)) / 10;
+              this.optime = optime / this.mutations;
+            }
+            if (this.strategy == 'reset') {
+              var start = performance.now();
+              this.set('data', this.data);
+              this.optime = (this.optime * 9 + (performance.now() - start)) / 10;
+              // this.optime = performance.now() - start;
+            }
             this._fps++;
             if (performance.now() > this.end) {
               this.fps = this._fps;
@@ -262,16 +337,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               this.end = performance.now() + 1000;
             }
             var self = this;
-            requestAnimationFrame(function() {
-              self.go();
-            });
+            if (this.running) {
+              requestAnimationFrame(function() {
+                self.go();
+              });
+            }
           }
         });
       });
     </script>
   </dom-module>
 
-  <data-table mutations="30" tables="2" rows="6" columns="10"></data-table>
+  <data-table id="table" strategy="reset" mutations="30" tables="2" rows="6" columns="10"></data-table>
 
 
 </body>
