@@ -1,0 +1,170 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+<script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+<script src="../../../web-component-tester/browser.js"></script>
+<script>
+  ShadyDom = {force: true};
+</script>
+<link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+  <dom-module id="x-event-patched">
+    <template>
+      <div>
+        <div id="candidate" on-foo="fooHandler"></div>
+      </div>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        properties: {
+          events: {
+            type: Object,
+            value: function() {
+              return {};
+            }
+          }
+        },
+        listeners: {
+          "foo": "hostFooHandler"
+        },
+        is: 'x-event-patched',
+        connected: function() {
+          this.listen(this.shadowRoot, "rootFooHandler");
+        },
+        fooHandler: function(e) {
+          this.events.div = {
+            path: e.composedPath(),
+            target: e.target
+          };
+        },
+        hostFooHandler: function(e) {
+          this.events.host = {
+            path: e.composedPath && e.composedPath(),
+            target: e.target
+          };
+        },
+        rootFooHandler: function(e) {
+          this.events.root = {
+            path: e.composedPath && e.composedPath(),
+            target: e.target
+          };
+        }
+      });
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-event-scoped">
+    <template>
+      <div id="scoped" on-composed="childHandler" on-scoped="childHandler"></div>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-event-scoped',
+        properties: {
+          hostEvents: {
+            type: Array,
+            value: function() {
+              return [];
+            }
+          },
+          childEvents: {
+            type: Array,
+            value: function() {
+              return [];
+            }
+          }
+        },
+        listeners: {
+          'composed': 'hostHandler',
+          'scoped': 'hostHandler'
+        },
+        hostHandler: function(e) {
+          this.hostEvents.push(e.type);
+        },
+        childHandler: function(e) {
+          this.childEvents.push(e.type);
+        },
+        fireComposed: function() {
+          this.fire('composed', null, {node: this.$.scoped});
+        },
+        fireScoped: function(){
+          this.fire('scoped', null, {node: this.$.scoped, composed: false});
+        }
+      });
+    });
+    </script>
+  </dom-module>
+
+  <test-fixture id="patch">
+    <template>
+      <x-event-patched></x-event-patched>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="globalpatch">
+    <template>
+      <div></div>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="scoping">
+    <template>
+      <x-event-scoped></x-event-scoped>
+    </template>
+  </test-fixture>
+
+<script>
+suite('ShadyDOM event patching', function() {
+  test('event.composedPath is consistent', function() {
+    var el = fixture('patch');
+    var e = new Event('foo', {bubbles: true, composed: true})
+    el.$.candidate.dispatchEvent(e);
+    assert.property(el.events, 'div');
+    assert.equal(el.events.div.target, el.$.candidate);
+    assert.property(el.events, 'host');
+    assert.equal(el.events.host.path, el.events.div.path);
+    assert.equal(el.events.host.target, el);
+    // assert.property(el.events, 'root');
+    // assert.equal(el.events.root.path, el.events.div.path);
+    // assert.equal(el.events.root.target, el.$.candidate);
+  });
+
+  test('event patching works on non Polymer elements', function() {
+    var el = fixture('globalpatch');
+    var path;
+    el.addEventListener('foo', function(e) {
+      path = e.composedPath();
+    });
+    var e = new Event('foo', {composed: true});
+    el.dispatchEvent(e);
+    assert.deepEqual([el, el.parentNode, document.body, document.documentElement, document, window], path);
+  });
+
+  test('events handle the `composed` flag correctly', function() {
+    var el = fixture('scoping');
+    el.fireScoped();
+    el.fireComposed();
+    assert.equal(el.hostEvents.length, 1);
+    assert.equal(el.hostEvents[0], 'composed');
+    assert.equal(el.childEvents.length, 2);
+    assert.equal(el.childEvents[0], 'scoped');
+    assert.equal(el.childEvents[1], 'composed');
+  });
+});
+</script>
+</body>
+</html>
