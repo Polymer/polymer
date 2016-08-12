@@ -20,7 +20,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var utils = Polymer.Utils;
 
   function nyi() {
-    console.warn('Not yet implemented:', arguments.callee.caller.name);
+    var stack = new Error().stack.split('\n');
+    var fn = stack.reduce(function(prev, val) {
+      return prev == true ? val : (prev ? prev : val.indexOf('base.html') > 0);
+    }, false);
+    console.warn('Not yet implemented:', fn);
   }
 
   function CompatElementMixin(Base) {
@@ -162,7 +166,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         detail = (detail === null || detail === undefined) ? {} : detail;
         var event = new Event(type, {
           bubbles: options.bubbles === undefined ? true : options.bubbles,
-          cancelable: Boolean(options.cancelable)
+          cancelable: Boolean(options.cancelable),
+          composed: options.composed === undefined ? true: options.composed
         });
         event.detail = detail;
         var node = options.node || this;
@@ -253,8 +258,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var list = [];
         var c$ = this.childNodes;
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
-          if (c.localName === 'content') {
-            var d$ = c.getDistributedNodes();
+          // BREAKME(sorvell): remove when V0 ShadowDom support is removed.
+          var d$ = (c.localName === 'content') ? c.getDistributedNodes() :
+            ((c.localName === 'slot') ? c.assignedNodes({flatten: true}) : null);
+          if (d$) {
+           var d$ = c.getDistributedNodes();
             for (var j=0; j < d$.length; j++) {
               list.push(d$[j]);
             }
@@ -299,6 +307,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return tc.join('');
       }
+
+      queryDistributedElements(selector) {
+        var c$ = this.getEffectiveChildNodes();
+        var list = [];
+        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if ((c.nodeType === Node.ELEMENT_NODE) &&
+              utils.matchesSelector.call(c, selector)) {
+            list.push(c);
+          }
+        }
+        return list;
+      }
+
 
       queryEffectiveChildren(slctr) {
         var e$ = this.queryDistributedElements(slctr);
@@ -355,7 +376,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       scopeSubtree(container, shouldObserve) {
-        return nyi();
+        if (Polymer.StyleLib.nativeShadow) {
+          return;
+        }
+        Polymer.StyleTransformer.dom(container);
+        if (shouldObserve) {
+          var mo = new MutationObserver(function(mxns) {
+            for (var i = 0, m; i < mxns.length; i++) {
+              m = mxns[i];
+              if (m.addedNodes) {
+                for (var j = 0, n; j < m.addedNodes.length; j++) {
+                  n = m.addedNodes[j];
+                  Polymer.StyleTransformer.dom(n);
+                }
+              }
+            }
+          });
+          mo.observe(container, {childList: true, subtree: true});
+          return mo;
+        }
       }
 
       getComputedStyleValue(property) {
