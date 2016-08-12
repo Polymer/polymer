@@ -57,12 +57,14 @@ Events that are listened to on patched elements are patched. They have the (begi
 
 ### Styling
 * Drop invalid syntax
-  * :root {}
-    * Should be :host > * {}
-  * var(--a, --b)
-    * Should be var(--a, var(--b))
-  * @apply(--foo)
-    * Should be @apply --foo;
+  * `:root {}`
+    * Should be `:host > * {}` (in a shadow root)
+    * Should be `html {}` (in main document)
+    * Thus, cannot share old `:root` styles for use in both main document and shadow root
+  * `var(--a, --b)`
+    * Should be `var(--a, var(--b))`
+  * `@apply(--foo)`
+    * Should be `@apply --foo;`
 * Native CSS Custom Properties by default
 * `element.customStyle` has been removed, use `element.updateStyles({}) instead.`
 * `<style>` inside of a `<dom-module>`, but outside of `<template>` is no longer supported
