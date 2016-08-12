@@ -1,0 +1,150 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../elements/compat-element.html">
+<link rel="import" href="../utils/utils.html">
+<script>
+
+  (function() {
+
+    'use strict';
+
+    let utils = Polymer.Utils;
+    let CompatElementMixin = Polymer.CompatElementMixin;
+
+    let metaProps = {
+      attached: true,
+      detached: true,
+      ready: true,
+      created: true,
+      beforeRegister: true,
+      registered: true,
+      attributeChanged: true,
+      // meta objects
+      behaviors: true,
+      hostAttributes: true,
+      properties: true,
+      observers: true,
+      listeners: true
+    }
+
+    let mixinBehaviors = function(behaviors, klass) {
+      for (let i=0, l=behaviors.length, b; (i<l) && (b=behaviors[i]); i++) {
+        klass = Array.isArray(b) ? mixinBehaviors(b, klass) :
+          Polymer.Class(b, klass);
+      }
+      return klass;
+    }
+
+    //var nativeConstructors = {};
+
+    /**
+     * Returns the native element constructor for the tag specified.
+     *
+     * @method getNativeConstructor
+     * @param {string} tag  HTML tag name.
+     * @return {Object} Native constructor for specified tag.
+    */
+    let getNativeConstructor = function(tag) {
+      if (tag) {
+        // TODO(kschaaf): hack, for now, needs to be removed; needed to allow
+        // subclassing from overwridden constructors in CEv1 polyfill
+        return window['HTML' + tag[0].toUpperCase() + tag.slice(1) + 'Element'];
+        // var c = nativeConstructors[tag];
+        // if (!c) {
+        //   c = document.createElement(tag).constructor;
+        //   nativeConstructors[tag] = c;
+        // }
+        // return c;
+      } else {
+        return HTMLElement;
+      }
+    }
+
+    // TODO(sorvell): implement caching...
+    Polymer.Class = function(info, Base) {
+      if (!Base) {
+        Base = CompatElementMixin(getNativeConstructor(info.extends));
+      }
+      if (info.behaviors) {
+        Base = mixinBehaviors(info.behaviors, Base);
+      }
+      
+      class Polymer extends Base {
+
+        static get is() { 
+          return info.is;
+        }
+
+        static get config() {
+          return {
+            properties: info.properties,
+            observers: info.observers
+          }
+        }
+
+        _invokeFunction(fn, args) {
+          if (fn) {
+            fn.apply(this, args);
+          }
+        }
+
+        created() {
+          super.created();
+          this._invokeFunction(info.created);
+        }
+
+        ready() {
+          if (info.listeners) {
+            this.addListeners(info.listeners);
+          }
+          if (info.hostAttributes) {
+            this.ensureAttributes(info.hostAttributes);
+          }
+          super.ready();
+          this._invokeFunction(info.ready);
+        }
+
+        attached() {
+          super.attached();
+          this._invokeFunction(info.attached);
+        }
+
+        detached() {
+          super.detached();
+          this._invokeFunction(info.detached);
+        }
+
+        connected() {
+          super.connected();
+          this._invokeFunction(info.connected);
+        }
+
+        disconnected() {
+          super.disconnected();
+          this._invokeFunction(info.disconnected);
+        }
+
+        attributeChanged(name, old, value) {
+          super.attributeChanged(name, old, value);
+          this._invokeFunction(info.attributeChanged, [name, old, value]);
+        }
+      }
+
+      for (let p in info) {
+        if (!(p in metaProps)) 
+          utils.copyOwnProperty(p, info, Polymer.prototype);
+      }
+
+      return Polymer;
+    }
+
+  })();
+
+</script>

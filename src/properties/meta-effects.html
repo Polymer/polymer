@@ -28,46 +28,108 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     createProperties(model, properties) {
-      // TODO(sorvell): other code depends on these always existing...
-      //model._propertyEffects = model._propertyEffects || {};
+      // TODO(sorvell): should probably not be here...
+      model._propertyEffects = model._propertyEffects || {};
       var info, p;
-      var ctor = model.constructor;
       // process properties
       for (p in properties) {
         info = properties[p];
-        if (info.readOnly) {
+        // computed forces readOnly...
+        if (info.computed) {
+          info.readOnly = true;
+        }
+        // TODO(sorvell): is this computed check enough?
+        if (info.readOnly && !this.hasReadOnlyEffect(model, p)) {
           this.createReadOnlyProperty(model, p, !info.computed);
         }
-        if (info.reflectToAttribute) {
+        if (info.reflectToAttribute && !this.hasReflectEffect(model, p)) {
           this.createReflectedProperty(model, p);
         }
-        if (info.observer) {
-          // TODO(sorvell): in anticipation of behaviors merging observers
-          if (Array.isArray(info.observer)) {
-            for (var i=0; i < info.observer.length; i++) {
-              this.createObserver(model, p, info.observer[i]);
-            }
-          } else {
-            this.createObserver(model, p, info.observer);
-          }
-        }
-        if (info.notify) {
+        if (info.notify && !this.hasNotifyEffect(model, p)) {
           this.createNotifyingProperty(model, p);
         }
-        if (info.computed) {
+        if (info.computed && !this.hasComputeEffect(model, p)) {
           this.createComputedProperty(model, p, info.computed);
         }
-        // TODO(sorvell): remove when using V1 custom elements.
-        // if (!ctor.hasOwnProperty('observedAttributes')) {
-        //   ctor.observedAttributes =
-        //     ctor.observedAttributes ?
-        //     ctor.observedAttributes.slice() : [];
-        // }
-        // if (ctor.observedAttributes.indexOf(p) < 0){
-        //   ctor.observedAttributes.push(Polymer.CaseMap.camelToDashCase(p));
-        // }
+        if (info.observer) {
+          this.createObserver(model, p, info.observer);
+        }
       }
     }
+
+    hasReadOnlyEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.READ_ONLY);
+    }
+
+    hasNotifyEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.NOTIFY);
+    }
+
+    hasReflectEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.COMPUTE, 
+        this._runReflectEffect);
+    }
+
+    hasComputeEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.COMPUTE, 
+        this._runComputedEffect);
+    }
+
+    hasPropertyEffect(model, property, type, fn) {
+      var effects = model[type];
+      var list = effects && effects[property];
+      if (list) {
+        if (fn) {
+          for (var i=0; i < list.length; i++) {
+            if (list[i].fn === fn) {
+              return true;
+            }
+          }
+        } else {
+          return true;
+        }
+      }
+    }
+
+    /*
+    static mergeProperty(target, source) {
+      // type: last wins
+      if (target.type === undefined) {
+        target.type = source.type;
+      }
+      // value: last wins
+      if (target.value === undefined) {
+        target.value = source.value;
+      }
+      // reflectToAttr: last wins
+      if (!target.reflectToAttribute) {
+        target.reflectToAttribute = source.reflectToAttribute;
+      }
+      // notify: last wins?
+      if (!target.notify) {
+        target.notify = source.notify;
+      }
+      // computed: cannot change
+      if (source.computed) {
+        target.computed = source.computed;
+      }
+      // readOnly: truthy wins
+      if (!target.readOnly) {
+        target.readOnly = Boolean(target.computed) || source.readOnly;
+      }
+      // observer... convert to array
+      if (source.observer) {
+        if (target.observer) {
+          if (typeof target.observer !== 'object') {
+            target.observer = [target.observer];
+          }
+          target.observer.push(source.observer);
+        } else {
+          target.observer = source.observer;
+        }
+      }
+    }
+    */
 
     createExpressionObservers(model, observers) {
       for (var i=0; i < observers.length; i++) {
