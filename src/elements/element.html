@@ -17,7 +17,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../template/template-stamp.html">
 <link rel="import" href="../attributes/attribute-to-from-property.html">
 <link rel="import" href="../properties/meta-effects.html">
-<link rel="import" href="../styling/style-lib.html">
 
 <script>
 (function() {
@@ -59,7 +58,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static get observedAttributes() {
         // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
         var currentScript = document._currentScript || document.currentScript;
-        this.prototype.__importDoc = currentScript && currentScript.ownerDocument;
+        this.__importDoc = currentScript && currentScript.ownerDocument;
         // observedAttributes must be finalized at registration time
         var attrs = [];
         return this.addPropertiesToAttributes(this.flattenedProperties, attrs);
@@ -111,41 +110,50 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var config = this.ownConfig;
           this.createProperties(config.properties);
           this.createExpressionObservers(config.observers);
-          this.prepareTemplate();
+          var template = this.prepareTemplate();
+          if (template) {
+            proto.__notStyleScopeCacheable = template.__notStyleScopeCacheable;
+            proto._template = template;
+            this.data.bindTemplate(proto, proto._template);
+          }
         }
       }
 
       static prepareTemplate() {
-        var proto = this.prototype;
         // TODO(sorvell): support more ways to acquire template.
         // this requires `is` on constructor...
-        if (proto._template === undefined) {
-          // TODO(sorvell): `__importDoc` may not be set if super class
-          // has not run defined... falling back to document here is 
-          // incorrect. This gambit cannot work as is since if the superclass
-          // document cannot be discovered via the subclass.
-          proto._template = Polymer.DomModule.import(this.is, 
-            'template', proto.__importDoc || document);
-        }
-        if (proto._template) {
-          Polymer.CompatStyleUtil.normalizeForBC(proto._template.content);
+        // TODO(sorvell): `__importDoc` may not be set if super class
+        // has not run defined... falling back to document here is 
+        // incorrect. This gambit cannot work as is since if the superclass
+        // document cannot be discovered via the subclass.
+        var template = Polymer.DomModule.import(this.is, 
+          'template', this.__importDoc || document);
+        if (template) {
+          Polymer.CompatStyleUtil.normalizeForBC(template.content);
           // TODO(sorvell): cannot use `this` here, refactor this to only do
           // template preparation and take a name.
-          Polymer.StyleLib.prepareHost(this, proto._template);
-          this.data.bindTemplate(proto, proto._template);
+          // TODO(dfreedm): factor so that we do not need an object/element 
+          // argument
+          var info = {
+            localName: this.is,
+            is: this.is,
+            extends: this.extends,
+            __cssBuild: this.__cssBuild
+          }
+          Polymer.StyleLib.prepareTemplate(info, template);
+          template.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
         }
+        return template;
       }
 
       constructor() {
         super();
         // note: `this.constructor.prototype` is wrong in Safari so make sure to
         // use `__proto__`
-        var proto = Object.getPrototypeOf(this);
         if (!this.constructor.decorated) {
           this.constructor.decorate();
-        } else {
-          Polymer.StyleLib.prepareHost(this, proto._template);
         }
+        Polymer.StyleLib.prepareHost(this, this._template);
         Polymer.telemetry.instanceCount++;
         // setup batched effects library; will call initialize when flushing
         this.constructor.data.prepare(this, this.ready);
