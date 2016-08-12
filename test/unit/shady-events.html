@@ -19,53 +19,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 </head>
 <body>
 
-  <dom-module id="x-event-patched">
-    <template>
-      <div>
-        <div id="candidate" on-foo="fooHandler"></div>
-      </div>
-    </template>
-    <script>
-    HTMLImports.whenReady(function() {
-      Polymer({
-        properties: {
-          events: {
-            type: Object,
-            value: function() {
-              return {};
-            }
-          }
-        },
-        listeners: {
-          "foo": "hostFooHandler"
-        },
-        is: 'x-event-patched',
-        connected: function() {
-          this.listen(this.shadowRoot, "rootFooHandler");
-        },
-        fooHandler: function(e) {
-          this.events.div = {
-            path: e.composedPath(),
-            target: e.target
-          };
-        },
-        hostFooHandler: function(e) {
-          this.events.host = {
-            path: e.composedPath && e.composedPath(),
-            target: e.target
-          };
-        },
-        rootFooHandler: function(e) {
-          this.events.root = {
-            path: e.composedPath && e.composedPath(),
-            target: e.target
-          };
-        }
-      });
-    });
-    </script>
-  </dom-module>
-
   <dom-module id="x-event-scoped">
     <template>
       <div id="scoped" on-composed="childHandler" on-scoped="childHandler"></div>
@@ -93,25 +46,92 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           'scoped': 'hostHandler'
         },
         hostHandler: function(e) {
-          this.hostEvents.push(e.type);
+          this.hostEvents.push({
+            target: e.target,
+            type: e.type,
+            path: e.composedPath()
+          });
         },
         childHandler: function(e) {
-          this.childEvents.push(e.type);
+          this.childEvents.push({
+            target: e.target,
+            type: e.type,
+            path: e.composedPath()
+          });
         },
         fireComposed: function() {
-          this.fire('composed', null, {node: this.$.scoped});
+          return this.fire('composed', null, {node: this.$.scoped});
         },
         fireScoped: function(){
-          this.fire('scoped', null, {node: this.$.scoped, composed: false});
+          return this.fire('scoped', null, {node: this.$.scoped, composed: false});
         }
       });
     });
     </script>
   </dom-module>
 
-  <test-fixture id="patch">
+  <dom-module id="x-focus">
     <template>
-      <x-event-patched></x-event-patched>
+      <style>
+        :host {
+          display: block;
+        }
+      </style>
+      <div id="child" on-focus="focusHandler"></div>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-focus',
+        properties: {
+          events: {
+            type: Array,
+            value: function() {
+              return [];
+            }
+          }
+        },
+        listeners: {
+          focus: 'focusHandler'
+        },
+        focusHandler: function(e) {
+          this.events.push(e.target);
+        },
+        fireComposed: function() {
+          var ev = new Event('focus', {composed: true});
+          this.$.child.dispatchEvent(ev);
+        },
+        fireScoped: function() {
+          var ev = new Event('focus');
+          this.$.child.dispatchEvent(ev);
+        }
+      })
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-a">
+    <template>
+      <div id="child"></div>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-a',
+        listeners: {
+          'foo': 'fooHandler'
+        },
+        fooHandler: function(e) {
+          this.event = {target: e.target, relatedTarget: e.relatedTarget};
+        }
+      })
+    });
+    </script>
+  </dom-module>
+
+  <test-fixture id="scoped">
+    <template>
+      <x-event-scoped></x-event-scoped>
     </template>
   </test-fixture>
 
@@ -121,26 +141,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </test-fixture>
 
-  <test-fixture id="scoping">
+  <test-fixture id="focus">
     <template>
-      <x-event-scoped></x-event-scoped>
+      <x-focus></x-focus>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="relatedtarget">
+    <template>
+      <x-a id="one"></x-a>
+      <x-a id="two"></x-a>
     </template>
   </test-fixture>
 
 <script>
 suite('ShadyDOM event patching', function() {
+
+  test('events retarget', function() {
+    var el = fixture('scoped');
+    el.fireComposed();
+    assert.equal(el.hostEvents[0].target, el);
+    assert.equal(el.childEvents[0].target, el.$.scoped);
+  });
+
   test('event.composedPath is consistent', function() {
-    var el = fixture('patch');
-    var e = new Event('foo', {bubbles: true, composed: true})
-    el.$.candidate.dispatchEvent(e);
-    assert.property(el.events, 'div');
-    assert.equal(el.events.div.target, el.$.candidate);
-    assert.property(el.events, 'host');
-    assert.equal(el.events.host.path, el.events.div.path);
-    assert.equal(el.events.host.target, el);
-    // assert.property(el.events, 'root');
-    // assert.equal(el.events.root.path, el.events.div.path);
-    // assert.equal(el.events.root.target, el.$.candidate);
+    var el = fixture('scoped');
+    el.fireComposed();
+    assert.equal(el.hostEvents.length, el.childEvents.length);
   });
 
   test('event patching works on non Polymer elements', function() {
@@ -155,14 +182,35 @@ suite('ShadyDOM event patching', function() {
   });
 
   test('events handle the `composed` flag correctly', function() {
-    var el = fixture('scoping');
+    var el = fixture('scoped');
     el.fireScoped();
     el.fireComposed();
     assert.equal(el.hostEvents.length, 1);
-    assert.equal(el.hostEvents[0], 'composed');
+    assert.equal(el.hostEvents[0].type, 'composed');
     assert.equal(el.childEvents.length, 2);
-    assert.equal(el.childEvents[0], 'scoped');
-    assert.equal(el.childEvents[1], 'composed');
+    assert.equal(el.childEvents[0].type, 'scoped');
+    assert.equal(el.childEvents[1].type, 'composed');
+  });
+
+  test('events set a flag on stopPropagation', function() {
+    var el = fixture('scoped');
+    var ev = el.fireScoped();
+    assert.equal(ev.__propagationStopped, true);
+  });
+
+  test('composed focus and blur events retarget up tree', function() {
+    var el = fixture('focus');
+    el.fireComposed();
+    assert.equal(el.events.length, 2);
+    assert.equal(el.events[0], el.$.child);
+    assert.equal(el.events[1], el);
+  });
+
+  test('scoped focus and blur events do not retarget', function() {
+    var el = fixture('focus');
+    el.fireScoped();
+    assert.equal(el.events.length, 1);
+    assert.equal(el.events[0], el.$.child);
   });
 });
 </script>

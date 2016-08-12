@@ -845,6 +845,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return ancestor;
         }
       }
+    },
+    stopPropagation() {
+      Event.prototype.stopPropagation.call(this);
+      this.__propagationStopped = true;
+    },
+    stopImmediatePropagation() {
+      Event.prototype.stopImmediatePropagation.call(this);
+      this.__propagationStopped = true;
     }
 
   };
@@ -868,7 +876,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   ShadyDom.PatchedCustomEvent = mixinComposedFlag(CustomEvent);
 
+  var nonBubblingEventsToRetarget = {
+    focus: true,
+    blur: true
+  };
+
+  function retargetNonBubblingEvent(e) {
+    var path = e.composedPath();
+    for (var i = 0, n; i < path.length; i++) {
+      n = path[i];
+      var hs = n.__handlers && n.__handlers[e.type];
+      if (hs) {
+        for (var j = 0, fn; (fn = hs[j]); j++) {
+          // override `currentTarget` to let patched `target` calculate correctly
+          Object.defineProperty(e, 'currentTarget', {value: n, configurable: true});
+          fn.call(n, e);
+          if (e.__propagationStopped) {
+            break;
+          }
+        }
+      }
+    }
+  }
+
   ShadyDom.addEventListener = function(type, fn, optionsOrCapture) {
+    if (!fn) {
+      return;
+    }
     if (!this.__eventListenerCount) {
       this.__eventListenerCount = 0;
     }
@@ -889,17 +923,57 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
     fn.__eventWrapper = wrappedFn;
+    if (nonBubblingEventsToRetarget[type]) {
+      this.__handlers = this.__handlers || {};
+      this.__handlers[type] = this.__handlers[type] || [];
+      this.__handlers[type].push(wrappedFn);
+    }
     return origAddEventListener.call(this, type, wrappedFn, optionsOrCapture);
   };
 
   ShadyDom.removeEventListener = function(type, fn, optionsOrCapture) {
+    if (!fn) {
+      return;
+    }
     var wrapper = fn.__eventWrapper;
     origRemoveEventListener.call(this, type, wrapper || fn, optionsOrCapture);
     if (wrapper) {
       fn.__eventWrapper = null;
       this.__eventListenerCount--;
+    if (nonBubblingEventsToRetarget[type]) {
+      if (this.__handlers) {
+        if (this.__handlers[type]) {
+          var idx = this.__handlers[type].indexOf(wrapper);
+          if (idx > -1) {
+            this.__handlers[type].splice(idx, 1);
+          }
+        }
+      }
+    }
     }
   };
+
+  document.addEventListener('focus', function(e){
+    var proto = ShadyDom.patchImpl.prototypeForObject(e);
+    if (!e.__target) {
+      e.__target = e.target;
+      e.__relatedTarget = e.__relatedTarget;
+      e.__proto__ = proto;
+      retargetNonBubblingEvent(e);
+      e.stopImmediatePropagation();
+    }
+  }, true);
+
+  document.addEventListener('blur', function(e){
+    var proto = ShadyDom.patchImpl.prototypeForObject(e);
+    if (!e.__target) {
+      e.__target = e.target;
+      e.__relatedTarget = e.__relatedTarget;
+      e.__proto__ = proto;
+      retargetNonBubblingEvent(e);
+      e.stopImmediatePropagation();
+    }
+  }, true);
 
   ShadyDom.Mixins = {
 
