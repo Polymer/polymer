@@ -20,6 +20,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     class Templatizer {
 
+      static enqueueDebouncer(debouncer) {
+        this._debouncerQueue = this._debouncerQueue || [];
+        this._debouncerQueue.push(debouncer);
+      }
+
+      static flushDebouncers() {
+        if (this._debouncerQueue) {
+          while (this._debouncerQueue.length) {
+            this._debouncerQueue.shift().flush();
+          }
+        }
+      }
+
       constructor(data) {
         var self = this;
         this.data = data || new Polymer.BatchedEffects();
@@ -30,28 +43,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       templatize(template, options) {
-        var ctor;
         if (!template._content) {
           template._content = template.content;
         }
-        if (template._content._ctor) {
-          // Use cached constructor for template when available
-          ctor = template._content._ctor;
-          // Host property forwarding must be installed onto template instance
-          this._prepHostProperties(ctor, template, options);
-        } else {
+        var ctor = template._content._ctor;
+        if (!ctor) {
+          // Lazily generate memoized constructor
           ctor = template._content._ctor =
             this._createConstructor(template, options);
         }
+        // Host property forwarding must be installed onto template instance
+        this._prepHostProperties(ctor, template, options);
+        // Extend memoized constructor and provide reference to the host template
+        ctor = class TemplateInstance extends ctor {};
+        ctor.prototype.template = template;
+        ctor.instCount = 0;
         return ctor;
       }
 
       _createConstructor(template, options) {
         // Anonymous class created by the templatizer
         var data = this.data;
-        var ctor = class TemplateInstance {
+        var ctor = class {
+          //TODO(kschaaf): for debugging; remove?
+          get localName() { return 'template#' + this.template.id + '/TemplateInstance' }
           constructor(host, props) {
-            this.dataHost = host;
+            //TODO(kschaaf): for debugging; remove?
+            this.id = this.constructor.instCount;
+            this.constructor.instCount++;
+            this.dataHost = this.template;
             if (host) {
               this._rootDataHost = host.dataHost ?
                 host.dataHost._rootDataHost || host.dataHost : host;
@@ -102,7 +122,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               }
             }
             for (var hprop in this._hostProps) {
-              this[hprop] = this._rootDataHost[hprop];
+              this[hprop] = this.template['_host_' + hprop];
             }
           }
           forwardProperty(prop, value, host) {
@@ -120,7 +140,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // TODO(kschaaf): event listeners created need to be decorated with e.model
         this.data.bindTemplate(ctor, template);
         this._prepInstanceProperties(ctor, template, options);
-        this._prepHostProperties(ctor, template, options);
         return ctor;
       }
 
@@ -134,7 +153,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this.data.createNotifyingProperty(template, '_host_' + prop);
           }
           if (template.__dataProto) {
-           template.setProperties(template.__dataProto);
+            template.__data = template.__dataProto;
           }
         }
       }

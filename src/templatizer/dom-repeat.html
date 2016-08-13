@@ -286,10 +286,11 @@ Then the `observe` property should be configured as follows:
         };
         instanceProps[this.as] = true;
         instanceProps[this.indexAs] = true;
-        var self = this;
         this._ctor = templatizer.templatize(template, {
           instanceProps: instanceProps,
           fwdHostPropToInstance: function(host, prop, value) {
+            //TODO(kschaaf): fallout from separating template from dom-repeat
+            var self = this.parentNode;
             var i$ = self._instances;
             for (var i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
               if (!inst.isPlaceholder) {
@@ -298,6 +299,8 @@ Then the `observe` property should be configured as follows:
             }
           },
           fwdInstancePropToHost: function(inst, prop, value) {
+            //TODO(kschaaf): fallout from separating template from dom-repeat
+            var self = this.dataHost.parentNode;
             if (prop == self.as) {
               var idx;
               if (self._sortFn || self._filterFn) {
@@ -322,13 +325,17 @@ Then the `observe` property should be configured as follows:
       }
     },
 
+    _getRootDataHost: function() {
+      return this.dataHost._rootDataHost || this.dataHost;
+    },
+
     _sortChanged: function(sort) {
       var dataHost = this._getRootDataHost();
       this._sortFn = sort && (typeof sort == 'function' ? sort :
         function() { return dataHost[sort].apply(dataHost, arguments); });
       this._needFullRefresh = true;
       if (this.items) {
-        this._debounceTemplate(this._render);
+        this._debounceRender();
       }
     },
 
@@ -338,7 +345,7 @@ Then the `observe` property should be configured as follows:
         function() { return dataHost[filter].apply(dataHost, arguments); });
       this._needFullRefresh = true;
       if (this.items) {
-        this._debounceTemplate(this._render);
+        this._debounceRender();
       }
     },
 
@@ -375,7 +382,7 @@ Then the `observe` property should be configured as follows:
       this._chunkCount = Math.round(this._chunkCount * ratio) || 1;
       this._limit += this._chunkCount;
       this._lastChunkTime = currChunkTime;
-      this._debounceTemplate(this._render);
+      this._debounceRender();
     },
 
     _observeChanged: function() {
@@ -390,20 +397,17 @@ Then the `observe` property should be configured as follows:
         } else if (!this.items) {
           this.collection = null;
         } else {
-          this._error(this._logf('dom-repeat', 'expected array for `items`,' +
-            ' found', this.items));
+          console.warn('dom-repeat expected array for `items`, found', this.items);
         }
         this._keySplices = [];
         this._indexSplices = [];
         this._needFullRefresh = true;
         this._initializeChunking();
-        // this._debounceTemplate(this._render);
-        // this.debounce('_render', this._render);
-        this._render();
+        this._debounceRender();
       } else if (change.path == 'items.splices') {
         this._keySplices = this._keySplices.concat(change.value.keySplices);
         this._indexSplices = this._indexSplices.concat(change.value.indexSplices);
-        this._debounceTemplate(this._render);
+        this._debounceRender();
       } else { // items.*
         // slice off 'items.' ('items.'.length == 6)
         var subpath = change.path.slice(6);
@@ -424,12 +428,16 @@ Then the `observe` property should be configured as follows:
             if (this.delay) {
               this.debounce('render', this._render, this.delay);
             } else {
-              this._debounceTemplate(this._render);
+              this._debounceRender();
             }
             return;
           }
         }
       }
+    },
+
+    _debounceRender: function() {
+      Polymer.Templatizer.enqueueDebouncer(this.debounce('_render', this._render));
     },
 
     /**
@@ -442,7 +450,8 @@ Then the `observe` property should be configured as follows:
     render: function() {
       // Queue this repeater, then flush all in order
       this._needFullRefresh = true;
-      this._render();
+      this._debounceRender();
+      Polymer.Templatizer.flushDebouncers();
     },
 
     _render: function() {
@@ -540,8 +549,8 @@ Then the `observe` property should be configured as follows:
       }
       // Generate instances and assign items and keys
       // TODO(kschaaf): Key handling is not yet implemented!
-      for (i=0; i<(keys.length || this.items ? this.items.length : 0); i++) {
-        var key = keys[i] || i;
+      for (i=0; i<keys.length; i++) {
+        var key = keys[i];
         var inst = this._instances[i];
         if (inst) {
           inst.forwardProperty('__key__', key);
