@@ -107,6 +107,13 @@ Events that are listened to on patched elements are patched. They have the (begi
 
 * TBD: `dom-if`, `dom-repeat`, `dom-bind`, `array-selector`, etc. will not included in `polymer.html` by default (going forward; they currently are); users should import those elements when needed
 
+### Removed API
+* `Polymer.instanceof` and `Polymer.isInstance`: no longer needed, use 
+`instanceof` instead.
+* `dom-module`: Removed ability to use `is` and `name` attribute to 
+configure the module name. The only supported declarative way set the module 
+id is to use `id`.
+
 ### Polymer element prototype
 * Methods starting with `_` are not guaranteed to exist (most have been removed)
 

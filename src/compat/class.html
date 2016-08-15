@@ -35,9 +35,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     let mixinBehaviors = function(behaviors, klass) {
-      for (let i=0, l=behaviors.length, b; (i<l) && (b=behaviors[i]); i++) {
-        klass = Array.isArray(b) ? mixinBehaviors(b, klass) :
-          Polymer.Class(b, klass);
+      for (let i=0; i<behaviors.length; i++) {
+        let b = behaviors[i];
+        if (b) {
+          klass = Array.isArray(b) ? mixinBehaviors(b, klass) :
+            Polymer.Class(b, klass);
+        } else {
+          Polymer._warn(klass.is + ' behavior is null');
+        }
       }
       return klass;
     }
@@ -69,14 +74,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // TODO(sorvell): implement caching...
     Polymer.Class = function(info, Base) {
+      if (!info) {
+        Polymer._warn('Polymer.Class requires `info` argument');
+      }
       if (!Base) {
         Base = CompatElementMixin(getNativeConstructor(info.extends));
       }
       if (info.behaviors) {
         Base = mixinBehaviors(info.behaviors, Base);
       }
+
+      var config = {
+        properties: info.properties,
+        observers: info.observers
+      };
       
-      class Polymer extends Base {
+      class PolymerGenerated extends Base {
+
+        static get _info() {
+          return info;
+        }
 
         static get is() { 
           return info.is;
@@ -87,10 +104,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
 
         static get config() {
-          return {
-            properties: info.properties,
-            observers: info.observers
-          }
+          return config;
         }
 
         _invokeFunction(fn, args) {
@@ -105,13 +119,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
 
         ready() {
+          super.ready();
           if (info.listeners) {
             this.addListeners(info.listeners);
           }
           if (info.hostAttributes) {
             this.ensureAttributes(info.hostAttributes);
           }
-          super.ready();
           this._invokeFunction(info.ready);
         }
 
@@ -125,16 +139,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._invokeFunction(info.detached);
         }
 
-        connected() {
-          super.connected();
-          this._invokeFunction(info.connected);
-        }
-
-        disconnected() {
-          super.disconnected();
-          this._invokeFunction(info.disconnected);
-        }
-
         attributeChanged(name, old, value) {
           super.attributeChanged(name, old, value);
           this._invokeFunction(info.attributeChanged, [name, old, value]);
@@ -143,10 +147,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       for (let p in info) {
         if (!(p in metaProps)) 
-          utils.copyOwnProperty(p, info, Polymer.prototype);
+          utils.copyOwnProperty(p, info, PolymerGenerated.prototype);
       }
 
-      return Polymer;
+      return PolymerGenerated;
     }
 
   })();

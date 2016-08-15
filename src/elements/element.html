@@ -33,43 +33,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.ElementMixin = function(Base) {
 
-    class Element extends Base {
+    class PolymerElement extends Base {
 
-      static get ownConfig() {
-        if (!this.hasOwnProperty('_ownConfig')) {
-          this._ownConfig = this.hasOwnProperty('config') ? this.config : {};
+      static get _ownConfig() {
+        if (!this.hasOwnProperty('__ownConfig')) {
+          this.__ownConfig = this.hasOwnProperty('config') ? this.config : {};
         }
-        return this._ownConfig;
+        return this.__ownConfig;
       }
 
-      static get flattenedProperties() {
-        if (!this.hasOwnProperty('_flattenedProperties')) {
-          this._flattenedProperties = this.ownConfig.properties || {};
+      static get _flattenedProperties() {
+        if (!this.hasOwnProperty('__flattenedProperties')) {
+          this.__flattenedProperties = this._ownConfig.properties || {};
           var superCtor = Object.getPrototypeOf(this.prototype).constructor;
-          if (superCtor.prototype instanceof Element) {
-            this._flattenedProperties = utils.mixin(
-              Object.create(superCtor.flattenedProperties),
-              this._flattenedProperties);
+          if (superCtor.prototype instanceof PolymerElement) {
+            this.__flattenedProperties = utils.mixin(
+              Object.create(superCtor._flattenedProperties),
+              this.__flattenedProperties);
           }
         }
-        return this._flattenedProperties;
+        return this.__flattenedProperties;
       }
 
       static get observedAttributes() {
-        // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
+        if (!this.hasOwnProperty('_observedAttributes')) {
+          // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
         var currentScript = document._currentScript || document.currentScript;
         this.__importDoc = currentScript && currentScript.ownerDocument;
         // observedAttributes must be finalized at registration time
-        var attrs = [];
-        return this.addPropertiesToAttributes(this.flattenedProperties, attrs);
+        this._observedAttributes = this.addPropertiesToAttributes(
+          this._flattenedProperties, []);
+        }
+        return this._observedAttributes;
       }
 
       static addPropertiesToAttributes(properties, attrs) {
         for (var prop in properties) {
-          var attr = Polymer.CaseMap.camelToDashCase(prop);
-          if (attrs.indexOf(attr) < 0) {
-            attrs.push(attr);
-          }
+          attrs.push(Polymer.CaseMap.camelToDashCase(prop));
         }
         return attrs;
       }
@@ -80,18 +80,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      static createExpressionObservers(observers) {
+      static createMethodObservers(observers) {
         if (observers) {
-          this.data.createExpressionObservers(this.prototype, observers);
+          this.data.createMethodObservers(this.prototype, observers);
         }
       }
 
       static get decorated() {
-        return this.prototype.hasOwnProperty('__isDecorated');
+        return this.hasOwnProperty('__isDecorated');
       }
 
       static set decorated(value) {
-        this.prototype.__isDecorated = value;
+        this.__isDecorated = value;
       }
 
       // bikeshed this name... we have `prepare` below which is not good.
@@ -104,45 +104,53 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.decorated = true;
           var superProto = Object.getPrototypeOf(proto);
           var superCtor = superProto && superProto.constructor;
-          if (superCtor.prototype instanceof Element) {
+          if (superCtor.prototype instanceof PolymerElement) {
             superCtor.decorate();
           }
-          var config = this.ownConfig;
+          var config = this._ownConfig;
           this.createProperties(config.properties);
-          this.createExpressionObservers(config.observers);
-          var template = this.prepareTemplate();
-          if (template) {
+          this.createMethodObservers(config.observers);
+          if (this.template) {
+            var template = this.prepareTemplate(this.template);
+            // TODO(dfreedm): remove when style stuff is refactored 
+            // away from using element as input.
             proto.__notStyleScopeCacheable = template.__notStyleScopeCacheable;
+            this.data.clearPropagateEffects(proto);
+            this.data.bindTemplate(proto, template);
             proto._template = template;
-            this.data.bindTemplate(proto, proto._template);
           }
         }
       }
 
-      static prepareTemplate() {
-        // TODO(sorvell): support more ways to acquire template.
-        // this requires `is` on constructor...
-        // TODO(sorvell): `__importDoc` may not be set if super class
-        // has not run defined... falling back to document here is 
-        // incorrect. This gambit cannot work as is since if the superclass
-        // document cannot be discovered via the subclass.
-        var template = Polymer.DomModule.import(this.is, 
+      static get template() {
+        if (!this.hasOwnProperty('_template')) {
+          // TODO(sorvell): `__importDoc` may not be set if super class
+          // has not run defined... falling back to document here is 
+          // incorrect. This gambit cannot work as is since if the superclass
+          // document cannot be discovered via the subclass.
+          // TODO(sorvell): support more ways to acquire template.
+          // this requires `is` on constructor...
+          this._template = Polymer.DomModule.import(this.is, 
           'template', this.__importDoc || document);
-        if (template) {
-          Polymer.CompatStyleUtil.normalizeForBC(template.content);
-          // TODO(sorvell): cannot use `this` here, refactor this to only do
-          // template preparation and take a name.
-          // TODO(dfreedm): factor so that we do not need an object/element 
-          // argument
-          var info = {
-            localName: this.is,
-            is: this.is,
-            extends: this.extends,
-            __cssBuild: this.__cssBuild
-          }
-          Polymer.StyleLib.prepareTemplate(info, template);
-          template.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
         }
+        return this._template;
+      }
+
+      static prepareTemplate(template) {
+        // TODO(sorvell): remove need for this...
+        Polymer.CompatStyleUtil.normalizeForBC(template.content);
+        // TODO(sorvell): cannot use `this` here, refactor this to only do
+        // template preparation and take a name.
+        // TODO(dfreedm): factor so that we do not need an object/element 
+        // argument
+        var info = {
+          localName: this.is,
+          is: this.is,
+          extends: this.extends,
+          __cssBuild: this.__cssBuild
+        }
+        Polymer.StyleLib.prepareTemplate(info, template);
+        template.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
         return template;
       }
 
@@ -161,7 +169,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         hostStack.registerHost(this);
         // apply defaults first.
         this.constructor.data.setPropertyDefaults(this, 
-          this.constructor.flattenedProperties);
+          this.constructor._flattenedProperties);
       }
 
       // reserved for canonical behavior
@@ -206,9 +214,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       attributeChangedCallback(name, old, value) {
         var property = caseMap.dashToCamelCase(name);
-        var type = this.constructor.flattenedProperties[property].type;
-        if (!this.constructor.data.hasReadOnlyEffect(
-          this.__proto__, name)) {
+        var type = this.constructor._flattenedProperties[property].type;
+        if (!this.constructor.data.hasReadOnlyEffect(this, property)) {
           this.constructor.attributes.attributeToProperty(this, 
             name, value, type);
         }
@@ -218,14 +225,75 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Polymer.StyleLib.applyStyle(this, properties);
       }
 
+      // data
+
+      // TODO(kschaaf): notify-path API maybe should move to batched effects
+      // definitelly needs to be done differently due to Safari class impl not
+      // liking get/set class method names
+      // get(path, root) {
+      //   return nyi();
+      // }
+
+      // set(path, value, root) {
+      //   return nyi();
+      // }
+
+      push(path) {
+        return nyi();
+      }
+
+      pop(path) {
+        return nyi();
+      }
+
+      shift(path) {
+        return nyi();
+      }
+
+      unshift(path) {
+        return nyi();
+      }
+
+      splice(path, start) {
+        return nyi();
+      }
+
+      arrayDelete(arrayOrPath, item) {
+        var index;
+        if (Array.isArray(arrayOrPath)) {
+          index = arrayOrPath.indexOf(item);
+          if (index >= 0) {
+            return arrayOrPath.splice(index, 1);
+          }
+        } else {
+          return nyi();
+        }
+      }
+
+      linkPaths(to, from) {
+        return nyi();
+      }
+
+      unlinkPaths(path) {
+        return nyi();
+      }
+
+      notifyPath(path, value, fromAbove) {
+        return nyi();
+      }
+
+      notifySplices(path, splices) {
+        return nyi();
+      }
+
     }
 
-    Element.events = events;
-    Element.templateStamp = templateStamp;
-    Element.attributes = attributes;
-    Element.data = data;
+    PolymerElement.events = events;
+    PolymerElement.templateStamp = templateStamp;
+    PolymerElement.attributes = attributes;
+    PolymerElement.data = data;
 
-    return Element;
+    return PolymerElement;
 
   }
 
@@ -256,18 +324,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
   }
-
-  if (window.CustomElements) {
-    Polymer.instanceof = CustomElements.instanceof;
-  } else {
-    Polymer.instanceof = function(obj, ctor) {
-      return obj instanceof ctor;
-    };
-  }
-
-  Polymer.isInstance = function(obj) {
-    return Boolean(obj && obj.__isPolymerInstance);
-  };
 
   // telemetry
   Polymer.telemetry = {
