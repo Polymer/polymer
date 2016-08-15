@@ -15,10 +15,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     'use strict';
 
-    let utils = Polymer.Utils;
-    let CompatElementMixin = Polymer.CompatElementMixin;
+    var utils = Polymer.Utils;
+    var CompatElementMixin = Polymer.CompatElementMixin;
 
-    let metaProps = {
+    var metaProps = {
       attached: true,
       detached: true,
       ready: true,
@@ -34,17 +34,105 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       listeners: true
     }
 
-    let mixinBehaviors = function(behaviors, klass) {
-      for (let i=0; i<behaviors.length; i++) {
-        let b = behaviors[i];
+    var mixinBehaviors = function(behaviors, klass) {
+      for (var i=0; i<behaviors.length; i++) {
+        var b = behaviors[i];
         if (b) {
-          klass = Array.isArray(b) ? mixinBehaviors(b, klass) :
-            Polymer.Class(b, klass);
-        } else {
-          Polymer._warn(klass.is + ' behavior is null');
+          klass = Array.isArray(b) ? mixinBehaviors(b, klass) : 
+            MixinBehavior(b, klass);
         }
       }
       return klass;
+    }
+
+    var flattenBehaviors = function(behaviors) {
+      var r = [];
+      if (behaviors) {
+        for (var i=0; i < behaviors.length; i++) {
+          var b = behaviors[i];
+          if (b) {
+            if (Array.isArray(b)) {
+              r = flattenBehaviors(b);
+            } else {
+              if (r.indexOf(b) < 0) {
+                r.push(b);
+              }
+            }
+          } else {
+            Polymer._warn('behavior is null, check for missing or 404 import');
+          }
+        }
+      }
+      return r;
+    }
+
+    var MixinBehavior = function(behavior, Base) {
+
+      var config = {
+        properties: behavior.properties,
+        observers: behavior.observers
+      };
+      
+      class PolymerGenerated extends Base {
+
+        static get config() {
+          return config;
+        }
+
+        static decorate() {
+          if (!this.decorated) {
+            super.decorate();
+            if (behavior.registered) {
+              behavior.registered.call(this.prototype);
+            }
+            this.decorated = true;
+          }
+        }
+
+        _invokeFunction(fn, args) {
+          if (fn) {
+            fn.apply(this, args);
+          }
+        }
+
+        created() {
+          super.created();
+          this._invokeFunction(behavior.created);
+        }
+
+        ready() {
+          super.ready();
+          if (behavior.listeners) {
+            this.addListeners(behavior.listeners);
+          }
+          if (behavior.hostAttributes) {
+            this.ensureAttributes(behavior.hostAttributes);
+          }
+          this._invokeFunction(behavior.ready);
+        }
+
+        attached() {
+          super.attached();
+          this._invokeFunction(behavior.attached);
+        }
+
+        detached() {
+          super.detached();
+          this._invokeFunction(behavior.detached);
+        }
+
+        attributeChanged(name, old, value) {
+          super.attributeChanged(name, old, value);
+          this._invokeFunction(behavior.attributeChanged, [name, old, value]);
+        }
+      }
+
+      for (var p in behavior) {
+        if (!(p in metaProps)) 
+          utils.copyOwnProperty(p, behavior, PolymerGenerated.prototype);
+      }
+
+      return PolymerGenerated;
     }
 
     //var nativeConstructors = {};
@@ -56,7 +144,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {string} tag  HTML tag name.
      * @return {Object} Native constructor for specified tag.
     */
-    let getNativeConstructor = function(tag) {
+    var getNativeConstructor = function(tag) {
       if (tag) {
         // TODO(kschaaf): hack, for now, needs to be removed; needed to allow
         // subclassing from overwridden constructors in CEv1 polyfill
@@ -72,85 +160,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    // TODO(sorvell): implement caching...
-    Polymer.Class = function(info, Base) {
+    Polymer.Class = function(info) {
       if (!info) {
         Polymer._warn('Polymer.Class requires `info` argument');
       }
-      if (!Base) {
-        Base = CompatElementMixin(getNativeConstructor(info.extends));
+      var klass = CompatElementMixin(getNativeConstructor(info.extends));
+      var behaviors = flattenBehaviors(info.behaviors);
+      if (behaviors.length) {
+        klass = mixinBehaviors(behaviors, klass);
       }
-      if (info.behaviors) {
-        Base = mixinBehaviors(info.behaviors, Base);
-      }
-
-      var config = {
-        properties: info.properties,
-        observers: info.observers
-      };
-      
-      class PolymerGenerated extends Base {
-
-        static get _info() {
-          return info;
-        }
-
-        static get is() { 
-          return info.is;
-        }
-
-        static get extends() { 
-          return info.extends;
-        }
-
-        static get config() {
-          return config;
-        }
-
-        _invokeFunction(fn, args) {
-          if (fn) {
-            fn.apply(this, args);
-          }
-        }
-
-        created() {
-          super.created();
-          this._invokeFunction(info.created);
-        }
-
-        ready() {
-          super.ready();
-          if (info.listeners) {
-            this.addListeners(info.listeners);
-          }
-          if (info.hostAttributes) {
-            this.ensureAttributes(info.hostAttributes);
-          }
-          this._invokeFunction(info.ready);
-        }
-
-        attached() {
-          super.attached();
-          this._invokeFunction(info.attached);
-        }
-
-        detached() {
-          super.detached();
-          this._invokeFunction(info.detached);
-        }
-
-        attributeChanged(name, old, value) {
-          super.attributeChanged(name, old, value);
-          this._invokeFunction(info.attributeChanged, [name, old, value]);
-        }
-      }
-
-      for (let p in info) {
-        if (!(p in metaProps)) 
-          utils.copyOwnProperty(p, info, PolymerGenerated.prototype);
-      }
-
-      return PolymerGenerated;
+      klass = MixinBehavior(info, klass);
+      // decorate klass with registration info
+      klass.is = info.is;
+      klass.extends = info.extends;
+      // behaviors on prototype for BC...
+      behaviors.reverse();
+      klass.prototype.behaviors = behaviors;
+      // NOTE: while we could call `beforeRegister` here to maintain 
+      // some BC, the state of the element at this point is not as it was in 1.0
+      // In 1.0, the method was called *after* mixing prototypes together
+      // but before processing of meta-objects. Since this is now done
+      // in 1 step via `MixinBehavior`, this is no longer possible.
+      // However, *most* work (not setting `is`) that was previously done in 
+      // `beforeRegister` should be possible in `registered`.
+      return klass;
     }
 
   })();
