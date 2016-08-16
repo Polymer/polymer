@@ -8,15 +8,9 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
+<link rel="import" href="element.html">
 <link rel="import" href="../utils/utils.html">
-<link rel="import" href="../utils/async-render.html">
 <link rel="import" href="../utils/compat-utils.html">
-<link rel="import" href="../utils/path.html">
-<link rel="import" href="behaviors.html">
-<link rel="import" href="../events/gesture-event-listeners.html">
-<link rel="import" href="../template/template-stamp.html">
-<link rel="import" href="../attributes/attribute-to-from-property.html">
-<link rel="import" href="../properties/meta-effects.html">
 
 <script>
 (function() {
@@ -24,211 +18,81 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   'use strict';
 
   var utils = Polymer.Utils;
-  var caseMap = Polymer.CaseMap;
-  var behaviors = Polymer.Behaviors;
-  var events = new Polymer.GestureEventListeners();
-  var templateStamp = new Polymer.TemplateStamp(events);
-  var attributes = new Polymer.AttributeToFromProperty();
-  var data = new Polymer.MetaEffects(templateStamp, attributes);
 
   function nyi() {
     var stack = new Error().stack.split('\n');
     var fn = stack.reduce(function(prev, val) {
-      return prev == true ? val : (prev ? prev : val.indexOf('base.html') > 0);
+      return prev == true ? val : (prev ? prev :
+        val.indexOf('compat-element.html') > 0);
     }, false);
     console.warn('Not yet implemented:', fn);
   }
 
-  var p = Element.prototype;
-  var matchesSelector = p.matches || p.matchesSelector ||
-    p.mozMatchesSelector || p.msMatchesSelector ||
-    p.oMatchesSelector || p.webkitMatchesSelector;
-
-  var classCache = new Map();
-
-  var hostStack = {
-
-    stack: [],
-
-    isEmpty() {
-      return !this.stack.length;
-    },
-
-    registerHost(inst) {
-      if (this.stack.length) {
-        var host = this.stack[this.stack.length-1];
-        data.enqueueClient(host, inst);
-      }
-    },
-
-    beginHosting(inst) {
-      this.stack.push(inst);
-    },
-
-    endHosting(inst) {
-      var stackLen = this.stack.length;
-      if (stackLen && this.stack[stackLen-1] == inst) {
-        this.stack.pop();
-      }
-    }
-
+  // TODO(sorvell): same api as before.
+  Polymer._warn = function(warning) {
+    console.warn(warning);
   }
 
-  // for BC
-  Polymer.Gestures = Polymer.GestureEventListeners.lib;
+  function CompatElementMixin(Base) {
 
-  function extendElement(superClass) {
-
-    var PolymerBase = classCache.get(superClass);
-
-    if (!PolymerBase) {
-      PolymerBase = extendWithPolymerBase(superClass);
-      classCache.set(superClass, PolymerBase);
-    }
-
-    return class extends PolymerBase {};
-
-  }
-
-  function extendWithPolymerBase(superClass) {
-
-    return class extends data.extendWithAPI(superClass) {
-
-      // Used for `isInstance` type checking; cannot use `instanceof` because
-      // there is no common Polymer.Base in the prototype chain between type
-      // extensions and normal custom elements
-      get __isPolymerInstance() { return true; }
-
-      // TODO(sorvell): FF implements the microdata dom api which gives
-      // elements a `properties` property. Because of this, when we attempt
-      // to access `properties` at registration time to construct
-      // `observedAttributes`, there is an exception calling the native
-      // getter on an element prototype unless we implement a harmless getter here.
-      get properties() { return null; }
+    return class CompatElement extends Polymer.ElementMixin(Base) {
 
       constructor() {
         super();
-        this.createdCallback();
+        this.created();
       }
 
-      // Non-lazy registration work goes here
-      registerCallback() {
-        // observedAttributes must be finalized at registration time
-        behaviors.createObservedAttributes(this);
-        // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
-        var currentScript = document._currentScript || document.currentScript;
-        this.__importDoc = currentScript && currentScript.ownerDocument;
-      }
-
-      createdCallback() {
-        // note: `this.constructor.prototype` is wrong in Safari so make sure to
-        // use `__proto__`
-        var proto = this.__proto__;
-        if (!proto.hasOwnProperty('__hasRegisterFinished')) {
-          proto.__hasRegisterFinished = true;
-          var meta = behaviors.register(proto);
-          if (meta.properties) {
-            data.createProperties(proto, meta.properties);
-          }
-          if (meta.observers) {
-            data.createMultiObservers(proto, meta.observers);
-          }
-          if (proto._template === undefined) {
-            proto._template = Polymer.DomModule.import(proto.is, 'template', this.__importDoc);
-          }
-          if (proto._template) {
-            //Polymer.CompatStyleUtil.prepStyleIncludes(proto._template.content);
-            // BREAKME(kschaaf): for short-term bc, but intend to break
-            Polymer.CompatStyleUtil.normalizeForBC(proto._template.content);
-            Polymer.StyleLib.prepareHost(this, proto._template);
-            data.bindTemplate(proto, proto._template);
-          } else if (proto.initializeWhenCreated === undefined) {
-            // TODO(sorvell): bad because these elements stamp before they have
-            // a dataHost and therefore they cannot notify default values to the host.
-            // non-template elements always initialize.
-            //proto.initializeWhenCreated = true;
-          }
-          behaviors.callMethod(proto, 'registered');
-        } else if (proto.hasOwnProperty('__hasRegisterFinished')) {
-          Polymer.StyleLib.prepareHost(this, proto._template);
+      ready() {
+        super.ready();
+        var config = this.constructor._ownConfig;
+        if (config.listeners) {
+          this.addListeners(config.listeners);
         }
-        Polymer.telemetry.instanceCount++;
-        // setup batched effects library; will call initialize when flushing
-        data.prepare(this, this.initialize);
-        // add self to host's pending client list
-        hostStack.registerHost(this);
-        // apply defaults first.
-        data.setPropertyDefaults(this);
-        behaviors.callMethod(this, 'created');
-        // TODO(sorvell): remove when using V1 Custom Elements.
-        attributes.simulateV1AttributeCallbacks(this);
+        if (config.hostAttributes) {
+          this.ensureAttributes(config.hostAttributes);
+        }
       }
 
-      // reserved for canonical behavior
       connectedCallback() {
-        this.attachedCallback();
+        super.connectedCallback();
+        this.attached();
       }
 
-      attachedCallback() {
-        if (hostStack.isEmpty()) {
-          data.flush(this);
-          this.updateStyles();
-        }
-        this.isAttached = true;
-        behaviors.callMethod(this, 'attached');
-      }
-
-      initialize() {
-        var self = this;
-        Polymer.AsyncRender.afterRender(function() {
-          self.initializeSelf();
-        });
-        if (!this.root) {
-          if (this._template) {
-            // BREAKME(sorvell): remove v0 support when we can...
-            this.root = Polymer.shadowDomV0 ? this.createShadowRoot() :
-              this.attachShadow({mode: 'open'});
-          } else {
-            this.root = this;
-          }
-        }
-        if (this._template) {
-          hostStack.beginHosting(this);
-          var dom = data.stamp(this, this._template);
-          this.root.appendChild(dom);
-          hostStack.endHosting(this);
-        }
-        data.flush(this);
-        behaviors.callMethod(this, 'ready');
-      }
-
-      initializeSelf() {
-        if (this.__initializedSelf) {
-          return;
-        }
-        this.__initializedSelf = true;
-        if (this.__meta.listeners) {
-          var l$ = this.__meta.listeners;
-          for (var i=0, l; (i<l$.length) && (l=l$[i]); i++) {
-            events.addMethodListener(this, l.event, l.method);
-          }
-        }
-        if (this.__meta.hostAttributes) {
-          var a$ = this.__meta.hostAttributes;
-          for (var a in a$) {
-            attributes.ensureAttribute(this, a, a$[a]);
-          }
-        }
-      }
-
-      // reserved for canonical behavior
       disconnectedCallback() {
-        this.detachedCallback();
+        super.disconnectedCallback();
+        this.detached();
       }
 
-      detachedCallback() {
-        this.isAttached = false;
-        behaviors.callMethod(this, 'detached');
+      attributeChangedCallback(name, old, value) {
+        super.attributeChangedCallback(name, old, value);
+        this.attributeChanged(name, old, value);
+      }
+
+      created() {}
+
+      attached() {}
+
+      detached() {}
+
+      attributeChanged() {}
+
+      serialize(value) {
+        return this.constructor.attributes.serialize(value);
+      }
+
+      deserialize(value, type) {
+        return this.constructor.attributes.deserialize(value, type);
+      }
+
+      reflectPropertyToAttribute(property, attribute, value) {
+        this.constructor.attributes.propertyToAttribute(this, property,
+          attribute, value);
+      }
+
+      serializeValueToAttribute(value, attribute, node) {
+        node = node || this;
+        this.constructor.attributes.valueToAttribute(node, value,
+          attribute, value);
       }
 
       /**
@@ -306,37 +170,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return Polymer.ResolveUrl.resolveUrl(url, root);
       }
-      /* **** End Template **** */
-
-      /* **** Begin Attributes **** */
-      attributeChangedCallback(name, old, value) {
-        var property = caseMap.dashToCamelCase(name);
-        var info = this.__meta.properties && this.__meta.properties[property];
-
-        if (info && !info.readOnly) {
-          attributes.attributeToProperty(this, name, value, info.type);
-        }
-        behaviors.callMethod(this, 'attributeChanged', [name, old, value]);
-      }
-
-      serialize(value) {
-        return attributes.serialize(value);
-      }
-
-      deserialize(value, type) {
-        return attributes.deserialize(value, type);
-      }
-
-      reflectPropertyToAttribute(property, attribute, value) {
-        attributes.propertyToAttribute(this, property, attribute, value);
-      }
-
-      serializeValueToAttribute(value, attribute, node) {
-        node = node || this;
-        attributes.valueToAttribute(node, value, attribute, value);
-      }
-
-      /* **** End Attributes **** */
 
       /* **** Begin Events **** */
       fire(type, detail, options) {
@@ -364,7 +197,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         var key = eventName + methodName;
         if (!bl[key]) {
-          bl[key] = events.addMethodListener(node, eventName, methodName, this);
+          bl[key] = this.constructor.events.addMethodListener(
+            node, eventName, methodName, this);
         }
       }
 
@@ -374,7 +208,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var key = eventName + methodName;
         var handler = bl && bl[key];
         if (handler) {
-          events.removeListener(node, eventName, handler);
+          this.constructor.events.removeListener(node, eventName, handler);
           bl[key] = null;
         }
       }
@@ -396,7 +230,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       setScrollDirection(direction, node) {
         node = node || this;
-        events.constructor.lib.setTouchAction(node, direction || 'auto');
+        this.constructor.events.constructor.lib.
+          setTouchAction(node, direction || 'auto');
       }
       /* **** End Events **** */
 
@@ -434,9 +269,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var list = [];
         var c$ = this.childNodes;
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          // BREAKME(sorvell): remove when V0 ShadowDom support is removed.
           var d$ = (c.localName === 'content') ? c.getDistributedNodes() :
-            (c.localName === 'slot') ? c.assignedNodes({flatten: true}) : null;
+            ((c.localName === 'slot') ? c.assignedNodes({flatten: true}) : null);
           if (d$) {
+           var d$ = c.getDistributedNodes();
             for (var j=0; j < d$.length; j++) {
               list.push(d$[j]);
             }
@@ -487,12 +324,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var list = [];
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
           if ((c.nodeType === Node.ELEMENT_NODE) &&
-              matchesSelector.call(c, selector)) {
+              utils.matchesSelector.call(c, selector)) {
             list.push(c);
           }
         }
         return list;
       }
+
 
       queryEffectiveChildren(slctr) {
         var e$ = this.queryDistributedElements(slctr);
@@ -570,32 +408,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      arrayDelete(arrayOrPath, item) {
-        var index;
-        if (Array.isArray(arrayOrPath)) {
-          index = arrayOrPath.indexOf(item);
-          if (index >= 0) {
-            return arrayOrPath.splice(index, 1);
-          }
-        } else {
-          var arr = Polymer.Path.get(this, arrayOrPath);
-          index = arr.indexOf(item);
-          if (index >= 0) {
-            return this.splice(path, index, 1);
-          }
-        }
-      }
-
       getComputedStyleValue(property) {
         var value;
         if (this.__styleProperties) {
           value = this.__styleProperties[property];
         }
         return value || window.getComputedStyle(this).getPropertyValue(property);
-      }
-
-      updateStyles(properties) {
-        Polymer.StyleLib.applyStyle(this, properties);
       }
 
       // debounce
@@ -886,28 +704,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     }
-
   }
 
-  if (window.CustomElements) {
-    Polymer.instanceof = CustomElements.instanceof;
-  } else {
-    Polymer.instanceof = function(obj, ctor) {
-      return obj instanceof ctor;
-    };
-  }
-
-  Polymer.isInstance = function(obj) {
-    return Boolean(obj && obj.__isPolymerInstance);
-  };
-
-  // telemetry
-  Polymer.telemetry.instanceCount = 0;
-
-  Polymer.Element = extendElement;
+  Polymer.CompatElementMixin = Polymer.CachedMixin(CompatElementMixin);
 
   // bc
-  Polymer.Base = extendWithPolymerBase(class {}).prototype;
+  Polymer.CompatElement = Polymer.CompatElementMixin(HTMLElement);
+  Polymer.Base = Polymer.CompatElement.prototype;
 
 })();
 </script>

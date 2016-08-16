@@ -30,36 +30,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var id = this.scopeCounter[name] = (this.scopeCounter[name] || 0) + 1;
       return name + '-' + id;
     },
-    _prepareTemplate(template, tagname) {
+    prepareTemplate(host, template) {
+      if (template._prepared) {
+        return;
+      }
+      template._prepared = true;
       var cssText = Polymer.StyleGather.cssFromElement(template);
       if (!this.nativeShadow) {
-        template._placeholder = Polymer.StyleUtil.applyStylePlaceHolder(tagname);
-        Polymer.StyleTransformer.dom(template.content, tagname);
+        template._placeholder = Polymer.StyleUtil.applyStylePlaceHolder(
+          host.localName);
+        Polymer.StyleTransformer.dom(template.content, host.localName);
       }
       var ast = Polymer.CssParse.parse(cssText);
       if (this.nativeCss && !this.nativeCssApply) {
         Polymer.ApplyShim.transformRules(ast);
       }
       template._styleAst = ast;
+
+      var ownPropertyNames = [];
+      if (!this.nativeCss) {
+        ownPropertyNames = Polymer.StyleProperties.decorateStyles(template._styleAst, host);
+      }
+      if (!ownPropertyNames.length || this.nativeCss) {
+        var cssText = Polymer.StyleTransformer.elementStyles(host, template._styleAst);
+        if (cssText.length) {
+          var target = this.nativeShadow ? template.content : null;
+          Polymer.StyleUtil.applyCss(cssText, host.localName, target, template._placeholder)
+        }
+      }
+      template._ownPropertyNames = ownPropertyNames;
+      template._prepared = true;
     },
     prepareHost(host, template) {
       if (template) {
-        if (!template._prepared) {
-          this._prepareTemplate(template, host.localName);
-          var ownPropertyNames = [];
-          if (!this.nativeCss) {
-            ownPropertyNames = Polymer.StyleProperties.decorateStyles(template._styleAst, host);
-          }
-          if (!ownPropertyNames.length || this.nativeCss) {
-            var cssText = Polymer.StyleTransformer.elementStyles(host, template._styleAst);
-            if (cssText.length) {
-              var target = this.nativeShadow ? template.content : null;
-              Polymer.StyleUtil.applyCss(cssText, host.localName, target, template._placeholder)
-            }
-          }
-          template._ownPropertyNames = ownPropertyNames;
-          template._prepared = true;
-        }
         host.__styleRules = template._styleAst;
         host.__placeholder = template._placeholder;
       }
@@ -222,6 +225,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // shim the selector for current runtime settings
           if (!self.nativeShadow) {
             Polymer.StyleTransformer.documentRule(rule);
+          } else {
+            Polymer.StyleTransformer.normalizeRootSelector(rule);
           }
           // run the apply shim if unbuilt and using native css custom properties
           if (self.nativeCss && !self.nativeCssApply) {

@@ -1,0 +1,395 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../src/utils/async.html">
+</head>
+<body>
+
+<script>
+  suite('Queueing functions without a `waitTime` argument', function() {
+
+    test('The queued function runs.', function(done) {
+      var callCount = 0;
+      var callback = function() {
+        callCount++;
+      };
+      Polymer.Async.run(callback);
+      Promise.resolve().then(function() {
+        assert.equal(callCount, 1);
+        done();
+      });
+    });
+
+    test('Functions queued multiple times are run multiple times.',
+      function(done) {
+        var callCount = 0;
+        var callback = function() {
+          callCount++;
+        };
+        Polymer.Async.run(callback);
+        Polymer.Async.run(callback);
+        Polymer.Async.run(callback);
+        Promise.resolve().then(function() {
+          assert.equal(callCount, 3);
+          done();
+        });
+      });
+
+    test('All queued functions are run.', function(done) {
+      var callCount1 = 0;
+      var callCount2 = 0;
+      var callCount3 = 0;
+      var callback1 = function() {
+        callCount1++;
+      };
+      var callback2 = function() {
+        callCount2++;
+      };
+      var callback3 = function() {
+        callCount3++;
+      };
+      Polymer.Async.run(callback1);
+      Polymer.Async.run(callback2);
+      Polymer.Async.run(callback3);
+      Promise.resolve().then(function() {
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 1);
+        done();
+      });
+    });
+
+    test('Errors are thrown but the queue is continued in another microtask.',
+      function(done) {
+        var callCount1 = 0;
+        var callCount2 = 0;
+        var callCount3 = 0;
+        var callCount4 = 0;
+        var callCount5 = 0;
+        var callback1 = function() {
+          callCount1++;
+        };
+        var callback2 = function() {
+          callCount2++;
+          throw new Error('intentional error 1');
+        };
+        var callback3 = function() {
+          callCount3++;
+          Polymer.Async.run(callback5);
+          throw new Error('intentional error 2');
+        };
+        var callback4 = function() {
+          callCount4++;
+        };
+        var callback5 = function() {
+          callCount5++;
+        };
+        Polymer.Async.run(callback1);
+        Polymer.Async.run(callback2);
+        Polymer.Async.run(callback3);
+        Polymer.Async.run(callback4);
+        // Manually flush the queue so the error can be caught.
+        assert.throws(function() {
+          Polymer.Async._atEndOfMicrotask();
+        });
+        // Only `callback1` and `callback2` were called during the last flush.
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 0);
+        assert.equal(callCount4, 0);
+        assert.equal(callCount5, 0);
+        // Manually flush the queue so the error can be caught.
+        assert.throws(function() {
+          Polymer.Async._atEndOfMicrotask();
+        });
+        // Only `callback3` was called during the last flush.
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 1);
+        assert.equal(callCount4, 0);
+        assert.equal(callCount5, 0);
+        // All callbacks have been called by the next task.
+        Promise.resolve().then(function() {
+          assert.equal(callCount1, 1);
+          assert.equal(callCount2, 1);
+          assert.equal(callCount3, 1);
+          assert.equal(callCount4, 1);
+          assert.equal(callCount5, 1);
+          done();
+        });
+      });
+
+    test('`flush` synchronously runs all functions queued with microtask' +
+      ' timing.', function() {
+        var callCount1 = 0;
+        var callCount2 = 0;
+        var callCount3 = 0;
+        var callback1 = function() {
+          callCount1++;
+        };
+        var callback2 = function() {
+          callCount2++;
+        };
+        var callback3 = function() {
+          callCount3++;
+        };
+        Polymer.Async.run(callback1);
+        Polymer.Async.run(callback2);
+        Polymer.Async.run(callback3);
+        Polymer.Async.flush();
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 1);
+      });
+
+    test('`flush` rethrows any error thrown by a dequeued callback and leaves' +
+      ' any remaining callbacks in the queue.', function(done) {
+        var callCount1 = 0;
+        var callCount2 = 0;
+        var callCount3 = 0;
+        var callback1Error = new Error("callback1Error");
+        var callback1 = function() {
+          callCount1++;
+          throw callback1Error;
+        };
+        var callback2Error = new Error("callback2Error");
+        var callback2 = function() {
+          callCount2++;
+          throw callback2Error;
+        };
+        var callback3 = function() {
+          callCount3++;
+        };
+        Polymer.Async.run(callback1);
+        Polymer.Async.run(callback2);
+        Polymer.Async.run(callback3);
+        try {
+          Polymer.Async.flush();
+          assert.fail();
+        } catch (err) {
+          assert.equal(err, callback1Error);
+        }
+        // `callback1` throws, so items later in the queue were not dequeued or
+        // called during the flush.
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 0);
+        assert.equal(callCount3, 0);
+        try {
+          Polymer.Async.flush();
+          assert.fail();
+        } catch (err) {
+          assert.equal(err, callback2Error);
+        }
+        // `callback2` throws, so items later in the queue were not dequeued or
+        // called during the flush.
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 0);
+        Promise.resolve().then(function() {
+          // `callback3` was called in another microtask.
+          assert.equal(callCount1, 1);
+          assert.equal(callCount2, 1);
+          assert.equal(callCount3, 1);
+          done();
+        });
+      });
+
+  });
+
+  suite('Cancelling functions queued without a `waitTime` argument',
+    function() {
+
+      test('Queued functions are cancelable.', function(done) {
+        var callCount = 0;
+        var callback = function() {
+          callCount++;
+        };
+        var asyncRef = Polymer.Async.run(callback);
+        Polymer.Async.cancel(asyncRef);
+        Promise.resolve().then(function() {
+          assert.equal(callCount, 0);
+          done();
+        });
+      });
+
+      test('Multiple instances of the same queued function are cancelable.',
+        function(done) {
+          var callCount = 0;
+          var callback = function() {
+            callCount++;
+          };
+          var asyncRefs = [];
+          asyncRefs.push(Polymer.Async.run(callback));
+          asyncRefs.push(Polymer.Async.run(callback));
+          asyncRefs.push(Polymer.Async.run(callback));
+          Polymer.Async.cancel(asyncRefs.pop());
+          Polymer.Async.cancel(asyncRefs.pop());
+          Polymer.Async.cancel(asyncRefs.pop());
+          Promise.resolve().then(function() {
+            assert.equal(callCount, 0);
+            done();
+          });
+        });
+
+      test('Multiple queued functions are individually cancelable.',
+        function(done) {
+          var callCount1 = 0;
+          var callCount2 = 0;
+          var callCount3 = 0;
+          var callback1 = function() {
+            callCount1++;
+          };
+          var callback2 = function() {
+            callCount2++;
+          };
+          var callback3 = function() {
+            callCount3++;
+          };
+          var asyncRef1 = Polymer.Async.run(callback1);
+          Polymer.Async.run(callback2);
+          var asyncRef3 = Polymer.Async.run(callback3);
+          Polymer.Async.cancel(asyncRef1);
+          Polymer.Async.cancel(asyncRef3);
+          Promise.resolve().then(function() {
+            assert.equal(callCount1, 0);
+            assert.equal(callCount2, 1);
+            assert.equal(callCount3, 0);
+            done();
+          });
+        });
+
+    });
+
+  suite('Queueing functions with a `waitTime` argument', function() {
+
+    test('The queued function runs.', function(done) {
+      var callCount = 0;
+      var callback = function() {
+        callCount++;
+      };
+      Polymer.Async.run(callback, 50);
+      setTimeout(function() {
+        assert.equal(callCount, 1);
+        done();
+      }, 100);
+    });
+
+    test('Functions queued multiple times are run multiple times.',
+      function(done) {
+        var callCount = 0;
+        var callback = function() {
+          callCount++;
+        };
+        Polymer.Async.run(callback, 50);
+        Polymer.Async.run(callback, 50);
+        Polymer.Async.run(callback, 200);
+        setTimeout(function() {
+          assert.equal(callCount, 2);
+          done();
+        }, 100); // Only wait until the first two callbacks are called.
+      });
+
+    test('All queued functions are run.', function(done) {
+      var callCount1 = 0;
+      var callCount2 = 0;
+      var callCount3 = 0;
+      var callback1 = function() {
+        callCount1++;
+      };
+      var callback2 = function() {
+        callCount2++;
+      };
+      var callback3 = function() {
+        callCount3++;
+      };
+      Polymer.Async.run(callback1, 50);
+      Polymer.Async.run(callback2, 50);
+      Polymer.Async.run(callback3, 200);
+      setTimeout(function() {
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 0);
+        done();
+      }, 100); // Only wait until the first two callbacks are called.
+    });
+
+  });
+
+  suite('Cancelling functions queued with a `waitTime` argument', function() {
+
+    test('Queued functions are cancelable.', function(done) {
+      var callCount = 0;
+      var callback = function() {
+        callCount++;
+      };
+      var asyncRef = Polymer.Async.run(callback, 50);
+      Polymer.Async.cancel(asyncRef);
+      setTimeout(function() {
+        assert.equal(callCount, 0);
+        done();
+      }, 100);
+    });
+
+    test('Multiple instances of the same queued function are cancelable.',
+      function(done) {
+        var callCount = 0;
+        var callback = function() {
+          callCount++;
+        };
+        var asyncRefs = [];
+        asyncRefs.push(Polymer.Async.run(callback, 50));
+        asyncRefs.push(Polymer.Async.run(callback, 50));
+        asyncRefs.push(Polymer.Async.run(callback, 200));
+        Polymer.Async.cancel(asyncRefs.pop());
+        Polymer.Async.cancel(asyncRefs.pop());
+        Polymer.Async.cancel(asyncRefs.pop());
+        setTimeout(function() {
+          assert.equal(callCount, 0);
+          done();
+        }, 250);
+      });
+
+    test('Multiple queued functions are individually cancelable.',
+      function(done) {
+        var callCount1 = 0;
+        var callCount2 = 0;
+        var callCount3 = 0;
+        var callback1 = function() {
+          callCount1++;
+        };
+        var callback2 = function() {
+          callCount2++;
+        };
+        var callback3 = function() {
+          callCount3++;
+        };
+        var asyncRef1 = Polymer.Async.run(callback1, 50);
+        Polymer.Async.run(callback2, 50);
+        var asyncRef3 = Polymer.Async.run(callback3, 200);
+        Polymer.Async.cancel(asyncRef1);
+        Polymer.Async.cancel(asyncRef3);
+        setTimeout(function() {
+          assert.equal(callCount1, 0);
+          assert.equal(callCount2, 1);
+          assert.equal(callCount3, 0);
+          done();
+        }, 250);
+      });
+
+  });
+
+</script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/utils.html">
+<link rel="import" href="../utils/compat-dom-utils.html">
+<link rel="import" href="../utils/case-map.html">
+<link rel="import" href="../utils/async-render.html">
+<link rel="import" href="../events/gesture-event-listeners.html">
+<link rel="import" href="../template/template-stamp.html">
+<link rel="import" href="../attributes/attribute-to-from-property.html">
+<link rel="import" href="../properties/meta-effects.html">
+
+<script>
+(function() {
+
+  'use strict';
+
+  var utils = Polymer.Utils;
+  var caseMap = Polymer.CaseMap;
+
+  var events = new Polymer.GestureEventListeners();
+  var templateStamp = new Polymer.TemplateStamp(events);
+  var attributes = new Polymer.AttributeToFromProperty();
+  var data = new Polymer.MetaEffects(templateStamp, attributes);
+
+  var ElementMixin = function(Base) {
+
+    class PolymerElement extends data.extendWithAPI(Base) {
+
+      static get _ownConfig() {
+        if (!this.hasOwnProperty('__ownConfig')) {
+          this.__ownConfig = this.hasOwnProperty('config') ? this.config : {};
+        }
+        return this.__ownConfig;
+      }
+
+      static get _flattenedProperties() {
+        if (!this.hasOwnProperty('__flattenedProperties')) {
+          this.__flattenedProperties = this._ownConfig.properties || {};
+          var superCtor = Object.getPrototypeOf(this.prototype).constructor;
+          if (superCtor.prototype instanceof PolymerElement) {
+            this.__flattenedProperties = utils.mixin(
+              Object.create(superCtor._flattenedProperties),
+              this.__flattenedProperties);
+          }
+        }
+        return this.__flattenedProperties;
+      }
+
+      static get observedAttributes() {
+        if (!this.hasOwnProperty('_observedAttributes')) {
+          // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
+        var currentScript = document._currentScript || document.currentScript;
+        this.__importDoc = currentScript && currentScript.ownerDocument;
+        // observedAttributes must be finalized at registration time
+        this._observedAttributes = this.addPropertiesToAttributes(
+          this._flattenedProperties, []);
+        }
+        return this._observedAttributes;
+      }
+
+      static addPropertiesToAttributes(properties, attrs) {
+        for (var prop in properties) {
+          attrs.push(Polymer.CaseMap.camelToDashCase(prop));
+        }
+        return attrs;
+      }
+
+      static createProperties(properties) {
+        if (properties) {
+          this.data.createProperties(this.prototype, properties);
+        }
+      }
+
+      static createMethodObservers(observers) {
+        if (observers) {
+          this.data.createMethodObservers(this.prototype, observers);
+        }
+      }
+
+      static get finalized() {
+        return this.hasOwnProperty('__finalized');
+      }
+
+      static set finalized(value) {
+        this.__finalized = value;
+      }
+
+      // bikeshed this name... we have `prepare` below which is not good.
+      static finalize() {
+        var proto = this.prototype;
+        if (!this.finalized) {
+          if (this.hasOwnProperty('is') && this.is) {
+            Polymer.telemetry.register(proto);
+          }
+          this.finalized = true;
+          var superProto = Object.getPrototypeOf(proto);
+          var superCtor = superProto && superProto.constructor;
+          if (superCtor.prototype instanceof PolymerElement) {
+            superCtor.finalize();
+          }
+          var config = this._ownConfig;
+          this.createProperties(config.properties);
+          this.createMethodObservers(config.observers);
+          if (this.template) {
+            var template = this.prepareTemplate(this.template);
+            // TODO(dfreedm): remove when style stuff is refactored
+            // away from using element as input.
+            proto.__notStyleScopeCacheable = template.__notStyleScopeCacheable;
+            this.data.clearPropagateEffects(proto);
+            this.data.bindTemplate(proto, template);
+            proto._template = template;
+          }
+        }
+      }
+
+      static get template() {
+        if (!this.hasOwnProperty('_template')) {
+          // TODO(sorvell): `__importDoc` may not be set if super class
+          // has not run defined... falling back to document here is
+          // incorrect. This gambit cannot work as is since if the superclass
+          // document cannot be discovered via the subclass.
+          // TODO(sorvell): support more ways to acquire template.
+          // this requires `is` on constructor...
+          this._template = Polymer.DomModule.import(this.is,
+          'template', this.__importDoc || document);
+        }
+        return this._template;
+      }
+
+      static prepareTemplate(template) {
+        // TODO(sorvell): remove need for this...
+        Polymer.CompatStyleUtil.normalizeForBC(template.content);
+        // TODO(sorvell): cannot use `this` here, refactor this to only do
+        // template preparation and take a name.
+        // TODO(dfreedm): factor so that we do not need an object/element
+        // argument
+        var info = {
+          localName: this.is,
+          is: this.is,
+          extends: this.extends,
+          __cssBuild: this.__cssBuild
+        }
+        Polymer.StyleLib.prepareTemplate(info, template);
+        template.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
+        return template;
+      }
+
+      constructor() {
+        super();
+        // note: `this.constructor.prototype` is wrong in Safari so make sure to
+        // use `__proto__`
+        if (!this.constructor.finalized) {
+          this.constructor.finalize();
+        }
+        Polymer.StyleLib.prepareHost(this, this._template);
+        Polymer.telemetry.instanceCount++;
+        // setup batched effects library; will call initialize when flushing
+        this.constructor.data.prepare(this, this.ready);
+        // add self to host's pending client list
+        hostStack.registerHost(this);
+        // apply defaults first.
+        this.constructor.data.setPropertyDefaults(this,
+          this.constructor._flattenedProperties);
+      }
+
+      // reserved for canonical behavior
+      connectedCallback() {
+        if (hostStack.isEmpty()) {
+          this.constructor.data.flush(this);
+          this.updateStyles();
+        }
+        this.isAttached = true;
+      }
+
+      ready() {
+        if (!this.root) {
+          if (this._template) {
+            // BREAKME(sorvell): remove v0 support when we can...
+            this.root = Polymer.shadowDomV0 ? this.createShadowRoot() :
+              this.attachShadow({mode: 'open'});
+          } else {
+            this.root = this;
+          }
+        }
+        if (this._template) {
+          hostStack.beginHosting(this);
+          var dom = this.constructor.data.stamp(this, this._template);
+          this.root.appendChild(dom);
+          hostStack.endHosting(this);
+        }
+        this.constructor.data.flush(this);
+      }
+
+      addListeners(listeners) {
+        this.constructor.events.addMethodListeners(this, listeners);
+      }
+
+      ensureAttributes(attrs) {
+        this.constructor.attributes.ensureAttributes(this, attrs);
+      }
+
+      disconnectedCallback() {
+        this.isAttached = false;
+      }
+
+      attributeChangedCallback(name, old, value) {
+        var property = caseMap.dashToCamelCase(name);
+        var type = this.constructor._flattenedProperties[property].type;
+        if (!this.constructor.data.hasReadOnlyEffect(this, property)) {
+          this.constructor.attributes.attributeToProperty(this,
+            name, value, type);
+        }
+      }
+
+      updateStyles(properties) {
+        Polymer.StyleLib.applyStyle(this, properties);
+      }
+
+      arrayDelete(arrayOrPath, item) {
+        var index;
+        if (Array.isArray(arrayOrPath)) {
+          index = arrayOrPath.indexOf(item);
+          if (index >= 0) {
+            return arrayOrPath.splice(index, 1);
+          }
+        } else {
+          return nyi();
+        }
+      }
+    }
+
+    PolymerElement.events = events;
+    PolymerElement.templateStamp = templateStamp;
+    PolymerElement.attributes = attributes;
+    PolymerElement.data = data;
+
+    return PolymerElement;
+
+  }
+
+  var hostStack = {
+
+    stack: [],
+
+    isEmpty() {
+      return !this.stack.length;
+    },
+
+    registerHost(inst) {
+      if (this.stack.length) {
+        var host = this.stack[this.stack.length-1];
+        data.enqueueClient(host, inst);
+      }
+    },
+
+    beginHosting(inst) {
+      this.stack.push(inst);
+    },
+
+    endHosting(inst) {
+      var stackLen = this.stack.length;
+      if (stackLen && this.stack[stackLen-1] == inst) {
+        this.stack.pop();
+      }
+    }
+
+  }
+
+  // telemetry
+  Polymer.telemetry = {
+    instanceCount: 0,
+    registrations: [],
+    _regLog: function(prototype) {
+      console.log('[' + prototype.is + ']: registered')
+    },
+    register: function(prototype) {
+      this.registrations.push(prototype);
+      Polymer.log && this._regLog(prototype);
+    },
+    dumpRegistrations: function() {
+      this.registrations.forEach(this._regLog);
+    }
+  };
+
+  // TODO(sorvell): similar to but simpler than mixin.with... just use that?
+  Polymer.CachedMixin = function(mixin) {
+    return function(Base) {
+      if (!mixin.__mixinApplications) {
+        mixin.__mixinApplications = new WeakMap();
+      }
+      var application = mixin.__mixinApplications.get(Base);
+      if (!application) {
+        application = mixin(Base);
+        mixin.__mixinApplications.set(Base, application);
+      }
+      return application;
+    }
+  }
+
+  Polymer.ElementMixin = Polymer.CachedMixin(ElementMixin);
+
+  Polymer.Element = Polymer.ElementMixin(HTMLElement);
+
+})();
+</script>
