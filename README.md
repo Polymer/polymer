@@ -107,8 +107,35 @@ Events that are listened to on patched elements are patched. They have the (begi
 
 * TBD: `dom-if`, `dom-repeat`, `dom-bind`, `array-selector`, etc. will not included in `polymer.html` by default (going forward; they currently are); users should import those elements when needed
 
+### Removed API
+* `Polymer.instanceof` and `Polymer.isInstance`: no longer needed, use 
+`instanceof` instead.
+* `dom-module`: Removed ability to use `is` and `name` attribute to 
+configure the module name. The only supported declarative way set the module 
+id is to use `id`.
+* `element.getPropertyInfo`: This api returned unexpected information some of the time and was rarely used.
+* `element.beforeRegister`: This was originally added for metadata compatibility with ES6 classes. We now prefer users create ES6 classes via `Polymer.Element`, specifying metadata in the static `config` property. For legacy use via `Polymer({...})`, dynamic effects may now be added using the `registered` lifecycle method.
+* `listeners`: Removed ability to use `id.event` to add listeners to elements in local dom. Use declarative template event handlers instead. 
+
 ### Polymer element prototype
 * Methods starting with `_` are not guaranteed to exist (most have been removed)
+
+### Behaviors: Background Info
+Behaviors continue to be supported but the implementation has changed. This should be transparent but for background, in 1.0 behaviors mixed directly onto the element prototype and special care was taken to call all lifecycle methods. Now, behaviors are in the element's prototype chain (implemented via class expression mixins) and lifecycle methods are called via super. **This should not change any user code in behaviors.** Here's a sketch of the implementation of what happens when the user calls `Polymer({ ... behaviors: [..., [], ...] })`:
+* a base `Polymer.CompatElement` becomes the element base class. Note, `Polymer.CompatElement` extends `Polymer.Element`. `Polymer.Element` adds the minimal api an element needs to use Polymer's data binding system, and `Polymer.CompatElement` adds all Polymer 1.0 element api.
+* then behaviors are mixed into it using generated class expressions. 
+  * first, behaviors are flattened into a single de-duplicated array
+  * then a generated class expression is created for each behavior and this extends the base class
+  * the generated class has the behavior properties mixed into it, implements all Polymer 1.0 lifecycle entry points calling `super.method` and then the behavior's implementation, and transforms metadata into the form `Polymer.Element` expects, a static `config` object.
+* the class is then extended with a generated class for the object passed to `Polymer` and the element's static `is` property is set.
+* finally, `customElements.define` is called on the the resulting class.
+ 
+The resulting class prototype chain will look like this:
+* `HTMLElement`
+* `Polymer.Element`
+* `Polymer.CompatElement`
+* 0 or more generated classes for behaviors
+* generated class for the element
 
 ### Element lifecycle
 * Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
@@ -136,4 +163,59 @@ Events that are listened to on patched elements are patched. They have the (begi
       * Basically can only set instance properties
       * Must not inspect attributes, children, parent
     * attachedCallback → connectedCallback
-* Alacarte code uses limited ES2015 syntax (mostly just `class`, so it can be run without transpilation in current Chrome, Safari, FF, and Edge; note Safari 9 does not currently support `=>`, among others).  Transpilation is required to run in IE11.
+* Alacarte code uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari Technology Preview, FF, and Edge.  Transpilation is required to run in IE11 and Safari 9; we don't yet have an out-of-the-box workflow for this yet, but is coming.
+
+### A new way to write elements...
+Why? In V1 custom elements, elments are expected to be defined using an ES6 class. This is the only* way the element constructor can be called. For this reason, we've evolved a new way to write elements using ES6 classes. *Any new code written for Polymer 2.0 should be written this way.* We'd like feedback on the following api. 
+* extend from `Polymer.Element`. This class provides the minimal surface area to integrate with 2.0's data binding system. It provides only standard custom element lifecycle with the exception of `ready`. (You can extend from `Polymer.CompatElement` to get all of the Polymer 1.0 element api, but since most of this api was rarely used, this should not often be needed.)
+* implement "behaviors" as mixins that return class expressions
+* property metadata should be put on the class as a static in a property called `config`
+* element's `is` property should be defined as a static on the class
+* `listeners` and `hostAttributes` have been removed from element metadata; they can be installed how and when needed but for convenience `addListeners` and `ensureAttributes` are available and respectively take arguments the same as the old metadata objects. The ability to reference other elements in the listeners object has been removed (e.g. `'foo.tap': 'myHandler'`)
+
+```
+class MyElement extends Polymer.Element {
+  static get is() { return 'x-foo'; }
+  
+  static get config() {
+    return {
+      properties: { 
+        // same as 1.0 
+      },
+      observers: [
+        // same as 1.0 
+      ]
+    }
+  }
+  
+  constructor() {
+    super();
+    // ...
+  }
+  
+  ready() {
+    super.ready();
+    this.addListeners({
+      'tap': '_tapHandler'
+    }
+    this.ensureAttributes({
+      tabIndex: 0,
+      role: 'button'
+    });
+  }
+}
+
+customElements.define(MyElement.is, MyElement);
+```
+
+Here's a behavior/mixin example:
+
+```
+function MyMixin(superclass) {
+  return class extends superclass {
+    static get config() { return /* config object same as above */ }
+    
+    // anything else you'd want to do in an element class... call super as needed...
+  }
+}
+```
