@@ -129,6 +129,13 @@ Behaviors continue to be supported but the implementation has changed. This shou
   * the generated class has the behavior properties mixed into it, implements all Polymer 1.0 lifecycle entry points calling `super.method` and then the behavior's implementation, and transforms metadata into the form `Polymer.Element` expects, a static `config` object.
 * the class is then extended with a generated class for the object passed to `Polymer` and the element's static `is` property is set.
 * finally, `customElements.define` is called on the the resulting class.
+ 
+The resulting class prototype chain will look like this:
+* `HTMLElement`
+* `Polymer.Element`
+* `Polymer.CompatElement`
+* 0 or more generated classes for behaviors
+* generated class for the element
 
 ### Element lifecycle
 * Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
