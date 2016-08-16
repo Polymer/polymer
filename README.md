@@ -231,3 +231,5 @@ class MyElement extends MyMixin(Polymer.Element) {
  
 }
 ```
+
+Visualization of 1.0 `Polymer({...})` --> 2.0 `class extends Polymer.Element` [changes here](https://docs.google.com/presentation/d/1Yg-KcS48WeqxqGBLUZOEngFFRPgZJ0fnNGCkzn1kBqU/edit#slide=id.p).
