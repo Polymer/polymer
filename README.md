@@ -219,3 +219,15 @@ function MyMixin(superclass) {
   }
 }
 ```
+
+Usage of mixin:
+
+```
+class MyElement extends MyMixin(Polymer.Element) {
+
+  static get is() { return 'x-foo'; }
+
+  ...
+ 
+}
+```
