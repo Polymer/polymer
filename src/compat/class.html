@@ -1,0 +1,191 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../elements/compat-element.html">
+<link rel="import" href="../utils/utils.html">
+<script>
+
+  (function() {
+
+    'use strict';
+
+    var utils = Polymer.Utils;
+    var CompatElementMixin = Polymer.CompatElementMixin;
+
+    var metaProps = {
+      attached: true,
+      detached: true,
+      ready: true,
+      created: true,
+      beforeRegister: true,
+      registered: true,
+      attributeChanged: true,
+      // meta objects
+      behaviors: true,
+      hostAttributes: true,
+      properties: true,
+      observers: true,
+      listeners: true
+    }
+
+    var mixinBehaviors = function(behaviors, klass) {
+      for (var i=0; i<behaviors.length; i++) {
+        var b = behaviors[i];
+        if (b) {
+          klass = Array.isArray(b) ? mixinBehaviors(b, klass) : 
+            MixinBehavior(b, klass);
+        }
+      }
+      return klass;
+    }
+
+    var flattenBehaviors = function(behaviors) {
+      var r = [];
+      if (behaviors) {
+        for (var i=0; i < behaviors.length; i++) {
+          var b = behaviors[i];
+          if (b) {
+            if (Array.isArray(b)) {
+              r = flattenBehaviors(b);
+            } else {
+              if (r.indexOf(b) < 0) {
+                r.push(b);
+              }
+            }
+          } else {
+            Polymer._warn('behavior is null, check for missing or 404 import');
+          }
+        }
+      }
+      return r;
+    }
+
+    var MixinBehavior = function(behavior, Base) {
+
+      var config = {
+        properties: behavior.properties,
+        observers: behavior.observers
+      };
+      
+      class PolymerGenerated extends Base {
+
+        static get config() {
+          return config;
+        }
+
+        static finalize() {
+          if (!this.finalized) {
+            super.finalize();
+            if (behavior.registered) {
+              behavior.registered.call(this.prototype);
+            }
+            this.finalized = true;
+          }
+        }
+
+        _invokeFunction(fn, args) {
+          if (fn) {
+            fn.apply(this, args);
+          }
+        }
+
+        created() {
+          super.created();
+          this._invokeFunction(behavior.created);
+        }
+
+        ready() {
+          super.ready();
+          if (behavior.listeners) {
+            this.addListeners(behavior.listeners);
+          }
+          if (behavior.hostAttributes) {
+            this.ensureAttributes(behavior.hostAttributes);
+          }
+          this._invokeFunction(behavior.ready);
+        }
+
+        attached() {
+          super.attached();
+          this._invokeFunction(behavior.attached);
+        }
+
+        detached() {
+          super.detached();
+          this._invokeFunction(behavior.detached);
+        }
+
+        attributeChanged(name, old, value) {
+          super.attributeChanged(name, old, value);
+          this._invokeFunction(behavior.attributeChanged, [name, old, value]);
+        }
+      }
+
+      for (var p in behavior) {
+        if (!(p in metaProps)) 
+          utils.copyOwnProperty(p, behavior, PolymerGenerated.prototype);
+      }
+
+      return PolymerGenerated;
+    }
+
+    //var nativeConstructors = {};
+
+    /**
+     * Returns the native element constructor for the tag specified.
+     *
+     * @method getNativeConstructor
+     * @param {string} tag  HTML tag name.
+     * @return {Object} Native constructor for specified tag.
+    */
+    var getNativeConstructor = function(tag) {
+      if (tag) {
+        // TODO(kschaaf): hack, for now, needs to be removed; needed to allow
+        // subclassing from overwridden constructors in CEv1 polyfill
+        return window['HTML' + tag[0].toUpperCase() + tag.slice(1) + 'Element'];
+        // var c = nativeConstructors[tag];
+        // if (!c) {
+        //   c = document.createElement(tag).constructor;
+        //   nativeConstructors[tag] = c;
+        // }
+        // return c;
+      } else {
+        return HTMLElement;
+      }
+    }
+
+    Polymer.Class = function(info) {
+      if (!info) {
+        Polymer._warn('Polymer.Class requires `info` argument');
+      }
+      var klass = CompatElementMixin(getNativeConstructor(info.extends));
+      var behaviors = flattenBehaviors(info.behaviors);
+      if (behaviors.length) {
+        klass = mixinBehaviors(behaviors, klass);
+      }
+      klass = MixinBehavior(info, klass);
+      // decorate klass with registration info
+      klass.is = info.is;
+      klass.extends = info.extends;
+      // behaviors on prototype for BC...
+      behaviors.reverse();
+      klass.prototype.behaviors = behaviors;
+      // NOTE: while we could call `beforeRegister` here to maintain 
+      // some BC, the state of the element at this point is not as it was in 1.0
+      // In 1.0, the method was called *after* mixing prototypes together
+      // but before processing of meta-objects. Since this is now done
+      // in 1 step via `MixinBehavior`, this is no longer possible.
+      // However, *most* work (not setting `is`) that was previously done in 
+      // `beforeRegister` should be possible in `registered`.
+      return klass;
+    }
+
+  })();
+
+</script>

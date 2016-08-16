@@ -16,58 +16,92 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
+  var Types = Polymer.PropertyEffects.Types;
+
   class MetaEffects extends Polymer.BatchedEffects {
 
+    clearPropagateEffects(model) {
+      model._propagateEffects = {};
+    }
+
     createProperties(model, properties) {
-      // TODO(sorvell): other code depends on these always existing...
+      // TODO(sorvell): should probably not be here...
       model._propertyEffects = model._propertyEffects || {};
-      var info, p;
-      var ctor = model.constructor;
       // process properties
-      for (p in properties) {
-        info = properties[p];
-        if (info.readOnly) {
-          this.createReadOnlyProperty(model, p, !info.computed);
-        }
-        if (info.reflectToAttribute) {
-          this.createReflectedProperty(model, p);
-        }
-        if (info.observer) {
-          // TODO(sorvell): in anticipation of behaviors merging observers
-          if (Array.isArray(info.observer)) {
-            for (var i=0; i < info.observer.length; i++) {
-              this.createObserver(model, p, info.observer[i]);
+      for (var p in properties) {
+        this.createProperty(model, p, properties[p]);
+      }
+    }
+
+    createProperty(model, name, info) {
+      // computed forces readOnly...
+      if (info.computed) {
+        info.readOnly = true;
+      }
+      // readOnly, computed, reflect, notify only if not already doing so...
+      if (info.readOnly && !this.hasReadOnlyEffect(model, name)) {
+        this.createReadOnlyProperty(model, name, !info.computed);
+      }
+      if (info.computed && !this.hasComputedEffect(model, name)) {
+        this.createComputedProperty(model, name, info.computed);
+      }
+      if (info.reflectToAttribute && !this.hasReflectEffect(model, name)) {
+        this.createReflectedProperty(model, name);
+      }
+      if (info.notify && !this.hasNotifyEffect(model, name)) {
+        this.createNotifyingProperty(model, name);
+      }    
+      // always add observer
+      if (info.observer) {
+        this.createObserver(model, name, info.observer);
+      }
+    }
+
+    hasReadOnlyEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.READ_ONLY);
+    }
+
+    hasNotifyEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.NOTIFY);
+    }
+
+    // TODO(kschaaf): need a REFLECT type to avoid the need to pass
+    // in the function here.
+    hasReflectEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.COMPUTE, 
+        this._runReflectEffect);
+    }
+
+    hasComputedEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.COMPUTE, 
+        this._runComputedEffect);
+    }
+
+    hasPropertyEffect(model, property, type, fn) {
+      var effects = model[type];
+      var list = effects && effects[property];
+      if (list) {
+        // TODO(sorvell): remove this when REFLECT is supported as a 
+        // separate type.
+        if (fn) {
+          for (var i=0; i < list.length; i++) {
+            if (list[i].fn === fn) {
+              return true;
             }
-          } else {
-            this.createObserver(model, p, info.observer);
           }
-        }
-        if (info.notify) {
-          this.createNotifyingProperty(model, p);
-        }
-        if (info.computed) {
-          this.createComputedProperty(model, p, info.computed);
-        }
-        // TODO(sorvell): remove when using V1 custom elements.
-        if (!ctor.hasOwnProperty('observedAttributes')) {
-          ctor.observedAttributes =
-            ctor.observedAttributes ?
-            ctor.observedAttributes.slice() : [];
-        }
-        if (ctor.observedAttributes.indexOf(p) < 0){
-          ctor.observedAttributes.push(Polymer.CaseMap.camelToDashCase(p));
+        } else {
+          return true;
         }
       }
     }
 
-    createMultiObservers(model, observers) {
+    createMethodObservers(model, observers) {
       for (var i=0; i < observers.length; i++) {
-        this.createMultiObserver(model, observers[i]);
+        this.createMethodObserver(model, observers[i]);
       }
     }
 
-    setPropertyDefaults(inst) {
-      var properties = inst.__meta.properties;
+    setPropertyDefaults(inst, properties) {
       if (!properties) {
         return;
       }
