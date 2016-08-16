@@ -163,7 +163,7 @@ The resulting class prototype chain will look like this:
       * Basically can only set instance properties
       * Must not inspect attributes, children, parent
     * attachedCallback → connectedCallback
-* Alacarte code uses limited ES2015 syntax (mostly just `class`, so it can be run without transpilation in current Chrome, Safari, FF, and Edge; note Safari 9 does not currently support `=>`, among others).  Transpilation is required to run in IE11.
+* Alacarte code uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari Technology Preview, FF, and Edge.  Transpilation is required to run in IE11 and Safari 9; we don't yet have an out-of-the-box workflow for this yet, but is coming.
 
 ### A new way to write elements...
 Why? In V1 custom elements, elments are expected to be defined using an ES6 class. This is the only* way the element constructor can be called. For this reason, we've evolved a new way to write elements using ES6 classes. *Any new code written for Polymer 2.0 should be written this way.* We'd like feedback on the following api. 
