@@ -15,8 +15,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../../src/events/gesture-event-listeners.html">
 
 <script>
-
   (function() {
+    'use strict';
 
     class Templatizer {
 
@@ -64,10 +64,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _createConstructor(template, options) {
         // Anonymous class created by the templatizer
         var data = this.data;
-        var ctor = class {
+        var ctor = class extends data.extendWithAPI(class {}) {
           //TODO(kschaaf): for debugging; remove?
           get localName() { return 'template#' + this.template.id + '/TemplateInstance' }
           constructor(host, props) {
+            super();
             //TODO(kschaaf): for debugging; remove?
             this.id = this.constructor.instCount;
             this.constructor.instCount++;
@@ -111,6 +112,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                 }
               }
               n.__hideTemplateChildren__ = hide;
+              if (n._showHideChildren) {
+                n._showHideChildren(hide);
+              }
             }
           }
           _configureProperties(props) {
@@ -193,15 +197,55 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       _createHP2HEffector(template) {
+        var lib = this;
         return function fwdHostPropToHost(prop, value, old, info, fromAbove) {
           if (!fromAbove) {
             // TODO(kschaaf) This does not take advantage of the efficient
             // upward flow in batched effects
-            template.set('_host_' + prop, value);
+            lib.data.setProperty(template, '_host_' + prop, value);
           }
         }
       }
 
+      /**
+       * Returns the template "model" associated with a given element, which
+       * serves as the binding scope for the template instance the element is
+       * contained in. A template model is an instance of `Polymer.Base`, and
+       * should be used to manipulate data associated with this template instance.
+       *
+       * Example:
+       *
+       *   var model = modelForElement(el);
+       *   if (model.index < 10) {
+       *     model.set('item.checked', true);
+       *   }
+       *
+       * @method modelForElement
+       * @param {HTMLElement} el Element for which to return a template model.
+       * @return {Object<Polymer.Base>} Model representing the binding scope for
+       *   the element.
+       */
+      modelForElement(host, el) {
+        var model;
+        while (el) {
+          // An element with a _templateInstance marks the top boundary
+          // of a scope; walk up until we find one, and then ensure that
+          // its dataHost matches `this`, meaning this dom-repeat stamped it
+          if ((model = el._templateInstance)) {
+            // Found an element stamped by another template; keep walking up
+            // from its dataHost
+            if (model.dataHost != host) {
+              el = model.dataHost;
+            } else {
+              return model;
+            }
+          } else {
+            // Still in a template scope, keep going up until
+            // a _templateInstance is found
+            el = el.parentNode;
+          }
+        }
+      }
     }
 
     Polymer.Templatizer = Templatizer;

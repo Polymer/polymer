@@ -49,6 +49,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     addPropertyEffect(model, path, type, effect) {
       model = this.getModel(model);
+      model.__dataLib = this;
+      // this.ensureAPI(model);
       var property = Polymer.Path.root(path);
       // _propertyEffects only used to track whether an accessor has been created or not
       var effects = this._ensureOwnMappedArray(model, '_propertyEffects')[property];
@@ -131,6 +133,202 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this._propertyEffects && this._propertyEffects.__static__) {
         this._runEffects(inst, '__static__', null, null, this._propertyEffects.__static__);
       }
+    }
+
+    /**
+     * Notify that an array has changed.
+     *
+     * Example:
+     *
+     *     this.items = [ {name: 'Jim'}, {name: 'Todd'}, {name: 'Bill'} ];
+     *     ...
+     *     this.items.splice(1, 1, {name: 'Sam'});
+     *     this.items.push({name: 'Bob'});
+     *     this.notifySplices('items', [
+     *       { index: 1, removed: [{name: 'Todd'}], addedCount: 1, obect: this.items, type: 'splice' },
+     *       { index: 3, removed: [], addedCount: 1, object: this.items, type: 'splice'}
+     *     ]);
+     *
+     * @param {string} path Path that should be notified.
+     * @param {Array} splices Array of splice records indicating ordered
+     *   changes that occurred to the array. Each record should have the
+     *   following fields:
+     *    * index: index at which the change occurred
+     *    * removed: array of items that were removed from this index
+     *    * addedCount: number of new items added at this index
+     *    * object: a reference to the array in question
+     *    * type: the string literal 'splice'
+     *
+     *   Note that splice records _must_ be normalized such that they are
+     *   reported in index order (raw results from `Object.observe` are not
+     *   ordered and must be normalized/merged before notifying).
+    */
+    notifySplices(inst, path, splices) {
+      var info = {};
+      var array = Polymer.Path.get(this, path, info);
+      // Notify change to key-based path
+      this._notifySplices(inst, array, info.path, splices);
+    }
+
+    // Note: this implemetation only accepts key-based array paths
+    _notifySplices(inst, array, path, splices) {
+      var change = {
+        keySplices: Polymer.Collection.applySplices(array, splices),
+        indexSplices: splices
+      };
+      var splicesPath = path + '.splices';
+      this.setProperty(inst, splicesPath, change);
+      this.setProperty(inst, path + '.length', array.length);
+      // All path notification values are cached on `this.__data__`.
+      // Null here to allow potentially large splice records to be GC'ed.
+      inst.__data[splicesPath] = {keySplices: null, indexSplices: null};
+    }
+
+    _notifySplice(inst, array, path, index, added, removed) {
+      this._notifySplices(inst, array, path, [{
+        index: index,
+        addedCount: added,
+        removed: removed,
+        object: array,
+        type: 'splice'
+      }]);
+    }
+
+    /**
+     * Adds items onto the end of the array at the path specified.
+     *
+     * The arguments after `path` and return value match that of
+     * `Array.prototype.push`.
+     *
+     * This method notifies other paths to the same array that a
+     * splice occurred to the array.
+     *
+     * @method push
+     * @param {String} path Path to array.
+     * @param {...any} var_args Items to push onto array
+     * @return {number} New length of the array.
+     */
+    push(inst, path) {
+      var info = {};
+      var array = Polymer.Path.get(inst, path, info);
+      var args = Array.prototype.slice.call(arguments, 2);
+      var len = array.length;
+      var ret = array.push.apply(array, args);
+      if (args.length) {
+        this._notifySplice(inst, array, info.path, len, args.length, []);
+      }
+      return ret;
+    }
+
+    /**
+     * Removes an item from the end of array at the path specified.
+     *
+     * The arguments after `path` and return value match that of
+     * `Array.prototype.pop`.
+     *
+     * This method notifies other paths to the same array that a
+     * splice occurred to the array.
+     *
+     * @method pop
+     * @param {String} path Path to array.
+     * @return {any} Item that was removed.
+     */
+    pop(inst, path) {
+      var info = {};
+      var array = Polymer.Path.get(inst, path, info);
+      var hadLength = Boolean(array.length);
+      var ret = array.pop();
+      if (hadLength) {
+        this._notifySplice(inst, array, info.path, array.length, 0, [ret]);
+      }
+      return ret;
+    }
+
+    /**
+     * Starting from the start index specified, removes 0 or more items
+     * from the array and inserts 0 or more new itms in their place.
+     *
+     * The arguments after `path` and return value match that of
+     * `Array.prototype.splice`.
+     *
+     * This method notifies other paths to the same array that a
+     * splice occurred to the array.
+     *
+     * @method splice
+     * @param {String} path Path to array.
+     * @param {number} start Index from which to start removing/inserting.
+     * @param {number} deleteCount Number of items to remove.
+     * @param {...any} var_args Items to insert into array.
+     * @return {Array} Array of removed items.
+     */
+    splice(inst, path, start) {
+      var info = {};
+      var array = Polymer.Path.get(inst, path, info);
+      // Normalize fancy native splice handling of crazy start values
+      if (start < 0) {
+        start = array.length - Math.floor(-start);
+      } else {
+        start = Math.floor(start);
+      }
+      if (!start) {
+        start = 0;
+      }
+      var args = Array.prototype.slice.call(arguments, 2);
+      var ret = array.splice.apply(array, args);
+      var addedCount = Math.max(args.length - 2, 0);
+      if (addedCount || ret.length) {
+        this._notifySplice(inst, array, info.path, start, addedCount, ret);
+      }
+      return ret;
+    }
+
+    /**
+     * Removes an item from the beginning of array at the path specified.
+     *
+     * The arguments after `path` and return value match that of
+     * `Array.prototype.pop`.
+     *
+     * This method notifies other paths to the same array that a
+     * splice occurred to the array.
+     *
+     * @method shift
+     * @param {String} path Path to array.
+     * @return {any} Item that was removed.
+     */
+    shift(inst, path) {
+      var info = {};
+      var array = Polymer.Path.get(inst, path, info);
+      var hadLength = Boolean(array.length);
+      var ret = array.shift();
+      if (hadLength) {
+        this._notifySplice(inst, array, info.path, 0, 0, [ret]);
+      }
+      return ret;
+    }
+
+    /**
+     * Adds items onto the beginning of the array at the path specified.
+     *
+     * The arguments after `path` and return value match that of
+     * `Array.prototype.push`.
+     *
+     * This method notifies other paths to the same array that a
+     * splice occurred to the array.
+     *
+     * @method unshift
+     * @param {String} path Path to array.
+     * @param {...any} var_args Items to insert info array
+     * @return {number} New length of the array.
+     */
+    unshift(inst, path) {
+      var info = {};
+      var array = Polymer.Path.get(inst, path, info);
+      var args = Array.prototype.slice.call(arguments, 2);
+      var ret = array.unshift.apply(array, args);
+      if (args.length) {
+        this._notifySplice(inst, array, info.path, 0, args.length, []);
+      }
+      return ret;
     }
 
     // -- readOnly ----------------------------------------------
@@ -350,7 +548,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _setPropertyToNode(model, node, property, value) {
-      if (node.__data) {
+      if (node.__dataLib instanceof PropertyEffects) {
         this.setProperty(node, property, value);
       } else {
         node[property] = value;
@@ -504,11 +702,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           value = e.target[property];
         }
         value = negate ? !value : value;
-        this._notifyPropertyToHost(inst, path, value, e.detail);
+        this._notifyPropertyToHost(inst, path, value, e);
       }
     }
 
-    _notifyPropertyToHost(host, path, value, detail) {
+    _notifyPropertyToHost(host, path, value, event) {
       this.setProperty(host, path, value);
     }
 
@@ -721,6 +919,119 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // }
           }
         }
+      }
+    }
+
+    extendWithAPI(superClass) {
+
+      var klass = class extends superClass {
+        /**
+         * Convienence method for reading a value from a path.
+         *
+         * Note, if any part in the path is undefined, this method returns
+         * `undefined` (this method does not throw when dereferencing undefined
+         * paths).
+         *
+         * @method get
+         * @param {(string|Array<(string|number)>)} path Path to the value
+         *   to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
+         *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
+         *   bracketed expressions are not supported; string-based path parts
+         *   *must* be separated by dots.  Note that when dereferencing array
+         *   indices, the index may be used as a dotted part directly
+         *   (e.g. `users.12.name` or `['users', 12, 'name']`).
+         * @param {Object=} root Root object from which the path is evaluated.
+         * @return {*} Value at the path, or `undefined` if any part of the path
+         *   is undefined.
+         */
+        _get(path, root) {
+          path = Array.isArray(path) ? path.join('.') : path;
+          return Polymer.Path.get(root || this, path);
+        }
+
+        /**
+         * Convienence method for setting a value to a path and notifying any
+         * elements bound to the same path.
+         *
+         * Note, if any part in the path except for the last is undefined,
+         * this method does nothing (this method does not throw when
+         * dereferencing undefined paths).
+         *
+         * @method set
+         * @param {(string|Array<(string|number)>)} path Path to the value
+         *   to write.  The path may be specified as a string (e.g. `foo.bar.baz`)
+         *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
+         *   bracketed expressions are not supported; string-based path parts
+         *   *must* be separated by dots.  Note that when dereferencing array
+         *   indices, the index may be used as a dotted part directly
+         *   (e.g. `users.12.name` or `['users', 12, 'name']`).
+         * @param {*} value Value to set at the specified path.
+        */
+        _set(path, value) {
+          path = Array.isArray(path) ? path.join('.') : path;
+          this.constructor.data.setProperty(this, path, value);
+        }
+
+        push(path) {
+          var args = Array.prototype.slice.call(arguments);
+          args.unshift(this);
+          var data = this.constructor.data;
+          return data.push.apply(data, args);
+        }
+
+        pop(path) {
+          return this.constructor.data.pop(this, path);
+        }
+
+        shift(path) {
+          return this.constructor.data.shift(this, path);
+        }
+
+        unshift(path) {
+          var args = Array.prototype.slice.call(arguments);
+          args.unshift(this);
+          var data = this.constructor.data;
+          return data.unshift.apply(data, args);
+        }
+
+        splice(path, start) {
+          var args = Array.prototype.slice.call(arguments);
+          args.unshift(this);
+          var data = this.constructor.data;
+          return data.splice.apply(data, args);
+        }
+
+        linkPaths(to, from) {
+          console.warn('not yet implemented');
+        }
+
+        unlinkPaths(path) {
+          console.warn('not yet implemented');
+        }
+
+        notifyPath(path, value) {
+          this.constructor.data.setProperty(this, path, value);
+        }
+
+        notifySplices(path, splices) {
+          this.constructor.data.notifySplices(this, path, splices);
+        }
+      }
+
+      klass.prototype.__dataHasAPI = true;
+      //TODO(kschaaf): Remove once we drop broken Safari 9 ES6 support
+      klass.prototype.get = klass.prototype._get;
+      klass.prototype.set = klass.prototype._set;
+      klass.data = this;
+      return klass;
+    }
+
+    ensureAPI(model) {
+      if (!model.__dataHasAPI) {
+        var ctor = model.constructor.data = this.constructor;
+        var api = ctor._apiProto ||
+          (ctor._apiProto = this.extendWithAPI(class {}).prototype);
+        Polymer.Utils.mixin(model, api);
       }
     }
 

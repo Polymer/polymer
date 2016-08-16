@@ -32,23 +32,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    addPropertyEffect(model, property, effect) {
-      model = this.getModel(model);
-      if (!model.setProperties) {
-        var lib = this;
-        model.setProperties = function(props, fromAbove) {
-          lib.setProperties(this, props, fromAbove);
-        };
-        model.set = model.notifyPath = function(path, value) {
-          lib.set(this, path, value);
-        };
-        model.get = function(path) {
-          return lib.get(this, path)
-        }
-      }
-      super.addPropertyEffect.apply(this, arguments);
-    }
-
     // -- set properties machinery
 
     setProperties(inst, props) {
@@ -92,10 +75,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     validate(inst, currentProps, oldProps, changedProps) {
-      // var c = Object.getOwnPropertyNames(changedProps);
       // if (window.debug) {
+      //   var c = Object.getOwnPropertyNames(changedProps);
       //   console.group(inst.localName + '#' + inst.id + ': ' + c);
-      //   debugger
+      //   debugger;
       // }
       // Compute
       var computedProps = this._runComputedEffects(inst, changedProps, oldProps);
@@ -131,18 +114,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    // Cannot name class method `set` or `get` in class due to Safari ES6 implementation
-    // Patched into the prototype as after this class definition
-    __set(inst, path, value) {
-      path = Array.isArray(path) ? path.join('.') : path;
-      this.setProperty(inst, path, value);
-    }
-
-    __get(inst, path) {
-      path = Array.isArray(path) ? path.join('.') : path;
-      return this._get(inst, path);
-    }
-
     _notifyProperties(inst, changedProps, computedProps, oldProps) {
       // Determine which props to notify
       var props = inst.__dataFromAbove ? computedProps : changedProps;
@@ -156,7 +127,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var host = inst.dataHost;
       this._runEffects(inst, Types.NOTIFY, props);
       // Flush host
-      if (host && host.__dataPending) {
+      if (host && host.__dataLib instanceof BatchedEffects && host.__dataPending) {
         this.flush(host);
       }
       // Combine & return interim data only for last entry
@@ -170,7 +141,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _setPropertyToNode(model, node, prop, value) {
-      if (node.setProperties) {
+      if (node.__dataLib instanceof BatchedEffects) {
         if (this.setPendingProperty(node, prop, value)) {
           this.enqueueClient(model, node);
         }
@@ -179,10 +150,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _notifyPropertyToHost(host, path, value, detail) {
-      this.setPendingProperty(host, path, value)
-      if (!detail || !(detail.lib instanceof BatchedEffects)) {
-        this.flush(host);
+    _notifyPropertyToHost(host, path, value, event) {
+      if (event.target.__dataLib instanceof BatchedEffects) {
+        this.setPendingProperty(host, path, value);
+      } else {
+        super._notifyPropertyToHost(host, path, value, event);
       }
     }
 
@@ -269,13 +241,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    extendWithAPI(superClass) {
+      return class extends super.extendWithAPI(superClass) {
+        setProperties(props) {
+          this.constructor.data.setProperties(this, props);
+        }
+        flush(fromAbove) {
+          this.constructor.data.flush(this, fromAbove);
+        }
+      }
+    }
+
   }
 
   var Types = BatchedEffects.Types;
-
-  // NOTE: Safari can't deal with an ES6 style function named `set` or `get`
-  BatchedEffects.prototype.set = BatchedEffects.prototype.__set;
-  BatchedEffects.prototype.get = BatchedEffects.prototype.__get;
 
   // export
   Polymer.BatchedEffects = BatchedEffects;

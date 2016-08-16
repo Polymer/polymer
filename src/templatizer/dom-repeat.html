@@ -105,6 +105,7 @@ Then the `observe` property should be configured as follows:
 
 <script>
 (function() {
+  'use strict';
 
   var templatizer = new Polymer.Templatizer();
 
@@ -279,7 +280,7 @@ Then the `observe` property should be configured as follows:
       // until ready, since won't have its template content handed back to
       // it until then
       if (!this._ctor) {
-        var template = this.querySelector('template');
+        var template = this.template = this.querySelector('template');
         // Template instance props that should be excluded from forwarding
         var instanceProps = {
           __key__: true
@@ -492,8 +493,8 @@ Then the `observe` property should be configured as follows:
         keyToIdx[inst.__key__] = i;
         if (!inst.isPlaceholder) {
           inst.forwardProperty(this.indexAs, i);
+          inst.flush(true);
         }
-        inst.flush();
       }
       // Reset the pool
       // TODO(kschaaf): Reuse pool across turns and nested templates
@@ -553,10 +554,9 @@ Then the `observe` property should be configured as follows:
         var key = keys[i];
         var inst = this._instances[i];
         if (inst) {
-          inst.forwardProperty('__key__', key);
+          inst.__key__ = key;
           if (!inst.isPlaceholder && i < this._limit) {
-            var item = c ? c.getItem(key) : this.items[i];
-            inst.forwardProperty(this.as, item);
+            inst.forwardProperty(this.as, c.getItem(key));
           }
         } else if (i < this._limit) {
           this._insertInstance(i, key);
@@ -734,8 +734,8 @@ Then the `observe` property should be configured as follows:
       if (inst) {
         // TODO(kschaaf): If the pool is shared across turns, hostProps
         // need to be re-set to reused instances in addition to item/key
-        inst.__setProperty(this.as, this.collection.getItem(key), true);
-        inst.__setProperty('__key__', key, true);
+        inst.forwardProperty(this.as, this.collection.getItem(key));
+        inst.forwardProperty('__key__', key);
       } else {
         inst = this._stampInstance(idx, key);
       }
@@ -776,7 +776,8 @@ Then the `observe` property should be configured as follows:
         var inst = this._instances[idx];
         if (inst && !inst.isPlaceholder) {
           path = this.as + ((dot >= 0) ? ('.' + path.substring(dot+1)) : '');
-          inst.set(path, value);
+          inst.forwardProperty(path, value);
+          inst.flush(true);
         }
       }
     },
@@ -824,6 +825,28 @@ Then the `observe` property should be configured as follows:
     indexForElement: function(el) {
       var instance = this.modelForElement(el);
       return instance && instance[this.indexAs];
+    },
+
+    /**
+     * Returns the template "model" associated with a given element, which
+     * serves as the binding scope for the template instance the element is
+     * contained in. A template model is an instance of `Polymer.Base`, and
+     * should be used to manipulate data associated with this template instance.
+     *
+     * Example:
+     *
+     *   var model = modelForElement(el);
+     *   if (model.index < 10) {
+     *     model.set('item.checked', true);
+     *   }
+     *
+     * @method modelForElement
+     * @param {HTMLElement} el Element for which to return a template model.
+     * @return {Object<Polymer.Base>} Model representing the binding scope for
+     *   the element.
+     */
+    modelForElement: function(el) {
+      return templatizer.modelForElement(this.template, el);
     }
 
   });
