@@ -104,29 +104,81 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     hasPropertyEffect(model, property, type) {
-      var effects = model[type];
+      var effects = model[type || Types.ANY];
       return Boolean(effects && effects[property]);
     }
 
     // Runtime ----------------------------------------
 
-    setProperty(inst, property, value) {
-      if (this.setPendingProperty(inst, property, value)) {
-        this.flush(inst);
+    // Ensures the path is set to the value passed on the instance,
+    // and if the path has effects, returns a key-transformed path
+    // sutable for setting into the system via setProperty/setPendingProperty
+    // `path` can be a user-facing path string or array of path parts
+    updatePath(inst, path, value) {
+      let rootProperty = Polymer.Path.root(Array.isArray(path) ? path[0] : path);
+      if (!this.hasPropertyEffect(inst, rootProperty)) {
+        Polymer.Path.set(inst, path, value);
+      } else {
+        let info;
+        if (rootProperty !== path) {
+          Polymer.Path.set(inst, path, value, info = {});
+        }
+        return info ? info.path : path;
       }
     }
 
-    setPendingProperty(inst, property, value) {
-      var info;
-      var rootProperty = Polymer.Path.root(property);
-      if (!inst._propertyEffects[rootProperty]) {
-        Polymer.Path.set(inst, property, value);
-      } else {
-        if (rootProperty !== property) {
-          Polymer.Path.set(inst, property, value, info = {});
+    setProperty(inst, prop, value) {
+      if (this.setPendingProperty(inst, prop, value) &&
+          inst.__dataInitialized) {
+        if (inst.asyncEffects) {
+          this.invalidate(inst);
+        } else {
+          this.flush(inst);
         }
-        return super.setPendingProperty(inst, info ? info.path : property, value);
       }
+    }
+
+    flush(inst, fromAbove) {
+      if (!inst.__dataInitialized) {
+        inst.__dataInitialized = true;
+        if (inst.__dataCallback) {
+          inst.__dataCallback();
+        }
+      }
+      if (inst.__dataPending || inst.__dataPendingClients) {
+        inst.__dataFromAbove = inst.__dataFromAbove || fromAbove;
+        super.flush(inst);
+        inst.__dataFromAbove = false;
+      }
+    }
+
+    prepare(inst, callback) {
+      inst.__dataCallback = callback;
+      if (inst.__dataProto) {
+        inst.__data = Object.create(inst.__dataProto);
+        inst.__dataPending = Object.create(inst.__dataProto);
+        inst.__dataOld = {};
+      } else {
+        inst.__data = {};
+      }
+      this.recordInstanceProperties(inst);
+    }
+
+    recordInstanceProperties(inst) {
+      for (var p in inst._propertyEffects) {
+        if (inst.hasOwnProperty(p)) {
+          var value = inst[p];
+          delete inst[p];
+          inst[p] = value;
+        }
+      }
+    }
+
+    stamp(inst, template) {
+      var dom = this.templateStamp.stamp(inst, template);
+      var notes = (template._content || template.content)._notes;
+      this.setupBindings(inst, dom, notes);
+      return dom;
     }
 
     propertiesChanged(inst, props, oldProps, changedProps) {
@@ -139,7 +191,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _runEffects(inst, property, value, old, effects) {
       for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
         if (Polymer.Path.matches(fx.path, property)) {
-          fx.fn.call(inst, property, value, old, fx.info);
+          fx.fn.call(inst, property, this.__data[property], old, fx.info);
         }
       }
     }
@@ -538,14 +590,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _runAnnotationEffect(path, value, old, info) {
-      var node;
+      var node = this._nodes[info.index];
       // Subpath notification; set transformed path to client
-      if (path.length > info.value.length &&
-          (node = this._nodes[info.index]).__data) {
+      if ((path.length > info.value.length) && (info.kind == 'property') &&
+          this.constructor.data.hasPropertyEffect(node, info.name)) {
         path = Polymer.Path.translate(info.value, info.name, path);
         info.lib._setPropertyToNode(this, node, path, value);
       } else {
-        // Root was set; extract subpath value
+        // Root or deeper path was set; extract bound path value
         if (path != info.value) {
           value = Polymer.Path.get(this, info.value);
           this.__data[info.value] = value;
@@ -555,8 +607,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _applyAnnotationValue(model, info, value) {
-      var node = model._nodes[info.index];
+    _applyAnnotationValue(inst, info, value) {
+      var node = inst._nodes[info.index];
       var property = info.name;
       if (info.isCompound) {
         var storage = node.__compoundStorage[property];
@@ -580,17 +632,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             (node.localName == 'input' && property == 'value')) {
           value = value == undefined ? '' : value;
         }
-        this._setPropertyToNode(model, node, property, value);
+        if (this.hasPropertyEffect(node, property)) {
+          this._setPropertyToNode(inst, node, property, value);
+        } else {
+          node[property] = value;
+        }
       }
     }
 
-    _setPropertyToNode(host, node, property, value) {
-      if (node.__dataLib instanceof PropertyEffects) {
-        if (!this.hasReadOnlyEffect(node, path)) {
-          this.setProperty(node, property, value);
-        }
-      } else {
-        node[property] = value;
+    _setPropertyToNode(host, node, prop, value) {
+      if (!this.hasReadOnlyEffect(node, prop)) {
+        this.setProperty(node, prop, value);
       }
     }
 
@@ -744,7 +796,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _notifyPropertyToHost(host, path, value, event) {
-      this.setProperty(host, path, value);
+      if (!this.hasReadOnlyEffect(host, path)) {
+        if (path = this.updatePath(host, path, value)) {
+          this.setProperty(host, path, value);
+        }
+      }
     }
 
     // -- for method-based effects (complexObserver & computed) --------------
@@ -875,10 +931,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var v;
         if (arg.literal) {
           v = arg.value;
-        } else if (arg.structured) {
-          v = Polymer.Path.get(model, name);
+        } else if (path == name) {
+          v = value;
         } else {
           v = model[name];
+          if (v === undefined && arg.structured) {
+            v = Polymer.Path.get(model, name);
+          }
         }
         if (arg.wildcard) {
           // Only send the actual path changed info if the change that
@@ -989,8 +1048,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @param {*} value Value to set at the specified path.
         */
         set(path, value) {
-          path = Array.isArray(path) ? path.join('.') : path;
-          this.constructor.data.setProperty(this, path, value);
+          let data = this.constructor.data;
+          if (!data.hasReadOnlyEffect(this, path)) {
+            if (path = data.updatePath(this, path, value)) {
+              data.setProperty(this, path, value);
+            }
+          }
         }
 
         /**
@@ -1122,6 +1185,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   var Types = PropertyEffects.Types = {
+    ANY: '_propertyEffects',
     COMPUTE: '_computeEffects',
     REFLECT: '_reflectEffects',
     NOTIFY: '_notifyEffects',

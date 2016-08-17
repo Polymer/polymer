@@ -34,47 +34,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // -- set properties machinery
 
-    setProperties(inst, props) {
-      for (var prop in props) {
-        if (!this.hasReadOnlyEffect(inst, prop)) {
-          this.setPendingProperty(inst, prop, props[prop]);
-        }
-      }
-      if (inst.__dataInitialized) {
-        // TODO(kschaaf): make asyncEffects a public API? remove?
-        if (inst.asyncEffects) {
-          this.invalidate(inst);
-        } else {
-          this.flush(inst);
-        }
-      }
-    }
-
-    setProperty(inst, prop, value) {
-      if (this.setPendingProperty(inst, prop, value) &&
-          inst.__dataInitialized) {
-        if (inst.asyncEffects) {
-          this.invalidate(inst);
-        } else {
-          this.flush(inst);
-        }
-      }
-    }
-
-    flush(inst, fromAbove) {
-      if (!inst.__dataInitialized) {
-        inst.__dataInitialized = true;
-        if (inst.__dataCallback) {
-          inst.__dataCallback();
-        }
-      }
-      if (inst.__dataPending || inst.__dataPendingClients) {
-        inst.__dataFromAbove = inst.__dataFromAbove || fromAbove;
-        super.flush(inst);
-        inst.__dataFromAbove = false;
-      }
-    }
-
     propertiesChanged(inst, currentProps, oldProps, changedProps) {
       // if (window.debug) {
       //   var c = Object.getOwnPropertyNames(changedProps);
@@ -173,14 +132,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
       } else {
-        node[prop] = value;
+        super._setPropertyToNode(host, node, prop, value);
       }
     }
 
     _notifyPropertyToHost(host, path, value, event) {
       if (event.target.__dataLib instanceof BatchedEffects) {
         if (!this.hasReadOnlyEffect(host, path)) {
-          this.setPendingProperty(host, path, value);
+          if (path = this.updatePath(host, path, value)) {
+            this.setPendingProperty(host, path, value);
+          }
         }
       } else {
         super._notifyPropertyToHost(host, path, value, event);
@@ -193,14 +154,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (effects) {
         var id = this._effectUid++;
         for (var prop in props) {
-          var val = props[prop];
           var rootProperty = Polymer.Path.root(prop);
           var fxs = effects[rootProperty];
           if (fxs) {
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
               if (Polymer.Path.matches(fx.path, prop) &&
                 (!fx.info || fx.info.lastRun !== id)) {
-                fx.fn.call(inst, prop, val, oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
+                fx.fn.call(inst, prop, inst.__data[prop], oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
                 if (fx.info) {
                   fx.info.lastRun = id;
                 }
@@ -211,35 +171,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       return ran;
-    }
-
-    prepare(inst, callback) {
-      inst.__dataCallback = callback;
-      if (inst.__dataProto) {
-        inst.__data = Object.create(inst.__dataProto);
-        inst.__dataPending = Object.create(inst.__dataProto);
-        inst.__dataOld = {};
-      } else {
-        inst.__data = {};
-      }
-      this.recordInstanceProperties(inst);
-    }
-
-    recordInstanceProperties(inst) {
-      for (var p in inst._propertyEffects) {
-        if (inst.hasOwnProperty(p)) {
-          var value = inst[p];
-          delete inst[p];
-          inst[p] = value;
-        }
-      }
-    }
-
-    stamp(inst, template) {
-      var dom = this.templateStamp.stamp(inst, template);
-      var notes = (template._content || template.content)._notes;
-      this.setupBindings(inst, dom, notes);
-      return dom;
     }
 
     // overridden from propertyEffects
@@ -273,7 +204,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     extendWithAPI(superClass) {
       return class extends super.extendWithAPI(superClass) {
         setProperties(props) {
-          this.constructor.data.setProperties(this, props);
+          let data = this.constructor.data;
+          for (let path in props) {
+            if (!data.hasReadOnlyEffect(this, path)) {
+              let value = props[path];
+              if (path = data.updatePath(this, path, value)) {
+                data.setPendingProperty(this, path, value);
+              }
+            }
+          }
+          if (this.__dataInitialized) {
+            // TODO(kschaaf): make asyncEffects a public API? remove?
+            if (this.asyncEffects) {
+              data.invalidate(this);
+            } else {
+              data.flush(this);
+            }
+          }
         }
       }
     }
