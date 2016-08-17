@@ -111,13 +111,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.createProperties(config.properties);
           this.createMethodObservers(config.observers);
           if (this.template) {
-            var template = this.prepareTemplate(this.template);
-            // TODO(dfreedm): remove when style stuff is refactored 
-            // away from using element as input.
-            proto.__notStyleScopeCacheable = template.__notStyleScopeCacheable;
-            this.data.clearPropagateEffects(proto);
-            this.data.bindTemplate(proto, template);
-            proto._template = template;
+            var template = this.template.cloneNode(true);
+            this.finalizeTemplate(template);
           }
         }
       }
@@ -125,23 +120,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static get template() {
         if (!this.hasOwnProperty('_template')) {
           // TODO(sorvell): `__importDoc` may not be set if super class
-          // has not run defined... falling back to document here is 
+          // has not run defined... falling back to document here is
           // incorrect. This gambit cannot work as is since if the superclass
           // document cannot be discovered via the subclass.
           // TODO(sorvell): support more ways to acquire template.
           // this requires `is` on constructor...
-          this._template = Polymer.DomModule.import(this.is, 
-          'template', this.__importDoc || document);
+          this._template = Polymer.DomModule.import(this.is,
+          'template', this.__importDoc || document) ||
+            Object.getPrototypeOf(this.prototype).constructor.template;
         }
         return this._template;
       }
 
-      static prepareTemplate(template) {
+      static finalizeTemplate(template) {
         // TODO(sorvell): remove need for this...
         Polymer.CompatStyleUtil.normalizeForBC(template.content);
         // TODO(sorvell): cannot use `this` here, refactor this to only do
         // template preparation and take a name.
-        // TODO(dfreedm): factor so that we do not need an object/element 
+        // TODO(dfreedm): factor so that we do not need an object/element
         // argument
         var info = {
           localName: this.is,
@@ -150,8 +146,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           __cssBuild: this.__cssBuild
         }
         Polymer.StyleLib.prepareTemplate(info, template);
-        template.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
-        return template;
+        // TODO(dfreedm): remove when style stuff is refactored
+        // away from using element as input.
+        var proto = this.prototype;
+        proto.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
+        this.data.clearPropagateEffects(proto);
+        this.data.bindTemplate(proto, template);
+        proto._template = template;
       }
 
       constructor() {
@@ -168,14 +169,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // add self to host's pending client list
         hostStack.registerHost(this);
         // apply defaults first.
-        this.constructor.data.setPropertyDefaults(this, 
+        this.constructor.data.setPropertyDefaults(this,
           this.constructor._flattenedProperties);
       }
 
       // reserved for canonical behavior
       connectedCallback() {
+        this.constructor.data.flush(this);
         if (hostStack.isEmpty()) {
-          this.constructor.data.flush(this);
           this.updateStyles();
         }
         this.isAttached = true;
@@ -216,7 +217,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var property = caseMap.dashToCamelCase(name);
         var type = this.constructor._flattenedProperties[property].type;
         if (!this.constructor.data.hasReadOnlyEffect(this, property)) {
-          this.constructor.attributes.attributeToProperty(this, 
+          this.constructor.attributes.attributeToProperty(this,
             name, value, type);
         }
       }
