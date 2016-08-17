@@ -49,6 +49,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     addPropertyEffect(model, path, type, effect) {
       model = this.getModel(model);
+      // This data lib is decorated onto instances, for feature detection
+      // when binding in/out of elements
       model.__dataLib = this;
       var property = Polymer.Path.root(path);
       // _propertyEffects only used to track whether an accessor has been created or not
@@ -85,6 +87,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return effects;
     }
 
+    hasReadOnlyEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.READ_ONLY);
+    }
+
+    hasNotifyEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.NOTIFY);
+    }
+
+    hasReflectEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.REFLECT);
+    }
+
+    hasComputedEffect(model, property) {
+      return this.hasPropertyEffect(model, property, Types.COMPUTE);
+    }
+
+    hasPropertyEffect(model, property, type) {
+      var effects = model[type];
+      return Boolean(effects && effects[property]);
+    }
+
     // Runtime ----------------------------------------
 
     setProperty(inst, property, value) {
@@ -94,13 +117,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     setPendingProperty(inst, property, value) {
+      var info;
       var rootProperty = Polymer.Path.root(property);
       if (!inst._propertyEffects[rootProperty]) {
         Polymer.Path.set(inst, property, value);
       } else {
         if (rootProperty !== property) {
-          var info = {};
-          Polymer.Path.set(inst, property, value, info);
+          Polymer.Path.set(inst, property, value, info = {});
         }
         return super.setPendingProperty(inst, info ? info.path : property, value);
       }
@@ -200,14 +223,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {...any} var_args Items to push onto array
      * @return {number} New length of the array.
      */
-    push(inst, path) {
+    push(inst, path, ...items) {
       var info = {};
       var array = Polymer.Path.get(inst, path, info);
-      var args = Array.prototype.slice.call(arguments, 2);
       var len = array.length;
-      var ret = array.push.apply(array, args);
-      if (args.length) {
-        this._notifySplice(inst, array, info.path, len, args.length, []);
+      var ret = array.push(...items);
+      if (items.length) {
+        this._notifySplice(inst, array, info.path, len, items.length, []);
       }
       return ret;
     }
@@ -253,7 +275,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {...any} var_args Items to insert into array.
      * @return {Array} Array of removed items.
      */
-    splice(inst, path, start) {
+    splice(inst, path, start, deleteCount, ...items) {
       var info = {};
       var array = Polymer.Path.get(inst, path, info);
       // Normalize fancy native splice handling of crazy start values
@@ -265,11 +287,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!start) {
         start = 0;
       }
-      var args = Array.prototype.slice.call(arguments, 2);
-      var ret = array.splice.apply(array, args);
-      var addedCount = Math.max(args.length - 2, 0);
-      if (addedCount || ret.length) {
-        this._notifySplice(inst, array, info.path, start, addedCount, ret);
+      var ret = array.splice(start, deleteCount, ...items);
+      if (items.length || ret.length) {
+        this._notifySplice(inst, array, info.path, start, items.length, ret);
       }
       return ret;
     }
@@ -312,13 +332,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {...any} var_args Items to insert info array
      * @return {number} New length of the array.
      */
-    unshift(inst, path) {
+    unshift(inst, path, ...items) {
       var info = {};
       var array = Polymer.Path.get(inst, path, info);
-      var args = Array.prototype.slice.call(arguments, 2);
-      var ret = array.unshift.apply(array, args);
-      if (args.length) {
-        this._notifySplice(inst, array, info.path, 0, args.length, []);
+      var ret = array.unshift(...items);
+      if (items.length) {
+        this._notifySplice(inst, array, info.path, 0, items.length, []);
       }
       return ret;
     }
@@ -393,7 +412,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         console.warn('Property ' + property + ' cannot be reflected to attribute ' +
           attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property instead.');
       } else {
-        this.addPropertyEffect(model, property, Types.COMPUTE, {
+        this.addPropertyEffect(model, property, Types.REFLECT, {
           fn: this._runReflectEffect,
           info: {
             lib: this,
@@ -532,16 +551,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             (node.localName == 'input' && property == 'value')) {
           value = value == undefined ? '' : value;
         }
-        // TODO(kschaaf): --- from above was here ---
-        if (!node._readOnly || !node._readOnly[property]) {
-          this._setPropertyToNode(model, node, property, value);
-        }
+        this._setPropertyToNode(model, node, property, value);
       }
     }
 
-    _setPropertyToNode(model, node, property, value) {
+    _setPropertyToNode(host, node, property, value) {
       if (node.__dataLib instanceof PropertyEffects) {
-        if (!node._readOnly || !node._readOnly[property]) {
+        if (!this.hasReadOnlyEffect(node, path)) {
           this.setProperty(node, property, value);
         }
       } else {
@@ -922,7 +938,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          *   is undefined.
          */
         get(path, root) {
-          path = Array.isArray(path) ? path.join('.') : path;
           return Polymer.Path.get(root || this, path);
         }
 
@@ -949,33 +964,95 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.constructor.data.setProperty(this, path, value);
         }
 
-        push(path) {
-          var args = Array.prototype.slice.call(arguments);
-          args.unshift(this);
-          var data = this.constructor.data;
-          return data.push.apply(data, args);
+        /**
+         * Adds items onto the end of the array at the path specified.
+         *
+         * The arguments after `path` and return value match that of
+         * `Array.prototype.push`.
+         *
+         * This method notifies other paths to the same array that a
+         * splice occurred to the array.
+         *
+         * @method push
+         * @param {String} path Path to array.
+         * @param {...any} var_args Items to push onto array
+         * @return {number} New length of the array.
+         */
+        push(path, ...items) {
+          return this.constructor.data.push(this, path, ...items);
         }
 
+        /**
+         * Removes an item from the end of array at the path specified.
+         *
+         * The arguments after `path` and return value match that of
+         * `Array.prototype.pop`.
+         *
+         * This method notifies other paths to the same array that a
+         * splice occurred to the array.
+         *
+         * @method pop
+         * @param {String} path Path to array.
+         * @return {any} Item that was removed.
+         */
         pop(path) {
           return this.constructor.data.pop(this, path);
         }
 
+        /**
+         * Removes an item from the beginning of array at the path specified.
+         *
+         * The arguments after `path` and return value match that of
+         * `Array.prototype.pop`.
+         *
+         * This method notifies other paths to the same array that a
+         * splice occurred to the array.
+         *
+         * @method shift
+         * @param {String} path Path to array.
+         * @return {any} Item that was removed.
+         */
         shift(path) {
           return this.constructor.data.shift(this, path);
         }
 
-        unshift(path) {
-          var args = Array.prototype.slice.call(arguments);
-          args.unshift(this);
-          var data = this.constructor.data;
-          return data.unshift.apply(data, args);
+        /**
+         * Adds items onto the beginning of the array at the path specified.
+         *
+         * The arguments after `path` and return value match that of
+         * `Array.prototype.push`.
+         *
+         * This method notifies other paths to the same array that a
+         * splice occurred to the array.
+         *
+         * @method unshift
+         * @param {String} path Path to array.
+         * @param {...any} var_args Items to insert info array
+         * @return {number} New length of the array.
+         */
+        unshift(path, ...items) {
+          return this.constructor.data.unshift(this, path, ...items);
         }
 
-        splice(path, start) {
-          var args = Array.prototype.slice.call(arguments);
-          args.unshift(this);
-          var data = this.constructor.data;
-          return data.splice.apply(data, args);
+        /**
+         * Starting from the start index specified, removes 0 or more items
+         * from the array and inserts 0 or more new itms in their place.
+         *
+         * The arguments after `path` and return value match that of
+         * `Array.prototype.splice`.
+         *
+         * This method notifies other paths to the same array that a
+         * splice occurred to the array.
+         *
+         * @method splice
+         * @param {String} path Path to array.
+         * @param {number} start Index from which to start removing/inserting.
+         * @param {number} deleteCount Number of items to remove.
+         * @param {...any} var_args Items to insert into array.
+         * @return {Array} Array of removed items.
+         */
+        splice(path, start, deleteCount, ...items) {
+          return this.constructor.data.splice(this, path, start, deleteCount, ...items);
         }
 
         linkPaths(to, from) {
@@ -1005,6 +1082,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var Types = PropertyEffects.Types = {
     COMPUTE: '_computeEffects',
+    REFLECT: '_reflectEffects',
     NOTIFY: '_notifyEffects',
     PROPAGATE: '_propagateEffects',
     OBSERVE: '_observeEffects',

@@ -36,7 +36,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     setProperties(inst, props) {
       for (var prop in props) {
-        if (!inst._readOnly || !inst._readOnly[prop]) {
+        if (!this.hasReadOnlyEffect(inst, prop)) {
           this.setPendingProperty(inst, prop, props[prop]);
         }
       }
@@ -91,6 +91,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._runEffects(inst, Types.PROPAGATE, changedProps);
         // Flush clients
         this.flushClients(inst);
+        // Reflect
+        this._runEffects(inst, Types.REFLECT, changedProps, oldProps);
         // Observe
         this._runEffects(inst, Types.OBSERVE, changedProps, oldProps);
       }
@@ -140,10 +142,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _setPropertyToNode(model, node, prop, value) {
+    _setPropertyToNode(host, node, prop, value) {
       if (node.__dataLib instanceof BatchedEffects) {
-        if (this.setPendingProperty(node, prop, value)) {
-          this.enqueueClient(model, node);
+        if (!this.hasReadOnlyEffect(node, prop)) {
+          if (this.setPendingProperty(node, prop, value)) {
+            this.enqueueClient(host, node);
+          }
         }
       } else {
         node[prop] = value;
@@ -152,7 +156,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _notifyPropertyToHost(host, path, value, event) {
       if (event.target.__dataLib instanceof BatchedEffects) {
-        if (!host._readOnly || !host._readOnly[path]) {
+        if (!this.hasReadOnlyEffect(host, path)) {
           this.setPendingProperty(host, path, value);
         }
       } else {
@@ -247,9 +251,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return class extends super.extendWithAPI(superClass) {
         setProperties(props) {
           this.constructor.data.setProperties(this, props);
-        }
-        flush(fromAbove) {
-          this.constructor.data.flush(this, fromAbove);
         }
       }
     }
