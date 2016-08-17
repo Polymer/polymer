@@ -115,17 +115,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _runEffects(inst, property, value, old, effects) {
       for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
-        if (this._pathMatchesEffect(property, fx)) {
+        if (Polymer.Path.matches(fx.path, property)) {
           fx.fn.call(inst, property, value, old, fx.info);
         }
       }
-    }
-
-    _pathMatchesEffect(path, effect) {
-      var effectArg = effect.path;
-      return (effectArg == path) ||
-        (effectArg.indexOf(path + '.') === 0) ||
-        (/* effect.trigger.wildcard && */ path.indexOf(effectArg) === 0);
     }
 
     executeStaticEffects(inst) {
@@ -501,7 +494,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Subpath notification; set transformed path to client
       if (path.length > info.value.length &&
           (node = this._nodes[info.index]).__data) {
-        path = info.lib._fixPath(info.name, info.value, path);
+        path = Polymer.Path.translate(info.value, info.name, path);
         info.lib._setPropertyToNode(this, node, path, value);
       } else {
         // Root was set; extract subpath value
@@ -693,37 +686,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _notifyListener(e, inst, property, path, rootProperty, negate) {
-      if (!this._isEventBogus(e, e.target)) {
-        var value;
-        var targetPath = e.detail && e.detail.path;
-        if (targetPath) {
-          path = this._fixPath(path, property, e.detail.path);
-          value = e.detail && e.detail.value;
-        } else {
-          value = e.target[property];
-        }
-        value = negate ? !value : value;
-        this._notifyPropertyToHost(inst, path, value, e);
+      var value;
+      var targetPath = e.detail && e.detail.path;
+      if (targetPath) {
+        path = Polymer.Path.translate(property, path, e.detail.path);
+        value = e.detail && e.detail.value;
+      } else {
+        value = e.target[property];
       }
+      value = negate ? !value : value;
+      this._notifyPropertyToHost(inst, path, value, e);
     }
 
     _notifyPropertyToHost(host, path, value, event) {
       this.setProperty(host, path, value);
-    }
-
-    _pathMatchesEffect(path, effect) {
-      var effectArg = effect.path;
-      return (effectArg == path) ||
-        (effectArg.indexOf(path + '.') === 0) ||
-        (/* effect.trigger.wildcard && */ path.indexOf(effectArg) === 0);
-    }
-
-    _fixPath(property, root, path) {
-      return property + path.slice(root.length);
-    }
-
-    _isEventBogus(e, target) {
-      return e.path && e.path[0] !== target;
     }
 
     // -- for method-based effects (complexObserver & computed) --------------
@@ -832,7 +808,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!a.literal) {
         a.rootProperty = Polymer.Path.root(arg);
         // detect structured path (has dots)
-        a.structured = arg.indexOf('.') > 0;
+        a.structured = Polymer.Path.isDeep(arg);
         if (a.structured) {
           a.wildcard = (arg.slice(-2) == '.*');
           if (a.wildcard) {
