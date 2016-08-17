@@ -1,4 +1,4 @@
-<!--
+  <!--
 @license
 Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
@@ -796,15 +796,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var current = startNode;
     while (current) {
       composedPath.push(current);
-      // BREAKME(sorvell): remove v0 support
-      var contents = current.getDestinationInsertionPoints &&
-      current.getDestinationInsertionPoints();
-      if (contents && contents.length) {
-        for (var i = 0; i < contents.length - 1; i++) {
-          composedPath.push(contents[i]);
-        }
-        current = contents[contents.length - 1];
-      } else if (current.assignedSlot) {
+      if (current.assignedSlot) {
         current = current.assignedSlot;
       } else if (current.host && composed) {
         current = current.host;
@@ -817,6 +809,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       composedPath.push(window);
     }
     return composedPath;
+  }
+
+  function retarget(refNode, path) {
+    // If ANCESTOR's root is not a shadow root or ANCESTOR's root is BASE's
+    // shadow-including inclusive ancestor, return ANCESTOR.
+    var base = refNode;
+    var baseRoot = base && ShadyDom.ownerRootForNode(base);
+    var p$ = path;
+    for (var i=0, ancestor, root; i < p$.length; i++) {
+      ancestor = p$[i];
+      root = ShadyDom.ownerRootForNode(ancestor);
+      if (!ShadyDom.isShadyRoot(root) || root === baseRoot) {
+        return ancestor;
+      }
+    }
   }
 
   var EventMixin = {
@@ -838,19 +845,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     get target() {
-      // If ANCESTOR's root is not a shadow root or ANCESTOR's root is BASE's
-      // shadow-including inclusive ancestor, return ANCESTOR.
-      var base = this.currentTarget;
-      var baseRoot = base && ShadyDom.ownerRootForNode(base);
-      var p$ = this.composedPath();
-      for (var i=0, ancestor, root; i < p$.length; i++) {
-        ancestor = p$[i];
-        root = ShadyDom.ownerRootForNode(ancestor);
-        if (!ShadyDom.isShadyRoot(root) || root === baseRoot) {
-          return ancestor;
-        }
-      }
+      return retarget(this.currentTarget, this.composedPath());
     },
+
+    // http://w3c.github.io/webcomponents/spec/shadow/#event-relatedtarget-retargeting
     get relatedTarget() {
       if (!this.__relatedTarget) {
         return null;
@@ -858,24 +856,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!this.__relatedTargetComposedPath) {
         this.__relatedTargetComposedPath = pathComposer(this.__relatedTarget, true);
       }
-      var path = this.__relatedTargetComposedPath;
-      var currentRoot = this.target.getRootNode();
-      var rt = null;
-      var idx = path.indexOf(currentRoot);
-      if (idx === -1) {
-        var targetPath = this.composedPath();
-        var tidx = targetPath.indexOf(currentRoot) + 1;
-        while(idx === -1 && tidx < (targetPath.length - 1)) {
-          idx = path.indexOf(targetPath[++tidx]);
-        }
-      } else {
-        idx--;
-      }
-      rt = path[idx];
-      while(idx >= 0 && rt && !rt.shadowRoot) {
-        rt = path[--idx];
-      }
-      return rt;
+      // find the deepest node in relatedTarget composed path that is in the same root with the currentTarget
+      return retarget(this.currentTarget, this.__relatedTargetComposedPath);
     },
     stopPropagation() {
       Event.prototype.stopPropagation.call(this);
@@ -883,6 +865,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
     stopImmediatePropagation() {
       Event.prototype.stopImmediatePropagation.call(this);
+      this.__immediatePropagationStopped = true;
       this.__propagationStopped = true;
     }
 
@@ -892,11 +875,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var klazz = class extends Base {
       constructor(type, options) {
         super(type, options);
-        if (options && options.composed) {
-          this.__composed = true;
-        } else {
-          this.__composed = false;
-        }
+        this.__composed = options && Boolean(options.composed);
       }
     }
     return klazz;
@@ -904,7 +883,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   ShadyDom.origEvent = Event;
   ShadyDom.PatchedEvent = mixinComposedFlag(Event);
-
   ShadyDom.PatchedCustomEvent = mixinComposedFlag(CustomEvent);
 
   var nonBubblingEventsToRetarget = {
@@ -913,18 +891,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
   function retargetNonBubblingEvent(e) {
+    // override `currentTarget` to let patched `target` calculate correctly
+    var ct = null;
+    Object.defineProperty(e, 'currentTarget', {
+      get: function() {
+        return ct;
+      },
+      configurable: true
+    });
     var path = e.composedPath();
-    for (var i = 0, n; i < path.length; i++) {
-      n = path[i];
-      var hs = n.__handlers && n.__handlers[e.type];
+    for (var i = 0; i < path.length; i++) {
+      ct = path[i];
+      var hs = ct.__handlers && ct.__handlers[e.type];
       if (hs) {
         for (var j = 0, fn; (fn = hs[j]); j++) {
-          // override `currentTarget` to let patched `target` calculate correctly
-          Object.defineProperty(e, 'currentTarget', {value: n, configurable: true});
-          fn.call(n, e);
-          if (e.__propagationStopped) {
+          fn.call(ct, e);
+          if (e.__immediatePropagationStopped) {
             break;
           }
+        }
+        if (e.__propagationStopped) {
+          break;
         }
       }
     }
@@ -934,6 +921,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (!fn) {
       return;
     }
+    // TODO: investigate if this is worth tracking, as it is only used for
+    // deciding if the `slotchanged` event should be fired
     if (!this.__eventListenerCount) {
       this.__eventListenerCount = 0;
     }
@@ -947,7 +936,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           e.__proto__ = proto;
         }
       }
-      if (e.composedPath().indexOf(this) > -1 && e.target !== e.relatedTarget) {
+      // There are two critera that should stop events from firing on nodes
+      // 1. after retargeting, relatedTarget and target point to the same node
+      // 2. the event is not composed and the current node is not in the same root as the target
+      if (e.target !== e.relatedTarget && (e.composed || e.composedPath().indexOf(this) > -1)) {
         return fn(e);
       } else {
         e.stopImmediatePropagation();
@@ -984,22 +976,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   };
 
-  document.addEventListener('focus', function(e){
+  document.addEventListener('focus', function(e) {
     var proto = ShadyDom.patchImpl.prototypeForObject(e);
     if (!e.__target) {
       e.__target = e.target;
-      e.__relatedTarget = e.__relatedTarget;
+      e.__relatedTarget = e.relatedTarget;
       e.__proto__ = proto;
       retargetNonBubblingEvent(e);
       e.stopImmediatePropagation();
     }
   }, true);
 
-  document.addEventListener('blur', function(e){
+  document.addEventListener('blur', function(e) {
     var proto = ShadyDom.patchImpl.prototypeForObject(e);
     if (!e.__target) {
       e.__target = e.target;
-      e.__relatedTarget = e.__relatedTarget;
+      e.__relatedTarget = e.relatedTarget;
       e.__proto__ = proto;
       retargetNonBubblingEvent(e);
       e.stopImmediatePropagation();
