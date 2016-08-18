@@ -895,13 +895,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
   function fireHandlers(event, node, phase) {
-    // override `currentTarget` to let patched `target` calculate correctly
-    Object.defineProperty(event, 'currentTarget', {
-      get: function() {
-        return node;
-      },
-      configurable: true
-    });
     var hs = node.__handlers && node.__handlers[event.type] && node.__handlers[event.type][phase];
     if (hs) {
       for (var i = 0, fn; (fn = hs[i]); i++) {
@@ -916,6 +909,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function retargetNonBubblingEvent(e) {
     var path = e.composedPath();
     var node;
+    // override `currentTarget` to let patched `target` calculate correctly
+    Object.defineProperty(event, 'currentTarget', {
+      get: function() {
+        return node;
+      },
+      configurable: true
+    });
     for (var i = path.length - 1; i >= 0; i--) {
       node = path[i];
       fireHandlers(e, node, 'capture');
@@ -923,6 +923,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return;
       }
     }
+    Object.defineProperty(e, 'eventPhase', {value: Event.BUBBLING_PHASE});
     for (i = 0; i < path.length; i++) {
       node = path[i];
       fireHandlers(e, node, 'bubble');
@@ -956,15 +957,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           e.__proto__ = proto;
         }
       }
-      // There are two critera that should stop events from firing on nodes
-      // 1. after retargeting, relatedTarget and target point to the same node
-      // 2. the event is not composed and the current node is not in the same root as the target
-      if (e.target !== e.relatedTarget && (e.composed || e.composedPath().indexOf(this) > -1)) {
+      // There are two critera that should stop events from firing on this node
+      // 1. the event is not composed and the current node is not in the same root as the target
+      // 2. when bubbling, if after retargeting, relatedTarget and target point to the same node
+      if (e.composed || e.composedPath().indexOf(this) > -1) {
+        if (e.eventPhase === Event.BUBBLING_PHASE) {
+          if (e.target === e.relatedTarget) {
+            e.stopImmediatePropagation();
+            return;
+          }
+        }
         return fn(e);
-      } else {
-        e.stopImmediatePropagation();
       }
-    }
+    };
     fn.__eventWrapper = wrappedFn;
     if (nonBubblingEventsToRetarget[type]) {
       this.__handlers = this.__handlers || {};
@@ -974,8 +979,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       } else {
         this.__handlers[type].bubble.push(wrappedFn);
       }
+    } else {
+      origAddEventListener.call(this, type, wrappedFn, optionsOrCapture);
     }
-    return origAddEventListener.call(this, type, wrappedFn, optionsOrCapture);
   };
 
   ShadyDom.removeEventListener = function(type, fn, optionsOrCapture) {
