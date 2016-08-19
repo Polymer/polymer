@@ -873,11 +873,82 @@ suite('binding corner cases', function() {
     sinon.spy(el, '_isAttachedChanged');
     document.body.appendChild(el);
     CustomElements.takeRecords();
-    // Polymer.dom.flush();
     assert.equal(el.$.check.textContent, 'true');
     assert.isTrue(el._isAttachedChanged.calledOnce);
     document.body.removeChild(el);
   });
+
+});
+
+suite('binding interop', function() {
+
+  test('do not set same value to a non-Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    assert.equal(el.$.raw.value, 10);
+    assert.equal(el.$.raw.valueChanged.callCount, 1);
+    assert.equal(el.$.raw.valueChanged.firstCall.args[0], 10);
+    // Should set value
+    el.value++;
+    assert.equal(el.$.raw.value, 11);
+    assert.equal(el.$.raw.valueChanged.callCount, 2);
+    assert.equal(el.$.raw.valueChanged.secondCall.args[0], 11);
+    // Notifies up to host, should not be re-set down to element
+    el.$.raw.increment();
+    assert.equal(el.$.raw.value, 12);
+    assert.equal(el.$.raw.valueChanged.callCount, 2);
+    document.body.removeChild(el);
+  });
+
+  test('path notification of object bound to textContent of a Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    // Initial state
+    assert.equal(el.$.polymer.textContent, '1,2,3');
+    // Push
+    el.push('array', 4);
+    assert.equal(el.$.polymer.textContent, '1,2,3,4');
+    document.body.removeChild(el);
+  });
+
+  test('path notification of array bound to setter of a Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    // Initial state
+    assert.equal(el.$.polymer.array, el.array);
+    assert.equal(el.$.polymer.arrayChanged.callCount, 1);
+    assert.equal(el.$.polymer.arrayChanged.firstCall.args[0], el.array);
+    // Push
+    el.push('array', 4);
+    assert.equal(el.$.polymer.array, el.array);
+    // Gets called twice, once for splice info, once for length :(
+    assert.equal(el.$.polymer.arrayChanged.callCount, 3);
+    assert.equal(el.$.polymer.arrayChanged.secondCall.args[0], el.array);
+    assert.equal(el.$.polymer.arrayChanged.thirdCall.args[0], el.array);
+    document.body.removeChild(el);
+  });
+
+  test('path notification of array bound to setter of a non-Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    // Initial state
+    assert.equal(el.$.raw.textContent, '1,2,3');
+    assert.equal(el.$.raw.arrayChanged.callCount, 1);
+    assert.equal(el.$.raw.arrayChanged.firstCall.args[0], el.array);
+    // Push
+    el.push('array', 4);
+    assert.equal(el.$.raw.textContent, '1,2,3,4');
+    // Gets called twice, once for splice info, once for length :(
+    assert.equal(el.$.raw.arrayChanged.callCount, 3);
+    assert.equal(el.$.raw.arrayChanged.secondCall.args[0], el.array);
+    assert.equal(el.$.raw.arrayChanged.thirdCall.args[0], el.array);
+    document.body.removeChild(el);
+  });
+
 });
 
 suite('compound binding / string interpolation', function() {
