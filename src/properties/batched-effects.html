@@ -34,7 +34,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // -- set properties machinery
 
-    propertiesChanged(inst, currentProps, oldProps, changedProps) {
+    propertiesChanged(inst, currentProps, changedProps, oldProps) {
       // if (window.debug) {
       //   var c = Object.getOwnPropertyNames(changedProps);
       //   console.group(inst.localName + '#' + inst.id + ': ' + c);
@@ -124,7 +124,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _setPropertyToNode(host, node, prop, value) {
+    _setPropertyFromAnnotation(host, node, prop, value) {
       if (node.__dataLib instanceof BatchedEffects) {
         if (!this.hasReadOnlyEffect(node, prop)) {
           if (this.setPendingProperty(node, prop, value)) {
@@ -132,19 +132,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
       } else {
-        super._setPropertyToNode(host, node, prop, value);
+        super._setPropertyFromAnnotation(host, node, prop, value);
       }
     }
 
-    _notifyPropertyToHost(host, path, value, event) {
+    _setPropertyFromNotification(host, path, value, event) {
       if (event.target.__dataLib instanceof BatchedEffects) {
         if (!this.hasReadOnlyEffect(host, path)) {
-          if (path = this.updatePath(host, path, value)) {
+          if (path = this.setPathOrUnmanagedProperty(host, path, value)) {
             this.setPendingProperty(host, path, value);
           }
         }
       } else {
-        super._notifyPropertyToHost(host, path, value, event);
+        super._setPropertyFromNotification(host, path, value, event);
       }
     }
 
@@ -160,7 +160,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
               if (Polymer.Path.matches(fx.path, prop) &&
                 (!fx.info || fx.info.lastRun !== id)) {
-                fx.fn.call(inst, prop, inst.__data[prop], oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
+                fx.fn.call(this, inst, prop, inst.__data[prop],
+                    oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
                 if (fx.info) {
                   fx.info.lastRun = id;
                 }
@@ -174,10 +175,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     // overridden from propertyEffects
-    _runComputedEffect(property, value, old, info) {
-      var result = info.lib._runMethodEffect(this, property, value, old, info);
+    _runComputedEffect(inst, property, value, old, info) {
+      var result = this._runMethodEffect(inst, property, value, old, info);
       var computedProp = info.methodInfo;
-      info.lib.setPendingProperty(this, computedProp, result);
+      this.setPendingProperty(inst, computedProp, result);
     }
 
     enqueueClient(inst, client) {
@@ -208,7 +209,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           for (let path in props) {
             if (!data.hasReadOnlyEffect(this, path)) {
               let value = props[path];
-              if (path = data.updatePath(this, path, value)) {
+              if (path = data.setPathOrUnmanagedProperty(this, path, value)) {
                 data.setPendingProperty(this, path, value);
               }
             }

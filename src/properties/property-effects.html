@@ -110,31 +110,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // Runtime ----------------------------------------
 
-    // Ensures the path is set to the value passed on the instance,
-    // and if the path has effects, returns a key-transformed path
+    // This function isolates relatively expensive functionality necessary
+    // for the public API, such that it is only done when paths enter the
+    // system, and not in every step of the hot path.
+    // If `path` is an unmanaged property (property without an accessor)
+    // or a path, sets the value at that path.  If the root of the path
+    // is a managed property, returns an index-to-key transformed path
     // sutable for setting into the system via setProperty/setPendingProperty
-    // `path` can be a user-facing path string or array of path parts
-    updatePath(inst, path, value) {
+    // `path` can be a user-facing path string or array of path parts.
+    setPathOrUnmanagedProperty(inst, path, value) {
       let rootProperty = Polymer.Path.root(Array.isArray(path) ? path[0] : path);
-      if (!this.hasPropertyEffect(inst, rootProperty)) {
-        Polymer.Path.set(inst, path, value);
-      } else {
-        let info;
-        if (rootProperty !== path) {
-          Polymer.Path.set(inst, path, value, info = {});
-        }
-        return info ? info.path : path;
+      let hasEffect = this.hasPropertyEffect(inst, rootProperty);
+      let isPath = (rootProperty !== path);
+      let info;
+      if (!hasEffect || isPath) {
+        path = Polymer.Path.set(inst, path, value);
+      }
+      if (hasEffect) {
+        return path;
       }
     }
 
     setProperty(inst, prop, value) {
       if (this.setPendingProperty(inst, prop, value) &&
           inst.__dataInitialized) {
-        if (inst.asyncEffects) {
-          this.invalidate(inst);
-        } else {
-          this.flush(inst);
-        }
+        this.invalidate(inst);
+      }
+    }
+
+    invalidate(inst) {
+      if (inst.asyncEffects) {
+        super.invalidate(inst);
+      } else {
+        this.flush(inst);
       }
     }
 
@@ -146,7 +154,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       if (inst.__dataPending || inst.__dataPendingClients) {
-        inst.__dataFromAbove = inst.__dataFromAbove || fromAbove;
+        inst.__dataFromAbove = fromAbove;
         super.flush(inst);
         inst.__dataFromAbove = false;
       }
@@ -181,7 +189,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return dom;
     }
 
-    propertiesChanged(inst, props, oldProps, changedProps) {
+    propertiesChanged(inst, currentProps, changedProps, oldProps) {
       for (var p in changedProps) {
         var effects = inst._propertyEffects[p];
         this._runEffects(inst, p, changedProps[p], oldProps[p], effects);
@@ -191,7 +199,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     _runEffects(inst, property, value, old, effects) {
       for (var i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
         if (Polymer.Path.matches(fx.path, property)) {
-          fx.fn.call(inst, property, this.__data[property], old, fx.info);
+          fx.fn.call(this, inst, property, inst.__data[property], old, fx.info);
         }
       }
     }
@@ -455,10 +463,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     }
 
-    _runObserverEffect(property, value, old, info) {
-      var fn = (info.context || this)[info.methodName];
+    _runObserverEffect(inst, property, value, old, info) {
+      var fn = (info.context || inst)[info.methodName];
       if (fn) {
-        fn.call(this, value, old);
+        fn.call(inst, value, old);
       } else {
         console.warn('observer method `' + info.methodName + '` not defined');
       }
@@ -470,19 +478,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.addPropertyEffect(model, property, Types.NOTIFY, {
         fn: this._runNotifyEffect,
         info: {
-          lib: this,
           eventName: CaseMap.camelToDashCase(property) + '-changed',
           property: property
         }
       });
     }
 
-    _runNotifyEffect(path, value, old, info) {
-      var detail = { value: value, lib: info.lib };
+    _runNotifyEffect(inst, path, value, old, info) {
+      var detail = { value: value };
       if (info.property !== path) {
         detail.path = path;
       }
-      this.dispatchEvent(new CustomEvent(info.eventName, { detail }));
+      inst.dispatchEvent(new CustomEvent(info.eventName, { detail }));
     }
 
     // -- reflect ----------------------------------------------
@@ -496,15 +503,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.addPropertyEffect(model, property, Types.REFLECT, {
           fn: this._runReflectEffect,
           info: {
-            lib: this,
             attrName: attr
           }
         });
       }
     }
 
-    _runReflectEffect(property, value, old, info) {
-      info.lib.attributes.propertyToAttribute(this, property, info.attrName);
+    _runReflectEffect(inst, property, value, old, info) {
+      this.attributes.propertyToAttribute(inst, property, info.attrName);
     }
 
     // -- complexObserver ----------------------------------------------
@@ -518,8 +524,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._runMultiObserverEffect);
     }
 
-    _runMultiObserverEffect(property, value, old, info) {
-      info.lib._runMethodEffect(this, property, value, old, info);
+    _runMultiObserverEffect(inst, property, value, old, info) {
+      this._runMethodEffect(inst, property, value, old, info);
     }
 
     // -- computed ----------------------------------------------
@@ -533,8 +539,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._runComputedEffect, property);
     }
 
-    _runComputedEffect(property, value, old, info) {
-      this[info.methodInfo] = info.lib._runMethodEffect(this, property, value, old, info);
+    _runComputedEffect(inst, property, value, old, info) {
+      inst[info.methodInfo] = this._runMethodEffect(inst, property, value, old, info);
     }
 
     // -- annotation ----------------------------------------------
@@ -571,7 +577,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this.addPropertyEffect(model, part.value, Types.PROPAGATE, {
               fn: this._runAnnotationEffect,
               info:  {
-                lib: this,
                 kind: note.kind,
                 index: index,
                 name: note.name,
@@ -589,58 +594,69 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _runAnnotationEffect(path, value, old, info) {
-      var node = this._nodes[info.index];
-      // Subpath notification; set transformed path to client
-      if ((path.length > info.value.length) && (info.kind == 'property') &&
-          this.constructor.data.hasPropertyEffect(node, info.name)) {
+    _runAnnotationEffect(inst, path, value, old, info) {
+      var node = inst._nodes[info.index];
+      // Subpath notification: transform path and set to client
+      // e.g.: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo.prop'=obj.sub.prop
+      if ((path.length > info.value.length) &&
+          (info.kind == 'property') && !info.isCompound &&
+          inst.constructor.data.hasPropertyEffect(node, info.name)) {
         path = Polymer.Path.translate(info.value, info.name, path);
-        info.lib._setPropertyToNode(this, node, path, value);
+        this._setPropertyFromAnnotation(inst, node, path, value);
       } else {
         // Root or deeper path was set; extract bound path value
+        // e.g.: foo="{{obj.sub}}", path: 'obj', set 'foo'=obj.sub
+        //   or: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo'=obj.sub
         if (path != info.value) {
-          value = Polymer.Path.get(this, info.value);
-          this.__data[info.value] = value;
+          value = Polymer.Path.get(inst, info.value);
+          inst.__data[info.value] = value;
         }
         // Propagate value to child
-        info.lib._applyAnnotationValue(this, info, value);
+        this._applyAnnotationValue(inst, info, value);
       }
     }
 
     _applyAnnotationValue(inst, info, value) {
       var node = inst._nodes[info.index];
       var property = info.name;
-      if (info.isCompound) {
-        var storage = node.__compoundStorage[property];
-        storage[info.compoundIndex] = value;
-        value = storage.join('');
-      }
-      if (info.negate) {
-        value = !value;
-      }
-      // special processing for 'class' and 'className'; 'class' handled
-      // when attr is serialized.
-      if (info.customEvent && node[property] === value) {
-        // For better interop, dirty check before setting when custom events
-        // are used, since the target element may not dirty check (e.g. <input>)
-      } else if (info.kind == 'attribute') {
+      // Process compound, negate,
+      var value = this._computeFinalAnnotationValue(node, property, value, info);
+      if (info.kind == 'attribute') {
         this.attributes.valueToAttribute(node, value, property);
       } else {
         // TODO(sorvell): --- class scoping was here ---
-        // Some browsers serialize `undefined` to `"undefined"`
-        if (property === 'textContent' ||
-            (node.localName == 'input' && property == 'value')) {
-          value = value == undefined ? '' : value;
-        }
         if (this.hasPropertyEffect(node, property)) {
-          this._setPropertyToNode(inst, node, property, value);
+          this._setPropertyFromAnnotation(inst, node, property, value);
         } else {
           node[property] = value;
         }
       }
     }
 
-    _setPropertyToNode(host, node, prop, value) {
+    _computeFinalAnnotationValue(node, property, value, info) {
+      if (info.negate) {
+        value = !value;
+      }
+      if (info.isCompound) {
+        var storage = node.__dataCompoundStorage[property];
+        storage[info.compoundIndex] = value;
+        value = storage.join('');
+      }
+      if (info.kind !== 'attribute') {
+        // TODO(sorvell): preserve scoping during changes to class
+        // if (property === 'className') {
+        //   value = this._scopeElementClass(node, value);
+        // }
+        // Some browsers serialize `undefined` to `"undefined"`
+        if (property === 'textContent' ||
+            (node.localName == 'input' && property == 'value')) {
+          value = value == undefined ? '' : value;
+        }
+      }
+      return value;
+    }
+
+    _setPropertyFromAnnotation(host, node, prop, value) {
       if (!this.hasReadOnlyEffect(node, prop)) {
         this.setProperty(node, prop, value);
       }
@@ -660,9 +676,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       );
     }
 
-   _runAnnotationMethodEffect(property, value, old, info) {
-      var val = info.lib._runMethodEffect(this, property, value, old, info);
-      info.lib._applyAnnotationValue(this, info.methodInfo, val);
+   _runAnnotationMethodEffect(inst, property, value, old, info) {
+      var val = this._runMethodEffect(inst, property, value, old, info);
+      this._applyAnnotationValue(inst, info.methodInfo, val);
     }
 
     _processAnnotations(notes) {
@@ -792,12 +808,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         value = e.target[property];
       }
       value = negate ? !value : value;
-      this._notifyPropertyToHost(inst, path, value, e);
+      this._setPropertyFromNotification(inst, path, value, e);
     }
 
-    _notifyPropertyToHost(host, path, value, event) {
+    _setPropertyFromNotification(host, path, value, event) {
       if (!this.hasReadOnlyEffect(host, path)) {
-        if (path = this.updatePath(host, path, value)) {
+        if (path = this.setPathOrUnmanagedProperty(host, path, value)) {
           this.setProperty(host, path, value);
         }
       }
@@ -807,7 +823,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _createMethodEffect(model, sig, type, effectFn, methodInfo, dynamic) {
       var info = {
-        lib: this,
         methodName: sig.methodName,
         args: sig.args,
         methodInfo: methodInfo,
@@ -934,6 +949,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else if (path == name) {
           v = value;
         } else {
+          // TODO(kschaaf): confirm design of this
           v = model[name];
           if (v === undefined && arg.structured) {
             v = Polymer.Path.get(model, name);
@@ -980,8 +996,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var binding = bindings[i];
         if (binding.isCompound) {
           // Create compound storage map
-          var storage = node.__compoundStorage ||
-            (node.__compoundStorage = {});
+          var storage = node.__dataCompoundStorage ||
+            (node.__dataCompoundStorage = {});
           var parts = binding.parts;
           // Copy literals from parts into storage for this binding
           var literals = new Array(parts.length);
@@ -1050,7 +1066,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         set(path, value) {
           let data = this.constructor.data;
           if (!data.hasReadOnlyEffect(this, path)) {
-            if (path = data.updatePath(this, path, value)) {
+            if (path = data.setPathOrUnmanagedProperty(this, path, value)) {
               data.setProperty(this, path, value);
             }
           }
