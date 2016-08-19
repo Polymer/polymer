@@ -10,6 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/utils.html">
+<link rel="import" href="../utils/path.html">
 <link rel="import" href="property-effects.html">
 
 <script>
@@ -31,78 +32,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    addPropertyEffect(model, property, effect) {
-      model = this.getModel(model);
-      if (!model.setProperties) {
-        var lib = this;
-        model.setProperties = function(props, fromAbove) {
-          lib.setProperties(this, props, fromAbove);
-        };
-        model.set = model.notifyPath = function(path, value) {
-          lib.set(this, path, value);
-        };
-        model.get = function(path) {
-          return lib.get(this, path)
-        }
-      }
-      super.addPropertyEffect.apply(this, arguments);
-    }
-
     // -- set properties machinery
 
-    setProperties(inst, props) {
-      for (var prop in props) {
-        if (!inst._readOnly || !inst._readOnly[prop]) {
-          this.setPendingProperty(inst, prop, props[prop]);
-        }
-      }
-      if (inst.__dataInitialized) {
-        if (inst.asyncEffects) {
-          this.invalidate(inst);
-        } else {
-          this.flush(inst);
-        }
-      }
-    }
-
-    setProperty(inst, prop, value) {
-      this.setPendingProperty(inst, prop, value);
-      if (inst.__dataInitialized) {
-        if (inst.asyncEffects) {
-          this.invalidate(inst);
-        } else {
-          this.flush(inst);
-        }
-      }
-    }
-
-    setPendingProperty(inst, prop, value) {
-      var rootProperty = this._rootForPath(prop);
-      if (!inst._propertyEffects[rootProperty]) {
-        this._set(inst, prop, value);
-      } else if (rootProperty !== prop) {
-        this._set(inst, prop, value);
-      }
-      return super.setPendingProperty(inst, prop, value);
-    }
-
-    flush(inst, fromAbove) {
-      if (!inst.__dataInitialized) {
-        inst.__dataInitialized = true;
-        if (inst.__dataCallback) {
-          inst.__dataCallback();
-        }
-      }
-      if (inst.__dataPending || inst.__dataPendingClients) {
-        inst.__dataFromAbove = inst.__dataFromAbove || fromAbove;
-        super.flush(inst);
-        inst.__dataFromAbove = false;
-      }
-    }
-
-    validate(inst, currentProps, oldProps, changedProps) {
+    propertiesChanged(inst, currentProps, changedProps, oldProps) {
+      // if (window.debug) {
+      //   var c = Object.getOwnPropertyNames(changedProps);
+      //   console.group(inst.localName + '#' + inst.id + ': ' + c);
+      //   debugger;
+      // }
       // Compute
       var computedProps = this._runComputedEffects(inst, changedProps, oldProps);
+      // Compute linked paths
+      this._computeLinkedPaths(inst, changedProps, computedProps);
       // Notify
       var props = this._notifyProperties(inst, changedProps, computedProps, oldProps);
       if (props) {
@@ -112,9 +53,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._runEffects(inst, Types.PROPAGATE, changedProps);
         // Flush clients
         this.flushClients(inst);
+        // Reflect
+        this._runEffects(inst, Types.REFLECT, changedProps, oldProps);
         // Observe
         this._runEffects(inst, Types.OBSERVE, changedProps, oldProps);
       }
+      // if (window.debug) {
+      //   console.groupEnd(inst.localName + '#' + inst.id + ': ' + c);
+      // }
     }
 
     _runComputedEffects(inst, changedProps, oldProps) {
@@ -132,31 +78,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    // Cannot name class method `set` or `get` in class due to Safari ES6 implementation
-    // Patched into the prototype as after this class definition
-    __set(inst, path, value) {
-      path = Array.isArray(path) ? path.join('.') : path;
-      this.setProperty(inst, path, value);
-    }
-
-    __get(inst, path) {
-      path = Array.isArray(path) ? path.join('.') : path;
-      return this._get(inst, path);
+    _computeLinkedPaths(inst, changedProps, computedProps) {
+      if (inst.__dataLinkedPaths) {
+        var link;
+        for (var a in inst.__dataLinkedPaths) {
+          var b = inst.__dataLinkedPaths[a];
+          for (var path in changedProps) {
+            if (Polymer.Path.isDescendant(a, path)) {
+              link = Polymer.Path.translate(a, b, path);
+              changedProps[link] = computedProps[link] =
+                inst.__data[link] = changedProps[path];
+            } else if (Polymer.Path.isDescendant(b, path)) {
+              link = Polymer.Path.translate(b, a, path);
+              changedProps[link] = computedProps[link] =
+                inst.__data[link] = changedProps[path];
+            }
+          }
+        }
+      }
     }
 
     _notifyProperties(inst, changedProps, computedProps, oldProps) {
+      // Determine which props to notify
       var props = inst.__dataFromAbove ? computedProps : changedProps;
+      // Save interim data for potential re-entry
       var runId = (inst._runId = ((inst._runId || 0) + 1));
       inst.__dataInterim = inst.__dataInterim ?
         this._mixin(inst.__dataInterim, changedProps) : changedProps;
       inst.__dataInterimOld = inst.__dataInterimOld ?
         this._mixin(inst.__dataInterimOld, oldProps) : oldProps;
+      // Notify
       var host = inst.dataHost;
-      if (host && host.setProperties) {
-        this._setNotifyProperties(inst, host, props);
-      } else {
-        this._dispatchNotifyProperties(inst, props);
+      this._runEffects(inst, Types.NOTIFY, props);
+      // Flush host
+      if (host && host.__dataLib instanceof BatchedEffects && host.__dataPending) {
+        this.flush(host);
       }
+      // Combine & return interim data only for last entry
       if (runId == inst._runId) {
         changedProps = inst.__dataInterim;
         oldProps = inst.__dataInterimOld;
@@ -166,64 +124,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _dispatchNotifyProperties(inst, props) {
-      var fx = inst._notifyEffects;
-      for (var prop in props) {
-        var rootProperty = this._rootForPath(prop);
-        var info = fx && fx[rootProperty] && fx[rootProperty][0].info;
-        if (info || rootProperty !== prop) {
-          this._dispatchNotification(inst, info, prop, props[prop]);
-        }
-      }
-    }
-
-    _dispatchNotification(inst, info, prop, value) {
-      var event = (info && info.eventName) ||
-        Polymer.CaseMap.camelToDashCase(prop) + '-changed';
-      inst.dispatchEvent(new CustomEvent(event, {
-        bubbles: false,
-        detail: { value: value }
-      }));
-    }
-
-    _setNotifyProperties(inst, host, props) {
-      var fx = inst._notifyEffects;
-      var hostProps;
-      for (var prop in props) {
-        var val = props[prop];
-        var rootProperty = this._rootForPath(prop);
-        var info = fx && fx[rootProperty] && fx[rootProperty][0].info;
-        if (info || rootProperty !== prop) {
-          var hostBinding = inst._hostBindings && inst._hostBindings[rootProperty];
-          if (hostBinding) {
-            prop = this._fixPath(hostBinding.path, rootProperty, prop);
-            hostProps = hostProps || {};
-            hostProps[prop] = hostBinding.negate ? !val : val;
-          } else {
-            this._dispatchNotification(inst, info, prop, val);
+    _setPropertyFromAnnotation(host, node, prop, value) {
+      if (node.__dataLib instanceof BatchedEffects) {
+        if (!this.hasReadOnlyEffect(node, prop)) {
+          if (this.setPendingProperty(node, prop, value)) {
+            this.enqueueClient(host, node);
           }
         }
-      }
-      if (hostProps) {
-        this.setProperties(host, hostProps);
+      } else {
+        super._setPropertyFromAnnotation(host, node, prop, value);
       }
     }
 
-    _addNotifyListener(node, inst, info) {
-      if (!node.setProperties) {
-        super._addNotifyListener.apply(this, arguments);
-      }
-      node._hostBindings = node._hostBindings || {};
-      node._hostBindings[info.property] = info;
-    }
-
-    _setPropertyToNode(model, node, prop, value) {
-      if (node.setProperties) {
-        if (this.setPendingProperty(node, prop, value)) {
-          this.enqueueClient(model, node);
+    _setPropertyFromNotification(host, path, value, event) {
+      if (event.target.__dataLib instanceof BatchedEffects) {
+        if (!this.hasReadOnlyEffect(host, path)) {
+          if (path = this.setPathOrUnmanagedProperty(host, path, value)) {
+            this.setPendingProperty(host, path, value);
+          }
         }
       } else {
-        node[prop] = value;
+        super._setPropertyFromNotification(host, path, value, event);
       }
     }
 
@@ -233,14 +154,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (effects) {
         var id = this._effectUid++;
         for (var prop in props) {
-          var val = props[prop];
-          var rootProperty = this._rootForPath(prop);
+          var rootProperty = Polymer.Path.root(prop);
           var fxs = effects[rootProperty];
           if (fxs) {
             for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
-              if (this._pathMatchesEffect(prop, fx) &&
+              if (Polymer.Path.matches(fx.path, prop) &&
                 (!fx.info || fx.info.lastRun !== id)) {
-                fx.fn.call(inst, prop, val, oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
+                fx.fn.call(this, inst, prop, inst.__data[prop],
+                    oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
                 if (fx.info) {
                   fx.info.lastRun = id;
                 }
@@ -253,62 +174,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return ran;
     }
 
-    prepare(inst, callback) {
-      inst.__dataCallback = callback;
-      if (inst.__dataProto) {
-        inst.__data = Object.create(inst.__dataProto);
-        inst.__dataPending = Object.create(inst.__dataProto);
-        inst.__dataOld = {};
-      } else {
-        inst.__data = {};
-      }
-      this.recordInstanceProperties(inst);
-      // ensure element enables & flushes even if disconnected
-      // this.enqueueFlush(inst);
-    }
-
-    enqueueFlush(inst) {
-      if (!this.flushQueue) {
-        this.flushQueue = [inst];
-        var self = this;
-        Promise.resolve().then(function() {
-          self.flushFlushQueue();
-        });
-      } else {
-        this.flushQueue.push(inst);
-      }
-    }
-
-    flushFlushQueue() {
-      var q = this.flushQueue;
-      this.flushQueue = null;
-      for (var i=0; i<q.length; i++) {
-        this.flush(q[i]);
-      }
-    }
-
-    recordInstanceProperties(inst) {
-      for (var p in inst._propertyEffects) {
-        if (inst.hasOwnProperty(p)) {
-          var value = inst[p];
-          delete inst[p];
-          inst[p] = value;
-        }
-      }
-    }
-
-    stamp(inst, template) {
-      var dom = this.templateStamp.stamp(inst, template);
-      var notes = (template._content || template.content)._notes;
-      this.setupBindings(inst, dom, notes);
-      return dom;
-    }
-
     // overridden from propertyEffects
-    _runComputedEffect(property, value, old, info) {
-      var result = info.lib._runMethodEffect(this, property, value, old, info);
+    _runComputedEffect(inst, property, value, old, info) {
+      var result = this._runMethodEffect(inst, property, value, old, info);
       var computedProp = info.methodInfo;
-      info.lib.setPendingProperty(this, computedProp, result);
+      this.setPendingProperty(inst, computedProp, result);
     }
 
     enqueueClient(inst, client) {
@@ -332,13 +202,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    extendWithAPI(superClass) {
+      return class extends super.extendWithAPI(superClass) {
+        setProperties(props) {
+          let data = this.constructor.data;
+          for (let path in props) {
+            if (!data.hasReadOnlyEffect(this, path)) {
+              let value = props[path];
+              if (path = data.setPathOrUnmanagedProperty(this, path, value)) {
+                data.setPendingProperty(this, path, value);
+              }
+            }
+          }
+          data.invalidate(this);
+        }
+      }
+    }
+
   }
 
   var Types = BatchedEffects.Types;
-
-  // NOTE: Safari can't deal with an ES6 style function named `set` or `get`
-  BatchedEffects.prototype.set = BatchedEffects.prototype.__set;
-  BatchedEffects.prototype.get = BatchedEffects.prototype.__get;
 
   // export
   Polymer.BatchedEffects = BatchedEffects;
