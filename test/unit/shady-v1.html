@@ -49,7 +49,9 @@ function testRender(descr, hostInnerHtml, shadowRootHtml, expectedHtml) {
     document.body.appendChild(host);
     CustomElements.takeRecords();
     // Pretend we're stamping the template contents.
-    host.shadyRoot.innerHTML = shadowRootHtml;
+    if (shadowRootHtml) {
+      host.shadyRoot.innerHTML = shadowRootHtml;
+    }
     // Invoke distribution and verify the resulting tree.
     ShadyDom.flush();
     assert.strictEqual(getComposedHTML(host), expectedHtml);
@@ -418,6 +420,45 @@ suite('Mutate light DOM', function() {
 
 });
 
+suite('Add shadyRoot to element with childNodes', function() {
+
+  var el;
+
+  setup(function() {
+    el = document.createElement('div');
+    el.testHTML = '<div slot="a">hi</div>';
+    el.innerHTML = el.testHTML;
+    el.attachShadow({mode: 'open'});
+  });
+
+  test('empty root', function() {
+    ShadyDom.flush();
+    assert.equal(getComposedHTML(el), '');
+  });
+
+  test('simple root', function() {
+    var shadow = '<div>shadow</div>';
+    el.shadowRoot.innerHTML = shadow;
+    ShadyDom.flush();
+    assert.equal(getComposedHTML(el), shadow);
+  });
+
+  test('slot matching', function() {
+    var shadow = '<div><slot name="a"></slot></div>';
+    el.shadowRoot.innerHTML = shadow;
+    ShadyDom.flush();
+    assert.equal(getComposedHTML(el), '<div>' + el.testHTML + '</div>');
+  });
+
+  test('slot not matching', function() {
+    var shadow = '<div><slot name="b"></slot></div>';
+    el.shadowRoot.innerHTML = shadow;
+    ShadyDom.flush();
+    assert.equal(getComposedHTML(el), '<div></div>');
+  });
+
+});
+
 function getEffectiveChildNodes(node) {
   var list = [];
   var c$ = node.childNodes;
@@ -432,9 +473,15 @@ function getEffectiveChildNodes(node) {
 }
 
 function getComposedHTML(node) {
-  return ShadyDom.getInnerHTML(node, function(n) {
-    return getEffectiveChildNodes(n.shadyRoot || n);
-  });
+  var patched = ShadyDom.isPatched(node);
+  if (patched) {
+    ShadyDom.unpatch(node);
+  }
+  var html = node.innerHTML;
+  if (patched) {
+    ShadyDom.patch(node);
+  }
+  return html;
 }
 
 function getComposedChildAtIndex(node, index) {

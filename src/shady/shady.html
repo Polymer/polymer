@@ -21,7 +21,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
 
   (function() {
-    
+
     var Tree = ShadyDom.Tree;
 
     /**
@@ -29,7 +29,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       polyfill across browsers.
     */
     class ShadyRoot {
-      
+
       constructor(host, useV0) {
         if (!host) {
           throw 'Must provide a host';
@@ -57,16 +57,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Tree.Logical.saveChildNodes(this);
         // state flags
         this._clean = true;
-        this._hasDistributed = false;
-        this._distributor = useV0 ? 
-          new ShadyDom.DistributorV0(this) : 
+        this._hasRendered = false;
+        this._distributor = useV0 ?
+          new ShadyDom.DistributorV0(this) :
           new ShadyDom.DistributorV1(this);
+        this.update();
         // TODO(sorvell): without calling update here,
         // initial distribution will not occur unless an element has been
         // TODO(sorvell): host state flags were set here next, needed?
       },
 
-      // async render the "top" distributor (this is all that is needed to 
+      // async render the "top" distributor (this is all that is needed to
       // distribute this host.
       update: function() {
         var distributionRoot = this._findDistributionRoot(this.host);
@@ -118,14 +119,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // TODO(sorvell): updating insertion points is $ so optable
           if (!this._skipUpdateInsertionPoints) {
             this.updateInsertionPoints();
+            this._skipUpdateInsertionPoints = false;
           }
           // logical
-          this.distribute();
+          if (this._hasRendered || this.host.childNodes.length) {
+            this.distribute();
+          }
           // physical
           this.compose();
           // allow distributor to do post render tasks (e.g. fire events!)
           this._distributor.rendered();
           this._clean = true;
+          this._hasRendered = true;
         }
       },
 
@@ -181,13 +186,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // which informs effective children observers
         //notifyContentObservers(this);
         // TODO(sorvell): See fast paths here in Polymer v1
-        // (these seem unnecessary)  
+        // (these seem unnecessary)
         // NOTE: send a signal to any observers
         // to report the initial set of childNodes
-        if (!this._hasDistributed) {
-          //notifyInitialDistribution(this.host);
-        }
-        this._hasDistributed = true;
       },
 
       // Reify dom such that it is at its correct rendering position
