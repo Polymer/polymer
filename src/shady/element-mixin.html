@@ -29,14 +29,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     addNode: function(container, node, ref_node) {
       var ownerRoot = this.ownerShadyRootForNode(container);
       if (ownerRoot) {
+        // optimization: special insertion point tracking
+        if (node.__noInsertionPoint) {
+          ownerRoot._skipUpdateInsertionPoints = true;
+        }
         // note: we always need to see if an insertion point is added
         // since this saves logical tree info; however, invalidation state
         // needs
         var ipAdded = this._maybeAddInsertionPoint(node, container, ownerRoot);
         // invalidate insertion points IFF not already invalid!
-        // TODO(sorvell): this flipped to opt out.
-        if (!ownerRoot._invalidInsertionPoints) {
-          ownerRoot._invalidInsertionPoints = ipAdded;
+        if (ipAdded) {
+          ownerRoot._skipUpdateInsertionPoints = false;
         }
         this._addedNode(node, ownerRoot);
       }
@@ -159,22 +162,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // and forces distribution.
       var insertionPointTag = ownerRoot && ownerRoot.getInsertionPointTag() || '';
       var fragContent = (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) &&
-        !node.__noContent &&
+        !node.__noInsertionPoint &&
         insertionPointTag && node.querySelector(insertionPointTag);
       var wrappedContent = fragContent &&
         (Tree.Logical.getParentNode(fragContent).nodeType !==
         Node.DOCUMENT_FRAGMENT_NODE);
       var hasContent = fragContent || (node.localName === insertionPointTag);
-      // There are 4 possible cases where a distribution may need to occur:
-      // 1. ownerRoot has never distributed
-      // 2. <content> being inserted (the host of the shady root where
+      // There are 3 possible cases where a distribution may need to occur:
+      // 1. <content> being inserted (the host of the shady root where
       //    content is inserted needs distribution)
-      // 3. children being inserted into parent with a shady root (parent
+      // 2. children being inserted into parent with a shady root (parent
       //    needs distribution)
-      // 4. container is an insertionPoint
-      var needsInitialDistribution = ownerRoot && !ownerRoot._hasRendered;
-      if (needsInitialDistribution || hasContent ||
-        (container.localName === insertionPointTag)) {
+      // 3. container is an insertionPoint
+      if (hasContent || (container.localName === insertionPointTag)) {
         if (ownerRoot) {
           // note, insertion point list update is handled after node
           // mutations are complete
@@ -199,7 +199,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var added;
       var insertionPointTag = root.getInsertionPointTag();
       if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE &&
-        !node.__noContent) {
+        !node.__noInsertionPoint) {
         var c$ = node.querySelectorAll(insertionPointTag);
         for (var i=0, n, np, na; (i<c$.length) && (n=c$[i]); i++) {
           np = Tree.Logical.getParentNode(n);

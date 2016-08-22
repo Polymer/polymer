@@ -116,11 +116,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._renderDebouncer = null;
         }
         if (!this._clean) {
-          // TODO(sorvell): updating insertion points is $ so optable
           if (!this._skipUpdateInsertionPoints) {
             this.updateInsertionPoints();
-            this._skipUpdateInsertionPoints = false;
+          } else if (!this._hasRendered) {
+            this._insertionPoints = [];
           }
+          this._skipUpdateInsertionPoints = false;
+          // TODO(sorvell): previous ShadyDom had a fast path here
+          // that would avoid distribution for initial render if
+          // no insertion points exist. We cannot currently do this because
+          // it relies on elements being in the physical shadowRoot element
+          // so that native methods will be used. The current append code
+          // simply provokes distribution in this case and does not put the
+          // nodes in the shadowRoot. This could be done but we'll need to
+          // consider if the special processing is worth the perf gain.
+          // if (!this._hasRendered && !this._insertionPoints.length) {
+          //   Tree.Composed.clearChildNodes(this.host);
+          //   Tree.Composed.appendChild(this.host, this);
+          // } else {
           // logical
           if (this._hasRendered || this.host.childNodes.length) {
             this.distribute();
@@ -211,7 +224,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i = 0; i < c$.length; i++) {
           var child = c$[i];
           if (this._distributor.isInsertionPoint(child)) {
-            var distributedNodes = child._distributedNodes;
+            var distributedNodes = child._distributedNodes ||
+              (child._distributedNodes = []);
             for (var j = 0; j < distributedNodes.length; j++) {
               var distributedNode = distributedNodes[j];
               if (this.isFinalDestination(child, distributedNode)) {
