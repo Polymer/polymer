@@ -34,7 +34,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var ElementMixin = function(Base) {
 
-    class PolymerElement extends Base {
+    class PolymerElement extends data.extendWithAPI(Base) {
 
       static get _ownConfig() {
         if (!this.hasOwnProperty('__ownConfig')) {
@@ -115,13 +115,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.createProperties(config.properties);
           this.createMethodObservers(config.observers);
           if (this.template) {
-            var template = this.prepareTemplate(this.template);
-            // TODO(dfreedm): remove when style stuff is refactored
-            // away from using element as input.
-            proto.__notStyleScopeCacheable = template.__notStyleScopeCacheable;
-            this.data.clearPropagateEffects(proto);
-            this.data.bindTemplate(proto, template);
-            proto._template = template;
+            var template = this.template.cloneNode(true);
+            this.finalizeTemplate(template);
           }
         }
       }
@@ -135,12 +130,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // TODO(sorvell): support more ways to acquire template.
           // this requires `is` on constructor...
           this._template = Polymer.DomModule.import(this.is,
-          'template', this.__importDoc || document);
+          'template', this.__importDoc || document) ||
+          // note: implemented so a subclass can retrieve the super
+          // template; call the super impl this way so that `this` points
+          // to the superclass.
+          Object.getPrototypeOf(this.prototype).constructor.template;
         }
         return this._template;
       }
 
-      static prepareTemplate(template) {
+      static finalizeTemplate(template) {
         // TODO(sorvell): remove need for this...
         Polymer.CompatStyleUtil.normalizeForBC(template.content);
         // TODO(sorvell): cannot use `this` here, refactor this to only do
@@ -155,8 +154,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           __placeholder: this.__placeholder,
         }
         Polymer.StyleLib.prepareTemplate(info, template);
-        template.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
-        return template;
+        // TODO(dfreedm): remove when style stuff is refactored
+        // away from using element as input.
+        var proto = this.prototype;
+        proto.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
+        this.data.clearPropagateEffects(proto);
+        this.data.bindTemplate(proto, template);
+        proto._template = template;
       }
 
       constructor() {
@@ -230,39 +234,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Polymer.StyleLib.applyStyle(this, properties);
       }
 
-      // data
-
-      // TODO(kschaaf): notify-path API maybe should move to batched effects
-      // definitelly needs to be done differently due to Safari class impl not
-      // liking get/set class method names
-      // get(path, root) {
-      //   return nyi();
-      // }
-
-      // set(path, value, root) {
-      //   return nyi();
-      // }
-
-      push(path) {
-        return nyi();
-      }
-
-      pop(path) {
-        return nyi();
-      }
-
-      shift(path) {
-        return nyi();
-      }
-
-      unshift(path) {
-        return nyi();
-      }
-
-      splice(path, start) {
-        return nyi();
-      }
-
       arrayDelete(arrayOrPath, item) {
         var index;
         if (Array.isArray(arrayOrPath)) {
@@ -271,26 +242,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             return arrayOrPath.splice(index, 1);
           }
         } else {
-          return nyi();
+          var arr = Polymer.Path.get(this, arrayOrPath);
+          index = arr.indexOf(item);
+          if (index >= 0) {
+            return this.splice(path, index, 1);
+          }
         }
       }
-
-      linkPaths(to, from) {
-        return nyi();
-      }
-
-      unlinkPaths(path) {
-        return nyi();
-      }
-
-      notifyPath(path, value, fromAbove) {
-        return nyi();
-      }
-
-      notifySplices(path, splices) {
-        return nyi();
-      }
-
     }
 
     PolymerElement.events = events;
