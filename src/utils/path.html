@@ -1,0 +1,159 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="boot.html">
+<link rel="import" href="../templatizer/collection.html">
+
+<script>
+
+  Polymer.Path = {
+
+    root: function(path) {
+      var dotIndex = path.indexOf('.');
+      if (dotIndex === -1) {
+        return path;
+      }
+      return path.slice(0, dotIndex);
+    },
+
+    isDeep: function(path) {
+      return path.indexOf('.') !== -1;
+    },
+
+    // Given `base` is `foo.bar`, `foo` is an ancestor, `foo.bar` is not
+    isAncestor: function(base, path) {
+      //     base.startsWith(path + '.');
+      return base.indexOf(path + '.') === 0;
+    },
+
+    // Given `base` is `foo.bar`, `foo.bar.baz` is an descendant
+    isDescendant: function(base, path) {
+      //     path.startsWith(base + '.');
+      return path.indexOf(base + '.') === 0;
+    },
+
+    // can be read as:  from  to       path
+    translate: function(base, newBase, path) {
+      // Defense?
+      return newBase + path.slice(base.length);
+    },
+
+    matches: function(base, path) {
+      return (base === path) ||
+             this.isAncestor(base, path) ||
+             this.isDescendant(base, path);
+    },
+
+    getParts: function(path) {
+      if (Array.isArray(path)) {
+        var parts = [];
+        for (var i=0; i<path.length; i++) {
+          var args = path[i].toString().split('.');
+          for (var j=0; j<args.length; j++) {
+            parts.push(args[j]);
+          }
+        }
+        return parts;
+      } else {
+        return path.toString().split('.');
+      }
+    },
+
+    get: function(root, path, info) {
+      var prop = root;
+      var parts = this.getParts(path);
+      var array;
+      // Loop over path parts[0..n-1] and dereference
+      for (var i=0; i<parts.length; i++) {
+        if (!prop) {
+          return;
+        }
+        var part = parts[i];
+        if (array && part[0] == '#') {
+          // Part was key; lookup item in collection
+          prop = Polymer.Collection.from(array).getItem(part);
+        } else {
+          // Get item from simple property dereference
+          prop = prop[part];
+          if (info && array && (parseInt(part, 10) == part)) {
+            // Translate array indices to collection keys for path notificaiton
+            parts[i] = Polymer.Collection.from(array).getKey(prop);
+          }
+        }
+        // Cache previous part if it is an array
+        array = Array.isArray(prop) ? prop : null;
+      }
+      if (info) {
+        info.path = parts.join('.');
+      }
+      return prop;
+    },
+
+    set: function(root, path, value) {
+      var prop = root;
+      var parts = this.getParts(path);
+      var array;
+      var last = parts[parts.length-1];
+      if (parts.length > 1) {
+        // Loop over path parts[0..n-2] and dereference
+        for (var i=0; i<parts.length-1; i++) {
+          var part = parts[i];
+          if (array && part[0] == '#') {
+            // Part was key; lookup item in collection
+            prop = Polymer.Collection.from(array).getItem(part);
+          } else {
+            // Get item from simple property dereference
+            prop = prop[part];
+            if (array && (parseInt(part, 10) == part)) {
+              // Translate array indices to collection keys for path notificaiton
+              parts[i] = Polymer.Collection.from(array).getKey(prop);
+            }
+          }
+          if (!prop) {
+            return;
+          }
+          // Cache previous part if it is an array
+          array = Array.isArray(prop) ? prop : null;
+        }
+        // Special handling when last part is a array item: need to replace
+        // item in collection associated with key for that item
+        if (array) {
+          var coll = Polymer.Collection.from(array);
+          var old, key;
+          if (last[0] == '#') {
+            // Part was key; lookup item in collection
+            key = last;
+            old = coll.getItem(key);
+            // Update last part from key to index: O(n) lookup unavoidable
+            last = array.indexOf(old);
+            // Replace item associated with key in collection
+            coll.setItem(key, value);
+          } else if (parseInt(last, 10) == last) {
+            // Dereference index & lookup collection key
+            old = prop[last];
+            key = coll.getKey(old);
+            // Translate array indices to collection keys for path notificaiton
+            parts[i] = key;
+            // Replace item associated with key in collection
+            coll.setItem(key, value);
+          }
+        }
+        // Set value to object at end of path
+        prop[last] = value;
+      } else {
+        // Simple property set
+        prop[path] = value;
+      }
+      return parts.join('.');
+    }
+
+  };
+
+</script>
