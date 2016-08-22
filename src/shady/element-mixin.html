@@ -120,7 +120,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     getRootNode: function(node) {
-      if (!node) {
+      if (!node || !node.nodeType) {
         return;
       }
       var root = node.__ownerShadyRoot;
@@ -794,17 +794,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function pathComposer(startNode, composed) {
     var composedPath = [];
     var current = startNode;
+    var startRoot = ShadyDom.getRootNode(startNode);
     while (current) {
       composedPath.push(current);
       if (current.assignedSlot) {
         current = current.assignedSlot;
-      } else if (current.host && composed) {
+      } else if (current.host && (composed || current !== startRoot)) {
         current = current.host;
       } else {
         current = current.parentNode;
       }
     }
-    // event composedPath includes window when composed = true in most recent native implementations
+    // event composedPath includes window when startNode's ownerRoot is document
     if (composedPath[composedPath.length - 1] === document) {
       composedPath.push(window);
     }
@@ -819,12 +820,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     // If ANCESTOR's root is not a shadow root or ANCESTOR's root is BASE's
     // shadow-including inclusive ancestor, return ANCESTOR.
-    var refRoot = refNode && ShadyDom.getRootNode(refNode);
+    var refNodePath = pathComposer(refNode, true);
     var p$ = path;
-    for (var i=0, ancestor, root; i < p$.length; i++) {
+    for (var i=0, ancestor, lastRoot, root, rootIdx; i < p$.length; i++) {
       ancestor = p$[i];
       root = ShadyDom.getRootNode(ancestor);
-      if (!ShadyDom.isShadyRoot(root) || root === refRoot) {
+      if (root !== lastRoot) {
+        rootIdx = refNodePath.indexOf(root);
+        lastRoot = root;
+      }
+      if (!ShadyDom.isShadyRoot(root) || rootIdx > -1) {
         return ancestor;
       }
     }
@@ -888,6 +893,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   ShadyDom.origEvent = Event;
   ShadyDom.PatchedEvent = mixinComposedFlag(Event);
   ShadyDom.PatchedCustomEvent = mixinComposedFlag(CustomEvent);
+  ShadyDom.PatchedMouseEvent = mixinComposedFlag(MouseEvent);
 
   var nonBubblingEventsToRetarget = {
     focus: true,
@@ -1042,7 +1048,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     Event: EventMixin,
 
-    CustomEvent: ShadyDom.extendAll({__patched: 'CustomEvent'}, EventMixin)
+    CustomEvent: ShadyDom.extendAll({__patched: 'CustomEvent'}, EventMixin),
+
+    MouseEvent: ShadyDom.extendAll({__patched: 'MouseEvent'}, EventMixin)
 
   };
   ShadyDom.getRootNode = mixinImpl.getRootNode;
