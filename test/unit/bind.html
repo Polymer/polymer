@@ -820,7 +820,6 @@ suite('warnings', function() {
     el = document.createElement('x-basic');
     document.body.appendChild(el);
     CustomElements.takeRecords();
-    warn = el._warn;
   });
 
   teardown(function() {
@@ -874,11 +873,121 @@ suite('binding corner cases', function() {
     sinon.spy(el, '_isAttachedChanged');
     document.body.appendChild(el);
     CustomElements.takeRecords();
-    // Polymer.dom.flush();
     assert.equal(el.$.check.textContent, 'true');
     assert.isTrue(el._isAttachedChanged.calledOnce);
     document.body.removeChild(el);
   });
+
+});
+
+suite('binding interop', function() {
+
+  test('do not set same value to a non-Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    assert.equal(el.$.raw.value, 10);
+    assert.equal(el.$.raw.valueChanged.callCount, 1);
+    assert.equal(el.$.raw.valueChanged.firstCall.args[0], 10);
+    // Should set value
+    el.value++;
+    assert.equal(el.$.raw.value, 11);
+    assert.equal(el.$.raw.valueChanged.callCount, 2);
+    assert.equal(el.$.raw.valueChanged.secondCall.args[0], 11);
+    // Notifies up to host, should not be re-set down to element
+    el.$.raw.increment();
+    assert.equal(el.$.raw.value, 12);
+    assert.equal(el.$.raw.valueChanged.callCount, 2);
+    document.body.removeChild(el);
+  });
+
+  test('path notification of object bound to textContent of a Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    // Initial state
+    assert.equal(el.$.polymer.textContent, '1,2,3');
+    // Push
+    el.push('array', 4);
+    assert.equal(el.$.polymer.textContent, '1,2,3,4');
+    document.body.removeChild(el);
+  });
+
+  test('path notification of array bound to setter of a Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    // Initial state
+    assert.equal(el.$.polymer.array, el.array);
+    assert.equal(el.$.polymer.arrayChanged.callCount, 1);
+    assert.equal(el.$.polymer.arrayChanged.firstCall.args[0], el.array);
+    // Push
+    el.push('array', 4);
+    assert.equal(el.$.polymer.array, el.array);
+    // Gets called twice, once for splice info, once for length :(
+    assert.equal(el.$.polymer.arrayChanged.callCount, 3);
+    assert.equal(el.$.polymer.arrayChanged.secondCall.args[0], el.array);
+    assert.equal(el.$.polymer.arrayChanged.thirdCall.args[0], el.array);
+    document.body.removeChild(el);
+  });
+
+  test('path notification of array in compound binding to property of Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    // Initial state
+    assert.equal(el.$.polymer.compound, '**1,2,3**');
+    assert.equal(el.$.polymer.compoundChanged.callCount, 1);
+    assert.equal(el.$.polymer.compoundChanged.firstCall.args[0], '**1,2,3**');
+    // Push
+    el.push('array', 4);
+    assert.equal(el.$.polymer.compound, '**1,2,3,4**');
+    assert.equal(el.$.polymer.compoundChanged.callCount, 2);
+    assert.equal(el.$.polymer.compoundChanged.secondCall.args[0], '**1,2,3,4**');
+    document.body.removeChild(el);
+  });
+
+  test('path notification of array bound to setter of a non-Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    // Initial state
+    assert.equal(el.$.raw.textContent, '1,2,3');
+    assert.equal(el.$.raw.arrayChanged.callCount, 1);
+    assert.equal(el.$.raw.arrayChanged.firstCall.args[0], el.array);
+    // Push
+    el.push('array', 4);
+    assert.equal(el.$.raw.textContent, '1,2,3,4');
+    // TODO(kschaaf): is this ok?
+    // Array change notifies once for splice info, once for length, and
+    // since the property is a Array, it passes the dirty check and will go
+    // through twice; this test also happens to not have a getter, so that
+    // would cause the dirty check to pass even if it wasn't an Object
+    assert.equal(el.$.raw.arrayChanged.callCount, 3);
+    assert.equal(el.$.raw.arrayChanged.secondCall.args[0], el.array);
+    assert.equal(el.$.raw.arrayChanged.thirdCall.args[0], el.array);
+    document.body.removeChild(el);
+  });
+
+  test('path notification of array in compound binding to property of non-Polymer element', function() {
+    var el = document.createElement('x-interop');
+    document.body.appendChild(el);
+    CustomElements.takeRecords();
+    // Initial state
+    assert.equal(el.$.raw.compound, '**1,2,3**');
+    // TODO(kschaaf): Raw elements with compound bindings will first see the
+    // literals, then the properties, hence 2 sets initially
+    assert.equal(el.$.raw.compoundChanged.callCount, 2);
+    assert.equal(el.$.raw.compoundChanged.firstCall.args[0], '****');
+    assert.equal(el.$.raw.compoundChanged.secondCall.args[0], '**1,2,3**');
+    // Push
+    el.push('array', 4);
+    assert.equal(el.$.raw.compound, '**1,2,3,4**');
+    assert.equal(el.$.raw.compoundChanged.callCount, 3);
+    assert.equal(el.$.raw.compoundChanged.thirdCall.args[0], '**1,2,3,4**');
+    document.body.removeChild(el);
+  });
+
 });
 
 suite('compound binding / string interpolation', function() {
