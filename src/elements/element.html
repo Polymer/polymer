@@ -36,6 +36,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     class PolymerElement extends data.extendWithAPI(Base) {
 
+      // returns the config object on specifically on `this` class (not super)
+      // config is used for:
+      // (1) super chain mixes togther to make `flattenedProperties` which is
+      // then used to make observedAttributes and set property defaults
+      // (2) properties effects and observers are created from it at `finalize` time.
       static get _ownConfig() {
         if (!this.hasOwnProperty('__ownConfig')) {
           this.__ownConfig = this.hasOwnProperty('config') ? this.config : {};
@@ -43,6 +48,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this.__ownConfig;
       }
 
+      // a flattened list of properties mixed together from the chain of all
+      // constructor's `config.properties`
+      // This list is used to create
+      // (1) observedAttributes,
+      // (2) element default values
       static get _flattenedProperties() {
         if (!this.hasOwnProperty('__flattenedProperties')) {
           this.__flattenedProperties = this._ownConfig.properties || {};
@@ -58,15 +68,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       static get observedAttributes() {
         if (!this.hasOwnProperty('_observedAttributes')) {
+          // observedAttributes must be finalized at registration time
+          this._observedAttributes = this.addPropertiesToAttributes(
+            this._flattenedProperties, []);
           // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
-        var currentScript = document._currentScript || document.currentScript;
-        this.__importDoc = currentScript && currentScript.ownerDocument;
-        // observedAttributes must be finalized at registration time
-        this._observedAttributes = this.addPropertiesToAttributes(
-          this._flattenedProperties, []);
-        }
-        if (!Polymer.StyleLib.nativeShadow) {
-          this.__placeholder = Polymer.StyleLib.applyStylePlaceHolder(this.is);
+          var currentScript = document._currentScript || document.currentScript;
+          this.__importDoc = currentScript && currentScript.ownerDocument;
+          // TODO(sorvell): define time cheat. Should we patch
+          // customElements.define instead?
+          if (!Polymer.StyleLib.nativeShadow) {
+            this.__placeholder = Polymer.StyleLib.applyStylePlaceHolder(this.is);
+          }
         }
         return this._observedAttributes;
       }
@@ -76,6 +88,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           attrs.push(Polymer.CaseMap.camelToDashCase(prop));
         }
         return attrs;
+      }
+
+      static get _finalized() {
+        return this.hasOwnProperty('__finalized');
+      }
+
+      static set _finalized(value) {
+        this.__finalized = value;
+      }
+
+      // TODO(sorvell): need to work on public api surrouding `finalize`.
+      // Due to meta-programming, it's awkward to make a subclass impl of this.
+      // However, a user might want to call `finalize` prior to define to do
+      // this work eagerly. Need to also decide on `finalizeConfig(config)` and
+      // `finalizeTemplate(template)`. Both are public but have simiarly
+      // awkward subclassing characteristics.
+      static _finalize() {
+        var proto = this.prototype;
+        if (!this._finalized) {
+
+          var superProto = Object.getPrototypeOf(proto);
+          var superCtor = superProto && superProto.constructor;
+          if (superCtor.prototype instanceof PolymerElement) {
+            superCtor._finalize();
+          }
+          this._finalized = true;
+          if (this.hasOwnProperty('is') && this.is) {
+            Polymer.telemetry.register(proto);
+          }
+          var config = this._ownConfig;
+          if (config) {
+            this.finalizeConfig(config);
+          }
+          if (this.template) {
+            var template = this.template.cloneNode(true);
+            this.finalizeTemplate(template);
+          }
+        }
       }
 
       static createProperties(properties) {
@@ -90,35 +140,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      static get finalized() {
-        return this.hasOwnProperty('__finalized');
-      }
-
-      static set finalized(value) {
-        this.__finalized = value;
-      }
-
-      // bikeshed this name... we have `prepare` below which is not good.
-      static finalize() {
-        var proto = this.prototype;
-        if (!this.finalized) {
-          if (this.hasOwnProperty('is') && this.is) {
-            Polymer.telemetry.register(proto);
-          }
-          this.finalized = true;
-          var superProto = Object.getPrototypeOf(proto);
-          var superCtor = superProto && superProto.constructor;
-          if (superCtor.prototype instanceof PolymerElement) {
-            superCtor.finalize();
-          }
-          var config = this._ownConfig;
-          this.createProperties(config.properties);
-          this.createMethodObservers(config.observers);
-          if (this.template) {
-            var template = this.template.cloneNode(true);
-            this.finalizeTemplate(template);
-          }
-        }
+      static finalizeConfig(config) {
+        this.createProperties(config.properties);
+        this.createMethodObservers(config.observers);
       }
 
       static get template() {
@@ -167,8 +191,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         super();
         // note: `this.constructor.prototype` is wrong in Safari so make sure to
         // use `__proto__`
-        if (!this.constructor.finalized) {
-          this.constructor.finalize();
+        if (!this.constructor._finalized) {
+          this.constructor._finalize();
         }
         Polymer.StyleLib.prepareHost(this, this._template);
         Polymer.telemetry.instanceCount++;
