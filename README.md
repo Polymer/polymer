@@ -19,7 +19,7 @@ Check out [polymer-project.org](https://www.polymer-project.org) for all of the 
 
 Or if you'd just like to download the library, check out our [releases page](https://github.com/polymer/polymer/releases).
 
-## Overview
+## OVERVIEW
 
 Polymer is a lightweight library built on top of the web standards-based [Web Components](http://webcomponents.org/) API's, and makes it easier to build your very own custom HTML elements. Creating re-usable custom elements - and using elements built by others - can make building complex web applications easier and more efficient. By being based on the Web Components API's built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), Polymer elements are interoperable at the browser level, and can be used with other frameworks or libraries that work with modern browsers.
 
@@ -55,7 +55,6 @@ Polymer({
 <!-- use the element -->
 <my-element></my-element>
 ```
-
 **Add markup to your element**
 
 ```html
