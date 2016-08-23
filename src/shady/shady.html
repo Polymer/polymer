@@ -14,14 +14,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <!-- TODO(sorvell): notification...
 <!-- <link rel="import" href="lib/dom-api-effective-nodes-observer.html"> -->
 <!-- <link rel="import" href="lib/dom-api-distributed-nodes-observer.html"> -->
-<link rel="import" href="distributor-v1.html">
-<link rel="import" href="distributor-v0.html">
+<link rel="import" href="distributor.html">
 <link rel="import" href="patch.html">
 <link rel="import" href="flush.html">
 <script>
 
   (function() {
-    
+
     var Tree = ShadyDom.Tree;
 
     /**
@@ -29,7 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       polyfill across browsers.
     */
     class ShadyRoot {
-      
+
       constructor(host, useV0) {
         if (!host) {
           throw 'Must provide a host';
@@ -57,16 +56,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Tree.Logical.saveChildNodes(this);
         // state flags
         this._clean = true;
-        this._hasDistributed = false;
-        this._distributor = useV0 ? 
-          new ShadyDom.DistributorV0(this) : 
+        this._hasRendered = false;
+        this._distributor = useV0 ?
+          new ShadyDom.DistributorV0(this) :
           new ShadyDom.DistributorV1(this);
+        this.update();
         // TODO(sorvell): without calling update here,
         // initial distribution will not occur unless an element has been
         // TODO(sorvell): host state flags were set here next, needed?
       },
 
-      // async render the "top" distributor (this is all that is needed to 
+      // async render the "top" distributor (this is all that is needed to
       // distribute this host.
       update: function() {
         var distributionRoot = this._findDistributionRoot(this.host);
@@ -115,10 +115,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._renderDebouncer = null;
         }
         if (!this._clean) {
-          // TODO(sorvell): updating insertion points is $ so optable
           if (!this._skipUpdateInsertionPoints) {
             this.updateInsertionPoints();
+          } else if (!this._hasRendered) {
+            this._insertionPoints = [];
           }
+          this._skipUpdateInsertionPoints = false;
+          // TODO(sorvell): previous ShadyDom had a fast path here
+          // that would avoid distribution for initial render if
+          // no insertion points exist. We cannot currently do this because
+          // it relies on elements being in the physical shadowRoot element
+          // so that native methods will be used. The current append code
+          // simply provokes distribution in this case and does not put the
+          // nodes in the shadowRoot. This could be done but we'll need to
+          // consider if the special processing is worth the perf gain.
+          // if (!this._hasRendered && !this._insertionPoints.length) {
+          //   Tree.Composed.clearChildNodes(this.host);
+          //   Tree.Composed.appendChild(this.host, this);
+          // } else {
           // logical
           this.distribute();
           // physical
@@ -126,6 +140,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // allow distributor to do post render tasks (e.g. fire events!)
           this._distributor.rendered();
           this._clean = true;
+          this._hasRendered = true;
         }
       },
 
@@ -181,13 +196,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // which informs effective children observers
         //notifyContentObservers(this);
         // TODO(sorvell): See fast paths here in Polymer v1
-        // (these seem unnecessary)  
+        // (these seem unnecessary)
         // NOTE: send a signal to any observers
         // to report the initial set of childNodes
-        if (!this._hasDistributed) {
-          //notifyInitialDistribution(this.host);
-        }
-        this._hasDistributed = true;
       },
 
       // Reify dom such that it is at its correct rendering position
@@ -210,7 +221,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i = 0; i < c$.length; i++) {
           var child = c$[i];
           if (this._distributor.isInsertionPoint(child)) {
-            var distributedNodes = child._distributedNodes;
+            var distributedNodes = child._distributedNodes ||
+              (child._distributedNodes = []);
             for (var j = 0; j < distributedNodes.length; j++) {
               var distributedNode = distributedNodes[j];
               if (this.isFinalDestination(child, distributedNode)) {
