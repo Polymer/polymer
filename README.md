@@ -36,7 +36,6 @@ Alacarte includes a Polymer 1.0 "Backward Compatibility" (BC) layer loadable via
 ## Not yet implemented
 * Some utility functions are not yet implemented
     * A number of utility functions that were previously on the Polymer 1.0 element prototype are not ported over yet.  These will warn with "not yet implemented" warnings.
-* Array notification API's not yet implemented.  Note due to removal of object/array dirty check, you should be able to just make changes using normal array methods, then re-set the array to an element and it will "re-go"
 * `<array-selector>` not yet implemented
 * `Polymer.dom`: currently *most* of this is emulated, but some api's may be missing. Please file issues after checking to see if the missing behavior is an intended breaking change.
 * `Polymer.dom.observeNodes`: we're likely going to provide a breaking replacement for this that's more in the spirit of ShadowDom V1.
