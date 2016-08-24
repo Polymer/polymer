@@ -7,7 +7,6 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="../utils/debounce.html">
 <link rel="import" href="utils.html">
 <link rel="import" href="array-splice.html">
 <link rel="import" href="tree.html">
@@ -16,7 +15,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <!-- <link rel="import" href="lib/dom-api-distributed-nodes-observer.html"> -->
 <link rel="import" href="distributor.html">
 <link rel="import" href="patch.html">
-<link rel="import" href="flush.html">
 <script>
 
   (function() {
@@ -73,9 +71,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         //console.log('update from', this.host, 'root', distributionRoot.host, distributionRoot._clean);
         if (distributionRoot._clean) {
           distributionRoot._clean = false;
-          //console.log('triggered render on', distributionRoot.host);
-          distributionRoot.debounceRender()
-          ShadyDom.addDebouncer(distributionRoot.debounceRender());
+          ShadyDom.enqueue(function() {
+            distributionRoot.render();
+          });
         }
       },
 
@@ -83,7 +81,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _findDistributionRoot: function(element) {
         var root = element.shadyRoot;
         while (element && this._elementNeedsDistribution(element)) {
-          root = ShadyDom.ownerRootForNode(element);
+          root = ShadyDom.getRootNode(element);
           element = root && root.host;
         }
         return root;
@@ -96,24 +94,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var i=0, c; i < c$.length; i++) {
           c = c$[i];
           if (this._distributor.isInsertionPoint(c)) {
-            return ShadyDom.ownerRootForNode(element);
+            return ShadyDom.getRootNode(element);
           }
         }
       },
 
-      // async render this root!
-      debounceRender: function() {
-        this._renderDebouncer = ShadyDom.debounce(this._renderDebouncer,
-          this.render, null, this);
-        return this._renderDebouncer;
-      },
-
       render: function() {
-        //console.log('render', this.host);
-        if (this._renderDebouncer) {
-          this._renderDebouncer.cancel();
-          this._renderDebouncer = null;
-        }
         if (!this._clean) {
           if (!this._skipUpdateInsertionPoints) {
             this.updateInsertionPoints();
@@ -313,6 +299,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     ShadyDom.ShadyRoot = ShadyRoot;
+
+    // render enqueuer
+    ShadyDom.enqueue = function(callback) {
+      if (!this.flush._scheduled) {
+        this.flush._scheduled = true;
+        Promise.resolve().then(() => { this.flush(); });
+      }
+      this.flush._list.push(callback);
+    }
+
+    var customElements = window.CustomElements;
+
+    // render flusher
+    ShadyDom.flush = function() {
+      var list = this.flush._list;
+      while (list.length) {
+        list.shift()();
+      }
+      if (customElements) {
+        customElements.takeRecords();
+      }
+      // continue flushing after elements are upgraded...
+      if (list.length) {
+        this.flush();
+      }
+    }
+
+    ShadyDom.flush._list = [];
 
   })();
 
