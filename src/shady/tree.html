@@ -274,6 +274,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   }
 
+  // for testing...
+  var descriptors = {};
+  function getNativeProperty(element, property) {
+    if (!descriptors[property]) {
+      descriptors[property] = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype, property) ||
+      Object.getOwnPropertyDescriptor(
+        Element.prototype, property) ||
+      Object.getOwnPropertyDescriptor(
+        Node.prototype, property);
+    }
+    return descriptors[property].get.call(element);
+  }
+
+  // for testing...
+  function assertNative(element, property, tracked) {
+    var native = getNativeProperty(element, property);
+    if (native != tracked && element.__patched) {
+      console.warn('tracked', tracked, 'native', native);
+    }
+    return tracked;
+  }
+
+
   // TODO(sorvell): composed tree manipulation is made available
   // (1) to maninpulate the composed tree, and (2) to track changes
   // to the tree for optional patching pluggability.
@@ -494,25 +518,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     insertBefore: function(parentNode, newChild, refChild) {
       this.saveChildNodes(parentNode);
       // remove from current location.
-      if (this.hasParentNode(newChild)) {
-        var oldParent = this.getParentNode(newChild);
-        if (oldParent) {
-          this._removeChild(oldParent, newChild);
-        }
-      }
       this._addChild(parentNode, newChild, refChild);
       return nativeInsertBefore.call(parentNode, newChild, refChild || null);
     },
 
     appendChild: function(parentNode, newChild) {
       this.saveChildNodes(parentNode);
-      // remove from current location.
-      if (this.hasParentNode(newChild)) {
-        var oldParent = this.getParentNode(newChild);
-        if (oldParent) {
-          this._removeChild(oldParent, newChild);
-        }
-      }
       this._addChild(parentNode, newChild);
       return nativeAppendChild.call(parentNode, newChild);
     },
@@ -527,10 +538,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _addChild: function(parentNode, newChild, refChild) {
-      if (newChild.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+      var isFrag = (newChild.nodeType === Node.DOCUMENT_FRAGMENT_NODE);
+      var oldParent = this.getParentNode(newChild);
+      if (oldParent) {
+        this._removeChild(oldParent, newChild);
+      }
+      if (isFrag) {
         var c$ = this.getChildNodes(newChild);
-        for (var j=0; j < c$.length; j++) {
-          this.recordInsertBefore(c$[j], parentNode, refChild);
+        for (var i=0; i < c$.length; i++) {
+          var c = c$[i];
+          // unlink document fragment children
+          this._removeChild(newChild, c);
+          this.recordInsertBefore(c, parentNode, refChild);
         }
       } else {
         this.recordInsertBefore(newChild, parentNode, refChild);
@@ -544,6 +563,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
   ShadyDom.Tree = Tree;
+
+  ShadyDom.getNativeProperty = getNativeProperty;
 
 })();
 </script>
