@@ -177,7 +177,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var self = this;
         selector = selector.trim();
         selector = selector.replace(CONTENT_START, HOST + ' $1');
-        selector = selector.replace(SIMPLE_SELECTOR_SEP, function(m, c, s) {
+        selector = selector.replace(COMPOUND_SELECTOR_SEP, function(m, c, s) {
           if (!stop) {
             var info = self._transformCompoundSelector(s, c, scope, hostScope);
             stop = stop || info.stop;
@@ -228,16 +228,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _transformSimpleSelector: function(selector, scope) {
-        var p$ = selector.split(PSEUDO_PREFIX);
-        p$[0] += scope;
-        return p$.join(PSEUDO_PREFIX);
+        var p$ = selector.match(SIMPLE_SELECTOR_SEP);
+        var index;
+
+        for (index=0; index<p$.length; index++) {
+          if (p$[index].startsWith(':')) {
+            p$[index] = scope + p$[index];
+            break;
+          }
+        }
+
+        if (index === p$.length) {
+          p$.push(scope);
+        }
+
+        return p$.join('');
       },
 
       // :host(...) -> scopeName...
       _transformHostSelector: function(selector, hostScope) {
         var m = selector.match(HOST_PAREN);
         var paren = m && m[2].trim() || '';
-        if (paren) { 
+        if (paren) {
           if (!paren[0].match(SIMPLE_SELECTOR_PREFIX)) {
             // paren starts with a type selector
             var typeSelector = paren.split(SIMPLE_SELECTOR_PREFIX)[0];
@@ -257,7 +269,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             });
           }
         // if no paren, do a straight :host replacement.
-        // TODO(sorvell): this should not strictly be necessary but 
+        // TODO(sorvell): this should not strictly be necessary but
         // it's needed to maintain support for `:host[foo]` type selectors
         // which have been improperly used under Shady DOM. This should be
         // deprecated.
@@ -294,7 +306,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var SCOPE_DOC_SELECTOR = ':not([' + SCOPE_NAME + '])' +
       ':not(.' + SCOPE_NAME + ')';
     var COMPLEX_SELECTOR_SEP = ',';
-    var SIMPLE_SELECTOR_SEP = /(^|[\s>+~]+)((?:\[.+?\]|[^\s>+~=\[])+)/g;
+    var COMPOUND_SELECTOR_SEP = /(^|[\s>+~]+)((?:\[.+?\]|[^\s>+~=\[])+)/g;
+    var SIMPLE_SELECTOR_SEP = /([^:\[\(]+(?!\]\)))|(\[.+?\]|:{1,2}.+(\(.+?\))?)/g;
     var SIMPLE_SELECTOR_PREFIX = /[[.:#*]/;
     var HOST = ':host';
     var ROOT = ':root';
@@ -309,7 +322,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var CSS_CLASS_PREFIX = '.';
     var CSS_ATTR_PREFIX = '[' + SCOPE_NAME + '~=';
     var CSS_ATTR_SUFFIX = ']';
-    var PSEUDO_PREFIX = ':';
     var CLASS = 'class';
     var CONTENT_START = new RegExp('^(' + CONTENT + ')');
     var SELECTOR_NO_MATCH = 'should_not_match';
