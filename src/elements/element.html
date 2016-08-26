@@ -17,7 +17,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../template/template-stamp.html">
 <link rel="import" href="../attributes/attribute-to-from-property.html">
 <link rel="import" href="../properties/meta-effects.html">
-<link rel="import" href="../styling/style-lib.html">
+<link rel="import" href="../styling/style-gather.html">
 
 <script>
 (function() {
@@ -74,11 +74,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
           var currentScript = document._currentScript || document.currentScript;
           this.__importDoc = currentScript && currentScript.ownerDocument;
-          // TODO(sorvell): define time cheat. Should we patch
-          // customElements.define instead?
-          if (!Polymer.StyleLib.nativeShadow) {
-            this.__placeholder = Polymer.StyleLib.applyStylePlaceHolder(this.is);
-          }
         }
         return this._observedAttributes;
       }
@@ -175,9 +170,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           is: this.is,
           extends: this.extends,
           __cssBuild: this.__cssBuild,
-          __placeholder: this.__placeholder,
+          __placeholder: this.__placeholder
+        };
+        // support `include="module-name"`
+        let cssText = Polymer.StyleGather.cssFromElement(template);
+        if (cssText) {
+          var style = document.createElement('style');
+          style.textContent = cssText;
+          template.content.insertBefore(style, template.content.firstChild);
         }
-        Polymer.StyleLib.prepareTemplate(info, template);
+        if (window.ShadyStyling) {
+          ShadyStyling.prepareTemplate(info, template);
+        }
         // TODO(dfreedm): remove when style stuff is refactored
         // away from using element as input.
         var proto = this.prototype;
@@ -194,7 +198,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!this.constructor._finalized) {
           this.constructor._finalize();
         }
-        Polymer.StyleLib.prepareHost(this, this._template);
         Polymer.telemetry.instanceCount++;
         // setup batched effects library; will call initialize when flushing
         this.constructor.data.prepare(this, this.ready);
@@ -254,7 +257,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       updateStyles(properties) {
-        Polymer.StyleLib.applyStyle(this, properties);
+        if (window.ShadyStyling) {
+          ShadyStyling.applyStyle(this, properties);
+        }
       }
 
       arrayDelete(arrayOrPath, item) {
@@ -345,6 +350,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.ElementMixin = Polymer.CachedMixin(ElementMixin);
 
   Polymer.Element = Polymer.ElementMixin(HTMLElement);
+
+  Polymer.updateStyles = function() {
+    if (window.ShadyStyling) {
+      ShadyStyling.updateStyles();
+    }
+  };
 
 })();
 </script>
