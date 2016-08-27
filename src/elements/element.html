@@ -12,7 +12,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../legacy/dom-module.html">
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/case-map.html">
-<link rel="import" href="../events/gesture-event-listeners.html">
+<link rel="import" href="../events/event-listeners.html">
 <link rel="import" href="../template/template-stamp.html">
 <link rel="import" href="../attributes/attribute-to-from-property.html">
 <link rel="import" href="../properties/meta-effects.html">
@@ -27,7 +27,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var utils = Polymer.Utils;
   var caseMap = Polymer.CaseMap;
 
-  var events = new Polymer.GestureEventListeners();
+  var events = new Polymer.EventListeners();
   var templateStamp = new Polymer.TemplateStamp(events);
   var attributes = new Polymer.AttributeToFromProperty();
   var data = new Polymer.MetaEffects(templateStamp, attributes);
@@ -69,7 +69,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static get observedAttributes() {
         if (!this.hasOwnProperty('_observedAttributes')) {
           // observedAttributes must be finalized at registration time
-          this._observedAttributes = this.addPropertiesToAttributes(
+          this._observedAttributes = this._addPropertiesToAttributes(
             this._flattenedProperties, []);
           // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
           var currentScript = document._currentScript || document.currentScript;
@@ -78,11 +78,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this._observedAttributes;
       }
 
-      static addPropertiesToAttributes(properties, attrs) {
+      static _addPropertiesToAttributes(properties, list) {
         for (var prop in properties) {
-          attrs.push(Polymer.CaseMap.camelToDashCase(prop));
+          list.push(Polymer.CaseMap.camelToDashCase(prop));
         }
-        return attrs;
+        return list;
       }
 
       static get finalized() {
@@ -114,30 +114,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           var config = this._ownConfig;
           if (config) {
-            this.finalizeConfig(config);
+            this._finalizeConfig(config);
           }
           if (this.template) {
             var template = this.template.cloneNode(true);
-            this.finalizeTemplate(template);
+            this._finalizeTemplate(template);
           }
         }
       }
 
-      static createProperties(properties) {
-        if (properties) {
-          this.data.createProperties(this.prototype, properties);
+      static _finalizeConfig(config) {
+        if (config.properties) {
+          this.data.createProperties(this.prototype, config.properties);
         }
-      }
-
-      static createMethodObservers(observers) {
-        if (observers) {
-          this.data.createMethodObservers(this.prototype, observers);
+        if (config.observers) {
+          this.data.createMethodObservers(this.prototype, config.observers);
         }
-      }
-
-      static finalizeConfig(config) {
-        this.createProperties(config.properties);
-        this.createMethodObservers(config.observers);
       }
 
       static get template() {
@@ -158,7 +150,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this._template;
       }
 
-      static finalizeTemplate(template) {
+      static _finalizeTemplate(template) {
         // TODO(sorvell): cannot use `this` here, refactor this to only do
         // template preparation and take a name.
         // TODO(dfreedm): factor so that we do not need an object/element
@@ -240,12 +232,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.constructor.data.flush(this);
       }
 
-      addListeners(listeners) {
-        this.constructor.events.addMethodListeners(this, listeners);
-      }
-
-      ensureAttributes(attrs) {
-        this.constructor.attributes.ensureAttributes(this, attrs);
+      ensureAttribute(attr, value) {
+        this.constructor.attributes.ensureAttribute(this, attr, value);
       }
 
       disconnectedCallback() {
@@ -267,21 +255,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      arrayDelete(arrayOrPath, item) {
-        var index;
-        if (Array.isArray(arrayOrPath)) {
-          index = arrayOrPath.indexOf(item);
-          if (index >= 0) {
-            return arrayOrPath.splice(index, 1);
-          }
-        } else {
-          var arr = Polymer.Path.get(this, arrayOrPath);
-          index = arr.indexOf(item);
-          if (index >= 0) {
-            return this.splice(path, index, 1);
-          }
-        }
-      }
     }
 
     PolymerElement.events = events;

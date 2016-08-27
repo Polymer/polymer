@@ -9,6 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="element.html">
+<link rel="import" href="../events/gesture-event-listeners.html">
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/compat-dom-utils.html">
 <link rel="import" href="../utils/async-render.html">
@@ -35,9 +36,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     console.warn(warning);
   }
 
+  // adds support for gestures!
+  var events = new Polymer.GestureEventListeners();
+  var templateStamp = new Polymer.TemplateStamp(events);
+  var data = new Polymer.MetaEffects(templateStamp, Polymer.Element.attributes);
+
   function LegacyElementMixin(Base) {
 
-    return class LegacyElement extends Polymer.ElementMixin(Base) {
+    class LegacyElement extends Polymer.ElementMixin(Base) {
 
       constructor() {
         super();
@@ -48,10 +54,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         super.ready();
         var config = this.constructor._ownConfig;
         if (config.listeners) {
-          this.addListeners(config.listeners);
+          this.constructor.events.addMethodListeners(this, config.listeners);
         }
         if (config.hostAttributes) {
-          this.ensureAttributes(config.hostAttributes);
+          this.constructor.attributes.ensureAttributes(this, config.hostAttributes);
         }
       }
 
@@ -250,12 +256,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this.root.querySelector(slctr);
       }
 
-      domHost() {
-        return nyi();
+      /**
+       * Return the element whose local dom within which this element
+       * is contained. This is a shorthand for
+       * `this.getRootNode().host`.
+       */
+      get domHost() {
+        var root = this.getRootNode();
+        return (root instanceof DocumentFragment) ? root.host : root;
       }
 
-      distributeContent(updateInsertionPoints) {
-        return nyi();
+      /**
+       * Force this element to distribute its children to its local dom.
+       * This is necessary only when ShadyDOM is used and only in cases that
+       * are not automatically handled. For example,
+       * a user should call `distributeContent` if distribution has been
+       * invalidated due to an element being added or removed from the shadowRoot
+       * that contains an insertion point (<slot>) inside its subtree.
+       * @method distributeContent
+       */
+      distributeContent() {
+        if (window.ShadyDOM && this.shadowRoot) {
+          this.shadowRoot.forceRender();
+        }
       }
 
       /**
@@ -323,13 +346,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var list = [];
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
           if ((c.nodeType === Node.ELEMENT_NODE) &&
-              utils.matchesSelector.call(c, selector)) {
+              this.elementMatches(selector, c)) {
             list.push(c);
           }
         }
         return list;
       }
-
 
       queryEffectiveChildren(slctr) {
         var e$ = this.queryDistributedElements(slctr);
@@ -377,12 +399,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       }
 
+      /**
+       * Checks whether an element is in this element's light DOM tree.
+       *
+       * @method isLightDescendant
+       * @param {?Node} node The element to be checked.
+       * @return {Boolean} true if node is in this element's light DOM tree.
+       */
       isLightDescendant(node) {
-        return nyi();
+        return this !== node && this.contains(node) &&
+            this.getRootNode() === node.getRootNode();
       }
 
+      /**
+       * Checks whether an element is in this element's local DOM tree.
+       *
+       * @method isLocalDescendant
+       * @param {HTMLElement=} node The element to be checked.
+       * @return {Boolean} true if node is in this element's local DOM tree.
+       */
       isLocalDescendant(node) {
-        return nyi();
+        return this.root === node.getRootNode();
       }
 
       scopeSubtree(container, shouldObserve) {
@@ -542,14 +579,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return elt;
       }
 
-      getNativePrototype(tag) {
-        return nyi();
-      }
-
-      getPropertyInfo(property) {
-        return nyi();
-      }
-
       /**
        * Convenience method for importing an HTML document imperatively.
        *
@@ -593,42 +622,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return l;
       }
 
+      /**
+       * Polyfill for Element.prototype.matches, which is sometimes still
+       * prefixed.
+       *
+       * @method elementMatches
+       * @param {string} selector Selector to test.
+       * @param {Element=} node Element to test the selector against.
+       * @return {boolean} Whether the element matches the selector.
+       */
       elementMatches(selector, node) {
-        return nyi();
-      }
-
-      /**
-       * Removes an HTML attribute from one node, and adds it to another.
-       *
-       * @method attributeFollows
-       * @param {String} name HTML attribute name
-       * @param {HTMLElement} toElement New element to add the attribute to.
-       * @param {HTMLElement} fromElement Old element to remove the attribute from.
-       */
-      attributeFollows(name, toElement, fromElement) {
-        if (fromElement) {
-          Polymer.dom(fromElement).removeAttribute(name);
-        }
-        if (toElement) {
-          Polymer.dom(toElement).setAttribute(name, '');
-        }
-      }
-
-      /**
-       * Removes a class from one node, and adds it to another.
-       *
-       * @method classFollows
-       * @param {String} name CSS class name
-       * @param {HTMLElement} toElement New element to add the class to.
-       * @param {HTMLElement} fromElement Old element to remove the class from.
-       */
-      classFollows(name, toElement, fromElement) {
-        if (fromElement) {
-          Polymer.dom(fromElement).classList.remove(name);
-        }
-        if (toElement) {
-          Polymer.dom(toElement).classList.add(name);
-        }
+        return Polymer.Utils.matchesSelector(node || this, selector);
       }
 
       /**
@@ -704,7 +708,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.transform('translate3d(' + x + ',' + y + ',' + z + ')', node);
       }
 
+      /**
+       * Removes an item from an array, if it exists.
+       *
+       * If the array is specified by path, a change notification is
+       * generated, so that observers, data bindings and computed
+       * properties watching that path can update.
+       *
+       * If the array is passed directly, **no change
+       * notification is generated**.
+       *
+       * @method arrayDelete
+       * @param {String|Array} path Path to array from which to remove the item
+       *   (or the array itself).
+       * @param {any} item Item to remove.
+       * @return {Array} Array containing item removed.
+       */
+      arrayDelete(arrayOrPath, item) {
+        var index;
+        if (Array.isArray(arrayOrPath)) {
+          index = arrayOrPath.indexOf(item);
+          if (index >= 0) {
+            return arrayOrPath.splice(index, 1);
+          }
+        } else {
+          var arr = Polymer.Path.get(this, arrayOrPath);
+          index = arr.indexOf(item);
+          if (index >= 0) {
+            return this.splice(path, index, 1);
+          }
+        }
+      }
+
     }
+
+    LegacyElement.events = events;
+    LegacyElement.templateStamp = templateStamp;
+    LegacyElement.data = data;
+
+    return LegacyElement;
   }
 
   Polymer.LegacyElementMixin = Polymer.CachedMixin(LegacyElementMixin);
