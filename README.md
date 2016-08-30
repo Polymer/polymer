@@ -2,7 +2,7 @@
 
 This branch contains a preview of the Polymer 2.0 library.  The codebase is under active development, and APIs may change prior to the final 2.0 release.
 
-## Overarching goals for Polymr 2.0
+## Overarching goals for Polymer 2.0
 
 Polymer 2.0 is designed as a "minimally-breaking" major release that provides an easy migration path for existing applications to take full advantage of the "V1" W3C specifications for Custom Elements and Shadow DOM that will ship natively in multiple browsers starting this fall.  Polymer 2.0 embraces ES6 class-based element definition as the platform-centric method of defining and inheriting from other custom elements, and will also ship with a "backward-compatibility" layer that provides the legacy `Polymer({...})` registration API to ease migration.  With this release, priority has also been given to eliminate areas where Polymer-specific API's have leaked out of the element, to ensure that custom elements built with Polymer can be used like any other DOM node without knowledge of how it was built, ensuring they will interoperate well in any client-side environment (the true promise of Web Components!).  Finally, we are taking the 2.0 release as an opportunity to address feedback on the data system and refactor the library such that its features are available as standalone libraries that can be composed and customized in an alacarte fashion.
 
