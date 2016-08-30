@@ -2,9 +2,9 @@
 
 This branch contains a preview of the Polymer 2.0 library.  The codebase is under active development, and APIs may change prior to the final 2.0 release.
 
-## Overarching goals for Polymer 2.0
+## Polymer 2.0 Goals
 
-1. Take advantage of native "v1" Web Components implementations across browsers.
+1. **Take advantage of native "v1" Web Components implementations across browsers.**
 
    The primary goal of the Polymer 2.0 release is to take advantage of native, cross-browser support for Web Components.
 
@@ -16,7 +16,7 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
    Polymer 2.0 also embraces the new ES-class-based mechanism for defining custom elements, bringing idiomatic Polymer style closer to "vanilla" custom element authoring.
 
-1. Provide a smooth migration path from Polymer 1.x.
+1. **Provide a smooth migration path from Polymer 1.x.**
 
    Our second major goal is to provide as easy a transition as possible for developers who have built elements and apps with Polymer 1.x, making Polymer 2.0 a sturdy bridge to the future.
 
@@ -32,7 +32,7 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
    * If you have an especially large app or constraints that don't allow for an all-at-once upgrade, you can also use hybrid elements  to migrate your app from 1.x to 2.0 in piecewise fashion: update your elements to hybrid form, individually or in batches, while running against Polymer 1.x; then cut over to Polymer 2.0 when all of your elements have been updated.
 
-1. Eliminate leaky abstractions.
+1. **Eliminate leaky abstractions.**
 
    Seamless interoperability is one of Web Components' major selling points. Generally speaking, web components "just work" anywhere you use HTML elements. To use them, you need only be aware of their public attributes, properties, methods and events; you don't need to know anything about their inner workings. This means you can easily mix standard HTML elements, third-party elements and elements you've defined yourself.
 
@@ -40,7 +40,7 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
    In Polymer 2.0 we've found ways to eliminate these leaky abstractions without unduly compromising performance, which means that your Polymer 2.x-based elements will be indistinguishable from "vanilla" elements from a consumer's point of view (unless you leak implementation details of your own).
 
-1. Make targeted improvements to the Polymer data system.
+1. **Make targeted improvements to the Polymer data system.**
 
    Based on developer feedback and observations of Polymer apps in the wild, we've also made some key improvements to Polymer's data system. These changes are designed to make it easier to reason about and debug the propagation of data through and between elements:
 
@@ -50,7 +50,7 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
    * To improve compatibility with top-down data-flow approaches (e.g. Flux), we no longer dirty-check properties whose values are objects or arrays.
 
-1. Improve factoring of Polymer and the polyfills
+1. **Improve factoring of Polymer and the polyfills**
 
    We've done some refactoring of Polymer and the webcomponentsjs polyfills to improve efficiency, utility and flexibility:
 
