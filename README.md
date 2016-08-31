@@ -2,7 +2,7 @@
 
 This branch contains a preview of the Polymer 2.0 library.  The codebase is under active development, and APIs may change prior to the final 2.0 release.
 
-## Overarching goals for Polymr 2.0
+## Overarching goals for Polymer 2.0
 
 Polymer 2.0 is designed as a "minimally-breaking" major release that provides an easy migration path for existing applications to take full advantage of the "V1" W3C specifications for Custom Elements and Shadow DOM that will ship natively in multiple browsers starting this fall.  Polymer 2.0 embraces ES6 class-based element definition as the platform-centric method of defining and inheriting from other custom elements, and will also ship with a "backward-compatibility" layer that provides the legacy `Polymer({...})` registration API to ease migration.  With this release, priority has also been given to eliminate areas where Polymer-specific API's have leaked out of the element, to ensure that custom elements built with Polymer can be used like any other DOM node without knowledge of how it was built, ensuring they will interoperate well in any client-side environment (the true promise of Web Components!).  Finally, we are taking the 2.0 release as an opportunity to address feedback on the data system and refactor the library such that its features are available as standalone libraries that can be composed and customized in an alacarte fashion.
 
@@ -51,7 +51,7 @@ class MyElement extends Polymer.Element {
     ...
   }
   connectedCallback() {
-  	super.connectedCallback();
+    super.connectedCallback();
     ...
   }
   ...
@@ -86,7 +86,8 @@ Below are the general steps for defining a custom element using this new syntax:
 * Property metadata (`properties`) and multi-property/wildcard observers (`observers`) should be put on the class as a static in a property called `config`
 * Element's `is` property should be defined as a static on the class
 * Implement a static `template` getter to provide a template to stamp inside the element. By default the first `<template>` found in a `<dom-module>` with an `id` matching the element's `is` property is used.
-* `listeners` and `hostAttributes` have been removed from element metadata; they can be installed how and when needed but for convenience `ensureAttribute` is available.
+* `listeners` and `hostAttributes` have been removed from element metadata; they can be installed how and when needed but for convenience `ensureAttribute` is available. The ability to reference other elements in the listeners object has been removed (e.g. `'foo.tap': 'myHandler'`)
+
 
 
 Note that `Polymer.Element` provides a cleaner base class void of a lot of sugared utility API that present on elements defined with `Polymer()`, such as `fire`, `transform`, etc.  With web platform surface area becoming far more stable across browsers, we intend to hew towards sugaring less and embracing the raw platform API more.  So when using `Polymer.Element`, instead of using the legacy `this.fire('some-event')` API, simply use the equivalent platform API's such as `this.dispatchEvent(new CustomEvent('some-event'), {bubbles: true})`.  #usetheplatorm
@@ -102,7 +103,7 @@ Below is a list of intentional breaking changes made in Polymer 2.0, along with 
 
 
 ### Polymer.dom
-On browsers that lack native V1 Shadow DOM support, Polymer 2.0 is designed to be used with the new [V1 Shady DOM shim](#add-link), which patches native DOM API as necessary to be mostly equivalent to native Shadow DOM.  This removes the requirement to use the `Polymer.dom` API when interacting with the DOM.
+On browsers that lack native V1 Shadow DOM support, Polymer 2.0 is designed to be used with the new [V1 Shady DOM shim](#add-link), which patches native DOM API as necessary to be mostly equivalent to native Shadow DOM.  This removes the requirement to use the `Polymer.dom` API when interacting with the DOM.  `Polymer.dom` can be eliminated for elements targeting Polymer 2.0, in favor of the native DOM API's.
 
 Note that `Polymer.dom` is still provided in the `polymer.html` backward-compatibility layer which simply facades the native API, but usage of it in 2.0 can be removed.
 
@@ -131,12 +132,12 @@ Polymer 2.0 elements will stamp their templates into shadow roots created using 
 Polymer 2.0 elements will target the V1 Custom Elements API, which primarily changes the "created" step to actually invoke the `class` constructor, imposes new restrictions on what can be done in the `constructor` (previously `createdCallback`), and introduces different callback names.
 
 * Changes to callback names:
-	* When using `Polymer({...})` from the compatibility layer, all callbacks should use legacy Polymer API names (`created`, `attached`, `detached`, `attributeChanged`)
-	* When extending from `Polymer.Element`, users should override the V1 standard callback names and call `super()`:
-		* `connected` changes to `constructor`
-		* `attached` changes to `connectedCallback`
-		* `detached` changes to `disconnectedCallback`
-		* `attributeChanged` changes to `attributeChangedCallback`
+  * When using `Polymer({...})` from the compatibility layer, all callbacks should use legacy Polymer API names (`created`, `attached`, `detached`, `attributeChanged`)
+  * When extending from `Polymer.Element`, users should override the V1 standard callback names and call `super()`:
+    * `connected` changes to `constructor`
+    * `attached` changes to `connectedCallback`
+    * `detached` changes to `disconnectedCallback`
+    * `attributeChanged` changes to `attributeChangedCallback`
 * The V1 Custom Elements spec forbids the ability to read attributes, children, or parent information from the DOM API in the `constructor` (or `created` when using the legacy API); any such work must be deferred (e.g. until `connectedCallback` or microtask/`setTimeout`)
 * Polymer will no longer produce type-extension elements (aka `is="..."`). Although they are still included in the V1 Custom Elements [spec](https://html.spec.whatwg.org/#custom-elements-customized-builtin-example) and scheduled for implementation in Chrome, because Apple [has stated](https://github.com/w3c/webcomponents/issues/509#issuecomment-233419167) it will not implement `is`, we will not be encouraging its use to avoid indefinite reliance on the Custom Elements polyfill. Instead, a wrapper custom element can surround a native element, e.g. `<a is="my-anchor">...</a>` could become `<my-anchor><a>...</a></my-anchor>`. Users will need to change existing `is` elements where necessary.
 * All template type extensions provided by Polymer have now been changed to standard custom elements that take a `<template>` in their light dom,  e.g.
