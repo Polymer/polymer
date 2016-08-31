@@ -44,14 +44,14 @@ Basic syntax looks like this:
 class MyElement extends Polymer.Element {
   static get is() { return 'my-element'; }
   static get config() {
-   return { /* properties, observers meta data */ }   
+   return { /* properties, observers meta data */ }
   }
   constructor() {
     super();
     ...
   }
   connectedCallback() {
-  	super.connectedCallback();
+    super.connectedCallback();
     ...
   }
   ...
@@ -85,7 +85,9 @@ Below are the general steps for defining a custom element using this new syntax:
 * Implement "behaviors" as [mixins that return class expressions](http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/)
 * Property metadata (`properties`) and multi-property/wildcard observers (`observers`) should be put on the class as a static in a property called `config`
 * Element's `is` property should be defined as a static on the class
-* `listeners` and `hostAttributes` have been removed from element metadata; they can be installed how and when needed but for convenience `addListeners` and `ensureAttributes` are available and respectively take arguments the same as the old metadata objects. The ability to reference other elements in the listeners object has been removed (e.g. `'foo.tap': 'myHandler'`)
+* Implement a static `template` getter to provide a template to stamp inside the element. By default the first `<template>` found in a `<dom-module>` with an `id` matching the element's `is` property is used.
+* `listeners` and `hostAttributes` have been removed from element metadata; they can be installed how and when needed but for convenience `ensureAttribute` is available. The ability to reference other elements in the listeners object has been removed (e.g. `'foo.tap': 'myHandler'`)
+
 
 
 Note that `Polymer.Element` provides a cleaner base class void of a lot of sugared utility API that present on elements defined with `Polymer()`, such as `fire`, `transform`, etc.  With web platform surface area becoming far more stable across browsers, we intend to hew towards sugaring less and embracing the raw platform API more.  So when using `Polymer.Element`, instead of using the legacy `this.fire('some-event')` API, simply use the equivalent platform API's such as `this.dispatchEvent(new CustomEvent('some-event'), {bubbles: true})`.  #usetheplatorm
@@ -130,14 +132,14 @@ Polymer 2.0 elements will stamp their templates into shadow roots created using 
 Polymer 2.0 elements will target the V1 Custom Elements API, which primarily changes the "created" step to actually invoke the `class` constructor, imposes new restrictions on what can be done in the `constructor` (previously `createdCallback`), and introduces different callback names.
 
 * Changes to callback names:
-	* When using `Polymer({...})` from the compatibility layer, all callbacks should use legacy Polymer API names (`created`, `attached`, `detached`, `attributeChanged`)
-	* When extending from `Polymer.Element`, users should override the V1 standard callback names and call `super()`:
-		* `connected` changes to `constructor`
-		* `attached` changes to `connectedCallback`
-		* `detached` changes to `disconnectedCallback`
-		* `attributeChanged` changes to `attributeChangedCallback`
+  * When using `Polymer({...})` from the compatibility layer, all callbacks should use legacy Polymer API names (`created`, `attached`, `detached`, `attributeChanged`)
+  * When extending from `Polymer.Element`, users should override the V1 standard callback names and call `super()`:
+    * `connected` changes to `constructor`
+    * `attached` changes to `connectedCallback`
+    * `detached` changes to `disconnectedCallback`
+    * `attributeChanged` changes to `attributeChangedCallback`
 * The V1 Custom Elements spec forbids the ability to read attributes, children, or parent information from the DOM API in the `constructor` (or `created` when using the legacy API); any such work must be deferred (e.g. until `connectedCallback` or microtask/`setTimeout`)
-* Polymer will no longer produce type-extension elements (aka `is="..."`). Although they are still included in the V1 Custom Elements [spec](https://html.spec.whatwg.org/#custom-elements-customized-builtin-example) and scheduled for implementation in Chrome, because Apple [has stated](https://github.com/w3c/webcomponents/issues/509#issuecomment-233419167) it will not implmenent `is`, we will not be encouraging its use to avoid indefinite reliance on the Custom Elements polyfill. Instead, a wrapper custom element can surround a native element, e.g. `<a is="my-anchor">...</a>` could become `<my-anchor><a>...</a></my-anchor>`. Users will need to change existing `is` elements where necessary.
+* Polymer will no longer produce type-extension elements (aka `is="..."`). Although they are still included in the V1 Custom Elements [spec](https://html.spec.whatwg.org/#custom-elements-customized-builtin-example) and scheduled for implementation in Chrome, because Apple [has stated](https://github.com/w3c/webcomponents/issues/509#issuecomment-233419167) it will not implement `is`, we will not be encouraging its use to avoid indefinite reliance on the Custom Elements polyfill. Instead, a wrapper custom element can surround a native element, e.g. `<a is="my-anchor">...</a>` could become `<my-anchor><a>...</a></my-anchor>`. Users will need to change existing `is` elements where necessary.
 * All template type extensions provided by Polymer have now been changed to standard custom elements that take a `<template>` in their light dom,  e.g.
 
   ```
@@ -201,7 +203,10 @@ Polymer 2.0 will continue to use a shim to provide limited [CSS Custom Propertie
 configure the module name. The only supported declarative way set the module
 id is to use `id`.
 * `element.getPropertyInfo`: This api returned unexpected information some of the time and was rarely used.
+* `element.getNativePrototype`: Removed because it is no longer needed for internal code and was unused by users.
 * `element.beforeRegister`: This was originally added for metadata compatibility with ES6 classes. We now prefer users create ES6 classes by extending `Polymer.Element`, specifying metadata in the static `config` property. For legacy use via `Polymer({...})`, dynamic effects may now be added using the `registered` lifecycle method.
+* `element.attributeFollows`: Removed due to disuse.
+* `element.classFollows`: Removed due to disuse.
 * `listeners`: Removed ability to use `id.event` to add listeners to elements in local dom. Use declarative template event handlers instead.
 * Methods starting with `_` are not guaranteed to exist (most have been removed)
 
@@ -211,7 +216,7 @@ id is to use `id`.
 * Experimental: `listeners` and `hostAttributes` are deferred until "afterNextRender", since the majority uses of these should not be initial paint-blocking.  Please help identify use cases where paint-blocking host attributes/listeners are useful/needed.
 * Requst to early-users: We would really like to remove the `ready` callback, since its use is generally anti-pattern-ish, and it's hard to document when a "one-shot callback that runs after all local dom & observers have flushed" should actually be used, as opposed to running said code in an observer.  In exploring alacarte, please try to avoid `ready` and help identify use cases where it is useful/needed.
 * Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
- 
+
 ## Not yet implemented
 * Some utility functions are not yet implemented
     * A number of utility functions that were previously on the Polymer 1.0 element prototype are not ported over yet.  These will warn with "not yet implemented" warnings.  In general, these can be avoided using standard DOM API.

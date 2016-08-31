@@ -9,8 +9,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="element.html">
+<link rel="import" href="../events/gesture-event-listeners.html">
 <link rel="import" href="../utils/utils.html">
-<link rel="import" href="../utils/compat-utils.html">
+<link rel="import" href="../utils/compat-dom-utils.html">
+<link rel="import" href="../utils/async-render.html">
+<link rel="import" href="../utils/polymer.dom.html">
+<link rel="import" href="../utils/unresolved.html">
 
 <script>
 (function() {
@@ -23,7 +27,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var stack = new Error().stack.split('\n');
     var fn = stack.reduce(function(prev, val) {
       return prev == true ? val : (prev ? prev :
-        val.indexOf('compat-element.html') > 0);
+        val.indexOf('legacy-element.html') > 0);
     }, false);
     console.warn('Not yet implemented:', fn);
   }
@@ -33,9 +37,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     console.warn(warning);
   }
 
-  function CompatElementMixin(Base) {
+  // adds support for gestures!
+  var events = new Polymer.GestureEventListeners();
+  var templateStamp = new Polymer.TemplateStamp(events);
+  var data = new Polymer.MetaEffects(templateStamp, Polymer.Element.attributes);
 
-    return class CompatElement extends Polymer.ElementMixin(Base) {
+  function LegacyElementMixin(Base) {
+
+    class LegacyElement extends Polymer.ElementMixin(Base) {
 
       constructor() {
         super();
@@ -44,12 +53,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       ready() {
         super.ready();
+        // TODO(sorvell): should this come earlier? e.g. in constructor?
         var config = this.constructor._ownConfig;
         if (config.listeners) {
-          this.addListeners(config.listeners);
+          this.constructor.events.addMethodListeners(this, config.listeners);
         }
         if (config.hostAttributes) {
-          this.ensureAttributes(config.hostAttributes);
+          this.constructor.attributes.ensureAttributes(this, config.hostAttributes);
         }
       }
 
@@ -76,19 +86,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       attributeChanged() {}
 
+      // TODO(sorvell): Is this worth exposing anymore? implementing this in your
+      // element does *not* change associated behavior.
       serialize(value) {
         return this.constructor.attributes.serialize(value);
       }
 
+      // TODO(sorvell): Is this worth exposing anymore?
       deserialize(value, type) {
         return this.constructor.attributes.deserialize(value, type);
       }
 
+      // TODO(sorvell): Is this worth exposing anymore?
       reflectPropertyToAttribute(property, attribute, value) {
         this.constructor.attributes.propertyToAttribute(this, property,
           attribute, value);
       }
 
+      // TODO(sorvell): Is this worth exposing anymore?
       serializeValueToAttribute(value, attribute, node) {
         node = node || this;
         this.constructor.attributes.valueToAttribute(node, value,
@@ -124,7 +139,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return utils.mixin(target, source);
       }
 
-      // TODO(sorvell): move out of here?
+      // TODO(sorvell): Is this worth exposing anymore?
       chainObject(object, inherited) {
         if (object && inherited && object !== inherited) {
           if (!Object.__proto__) {
@@ -145,6 +160,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {DocumentFragment} Document fragment containing the imported
        *   template content.
       */
+      // TODO(sorvell): Is this worth exposing anymore?
       instanceTemplate(template) {
         var dom =
           document.importNode(template._content || template.content, true);
@@ -186,6 +202,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return event;
       }
 
+      /**
+       * Convenience method to add an event listener on a given element,
+       * late bound to a named method on this element.
+       *
+       * @method listen
+       * @param {Element} node Element to add event listener to.
+       * @param {string} eventName Name of event to listen for.
+       * @param {string} methodName Name of handler method on `this` to call.
+       */
       listen(node, eventName, methodName) {
         node = node || this;
         var hbl = this.__boundListeners ||
@@ -202,6 +227,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
+      /**
+       * Convenience method to remove an event listener from a given element,
+       * late bound to a named method on this element.
+       *
+       * @method unlisten
+       * @param {Element} node Element to remove event listener from.
+       * @param {string} eventName Name of event to stop listening to.
+       * @param {string} methodName Name of handler method on `this` to not call
+       anymore.
+       */
       unlisten(node, eventName, methodName) {
         node = node || this;
         var bl = this.__boundListeners && this.__boundListeners.get(node);
@@ -248,12 +283,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this.root.querySelector(slctr);
       }
 
-      domHost() {
-        return nyi();
+      /**
+       * Return the element whose local dom within which this element
+       * is contained. This is a shorthand for
+       * `this.getRootNode().host`.
+       */
+      get domHost() {
+        var root = this.getRootNode();
+        return (root instanceof DocumentFragment) ? root.host : root;
       }
 
-      distributeContent(updateInsertionPoints) {
-        return nyi();
+      /**
+       * Force this element to distribute its children to its local dom.
+       * This is necessary only when ShadyDOM is used and only in cases that
+       * are not automatically handled. For example,
+       * a user should call `distributeContent` if distribution has been
+       * invalidated due to an element being added or removed from the shadowRoot
+       * that contains an insertion point (<slot>) inside its subtree.
+       * @method distributeContent
+       */
+      distributeContent() {
+        if (window.ShadyDOM && this.shadowRoot) {
+          this.shadowRoot.forceRender();
+        }
       }
 
       /**
@@ -316,26 +368,50 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return tc.join('');
       }
 
+      // TODO(sorvell): Actually an api on Polymer.dom
+      /**
+       * Returns a list of nodes distributed within this element that match
+       * `selector`. These can be dom children or elements distributed to
+       * children that are insertion points.
+       * @method queryDistributedElements
+       * @param {string} selector Selector to run.
+       * @return {Array<Node>} List of distributed elements that match selector.
+       */
       queryDistributedElements(selector) {
         var c$ = this.getEffectiveChildNodes();
         var list = [];
         for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
           if ((c.nodeType === Node.ELEMENT_NODE) &&
-              utils.matchesSelector.call(c, selector)) {
+              this.elementMatches(selector, c)) {
             list.push(c);
           }
         }
         return list;
       }
 
-
-      queryEffectiveChildren(slctr) {
-        var e$ = this.queryDistributedElements(slctr);
+      /**
+       * Returns the first effective childNode within this element that
+       * match `selector`. These can be dom child nodes or elements distributed
+       * to children that are insertion points.
+       * @method queryEffectiveChildren
+       * @param {string} selector Selector to run.
+       * @return {Object<Node>} First effective child node that matches selector.
+       */
+      queryEffectiveChildren(selector) {
+        var e$ = this.queryDistributedElements(selector);
         return e$ && e$[0];
       }
 
-      queryAllEffectiveChildren(slctr) {
-        return this.queryDistributedElements(slctr);
+      /**
+       * Returns a list of effective childNodes within this element that
+       * match `selector`. These can be dom child nodes or elements distributed
+       * to children that are insertion points.
+       * @method queryEffectiveChildren
+       * @param {string} selector Selector to run.
+       * @return {Array<Node>} List of effective child nodes that match selector.
+       */
+      queryAllEffectiveChildren(selector) {
+        return this.queryDistributedElements(selector);
       }
 
       /**
@@ -375,36 +451,58 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       }
 
+      /**
+       * Checks whether an element is in this element's light DOM tree.
+       *
+       * @method isLightDescendant
+       * @param {?Node} node The element to be checked.
+       * @return {Boolean} true if node is in this element's light DOM tree.
+       */
       isLightDescendant(node) {
-        return nyi();
+        return this !== node && this.contains(node) &&
+            this.getRootNode() === node.getRootNode();
       }
 
+      /**
+       * Checks whether an element is in this element's local DOM tree.
+       *
+       * @method isLocalDescendant
+       * @param {HTMLElement=} node The element to be checked.
+       * @return {Boolean} true if node is in this element's local DOM tree.
+       */
       isLocalDescendant(node) {
-        return nyi();
+        return this.root === node.getRootNode();
       }
 
       scopeSubtree(container, shouldObserve) {
-        if (Polymer.StyleLib.nativeShadow) {
-          return;
-        }
-        Polymer.StyleTransformer.dom(container);
-        if (shouldObserve) {
-          var mo = new MutationObserver(function(mxns) {
-            for (var i = 0, m; i < mxns.length; i++) {
-              m = mxns[i];
-              if (m.addedNodes) {
-                for (var j = 0, n; j < m.addedNodes.length; j++) {
-                  n = m.addedNodes[j];
-                  Polymer.StyleTransformer.dom(n);
-                }
-              }
-            }
-          });
-          mo.observe(container, {childList: true, subtree: true});
-          return mo;
-        }
+        // TODO(sorvell): replace or remove when ShadyDOM library handles this.
+        // if (!window.ShadyDOM && !window.ShadyDOM.inUse) {
+        //   return;
+        // }
+        // Polymer.StyleTransformer.dom(container);
+        // if (shouldObserve) {
+        //   var mo = new MutationObserver(function(mxns) {
+        //     for (var i = 0, m; i < mxns.length; i++) {
+        //       m = mxns[i];
+        //       if (m.addedNodes) {
+        //         for (var j = 0, n; j < m.addedNodes.length; j++) {
+        //           n = m.addedNodes[j];
+        //           Polymer.StyleTransformer.dom(n);
+        //         }
+        //       }
+        //     }
+        //   });
+        //   mo.observe(container, {childList: true, subtree: true});
+        //   return mo;
+        // }
+        nyi();
       }
 
+      /**
+       * Returns the computed style value for the given property.
+       * @param {String} property
+       * @return {String} the computed value
+       */
       getComputedStyleValue(property) {
         var value;
         if (this.__styleProperties) {
@@ -538,14 +636,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return elt;
       }
 
-      getNativePrototype(tag) {
-        return nyi();
-      }
-
-      getPropertyInfo(property) {
-        return nyi();
-      }
-
       /**
        * Convenience method for importing an HTML document imperatively.
        *
@@ -589,42 +679,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return l;
       }
 
+      /**
+       * Polyfill for Element.prototype.matches, which is sometimes still
+       * prefixed.
+       *
+       * @method elementMatches
+       * @param {string} selector Selector to test.
+       * @param {Element=} node Element to test the selector against.
+       * @return {boolean} Whether the element matches the selector.
+       */
       elementMatches(selector, node) {
-        return nyi();
-      }
-
-      /**
-       * Removes an HTML attribute from one node, and adds it to another.
-       *
-       * @method attributeFollows
-       * @param {String} name HTML attribute name
-       * @param {HTMLElement} toElement New element to add the attribute to.
-       * @param {HTMLElement} fromElement Old element to remove the attribute from.
-       */
-      attributeFollows(name, toElement, fromElement) {
-        if (fromElement) {
-          Polymer.dom(fromElement).removeAttribute(name);
-        }
-        if (toElement) {
-          Polymer.dom(toElement).setAttribute(name, '');
-        }
-      }
-
-      /**
-       * Removes a class from one node, and adds it to another.
-       *
-       * @method classFollows
-       * @param {String} name CSS class name
-       * @param {HTMLElement} toElement New element to add the class to.
-       * @param {HTMLElement} fromElement Old element to remove the class from.
-       */
-      classFollows(name, toElement, fromElement) {
-        if (fromElement) {
-          Polymer.dom(fromElement).classList.remove(name);
-        }
-        if (toElement) {
-          Polymer.dom(toElement).classList.add(name);
-        }
+        return Polymer.Utils.matchesSelector(node || this, selector);
       }
 
       /**
@@ -700,14 +765,52 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.transform('translate3d(' + x + ',' + y + ',' + z + ')', node);
       }
 
+      /**
+       * Removes an item from an array, if it exists.
+       *
+       * If the array is specified by path, a change notification is
+       * generated, so that observers, data bindings and computed
+       * properties watching that path can update.
+       *
+       * If the array is passed directly, **no change
+       * notification is generated**.
+       *
+       * @method arrayDelete
+       * @param {String|Array} path Path to array from which to remove the item
+       *   (or the array itself).
+       * @param {any} item Item to remove.
+       * @return {Array} Array containing item removed.
+       */
+      arrayDelete(arrayOrPath, item) {
+        var index;
+        if (Array.isArray(arrayOrPath)) {
+          index = arrayOrPath.indexOf(item);
+          if (index >= 0) {
+            return arrayOrPath.splice(index, 1);
+          }
+        } else {
+          var arr = Polymer.Path.get(this, arrayOrPath);
+          index = arr.indexOf(item);
+          if (index >= 0) {
+            return this.splice(path, index, 1);
+          }
+        }
+      }
+
     }
+
+    LegacyElement.events = events;
+    LegacyElement.templateStamp = templateStamp;
+    LegacyElement.data = data;
+
+    return LegacyElement;
   }
 
-  Polymer.CompatElementMixin = Polymer.CachedMixin(CompatElementMixin);
+  Polymer.LegacyElementMixin = Polymer.cachingMixin(LegacyElementMixin);
 
   // bc
-  Polymer.CompatElement = Polymer.CompatElementMixin(HTMLElement);
-  Polymer.Base = Polymer.CompatElement.prototype;
+  Polymer.LegacyElement = Polymer.LegacyElementMixin(HTMLElement);
+  Polymer.Base = Polymer.LegacyElement.prototype;
 
 })();
 </script>

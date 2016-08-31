@@ -9,15 +9,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../utils/boot.html">
+<link rel="import" href="../legacy/dom-module.html">
 <link rel="import" href="../utils/utils.html">
-<link rel="import" href="../utils/compat-dom-utils.html">
 <link rel="import" href="../utils/case-map.html">
-<link rel="import" href="../utils/async-render.html">
-<link rel="import" href="../events/gesture-event-listeners.html">
+<link rel="import" href="../events/event-listeners.html">
 <link rel="import" href="../template/template-stamp.html">
 <link rel="import" href="../attributes/attribute-to-from-property.html">
 <link rel="import" href="../properties/meta-effects.html">
-<link rel="import" href="../styling/style-lib.html">
+<link rel="import" href="../styling/style-gather.html">
+<link rel="import" href="../styling/style-util.html">
 
 <script>
 (function() {
@@ -27,7 +27,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   var utils = Polymer.Utils;
   var caseMap = Polymer.CaseMap;
 
-  var events = new Polymer.GestureEventListeners();
+  var events = new Polymer.EventListeners();
   var templateStamp = new Polymer.TemplateStamp(events);
   var attributes = new Polymer.AttributeToFromProperty();
   var data = new Polymer.MetaEffects(templateStamp, attributes);
@@ -69,33 +69,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static get observedAttributes() {
         if (!this.hasOwnProperty('_observedAttributes')) {
           // observedAttributes must be finalized at registration time
-          this._observedAttributes = this.addPropertiesToAttributes(
+          this._observedAttributes = this._addPropertiesToAttributes(
             this._flattenedProperties, []);
           // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
           var currentScript = document._currentScript || document.currentScript;
           this.__importDoc = currentScript && currentScript.ownerDocument;
-          // TODO(sorvell): define time cheat. Should we patch
-          // customElements.define instead?
-          if (!Polymer.StyleLib.nativeShadow) {
-            this.__placeholder = Polymer.StyleLib.applyStylePlaceHolder(this.is);
-          }
         }
         return this._observedAttributes;
       }
 
-      static addPropertiesToAttributes(properties, attrs) {
+      static _addPropertiesToAttributes(properties, list) {
         for (var prop in properties) {
-          attrs.push(Polymer.CaseMap.camelToDashCase(prop));
+          list.push(Polymer.CaseMap.camelToDashCase(prop));
         }
-        return attrs;
+        return list;
       }
 
-      static get _finalized() {
-        return this.hasOwnProperty('__finalized');
+      static get finalized() {
+        return this.hasOwnProperty('_finalized');
       }
 
-      static set _finalized(value) {
-        this.__finalized = value;
+      static set finalized(value) {
+        this._finalized = value;
       }
 
       // TODO(sorvell): need to work on public api surrouding `finalize`.
@@ -104,45 +99,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // this work eagerly. Need to also decide on `finalizeConfig(config)` and
       // `finalizeTemplate(template)`. Both are public but have simiarly
       // awkward subclassing characteristics.
-      static _finalize() {
+      static finalize() {
         var proto = this.prototype;
-        if (!this._finalized) {
+        if (!this.finalized) {
 
           var superProto = Object.getPrototypeOf(proto);
           var superCtor = superProto && superProto.constructor;
           if (superCtor.prototype instanceof PolymerElement) {
-            superCtor._finalize();
+            superCtor.finalize();
           }
-          this._finalized = true;
+          this.finalized = true;
           if (this.hasOwnProperty('is') && this.is) {
             Polymer.telemetry.register(proto);
           }
           var config = this._ownConfig;
           if (config) {
-            this.finalizeConfig(config);
+            this._finalizeConfig(config);
           }
           if (this.template) {
             var template = this.template.cloneNode(true);
-            this.finalizeTemplate(template);
+            this._finalizeTemplate(template);
           }
         }
       }
 
-      static createProperties(properties) {
-        if (properties) {
-          this.data.createProperties(this.prototype, properties);
+      static _finalizeConfig(config) {
+        if (config.properties) {
+          this.data.createProperties(this.prototype, config.properties);
         }
-      }
-
-      static createMethodObservers(observers) {
-        if (observers) {
-          this.data.createMethodObservers(this.prototype, observers);
+        if (config.observers) {
+          this.data.createMethodObservers(this.prototype, config.observers);
         }
-      }
-
-      static finalizeConfig(config) {
-        this.createProperties(config.properties);
-        this.createMethodObservers(config.observers);
       }
 
       static get template() {
@@ -163,9 +150,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this._template;
       }
 
-      static finalizeTemplate(template) {
-        // TODO(sorvell): remove need for this...
-        Polymer.CompatStyleUtil.normalizeForBC(template.content);
+      static _finalizeTemplate(template) {
         // TODO(sorvell): cannot use `this` here, refactor this to only do
         // template preparation and take a name.
         // TODO(dfreedm): factor so that we do not need an object/element
@@ -175,9 +160,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           is: this.is,
           extends: this.extends,
           __cssBuild: this.__cssBuild,
-          __placeholder: this.__placeholder,
+          __placeholder: this.__placeholder
+        };
+        // support `include="module-name"`
+        let cssText = Polymer.StyleGather.cssFromElement(template);
+        if (cssText) {
+          var style = document.createElement('style');
+          style.textContent = cssText;
+          template.content.insertBefore(style, template.content.firstChild);
         }
-        Polymer.StyleLib.prepareTemplate(info, template);
+        if (window.ShadyCSS) {
+          ShadyCSS.prepareTemplate(info, template);
+        }
         // TODO(dfreedm): remove when style stuff is refactored
         // away from using element as input.
         var proto = this.prototype;
@@ -191,10 +185,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         super();
         // note: `this.constructor.prototype` is wrong in Safari so make sure to
         // use `__proto__`
-        if (!this.constructor._finalized) {
-          this.constructor._finalize();
+        if (!this.constructor.finalized) {
+          this.constructor.finalize();
         }
-        Polymer.StyleLib.prepareHost(this, this._template);
         Polymer.telemetry.instanceCount++;
         // setup batched effects library; will call initialize when flushing
         this.constructor.data.prepare(this, this.ready);
@@ -217,8 +210,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       ready() {
         if (!this.root) {
           if (this._template) {
-            // BREAKME(sorvell): v0 support removed
-            this.root = this.attachShadow({mode: 'open'});
+            if (this.attachShadow) {
+              this.root = this.attachShadow({mode: 'open'});
+            } else {
+              throw new Error(`ShadowDOM not available. ` +
+                // BREAKME(sorvell): move to developer conditional when supported.
+               `Polymer.Element can
+                  create dom as children instead of in ShadowDOM by setting
+                  \`this.root = this;\` before \`ready\`.`);
+            }
           } else {
             this.root = this;
           }
@@ -232,12 +232,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.constructor.data.flush(this);
       }
 
-      addListeners(listeners) {
-        this.constructor.events.addMethodListeners(this, listeners);
-      }
-
-      ensureAttributes(attrs) {
-        this.constructor.attributes.ensureAttributes(this, attrs);
+      ensureAttribute(attr, value) {
+        this.constructor.attributes.ensureAttribute(this, attr, value);
       }
 
       disconnectedCallback() {
@@ -254,24 +250,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       updateStyles(properties) {
-        Polymer.StyleLib.applyStyle(this, properties);
-      }
-
-      arrayDelete(arrayOrPath, item) {
-        var index;
-        if (Array.isArray(arrayOrPath)) {
-          index = arrayOrPath.indexOf(item);
-          if (index >= 0) {
-            return arrayOrPath.splice(index, 1);
-          }
-        } else {
-          var arr = Polymer.Path.get(this, arrayOrPath);
-          index = arr.indexOf(item);
-          if (index >= 0) {
-            return this.splice(path, index, 1);
-          }
+        if (window.ShadyCSS) {
+          ShadyCSS.applyStyle(this, properties);
         }
       }
+
     }
 
     PolymerElement.events = events;
@@ -327,8 +310,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   };
 
-  // TODO(sorvell): similar to but simpler than mixin.with... just use that?
-  Polymer.CachedMixin = function(mixin) {
+  Polymer.cachingMixin = function(mixin) {
     return function(Base) {
       if (!mixin.__mixinApplications) {
         mixin.__mixinApplications = new WeakMap();
@@ -342,9 +324,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  Polymer.ElementMixin = Polymer.CachedMixin(ElementMixin);
+  Polymer.dedupingMixin = function(mixin) {
+    mixin = Polymer.cachingMixin(mixin);
+    return function(Base) {
+      let baseMap = Base.__mixinMap;
+      if (baseMap && baseMap.get(mixin)) {
+        return Base;
+      } else {
+        var extended = mixin(Base);
+        extended.__mixinMap = new Map(baseMap);
+        extended.__mixinMap.set(mixin, true);
+        return extended;
+      }
+    }
+  }
+
+  Polymer.ElementMixin = Polymer.cachingMixin(ElementMixin);
 
   Polymer.Element = Polymer.ElementMixin(HTMLElement);
 
+  Polymer.updateStyles = function(props) {
+    if (window.ShadyCSS) {
+      ShadyCSS.updateStyles(props);
+    }
+  };
+
 })();
+
 </script>

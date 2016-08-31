@@ -7,110 +7,15 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="style-settings.html">
-<link rel="import" href="css-parse.html">
-
 <script>
   (function() {
     'use strict';
 
     var StyleUtil = {
-      toCssText: function(rules, callback) {
-        if (typeof rules === 'string') {
-          rules = this.parser.parse(rules);
-        }
-        if (callback) {
-          this.forEachRule(rules, callback);
-        }
-        return this.parser.stringify(rules, Polymer.StyleSettings.nativeCssVariables);
-      },
-
-      rulesForStyle: function(style) {
-        if (!style.__cssRules && style.textContent) {
-          style.__cssRules = this.parser.parse(style.textContent);
-        }
-        return style.__cssRules;
-      },
-
-      // Tests if a rule is a keyframes selector, which looks almost exactly
-      // like a normal selector but is not (it has nothing to do with scoping
-      // for example).
-      isKeyframesSelector: function(rule) {
-        return rule.parent &&
-            rule.parent.type === this.ruleTypes.KEYFRAMES_RULE;
-      },
-
-      forEachRule: function(node, styleRuleCallback, keyframesRuleCallback, onlyActiveRules) {
-        if (!node) {
-          return;
-        }
-        var skipRules = false;
-        if (onlyActiveRules) {
-          if (node.type === this.ruleTypes.MEDIA_RULE) {
-            var matchMedia = node.selector.match(this.rx.MEDIA_MATCH);
-            if (matchMedia) {
-              // if rule is a non matching @media rule, skip subrules
-              if (!window.matchMedia(matchMedia[1]).matches) {
-                skipRules = true;
-              }
-            }
-          }
-        }
-        if (node.type === this.ruleTypes.STYLE_RULE) {
-          styleRuleCallback(node);
-        } else if (keyframesRuleCallback &&
-                   node.type === this.ruleTypes.KEYFRAMES_RULE) {
-          keyframesRuleCallback(node);
-        } else if (node.type === this.ruleTypes.MIXIN_RULE) {
-          skipRules = true;
-        }
-        var r$ = node.rules;
-        if (r$ && !skipRules) {
-          for (var i=0, l=r$.length, r; (i<l) && (r=r$[i]); i++) {
-            this.forEachRule(r, styleRuleCallback, keyframesRuleCallback, onlyActiveRules);
-          }
-        }
-      },
-
-      // add a string of cssText to the document.
-      applyCss: function(cssText, moniker, target, contextNode) {
-        var style = this.createScopeStyle(cssText, moniker);
-        return this.applyStyle(style, target, contextNode);
-      },
-
-      applyStyle: function(style, target, contextNode) {
-        target = target || document.head;
-        var after = (contextNode && contextNode.nextSibling) ||
-          target.firstChild;
-        this.__lastHeadApplyNode = style;
-        return target.insertBefore(style, after);
-      },
-
-      createScopeStyle: function(cssText, moniker) {
-        var style = document.createElement('style');
-        if (moniker) {
-          style.setAttribute('scope', moniker);
-        }
-        style.textContent = cssText;
-        return style;
-      },
-
-      __lastHeadApplyNode: null,
-
-      // insert a comment node as a styling position placeholder.
-      applyStylePlaceHolder: function(moniker) {
-        var placeHolder = document.createComment(' Shady DOM styles for ' +
-          moniker + ' ');
-        var after = this.__lastHeadApplyNode ?
-          this.__lastHeadApplyNode.nextSibling : null;
-        var scope = document.head;
-        scope.insertBefore(placeHolder, after || scope.firstChild);
-        this.__lastHeadApplyNode = placeHolder;
-        return placeHolder;
-      },
 
       isTargetedBuild: function(buildType) {
-        return Polymer.StyleSettings.nativeShadow ? buildType === 'shadow' : buildType === 'shady';
+        return (!window.ShadyDOM || !ShadyDOM.inUse) ?
+          buildType === 'shadow' : buildType === 'shady';
       },
 
       cssBuildTypeForModule: function (module) {
@@ -122,66 +27,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       getCssBuildType: function(element) {
         return element.getAttribute('css-build');
-      },
-
-      // Walk from text[start] matching parens
-      // returns position of the outer end paren
-      _findMatchingParen: function(text, start) {
-        var level = 0;
-        for (var i=start, l=text.length; i < l; i++) {
-          switch (text[i]) {
-            case '(':
-              level++;
-              break;
-            case ')':
-              if (--level === 0) {
-                return i;
-              }
-              break;
-          }
-        }
-        return -1;
-      },
-
-      processVariableAndFallback: function(str, callback) {
-        // find 'var('
-        var start = str.indexOf('var(');
-        if (start === -1) {
-          // no var?, everything is prefix
-          return callback(str, '', '', '');
-        }
-        //${prefix}var(${inner})${suffix}
-        var end = this._findMatchingParen(str, start + 3);
-        var inner = str.substring(start + 4, end);
-        var prefix = str.substring(0, start);
-        // suffix may have other variables
-        var suffix = this.processVariableAndFallback(str.substring(end + 1), callback);
-        var comma = inner.indexOf(',');
-        // value and fallback args should be trimmed to match in property lookup
-        if (comma === -1) {
-          // variable, no fallback
-          return callback(prefix, inner.trim(), '', suffix);
-        }
-        // var(${value},${fallback})
-        var value = inner.substring(0, comma).trim();
-        var fallback = inner.substring(comma + 1).trim();
-        return callback(prefix, value, fallback, suffix);
-      },
-
-      rx: {
-        VAR_ASSIGN: /(?:^|[;\s{]\s*)(--[\w-]*?)\s*:\s*(?:([^;{]*)|{([^}]*)})(?:(?=[;\s}])|$)/gi,
-        MIXIN_MATCH: /(?:^|\W+)@apply\s*\(?([^);\n]*)\)?/gi,
-        VAR_CONSUMED: /(--[\w-]+)\s*([:,;)]|$)/gi,
-        ANIMATION_MATCH: /(animation\s*:)|(animation-name\s*:)/,
-        MEDIA_MATCH: /@media[^(]*(\([^)]*\))/,
-        IS_VAR: /^--/,
-        BRACKETED: /\{[^}]*\}/g,
-        HOST_PREFIX: '(?:^|[^.#[:])',
-        HOST_SUFFIX: '($|[.:[\\s>+~])'
-      },
-
-      parser: Polymer.CssParse,
-      ruleTypes: Polymer.CssParse.types
+      }
 
     };
 
