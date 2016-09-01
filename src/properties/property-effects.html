@@ -13,10 +13,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/path.html">
 <link rel="import" href="property-accessors.html">
+<link rel="import" href="../attributes/attributes.html">
 <!-- for notify, reflect -->
 <link rel="import" href="../utils/case-map.html">
 <!-- for annotated effects -->
-<link rel="import" href="../template/annotations.html">
+<link rel="import" href="../template/template-stamp.html">
 
 
 <script>
@@ -27,7 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   const CaseMap = Polymer.CaseMap;
 
   const TYPES = {
-    ANY: '___propertyEffects',
+    ANY: '__propertyEffects',
     COMPUTE: '__computeEffects',
     REFLECT: '__reflectEffects',
     NOTIFY: '__notifyEffects',
@@ -585,10 +586,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.PropertyEffects = Polymer.Utils.dedupingMixin(function(superClass) {
 
-    return class PropertyEffects extends Polymer.Annotations(
-      Polymer.PropertyAccessors(superClass)) {
+    return class PropertyEffects extends Polymer.TemplateStamp(
+      Polymer.Attributes(Polymer.PropertyAccessors(superClass))) {
 
-      static get PROPERTY_EFFECT_TYPES() {
+      get PROPERTY_EFFECT_TYPES() {
         return TYPES;
       }
 
@@ -630,7 +631,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let val;
         if (!effects) {
           effects = this.__propertyEffects[property] = [];
-          val = this._createPropertyAccessor(this, property,
+          val = this._createPropertyAccessor(property,
             type == TYPES.READ_ONLY);
         }
         // effects are accumulated into arrays per property based on type
@@ -702,7 +703,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _flushProperties(fromAbove) {
         if (!this.__dataInitialized) {
           this.__dataInitialized = true;
-          this._ready();
+          this.ready();
         }
         if (this.__dataPending || this.__dataPendingClients) {
           this.__dataFromAbove = fromAbove;
@@ -711,7 +712,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      _ready() {}
+      ready() {}
 
       _stampTemplate(template) {
         let dom = super._stampTemplate(template);
@@ -731,11 +732,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Aliases one data path as another, such that path notifications from one
        * are routed to the other.
        *
-       * @method _linkPaths
+       * @method linkPaths
        * @param {string} to Target path to link.
        * @param {string} from Source path to link.
        */
-      _linkPaths(to, from) {
+      linkPaths(to, from) {
         this.__dataLinkedPaths = this.__dataLinkedPaths || {};
         if (from) {
           this.__dataLinkedPaths[to] = from;
@@ -750,10 +751,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Note, the path to unlink should be the target (`to`) used when
        * linking the paths.
        *
-       * @method _unlinkPaths
+       * @method unlinkPaths
        * @param {string} path Target path to unlink.
        */
-      _unlinkPaths(path) {
+      unlinkPaths(path) {
         if (this.__dataLinkedPaths) {
           delete this.__dataLinkedPaths[path];
         }
@@ -768,7 +769,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *     ...
        *     this.items.splice(1, 1, {name: 'Sam'});
        *     this.items.push({name: 'Bob'});
-       *     this._notifySplices('items', [
+       *     this.notifySplices('items', [
        *       { index: 1, removed: [{name: 'Todd'}], addedCount: 1, obect: this.items, type: 'splice' },
        *       { index: 3, removed: [], addedCount: 1, object: this.items, type: 'splice'}
        *     ]);
@@ -787,7 +788,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   reported in index order (raw results from `Object.observe` are not
        *   ordered and must be normalized/merged before notifying).
       */
-      _notifySplices(path, splices) {
+      notifySplices(path, splices) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
         // Notify change to key-based path
@@ -991,10 +992,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return ret;
       }
 
+      notifyPath(path, value) {
+        this._setProperty(path, value);
+      }
+
       // -- readOnly ----------------------------------------------
 
       _createReadOnlyProperty(property, privateSetter) {
-        this._addPropertyEffect(this, property, TYPES.READ_ONLY);
+        this._addPropertyEffect(property, TYPES.READ_ONLY);
         if (privateSetter) {
           this['_set' + upper(property)] = function(value) {
             this._setProperty(property, value);
@@ -1005,7 +1010,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // -- observer ----------------------------------------------
 
       _createObservedProperty(property, methodName, context) {
-        this._addPropertyEffect(this, property, TYPES.OBSERVE, {
+        this._addPropertyEffect(property, TYPES.OBSERVE, {
           fn: runObserverEffect,
           info: {
             methodName: methodName,
@@ -1073,45 +1078,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _setupBindings(dom, notes) {
         setupBindings(this, dom, notes);
       }
-
-      // extendWithAPI(superClass) {
-
-      //   return class extends super.extendWithAPI(superClass) {
-
-      //     /**
-      //      * Aliases one data path as another, such that path notifications from one
-      //      * are routed to the other.
-      //      *
-      //      * @method linkPaths
-      //      * @param {string} to Target path to link.
-      //      * @param {string} from Source path to link.
-      //      */
-      //     linkPaths(to, from) {
-      //       this._linkPaths(to, from);
-      //     }
-
-      //     /**
-      //      * Removes a data path alias previously established with `linkPaths`.
-      //      *
-      //      * Note, the path to unlink should be the target (`to`) used when
-      //      * linking the paths.
-      //      *
-      //      * @method unlinkPaths
-      //      * @param {string} path Target path to unlink.
-      //      */
-      //     unlinkPaths(path) {
-      //       this._unlinkPaths(path);
-      //     }
-
-      //     notifyPath(path, value) {
-      //       this._setProperty(path, value);
-      //     }
-
-      //     notifySplices(path, splices) {
-      //       this._notifySplices(path, splices);
-      //     }
-      //   }
-      // }
 
     }
 
