@@ -13,7 +13,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/path.html">
 <link rel="import" href="property-accessors.html">
-
 <!-- for notify, reflect -->
 <link rel="import" href="../utils/case-map.html">
 <!-- for annotated effects -->
@@ -51,6 +50,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return effects;
   }
 
+  // -- effects ----------------------------------------------
+
   function runEffects(inst, property, value, old, effects) {
     for (let i=0, l=effects.length, fx; (i<l) && (fx=effects[i]); i++) {
       if (Polymer.Path.matches(fx.path, property)) {
@@ -58,6 +59,501 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
   }
+
+  function runObserverEffect(inst, property, value, old, info) {
+    let fn = (info.context || inst)[info.methodName];
+    if (fn) {
+      fn.call(inst, value, old);
+    } else {
+      console.warn('observer method `' + info.methodName + '` not defined');
+    }
+  }
+
+  function runNotifyEffect(inst, path, value, old, info) {
+    let detail = { value: value };
+    if (info.property !== path) {
+      detail.path = path;
+    }
+    inst.dispatchEvent(new CustomEvent(info.eventName, { detail }));
+  }
+
+  function runReflectEffect(inst, property, value, old, info) {
+    inst._propertyToAttribute(property, info.attrName);
+  }
+
+  function runMultiObserverEffect(inst, property, value, old, info) {
+    runMethodEffect(inst, property, value, old, info);
+  }
+
+  function runComputedEffect(inst, property, value, old, info) {
+    var result = runMethodEffect(inst, property, value, old, info);
+    var computedProp = info.methodInfo;
+    inst._setPropertyFromComputation(computedProp, result);
+  }
+
+  // -- bindings / annotations ----------------------------------------------
+
+  function bindTemplate(inst, template) {
+    let notes = inst._parseTemplateAnnotations(template);
+    processAnnotations(notes);
+    for (let i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
+      // where to find the node in the concretized list
+      let b$ = note.bindings;
+      for (let j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
+        if (shouldAddListener(binding)) {
+          addAnnotatedListener(inst, i, binding.name,
+            binding.parts[0].value,
+            binding.parts[0].event,
+            binding.parts[0].negate);
+        }
+        addAnnotationEffect(inst, binding, i);
+      }
+    }
+  }
+
+  function addAnnotationEffect(inst, note, index) {
+    for (let i=0; i<note.parts.length; i++) {
+      let part = note.parts[i];
+      if (part.signature) {
+        addAnnotationMethodEffect(inst, note, part, index);
+      } else if (!part.literal) {
+        if (note.kind === 'attribute' && note.name[0] === '-') {
+          console.warn('Cannot set attribute ' + note.name +
+            ' because "-" is not a valid attribute starting character');
+        } else {
+          inst._addPropertyEffect(part.value, TYPES.PROPAGATE, {
+            fn: runAnnotationEffect,
+            info:  {
+              kind: note.kind,
+              index: index,
+              name: note.name,
+              propertyName: note.propertyName,
+              value: part.value,
+              isCompound: note.isCompound,
+              compoundIndex: part.compoundIndex,
+              event: part.event,
+              customEvent: part.customEvent,
+              negate: part.negate
+            }
+          });
+        }
+      }
+    }
+  }
+
+  function runAnnotationEffect(inst, path, value, old, info) {
+    let node = inst._nodes[info.index];
+    // Subpath notification: transform path and set to client
+    // e.g.: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo.prop'=obj.sub.prop
+    if ((path.length > info.value.length) &&
+        (info.kind == 'property') && !info.isCompound &&
+        node._hasPropertyEffect && node._hasPropertyEffect(info.name)) {
+      path = Polymer.Path.translate(info.value, info.name, path);
+      inst._setPropertyToNodeFromAnnotation(node, path, value);
+    } else {
+      // Root or deeper path was set; extract bound path value
+      // e.g.: foo="{{obj.sub}}", path: 'obj', set 'foo'=obj.sub
+      //   or: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo'=obj.sub
+      if (path != info.value) {
+        value = Polymer.Path.get(this, info.value);
+        inst.__data[info.value] = value;
+      }
+      // Propagate value to child
+      applyAnnotationValue(inst, info, value);
+    }
+  }
+
+  function applyAnnotationValue(inst, info, value) {
+    let node = inst._nodes[info.index];
+    let property = info.name;
+    value = computeAnnotationValue(node, property, value, info);
+    if (info.kind == 'attribute') {
+      inst._valueToAttribute(node, value, property);
+    } else {
+      if (node._hasPropertyEffect && node._hasPropertyEffect(property)) {
+        inst._setPropertyToNodeFromAnnotation(node, property, value);
+      } else if (inst._shouldPropChange(node[property], value)) {
+        node[property] = value;
+      }
+    }
+  }
+
+  // Process compound, negate, special case properties
+  function computeAnnotationValue(node, property, value, info) {
+    if (info.negate) {
+      value = !value;
+    }
+    if (info.isCompound) {
+      let storage = node.__dataCompoundStorage[property];
+      storage[info.compoundIndex] = value;
+      value = storage.join('');
+    }
+    if (info.kind !== 'attribute') {
+      // TODO(sorvell): preserve scoping during changes to class
+      // if (property === 'className') {
+      //   value = this._scopeElementClass(node, value);
+      // }
+      // Some browsers serialize `undefined` to `"undefined"`
+      if (property === 'textContent' ||
+          (node.localName == 'input' && property == 'value')) {
+        value = value == undefined ? '' : value;
+      }
+    }
+    return value;
+  }
+
+  function addAnnotationMethodEffect(inst, note, part, index) {
+    createMethodEffect(inst, part.signature, TYPES.PROPAGATE,
+      runAnnotationMethodEffect, {
+        index: index,
+        isCompound: note.isCompound,
+        compoundIndex: part.compoundIndex,
+        kind: note.kind,
+        name: note.name,
+        negate: part.negate,
+        part: part
+      }, true
+    );
+  }
+
+  function runAnnotationMethodEffect(inst, property, value, old, info) {
+    let val = runMethodEffect(inst, property, value, old, info);
+    applyAnnotationValue(inst, info.methodInfo, val);
+  }
+
+  function processAnnotations(notes) {
+    if (!notes._processed) {
+      for (let i=0; i<notes.length; i++) {
+        let note = notes[i];
+        // Parse bindings for methods & path roots (models)
+        for (let j=0; j<note.bindings.length; j++) {
+          let b = note.bindings[j];
+          for (let k=0; k<b.parts.length; k++) {
+            let p = b.parts[k];
+            if (!p.literal) {
+              p.signature = parseMethod(p.value);
+              if (!p.signature) {
+                p.rootProperty = Polymer.Path.root(p.value);
+              }
+            }
+          }
+        }
+        // Recurse into nested templates & bind parent props
+        if (note.templateContent) {
+          processAnnotations(note.templateContent._notes);
+          let pp = note.templateContent._hostProps =
+            discoverTemplateHostProps(note.templateContent._notes);
+          let bindings = [];
+          for (let prop in pp) {
+            bindings.push({
+              index: note.index,
+              kind: 'property',
+              name: '_host_' + prop,
+              parts: [{
+                mode: '{',
+                rootProperty: prop,
+                value: prop
+              }]
+            });
+          }
+          note.bindings = note.bindings.concat(bindings);
+        }
+      }
+      notes._processed = true;
+    }
+  }
+
+  // Finds all bindings in template content and stores the path roots in
+  // the path members in content._hostProps. Each outer template merges
+  // inner _hostProps to propagate inner parent property needs to outer
+  // templates.
+  function discoverTemplateHostProps(notes) {
+    let pp = {};
+    for (let i=0, n; (i<notes.length) && (n=notes[i]); i++) {
+      // Find all bindings to parent.* and spread them into _parentPropChain
+      for (let j=0, b$=n.bindings, b; (j<b$.length) && (b=b$[j]); j++) {
+        for (let k=0, p$=b.parts, p; (k<p$.length) && (p=p$[k]); k++) {
+          if (p.signature) {
+            let args = p.signature.args;
+            for (let kk=0; kk<args.length; kk++) {
+              let rootProperty = args[kk].rootProperty;
+              if (rootProperty) {
+                pp[rootProperty] = true;
+              }
+            }
+            pp[p.signature.methodName] = true;
+          } else {
+            if (p.rootProperty) {
+              pp[p.rootProperty] = true;
+            }
+          }
+        }
+      }
+      // Merge child _hostProps into this _hostProps
+      if (n.templateContent) {
+        let tpp = n.templateContent._hostProps;
+        Polymer.Base.mixin(pp, tpp);
+      }
+    }
+    return pp;
+  }
+
+  function shouldAddListener(effect) {
+    return effect.name &&
+           effect.kind != 'attribute' &&
+           effect.kind != 'text' &&
+           !effect.isCompound &&
+           effect.parts[0].mode === '{';
+  }
+
+  function addAnnotatedListener(inst, index, property, path, event, negate) {
+    if (!inst._bindListeners) {
+      inst._bindListeners = [];
+    }
+    let eventName = event ||
+      (CaseMap.camelToDashCase(property) + '-changed');
+    inst._bindListeners.push({
+      index: index,
+      property: property,
+      path: path,
+      event: eventName,
+      negate: negate
+    });
+  }
+
+  function setupBindListeners(inst) {
+    let b$ = inst._bindListeners;
+    for (let i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
+      let node = inst._nodes[info.index];
+      addNotifyListener(node, inst, info);
+    }
+  }
+
+  function addNotifyListener(node, inst, info) {
+    let rootProperty = Polymer.Path.root(info.path);
+    node.addEventListener(info.event, function(e) {
+      handleNotification(e, inst, info.property, info.path,
+        rootProperty, info.negate);
+    });
+  }
+
+  function handleNotification(e, inst, property, path, rootProperty, negate) {
+    let value;
+    let targetPath = e.detail && e.detail.path;
+    if (targetPath) {
+      path = Polymer.Path.translate(property, path, e.detail.path);
+      value = e.detail && e.detail.value;
+    } else {
+      value = e.target[property];
+    }
+    value = negate ? !value : value;
+    inst._setPropertyFromNotification(path, value, e);
+  }
+
+  // -- for method-based effects (complexObserver & computed) --------------
+
+  function createMethodEffect(inst, sig, type, effectFn, methodInfo, dynamic) {
+    let info = {
+      methodName: sig.methodName,
+      args: sig.args,
+      methodInfo: methodInfo,
+      dynamicFn: dynamic
+    };
+    // TODO(sorvell): why still here?
+    if (sig.static) {
+      inst._addPropertyEffect('__static__', type, {
+        fn: effectFn, info: info
+      });
+    } else {
+      for (let i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
+        if (!arg.literal) {
+          inst._addPropertyEffect(arg.name, type, {
+            fn: effectFn, info: info
+          });
+        }
+      }
+    }
+    if (dynamic) {
+      inst._addPropertyEffect(sig.methodName, type, {
+        fn: effectFn, info: info
+      });
+    }
+  }
+
+  function runMethodEffect(inst, property, value, old, info) {
+    // TODO(kschaaf): ideally rootDataHost would be a detail of Templatizer only
+    let context = inst._rootDataHost || inst;
+    let fn = context[info.methodName];
+    if (fn) {
+      let args = marshalArgs(inst.__data, info, property, value);
+      return fn.apply(context, args);
+    } else if (!info.dynamicFn) {
+      console.warn('method `' + info.methodName + '` not defined');
+    }
+  }
+
+  const emptyArray = [];
+
+  function parseMethod(expression) {
+    // tries to match valid javascript property names
+    let m = expression.match(/([^\s]+?)\(([\s\S]*)\)/);
+    if (m) {
+      let sig = { methodName: m[1], static: true };
+      if (m[2].trim()) {
+        // replace escaped commas with comma entity, split on un-escaped commas
+        let args = m[2].replace(/\\,/g, '&comma;').split(',');
+        return parseArgs(args, sig);
+      } else {
+        sig.args = emptyArray;
+        return sig;
+      }
+    }
+  }
+
+  function parseArgs(argList, sig) {
+    sig.args = argList.map(function(rawArg) {
+      let arg = parseArg(rawArg);
+      if (!arg.literal) {
+        sig.static = false;
+      }
+      return arg;
+    }, this);
+    return sig;
+  }
+
+  function parseArg(rawArg) {
+    // clean up whitespace
+    let arg = rawArg.trim()
+      // replace comma entity with comma
+      .replace(/&comma;/g, ',')
+      // repair extra escape sequences; note only commas strictly need
+      // escaping, but we allow any other char to be escaped since its
+      // likely users will do this
+      .replace(/\\(.)/g, '\$1')
+      ;
+    // basic argument descriptor
+    let a = {
+      name: arg
+    };
+    // detect literal value (must be String or Number)
+    let fc = arg[0];
+    if (fc === '-') {
+      fc = arg[1];
+    }
+    if (fc >= '0' && fc <= '9') {
+      fc = '#';
+    }
+    switch(fc) {
+      case "'":
+      case '"':
+        a.value = arg.slice(1, -1);
+        a.literal = true;
+        break;
+      case '#':
+        a.value = Number(arg);
+        a.literal = true;
+        break;
+    }
+    // if not literal, look for structured path
+    if (!a.literal) {
+      a.rootProperty = Polymer.Path.root(arg);
+      // detect structured path (has dots)
+      a.structured = Polymer.Path.isDeep(arg);
+      if (a.structured) {
+        a.wildcard = (arg.slice(-2) == '.*');
+        if (a.wildcard) {
+          a.name = arg.slice(0, -2);
+        }
+      }
+    }
+    return a;
+  }
+
+  // path & value are used to fill in wildcard descriptor when effect is
+  // being called as a result of a path notification
+  function marshalArgs(data, info, path, value) {
+    let values = [];
+    let args = info.args;
+    for (let i=0, l=args.length; i<l; i++) {
+      let arg = args[i];
+      let name = arg.name;
+      let v;
+      if (arg.literal) {
+        v = arg.value;
+      } else if (path == name) {
+        v = value;
+      } else {
+        // TODO(kschaaf): confirm design of this
+        v = data[name];
+        if (v === undefined && arg.structured) {
+          v = Polymer.Path.get(data, name);
+        }
+      }
+      if (arg.wildcard) {
+        // Only send the actual path changed info if the change that
+        // caused the observer to run matched the wildcard
+        let baseChanged = (name.indexOf(path + '.') === 0);
+        let matches = (path.indexOf(name) === 0 && !baseChanged);
+        values[i] = {
+          path: matches ? path : name,
+          value: matches ? value : v,
+          base: v
+        };
+      } else {
+        values[i] = v;
+      }
+    }
+    return values;
+  }
+
+  function setupBindings(inst, dom, notes) {
+    if (notes.length) {
+      let nodes = new Array(notes.length);
+      for (let i=0; i < notes.length; i++) {
+        let note = notes[i];
+        let node = nodes[i] = inst._findTemplateAnnotatedNode(dom, note);
+        node.__dataHost = inst;
+        if (note.bindings) {
+          setupCompoundBinding(note, node);
+        }
+      }
+      inst._nodes = nodes;
+    }
+    if (inst._bindListeners) {
+      setupBindListeners(inst);
+    }
+  }
+
+  function setupCompoundBinding(note, node) {
+    let bindings = note.bindings;
+    for (let i=0; i<bindings.length; i++) {
+      let binding = bindings[i];
+      if (binding.isCompound) {
+        // Create compound storage map
+        let storage = node.__dataCompoundStorage ||
+          (node.__dataCompoundStorage = {});
+        let parts = binding.parts;
+        // Copy literals from parts into storage for this binding
+        let literals = new Array(parts.length);
+        for (let j=0; j<parts.length; j++) {
+          literals[j] = parts[j].literal;
+        }
+        let name = binding.name;
+        storage[name] = literals;
+        // Configure properties with their literal parts
+        if (binding.literal && binding.kind == 'property') {
+          // TODO(kschaaf) config integration
+          // if (node._configValue) {
+          //   node._configValue(name, binding.literal);
+          // } else {
+            node[name] = binding.literal;
+          // }
+        }
+      }
+    }
+  }
+
+  // data api
 
   // Note: this implemetation only accepts key-based array paths
   function notifySplices(inst, array, path, splices) {
@@ -83,9 +579,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }]);
   }
 
-  Polymer.PropertyEffects = Polymer.dedupeMixin(function(superClass) {
+  function upper(name) {
+    return name[0].toUpperCase() + name.substring(1);
+  }
 
-    class PropertyEffects extends Polymer.Annotations(
+  Polymer.PropertyEffects = Polymer.Utils.dedupingMixin(function(superClass) {
+
+    return class PropertyEffects extends Polymer.Annotations(
       Polymer.PropertyAccessors(superClass)) {
 
       static get PROPERTY_EFFECT_TYPES() {
@@ -100,6 +600,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataPendingClients = null;
         this.__dataFromAbove = false;
         this.__dataLinkedPaths = null;
+        // TODO(sorvell): initialize this?
+        this.__dataCompoundStorage = null;
+        this._bindListeners = null;
+        this._nodes = null;
+        this.__dataHost = null;
         // initialize data with prototype values saved when creating accessors
         if (this.__dataProto) {
           this.__data = Object.create(this.__dataProto);
@@ -146,6 +651,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return Boolean(effects && effects[property]);
       }
 
+      _hasReadOnlyEffect(property) {
+        return this._hasPropertyEffect(property, TYPES.READ_ONLY);
+      }
+
+      _hasNotifyEffect(property) {
+        return this._hasPropertyEffect(property, TYPES.NOTIFY);
+      }
+
+      _hasReflectEffect(property) {
+        return this._hasPropertyEffect(property, TYPES.REFLECT);
+      }
+
+      _hasComputedEffect(property) {
+        return this._hasPropertyEffect(property, TYPES.COMPUTE);
+      }
+
       // Runtime ----------------------------------------
 
       // This function isolates relatively expensive functionality necessary
@@ -156,7 +677,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // is a managed property, returns an index-to-key transformed path
       // sutable for setting into the system via setProperty/setPendingProperty
       // `path` can be a user-facing path string or array of path parts.
-      _setPathOrUnmanagedProperty( path, value) {
+      _setPathOrUnmanagedProperty(path, value) {
         let rootProperty = Polymer.Path.root(Array.isArray(path) ? path[0] : path);
         let _hasEffect = this._hasPropertyEffect(rootProperty);
         let isPath = (rootProperty !== path);
@@ -232,7 +753,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @method _unlinkPaths
        * @param {string} path Target path to unlink.
        */
-      _unlinkPaths(this, path) {
+      _unlinkPaths(path) {
         if (this.__dataLinkedPaths) {
           delete this.__dataLinkedPaths[path];
         }
@@ -274,6 +795,70 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
+       * Convienence method for reading a value from a path.
+       *
+       * Note, if any part in the path is undefined, this method returns
+       * `undefined` (this method does not throw when dereferencing undefined
+       * paths).
+       *
+       * @method get
+       * @param {(string|Array<(string|number)>)} path Path to the value
+       *   to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
+       *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
+       *   bracketed expressions are not supported; string-based path parts
+       *   *must* be separated by dots.  Note that when dereferencing array
+       *   indices, the index may be used as a dotted part directly
+       *   (e.g. `users.12.name` or `['users', 12, 'name']`).
+       * @param {Object=} root Root object from which the path is evaluated.
+       * @return {*} Value at the path, or `undefined` if any part of the path
+       *   is undefined.
+       */
+      get(path, root) {
+        return Polymer.Path.get(root || this, path);
+      }
+
+      /**
+       * Convienence method for setting a value to a path and notifying any
+       * elements bound to the same path.
+       *
+       * Note, if any part in the path except for the last is undefined,
+       * this method does nothing (this method does not throw when
+       * dereferencing undefined paths).
+       *
+       * @method set
+       * @param {(string|Array<(string|number)>)} path Path to the value
+       *   to write.  The path may be specified as a string (e.g. `foo.bar.baz`)
+       *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
+       *   bracketed expressions are not supported; string-based path parts
+       *   *must* be separated by dots.  Note that when dereferencing array
+       *   indices, the index may be used as a dotted part directly
+       *   (e.g. `users.12.name` or `['users', 12, 'name']`).
+       * @param {*} value Value to set at the specified path.
+      */
+      set(path, value) {
+        if (!this._hasReadOnlyEffect(path)) {
+          if ((path = this._setPathOrUnmanagedProperty(path, value))) {
+            this._setProperty(path, value);
+          }
+        }
+      }
+
+      _setPropertyFromNotification(path, value) {
+        this.set(path, value);
+      }
+
+      _setPropertyToNodeFromAnnotation(node, prop, value) {
+        // TODO(sorvell): how do we know node has this api?
+        if (!node._hasReadOnlyEffect(prop)) {
+          node._setProperty(prop, value);
+        }
+      }
+
+      _setPropertyFromComputation(prop, value) {
+        this[prop] = value;
+      }
+
+      /**
        * Adds items onto the end of the array at the path specified.
        *
        * The arguments after `path` and return value match that of
@@ -282,12 +867,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * This method notifies other paths to the same array that a
        * splice occurred to the array.
        *
-       * @method _push
+       * @method push
        * @param {String} path Path to array.
        * @param {...any} var_args Items to push onto array
        * @return {number} New length of the array.
        */
-      _push(path, ...items) {
+      push(path, ...items) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
         let len = array.length;
@@ -307,11 +892,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * This method notifies other paths to the same array that a
        * splice occurred to the array.
        *
-       * @method _pop
+       * @method pop
        * @param {String} path Path to array.
        * @return {any} Item that was removed.
        */
-      _pop(path) {
+      pop(path) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
         let hadLength = Boolean(array.length);
@@ -332,14 +917,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * This method notifies other paths to the same array that a
        * splice occurred to the array.
        *
-       * @method _splice
+       * @method splice
        * @param {String} path Path to array.
        * @param {number} start Index from which to start removing/inserting.
        * @param {number} deleteCount Number of items to remove.
        * @param {...any} var_args Items to insert into array.
        * @return {Array} Array of removed items.
        */
-      _splice(path, start, deleteCount, ...items) {
+      splice(path, start, deleteCount, ...items) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
         // Normalize fancy native splice handling of crazy start values
@@ -367,11 +952,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * This method notifies other paths to the same array that a
        * splice occurred to the array.
        *
-       * @method _shift
+       * @method shift
        * @param {String} path Path to array.
        * @return {any} Item that was removed.
        */
-      _shift(path) {
+      shift(path) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
         let hadLength = Boolean(array.length);
@@ -391,12 +976,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * This method notifies other paths to the same array that a
        * splice occurred to the array.
        *
-       * @method _unshift
+       * @method unshift
        * @param {String} path Path to array.
        * @param {...any} var_args Items to insert info array
        * @return {number} New length of the array.
        */
-      _unshift(path, ...items) {
+      unshift(path, ...items) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
         let ret = array.unshift(...items);
@@ -406,51 +991,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return ret;
       }
 
-      // TODO(kschaaf): MIXINIFY HERE!!!
-
       // -- readOnly ----------------------------------------------
 
-      createReadOnlyProperty(model, property, privateSetter) {
-        model = this.getModel(model);
-        this.addPropertyEffect(model, property, TYPES.READ_ONLY);
-        let lib = this;
+      _createReadOnlyProperty(property, privateSetter) {
+        this._addPropertyEffect(this, property, TYPES.READ_ONLY);
         if (privateSetter) {
-          model['_set' + this._upper(property)] = function(value) {
-            lib.setProperty(this, property, value);
+          this['_set' + upper(property)] = function(value) {
+            this._setProperty(property, value);
           }
         }
-      }
-
-      _upper(name) {
-        return name[0].toUpperCase() + name.substring(1);
       }
 
       // -- observer ----------------------------------------------
 
-      createObserver(model, property, methodName, context) {
-        this.addPropertyEffect(model, property, TYPES.OBSERVE, {
-          fn: this._runObserverEffect,
+      _createObservedProperty(property, methodName, context) {
+        this._addPropertyEffect(this, property, TYPES.OBSERVE, {
+          fn: runObserverEffect,
           info: {
             methodName: methodName,
-            context: context ? this.getModel(context) : null
+            context: context ? this : null
           }
         });
       }
 
-      _runObserverEffect(this, property, value, old, info) {
-        let fn = (info.context || this)[info.methodName];
-        if (fn) {
-          fn.call(this, value, old);
-        } else {
-          console.warn('observer method `' + info.methodName + '` not defined');
-        }
-      }
-
       // -- notify ----------------------------------------------
 
-      createNotifyingProperty(model, property) {
-        this.addPropertyEffect(model, property, TYPES.NOTIFY, {
-          fn: this._runNotifyEffect,
+      _createNotifyingProperty(property) {
+        this._addPropertyEffect(property, TYPES.NOTIFY, {
+          fn: runNotifyEffect,
           info: {
             eventName: CaseMap.camelToDashCase(property) + '-changed',
             property: property
@@ -458,24 +1026,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       }
 
-      _runNotifyEffect(this, path, value, old, info) {
-        let detail = { value: value };
-        if (info.property !== path) {
-          detail.path = path;
-        }
-        this.dispatchEvent(new CustomEvent(info.eventName, { detail }));
-      }
-
       // -- reflect ----------------------------------------------
 
-      createReflectedProperty(model, property) {
+      _createReflectedProperty(property) {
         let attr = CaseMap.camelToDashCase(property);
         if (attr[0] === '-') {
           console.warn('Property ' + property + ' cannot be reflected to attribute ' +
             attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property thisead.');
         } else {
-          this.addPropertyEffect(model, property, TYPES.REFLECT, {
-            fn: this._runReflectEffect,
+          this._addPropertyEffect(property, TYPES.REFLECT, {
+            fn: runReflectEffect,
             info: {
               attrName: attr
             }
@@ -483,693 +1043,75 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      _runReflectEffect(this, property, value, old, info) {
-        this.attributes.propertyToAttribute(this, property, info.attrName);
-      }
-
       // -- complexObserver ----------------------------------------------
 
-      createMethodObserver(model, expression) {
-        let sig = this._parseMethod(expression);
+      _createMethodObserver(expression) {
+        let sig = parseMethod(expression);
         if (!sig) {
           throw new Error("Malformed observer expression '" + expression + "'");
         }
-        this._createMethodEffect(model, sig, TYPES.OBSERVE,
-          this._runMultiObserverEffect);
-      }
-
-      _runMultiObserverEffect(this, property, value, old, info) {
-        this._runMethodEffect(this, property, value, old, info);
+        createMethodEffect(this, sig, TYPES.OBSERVE, runMultiObserverEffect);
       }
 
       // -- computed ----------------------------------------------
 
-      createComputedProperty(model, property, expression) {
-        let sig = this._parseMethod(expression);
+      _createComputedProperty(property, expression) {
+        let sig = parseMethod(expression);
         if (!sig) {
           throw new Error("Malformed computed expression '" + expression + "'");
         }
-        this._createMethodEffect(model, sig, TYPES.COMPUTE,
-          this._runComputedEffect, property);
-      }
-
-      _runComputedEffect(this, property, value, old, info) {
-        this[info.methodInfo] = this._runMethodEffect(this, property, value, old, info);
+        createMethodEffect(this, sig, TYPES.COMPUTE,
+          runComputedEffect, property);
       }
 
       // -- annotation ----------------------------------------------
 
-      bindTemplate(model, template) {
-        let notes = this.annotations.parseAnnotations(template);
-        model = this.getModel(model);
-        this._processAnnotations(notes);
-        for (let i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
-          // where to find the node in the concretized list
-          let b$ = note.bindings;
-          for (let j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
-            if (this._shouldAddListener(binding)) {
-              this._addAnnotatedListener(model, i, binding.name,
-                binding.parts[0].value,
-                binding.parts[0].event,
-                binding.parts[0].negate);
-            }
-            this._addAnnotationEffect(model, binding, i);
-          }
-        }
+      _bindTemplate(template) {
+        bindTemplate(this, template);
       }
 
-      _addAnnotationEffect(model, note, index) {
-        for (let i=0; i<note.parts.length; i++) {
-          let part = note.parts[i];
-          if (part.signature) {
-            this._addAnnotationMethodEffect(model, note, part, index);
-          } else if (!part.literal) {
-            if (note.kind === 'attribute' && note.name[0] === '-') {
-              console.warn('Cannot set attribute ' + note.name +
-                ' because "-" is not a valid attribute starting character');
-            } else {
-              this.addPropertyEffect(model, part.value, TYPES.PROPAGATE, {
-                fn: this._runAnnotationEffect,
-                info:  {
-                  kind: note.kind,
-                  index: index,
-                  name: note.name,
-                  propertyName: note.propertyName,
-                  value: part.value,
-                  isCompound: note.isCompound,
-                  compoundIndex: part.compoundIndex,
-                  event: part.event,
-                  customEvent: part.customEvent,
-                  negate: part.negate
-                }
-              });
-            }
-          }
-        }
+      _setupBindings(dom, notes) {
+        setupBindings(this, dom, notes);
       }
 
-      _runAnnotationEffect(this, path, value, old, info) {
-        let node = this._nodes[info.index];
-        // Subpath notification: transform path and set to client
-        // e.g.: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo.prop'=obj.sub.prop
-        if ((path.length > info.value.length) &&
-            (info.kind == 'property') && !info.isCompound &&
-            this.constructor.data._hasPropertyEffect(node, info.name)) {
-          path = Polymer.Path.translate(info.value, info.name, path);
-          this._setPropertyFromAnnotation(this, node, path, value);
-        } else {
-          // Root or deeper path was set; extract bound path value
-          // e.g.: foo="{{obj.sub}}", path: 'obj', set 'foo'=obj.sub
-          //   or: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo'=obj.sub
-          if (path != info.value) {
-            value = Polymer.Path.get(this, info.value);
-            this.__data[info.value] = value;
-          }
-          // Propagate value to child
-          this._applyAnnotationValue(this, info, value);
-        }
-      }
+      // extendWithAPI(superClass) {
 
-      _applyAnnotationValue(this, info, value) {
-        let node = this._nodes[info.index];
-        let property = info.name;
-        let value = this._computeAnnotationValue(node, property, value, info);
-        if (info.kind == 'attribute') {
-          this.attributes.valueToAttribute(node, value, property);
-        } else {
-          if (this._hasPropertyEffect(node, property)) {
-            this._setPropertyFromAnnotation(this, node, property, value);
-          } else if (this.shouldPropChange(node[property], value)) {
-            node[property] = value;
-          }
-        }
-      }
+      //   return class extends super.extendWithAPI(superClass) {
 
-      // Process compound, negate, special case properties
-      _computeAnnotationValue(node, property, value, info) {
-        if (info.negate) {
-          value = !value;
-        }
-        if (info.isCompound) {
-          let storage = node.__dataCompoundStorage[property];
-          storage[info.compoundIndex] = value;
-          value = storage.join('');
-        }
-        if (info.kind !== 'attribute') {
-          // TODO(sorvell): preserve scoping during changes to class
-          // if (property === 'className') {
-          //   value = this._scopeElementClass(node, value);
-          // }
-          // Some browsers serialize `undefined` to `"undefined"`
-          if (property === 'textContent' ||
-              (node.localName == 'input' && property == 'value')) {
-            value = value == undefined ? '' : value;
-          }
-        }
-        return value;
-      }
+      //     /**
+      //      * Aliases one data path as another, such that path notifications from one
+      //      * are routed to the other.
+      //      *
+      //      * @method linkPaths
+      //      * @param {string} to Target path to link.
+      //      * @param {string} from Source path to link.
+      //      */
+      //     linkPaths(to, from) {
+      //       this._linkPaths(to, from);
+      //     }
 
-      _setPropertyFromAnnotation(host, node, prop, value) {
-        if (!this._hasReadOnlyEffect(node, prop)) {
-          this.setProperty(node, prop, value);
-        }
-      }
+      //     /**
+      //      * Removes a data path alias previously established with `linkPaths`.
+      //      *
+      //      * Note, the path to unlink should be the target (`to`) used when
+      //      * linking the paths.
+      //      *
+      //      * @method unlinkPaths
+      //      * @param {string} path Target path to unlink.
+      //      */
+      //     unlinkPaths(path) {
+      //       this._unlinkPaths(path);
+      //     }
 
-      _addAnnotationMethodEffect(model, note, part, index) {
-        this._createMethodEffect(model, part.signature, TYPES.PROPAGATE,
-          this._runAnnotationMethodEffect, {
-            index: index,
-            isCompound: note.isCompound,
-            compoundIndex: part.compoundIndex,
-            kind: note.kind,
-            name: note.name,
-            negate: part.negate,
-            part: part
-          }, true
-        );
-      }
+      //     notifyPath(path, value) {
+      //       this._setProperty(path, value);
+      //     }
 
-     _runAnnotationMethodEffect(this, property, value, old, info) {
-        let val = this._runMethodEffect(this, property, value, old, info);
-        this._applyAnnotationValue(this, info.methodInfo, val);
-      }
-
-      _processAnnotations(notes) {
-        if (!notes._processed) {
-          for (let i=0; i<notes.length; i++) {
-            let note = notes[i];
-            // Parse bindings for methods & path roots (models)
-            for (let j=0; j<note.bindings.length; j++) {
-              let b = note.bindings[j];
-              for (let k=0; k<b.parts.length; k++) {
-                let p = b.parts[k];
-                if (!p.literal) {
-                  p.signature = this._parseMethod(p.value);
-                  if (!p.signature) {
-                    p.rootProperty = Polymer.Path.root(p.value);
-                  }
-                }
-              }
-            }
-            // Recurse into nested templates & bind parent props
-            if (note.templateContent) {
-              this._processAnnotations(note.templateContent._notes);
-              let pp = note.templateContent._hostProps =
-                this._discoverTemplateHostProps(note.templateContent._notes);
-              let bindings = [];
-              for (let prop in pp) {
-                bindings.push({
-                  index: note.index,
-                  kind: 'property',
-                  name: '_host_' + prop,
-                  parts: [{
-                    mode: '{',
-                    rootProperty: prop,
-                    value: prop
-                  }]
-                });
-              }
-              note.bindings = note.bindings.concat(bindings);
-            }
-          }
-          notes._processed = true;
-        }
-      }
-
-      // Finds all bindings in template content and stores the path roots in
-      // the path members in content._hostProps. Each outer template merges
-      // inner _hostProps to propagate inner parent property needs to outer
-      // templates.
-      _discoverTemplateHostProps(notes) {
-        let pp = {};
-        for (let i=0, n; (i<notes.length) && (n=notes[i]); i++) {
-          // Find all bindings to parent.* and spread them into _parentPropChain
-          for (let j=0, b$=n.bindings, b; (j<b$.length) && (b=b$[j]); j++) {
-            for (let k=0, p$=b.parts, p; (k<p$.length) && (p=p$[k]); k++) {
-              if (p.signature) {
-                let args = p.signature.args;
-                for (let kk=0; kk<args.length; kk++) {
-                  let rootProperty = args[kk].rootProperty;
-                  if (rootProperty) {
-                    pp[rootProperty] = true;
-                  }
-                }
-                pp[p.signature.methodName] = true;
-              } else {
-                if (p.rootProperty) {
-                  pp[p.rootProperty] = true;
-                }
-              }
-            }
-          }
-          // Merge child _hostProps into this _hostProps
-          if (n.templateContent) {
-            let tpp = n.templateContent._hostProps;
-            Polymer.Base.mixin(pp, tpp);
-          }
-        }
-        return pp;
-      }
-
-      _shouldAddListener(effect) {
-        return effect.name &&
-               effect.kind != 'attribute' &&
-               effect.kind != 'text' &&
-               !effect.isCompound &&
-               effect.parts[0].mode === '{';
-      }
-
-      _addAnnotatedListener(model, index, property, path, event, negate) {
-        if (!model._bindListeners) {
-          model._bindListeners = [];
-        }
-        let eventName = event ||
-          (CaseMap.camelToDashCase(property) + '-changed');
-        model._bindListeners.push({
-          index: index,
-          property: property,
-          path: path,
-          event: eventName,
-          negate: negate
-        });
-      }
-
-      _setupBindListeners(this) {
-        let b$ = this._bindListeners;
-        for (let i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
-          let node = this._nodes[info.index];
-          this._addNotifyListener(node, this, info);
-        }
-      }
-
-      _addNotifyListener(node, this, info) {
-        let lib = this;
-        let rootProperty = Polymer.Path.root(info.path);
-        node.addEventListener(info.event, function(e) {
-          lib._handleNotification(e, this, info.property, info.path,
-            rootProperty, info.negate);
-        });
-      }
-
-      _handleNotification(e, this, property, path, rootProperty, negate) {
-        let value;
-        let targetPath = e.detail && e.detail.path;
-        if (targetPath) {
-          path = Polymer.Path.translate(property, path, e.detail.path);
-          value = e.detail && e.detail.value;
-        } else {
-          value = e.target[property];
-        }
-        value = negate ? !value : value;
-        this._setPropertyFromNotification(this, path, value, e);
-      }
-
-      _setPropertyFromNotification(host, path, value, event) {
-        if (!this._hasReadOnlyEffect(host, path)) {
-          if (path = this.setPathOrUnmanagedProperty(host, path, value)) {
-            this.setProperty(host, path, value);
-          }
-        }
-      }
-
-      // -- for method-based effects (complexObserver & computed) --------------
-
-      _createMethodEffect(model, sig, type, effectFn, methodInfo, dynamic) {
-        let info = {
-          methodName: sig.methodName,
-          args: sig.args,
-          methodInfo: methodInfo,
-          dynamicFn: dynamic
-        };
-        if (sig.static) {
-          this.addPropertyEffect(model, '__static__', type, {
-            fn: effectFn, info: info
-          });
-        } else {
-          for (let i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
-            if (!arg.literal) {
-              this.addPropertyEffect(model, arg.name, type, {
-                fn: effectFn, info: info
-              });
-            }
-          }
-        }
-        if (dynamic) {
-          this.addPropertyEffect(model, sig.methodName, type, {
-            fn: effectFn, info: info
-          });
-        }
-      }
-
-      _runMethodEffect(this, property, value, old, info) {
-        // TODO(kschaaf): ideally rootDataHost would be a detail of Templatizer only
-        let context = this._rootDataHost || this;
-        let fn = context[info.methodName];
-        if (fn) {
-          let args = this._marshalArgs(this.__data, info, property, value);
-          return fn.apply(context, args);
-        } else if (!info.dynamicFn) {
-          console.warn('method `' + info.methodName + '` not defined');
-        }
-      }
-
-      _parseMethod(expression) {
-        // tries to match valid javascript property names
-        let m = expression.match(/([^\s]+?)\(([\s\S]*)\)/);
-        if (m) {
-          let sig = { methodName: m[1], static: true };
-          if (m[2].trim()) {
-            // replace escaped commas with comma entity, split on un-escaped commas
-            let args = m[2].replace(/\\,/g, '&comma;').split(',');
-            return this._parseArgs(args, sig);
-          } else {
-            sig.args = Polymer.nar;
-            return sig;
-          }
-        }
-      }
-
-      _parseArgs(argList, sig) {
-        sig.args = argList.map(function(rawArg) {
-          let arg = this._parseArg(rawArg);
-          if (!arg.literal) {
-            sig.static = false;
-          }
-          return arg;
-        }, this);
-        return sig;
-      }
-
-      _parseArg(rawArg) {
-        // clean up whitespace
-        let arg = rawArg.trim()
-          // replace comma entity with comma
-          .replace(/&comma;/g, ',')
-          // repair extra escape sequences; note only commas strictly need
-          // escaping, but we allow any other char to be escaped since its
-          // likely users will do this
-          .replace(/\\(.)/g, '\$1')
-          ;
-        // basic argument descriptor
-        let a = {
-          name: arg
-        };
-        // detect literal value (must be String or Number)
-        let fc = arg[0];
-        if (fc === '-') {
-          fc = arg[1];
-        }
-        if (fc >= '0' && fc <= '9') {
-          fc = '#';
-        }
-        switch(fc) {
-          case "'":
-          case '"':
-            a.value = arg.slice(1, -1);
-            a.literal = true;
-            break;
-          case '#':
-            a.value = Number(arg);
-            a.literal = true;
-            break;
-        }
-        // if not literal, look for structured path
-        if (!a.literal) {
-          a.rootProperty = Polymer.Path.root(arg);
-          // detect structured path (has dots)
-          a.structured = Polymer.Path.isDeep(arg);
-          if (a.structured) {
-            a.wildcard = (arg.slice(-2) == '.*');
-            if (a.wildcard) {
-              a.name = arg.slice(0, -2);
-            }
-          }
-        }
-        return a;
-      }
-
-      // path & value are used to fill in wildcard descriptor when effect is
-      // being called as a result of a path notification
-      _marshalArgs(model, info, path, value) {
-        let values = [];
-        let args = info.args;
-        for (let i=0, l=args.length; i<l; i++) {
-          let arg = args[i];
-          let name = arg.name;
-          let v;
-          if (arg.literal) {
-            v = arg.value;
-          } else if (path == name) {
-            v = value;
-          } else {
-            // TODO(kschaaf): confirm design of this
-            v = model[name];
-            if (v === undefined && arg.structured) {
-              v = Polymer.Path.get(model, name);
-            }
-          }
-          if (arg.wildcard) {
-            // Only send the actual path changed info if the change that
-            // caused the observer to run matched the wildcard
-            let baseChanged = (name.indexOf(path + '.') === 0);
-            let matches = (path.indexOf(name) === 0 && !baseChanged);
-            values[i] = {
-              path: matches ? path : name,
-              value: matches ? value : v,
-              base: v
-            };
-          } else {
-            values[i] = v;
-          }
-        }
-        return values;
-      }
-
-      setupBindings(this, dom, notes) {
-        if (notes.length) {
-          let nodes = new Array(notes.length);
-          for (let i=0; i < notes.length; i++) {
-            let note = notes[i];
-            let node = nodes[i] = this.annotations.findAnnotatedNode(dom, note);
-            node.dataHost = this;
-            if (note.bindings) {
-              this._setupCompoundBinding(note, node);
-            }
-          }
-          this._nodes = nodes;
-        }
-        if (this._bindListeners) {
-          this._setupBindListeners(this);
-        }
-      }
-
-      _setupCompoundBinding(note, node) {
-        let bindings = note.bindings;
-        for (let i=0; i<bindings.length; i++) {
-          let binding = bindings[i];
-          if (binding.isCompound) {
-            // Create compound storage map
-            let storage = node.__dataCompoundStorage ||
-              (node.__dataCompoundStorage = {});
-            let parts = binding.parts;
-            // Copy literals from parts into storage for this binding
-            let literals = new Array(parts.length);
-            for (let j=0; j<parts.length; j++) {
-              literals[j] = parts[j].literal;
-            }
-            let name = binding.name;
-            storage[name] = literals;
-            // Configure properties with their literal parts
-            if (binding.literal && binding.kind == 'property') {
-              // TODO(kschaaf) config integration
-              // if (node._configValue) {
-              //   node._configValue(name, binding.literal);
-              // } else {
-                node[name] = binding.literal;
-              // }
-            }
-          }
-        }
-      }
-
-      extendWithAPI(superClass) {
-
-        return class extends super.extendWithAPI(superClass) {
-          /**
-           * Convienence method for reading a value from a path.
-           *
-           * Note, if any part in the path is undefined, this method returns
-           * `undefined` (this method does not throw when dereferencing undefined
-           * paths).
-           *
-           * @method get
-           * @param {(string|Array<(string|number)>)} path Path to the value
-           *   to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
-           *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
-           *   bracketed expressions are not supported; string-based path parts
-           *   *must* be separated by dots.  Note that when dereferencing array
-           *   indices, the index may be used as a dotted part directly
-           *   (e.g. `users.12.name` or `['users', 12, 'name']`).
-           * @param {Object=} root Root object from which the path is evaluated.
-           * @return {*} Value at the path, or `undefined` if any part of the path
-           *   is undefined.
-           */
-          get(path, root) {
-            return Polymer.Path.get(root || this, path);
-          }
-
-          /**
-           * Convienence method for setting a value to a path and notifying any
-           * elements bound to the same path.
-           *
-           * Note, if any part in the path except for the last is undefined,
-           * this method does nothing (this method does not throw when
-           * dereferencing undefined paths).
-           *
-           * @method set
-           * @param {(string|Array<(string|number)>)} path Path to the value
-           *   to write.  The path may be specified as a string (e.g. `foo.bar.baz`)
-           *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
-           *   bracketed expressions are not supported; string-based path parts
-           *   *must* be separated by dots.  Note that when dereferencing array
-           *   indices, the index may be used as a dotted part directly
-           *   (e.g. `users.12.name` or `['users', 12, 'name']`).
-           * @param {*} value Value to set at the specified path.
-          */
-          set(path, value) {
-            let data = this.constructor.data;
-            if (!data._hasReadOnlyEffect(this, path)) {
-              if (path = data.setPathOrUnmanagedProperty(this, path, value)) {
-                data.setProperty(this, path, value);
-              }
-            }
-          }
-
-          /**
-           * Adds items onto the end of the array at the path specified.
-           *
-           * The arguments after `path` and return value match that of
-           * `Array.prototype.push`.
-           *
-           * This method notifies other paths to the same array that a
-           * splice occurred to the array.
-           *
-           * @method push
-           * @param {String} path Path to array.
-           * @param {...any} var_args Items to push onto array
-           * @return {number} New length of the array.
-           */
-          push(path, ...items) {
-            return this.constructor.data.push(this, path, ...items);
-          }
-
-          /**
-           * Removes an item from the end of array at the path specified.
-           *
-           * The arguments after `path` and return value match that of
-           * `Array.prototype.pop`.
-           *
-           * This method notifies other paths to the same array that a
-           * splice occurred to the array.
-           *
-           * @method pop
-           * @param {String} path Path to array.
-           * @return {any} Item that was removed.
-           */
-          pop(path) {
-            return this.constructor.data.pop(this, path);
-          }
-
-          /**
-           * Removes an item from the beginning of array at the path specified.
-           *
-           * The arguments after `path` and return value match that of
-           * `Array.prototype.pop`.
-           *
-           * This method notifies other paths to the same array that a
-           * splice occurred to the array.
-           *
-           * @method shift
-           * @param {String} path Path to array.
-           * @return {any} Item that was removed.
-           */
-          shift(path) {
-            return this.constructor.data.shift(this, path);
-          }
-
-          /**
-           * Adds items onto the beginning of the array at the path specified.
-           *
-           * The arguments after `path` and return value match that of
-           * `Array.prototype.push`.
-           *
-           * This method notifies other paths to the same array that a
-           * splice occurred to the array.
-           *
-           * @method unshift
-           * @param {String} path Path to array.
-           * @param {...any} var_args Items to insert info array
-           * @return {number} New length of the array.
-           */
-          unshift(path, ...items) {
-            return this.constructor.data.unshift(this, path, ...items);
-          }
-
-          /**
-           * Starting from the start index specified, removes 0 or more items
-           * from the array and inserts 0 or more new itms in their place.
-           *
-           * The arguments after `path` and return value match that of
-           * `Array.prototype.splice`.
-           *
-           * This method notifies other paths to the same array that a
-           * splice occurred to the array.
-           *
-           * @method splice
-           * @param {String} path Path to array.
-           * @param {number} start Index from which to start removing/inserting.
-           * @param {number} deleteCount Number of items to remove.
-           * @param {...any} var_args Items to insert into array.
-           * @return {Array} Array of removed items.
-           */
-          splice(path, start, deleteCount, ...items) {
-            return this.constructor.data.splice(this, path, start, deleteCount, ...items);
-          }
-
-          /**
-           * Aliases one data path as another, such that path notifications from one
-           * are routed to the other.
-           *
-           * @method linkPaths
-           * @param {string} to Target path to link.
-           * @param {string} from Source path to link.
-           */
-          linkPaths(to, from) {
-            this.constructor.data.linkPaths(this, to, from);
-          }
-
-          /**
-           * Removes a data path alias previously established with `linkPaths`.
-           *
-           * Note, the path to unlink should be the target (`to`) used when
-           * linking the paths.
-           *
-           * @method unlinkPaths
-           * @param {string} path Target path to unlink.
-           */
-          unlinkPaths(path) {
-            this.constructor.data.unlinkPaths(this, path);
-          }
-
-          notifyPath(path, value) {
-            this.constructor.data.setProperty(this, path, value);
-          }
-
-          notifySplices(path, splices) {
-            this.constructor.data.notifySplices(this, path, splices);
-          }
-        }
-      }
+      //     notifySplices(path, splices) {
+      //       this._notifySplices(path, splices);
+      //     }
+      //   }
+      // }
 
     }
 

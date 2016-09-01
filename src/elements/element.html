@@ -14,7 +14,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/case-map.html">
 <link rel="import" href="../events/event-listeners.html">
 <link rel="import" href="../template/template-stamp.html">
-<link rel="import" href="../attributes/attribute-to-from-property.html">
+<link rel="import" href="../attributes/attributes.html">
 <link rel="import" href="../properties/meta-effects.html">
 <link rel="import" href="../styling/style-gather.html">
 <link rel="import" href="../styling/style-util.html">
@@ -24,17 +24,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
-  var utils = Polymer.Utils;
-  var caseMap = Polymer.CaseMap;
+  let utils = Polymer.Utils;
+  let caseMap = Polymer.CaseMap;
 
-  var events = new Polymer.EventListeners();
-  var templateStamp = new Polymer.TemplateStamp(events);
-  var attributes = new Polymer.AttributeToFromProperty();
-  var data = new Polymer.MetaEffects(templateStamp, attributes);
+  Polymer.ElementMixin = Polymer.Utils.cachingMixin(function(base) {
 
-  var ElementMixin = function(Base) {
-
-    class PolymerElement extends data.extendWithAPI(Base) {
+    return class PolymerElement extends Polymer.MetaEffects(base) {
 
       // returns the config object on specifically on `this` class (not super)
       // config is used for:
@@ -56,7 +51,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static get _flattenedProperties() {
         if (!this.hasOwnProperty('__flattenedProperties')) {
           this.__flattenedProperties = this._ownConfig.properties || {};
-          var superCtor = Object.getPrototypeOf(this.prototype).constructor;
+          let superCtor = Object.getPrototypeOf(this.prototype).constructor;
           if (superCtor.prototype instanceof PolymerElement) {
             this.__flattenedProperties = utils.mixin(
               Object.create(superCtor._flattenedProperties),
@@ -72,14 +67,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._observedAttributes = this._addPropertiesToAttributes(
             this._flattenedProperties, []);
           // TODO(kschaaf): revisit: capture import document, to aid finding dom-module
-          var currentScript = document._currentScript || document.currentScript;
+          let currentScript = document._currentScript || document.currentScript;
           this.__importDoc = currentScript && currentScript.ownerDocument;
         }
         return this._observedAttributes;
       }
 
       static _addPropertiesToAttributes(properties, list) {
-        for (var prop in properties) {
+        for (let prop in properties) {
           list.push(Polymer.CaseMap.camelToDashCase(prop));
         }
         return list;
@@ -100,11 +95,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // `finalizeTemplate(template)`. Both are public but have simiarly
       // awkward subclassing characteristics.
       static finalize() {
-        var proto = this.prototype;
+        let proto = this.prototype;
         if (!this.finalized) {
 
-          var superProto = Object.getPrototypeOf(proto);
-          var superCtor = superProto && superProto.constructor;
+          let superProto = Object.getPrototypeOf(proto);
+          let superCtor = superProto && superProto.constructor;
           if (superCtor.prototype instanceof PolymerElement) {
             superCtor.finalize();
           }
@@ -112,12 +107,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (this.hasOwnProperty('is') && this.is) {
             Polymer.telemetry.register(proto);
           }
-          var config = this._ownConfig;
+          let config = this._ownConfig;
           if (config) {
             this._finalizeConfig(config);
           }
           if (this.template) {
-            var template = this.template.cloneNode(true);
+            let template = this.template.cloneNode(true);
             this._finalizeTemplate(template);
           }
         }
@@ -125,10 +120,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       static _finalizeConfig(config) {
         if (config.properties) {
-          this.data.createProperties(this.prototype, config.properties);
+          // process properties
+          for (let p in config.properties) {
+            this.prototype._createPropertyFromInfo(p, config.properties[p]);
+          }
         }
         if (config.observers) {
-          this.data.createMethodObservers(this.prototype, config.observers);
+          for (let i=0; i < config.observers.length; i++) {
+            this.prototype._createMethodObserver(config.observers[i]);
+          }
         }
       }
 
@@ -155,7 +155,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // template preparation and take a name.
         // TODO(dfreedm): factor so that we do not need an object/element
         // argument
-        var info = {
+        let info = {
           localName: this.is,
           is: this.is,
           extends: this.extends,
@@ -165,7 +165,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // support `include="module-name"`
         let cssText = Polymer.StyleGather.cssFromElement(template);
         if (cssText) {
-          var style = document.createElement('style');
+          let style = document.createElement('style');
           style.textContent = cssText;
           template.content.insertBefore(style, template.content.firstChild);
         }
@@ -174,10 +174,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // TODO(dfreedm): remove when style stuff is refactored
         // away from using element as input.
-        var proto = this.prototype;
+        let proto = this.prototype;
         proto.__notStyleScopeCacheable = info.__notStyleScopeCacheable;
         this.data.clearPropagateEffects(proto);
-        this.data.bindTemplate(proto, template);
+        this.prototype._bindTemplate(template);
         proto._template = template;
       }
 
@@ -189,25 +189,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.constructor.finalize();
         }
         Polymer.telemetry.instanceCount++;
-        // setup batched effects library; will call initialize when flushing
-        this.constructor.data.prepare(this, this.ready);
         // add self to host's pending client list
         hostStack.registerHost(this);
         // apply defaults first.
-        this.constructor.data.setPropertyDefaults(this,
-          this.constructor._flattenedProperties);
+        this._setPropertyDefaults(this.constructor._flattenedProperties);
       }
 
       // reserved for canonical behavior
       connectedCallback() {
         if (hostStack.isEmpty()) {
-          this.constructor.data.flush(this);
+          this._flushProperties();
           this.updateStyles();
         }
-        this.isAttached = true;
       }
 
-      ready() {
+      disconnectedCallback() {}
+
+      _ready() {
         if (!this.root) {
           if (this._template) {
             if (this.attachShadow) {
@@ -225,24 +223,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (this._template) {
           hostStack.beginHosting(this);
-          var dom = this.constructor.data.stamp(this, this._template);
+          let dom = this._stampTemplate(this._template);
           this.root.appendChild(dom);
           hostStack.endHosting(this);
         }
-        this.constructor.data.flush(this);
-      }
-
-      ensureAttribute(attr, value) {
-        this.constructor.attributes.ensureAttribute(this, attr, value);
-      }
-
-      disconnectedCallback() {
-        this.isAttached = false;
+        this._flushProperties();
       }
 
       attributeChangedCallback(name, old, value) {
-        var property = caseMap.dashToCamelCase(name);
-        var type = this.constructor._flattenedProperties[property].type;
+        let property = caseMap.dashToCamelCase(name);
+        let type = this.constructor._flattenedProperties[property].type;
         if (!this.constructor.data._hasReadOnlyEffect(this, property)) {
           this.constructor.attributes.attributeToProperty(this,
             name, value, type);
@@ -257,16 +247,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     }
 
-    PolymerElement.events = events;
-    PolymerElement.templateStamp = templateStamp;
-    PolymerElement.attributes = attributes;
-    PolymerElement.data = data;
+  });
 
-    return PolymerElement;
-
-  }
-
-  var hostStack = {
+  let hostStack = {
 
     stack: [],
 
@@ -276,8 +259,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     registerHost(inst) {
       if (this.stack.length) {
-        var host = this.stack[this.stack.length-1];
-        data.enqueueClient(host, inst);
+        let host = this.stack[this.stack.length-1];
+        host._enqueueClient(inst);
       }
     },
 
@@ -286,7 +269,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     endHosting(inst) {
-      var stackLen = this.stack.length;
+      let stackLen = this.stack.length;
       if (stackLen && this.stack[stackLen-1] == inst) {
         this.stack.pop();
       }
@@ -309,37 +292,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.registrations.forEach(this._regLog);
     }
   };
-
-  Polymer.cachingMixin = function(mixin) {
-    return function(Base) {
-      if (!mixin.__mixinApplications) {
-        mixin.__mixinApplications = new WeakMap();
-      }
-      var application = mixin.__mixinApplications.get(Base);
-      if (!application) {
-        application = mixin(Base);
-        mixin.__mixinApplications.set(Base, application);
-      }
-      return application;
-    }
-  }
-
-  Polymer.dedupingMixin = function(mixin) {
-    mixin = Polymer.cachingMixin(mixin);
-    return function(Base) {
-      let baseMap = Base.__mixinMap;
-      if (baseMap && baseMap.get(mixin)) {
-        return Base;
-      } else {
-        var extended = mixin(Base);
-        extended.__mixinMap = new Map(baseMap);
-        extended.__mixinMap.set(mixin, true);
-        return extended;
-      }
-    }
-  }
-
-  Polymer.ElementMixin = Polymer.cachingMixin(ElementMixin);
 
   Polymer.Element = Polymer.ElementMixin(HTMLElement);
 
