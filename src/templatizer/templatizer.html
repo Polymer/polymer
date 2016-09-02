@@ -18,6 +18,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   (function() {
     'use strict';
 
+    class nullClass {};
+
+    function PatchedHTMLTemplateElement() {
+      return PatchedHTMLTemplateElement._newInstance;
+    };
+    PatchedHTMLTemplateElement.prototype = Object.create(HTMLTemplateElement.prototype, {
+      constructor: {
+        value: PatchedHTMLTemplateElement
+      }
+    });
+    PatchedHTMLTemplateElement._newInstance = null;
+
+    class DataTemplate extends Polymer.BatchedEffects(PatchedHTMLTemplateElement) {
+      static upgradeTemplate(template) {
+        PatchedHTMLTemplateElement._newInstance = template;
+        Object.setPrototypeOf(template, DataTemplate.prototype);
+        new DataTemplate();
+        PatchedHTMLTemplateElement._newInstance = null;
+      }
+    }
+
     class Templatizer {
 
       static enqueueDebouncer(debouncer) {
@@ -30,15 +51,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           while (this._debouncerQueue.length) {
             this._debouncerQueue.shift().flush();
           }
-        }
-      }
-
-      constructor(data) {
-        var self = this;
-        this.data = data || new Polymer.BatchedEffects();
-        // arguments are required
-        if (!this.data) {
-          throw 'PropertyEffects constructor requires `data` delegate.';
         }
       }
 
@@ -63,8 +75,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _createConstructor(template, options) {
         // Anonymous class created by the templatizer
-        var data = this.data;
-        var ctor = class extends data.extendWithAPI(class {}) {
+        var ctor = class extends Polymer.BatchedEffects(nullClass) {
           //TODO(kschaaf): for debugging; remove?
           get localName() { return 'template#' + this.template.id + '/TemplateInstance' }
           constructor(host, props) {
@@ -72,15 +83,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             //TODO(kschaaf): for debugging; remove?
             this.id = this.constructor.instCount;
             this.constructor.instCount++;
-            this.dataHost = this.template;
+            this.__dataHost = this.template;
             if (host) {
-              this._rootDataHost = host.dataHost ?
-                host.dataHost._rootDataHost || host.dataHost : host;
+              this._rootDataHost = host.__dataHost ?
+                host.__dataHost._rootDataHost || host.__dataHost : host;
             }
             this._hostProps = template._content._hostProps;
             this._configureProperties(props);
             //TODO(kschaaf): id marshalling unnecessary
-            this.root = data.stamp(this, template);
+            this.root = this._stampTemplate(template);
             // Save list of stamped children
             var children = this.children = [];
             for (var n = this.root.firstChild; n; n=n.nextSibling) {
@@ -90,7 +101,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             if (host.__hideTemplateChildren__) {
               this._showHideChildren(true);
             }
-            data.flush(this, true);
+            this._flushProperties(true);
           }
           _showHideChildren(hide) {
             var c = this.children;
@@ -133,32 +144,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
           forwardProperty(prop, value, host) {
-            data.setPendingProperty(this, prop, value);
+            this._setPendingProperty(prop, value);
             if (host) {
-              data.enqueueClient(host, this);
+              host._enqueueClient(this);
             }
           }
-          flush() {
-            data.flush(this, true);
+          flushProperties() {
+            this._flushProperties(true);
           }
           dispatchEvent() { }
         }
-        ctor.options = options;
         // TODO(kschaaf): event listeners created need to be decorated with e.model
-        this.data.bindTemplate(ctor, template);
+        ctor.prototype._bindTemplate(template);
         this._prepInstanceProperties(ctor, template, options);
         return ctor;
       }
 
       _prepHostProperties(template, options) {
         if (options.fwdHostPropToInstance) {
+          // Provide data API
+          // TODO(kschaaf): memoize template proto
+          DataTemplate.upgradeTemplate(template);
+          // Add template - >instances effects
+          // and host <- template effects
           var hostProps = template._content._hostProps;
           for (var prop in hostProps) {
-            this.data.addPropertyEffect(template, '_host_' + prop,
-              Polymer.BatchedEffects.Types.PROPAGATE,
+            template._addPropertyEffect('_host_' + prop,
+              template.PROPERTY_EFFECT_TYPES.PROPAGATE,
               {fn: this._createHP2IEffector(prop, options)});
-            this.data.createNotifyingProperty(template, '_host_' + prop);
+            template._createNotifyingProperty('_host_' + prop);
           }
+          // Initialize data with any pre-bound data
           if (template.__dataProto) {
             template.__data = template.__dataProto;
           }
@@ -177,15 +193,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var iprop in options.instanceProps) {
           delete hostProps[iprop];
           if (options.fwdInstancePropToHost) {
-            this.data.addPropertyEffect(ctor, iprop,
-              Polymer.BatchedEffects.Types.NOTIFY,
+            ctor.prototype._addPropertyEffect(iprop,
+              ctor.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
               {fn: this._createIP2HEffector(iprop, options)});
           }
         }
-        if (options.fwdHostPropToInstance && template.dataHost) {
+        if (options.fwdHostPropToInstance && template.__dataHost) {
           for (var hprop in hostProps) {
-            this.data.addPropertyEffect(ctor, hprop,
-              Polymer.BatchedEffects.Types.NOTIFY,
+            ctor.prototype._addPropertyEffect(hprop,
+              ctor.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
               {fn: this._createHP2HEffector(template)})
           }
         }
@@ -204,7 +220,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (!fromAbove) {
             // TODO(kschaaf) This does not take advantage of the efficient
             // upward flow in batched effects
-            this.setProperty(template, '_host_' + prop, value);
+            template._setProperty('_host_' + prop, value);
           }
         }
       }
@@ -232,12 +248,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         while (el) {
           // An element with a _templateInstance marks the top boundary
           // of a scope; walk up until we find one, and then ensure that
-          // its dataHost matches `this`, meaning this dom-repeat stamped it
+          // its __dataHost matches `this`, meaning this dom-repeat stamped it
           if ((model = el._templateInstance)) {
             // Found an element stamped by another template; keep walking up
-            // from its dataHost
-            if (model.dataHost != host) {
-              el = model.dataHost;
+            // from its __dataHost
+            if (model.__dataHost != host) {
+              el = model.__dataHost;
             } else {
               return model;
             }
