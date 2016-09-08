@@ -4,29 +4,67 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
 🚧 Note: Some tests currently fail on non-Chrome browsers; these will be addressed soon, but in the short term Chrome Canary is your best bet. 🚧
 
-## Overarching goals for Polymer 2.0
+## Polymer 2.0 Goals
 
-Polymer 2.0 is designed as a "minimally-breaking" major release that provides an easy migration path for existing applications to take full advantage of the "V1" W3C specifications for Custom Elements and Shadow DOM that will ship natively in multiple browsers starting this fall.  Polymer 2.0 embraces ES6 class-based element definition as the platform-centric method of defining and inheriting from other custom elements, and will also ship with a "backward-compatibility" layer that provides the legacy `Polymer({...})` registration API to ease migration.  With this release, priority has also been given to eliminate areas where Polymer-specific API's have leaked out of the element, to ensure that custom elements built with Polymer can be used like any other DOM node without knowledge of how it was built, ensuring they will interoperate well in any client-side environment (the true promise of Web Components!).  Finally, we are taking the 2.0 release as an opportunity to address feedback on the data system and refactor the library such that its features are available as standalone libraries that can be composed and customized in an alacarte fashion.
+1. **Take advantage of native "v1" Web Components implementations across browsers.**
 
-## Highlights:
+   The primary goal of the Polymer 2.0 release is to take advantage of native, cross-browser support for Web Components.
 
-* Custom Elements and Shadow DOM v1 support
-  * Full V1 Custom Elements and Shadow DOM API support
-  * Support for Es6 class-based Custom Element definition
-  * Integration with new V1-compatible Custom Elements polyfill and Shady DOM shim from [webcomponentsjs](https://github.com/webcomponents/webcomponentsjs)
-* Polymer 2.0 components look just like “vanilla” elements from the outside
-  * Remove the need for `Polymer.dom` API to interact with the DOM via the more transparent Shady DOM shim
-  * Remove the requirement for `set`/`notifyPath` path notifications to propagate deep changes to data
-* Improved data system based on developer feedback
-  * Batch changes and run effects for set of changes in well-defined order (compute, notify, propagate, observe)
-  * Ensure multi-property observers run once per turn for any set of changes to dependencies (removing [multi-property undefined rule](https://www.polymer-project.org/1.0/docs/devguide/observers#multi-property-observers))
-  * Improve compatibilty with flux and other data management systems by removing dirty-check for objects and arrays
-* Improved internal library code factoring
-  * Refactored into decoupled libraries that can stand on their own and be customized and composed using raw ES6 classes and mixins
-  * Allow any optional parts (e.g. Shady DOM shim, custom properties style shim, template elements, etc.) to be opt-in and not loaded/required by default
-* Minimally-breaking "backward-compatibility" API layer
-  * The current `polymer.html` entry point is designed to provide a minimally breaking API surface area for existing users (note [breaking changes](#add-link) below)
-  * Users can opt-in/migrate to the new [ES6 class-based syntax](#add-link) to take full advantage of the more standard platform API and element inheritance
+   Polymer 1.x is built on top of the so-called "v0" Web Components specs, which are supported natively only in Google Chrome; using Polymer in other browsers has always required the use of polyfills.
+
+   Beginning this fall, multiple browsers will be shipping native implementations of the new "v1" specs for Shadow DOM and Custom Elements, yielding better web components performance and reducing the need for polyfills.
+
+   Polymer 2.0 features full support for the v1 specs, taking advantage of native browser implementations where they are available and depending on updated v1 polyfills from [webcomponentsjs](https://github.com/webcomponents/webcomponentsjs) where necessary.
+
+   Polymer 2.0 also embraces the new ES-class-based mechanism for defining custom elements, bringing idiomatic Polymer style closer to "vanilla" custom element authoring.
+
+1. **Provide a smooth migration path from Polymer 1.x.**
+
+   Our second major goal is to provide as easy a transition as possible for developers who have built elements and apps with Polymer 1.x, making Polymer 2.0 a sturdy bridge to the future.
+
+   To upgrade, you will need to make some changes to your 1.x-based elements and apps. These changes are necessitated by both the v0-to-v1 spec transition and a handful of key improvements in Polymer itself (see our remaining goals, below).
+
+   However, we've taken care to limit the number of changes that are strictly required and to ease the process of upgrading:
+
+   * Polymer 2.0 introduces a number of [new idioms and best practices](#link), but we've provided a [lightweight compatibility layer](#link) allowing you to upgrade your 1.x code with minimal modifications. Depending on your needs, you can either take advantage of the compatibility layer or jump straight to idiomatic 2.0 style.
+
+   * Before releasing Polymer 2.0, we'll also provide an upgrade tool to automate as many of the changes (both required and recommended) as possible.
+
+   * Finally, we're working on guidelines for building and testing "hybrid" elements that will run in both Polymer 1.x and Polymer 2.0. We plan to ship hybrid versions of all of the elements that we provide, easing the transition for developers who use them. Third-party element providers may also choose to ship hybrid elements.
+
+   * If you have an especially large app or constraints that don't allow for an all-at-once upgrade, you can also use hybrid elements to migrate your app from 1.x to 2.0 in piecewise fashion: update your elements to hybrid form, individually or in batches, while running against Polymer 1.x; then cut over to Polymer 2.0 when all of your elements have been updated.
+
+1. **Eliminate leaky abstractions.**
+
+   Seamless interoperability is one of Web Components' major selling points. Generally speaking, web components "just work" anywhere you use HTML elements. To use them, you need only be aware of their public attributes, properties, methods and events; you don't need to know anything about their inner workings. This means you can easily mix standard HTML elements, third-party elements and elements you've defined yourself.
+
+   Unfortunately, there are a couple of cases in Polymer 1.x (the `Polymer.dom` API and the `set`/`notifyPath` API) where implementation details of Polymer-based elements leak out, requiring users of the elements to interact with them in non-standard ways. These "leaks" were by design – compromises we chose to make in the interest of performance – but in hindsight we aren't happy with the tradeoff.
+
+   In Polymer 2.0 we've found ways to eliminate these leaky abstractions without unduly compromising performance, which means that your Polymer 2.x-based elements will be indistinguishable from "vanilla" elements from a consumer's point of view (unless you leak implementation details of your own).
+
+1. **Make targeted improvements to the Polymer data system.**
+
+   Based on developer feedback and observations of Polymer apps in the wild, we've also made some key improvements to Polymer's data system. These changes are designed to make it easier to reason about and debug the propagation of data through and between elements:
+
+   * Changes are now batched, and the effects of those changes are run in well-defined order (compute, notify, propagate, observe).
+
+   * We ensure that multi-property observers run exactly once per turn for any set of changes to dependencies (removing the [multi-property undefined rule](https://www.polymer-project.org/1.0/docs/devguide/observers#multi-property-observers)).
+
+   * To improve compatibility with top-down data-flow approaches (e.g. Flux), we no longer dirty-check properties whose values are objects or arrays.
+
+1. **Improve factoring of Polymer and the polyfills**
+
+   We've done some refactoring of Polymer and the webcomponentsjs polyfills to improve efficiency, utility and flexibility:
+
+   * The "Shady DOM" shim that was part of Polymer 1.x has been factored out of Polymer and added to the webcomponentsjs polyfills, along with the related shim for CSS Custom Properties. (As noted above, the Shady DOM shim no longer exposes an alternative API but instead patches the native DOM API.)
+
+   * Polymer itself has been internally factored into several loosely coupled libraries.
+
+     * The new `Polymer.Element` class extends from the native `HTMLElement` and mixes in functionality from these libraries.
+
+     * The idiomatic way of using Polymer 2.0 (assuming you're not using the 1.x compatibility layer) is to define your own custom elements that subclass `Polymer.Element`, using standard ES class definition syntax.
+
+     * If you're interested in using pieces of Polymer's functionality in _a la carte_ fashion, you can try defining your own base element class, utilizing a subset of the libraries. For now, this use case should be considered experimental, as the factoring of libraries is subject to change and is not part of the official Polymer 2.0 API.
 
 ## 1.0 Compatibility Layer
 Polymer 2.0 retains the existing `polymer/polymer.html` import that current Polymer 1.0 users can continue to import, which strives to provide a very minimally-breaking change for code written to the Polymer 1.0 API.  For the most part, existing users upgrading to Polymer 2.0 will only need to adapt existing code to be compliant with the V1 Shadow DOM API related to content distribution and styling, as well as minor breaking changes introduced due to changes in the V1 Custom Elements spec and data-layer improvements listed [below](#add-link).
@@ -227,4 +265,3 @@ id is to use `id`.
 * `<array-selector>` not yet implemented
 * `Polymer.dom`: currently *most* of this is emulated, but some api's may be missing. Please file issues to determine if the missing behavior is an intended breaking change.
 * `Polymer.dom.observeNodes`: we're likely going to provide a breaking replacement for this that's more in the spirit of ShadowDom V1.
-
