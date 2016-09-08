@@ -8,6 +8,7 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/case-map.html">
 <link rel="import" href="resolve-url.html">
 
@@ -61,371 +62,374 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
  *       ...
  *     ]
  *
- * @class Template feature
+ * @class Annotations feature
  */
 (function() {
 
   'use strict';
 
   // null-array (shared empty array to avoid null-checks)
-  Polymer.nar = [];
+  const emptyArray = [];
 
-  class Annotations {
-
-    constructor() {
-      this._insertionPointTag = 'slot';
-    }
-
-    // preprocess-time
-
-    // construct and return a list of annotation records
-    // by scanning `template`'s content
-    //
-    // TODO(sorvell): This should just crawl over a template and call
-    // a supplied list of callbacks.
-    parseAnnotations(template) {
-      // hold a reference to content as _content to prevent odd Chrome gc issue
-      // nested templates also may receive their content as _content
-      var content = (template._content = template._content || template.content);
-      // since a template may be re-used, memo-ize notes.
-      if (!content._notes) {
-        content._notes = [];
-        // TODO(sorvell): whitespace and processAnnotations need to be factored
-        // into plugins
-        this.currentTemplate = this.currentTemplate || template;
-        this._parseNodeAnnotations(content, content._notes,
-          template.hasAttribute('strip-whitespace'));
-      }
-      return content._notes;
-    }
-
-    // add annotations gleaned from subtree at `node` to `list`
-    _parseNodeAnnotations(node, list, stripWhiteSpace) {
-      return node.nodeType === Node.TEXT_NODE ?
-        this._parseTextNodeAnnotation(node, list) :
-          // TODO(sjmiles): are there other nodes we may encounter
-          // that are not TEXT_NODE but also not ELEMENT?
-          this._parseElementAnnotations(node, list, stripWhiteSpace);
-    }
-
-    // TODO(kschaaf): We could modify this to allow an escape mechanism by
-    // looking for the escape sequence in each of the matches and converting
-    // the part back to a literal type, and then bailing if only literals
-    // were found
-    _parseBindings(text) {
-      var re = this._bindingRegex;
-      var parts = [];
-      var lastIndex = 0;
-      var m;
-      // Example: "literal1{{prop}}literal2[[!compute(foo,bar)]]final"
-      // Regex matches:
-      //        Iteration 1:  Iteration 2:
-      // m[1]: '{{'          '[['
-      // m[2]: ''            '!'
-      // m[3]: 'prop'        'compute(foo,bar)'
-      while ((m = re.exec(text)) !== null) {
-        // Add literal part
-        if (m.index > lastIndex) {
-          parts.push({literal: text.slice(lastIndex, m.index)});
-        }
-        // Add binding part
-        // Mode (one-way or two)
-        var mode = m[1][0];
-        var negate = Boolean(m[2]);
-        var value = m[3].trim();
-        var customEvent, notifyEvent, colon;
-        if (mode == '{' && (colon = value.indexOf('::')) > 0) {
-          notifyEvent = value.substring(colon + 2);
-          value = value.substring(0, colon);
-          customEvent = true;
-        }
-        parts.push({
-          compoundIndex: parts.length,
-          value: value,
-          mode: mode,
-          negate: negate,
-          event: notifyEvent,
-          customEvent: customEvent
-        });
-        lastIndex = re.lastIndex;
-      }
-      // Add a final literal part
-      if (lastIndex && lastIndex < text.length) {
-        var literal = text.substring(lastIndex);
-        if (literal) {
-          parts.push({
-            literal: literal
-          });
-        }
-      }
-      if (parts.length) {
-        return parts;
-      }
-    }
-
-    _literalFromParts(parts) {
-      var s = '';
-      for (var i=0; i<parts.length; i++) {
-        var literal = parts[i].literal;
-        s += literal || '';
-      }
-      return s;
-    }
-
-    // add annotations gleaned from TextNode `node` to `list`
-    _parseTextNodeAnnotation(node, list) {
-      var parts = this._parseBindings(node.textContent);
-      if (parts) {
-        // Initialize the textContent with any literal parts
-        // NOTE: default to a space here so the textNode remains; some browsers
-        // (IE) evacipate an empty textNode following cloneNode/importNode.
-        node.textContent = this._literalFromParts(parts) || ' ';
-        var note = {
-          bindings: [{
-            kind: 'text',
-            name: 'textContent',
-            parts: parts,
-            isCompound: parts.length !== 1
-          }]
-        };
-        list.push(note);
-        return note;
-      }
-    }
-
-    // add annotations gleaned from Element `node` to `list`
-    _parseElementAnnotations(element, list, stripWhiteSpace) {
-      var note = {
-        bindings: [],
-        events: []
-      };
-      if (element.localName === this._insertionPointTag) {
-        list._hasInsertionPoint = true;
-      }
-      this._parseChildNodesAnnotations(element, note, list, stripWhiteSpace);
-      // TODO(sjmiles): is this for non-ELEMENT nodes? If so, we should
-      // change the contract of this method, or filter these out above.
-      if (element.attributes) {
-        this._parseNodeAttributeAnnotations(element, note, list);
-        // TODO(sorvell): ad hoc callback for doing work on elements while
-        // leveraging annotator's tree walk.
-        // Consider adding an node callback registry and moving specific
-        // processing out of this module.
-        this.prepElement(element);
-      }
-      if (note.bindings.length || note.events.length || note.id) {
-        list.push(note);
-      }
-      return note;
-    }
-
-    // add annotations gleaned from children of `root` to `list`, `root`'s
-    // `note` is supplied as it is the note.parent of added annotations
-    _parseChildNodesAnnotations(root, note, list, stripWhiteSpace) {
-      if (root.firstChild) {
-        var node = root.firstChild;
-        var i = 0;
-        while (node) {
-          // BREAKME(kschaaf): pseudo-bc auto-wrapper for template type extensions
-          if (node.localName === 'template') {
-            var t = node;
-            var is = t.getAttribute('is');
-            if (is) {
-              t.removeAttribute('is');
-              node = t.ownerDocument.createElement(is);
-              root.replaceChild(node, t);
-              node.appendChild(t);
-              while(t.attributes.length) {
-                node.setAttribute(t.attributes[0].name, t.attributes[0].value);
-                t.removeAttribute(t.attributes[0].name);
-              }
-            }
-          }
-          if (node.localName === 'template' &&
-            !node.hasAttribute('preserve-content')) {
-            this._parseTemplate(node, i, list, note);
-          }
-          // collapse adjacent textNodes: fixes an IE issue that can cause
-          // text nodes to be inexplicably split =(
-          // note that root.normalize() should work but does not so we do this
-          // manually.
-          var next = node.nextSibling;
-          if (node.nodeType === Node.TEXT_NODE) {
-            var n = next;
-            while (n && (n.nodeType === Node.TEXT_NODE)) {
-              node.textContent += n.textContent;
-              next = n.nextSibling;
-              root.removeChild(n);
-              n = next;
-            }
-            // optionally strip whitespace
-            if (stripWhiteSpace && !node.textContent.trim()) {
-              root.removeChild(node);
-              // decrement index since node is removed
-              i--;
-            }
-          }
-          // if this node didn't get evacipated, parse it.
-          if (node.parentNode) {
-            var childAnnotation = this._parseNodeAnnotations(node, list,
-              stripWhiteSpace);
-            if (childAnnotation) {
-              childAnnotation.parent = note;
-              childAnnotation.index = i;
-            }
-          }
-          node = next;
-          i++;
-        }
-      }
-    }
-
-    // 1. Parse annotations from the template and memoize them on
-    //    content._notes (recurses into nested templates)
-    // 2. Remove template.content and store it in annotation list, where it
-    //    will be the responsibility of the host to set it back to the template
-    //    (this is both an optimization to avoid re-stamping nested template
-    //    children and avoids a bug in Chrome where nested template children
-    //    upgrade)
-    _parseTemplate(node, index, list, parent) {
-      var content = document.createDocumentFragment();
-      content._notes = this.parseAnnotations(node);
-      content.appendChild(node.content);
-      // TODO(sjmiles): using `nar` to avoid unnecessary allocation;
-      // in general the handling of these arrays needs some cleanup
-      // in this module
-      list.push({
-        bindings: Polymer.nar,
-        events: Polymer.nar,
-        templateContent: content,
-        parent: parent,
-        index: index
-      });
-    }
-
-    // add annotation data from attributes to the `annotation` for node `node`
-    // TODO(sjmiles): the distinction between an `annotation` and
-    // `annotation data` is not as clear as it could be
-    _parseNodeAttributeAnnotations(node, annotation) {
-      // Make copy of original attribute list, since the order may change
-      // as attributes are added and removed
-      var attrs = Array.prototype.slice.call(node.attributes);
-      for (var i=attrs.length-1, a; (a=attrs[i]); i--) {
-        var n = a.name;
-        var v = a.value;
-        var b;
-        // events (on-*)
-        if (n.slice(0, 3) === 'on-') {
-          node.removeAttribute(n);
-          annotation.events.push({
-            name: n.slice(3),
-            value: v
-          });
-        }
-        // bindings (other attributes)
-        else if ((b = this._parseNodeAttributeAnnotation(node, n, v))) {
-          annotation.bindings.push(b);
-        }
-        // static id
-        else if (n === 'id') {
-          annotation.id = v;
-        }
-      }
-    }
-
-    // construct annotation data from a generic attribute, or undefined
-    _parseNodeAttributeAnnotation(node, name, value) {
-      var parts = this._parseBindings(value);
-      if (parts) {
-        // Attribute or property
-        var origName = name;
-        var kind = 'property';
-        if (name[name.length-1] == '$') {
-          name = name.slice(0, -1);
-          kind = 'attribute';
-        }
-        // Initialize attribute bindings with any literal parts
-        var literal = this._literalFromParts(parts);
-        if (literal && kind == 'attribute') {
-          node.setAttribute(name, literal);
-        }
-        // Clear attribute before removing, since IE won't allow removing
-        // `value` attribute if it previously had a value (can't
-        // unconditionally set '' before removing since attributes with `$`
-        // can't be set using setAttribute)
-        if (node.localName === 'input' && origName === 'value') {
-          node.setAttribute(origName, '');
-        }
-        // Remove annotation
-        node.removeAttribute(origName);
-        // Case hackery: attributes are lower-case, but bind targets
-        // (properties) are case sensitive. Gambit is to map dash-case to
-        // camel-case: `foo-bar` becomes `fooBar`.
-        // Attribute bindings are excepted.
-        var propertyName = Polymer.CaseMap.dashToCamelCase(name);
-        if (kind === 'property') {
-          name = propertyName;
-        }
-        return {
-          kind: kind,
-          name: name,
-          propertyName: propertyName,
-          parts: parts,
-          literal: literal,
-          isCompound: parts.length !== 1
-        };
-      }
-    }
-
-    // instance-time
-    // TODO(sorvell): consider trying to use QS instead of this proprietary
-    // search. This would require some unique way to identify a node, a guid.
-    // Is this faster? simpler? Is that worth polluting the node?
-    findAnnotatedNode(root, note) {
-      // recursively ascend tree until we hit root
-      var parent = note.parent &&
-        this.findAnnotatedNode(root, note.parent);
-      // unwind the stack, returning the indexed node at each level
-      if (parent) {
-        // note: marginally faster than indexing via childNodes
-        // (http://jsperf.com/childnodes-lookup)
-        for (var n=parent.firstChild, i=0; n; n=n.nextSibling) {
-          if (note.index === i++) {
-            return n;
-          }
-        }
-      } else {
-        return root;
-      }
-    }
-
-    // TODO(sorvell): this should be factored into a plugin
-    prepElement(element) {
-      Polymer.ResolveUrl.resolveAttrs(element, this.currentTemplate.ownerDocument);
-    }
-
-  }
-
-  Annotations.prototype._bindingRegex = (function() {
-    var IDENT  = '(?:' + '[a-zA-Z_$][\\w.:$\\-*]*' + ')';
-    var NUMBER = '(?:' + '[-+]?[0-9]*\\.?[0-9]+(?:[eE][-+]?[0-9]+)?' + ')';
-    var SQUOTE_STRING = '(?:' + '\'(?:[^\'\\\\]|\\\\.)*\'' + ')';
-    var DQUOTE_STRING = '(?:' + '"(?:[^"\\\\]|\\\\.)*"' + ')';
-    var STRING = '(?:' + SQUOTE_STRING + '|' + DQUOTE_STRING + ')';
-    var ARGUMENT = '(?:' + IDENT + '|' + NUMBER + '|' +  STRING + '\\s*' + ')';
-    var ARGUMENTS = '(?:' + ARGUMENT + '(?:,\\s*' + ARGUMENT + ')*' + ')';
-    var ARGUMENT_LIST = '(?:' + '\\(\\s*' +
+  let bindingRegex = (function() {
+    let IDENT  = '(?:' + '[a-zA-Z_$][\\w.:$\\-*]*' + ')';
+    let NUMBER = '(?:' + '[-+]?[0-9]*\\.?[0-9]+(?:[eE][-+]?[0-9]+)?' + ')';
+    let SQUOTE_STRING = '(?:' + '\'(?:[^\'\\\\]|\\\\.)*\'' + ')';
+    let DQUOTE_STRING = '(?:' + '"(?:[^"\\\\]|\\\\.)*"' + ')';
+    let STRING = '(?:' + SQUOTE_STRING + '|' + DQUOTE_STRING + ')';
+    let ARGUMENT = '(?:' + IDENT + '|' + NUMBER + '|' +  STRING + '\\s*' + ')';
+    let ARGUMENTS = '(?:' + ARGUMENT + '(?:,\\s*' + ARGUMENT + ')*' + ')';
+    let ARGUMENT_LIST = '(?:' + '\\(\\s*' +
                                   '(?:' + ARGUMENTS + '?' + ')' +
                                 '\\)\\s*' + ')';
-    var BINDING = '(' + IDENT + '\\s*' + ARGUMENT_LIST + '?' + ')'; // Group 3
-    var OPEN_BRACKET = '(\\[\\[|{{)' + '\\s*';
-    var CLOSE_BRACKET = '(?:]]|}})';
-    var NEGATE = '(?:(!)\\s*)?'; // Group 2
-    var EXPRESSION = OPEN_BRACKET + NEGATE + BINDING + CLOSE_BRACKET;
+    let BINDING = '(' + IDENT + '\\s*' + ARGUMENT_LIST + '?' + ')'; // Group 3
+    let OPEN_BRACKET = '(\\[\\[|{{)' + '\\s*';
+    let CLOSE_BRACKET = '(?:]]|}})';
+    let NEGATE = '(?:(!)\\s*)?'; // Group 2
+    let EXPRESSION = OPEN_BRACKET + NEGATE + BINDING + CLOSE_BRACKET;
     return new RegExp(EXPRESSION, "g");
   })();
 
-  Polymer.Annotations = Annotations;
+  let insertionPointTag = 'slot';
+  let currentTemplate;
+
+  function parseTemplateAnnotations(template) {
+    // TODO(kschaaf): File issue and/or remove when fixed
+    // hold a reference to content as _content to prevent odd Chrome gc issue
+    // nested templates also may receive their content as _content
+    let content = (template._content = template._content || template.content);
+    // since a template may be re-used, memo-ize notes.
+    if (!content._notes) {
+      content._notes = [];
+      // TODO(sorvell): whitespace and processAnnotations need to be factored
+      // into plugins
+      // TODO(kschaaf): template should be threaded through rather than implied state
+      currentTemplate = currentTemplate || template;
+      parseNodeAnnotations(content, content._notes,
+        template.hasAttribute('strip-whitespace'));
+    }
+    return content._notes;
+  }
+
+  // add annotations gleaned from subtree at `node` to `list`
+  function parseNodeAnnotations(node, list, stripWhiteSpace) {
+    return node.nodeType === Node.TEXT_NODE ?
+      parseTextNodeAnnotation(node, list) :
+        // TODO(sjmiles): are there other nodes we may encounter
+        // that are not TEXT_NODE but also not ELEMENT?
+        parseElementAnnotations(node, list, stripWhiteSpace);
+  }
+
+  // TODO(kschaaf): We could modify this to allow an escape mechanism by
+  // looking for the escape sequence in each of the matches and converting
+  // the part back to a literal type, and then bailing if only literals
+  // were found
+  function parseBindings(text) {
+    let parts = [];
+    let lastIndex = 0;
+    let m;
+    // Example: "literal1{{prop}}literal2[[!compute(foo,bar)]]final"
+    // Regex matches:
+    //        Iteration 1:  Iteration 2:
+    // m[1]: '{{'          '[['
+    // m[2]: ''            '!'
+    // m[3]: 'prop'        'compute(foo,bar)'
+    while ((m = bindingRegex.exec(text)) !== null) {
+      // Add literal part
+      if (m.index > lastIndex) {
+        parts.push({literal: text.slice(lastIndex, m.index)});
+      }
+      // Add binding part
+      // Mode (one-way or two)
+      let mode = m[1][0];
+      let negate = Boolean(m[2]);
+      let value = m[3].trim();
+      let customEvent, notifyEvent, colon;
+      if (mode == '{' && (colon = value.indexOf('::')) > 0) {
+        notifyEvent = value.substring(colon + 2);
+        value = value.substring(0, colon);
+        customEvent = true;
+      }
+      parts.push({
+        compoundIndex: parts.length,
+        value: value,
+        mode: mode,
+        negate: negate,
+        event: notifyEvent,
+        customEvent: customEvent
+      });
+      lastIndex = bindingRegex.lastIndex;
+    }
+    // Add a final literal part
+    if (lastIndex && lastIndex < text.length) {
+      let literal = text.substring(lastIndex);
+      if (literal) {
+        parts.push({
+          literal: literal
+        });
+      }
+    }
+    if (parts.length) {
+      return parts;
+    }
+  }
+
+  function literalFromParts(parts) {
+    let s = '';
+    for (let i=0; i<parts.length; i++) {
+      let literal = parts[i].literal;
+      s += literal || '';
+    }
+    return s;
+  }
+
+  // add annotations gleaned from TextNode `node` to `list`
+  function parseTextNodeAnnotation(node, list) {
+    let parts = parseBindings(node.textContent);
+    if (parts) {
+      // Initialize the textContent with any literal parts
+      // NOTE: default to a space here so the textNode remains; some browsers
+      // (IE) evacipate an empty textNode following cloneNode/importNode.
+      node.textContent = literalFromParts(parts) || ' ';
+      let note = {
+        bindings: [{
+          kind: 'text',
+          name: 'textContent',
+          parts: parts,
+          isCompound: parts.length !== 1
+        }]
+      };
+      list.push(note);
+      return note;
+    }
+  }
+
+  // add annotations gleaned from Element `node` to `list`
+  function parseElementAnnotations(element, list, stripWhiteSpace) {
+    let note = {
+      bindings: [],
+      events: []
+    };
+    if (element.localName === insertionPointTag) {
+      list._hasInsertionPoint = true;
+    }
+    parseChildNodesAnnotations(element, note, list, stripWhiteSpace);
+    // TODO(sjmiles): is this for non-ELEMENT nodes? If so, we should
+    // change the contract of this method, or filter these out above.
+    if (element.attributes) {
+      parseNodeAttributeAnnotations(element, note, list);
+      // TODO(sorvell): ad hoc callback for doing work on elements while
+      // leveraging annotator's tree walk.
+      // Consider adding an node callback registry and moving specific
+      // processing out of this module.
+      prepElement(element);
+    }
+    if (note.bindings.length || note.events.length || note.id) {
+      list.push(note);
+    }
+    return note;
+  }
+
+  // add annotations gleaned from children of `root` to `list`, `root`'s
+  // `note` is supplied as it is the note.parent of added annotations
+  function parseChildNodesAnnotations(root, note, list, stripWhiteSpace) {
+    if (root.firstChild) {
+      let node = root.firstChild;
+      let i = 0;
+      while (node) {
+        // BREAKME(kschaaf): pseudo-bc auto-wrapper for template type extensions
+        if (node.localName === 'template') {
+          let t = node;
+          let is = t.getAttribute('is');
+          if (is) {
+            t.removeAttribute('is');
+            node = t.ownerDocument.createElement(is);
+            root.replaceChild(node, t);
+            node.appendChild(t);
+            while(t.attributes.length) {
+              node.setAttribute(t.attributes[0].name, t.attributes[0].value);
+              t.removeAttribute(t.attributes[0].name);
+            }
+          }
+        }
+        if (node.localName === 'template' &&
+          !node.hasAttribute('preserve-content')) {
+          parseTemplate(node, i, list, note);
+        }
+        // collapse adjacent textNodes: fixes an IE issue that can cause
+        // text nodes to be inexplicably split =(
+        // note that root.normalize() should work but does not so we do this
+        // manually.
+        let next = node.nextSibling;
+        if (node.nodeType === Node.TEXT_NODE) {
+          let n = next;
+          while (n && (n.nodeType === Node.TEXT_NODE)) {
+            node.textContent += n.textContent;
+            next = n.nextSibling;
+            root.removeChild(n);
+            n = next;
+          }
+          // optionally strip whitespace
+          if (stripWhiteSpace && !node.textContent.trim()) {
+            root.removeChild(node);
+            // decrement index since node is removed
+            i--;
+          }
+        }
+        // if this node didn't get evacipated, parse it.
+        if (node.parentNode) {
+          let childAnnotation = parseNodeAnnotations(node, list,
+            stripWhiteSpace);
+          if (childAnnotation) {
+            childAnnotation.parent = note;
+            childAnnotation.index = i;
+          }
+        }
+        node = next;
+        i++;
+      }
+    }
+  }
+
+  // 1. Parse annotations from the template and memoize them on
+  //    content._notes (recurses into nested templates)
+  // 2. Remove template.content and store it in annotation list, where it
+  //    will be the responsibility of the host to set it back to the template
+  //    (this is both an optimization to avoid re-stamping nested template
+  //    children and avoids a bug in Chrome where nested template children
+  //    upgrade)
+  function parseTemplate(node, index, list, parent) {
+    let content = document.createDocumentFragment();
+    content._notes = parseTemplateAnnotations(node);
+    content.appendChild(node.content);
+    list.push({
+      bindings: emptyArray,
+      events: emptyArray,
+      templateContent: content,
+      parent: parent,
+      index: index
+    });
+  }
+
+  // add annotation data from attributes to the `annotation` for node `node`
+  // TODO(sjmiles): the distinction between an `annotation` and
+  // `annotation data` is not as clear as it could be
+  function parseNodeAttributeAnnotations(node, annotation) {
+    // Make copy of original attribute list, since the order may change
+    // as attributes are added and removed
+    let attrs = Array.prototype.slice.call(node.attributes);
+    for (let i=attrs.length-1, a; (a=attrs[i]); i--) {
+      let n = a.name;
+      let v = a.value;
+      let b;
+      // events (on-*)
+      if (n.slice(0, 3) === 'on-') {
+        node.removeAttribute(n);
+        annotation.events.push({
+          name: n.slice(3),
+          value: v
+        });
+      }
+      // bindings (other attributes)
+      else if ((b = parseNodeAttributeAnnotation(node, n, v))) {
+        annotation.bindings.push(b);
+      }
+      // static id
+      else if (n === 'id') {
+        annotation.id = v;
+      }
+    }
+  }
+
+  // construct annotation data from a generic attribute, or undefined
+  function parseNodeAttributeAnnotation(node, name, value) {
+    let parts = parseBindings(value);
+    if (parts) {
+      // Attribute or property
+      let origName = name;
+      let kind = 'property';
+      if (name[name.length-1] == '$') {
+        name = name.slice(0, -1);
+        kind = 'attribute';
+      }
+      // Initialize attribute bindings with any literal parts
+      let literal = literalFromParts(parts);
+      if (literal && kind == 'attribute') {
+        node.setAttribute(name, literal);
+      }
+      // Clear attribute before removing, since IE won't allow removing
+      // `value` attribute if it previously had a value (can't
+      // unconditionally set '' before removing since attributes with `$`
+      // can't be set using setAttribute)
+      if (node.localName === 'input' && origName === 'value') {
+        node.setAttribute(origName, '');
+      }
+      // Remove annotation
+      node.removeAttribute(origName);
+      // Case hackery: attributes are lower-case, but bind targets
+      // (properties) are case sensitive. Gambit is to map dash-case to
+      // camel-case: `foo-bar` becomes `fooBar`.
+      // Attribute bindings are excepted.
+      let propertyName = Polymer.CaseMap.dashToCamelCase(name);
+      if (kind === 'property') {
+        name = propertyName;
+      }
+      return {
+        kind: kind,
+        name: name,
+        propertyName: propertyName,
+        parts: parts,
+        literal: literal,
+        isCompound: parts.length !== 1
+      };
+    }
+  }
+
+  // TODO(sorvell): this should be factored into a plugin
+  function prepElement(element) {
+    Polymer.ResolveUrl.resolveAttrs(element, currentTemplate.ownerDocument);
+  }
+
+  Polymer.Annotations = Polymer.Utils.dedupingMixin(function(superClass) {
+
+    return class Annotations extends superClass {
+
+      // preprocess-time
+
+      // construct and return a list of annotation records
+      // by scanning `template`'s content
+      //
+      // TODO(sorvell): This should just crawl over a template and call
+      // a supplied list of callbacks.
+      _parseTemplateAnnotations(template) {
+        return parseTemplateAnnotations(template);
+      }
+
+      // instance-time
+      // TODO(sorvell): consider trying to use QS instead of this proprietary
+      // search. This would require some unique way to identify a node, a guid.
+      // Is this faster? simpler? Is that worth polluting the node?
+      _findTemplateAnnotatedNode(root, note) {
+        // recursively ascend tree until we hit root
+        let parent = note.parent && this._findTemplateAnnotatedNode(root,
+          note.parent);
+        // unwind the stack, returning the indexed node at each level
+        if (parent) {
+          // note: marginally faster than indexing via childNodes
+          // (http://jsperf.com/childnodes-lookup)
+          for (let n=parent.firstChild, i=0; n; n=n.nextSibling) {
+            if (note.index === i++) {
+              return n;
+            }
+          }
+        } else {
+          return root;
+        }
+      }
+
+    }
+
+  });
 
 })();
 </script>

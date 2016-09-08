@@ -36,38 +36,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     console.warn(warning);
   }
 
-  // adds support for gestures!
-  var events = new Polymer.GestureEventListeners();
-  var templateStamp = new Polymer.TemplateStamp(events);
-  var data = new Polymer.MetaEffects(templateStamp, Polymer.Element.attributes);
+  Polymer.LegacyElementMixin = Polymer.Utils.cachingMixin(function(base) {
 
-  function LegacyElementMixin(Base) {
-
-    class LegacyElement extends Polymer.ElementMixin(Base) {
+    return class LegacyElement extends Polymer.GestureEventListeners(
+      Polymer.ElementMixin(base)) {
 
       constructor() {
         super();
+        this._applyConfigMetaData();
         this.created();
+      }
+
+      _applyConfigMetaData() {
+        this._applyConfigMetaDataFrom(this.constructor._ownConfig);
+      }
+
+      _applyConfigMetaDataFrom(config) {
+        if (config.listeners) {
+          for (let l in config.listeners) {
+            this._addMethodEventListenerToNode(this, l, config.listeners[l]);
+          }
+        }
+        if (config.hostAttributes) {
+          for (let a in config.hostAttributes) {
+            this._ensureAttribute(a, config.hostAttributes[a]);
+          }
+        }
       }
 
       ready() {
         super.ready();
-        // TODO(sorvell): should this come earlier? e.g. in constructor?
-        var config = this.constructor._ownConfig;
-        if (config.listeners) {
-          this.constructor.events.addMethodListeners(this, config.listeners);
-        }
-        if (config.hostAttributes) {
-          this.constructor.attributes.ensureAttributes(this, config.hostAttributes);
-        }
       }
 
       connectedCallback() {
         super.connectedCallback();
+        this.isAttached = true;
         this.attached();
       }
 
       disconnectedCallback() {
+        this.isAttached = false;
         super.disconnectedCallback();
         this.detached();
       }
@@ -85,28 +93,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       attributeChanged() {}
 
-      // TODO(sorvell): Is this worth exposing anymore? implementing this in your
-      // element does *not* change associated behavior.
       serialize(value) {
-        return this.constructor.attributes.serialize(value);
+        return this._serializeAttribute(value);
       }
 
-      // TODO(sorvell): Is this worth exposing anymore?
       deserialize(value, type) {
-        return this.constructor.attributes.deserialize(value, type);
+        return this._deserializeAttribute(value, type);
       }
 
-      // TODO(sorvell): Is this worth exposing anymore?
       reflectPropertyToAttribute(property, attribute, value) {
-        this.constructor.attributes.propertyToAttribute(this, property,
-          attribute, value);
+        this._propertyToAttribute(this, property, attribute, value);
       }
 
-      // TODO(sorvell): Is this worth exposing anymore?
       serializeValueToAttribute(value, attribute, node) {
-        node = node || this;
-        this.constructor.attributes.valueToAttribute(node, value,
-          attribute, value);
+        this._valueToAttribute(node || this, value, attribute);
       }
 
       /**
@@ -159,7 +159,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {DocumentFragment} Document fragment containing the imported
        *   template content.
       */
-      // TODO(sorvell): Is this worth exposing anymore?
       instanceTemplate(template) {
         var dom =
           document.importNode(template._content || template.content, true);
@@ -221,7 +220,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         var key = eventName + methodName;
         if (!bl[key]) {
-          bl[key] = this.constructor.events.addMethodListener(
+          bl[key] = this._addMethodEventListenerToNode(
             node, eventName, methodName, this);
         }
       }
@@ -242,7 +241,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var key = eventName + methodName;
         var handler = bl && bl[key];
         if (handler) {
-          this.constructor.events.removeListener(node, eventName, handler);
+          this._removeEventListenerFromNode(node, eventName, handler);
           bl[key] = null;
         }
       }
@@ -263,9 +262,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Defaults to `this`.
        */
       setScrollDirection(direction, node) {
-        node = node || this;
-        this.constructor.events.constructor.lib.
-          setTouchAction(node, direction || 'auto');
+        Polymer.Gestures.setTouchAction(node || this, direction || 'auto');
       }
       /* **** End Events **** */
 
@@ -798,14 +795,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     }
 
-    LegacyElement.events = events;
-    LegacyElement.templateStamp = templateStamp;
-    LegacyElement.data = data;
-
-    return LegacyElement;
-  }
-
-  Polymer.LegacyElementMixin = Polymer.cachingMixin(LegacyElementMixin);
+  });
 
   // bc
   Polymer.LegacyElement = Polymer.LegacyElementMixin(HTMLElement);

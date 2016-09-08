@@ -8,94 +8,70 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/utils.html">
 <link rel="import" href="batched-effects.html">
-<link rel="import" href="../utils/case-map.html">
 
 <script>
 (function() {
 
   'use strict';
 
-  var Types = Polymer.PropertyEffects.Types;
+  Polymer.MetaEffects = Polymer.Utils.dedupingMixin(function(superClass) {
 
-  class MetaEffects extends Polymer.BatchedEffects {
+    return class MetaEffects extends Polymer.BatchedEffects(superClass) {
 
-    clearPropagateEffects(model) {
-      model._propagateEffects = {};
-    }
+      _clearPropagateEffects() {
+        this._propagateEffects = {};
+      }
 
-    createProperties(model, properties) {
-      // process properties
-      for (var p in properties) {
-        this.createProperty(model, p, properties[p]);
+      _createPropertyFromInfo(name, info) {
+        // computed forces readOnly...
+        if (info.computed) {
+          info.readOnly = true;
+        }
+        // readOnly, computed, reflect, notify only if not already doing so...
+        if (info.readOnly && !this._hasReadOnlyEffect(name)) {
+          this._createReadOnlyProperty(name, !info.computed);
+        }
+        if (info.computed && !this._hasComputedEffect(name)) {
+          this._createComputedProperty(name, info.computed);
+        }
+        if (info.reflectToAttribute && !this._hasReflectEffect(name)) {
+          this._createReflectedProperty(name);
+        }
+        if (info.notify && !this._hasNotifyEffect(name)) {
+          this._createNotifyingProperty(name);
+        }
+        // always add observer
+        if (info.observer) {
+          this._createObservedProperty(name, info.observer);
+        }
       }
-    }
 
-    createProperty(model, name, info) {
-      // computed forces readOnly...
-      if (info.computed) {
-        info.readOnly = true;
-      }
-      // readOnly, computed, reflect, notify only if not already doing so...
-      if (info.readOnly && !this.hasReadOnlyEffect(model, name)) {
-        this.createReadOnlyProperty(model, name, !info.computed);
-      }
-      if (info.computed && !this.hasComputedEffect(model, name)) {
-        this.createComputedProperty(model, name, info.computed);
-      }
-      if (info.reflectToAttribute && !this.hasReflectEffect(model, name)) {
-        this.createReflectedProperty(model, name);
-      }
-      if (info.notify && !this.hasNotifyEffect(model, name)) {
-        this.createNotifyingProperty(model, name);
-      }
-      // always add observer
-      if (info.observer) {
-        this.createObserver(model, name, info.observer);
-      }
-    }
-
-    createMethodObservers(model, observers) {
-      for (var i=0; i < observers.length; i++) {
-        this.createMethodObserver(model, observers[i]);
-      }
-    }
-
-    setPropertyDefaults(inst, properties) {
-      if (!properties) {
-        return;
-      }
-      var p, info;
-      for (p in properties) {
-        info = properties[p];
-        if ('value' in info) {
-          var value = typeof info.value == 'function' ?
-            info.value.call(inst) :
-            info.value;
-          if (this.hasReadOnlyEffect(inst, p)) {
-            this.setProperty(inst, p, value)
-          } else {
-            inst[p] = value;
+      _setPropertyDefaults(properties) {
+        if (!properties) {
+          return;
+        }
+        var p, info;
+        for (p in properties) {
+          info = properties[p];
+          if ('value' in info) {
+            var value = typeof info.value == 'function' ?
+              info.value.call(this) :
+              info.value;
+            if (this._hasReadOnlyEffect(p)) {
+              this._setProperty(p, value)
+            } else {
+              this[p] = value;
+            }
           }
         }
       }
+
     }
 
-    _addObservedAttribute(model, name) {
-      var attrName = Polymer.CaseMap.camelToDashCase(name);
-      var ctor = model.constructor;
-      if (!ctor.hasOwnProperty('observedAttributes')) {
-        ctor.observedAttributes =
-          ctor.observedAttributes ?
-          ctor.observedAttributes.slice() : [];
-      }
-      ctor.observedAttributes.push(attrName);
-    }
-
-  }
-
-  // export
-  Polymer.MetaEffects = MetaEffects;
+  });
 
 })();
 </script>
