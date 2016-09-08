@@ -1,0 +1,273 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../../src/properties/batched-effects.html">
+<link rel="import" href="../../src/attributes/attributes.html">
+<link rel="import" href="../../src/template/template-stamp.html">
+<link rel="import" href="../../src/events/gesture-event-listeners.html">
+
+<script>
+  (function() {
+    'use strict';
+
+    class nullClass {};
+
+    function PatchedHTMLTemplateElement() {
+      return PatchedHTMLTemplateElement._newInstance;
+    };
+    PatchedHTMLTemplateElement.prototype = Object.create(HTMLTemplateElement.prototype, {
+      constructor: {
+        value: PatchedHTMLTemplateElement
+      }
+    });
+    PatchedHTMLTemplateElement._newInstance = null;
+
+    class DataTemplate extends Polymer.BatchedEffects(PatchedHTMLTemplateElement) {
+      static upgradeTemplate(template) {
+        PatchedHTMLTemplateElement._newInstance = template;
+        Object.setPrototypeOf(template, DataTemplate.prototype);
+        new DataTemplate();
+        PatchedHTMLTemplateElement._newInstance = null;
+      }
+    }
+
+    class Templatizer {
+
+      static enqueueDebouncer(debouncer) {
+        this._debouncerQueue = this._debouncerQueue || [];
+        this._debouncerQueue.push(debouncer);
+      }
+
+      static flushDebouncers() {
+        if (this._debouncerQueue) {
+          while (this._debouncerQueue.length) {
+            this._debouncerQueue.shift().flush();
+          }
+        }
+      }
+
+      templatize(template, options) {
+        if (!template._content) {
+          template._content = template.content;
+        }
+        var ctor = template._content._ctor;
+        if (!ctor) {
+          // Lazily generate memoized constructor
+          ctor = template._content._ctor =
+            this._createConstructor(template, options);
+        }
+        // Host property forwarding must be installed onto template instance
+        this._prepHostProperties(template, options);
+        // Extend memoized constructor and provide reference to the host template
+        ctor = class TemplateInstance extends ctor {};
+        ctor.prototype.template = template;
+        ctor.instCount = 0;
+        return ctor;
+      }
+
+      _createConstructor(template, options) {
+        // Anonymous class created by the templatizer
+        var ctor = class extends Polymer.BatchedEffects(nullClass) {
+          //TODO(kschaaf): for debugging; remove?
+          get localName() { return 'template#' + this.template.id + '/TemplateInstance' }
+          constructor(host, props) {
+            super();
+            //TODO(kschaaf): for debugging; remove?
+            this.id = this.constructor.instCount;
+            this.constructor.instCount++;
+            this.__dataHost = this.template;
+            if (host) {
+              this._rootDataHost = host.__dataHost ?
+                host.__dataHost._rootDataHost || host.__dataHost : host;
+            }
+            this._hostProps = template._content._hostProps;
+            this._configureProperties(props);
+            //TODO(kschaaf): id marshalling unnecessary
+            this.root = this._stampTemplate(template);
+            // Save list of stamped children
+            var children = this.children = [];
+            for (var n = this.root.firstChild; n; n=n.nextSibling) {
+              children.push(n);
+              n._templateInstance = this;
+            }
+            if (host.__hideTemplateChildren__) {
+              this._showHideChildren(true);
+            }
+            this._flushProperties(true);
+          }
+          _showHideChildren(hide) {
+            var c = this.children;
+            for (var i=0; i<c.length; i++) {
+              var n = c[i];
+              // Ignore non-changes
+              if (Boolean(hide) != Boolean(n.__hideTemplateChildren__)) {
+                if (n.nodeType === Node.TEXT_NODE) {
+                  if (hide) {
+                    n.__polymerTextContent__ = n.textContent;
+                    n.textContent = '';
+                  } else {
+                    n.textContent = n.__polymerTextContent__;
+                  }
+                } else if (n.style) {
+                  if (hide) {
+                    n.__polymerDisplay__ = n.style.display;
+                    n.style.display = 'none';
+                  } else {
+                    n.style.display = n.__polymerDisplay__;
+                  }
+                }
+              }
+              n.__hideTemplateChildren__ = hide;
+              if (n._showHideChildren) {
+                n._showHideChildren(hide);
+              }
+            }
+          }
+          _configureProperties(props) {
+            if (props) {
+              for (var iprop in options.instanceProps) {
+                if (iprop in props) {
+                  this[iprop] = props[iprop];
+                }
+              }
+            }
+            for (var hprop in this._hostProps) {
+              this[hprop] = this.template['_host_' + hprop];
+            }
+          }
+          forwardProperty(prop, value, host) {
+            this._setPendingProperty(prop, value);
+            if (host) {
+              host._enqueueClient(this);
+            }
+          }
+          flushProperties() {
+            this._flushProperties(true);
+          }
+          dispatchEvent() { }
+        }
+        // TODO(kschaaf): event listeners created need to be decorated with e.model
+        ctor.prototype._bindTemplate(template);
+        this._prepInstanceProperties(ctor, template, options);
+        return ctor;
+      }
+
+      _prepHostProperties(template, options) {
+        if (options.fwdHostPropToInstance) {
+          // Provide data API
+          // TODO(kschaaf): memoize template proto
+          DataTemplate.upgradeTemplate(template);
+          // Add template - >instances effects
+          // and host <- template effects
+          var hostProps = template._content._hostProps;
+          for (var prop in hostProps) {
+            template._addPropertyEffect('_host_' + prop,
+              template.PROPERTY_EFFECT_TYPES.PROPAGATE,
+              {fn: this._createHP2IEffector(prop, options)});
+            template._createNotifyingProperty('_host_' + prop);
+          }
+          // Initialize data with any pre-bound data
+          if (template.__dataProto) {
+            template.__data = template.__dataProto;
+          }
+        }
+      }
+
+      _createHP2IEffector(hostProp, options) {
+        return function(inst, prop, value) {
+          options.fwdHostPropToInstance.call(inst, inst,
+            prop.substring('_host_'.length), value);
+        }
+      }
+
+      _prepInstanceProperties(ctor, template, options) {
+        var hostProps = template._content._hostProps || {};
+        for (var iprop in options.instanceProps) {
+          delete hostProps[iprop];
+          if (options.fwdInstancePropToHost) {
+            ctor.prototype._addPropertyEffect(iprop,
+              ctor.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
+              {fn: this._createIP2HEffector(iprop, options)});
+          }
+        }
+        if (options.fwdHostPropToInstance && template.__dataHost) {
+          for (var hprop in hostProps) {
+            ctor.prototype._addPropertyEffect(hprop,
+              ctor.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
+              {fn: this._createHP2HEffector(template)})
+          }
+        }
+      }
+
+      _createIP2HEffector(instProp, options) {
+        return function fwdInstPropToHost(inst, prop, value, old, info, fromAbove) {
+          if (!fromAbove) {
+            options.fwdInstancePropToHost.call(inst, inst, prop, value);
+          }
+        }
+      }
+
+      _createHP2HEffector(template) {
+        return function fwdHostPropToHost(inst, prop, value, old, info, fromAbove) {
+          if (!fromAbove) {
+            // TODO(kschaaf) This does not take advantage of the efficient
+            // upward flow in batched effects
+            template._setProperty('_host_' + prop, value);
+          }
+        }
+      }
+
+      /**
+       * Returns the template "model" associated with a given element, which
+       * serves as the binding scope for the template instance the element is
+       * contained in. A template model is an instance of `Polymer.Base`, and
+       * should be used to manipulate data associated with this template instance.
+       *
+       * Example:
+       *
+       *   var model = modelForElement(el);
+       *   if (model.index < 10) {
+       *     model.set('item.checked', true);
+       *   }
+       *
+       * @method modelForElement
+       * @param {HTMLElement} el Element for which to return a template model.
+       * @return {Object<Polymer.Base>} Model representing the binding scope for
+       *   the element.
+       */
+      modelForElement(host, el) {
+        var model;
+        while (el) {
+          // An element with a _templateInstance marks the top boundary
+          // of a scope; walk up until we find one, and then ensure that
+          // its __dataHost matches `this`, meaning this dom-repeat stamped it
+          if ((model = el._templateInstance)) {
+            // Found an element stamped by another template; keep walking up
+            // from its __dataHost
+            if (model.__dataHost != host) {
+              el = model.__dataHost;
+            } else {
+              return model;
+            }
+          } else {
+            // Still in a template scope, keep going up until
+            // a _templateInstance is found
+            el = el.parentNode;
+          }
+        }
+      }
+    }
+
+    Polymer.Templatizer = Templatizer;
+
+  })();
+
+</script>

@@ -1,0 +1,85 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../template/resolve-url.html">
+<script>
+(function() {
+  'use strict';
+
+  var StyleGather = {
+    MODULE_STYLES_SELECTOR: 'style, link[rel=import][type~=css], template',
+    INCLUDE_ATTR: 'include',
+    _importModule(moduleId) {
+      if (!Polymer.DomModule) {
+        return null;
+      }
+      return Polymer.DomModule.import(moduleId);
+    },
+    cssFromModules(moduleIds, warnIfNotFound) {
+      var modules = moduleIds.trim().split(' ');
+      var cssText = '';
+      for (var i=0; i < modules.length; i++) {
+        cssText += this.cssFromModule(modules[i], warnIfNotFound);
+      }
+      return cssText;
+    },
+
+    // returns cssText of styles in a given module; also un-applies any
+    // styles that apply to the document.
+    cssFromModule(moduleId, warnIfNotFound) {
+      var m = this._importModule(moduleId);
+      if (m && !m._cssText) {
+        m._cssText = this.cssFromElement(m);
+      }
+      if (!m && warnIfNotFound) {
+        console.warn('Could not find style data in module named', moduleId);
+      }
+      return m && m._cssText || '';
+    },
+
+    // support lots of ways to discover css...
+    cssFromElement(element) {
+      var cssText = '';
+      // if element is a template, get content from its .content
+      var content = element.content || element;
+      var e$ = content.querySelectorAll(this.MODULE_STYLES_SELECTOR);
+      for (var i=0, e; i < e$.length; i++) {
+        e = e$[i];
+        // look inside templates for elements
+        if (e.localName === 'template') {
+          cssText += this.cssFromElement(e);
+        } else {
+          // style elements inside dom-modules will apply to the main document
+          // we don't want this, so we remove them here.
+          if (e.localName === 'style') {
+            var include = e.getAttribute(this.INCLUDE_ATTR);
+            // now support module refs on 'styling' elements
+            if (include) {
+              cssText += this.cssFromModules(include, true);
+            }
+            // get style element applied to main doc via HTMLImports polyfill
+            e = e.__appliedElement || e;
+            e.parentNode.removeChild(e);
+            cssText += Polymer.ResolveUrl.resolveCss(e.textContent, element.ownerDocument);
+            // it's an import, assume this is a text file of css content.
+            // TODO(sorvell): plan is to deprecate this way to get styles;
+            // remember to add deprecation warning when this is done.
+          } else if (e.import && e.import.body) {
+            cssText += Polymer.ResolveUrl.resolveCss(e.import.body.textContent, e.import);
+          }
+        }
+      }
+      return cssText;
+    }
+  };
+
+  Polymer.StyleGather = StyleGather;
+})();
+</script>

@@ -1,0 +1,177 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/utils.html">
+<link rel="import" href="../events/event-listeners.html">
+<link rel="import" href="annotations.html">
+<script>
+(function() {
+
+  'use strict';
+
+  /**
+   * Scans a template to produce an annotation object that stores expression
+   * metadata along with information to associate the metadata with nodes in an
+   * instance.
+   *
+   * Elements with `id` in the template are noted and marshaled into an
+   * the `$` hash in an instance.
+   *
+   * Example
+   *
+   *     &lt;template>
+   *       &lt;div id="foo">&lt;/div>
+   *     &lt;/template>
+   *     &lt;script>
+   *      Polymer({
+   *        task: function() {
+   *          this.$.foo.style.color = 'red';
+   *        }
+   *      });
+   *     &lt;/script>
+   *
+   * Other expressions that are noted include:
+   *
+   * Double-mustache annotations in text content. The annotation must be the only
+   * content in the tag, compound expressions are not (currently) supported.
+   *
+   *     <[tag]>{{path.to.host.property}}<[tag]>
+   *
+   * Double-mustache annotations in an attribute.
+   *
+   *     <[tag] someAttribute="{{path.to.host.property}}"><[tag]>
+   *
+   * Only immediate host properties can automatically trigger side-effects.
+   * Setting `host.path` in the example above triggers the binding, setting
+   * `host.path.to.host.property` does not.
+   *
+   * `on-` style event declarations.
+   *
+   *     <[tag] on-<event-name>="{{hostMethodName}}"><[tag]>
+   *
+   * Note: **the `annotations` feature does not actually implement the behaviors
+   * associated with these expressions, it only captures the data**.
+   *
+   * Other optional features contain actual data implementations.
+   *
+   * @class standard feature: annotations
+   */
+
+  /*
+
+  Scans a template to produce an annotation map that stores expression metadata
+  and information that associates the metadata to nodes in a template instance.
+
+  Supported annotations are:
+
+    * id attributes
+    * binding annotations in text nodes
+      * double-mustache expressions: {{expression}}
+      * double-bracket expressions: [[expression]]
+    * binding annotations in attributes
+      * attribute-bind expressions: name="{{expression}} || [[expression]]"
+      * property-bind expressions: name*="{{expression}} || [[expression]]"
+      * property-bind expressions: name:="expression"
+    * event annotations
+      * event delegation directives: on-<eventName>="expression"
+
+  Generated data-structure:
+
+    [
+      {
+        id: '<id>',
+        events: [
+          {
+            mode: ['auto'|''],
+            name: '<name>'
+            value: '<expression>'
+          }, ...
+        ],
+        bindings: [
+          {
+            kind: ['text'|'attribute'|'property'],
+            mode: ['auto'|''],
+            name: '<name>'
+            value: '<expression>'
+          }, ...
+        ],
+        // TODO(sjmiles): confusingly, this is annotation-parent, not node-parent
+        parent: <reference to parent annotation>,
+        index: <integer index in parent's childNodes collection>
+      },
+      ...
+    ]
+
+  TODO(sjmiles): this module should produce either syntactic metadata
+  (e.g. double-mustache, double-bracket, star-attr), or semantic metadata
+  (e.g. manual-bind, auto-bind, property-bind). Right now it's half and half.
+
+  */
+
+  // construct `$` map (from id annotations)
+  function applyIdToMap(inst, map, dom, note) {
+    if (note.id) {
+      map[note.id] = inst._findTemplateAnnotatedNode(dom, note);
+    }
+  }
+
+  // install event listeners (from event annotations)
+  function applyEventListener(inst, dom, note, host) {
+    if (note.events && note.events.length) {
+      var node = inst._findTemplateAnnotatedNode(dom, note);
+      for (var j=0, e$=note.events, e; (j<e$.length) && (e=e$[j]); j++) {
+        inst._addMethodEventListenerToNode(node, e.name, e.value, host);
+      }
+    }
+  }
+
+  // push configuration references at configure time
+  function applyTemplateContent(inst, dom, note) {
+    if (note.templateContent) {
+      var node = inst._findTemplateAnnotatedNode(dom, note);
+      node._content = note.templateContent;
+    }
+  }
+
+  Polymer.TemplateStamp = Polymer.Utils.dedupingMixin(function(superClass) {
+
+    return class TemplateStamp extends Polymer.Annotations(Polymer.EventListeners(superClass)) {
+
+      constructor() {
+        super();
+        this.$ = null;
+      }
+
+      _stampTemplate(template) {
+        // Polyfill support: bootstrap the template if it has not already been
+        if (template && !template.content &&
+            window.HTMLTemplateElement && HTMLTemplateElement.decorate) {
+          HTMLTemplateElement.decorate(template);
+        }
+        var notes = this._parseTemplateAnnotations(template);
+        var dom = document.importNode(template._content || template.content, true);
+        // NOTE: ShadyDom optimization indicating there is an insertion point
+        dom.__noInsertionPoint = !notes._hasInsertionPoint;
+        this.$ = {};
+        for (var i=0, l=notes.length, note; (i<l) && (note=notes[i]); i++) {
+          applyIdToMap(this, this.$, dom, note);
+          applyTemplateContent(this, dom, note);
+          applyEventListener(this, dom, note, this);
+        }
+        return dom;
+      }
+
+    }
+
+  });
+
+})();
+</script>

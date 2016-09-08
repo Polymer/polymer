@@ -1,0 +1,113 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/utils.html">
+
+<script>
+(function() {
+
+  'use strict';
+
+  function saveAccessorValue(model, property) {
+    if (model.hasOwnProperty(property)) {
+      if (!model.__dataProto) {
+        model.__dataProto = {};
+      } else if (!model.hasOwnProperty('__dataProto')) {
+        model.__dataProto = Object.create(model.__dataProto);
+      }
+      model.__dataProto[property] = model[property];
+    }
+  }
+
+  Polymer.PropertyAccessors = Polymer.Utils.dedupingMixin(function(superClass) {
+
+    return class PropertyAccessors extends superClass {
+
+      constructor() {
+        super();
+        this._initializeProperties();
+      }
+
+      _initializeProperties() {
+        this.__data = {};
+        this.__dataPending = null;
+        this.__dataOld = null;
+        this.__dataInvalid = false;
+      }
+
+      _createPropertyAccessor(property, readOnly) {
+        saveAccessorValue(this, property);
+        Object.defineProperty(this, property, {
+          get: function() {
+            return this.__data && this.__data[property];
+          },
+          set: readOnly ? function() { } : function(value) {
+            this._setProperty(property, value);
+          }
+        });
+      }
+
+      _setProperty(property, value) {
+        if (this._setPendingProperty(property, value)) {
+          this._invalidateProperties();
+        }
+      }
+
+      _setPendingProperty(property, value) {
+        let old = this.__data[property];
+        if (this._shouldPropChange(value, old)) {
+          if (!this.__dataPending) {
+            this.__dataPending = {};
+            this.__dataOld = {};
+          }
+          // Ensure old is captured from the last turn
+          if (!(property in this.__dataOld)) {
+            this.__dataOld[property] = old;
+          }
+          this.__data[property] = value;
+          this.__dataPending[property] = value;
+          return true;
+        }
+      }
+
+      _invalidateProperties() {
+        if (!this.__dataInvalid) {
+          this.__dataInvalid = true;
+          Promise.resolve().then(() => {
+            if (this.__dataInvalid) {
+              this.__dataInvalid = false;
+              this._flushProperties();
+            }
+          });
+        }
+      }
+
+      _flushProperties() {
+        let oldProps = this.__dataOld;
+        let changedProps = this.__dataPending;
+        this.__dataPending = null;
+        this._propertiesChanged(this.__data, changedProps, oldProps);
+      }
+
+      _propertiesChanged(inst, currentProps, changedProps, oldProps) {
+      }
+
+      _shouldPropChange(value, old) {
+        return ((old !== value && (old === old || value === value)) ||
+          (typeof value == 'object'));
+      }
+
+    }
+
+  });
+
+})();
+</script>

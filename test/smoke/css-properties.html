@@ -1,0 +1,111 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2016 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<script>Polymer={}</script>
+<link rel="import" href="../../src/styling/css-parse.html">
+<link rel="import" href="../../src/styling/style-transformer.html">
+<link rel="import" href="../../src/styling/apply-shim.html">
+<link rel="import" href="../../src/styling/style-properties.html">
+<template id="x">
+  <style>
+  :root {
+    --foo: {
+      display: block;
+      border: 2px solid black;
+    }
+  }
+  :host {
+    @apply --foo;
+  }
+  </style>
+  <pre id="after">
+  </pre>
+</template>
+
+<pre id="before"></pre>
+<script>
+let propertyUtils = Polymer.StyleProperties;
+let before = document.querySelector('#before');
+let nativeShadow = true;
+class XFoo extends HTMLElement {
+  constructor() {
+    super();
+    this._setupStyleProperties();
+    let template = document.querySelector('template#x');
+    let content = template.content.cloneNode(true);
+    let style = content.querySelector('style');
+    this._styles = [style];
+    style.remove();
+    before.textContent = style.textContent;
+    this.attachShadow({mode:'open'}).appendChild(content);
+    this.root = this.shadowRoot;
+    style = this.style();
+    let output = this.root.querySelector('#after');
+    output.textContent = style.textContent;
+  }
+  // here we have an instance time spot to put custom property data
+  _setupStyleProperties() {
+    this.customStyle = {};
+    this._styleCache = null;
+    this._styleProperties = null;
+    this._scopeSelector = null;
+    this._ownStyleProperties = null;
+    this._customStyle = null;
+  }
+  style() {
+    this._ownStylePropertyNames = this._styles && this._styles.length ?
+      propertyUtils.decorateStyles(this._styles, this) :
+      null;
+    var info = null;
+    // start with scope style properties
+    var props = Object.create(null);
+    // collect properties from :host and :root
+    var hostAndRootProps =
+      propertyUtils.hostAndRootPropertiesForScope(this);
+    // mixin own host properties (lower specifity than scope props)
+    this.mixin(props, hostAndRootProps.hostProps);
+    // mixin properties matching this element in scope
+    /*scopeProps = scopeProps ||
+      propertyUtils.propertyDataFromStyles(scope._styles, this).properties;*/
+    // this.mixin(props, scopeProps);
+    // finally mixin properties inherent to this element
+    this.mixin(props, hostAndRootProps.rootProps);
+    propertyUtils.mixinCustomStyle(props, this.customStyle);
+    // reify properties (note: only does own properties)
+    propertyUtils.reify(props);
+    this._styleProperties = props;
+    var props = {};
+    for (var i=0, n; i < this._ownStylePropertyNames.length; i++) {
+      n = this._ownStylePropertyNames[i];
+      props[n] = this._styleProperties[n];
+    }
+    this._ownStyleProperties = props;
+    // update scope selector (needed for style transformation)
+    var oldScopeSelector = this._scopeSelector;
+    // note, the scope selector is incremented per class counter
+    this._scopeSelector = info ? info._scopeSelector :
+      this.is + '-' + this.__proto__._scopeCount++;
+    var style = propertyUtils.applyElementStyle(this,
+      this._styleProperties, this._scopeSelector, info && info.style);
+    // apply scope selector
+    if (!nativeShadow) {
+      propertyUtils.applyElementScopeSelector(this, this._scopeSelector,
+        oldScopeSelector, this._scopeCssViaAttr);
+    }
+    return style;
+  }
+}
+XFoo.prototype._scopeCount = 0;
+XFoo.prototype.is = 'x-foo';
+XFoo.prototype.mixin = Polymer.Utils.mixin;
+
+customElements.define('x-foo', XFoo);
+document.body.appendChild(document.createElement('x-foo'));
+</script>

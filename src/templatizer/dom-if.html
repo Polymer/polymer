@@ -1,0 +1,179 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../polymer-legacy.html">
+<link rel="import" href="templatizer.html">
+<link rel="import" href="../utils/debounce.html">
+
+<script>
+
+(function() {
+
+  var templatizer = new Polymer.Templatizer();
+
+  /**
+   * Stamps the template iff the `if` property is truthy.
+   *
+   * When `if` becomes falsey, the stamped content is hidden but not
+   * removed from dom. When `if` subsequently becomes truthy again, the content
+   * is simply re-shown. This approach is used due to its favorable performance
+   * characteristics: the expense of creating template content is paid only
+   * once and lazily.
+   *
+   * Set the `restamp` property to true to force the stamped content to be
+   * created / destroyed when the `if` condition changes.
+   */
+  Polymer({
+
+    is: 'dom-if',
+
+    _template: null,
+
+    /**
+     * Fired whenever DOM is added or removed/hidden by this template (by
+     * default, rendering occurs lazily).  To force immediate rendering, call
+     * `render`.
+     *
+     * @event dom-change
+     */
+
+    properties: {
+
+      /**
+       * A boolean indicating whether this template should stamp.
+       */
+      'if': {
+        type: Boolean,
+        observer: '_queueRender'
+      },
+
+      /**
+       * When true, elements will be removed from DOM and discarded when `if`
+       * becomes false and re-created and added back to the DOM when `if`
+       * becomes true.  By default, stamped elements will be hidden but left
+       * in the DOM when `if` becomes false, which is generally results
+       * in better performance.
+       */
+      restamp: {
+        type: Boolean,
+        observer: '_queueRender'
+      }
+
+    },
+
+    _queueRender: function() {
+      Polymer.Templatizer.enqueueDebouncer(this.debounce('_render', this._render));
+    },
+
+    detached: function() {
+      if (!this.parentNode ||
+          (this.parentNode.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
+           !this.parentNode.host)) {
+        this._teardownInstance();
+      }
+    },
+
+    attached: function() {
+      if (this.if) {
+        // NOTE: ideally should not be async, but node can be attached
+        // when shady dom is in the act of distributing/composing so push it out
+        this.async(this._ensureInstance);
+      }
+    },
+
+    /**
+     * Forces the element to render its content. Normally rendering is
+     * asynchronous to a provoking change. This is done for efficiency so
+     * that multiple changes trigger only a single render. The render method
+     * should be called if, for example, template rendering is required to
+     * validate application state.
+     */
+    render: function() {
+      Polymer.Templatizer.flushDebouncers();
+    },
+
+    _render: function() {
+      if (this.if) {
+        this._ensureInstance();
+        this._showHideChildren();
+      } else if (this.restamp) {
+        this._teardownInstance();
+      }
+      if (!this.restamp && this._instance) {
+        this._showHideChildren();
+      }
+      if (this.if != this._lastIf) {
+        this.fire('dom-change');
+        this._lastIf = this.if;
+      }
+    },
+
+    _ensureInstance: function() {
+      var parentNode = this.parentNode;
+      // Guard against element being detached while render was queued
+      if (parentNode) {
+        if (!this._ctor) {
+          var template = this.querySelector('template');
+          if (!template) {
+            throw new Error('dom-if requires a <template> child');
+          }
+          var self = this;
+          this._ctor = templatizer.templatize(template, {
+            fwdHostPropToInstance: function(host, prop, value) {
+              if (self._instance) {
+                self._instance.forwardProperty(prop, value, host);
+              }
+            }
+          });
+        }
+        if (!this._instance) {
+          this._instance = new this._ctor(this);
+          var root = this._instance.root;
+          parentNode.insertBefore(root, this);
+        } else {
+          var c$ = this._instance.children;
+          if (c$ && c$.length) {
+            // Detect case where dom-if was re-attached in new position
+            var lastChild = this.previousSibling;
+            if (lastChild !== c$[c$.length-1]) {
+              for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
+                parentNode.insertBefore(n, this);
+              }
+            }
+          }
+        }
+      }
+    },
+
+    _teardownInstance: function() {
+      if (this._instance) {
+        var c$ = this._instance.children;
+        if (c$ && c$.length) {
+          // use first child parent, for case when dom-if may have been detached
+          var parent = c$[0].parentNode;
+          for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
+            parent.removeChild(n);
+          }
+        }
+        this._instance = null;
+      }
+    },
+
+    _showHideChildren: function() {
+      var hidden = this.__hideTemplateChildren__ || !this.if;
+      if (this._instance) {
+        this._instance._showHideChildren(hidden);
+      }
+    }
+
+  });
+
+})();
+</script>

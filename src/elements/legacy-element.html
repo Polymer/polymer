@@ -1,0 +1,805 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="element.html">
+<link rel="import" href="../events/gesture-event-listeners.html">
+<link rel="import" href="../utils/utils.html">
+<link rel="import" href="../utils/async-render.html">
+<link rel="import" href="../utils/polymer.dom.html">
+<link rel="import" href="../utils/unresolved.html">
+
+<script>
+(function() {
+
+  'use strict';
+
+  var utils = Polymer.Utils;
+
+  function nyi() {
+    var stack = new Error().stack.split('\n');
+    var fn = stack.reduce(function(prev, val) {
+      return prev == true ? val : (prev ? prev :
+        val.indexOf('legacy-element.html') > 0);
+    }, false);
+    console.warn('Not yet implemented:', fn);
+  }
+
+  // TODO(sorvell): same api as before.
+  Polymer._warn = function(warning) {
+    console.warn(warning);
+  }
+
+  Polymer.LegacyElementMixin = Polymer.Utils.cachingMixin(function(base) {
+
+    return class LegacyElement extends Polymer.GestureEventListeners(
+      Polymer.ElementMixin(base)) {
+
+      constructor() {
+        super();
+        this._applyConfigMetaData();
+        this.created();
+      }
+
+      _applyConfigMetaData() {
+        this._applyConfigMetaDataFrom(this.constructor._ownConfig);
+      }
+
+      _applyConfigMetaDataFrom(config) {
+        if (config.listeners) {
+          for (let l in config.listeners) {
+            this._addMethodEventListenerToNode(this, l, config.listeners[l]);
+          }
+        }
+        if (config.hostAttributes) {
+          for (let a in config.hostAttributes) {
+            this._ensureAttribute(a, config.hostAttributes[a]);
+          }
+        }
+      }
+
+      ready() {
+        super.ready();
+      }
+
+      connectedCallback() {
+        super.connectedCallback();
+        this.isAttached = true;
+        this.attached();
+      }
+
+      disconnectedCallback() {
+        this.isAttached = false;
+        super.disconnectedCallback();
+        this.detached();
+      }
+
+      attributeChangedCallback(name, old, value) {
+        super.attributeChangedCallback(name, old, value);
+        this.attributeChanged(name, old, value);
+      }
+
+      created() {}
+
+      attached() {}
+
+      detached() {}
+
+      attributeChanged() {}
+
+      serialize(value) {
+        return this._serializeAttribute(value);
+      }
+
+      deserialize(value, type) {
+        return this._deserializeAttribute(value, type);
+      }
+
+      reflectPropertyToAttribute(property, attribute, value) {
+        this._propertyToAttribute(this, property, attribute, value);
+      }
+
+      serializeValueToAttribute(value, attribute, node) {
+        this._valueToAttribute(node || this, value, attribute);
+      }
+
+      /**
+       * Copies own properties (including accessor descriptors) from a source
+       * object to a target object.
+       *
+       * @method extend
+       * @param {Object} prototype Target object to copy properties to.
+       * @param {Object} api Source object to copy properties from.
+       * @return {Object} prototype object that was passed as first argument.
+       */
+      extend(prototype, api) {
+        return utils.extend(prototype, api);
+      }
+
+      /**
+       * Copies props from a source object to a target object.
+       *
+       * Note, this method uses a simple `for...in` strategy for enumerating
+       * properties.  To ensure only `ownProperties` are copied from source
+       * to target and that accessor implementations are copied, use `extend`.
+       *
+       * @method mixin
+       * @param {Object} target Target object to copy properties to.
+       * @param {Object} source Source object to copy properties from.
+       * @return {Object} Target object that was passed as first argument.
+       */
+      mixin(target, source) {
+        return utils.mixin(target, source);
+      }
+
+      // TODO(sorvell): Is this worth exposing anymore?
+      chainObject(object, inherited) {
+        if (object && inherited && object !== inherited) {
+          if (!Object.__proto__) {
+            object = this.extend(Object.create(inherited), object);
+          }
+          object.__proto__ = inherited;
+        }
+        return object;
+      }
+
+      /* **** Begin Template **** */
+      /**
+       * Calls `importNode` on the `content` of the `template` specified and
+       * returns a document fragment containing the imported content.
+       *
+       * @method instanceTemplate
+       * @param {HTMLTemplateElement} template HTML template element to instance.
+       * @return {DocumentFragment} Document fragment containing the imported
+       *   template content.
+      */
+      instanceTemplate(template) {
+        var dom =
+          document.importNode(template._content || template.content, true);
+        return dom;
+      }
+
+      /**
+       * Rewrites a given URL relative to the original location of the document
+       * containing the `dom-module` for this element.  This method will return
+       * the same URL before and after vulcanization.
+       *
+       * @method resolveUrl
+       * @param {string} url URL to resolve.
+       * @return {string} Rewritten URL relative to the import
+       */
+      resolveUrl(url) {
+        // TODO(sorvell): do we want to put the module reference on the prototype?
+        var module = Polymer.DomModule.import(this.is);
+        var root = '';
+        if (module) {
+          var assetPath = module.getAttribute('assetpath') || '';
+          root = Polymer.ResolveUrl.resolveUrl(assetPath, module.ownerDocument.baseURI);
+        }
+        return Polymer.ResolveUrl.resolveUrl(url, root);
+      }
+
+      /* **** Begin Events **** */
+      fire(type, detail, options) {
+        options = options || {};
+        detail = (detail === null || detail === undefined) ? {} : detail;
+        var event = new Event(type, {
+          bubbles: options.bubbles === undefined ? true : options.bubbles,
+          cancelable: Boolean(options.cancelable),
+          composed: options.composed === undefined ? true: options.composed
+        });
+        event.detail = detail;
+        var node = options.node || this;
+        node.dispatchEvent(event)
+        return event;
+      }
+
+      /**
+       * Convenience method to add an event listener on a given element,
+       * late bound to a named method on this element.
+       *
+       * @method listen
+       * @param {Element} node Element to add event listener to.
+       * @param {string} eventName Name of event to listen for.
+       * @param {string} methodName Name of handler method on `this` to call.
+       */
+      listen(node, eventName, methodName) {
+        node = node || this;
+        var hbl = this.__boundListeners ||
+          (this.__boundListeners = new WeakMap());
+        var bl = hbl.get(node);
+        if (!bl) {
+          bl = {};
+          hbl.set(node, bl);
+        }
+        var key = eventName + methodName;
+        if (!bl[key]) {
+          bl[key] = this._addMethodEventListenerToNode(
+            node, eventName, methodName, this);
+        }
+      }
+
+      /**
+       * Convenience method to remove an event listener from a given element,
+       * late bound to a named method on this element.
+       *
+       * @method unlisten
+       * @param {Element} node Element to remove event listener from.
+       * @param {string} eventName Name of event to stop listening to.
+       * @param {string} methodName Name of handler method on `this` to not call
+       anymore.
+       */
+      unlisten(node, eventName, methodName) {
+        node = node || this;
+        var bl = this.__boundListeners && this.__boundListeners.get(node);
+        var key = eventName + methodName;
+        var handler = bl && bl[key];
+        if (handler) {
+          this._removeEventListenerFromNode(node, eventName, handler);
+          bl[key] = null;
+        }
+      }
+
+      /**
+       * Override scrolling behavior to all direction, one direction, or none.
+       *
+       * Valid scroll directions:
+       *   - 'all': scroll in any direction
+       *   - 'x': scroll only in the 'x' direction
+       *   - 'y': scroll only in the 'y' direction
+       *   - 'none': disable scrolling for this node
+       *
+       * @method setScrollDirection
+       * @param {String=} direction Direction to allow scrolling
+       * Defaults to `all`.
+       * @param {HTMLElement=} node Element to apply scroll direction setting.
+       * Defaults to `this`.
+       */
+      setScrollDirection(direction, node) {
+        Polymer.Gestures.setTouchAction(node || this, direction || 'auto');
+      }
+      /* **** End Events **** */
+
+      /**
+       * Convenience method to run `querySelector` on this local DOM scope.
+       *
+       * This function calls `Polymer.dom(this.root).querySelector(slctr)`.
+       *
+       * @method $$
+       * @param {string} slctr Selector to run on this local DOM scope
+       * @return {Element} Element found by the selector, or null if not found.
+       */
+      $$(slctr) {
+        return this.root.querySelector(slctr);
+      }
+
+      /**
+       * Return the element whose local dom within which this element
+       * is contained. This is a shorthand for
+       * `this.getRootNode().host`.
+       */
+      get domHost() {
+        var root = this.getRootNode();
+        return (root instanceof DocumentFragment) ? root.host : root;
+      }
+
+      /**
+       * Force this element to distribute its children to its local dom.
+       * This is necessary only when ShadyDOM is used and only in cases that
+       * are not automatically handled. For example,
+       * a user should call `distributeContent` if distribution has been
+       * invalidated due to an element being added or removed from the shadowRoot
+       * that contains an insertion point (<slot>) inside its subtree.
+       * @method distributeContent
+       */
+      distributeContent() {
+        if (window.ShadyDOM && this.shadowRoot) {
+          this.shadowRoot.forceRender();
+        }
+      }
+
+      /**
+       * Returns a list of nodes that are the effective childNodes. The effective
+       * childNodes list is the same as the element's childNodes except that
+       * any `<content>` elements are replaced with the list of nodes distributed
+       * to the `<content>`, the result of its `getDistributedNodes` method.
+       *
+       * @method getEffectiveChildNodes
+       * @return {Array<Node>} List of effctive child nodes.
+       */
+      getEffectiveChildNodes() {
+        var list = [];
+        var c$ = this.childNodes;
+        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          var d$ = (c.localName === 'slot') ? c.assignedNodes({flatten: true}) : null;
+          if (d$) {
+            for (var j=0; j < d$.length; j++) {
+              list.push(d$[j]);
+            }
+          } else {
+            list.push(c);
+          }
+        }
+        return list;
+      }
+
+      /**
+       * Returns a list of elements that are the effective children. The effective
+       * children list is the same as the element's children except that
+       * any `<content>` elements are replaced with the list of elements
+       * distributed to the `<content>`.
+       *
+       * @method getEffectiveChildren
+       * @return {Array<Node>} List of effctive children.
+       */
+      getEffectiveChildren() {
+        var list = this.getEffectiveChildNodes();
+        return list.filter(function(n) {
+          return (n.nodeType === Node.ELEMENT_NODE);
+        });
+      }
+
+      /**
+       * Returns a string of text content that is the concatenation of the
+       * text content's of the element's effective childNodes (the elements
+       * returned by <a href="#getEffectiveChildNodes>getEffectiveChildNodes</a>.
+       *
+       * @method getEffectiveTextContent
+       * @return {Array<Node>} List of effctive children.
+       */
+      getEffectiveTextContent() {
+        var cn = this.getEffectiveChildNodes();
+        var tc = [];
+        for (var i=0, c; (c = cn[i]); i++) {
+          if (c.nodeType !== Node.COMMENT_NODE) {
+            tc.push(c.textContent);
+          }
+        }
+        return tc.join('');
+      }
+
+      // TODO(sorvell): Actually an api on Polymer.dom
+      /**
+       * Returns a list of nodes distributed within this element that match
+       * `selector`. These can be dom children or elements distributed to
+       * children that are insertion points.
+       * @method queryDistributedElements
+       * @param {string} selector Selector to run.
+       * @return {Array<Node>} List of distributed elements that match selector.
+       */
+      queryDistributedElements(selector) {
+        var c$ = this.getEffectiveChildNodes();
+        var list = [];
+        for (var i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if ((c.nodeType === Node.ELEMENT_NODE) &&
+              this.elementMatches(selector, c)) {
+            list.push(c);
+          }
+        }
+        return list;
+      }
+
+      /**
+       * Returns the first effective childNode within this element that
+       * match `selector`. These can be dom child nodes or elements distributed
+       * to children that are insertion points.
+       * @method queryEffectiveChildren
+       * @param {string} selector Selector to run.
+       * @return {Object<Node>} First effective child node that matches selector.
+       */
+      queryEffectiveChildren(selector) {
+        var e$ = this.queryDistributedElements(selector);
+        return e$ && e$[0];
+      }
+
+      /**
+       * Returns a list of effective childNodes within this element that
+       * match `selector`. These can be dom child nodes or elements distributed
+       * to children that are insertion points.
+       * @method queryEffectiveChildren
+       * @param {string} selector Selector to run.
+       * @return {Array<Node>} List of effective child nodes that match selector.
+       */
+      queryAllEffectiveChildren(selector) {
+        return this.queryDistributedElements(selector);
+      }
+
+      /**
+       * Returns a list of nodes distributed to this element's `<content>`.
+       *
+       * If this element contains more than one `<content>` in its local DOM,
+       * an optional selector may be passed to choose the desired content.
+       *
+       * @method getContentChildNodes
+       * @param {String=} slctr CSS selector to choose the desired
+       *   `<content>`.  Defaults to `content`.
+       * @return {Array<Node>} List of distributed nodes for the `<content>`.
+       */
+      getContentChildNodes(slctr) {
+        var content = this.root.querySelector(slctr || 'content');
+        return content ? content.getDistributedNodes() : [];
+      }
+
+      /**
+       * Returns a list of element children distributed to this element's
+       * `<content>`.
+       *
+       * If this element contains more than one `<content>` in its
+       * local DOM, an optional selector may be passed to choose the desired
+       * content.  This method differs from `getContentChildNodes` in that only
+       * elements are returned.
+       *
+       * @method getContentChildNodes
+       * @param {String=} slctr CSS selector to choose the desired
+       *   `<content>`.  Defaults to `content`.
+       * @return {Array<HTMLElement>} List of distributed nodes for the
+       *   `<content>`.
+       */
+      getContentChildren(slctr) {
+        return this.getContentChildNodes(slctr).filter(function(n) {
+          return (n.nodeType === Node.ELEMENT_NODE);
+        });
+      }
+
+      /**
+       * Checks whether an element is in this element's light DOM tree.
+       *
+       * @method isLightDescendant
+       * @param {?Node} node The element to be checked.
+       * @return {Boolean} true if node is in this element's light DOM tree.
+       */
+      isLightDescendant(node) {
+        return this !== node && this.contains(node) &&
+            this.getRootNode() === node.getRootNode();
+      }
+
+      /**
+       * Checks whether an element is in this element's local DOM tree.
+       *
+       * @method isLocalDescendant
+       * @param {HTMLElement=} node The element to be checked.
+       * @return {Boolean} true if node is in this element's local DOM tree.
+       */
+      isLocalDescendant(node) {
+        return this.root === node.getRootNode();
+      }
+
+      scopeSubtree(container, shouldObserve) {
+        // TODO(sorvell): replace or remove when ShadyDOM library handles this.
+        // if (!window.ShadyDOM && !window.ShadyDOM.inUse) {
+        //   return;
+        // }
+        // Polymer.StyleTransformer.dom(container);
+        // if (shouldObserve) {
+        //   var mo = new MutationObserver(function(mxns) {
+        //     for (var i = 0, m; i < mxns.length; i++) {
+        //       m = mxns[i];
+        //       if (m.addedNodes) {
+        //         for (var j = 0, n; j < m.addedNodes.length; j++) {
+        //           n = m.addedNodes[j];
+        //           Polymer.StyleTransformer.dom(n);
+        //         }
+        //       }
+        //     }
+        //   });
+        //   mo.observe(container, {childList: true, subtree: true});
+        //   return mo;
+        // }
+        nyi();
+      }
+
+      /**
+       * Returns the computed style value for the given property.
+       * @param {String} property
+       * @return {String} the computed value
+       */
+      getComputedStyleValue(property) {
+        var value;
+        if (this.__styleProperties) {
+          value = this.__styleProperties[property];
+        }
+        return value || window.getComputedStyle(this).getPropertyValue(property);
+      }
+
+      // debounce
+
+      /**
+       * Call `debounce` to collapse multiple requests for a named task into
+       * one invocation which is made after the wait time has elapsed with
+       * no new request.  If no wait time is given, the callback will be called
+       * at microtask timing (guaranteed before paint).
+       *
+       *     debouncedClickAction(e) {
+       *       // will not call `processClick` more than once per 100ms
+       *       this.debounce('click', function() {
+       *        this.processClick();
+       *       } 100);
+       *     }
+       *
+       * @method debounce
+       * @param {String} jobName String to indentify the debounce job.
+       * @param {Function} callback Function that is called (with `this`
+       *   context) when the wait time elapses.
+       * @param {number} wait Optional wait time in milliseconds (ms) after the
+       *   last signal that must elapse before invoking `callback`
+       */
+      debounce(jobName, callback, wait) {
+        this._debouncers = this._debouncers || {};
+        return this._debouncers[jobName] = Polymer.Debouncer.debounce(
+          this._debouncers[jobName], callback, wait, this);
+      }
+
+      /**
+       * Returns whether a named debouncer is active.
+       *
+       * @method isDebouncerActive
+       * @param {String} jobName The name of the debouncer started with `debounce`
+       * @return {boolean} Whether the debouncer is active (has not yet fired).
+       */
+      isDebouncerActive(jobName) {
+        this._debouncers = this._debouncers || {};
+        var debouncer = this._debouncers[jobName];
+        return !!(debouncer && debouncer.isActive());
+      }
+
+      /**
+       * Immediately calls the debouncer `callback` and inactivates it.
+       *
+       * @method flushDebouncer
+       * @param {String} jobName The name of the debouncer started with `debounce`
+       */
+      flushDebouncer(jobName) {
+        this._debouncers = this._debouncers || {};
+        var debouncer = this._debouncers[jobName];
+        if (debouncer) {
+          debouncer.flush();
+        }
+      }
+
+      /**
+       * Cancels an active debouncer.  The `callback` will not be called.
+       *
+       * @method cancelDebouncer
+       * @param {String} jobName The name of the debouncer started with `debounce`
+       */
+      cancelDebouncer(jobName) {
+        this._debouncers = this._debouncers || {}
+        var debouncer = this._debouncers[jobName];
+        if (debouncer) {
+          debouncer.cancel();
+        }
+      }
+
+      /**
+       * Runs a callback function asyncronously.
+       *
+       * By default (if no waitTime is specified), async callbacks are run at
+       * microtask timing, which will occur before paint.
+       *
+       * @method async
+       * @param {Function} callback The callback function to run, bound to `this`.
+       * @param {number=} waitTime Time to wait before calling the
+       *   `callback`.  If unspecified or 0, the callback will be run at microtask
+       *   timing (before paint).
+       * @return {number} Handle that may be used to cancel the async job.
+       */
+      async(callback, waitTime) {
+        var self = this;
+        return Polymer.Async.run(function() {
+          callback.call(self);
+        }, waitTime);
+      }
+
+      /**
+       * Cancels an async operation started with `async`.
+       *
+       * @method cancelAsync
+       * @param {number} handle Handle returned from original `async` call to
+       *   cancel.
+       */
+      cancelAsync(handle) {
+        Polymer.Async.cancel(handle);
+      }
+
+      // other
+
+      /**
+       * Convenience method for creating an element and configuring it.
+       *
+       * @method create
+       * @param {string} tag HTML element tag to create.
+       * @param {Object} props Object of properties to configure on the
+       *    instance.
+       * @return {Element} Newly created and configured element.
+       */
+      create(tag, props) {
+        var elt = document.createElement(tag);
+        if (props) {
+          if (elt.setProperties) {
+            elt.setProperties(props);
+          } else {
+            for (var n in props) {
+              elt[n] = props[n];
+            }
+          }
+        }
+        return elt;
+      }
+
+      /**
+       * Convenience method for importing an HTML document imperatively.
+       *
+       * This method creates a new `<link rel="import">` element with
+       * the provided URL and appends it to the document to start loading.
+       * In the `onload` callback, the `import` property of the `link`
+       * element will contain the imported document contents.
+       *
+       * @method importHref
+       * @param {string} href URL to document to load.
+       * @param {Function} onload Callback to notify when an import successfully
+       *   loaded.
+       * @param {Function} onerror Callback to notify when an import
+       *   unsuccessfully loaded.
+       * @param {boolean} optAsync True if the import should be loaded `async`.
+       *   Defaults to `false`.
+       * @return {HTMLLinkElement} The link element for the URL to be loaded.
+       */
+      importHref(href, onload, onerror, optAsync) {
+        var l = document.createElement('link');
+        l.rel = 'import';
+        l.href = href;
+
+        optAsync = Boolean(optAsync);
+        if (optAsync) {
+          l.setAttribute('async', '');
+        }
+
+        var self = this;
+        if (onload) {
+          l.onload = function(e) {
+            return onload.call(self, e);
+          }
+        }
+        if (onerror) {
+          l.onerror = function(e) {
+            return onerror.call(self, e);
+          }
+        }
+        document.head.appendChild(l);
+        return l;
+      }
+
+      /**
+       * Polyfill for Element.prototype.matches, which is sometimes still
+       * prefixed.
+       *
+       * @method elementMatches
+       * @param {string} selector Selector to test.
+       * @param {Element=} node Element to test the selector against.
+       * @return {boolean} Whether the element matches the selector.
+       */
+      elementMatches(selector, node) {
+        return Polymer.Utils.matchesSelector(node || this, selector);
+      }
+
+      /**
+       * Toggles an HTML attribute on or off.
+       *
+       * @method toggleAttribute
+       * @param {String} name HTML attribute name
+       * @param {boolean=} bool Boolean to force the attribute on or off.
+       *    When unspecified, the state of the attribute will be reversed.
+       * @param {HTMLElement=} node Node to target.  Defaults to `this`.
+       */
+      toggleAttribute(name, bool, node) {
+        node = node || this;
+        if (arguments.length == 1) {
+          bool = !node.hasAttribute(name);
+        }
+        if (bool) {
+          node.setAttribute(name, '');
+        } else {
+          node.removeAttribute(name);
+        }
+      }
+
+
+      /**
+       * Toggles a CSS class on or off.
+       *
+       * @method toggleClass
+       * @param {String} name CSS class name
+       * @param {boolean=} bool Boolean to force the class on or off.
+       *    When unspecified, the state of the class will be reversed.
+       * @param {HTMLElement=} node Node to target.  Defaults to `this`.
+       */
+      toggleClass(name, bool, node) {
+        node = node || this;
+        if (arguments.length == 1) {
+          bool = !node.classList.contains(name);
+        }
+        if (bool) {
+          node.classList.add(name);
+        } else {
+          node.classList.remove(name);
+        }
+      }
+
+      /**
+       * Cross-platform helper for setting an element's CSS `transform` property.
+       *
+       * @method transformText
+       * @param {String} transform Transform setting.
+       * @param {HTMLElement=} node Element to apply the transform to.
+       * Defaults to `this`
+       */
+      transform(transformText, node) {
+        node = node || this;
+        node.style.webkitTransform = transformText;
+        node.style.transform = transformText;
+      }
+
+      /**
+       * Cross-platform helper for setting an element's CSS `translate3d`
+       * property.
+       *
+       * @method translate3d
+       * @param {number} x X offset.
+       * @param {number} y Y offset.
+       * @param {number} z Z offset.
+       * @param {HTMLElement=} node Element to apply the transform to.
+       * Defaults to `this`.
+       */
+      translate3d(x, y, z, node) {
+        node = node || this;
+        this.transform('translate3d(' + x + ',' + y + ',' + z + ')', node);
+      }
+
+      /**
+       * Removes an item from an array, if it exists.
+       *
+       * If the array is specified by path, a change notification is
+       * generated, so that observers, data bindings and computed
+       * properties watching that path can update.
+       *
+       * If the array is passed directly, **no change
+       * notification is generated**.
+       *
+       * @method arrayDelete
+       * @param {String|Array} path Path to array from which to remove the item
+       *   (or the array itself).
+       * @param {any} item Item to remove.
+       * @return {Array} Array containing item removed.
+       */
+      arrayDelete(arrayOrPath, item) {
+        var index;
+        if (Array.isArray(arrayOrPath)) {
+          index = arrayOrPath.indexOf(item);
+          if (index >= 0) {
+            return arrayOrPath.splice(index, 1);
+          }
+        } else {
+          var arr = Polymer.Path.get(this, arrayOrPath);
+          index = arr.indexOf(item);
+          if (index >= 0) {
+            return this.splice(path, index, 1);
+          }
+        }
+      }
+
+    }
+
+  });
+
+  // bc
+  Polymer.LegacyElement = Polymer.LegacyElementMixin(HTMLElement);
+  Polymer.Base = Polymer.LegacyElement.prototype;
+
+})();
+</script>
