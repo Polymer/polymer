@@ -197,7 +197,7 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
   ```
 
   For the time being, `Polymer()` will automatically wrap template extensions used in Polymer element templates during template processing for backward-compatibility, although we may decide to remove this auto-wrapping in the future.  Templates used in the main document must be manually wrapped.
-* The `custom-style` element has also been changed to a standard custom element that must wrap a style element. In addition, the style element must contain a `type="custom-style"` attribute (so that it does not parse),  e.g.
+* The `custom-style` element has also been changed to a standard custom element that must wrap a style element  e.g.
 
   ```
   <style is="custom-style">...</style>
@@ -207,7 +207,7 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
 
    ```
    <custom-style>
-     <style type="custom-style">...</style>
+     <style>...</style>
    </custom-style>
    ```
 
