@@ -67,25 +67,11 @@
      * @return {Object} Returns the dom which matches `selector` in the module
      * at the specified `id`.
      */
-    __import(id, selector, doc) {
+    import(id, selector) {
       if (id) {
         var m = findModule(id);
-        // TODO(kschaaf): Fallback for V1 CE's that don't currently upgrade in
-        // HTML Imports: querySelect into the import document (which must be captured
-        // in a script in that file)!  This is not sufficient to solve the CSP case
-        // where scripts & DOM are separated
-        if (!m && doc) {
-          m = doc.querySelector('dom-module[id=' + id + ']');
-        }
-        if (!m) {
-          // If polyfilling, a script can run before a dom-module element
-          // is upgraded. We force the containing document to upgrade
-          // dom-modules and try again to workaround this polyfill limitation.
-          forceDomModulesUpgrade();
-          m = findModule(id);
-        }
         if (m && selector) {
-          m = m.querySelector(selector);
+          return m.querySelector(selector);
         }
         return m;
       }
@@ -93,44 +79,12 @@
 
   }
 
-  // NOTE: Safari can't deal with an ES6 style function named `import`
-  DomModule.prototype.import = DomModule.prototype.__import;
-
   customElements.define('dom-module', DomModule);
-
-  // NOTE: HTMLImports polyfill does not
-  // block scripts on upgrading elements. However, we want to ensure that
-  // any dom-module in the tree is available prior to a subsequent script
-  // processing.
-  // Therefore, we force any dom-modules in the tree to upgrade when dom-module
-  // is registered by temporarily setting CE polyfill to crawl the entire
-  // imports tree. (Note: this should only upgrade any imports that have been
-  // loaded by this point. In addition the HTMLImports polyfill should be
-  // changed to upgrade elements prior to running any scripts.)
-  var cePolyfill = window.CustomElements &&
-                   CustomElements.upgrade &&
-                  !CustomElements.useNative;
-
-  function forceDomModulesUpgrade() {
-    if (cePolyfill) {
-      var script = document._currentScript || document.currentScript;
-      var doc = script && script.ownerDocument || document;
-      // find all dom-modules
-      var modules = doc.querySelectorAll('dom-module');
-      // minimize work by going backwards and stopping if we find an
-      // upgraded module.
-      for (var i= modules.length-1, m; (i >=0) && (m=modules[i]); i--) {
-        if (m.__upgraded__) {
-          return;
-        } else {
-          CustomElements.upgrade(m);
-        }
-      }
-    }
-  }
 
   // export
   Polymer.DomModule = new DomModule();
+
+  Polymer.DomModule.modules = modules;
 
 })();
 
