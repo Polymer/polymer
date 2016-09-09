@@ -138,7 +138,7 @@ See below for a visual guide on migrating Polymer 1.0's declarative syntax to th
 
 ## Polyfills
 
-Polymer 2.0 has been developed alongside and tested with a new suite of V1-spec compatible polyfills for Custom Elements and Shadow DOM.   Polymer 2.0 can currently be tested by loading the `v1-polymer-edits` branch of [`webcomponentsjs/webcomponents-lite.js`](https://github.com/webcomponents/webcomponentsjs/tree/v1-polymer-edits).  The polyfills are still under active development and are not fully ready for use in other browsers or for production.
+Polymer 2.0 has been developed alongside and tested with a new suite of V1-spec compatible polyfills for Custom Elements and Shadow DOM.   Polymer 2.0 can currently be tested by loading the `v1` branch of [`webcomponentsjs/webcomponents-lite.js`](https://github.com/webcomponents/webcomponentsjs/tree/v1-polymer-edits), which is included as a bower dependency to Polymer 2.x and loads all necessary polyfills.  The polyfills are still under active development and are not fully ready for use in other browsers or for production.
 
 ## Breaking Changes
 Below is a list of intentional breaking changes made in Polymer 2.0, along with their rationale/justification and migration guidance.  If you find changes that broke existing code not documented here, please [file an issue](https://github.com/Polymer/polymer/issues/new) and we'll investigate to determine whether they are expected/intentional or not.
