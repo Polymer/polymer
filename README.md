@@ -70,7 +70,7 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 Polymer 2.0 retains the existing `polymer/polymer.html` import that current Polymer 1.0 users can continue to import, which strives to provide a very minimally-breaking change for code written to the Polymer 1.0 API.  For the most part, existing users upgrading to Polymer 2.0 will only need to adapt existing code to be compliant with the V1 Shadow DOM API related to content distribution and styling, as well as minor breaking changes introduced due to changes in the V1 Custom Elements spec and data-layer improvements listed [below](#breaking-changes).
 
 ## 2.0 ES6 Class-based Syntax
-With the widespread adoption of ES6 in browsers, as well as the requirement that V1 Custom Elements be defined as ES6 class extsions of `HTMLElement`, Polymer 2.0 shifts its primary API for defining new elements to an ES6 class-centric syntax.  Using this syntax, users will extend `Polymer.Element` (a subclass of `HTMLElement`), which provides meta-programming for most of the same features of Polymer 1.0 based on static configuration data supplied on the class definition.
+With the widespread adoption of ES6 in browsers, as well as the requirement that V1 Custom Elements be defined as ES6 class extensions of `HTMLElement`, Polymer 2.0 shifts its primary API for defining new elements to an ES6 class-centric syntax.  Using this syntax, users will extend `Polymer.Element` (a subclass of `HTMLElement`), which provides meta-programming for most of the same features of Polymer 1.0 based on static configuration data supplied on the class definition.
 
 Basic syntax looks like this:
 
@@ -226,11 +226,11 @@ Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shady
     * Should be `@apply --foo;`
 * `element.customStyle` as an object that can be assigned to has been removed; use `element.updateStyles({...})` instead.
 * `<style>` inside of a `<dom-module>`, but outside of `<template>` is no longer supported
-* Imperativly created custom-styles (e.g. `document.createElement('style', 'custom-style')`) are no longer supported.
+* Imperatively created custom-styles (e.g. `document.createElement('style', 'custom-style')`) are no longer supported.
 
 ### Data layer
 * An element's template is not stamped & data system not initialized (observers, bindings, etc.) until the element has been connected to the main document.  This is a direct result of the V1 changes that prevent reading attributes in the constructor.
-* Re-setting an object or array no longer ditry checks, meaning you can make deep changes to an object/array and just re-set it, without needing to use `set`/`notifyPath`.  Although the `set` API remains and will often be the more efficient way to make changes, this change removes users of Polymer elements from needing to use this API, making it more compatible with alternate data-binding and state management libraries.
+* Re-setting an object or array no longer dirty checks, meaning you can make deep changes to an object/array and just re-set it, without needing to use `set`/`notifyPath`.  Although the `set` API remains and will often be the more efficient way to make changes, this change removes users of Polymer elements from needing to use this API, making it more compatible with alternate data-binding and state management libraries.
 * Propagation of data through the binding system is now batched, such that multi-property computing functions and observers run once with a set of coherent changes.  Single property accessors still propagate data synchronously, although there is a new `setProperties({...})` API on Polymer elements that can be used to propagate multiple values as a coherent set.
 * Multi-property observers and computed methods are now called once at initialization if any arguments are defined (and will see `undefined` for any undefined arguments)
 * Inline computed annotations run once unconditionally at initialization, regardless if any arguments are defined (and will see `undefined` for undefined arguments)
@@ -256,7 +256,7 @@ id is to use `id`.
 * Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
 * `lazyRegister` option removed and is now “on” by default
 * Experimental: `listeners` and `hostAttributes` are deferred until "afterNextRender", since the majority uses of these should not be initial paint-blocking.  Please help identify use cases where paint-blocking host attributes/listeners are useful/needed.
-* Requst to early-users: We would really like to remove the `ready` callback, since its use is generally anti-pattern-ish, and it's hard to document when a "one-shot callback that runs after all local dom & observers have flushed" should actually be used, as opposed to running said code in an observer.  In exploring alacarte, please try to avoid `ready` and help identify use cases where it is useful/needed.
+* Request to early-users: We would really like to remove the `ready` callback, since its use is generally anti-pattern-ish, and it's hard to document when a "one-shot callback that runs after all local dom & observers have flushed" should actually be used, as opposed to running said code in an observer.  In exploring Polymer 2.0, please try to avoid `ready` and help identify use cases where it is useful/needed.
 * Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
 
 ## Not yet implemented
@@ -264,4 +264,4 @@ id is to use `id`.
     * A number of utility functions that were previously on the Polymer 1.0 element prototype are not ported over yet.  These will warn with "not yet implemented" warnings.  In general, these can be avoided using standard DOM API.
 * `<array-selector>` not yet implemented
 * `Polymer.dom`: currently *most* of this is emulated, but some api's may be missing. Please file issues to determine if the missing behavior is an intended breaking change.
-* `Polymer.dom.observeNodes`: we're likely going to provide a breaking replacement for this that's more in the spirit of ShadowDom V1.
+* `Polymer.dom.observeNodes`: we're likely going to provide a breaking replacement for this that's more in the spirit of Shadow DOM V1.
