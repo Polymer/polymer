@@ -116,7 +116,7 @@ class MyElementSubclass extends MyElement {
 }
 
 // Register custom element definition using standard platform API
-customElements.define(MyElementSubclass, MyElementSubclass);
+customElements.define(MyElementSubclass.is, MyElementSubclass);
 ```
 
 Below are the general steps for defining a custom element using this new syntax:
