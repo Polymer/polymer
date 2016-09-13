@@ -187,29 +187,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       disconnectedCallback() {}
 
       ready() {
+        hostStack.beginHosting(this);
         super.ready();
-        if (!this.root) {
-          if (this._template) {
-            if (this.attachShadow) {
-              this.root = this.attachShadow({mode: 'open'});
-            } else {
-              throw new Error(`ShadowDOM not available. ` +
-                // BREAKME(sorvell): move to developer conditional when supported.
-               `Polymer.Element can
-                  create dom as children instead of in ShadowDOM by setting
-                  \`this.root = this;\` before \`ready\`.`);
-            }
-          } else {
-            this.root = this;
-          }
-        }
         if (this._template) {
-          hostStack.beginHosting(this);
-          let dom = this._stampTemplate(this._template);
-          this.root.appendChild(dom);
-          hostStack.endHosting(this);
+          this.root = this._stampTemplate(this._template);
         }
         this._flushProperties();
+        this.root = this._attachDom(this.root) || this;
+        hostStack.endHosting(this);
+      }
+
+      _attachDom(dom) {
+        if (this.attachShadow) {
+          if (dom) {
+            this.attachShadow({mode: 'open'});
+            this.shadowRoot.appendChild(dom);
+            return this.shadowRoot;
+          }
+        } else {
+          throw new Error(`ShadowDOM not available. ` +
+            // BREAKME(sorvell): move to developer conditional when supported.
+           `Polymer.Element can
+              create dom as children instead of in ShadowDOM by setting
+              \`this.root = this;\` before \`ready\`.`);
+        }
       }
 
       attributeChangedCallback(name, old, value) {
@@ -230,6 +231,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   });
 
+  // NOTE: this ugly bit is only needed so we can maintain a strong
+  // guarantee that any element in local dom is flushed before its host.
+  // Without this, only bound elements are flushed.
   let hostStack = {
 
     stack: [],
