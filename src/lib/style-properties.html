@@ -35,7 +35,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           self.decorateRule(rule);
           // mark in-order position of ast rule in styles block, used for cache key
           rule.index = ruleIndex++;
-          self.whenHostOrRootRule(scope, rule, style, function(info) {
+          self.whenHostOrRootRule(scope, rule, style, false, function(info) {
             // we can't cache styles with :host and :root props in @media rules
             if (rule.parent.type === styleUtil.ruleTypes.MEDIA_RULE) {
               scope.__notStyleScopeCacheable = true;
@@ -285,18 +285,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return {properties: props, key: o};
       },
 
-      whenHostOrRootRule: function(scope, rule, style, callback) {
+      whenHostOrRootRule: function(scope, rule, style, runtime, callback) {
         if (!rule.propertyInfo) {
           self.decorateRule(rule);
         }
         if (!rule.propertyInfo.properties) {
           return;
         }
+        var checkRoot = function(hostScope, selector) {
+          if (runtime) {
+            return selector.indexOf(':root') === 0 || (hostScope === 'html' && parsedSelector.indexOf('html') === 0);
+          } else {
+            return selector === ':root' || selector === 'html';
+          }
+        };
         var hostScope = scope.is ?
         styleTransformer._calcHostScope(scope.is, scope.extends) :
         'html';
         var parsedSelector = rule.parsedSelector;
-        var isRoot = parsedSelector === ':root';
+        var isRoot = checkRoot(hostScope, parsedSelector);
         var isHost = parsedSelector.indexOf(':host') === 0;
         // build info is either in scope (when scope is an element) or in the style
         // when scope is the default scope; note: this allows default scope to have
@@ -309,7 +316,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           isHost = !isRoot && parsedSelector.indexOf(hostScope) === 0;
         }
         if (cssBuild === 'shadow') {
-          isRoot = parsedSelector === ':host > *' || parsedSelector === 'html';
+          isRoot = parsedSelector === ':host > *' || checkRoot(hostScope, parsedSelector);
           isHost = isHost && !isRoot;
         }
         if (!isRoot && !isHost) {
@@ -331,6 +338,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // parsedSelector fallback for 'shady' css build
           selectorToMatch = rule.transformedSelector || rule.parsedSelector;
         }
+        if (isRoot && runtime && hostScope === 'html') {
+          selectorToMatch = rule.transformedSelector || rule.parsedSelector;
+        }
         callback({
           selector: selectorToMatch,
           isHost: isHost,
@@ -343,7 +353,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // note: active rules excludes non-matching @media rules
         styleUtil.forActiveRulesInStyles(scope._styles, function(rule, style) {
           // if scope is StyleDefaults, use _element for matchesSelector
-          self.whenHostOrRootRule(scope, rule, style, function(info) {
+          self.whenHostOrRootRule(scope, rule, style, true, function(info) {
             var element = scope._element || scope;
             if (matchesSelector.call(element, info.selector)) {
               if (info.isHost) {
