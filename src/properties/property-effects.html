@@ -557,27 +557,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // data api
 
   // Note: this implemetation only accepts key-based array paths
-  function notifySplices(inst, array, path, splices) {
-    let change = {
-      keySplices: Polymer.Collection.applySplices(array, splices),
-      indexSplices: splices
-    };
-    let splicesPath = path + '.splices';
-    inst._setProperty(splicesPath, change);
-    inst._setProperty(path + '.length', array.length);
-    // All path notification values are cached on `this.__data__`.
-    // Null here to allow potentially large splice records to be GC'ed.
-    inst.__data[splicesPath] = {keySplices: null, indexSplices: null};
-  }
-
-  function notifySplice(inst, array, path, index, added, removed) {
-    notifySplices(inst, array, path, [{
-      index: index,
-      addedCount: added,
-      removed: removed,
-      object: array,
-      type: 'splice'
-    }]);
+  function notifySplices(inst, array, path) {
+    inst._setProperty(path, array);
   }
 
   function upper(name) {
@@ -688,12 +669,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // `path` can be a user-facing path string or array of path parts.
       _setPathOrUnmanagedProperty(path, value) {
         let rootProperty = Polymer.Path.root(Array.isArray(path) ? path[0] : path);
-        let _hasEffect = this._hasPropertyEffect(rootProperty);
+        let hasEffect = this._hasPropertyEffect(rootProperty);
         let isPath = (rootProperty !== path);
-        if (!_hasEffect || isPath) {
+        if (!hasEffect || isPath) {
           path = Polymer.Path.set(this, path, value);
         }
-        if (_hasEffect) {
+        if (hasEffect) {
           return path;
         }
       }
@@ -801,7 +782,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let info = {};
         let array = Polymer.Path.get(this, path, info);
         // Notify change to key-based path
-        notifySplices(this, array, info.path, splices);
+        notifySplices(this, array, info.path);
       }
 
       /**
@@ -885,10 +866,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       push(path, ...items) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
-        let len = array.length;
         let ret = array.push(...items);
         if (items.length) {
-          notifySplice(this, array, info.path, len, items.length, []);
+          notifySplices(this, array, info.path);
         }
         return ret;
       }
@@ -912,7 +892,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let hadLength = Boolean(array.length);
         let ret = array.pop();
         if (hadLength) {
-          notifySplice(this, array, info.path, array.length, 0, [ret]);
+          notifySplices(this, array, info.path);
         }
         return ret;
       }
@@ -937,18 +917,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       splice(path, start, deleteCount, ...items) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
-        // Normalize fancy native splice handling of crazy start values
-        if (start < 0) {
-          start = array.length - Math.floor(-start);
-        } else {
-          start = Math.floor(start);
-        }
-        if (!start) {
-          start = 0;
-        }
         let ret = array.splice(start, deleteCount, ...items);
         if (items.length || ret.length) {
-          notifySplice(this, array, info.path, start, items.length, ret);
+          notifySplices(this, array, info.path);
         }
         return ret;
       }
@@ -972,7 +943,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let hadLength = Boolean(array.length);
         let ret = array.shift();
         if (hadLength) {
-          notifySplice(this, array, info.path, 0, 0, [ret]);
+          notifySplices(this, array, info.path);
         }
         return ret;
       }
@@ -996,12 +967,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let array = Polymer.Path.get(this, path, info);
         let ret = array.unshift(...items);
         if (items.length) {
-          notifySplice(this, array, info.path, 0, items.length, []);
+          notifySplices(this, array, info.path);
         }
         return ret;
       }
 
       notifyPath(path, value) {
+        if (arguments.length == 1) {
+          value = this.get(path);
+        }
         this._setProperty(path, value);
       }
 
