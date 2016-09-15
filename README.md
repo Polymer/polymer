@@ -157,6 +157,7 @@ Polymer 2.0 elements will stamp their templates into shadow roots created using 
 * Insertion points that selected content via `<content select="...">` must be changed to named slots: `<slot name="...">`
 * Selection of distributed content into named slots must use `slot="..."` rather than tag/class/attributes selected by `<content>`
 * Re-distributing content by placing a `<slot>` into an element that itself has named slots requires placing a `name` attribute on the `<slot>` to indicate what content _it_ selects from its host children, and placing a `slot` attribute to indicate where its selected content should be slotted into its parent
+* In the V1 "Shady DOM" shim, initial distribution of children into `<slot>` is asynchronous (microtask) to creating the `shadowRoot`, meaning distribution occurs after observers/`ready` (in Polymer 1.0's shim, initial distribution occurred before `ready`).  In order to force distribution synchronously, call `ShadyDOM.flush()`.
 
 #### Scoped styling
 
@@ -254,8 +255,7 @@ id is to use `id`.
 
 ### Other
 * Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
-* `lazyRegister` option removed and is now “on” by default
-* Experimental: `listeners` and `hostAttributes` are deferred until "afterNextRender", since the majority uses of these should not be initial paint-blocking.  Please help identify use cases where paint-blocking host attributes/listeners are useful/needed.
+* `lazyRegister` option removed and all meta-programming (parsing template, creating accessors on prototype, etc.) is deferred until the first instance of the element is created
 * Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
 
 ## Not yet implemented
