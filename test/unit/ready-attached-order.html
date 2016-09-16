@@ -1,0 +1,164 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+<script>
+  window.clearTestLists = function() {
+    window.actualAttachedList = [];
+    window.actualReadyList = [];
+    window.actualReadyBeforeAtachedList = [];
+  }
+
+  clearTestLists();
+
+  window.readyBehavior = {
+    moniker: function() {
+      return this.is + (this.id ? '#' + this.id : '');
+    },
+    ready: function() {
+      this._readied = true;
+      window.actualReadyList.push(this.moniker());
+    },
+
+    attached: function() {
+      this.attachedTime$Keys = Object.keys(this.$);
+      window.actualAttachedList.push(this.moniker());
+      if (!this._readied) {
+        window.actualReadyBeforeAtachedList.push(this.moniker());
+      }
+    }
+  };
+</script>
+
+<dom-module id="x-zot">
+  <template>
+    x-zot<slot></slot>
+  </template>
+  <script>
+  HTMLImports.whenReady(function() {
+    Polymer({
+      is: 'x-zot',
+      behaviors: [readyBehavior]
+    });
+  });
+  </script>
+</dom-module>
+
+<dom-module id="x-bar">
+  <template>
+    <x-zot></x-zot>
+  </template>
+  <script>
+  HTMLImports.whenReady(function() {
+    Polymer({
+      is: 'x-bar',
+      behaviors: [readyBehavior]
+    });
+  });
+  </script>
+</dom-module>
+
+<dom-module id="x-foo">
+  <template>
+    <x-bar id="bar1"></x-bar>
+    <x-bar id="bar2"></x-bar>
+  </template>
+  <script>
+  HTMLImports.whenReady(function() {
+    Polymer({
+      is: 'x-foo',
+      behaviors: [readyBehavior]
+    });
+  });
+  </script>
+</dom-module>
+
+<dom-module id="x-ready">
+  <template>
+    <x-zot id="a">
+      <x-zot id="b"></x-zot>
+      <x-zot id="c">
+        <x-zot id="d"></x-zot>
+      </x-zot>
+    </x-zot>
+    <x-foo id="foo"></x-foo>
+  </template>
+  <script>
+  HTMLImports.whenReady(function() {
+    Polymer({
+      is: 'x-ready',
+      behaviors: [readyBehavior]
+    });
+  });
+  </script>
+</dom-module>
+
+<script>
+
+  suite('ready and attached ordering', function() {
+
+    let el;
+
+    setup(function() {
+      clearTestLists();
+      el = document.createElement('x-ready');
+      document.body.appendChild(el);
+      if (customElements.flush) {
+        customElements.flush();
+      }
+    });
+
+    teardown(function() {
+      document.body.removeChild(el);
+    });
+
+    test('element ready called bottom-up', function() {
+      assert.deepEqual(window.actualReadyList, ['x-zot#a', 'x-zot#b',
+        'x-zot#c', 'x-zot#d', 'x-zot', 'x-bar#bar1', 'x-zot', 'x-bar#bar2',
+        'x-foo#foo', 'x-ready']);
+    });
+
+    test('element attached called top-down', function() {
+      // on native, top element is last because it kicks off the process.
+      var expectedAttachedList = ['x-zot#a', 'x-zot#b',
+        'x-zot#c', 'x-zot#d', 'x-foo#foo', 'x-bar#bar1', 'x-zot', 'x-bar#bar2',
+        'x-zot'];
+      // NOTE: attached ordering differs under polyfill because it is
+      // async and therefore *always* in document order.
+      if (customElements.flush) {
+        expectedAttachedList.unshift('x-ready');
+      } else {
+        expectedAttachedList.push('x-ready');
+      }
+      assert.deepEqual(window.actualAttachedList, expectedAttachedList);
+    });
+
+    test('element attached called after ready', function() {
+      assert.equal(window.actualReadyBeforeAtachedList.length, 0);
+    });
+
+    test('element has $ references at attached time', function() {
+      assert.sameMembers(el.attachedTime$Keys, ['a', 'b', 'c', 'd', 'foo']);
+      assert.sameMembers(el.$.foo.attachedTime$Keys, ['bar1', 'bar2']);
+    })
+
+  });
+
+</script>
+</body>
+</html>
