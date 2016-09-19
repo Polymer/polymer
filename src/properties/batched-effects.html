@@ -39,10 +39,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   function computeLinkedPaths(inst, changedProps, computedProps) {
-    if (inst.__dataLinkedPaths) {
+    const links = inst.__dataLinkedPaths;
+    if (links) {
       var link;
-      for (var a in inst.__dataLinkedPaths) {
-        var b = inst.__dataLinkedPaths[a];
+      for (var a in links) {
+        var b = links[a];
         for (var path in changedProps) {
           if (Polymer.Path.isDescendant(a, path)) {
             link = Polymer.Path.translate(a, b, path);
@@ -69,7 +70,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       utils.mixin(inst.__dataInterimOld, oldProps) : oldProps;
     // Notify
     var host = inst.__dataHost;
-    runEffects(inst, inst.PROPERTY_EFFECT_TYPES.NOTIFY, props);
+    runEffects(inst, inst.PROPERTY_EFFECT_TYPES.NOTIFY, props, oldProps, notifyPaths);
     // Flush host
     // TODO(kschaaf): fix this check (__dataLib is gone)
     if (host /*&& host.__dataLib instanceof BatchedEffects*/ && host.__dataPending) {
@@ -85,7 +86,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  function runEffects(inst, type, props, oldProps) {
+  function notifyPaths(inst, prop, value) {
+    let rootProperty = Polymer.Path.root(prop);
+    if (rootProperty !== prop) {
+      let name = Polymer.CaseMap.camelToDashCase(rootProperty) + '-changed';
+      inst.dispatchEvent(new CustomEvent(name, { detail: {value, path: prop }}));
+    }
+  }
+
+
+  function runEffects(inst, type, props, oldProps, fallback) {
     var ran;
     var effects = inst[type];
     if (effects) {
@@ -105,6 +115,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               ran = true;
             }
           }
+        } else if (fallback) {
+          fallback(inst, prop, inst.__data[prop],
+            oldProps && oldProps[prop], inst.__dataFromAbove);
         }
       }
     }
@@ -124,9 +137,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _propertiesChanged(currentProps, changedProps, oldProps) {
         // ----------------------------
-        var c = Object.getOwnPropertyNames(changedProps || {});
-        console.group(this.localName + '#' + this.id + ': ' + c);
-        debugger;
+        // var c = Object.getOwnPropertyNames(changedProps || {});
+        // console.group(this.localName + '#' + this.id + ': ' + c);
         // ----------------------------
         // Compute
         var computedProps = runComputedEffects(this, changedProps, oldProps);
@@ -149,7 +161,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             changedProps, oldProps);
         }
         // ----------------------------
-        console.groupEnd(this.localName + '#' + this.id + ': ' + c);
+        // console.groupEnd(this.localName + '#' + this.id + ': ' + c);
         // ----------------------------
       }
 

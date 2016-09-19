@@ -74,6 +74,28 @@ A view-specific filter/sort may be applied to each `dom-repeat` by supplying a
 the host, or a function may be assigned to the property directly.  The functions
 should implemented following the standard `Array` filter/sort API.
 
+In order to re-run the filter or sort functions based on changes to sub-fields
+of `items`, the `observe` property may be set as a space-separated list of
+`item` sub-fields that should cause a re-filter/sort when modified.  If
+the filter or sort function depends on properties not contained in `items`,
+the user should observe changes to those properties and call `render` to update
+the view based on the dependency change.
+
+For example, for an `dom-repeat` with a filter of the following:
+
+```js
+isEngineer: function(item) {
+    return item.type == 'engineer' || item.manager.type == 'engineer';
+}
+```
+
+Then the `observe` property should be configured as follows:
+
+```html
+<template is="dom-repeat" items="{{employees}}"
+          filter="isEngineer" observe="type manager.type">
+```
+
 -->
 
 <link rel="import" href="../../polymer-legacy.html">
@@ -107,8 +129,7 @@ should implemented following the standard `Array` filter/sort API.
        * to stamp and that that each template instance should bind to.
        */
       items: {
-        type: Array,
-        notify: true
+        type: Array
       },
 
       /**
@@ -162,6 +183,18 @@ should implemented following the standard `Array` filter/sort API.
       filter: {
         type: Function,
         observer: '_filterChanged'
+      },
+
+      /**
+       * When using a `filter` or `sort` function, the `observe` property
+       * should be set to a space-separated list of the names of item
+       * sub-fields that should trigger a re-sort or re-filter when changed.
+       * These should generally be fields of `item` that the sort or filter
+       * function depends on.
+       */
+      observe: {
+        type: String,
+        observer: '_observeChanged'
       },
 
       /**
@@ -276,11 +309,13 @@ should implemented following the standard `Array` filter/sort API.
           fwdInstancePropToHost: function(inst, prop, value) {
             //TODO(kschaaf): fallout from separating template from dom-repeat
             var self = this.__dataHost.parentNode;
-            if (prop == self.as) {
-              self.items[inst[self.origIndexAs]] = value;
-              self.notifyPath('items', self.items);
-            } else if (prop.indexOf(self.as + '.') === 0) {
-              self.notifyPath('items', self.items);
+            if (Polymer.Path.matches(self.as, prop)) {
+              let idx = inst[self.origIndexAs];
+              if (prop == self.as) {
+                self.items[idx] = value;
+              }
+              let path = Polymer.Path.translate(self.as, 'items.' + idx, prop);
+              self.notifyPath(path, value);
             }
           }
         });
@@ -347,14 +382,42 @@ should implemented following the standard `Array` filter/sort API.
       this._debounceRender();
     },
 
+    _observeChanged: function() {
+      this._observePaths = this.observe &&
+        this.observe.replace('.*', '.').split(' ');
+    },
+
     _itemsChanged: function(change) {
       if (this.items && !Array.isArray(this.items)) {
         console.warn('dom-repeat expected array for `items`, found', this.items);
       }
-      this._needFullRefresh = true;
-      this._initializeChunking();
-      // this._debounceRender();
-      this._render();
+      if (this._forwardItemPath(change.path, change.value)) {
+        this._checkObservedPaths(change.path);
+      } else {
+        this._needFullRefresh = true;
+        this._initializeChunking();
+        this._debounceRender();
+      }
+    },
+
+    _checkObservedPaths: function(path) {
+      if (this._observePaths) {
+        path = path.substring(path.indexOf('.', 6) + 1);
+        var paths = this._observePaths;
+        for (var i=0; i<paths.length; i++) {
+          if (path.indexOf(paths[i]) === 0) {
+            // TODO(kschaaf): interim solution: ideally this is just an incremental
+            // insertion sort of the changed item
+            this._needFullRefresh = true;
+            if (this.delay) {
+              this.debounce('render', this._render, this.delay);
+            } else {
+              this._debounceRender();
+            }
+            return;
+          }
+        }
+      }
     },
 
     _debounceRender: function() {
@@ -409,12 +472,15 @@ should implemented following the standard `Array` filter/sort API.
         viewOrder.sort((a, b) => this._sortFn(items[a], items[b]));
       }
       // Generate instances and assign items
+      const limit = Math.min(viewOrder.length, this._limit);
+      const idxMap = this._origIdxToInstIdx = {};
       let instIdx = 0;
-      let limit = Math.min(viewOrder.length, this._limit);
+      this._origIdxToInstIdx = idxMap;
       for (; instIdx<limit; instIdx++) {
         let inst = this._instances[instIdx];
         let itemIdx = viewOrder[instIdx];
         let item = items[itemIdx];
+        idxMap[itemIdx] = instIdx;
         if (inst && instIdx < this._limit) {
           inst.forwardProperty(this.as, item);
           inst.forwardProperty(this.indexAs, instIdx);
@@ -489,6 +555,25 @@ should implemented following the standard `Array` filter/sort API.
     _showHideChildren: function(hidden) {
       for (var i=0; i<this._instances.length; i++) {
         this._instances[i]._showHideChildren(hidden);
+      }
+    },
+
+    // Called as a side effect of a host items.<key>.<path> path change,
+    // responsible for notifying item.<path> changes to inst for key
+    _forwardItemPath: function(path, value) {
+      if (this._origIdxToInstIdx) {
+        // slice off 'items.' ('items.'.length == 6)
+        path = path.slice(6);
+        var dot = path.indexOf('.');
+        var origIdx = path.substring(0, dot < 0 ? path.length : dot);
+        var instIdx = this._origIdxToInstIdx[origIdx];
+        var inst = this._instances[instIdx];
+        if (inst) {
+          path = this.as + ((dot >= 0) ? ('.' + path.substring(dot+1)) : '');
+          inst.forwardProperty(path, value);
+          inst.flushProperties();
+          return true;
+        }
       }
     },
 
