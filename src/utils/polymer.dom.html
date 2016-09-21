@@ -7,8 +7,152 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="boot.html">
+<link rel="import" href="array-splice.html">
 <script>
 (function() {
+
+  class DistributedNodesObserver {
+
+    static get observers() {
+      if (!this._observers) {
+        this._observers = new Set;
+      }
+      return this._observers;
+    }
+
+    static flush() {
+      for (let observer of this._observers) {
+        observer.flush();
+      }
+    }
+
+    constructor(target, callback) {
+      this.target = target;
+      this.callback = callback;
+      this.effectiveNodes = [];
+      this.observer = null;
+      this.scheduled = false;
+      this._boundSchedule = () => {
+        this.schedule();
+      }
+      this.connect();
+      this.schedule();
+    }
+
+    connect() {
+      if (this.isSlot(this.target)) {
+        this.observeSlots([this.target]);
+      } else {
+        this.observeSlots(this.target.children);
+        if (window.ShadyDOM) {
+          ShadyDOM.observeChildren(this.target, this._boundSchedule);
+        } else {
+          this.observer = new MutationObserver(this._boundSchedule);
+          this.observer.observe(this.target, {childList: true});
+        }
+      }
+      this.connected = true;
+    }
+
+    disconnect() {
+      if (this.isSlot(this.target)) {
+        this.observeSlots([this.target]);
+      } else {
+        this.unobserveSlots(this.target.children);
+        if (window.ShadyDOM) {
+          ShadyDOM.unobserveChildren(this.target);
+        } else {
+          this.observer.disconnect();
+          this.observer = null;
+        }
+      }
+      this.connected = false;
+    }
+
+    isSlot(node) {
+      return (node.nodeType === Node.ELEMENT_NODE && node.localName === 'slot');
+    }
+
+    slotsFromNodeList(nodeList) {
+      return Array.from(nodeList).filter(this.isSlot);
+    }
+
+    getEffectiveNodes(target) {
+      if (this.isSlot(target)) {
+        return target.assignedNodes({flatten: true});
+      } else {
+        return Array.from(target.childNodes)
+          .map(node => {
+            if (this.isSlot(node)) {
+              return node.assignedNodes({flatten: true});
+            } else {
+              return [node];
+            }
+          })
+          .reduce((a, b) => a.concat(b), []);
+      }
+    }
+
+    schedule() {
+      if (!this.scheduled) {
+        this.scheduled = true;
+        Promise.resolve().then(() => {
+          this.flush();
+        });
+      }
+    }
+
+    flush() {
+      if (!this.connected) {
+        return;
+      }
+      Polymer.dom.flush();
+      if (this.observer) {
+        this.observer.takeRecords();
+      }
+      this.scheduled = false;
+      let info = {
+        target: this.target,
+        addedNodes: [],
+        removedNodes: []
+      };
+      let newNodes = this.getEffectiveNodes(this.target);
+      let splices = Polymer.calculateSplices(newNodes, this.effectiveNodes);
+      // process removals
+      for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+        for (var j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
+          info.removedNodes.push(n);
+        }
+      }
+      // process adds
+      for (i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+        for (j=s.index; j < s.index + s.addedCount; j++) {
+          info.addedNodes.push(newNodes[j]);
+        }
+      }
+      // update cache
+      this.effectiveNodes = newNodes;
+      if (info.addedNodes.length || info.removedNodes.length) {
+        this.callback(info);
+      }
+    }
+
+    observeSlots(nodeList) {
+      let slots = this.slotsFromNodeList(nodeList);
+      for (let i=0; i < slots.length; i++) {
+        slots[i].addEventListener('slotchange', this._boundSchedule);
+      }
+    }
+
+    unobserveSlots(nodeList) {
+      let slots = this.slotsFromNodeList(nodeList);
+      for (let i=0; i < slots.length; i++) {
+        slots[i].removeEventListener('slotchange', this._boundSchedule);
+      }
+    }
+
+  }
 
   // TODO(sorvell): figure out Polymer.dom compat...
   function decorateElement(e) {
@@ -17,9 +161,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     e.__polymerDecorated = true;
 
-    e.observeNodes = function() {};
+    e.observeNodes = function(callback) {
+      Polymer.dom.flush();
+      return new DistributedNodesObserver(e, callback);
+    };
 
-    e.unobserveNodes = function() {};
+    e.unobserveNodes = function(observerHandle) {
+      observerHandle.disconnect();
+    };
 
     e.deepContains = function(node) {
       if (this.contains(node)) {
