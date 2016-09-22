@@ -8,9 +8,28 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="boot.html">
+<link rel="import" href="utils.html">
 <link rel="import" href="array-splice.html">
 <script>
 (function() {
+
+  function isSlot(node) {
+    return (node.nodeType === Node.ELEMENT_NODE && node.localName === 'slot');
+  }
+
+  function getEffectiveNodes(node) {
+    if (isSlot(node)) {
+      return node.assignedNodes({flatten: true});
+    } else {
+      return Array.from(node.childNodes).map(node => {
+        if (isSlot(node)) {
+          return node.assignedNodes({flatten: true});
+        } else {
+          return [node];
+        }
+      }).reduce((a, b) => a.concat(b), []);
+    }
+  }
 
   class DistributedNodesObserver {
 
@@ -41,7 +60,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     connect() {
-      if (this.isSlot(this.target)) {
+      if (isSlot(this.target)) {
         this.observeSlots([this.target]);
       } else {
         this.observeSlots(this.target.children);
@@ -56,7 +75,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     disconnect() {
-      if (this.isSlot(this.target)) {
+      if (isSlot(this.target)) {
         this.observeSlots([this.target]);
       } else {
         this.unobserveSlots(this.target.children);
@@ -70,28 +89,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.connected = false;
     }
 
-    isSlot(node) {
-      return (node.nodeType === Node.ELEMENT_NODE && node.localName === 'slot');
-    }
-
     slotsFromNodeList(nodeList) {
-      return Array.from(nodeList).filter(this.isSlot);
-    }
-
-    getEffectiveNodes(target) {
-      if (this.isSlot(target)) {
-        return target.assignedNodes({flatten: true});
-      } else {
-        return Array.from(target.childNodes)
-          .map(node => {
-            if (this.isSlot(node)) {
-              return node.assignedNodes({flatten: true});
-            } else {
-              return [node];
-            }
-          })
-          .reduce((a, b) => a.concat(b), []);
-      }
+      return Array.from(nodeList).filter(isSlot);
     }
 
     schedule() {
@@ -117,17 +116,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         addedNodes: [],
         removedNodes: []
       };
-      let newNodes = this.getEffectiveNodes(this.target);
+      let newNodes = getEffectiveNodes(this.target);
       let splices = Polymer.calculateSplices(newNodes, this.effectiveNodes);
       // process removals
-      for (var i=0, s; (i<splices.length) && (s=splices[i]); i++) {
-        for (var j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
+      for (let i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+        for (let j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
           info.removedNodes.push(n);
         }
       }
       // process adds
-      for (i=0, s; (i<splices.length) && (s=splices[i]); i++) {
-        for (j=s.index; j < s.index + s.addedCount; j++) {
+      for (let i=0, s; (i<splices.length) && (s=splices[i]); i++) {
+        for (let j=s.index; j < s.index + s.addedCount; j++) {
           info.addedNodes.push(newNodes[j]);
         }
       }
@@ -154,87 +153,162 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   }
 
-  // TODO(sorvell): figure out Polymer.dom compat...
-  function decorateElement(e) {
-    if (e.__polymerDecorated) {
-      return e;
+  class DomApi {
+
+    constructor(node) {
+      if (window.ShadyDOM) {
+        ShadyDOM.patch(node);
+      }
+      this.node = node;
     }
-    e.__polymerDecorated = true;
 
-    e.observeNodes = function(callback) {
+    observeNodes(callback) {
       Polymer.dom.flush();
-      return new DistributedNodesObserver(e, callback);
-    };
+      return new DistributedNodesObserver(this.node, callback);
+    }
 
-    e.unobserveNodes = function(observerHandle) {
+    unobserveNodes(observerHandle) {
       observerHandle.disconnect();
-    };
+    }
 
-    e.deepContains = function(node) {
-      if (this.contains(node)) {
+    notifyObserver() {}
+
+    deepContains(node) {
+      if (this.node.contains(node)) {
         return true;
       }
-      var n = node;
-      var doc = node.ownerDocument;
+      let n = node;
+      let doc = node.ownerDocument;
       // walk from node to `this` or `document`
-      while (n && n !== doc && n !== this) {
+      while (n && n !== doc && n !== this.node) {
         // use logical parentnode, or native ShadowRoot host
         n = Polymer.dom(n).parentNode || n.host;
       }
-      return n === this;
-    };
+      return n === this.node;
+    }
 
-    e.getOwnerRoot = function() {
-      var n = this;
+    getOwnerRoot() {
+      return this.node.getRootNode();
+    }
+
+    getDistributedNodes() {
+      return (this.node.localName === 'slot') ?
+        this.node.assignedNodes({flatten: true}) :
+        [];
+    }
+
+    getDestinationInsertionPoints() {
+      let ip$ = [];
+      let n = this.node.assignedSlot;
       while (n) {
-        if (n.nodeType === Node.DOCUMENT_FRAGMENT_NODE && n.host) {
-          return n;
-        }
-        n = n.parentNode;
+        ip$.push(n);
+        n = n.assignedSlot;
       }
-    };
+      return ip$;
+    }
+
+    importNode(externalNode, deep) {
+      let doc = this.node instanceof Document ? this.node :
+        this.node.ownerDocument;
+      return doc.importNode(externalNode, deep);
+    }
+
+    getEffectiveChildNodes() {
+      return getEffectiveNodes(this.node);
+    }
+
+    queryDistributedElements(selector) {
+      let c$ = this.getEffectiveChildNodes();
+      let list = [];
+      for (let i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+        if ((c.nodeType === Node.ELEMENT_NODE) &&
+            Polymer.Utils.matchesSelector(this.node, selector)) {
+          list.push(c);
+        }
+      }
+      return list;
+    }
 
   }
 
-  function decorateEvent(e) {
-    if (e.__polymerDecorated) {
-      return e;
-    }
-    e.__polymerDecorated = true;
-    e.rootTarget = e.path[0];
-    Object.defineProperty(e, 'localTarget', {
-      get: function() {
-        return e.target;
+  function forwardMethods(proto, methods) {
+    for (let i=0; i < methods.length; i++) {
+      let method = methods[i];
+      proto[method] = function() {
+        return this.node[method].apply(this.node, arguments);
       }
-    });
-    return e;
+    }
+  }
+
+  function forwardReadOnlyProperties(proto, properties) {
+    for (let i=0; i < properties.length; i++) {
+      let name = properties[i];
+      Object.defineProperty(proto, name, {
+        get: function() {
+          return this.node[name];
+        },
+        configurable: true
+      });
+    }
+  }
+
+  function forwardProperties(proto, properties) {
+    for (let i=0; i < properties.length; i++) {
+      let name = properties[i];
+      Object.defineProperty(proto, name, {
+        get: function() {
+          return this.node[name];
+        },
+        set: function(value) {
+          this.name[name] = value;
+        },
+        configurable: true
+      });
+    }
+  }
+
+  forwardMethods(DomApi.prototype, [
+    'cloneNode', 'appendChild', 'insertBefore', 'removeChild',
+    'replaceChild', 'setAttribute', 'removeAttribute',
+    'querySelector', 'querySelectorAll'
+  ]);
+
+  forwardReadOnlyProperties(DomApi.prototype, [
+    'activeElement',
+    'parentNode', 'firstChild', 'lastChild',
+    'nextSibling', 'previousSibling', 'firstElementChild',
+    'lastElementChild', 'nextElementSibling', 'previousElementSibling',
+    'childNodes', 'children'
+  ]);
+
+  forwardProperties(DomApi.prototype, [
+    'textContent', 'innerHTML'
+  ]);
+
+
+  class EventApi {
+    constructor(event) {
+      this.event = event;
+    }
+
+    get rootTarget() {
+      return this.event.composedPath()[0];
+    }
+
+    get localTarget() {
+      return this.event.target;
+    }
   }
 
   Polymer.dom = function(obj) {
     obj = obj || document;
-    if (obj instanceof Event) {
-      decorateEvent(obj);
-    } else {
-      //var obj = obj.shadowRoot || obj;
-      decorateElement(obj);
-      if (window.ShadyDOM) {
-        ShadyDOM.patch(obj);
-      }
-      patchArrayMethods(obj);
+    let ctor = obj instanceof Event ? EventApi : DomApi;
+    if (!obj.__domApi) {
+      obj.__domApi = new ctor(obj);
     }
-    return obj;
+    return obj.__domApi;
   };
 
-  function patchArrayMethods(el) {
-    ['querySelectorAll'].forEach(function(method) {
-      var orig = el[method];
-      el[method] = function() {
-        return Array.from(orig.apply(this, arguments));
-      }
-    });
-  }
-
-  // TODO(sorvell): bc.
   Polymer.dom.flush = function() {
     if (window.ShadyDOM) {
       ShadyDOM.flush();
