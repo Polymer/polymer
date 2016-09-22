@@ -25,8 +25,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function runComputedEffects(inst, changedProps, oldProps) {
     const COMPUTE = inst.PROPERTY_EFFECT_TYPES.COMPUTE;
     if (inst[COMPUTE]) {
-      var inputProps = changedProps;
-      var computedProps;
+      let inputProps = changedProps;
+      let computedProps;
       while (runEffects(inst, COMPUTE, inputProps)) {
         utils.mixin(oldProps, inst.__dataOld);
         utils.mixin(changedProps, inst.__dataPending);
@@ -40,10 +40,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   function computeLinkedPaths(inst, changedProps, computedProps) {
     if (inst.__dataLinkedPaths) {
-      var link;
-      for (var a in inst.__dataLinkedPaths) {
-        var b = inst.__dataLinkedPaths[a];
-        for (var path in changedProps) {
+      let link;
+      for (let a in inst.__dataLinkedPaths) {
+        let b = inst.__dataLinkedPaths[a];
+        for (let path in changedProps) {
           if (Polymer.Path.isDescendant(a, path)) {
             link = Polymer.Path.translate(a, b, path);
             changedProps[link] = computedProps[link] =
@@ -60,20 +60,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   function notifyProperties(inst, changedProps, computedProps, oldProps) {
     // Determine which props to notify
-    var props = inst.__dataFromAbove ? computedProps : changedProps;
+    let props = inst.__dataFromAbove ? computedProps : changedProps;
     // Save interim data for potential re-entry
-    var runId = (inst._runId = ((inst._runId || 0) + 1));
+    let runId = (inst._runId = ((inst._runId || 0) + 1));
     inst.__dataInterim = inst.__dataInterim ?
       utils.mixin(inst.__dataInterim, changedProps) : changedProps;
     inst.__dataInterimOld = inst.__dataInterimOld ?
       utils.mixin(inst.__dataInterimOld, oldProps) : oldProps;
     // Notify
-    var host = inst.__dataHost;
-    runEffects(inst, inst.PROPERTY_EFFECT_TYPES.NOTIFY, props);
-    // Flush host
-    // TODO(kschaaf): fix this check (__dataLib is gone)
-    if (host /*&& host.__dataLib instanceof BatchedEffects*/ && host.__dataPending) {
-      host._flushProperties();
+    if (runEffects(inst, inst.PROPERTY_EFFECT_TYPES.NOTIFY, props)) {
+      // Flush host
+      let host = inst.__dataHost;
+      if (host && host.setProperties) {
+        host._flushProperties();
+      }      
     }
     // Combine & return interim data only for last entry
     if (runId == inst._runId) {
@@ -86,15 +86,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   function runEffects(inst, type, props, oldProps) {
-    var ran;
-    var effects = inst[type];
+    let ran;
+    let effects = inst[type];
     if (effects) {
-      var id = effectUid++;
-      for (var prop in props) {
-        var rootProperty = Polymer.Path.root(prop);
-        var fxs = effects[rootProperty];
+      let id = effectUid++;
+      for (let prop in props) {
+        let rootProperty = Polymer.Path.root(prop);
+        let fxs = effects[rootProperty];
         if (fxs) {
-          for (var i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
+          for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
             if (Polymer.Path.matches(fx.path, prop) &&
               (!fx.info || fx.info.lastRun !== id)) {
               fx.fn(inst, prop, inst.__data[prop],
@@ -124,16 +124,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _propertiesChanged(currentProps, changedProps, oldProps) {
         // if (window.debug) {
-        //   var c = Object.getOwnPropertyNames(changedProps);
+        //   let c = Object.getOwnPropertyNames(changedProps);
         //   console.group(inst.localName + '#' + inst.id + ': ' + c);
         //   debugger;
         // }
         // Compute
-        var computedProps = runComputedEffects(this, changedProps, oldProps);
+        let computedProps = runComputedEffects(this, changedProps, oldProps);
         // Compute linked paths
         computeLinkedPaths(this, changedProps, computedProps);
         // Notify
-        var props = notifyProperties(this, changedProps, computedProps, oldProps);
+        let props = notifyProperties(this, changedProps, computedProps, oldProps);
         if (props) {
           oldProps = props.oldProps;
           changedProps = props.changedProps;
@@ -167,8 +167,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       _setPropertyFromNotification(path, value, event) {
-        // TODO(kschaaf): fix id of BatchedEffects client...
-        if (event.target.setProperties) {
+        let detail = event.detail;
+        if (detail && detail.queueProperty) {
           if (!this._hasReadOnlyEffect(path)) {
             if ((path = this._setPathOrUnmanagedProperty(path, value))) {
               this._setPendingProperty(path, value);
@@ -177,6 +177,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           super._setPropertyFromNotification(path, value, event);
         }
+      }
+
+      _dispatchNotifyingEvent(event) {
+        event.detail.queueProperty = true;
+        super._dispatchNotifyingEvent(event);
       }
 
       _setPropertyFromComputation(prop, value) {
@@ -196,7 +201,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _flushClients() {
         // Flush all clients
-        var clients = this.__dataPendingClients;
+        let clients = this.__dataPendingClients;
         if (clients) {
           clients.forEach((v, client) => {
             // TODO(kschaaf): more explicit check?
