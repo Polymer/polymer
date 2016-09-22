@@ -71,8 +71,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var host = inst.__dataHost;
     runEffects(inst, inst.PROPERTY_EFFECT_TYPES.NOTIFY, props);
     // Flush host
-    // TODO(kschaaf): fix this check (__dataLib is gone)
-    if (host /*&& host.__dataLib instanceof BatchedEffects*/ && host.__dataPending) {
+    // TODO(kschaaf): fix id of BatchedEffects client...
+    if (host && host.__dataPending && host.setProperties) {
       host._flushProperties();
     }
     // Combine & return interim data only for last entry
@@ -117,7 +117,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       constructor() {
         super();
-        this.__dataLib = Polymer.BatchedEffects;
         this.__dataPendingClients = null;
       }
 
@@ -155,7 +154,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       _setPropertyToNodeFromAnnotation(node, prop, value) {
-        if (node.__dataLib == Polymer.BatchedEffects) {
+        // TODO(kschaaf): fix id of BatchedEffects client...
+        if (node.setProperties) {
           if (!node._hasReadOnlyEffect(prop)) {
             if (node._setPendingProperty(prop, value)) {
               this._enqueueClient(node);
@@ -168,7 +168,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _setPropertyFromNotification(path, value, event) {
         let details = event.details;
-        if (details && details.fromLib == Polymer.BatchedEffects) {
+        if (details && details.queueProperty) {
           if (!this._hasReadOnlyEffect(path)) {
             if ((path = this._setPathOrUnmanagedProperty(path, value))) {
               this._setPendingProperty(path, value);
@@ -177,6 +177,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           super._setPropertyFromNotification(path, value, event);
         }
+      }
+
+      _dispatchNotifyingEvent(event) {
+        event.queueProperty = true;
+        super._dispatchNotifyingEvent(event);
       }
 
       _setPropertyFromComputation(prop, value) {
