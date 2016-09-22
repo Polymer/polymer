@@ -97,6 +97,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var styles = element._styles;
         var cssText = '';
         var cssBuildType = element.__cssBuild;
+        var passthrough = settings.useNativeShadow || cssBuildType === 'shady';
+        var cb = callback;
+        if (passthrough) {
+          var self = this;
+          //
+          cb = function(rule) {
+            rule.selector = self._slottedToContent(rule.selector);
+            if (callback) {
+              callback(rule);
+            }
+          }
+        }
         for (var i=0, l=styles.length, s; (i<l) && (s=styles[i]); i++) {
           var rules = styleUtil.rulesForStyle(s);
           // no need to shim selectors if settings.useNativeShadow, also
@@ -105,9 +117,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // When there is a targeted build it will not be called for static shimming,
           // but when the property shim is used it is called and should opt out of
           // static shimming work when a proper build exists.
-          cssText += (settings.useNativeShadow || cssBuildType === 'shady') ?
-            styleUtil.toCssText(rules, callback) :
-            this.css(rules, element.is, element.extends, callback,
+          cssText += (passthrough) ?
+            styleUtil.toCssText(rules, cb) :
+            this.css(rules, element.is, element.extends, cb,
             element._scopeCssViaAttr) + '\n\n';
         }
         return cssText.trim();
@@ -176,6 +188,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var hostContext = false;
         var self = this;
         selector = selector.trim();
+        selector = this._slottedToContent(selector);
         selector = selector.replace(CONTENT_START, HOST + ' $1');
         selector = selector.replace(SIMPLE_SELECTOR_SEP, function(m, c, s) {
           if (!stop) {
@@ -237,7 +250,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _transformHostSelector: function(selector, hostScope) {
         var m = selector.match(HOST_PAREN);
         var paren = m && m[2].trim() || '';
-        if (paren) { 
+        if (paren) {
           if (!paren[0].match(SIMPLE_SELECTOR_PREFIX)) {
             // paren starts with a type selector
             var typeSelector = paren.split(SIMPLE_SELECTOR_PREFIX)[0];
@@ -257,7 +270,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             });
           }
         // if no paren, do a straight :host replacement.
-        // TODO(sorvell): this should not strictly be necessary but 
+        // TODO(sorvell): this should not strictly be necessary but
         // it's needed to maintain support for `:host[foo]` type selectors
         // which have been improperly used under Shady DOM. This should be
         // deprecated.
@@ -287,6 +300,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._transformSimpleSelector(selector.trim(), SCOPE_DOC_SELECTOR);
       },
 
+      // For forward compatibility with ShadowDOM v1 and Polymer 2.x,
+      // replace ::slotted(${inner}) with ::content > ${inner}
+      _slottedToContent: function(cssText) {
+        return cssText.replace(SLOTTED_PAREN, CONTENT + '> $1');
+      },
+
       SCOPE_NAME: 'style-scope'
     };
 
@@ -313,6 +332,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var CLASS = 'class';
     var CONTENT_START = new RegExp('^(' + CONTENT + ')');
     var SELECTOR_NO_MATCH = 'should_not_match';
+    var SLOTTED_PAREN = /(?:::slotted)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
 
     // exports
     return api;
