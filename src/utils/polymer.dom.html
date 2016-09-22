@@ -14,7 +14,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
 
   function isSlot(node) {
-    return (node.nodeType === Node.ELEMENT_NODE && node.localName === 'slot');
+    return (node.localName === 'slot');
   }
 
   function getEffectiveNodes(node) {
@@ -31,20 +31,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  class DistributedNodesObserver {
+  let effectiveNodesObserverPromise = Promise.resolve();
 
-    static get observers() {
-      if (!this._observers) {
-        this._observers = new Set;
-      }
-      return this._observers;
-    }
-
-    static flush() {
-      for (let observer of this._observers) {
-        observer.flush();
-      }
-    }
+  class EffectiveNodesObserver {
 
     constructor(target, callback) {
       this.target = target;
@@ -96,7 +85,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     schedule() {
       if (!this.scheduled) {
         this.scheduled = true;
-        Promise.resolve().then(() => {
+        effectiveNodesObserverPromise.then(() => {
           this.flush();
         });
       }
@@ -106,7 +95,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!this.connected) {
         return;
       }
-      Polymer.dom.flush();
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
       if (this.observer) {
         this.observer.takeRecords();
       }
@@ -117,7 +108,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         removedNodes: []
       };
       let newNodes = getEffectiveNodes(this.target);
-      let splices = Polymer.calculateSplices(newNodes, this.effectiveNodes);
+      let splices = Polymer.ArraySplice.calculateSplices(newNodes,
+        this.effectiveNodes);
       // process removals
       for (let i=0, s; (i<splices.length) && (s=splices[i]); i++) {
         for (let j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
@@ -163,8 +155,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     observeNodes(callback) {
-      Polymer.dom.flush();
-      return new DistributedNodesObserver(this.node, callback);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      return new EffectiveNodesObserver(this.node, callback);
     }
 
     unobserveNodes(observerHandle) {
