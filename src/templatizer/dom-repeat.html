@@ -390,9 +390,15 @@ Then the `observe` property should be configured as follows:
       if (this.items && !Array.isArray(this.items)) {
         console.warn('dom-repeat expected array for `items`, found', this.items);
       }
+      // If path was to an item (e.g. 'items.3' or 'items.3.foo'), forward the
+      // path to that instance synchronously (retuns false for non-item paths)
       if (this._forwardItemPath(change.path, change.value)) {
+        // For item paths, check if it was an observed path and if so, do a
+        // full refresh to re-sort/filter
         this._checkObservedPaths(change.path);
       } else {
+        // Otherwise, the array was reset ('items') or spliced ('items.splices'),
+        // so queue a full refresh
         this._needFullRefresh = true;
         this._initializeChunking();
         this._debounceRender();
@@ -405,8 +411,6 @@ Then the `observe` property should be configured as follows:
         var paths = this._observePaths;
         for (var i=0; i<paths.length; i++) {
           if (path.indexOf(paths[i]) === 0) {
-            // TODO(kschaaf): interim solution: ideally this is just an incremental
-            // insertion sort of the changed item
             this._needFullRefresh = true;
             if (this.delay) {
               this.debounce('render', this._render, this.delay);
@@ -471,11 +475,11 @@ Then the `observe` property should be configured as follows:
       if (this._sortFn) {
         viewOrder.sort((a, b) => this._sortFn(items[a], items[b]));
       }
-      // Generate instances and assign items
-      const limit = Math.min(viewOrder.length, this._limit);
+      // items->inst map kept for item path forwarding
       const idxMap = this._itemsIdxToInstIdx = {};
       let instIdx = 0;
-      this._itemsIdxToInstIdx = idxMap;
+      // Generate instances and assign items
+      const limit = Math.min(viewOrder.length, this._limit);
       for (; instIdx<limit; instIdx++) {
         let inst = this._instances[instIdx];
         let itemIdx = viewOrder[instIdx];
