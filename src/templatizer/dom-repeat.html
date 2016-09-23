@@ -392,12 +392,7 @@ Then the `observe` property should be configured as follows:
       }
       // If path was to an item (e.g. 'items.3' or 'items.3.foo'), forward the
       // path to that instance synchronously (retuns false for non-item paths)
-      let subPath = change.path.slice(6); // 'items.'.length == 6
-      if (this._forwardItemPath(subPath, change.value)) {
-        // For item paths, check if it was an observed path and if so, do a
-        // full refresh to re-sort/filter
-        this._checkObservedPaths(subPath);
-      } else {
+      if (!this._forwardItemPath(change.path, change.value)) {
         // Otherwise, the array was reset ('items') or spliced ('items.splices'),
         // so queue a full refresh
         this._needFullRefresh = true;
@@ -418,7 +413,7 @@ Then the `observe` property should be configured as follows:
             } else {
               this._debounceRender();
             }
-            return;
+            return true;
           }
         }
       }
@@ -463,29 +458,29 @@ Then the `observe` property should be configured as follows:
 
     _applyFullRefresh: function() {
       const items = this.items || [];
-      let viewOrder = new Array(items.length);
+      let isntIdxToItemsIdx = new Array(items.length);
       for (let i=0; i<items.length; i++) {
-        viewOrder[i] = i;
+        isntIdxToItemsIdx[i] = i;
       }
       // Apply user filter
       if (this._filterFn) {
-        viewOrder = viewOrder.filter((i, idx, array) =>
+        isntIdxToItemsIdx = isntIdxToItemsIdx.filter((i, idx, array) =>
           this._filterFn(items[i], idx, array));
       }
       // Apply user sort
       if (this._sortFn) {
-        viewOrder.sort((a, b) => this._sortFn(items[a], items[b]));
+        isntIdxToItemsIdx.sort((a, b) => this._sortFn(items[a], items[b]));
       }
       // items->inst map kept for item path forwarding
-      const idxMap = this._itemsIdxToInstIdx = {};
+      const itemsIdxToInstIdx = this._itemsIdxToInstIdx = {};
       let instIdx = 0;
       // Generate instances and assign items
-      const limit = Math.min(viewOrder.length, this._limit);
+      const limit = Math.min(isntIdxToItemsIdx.length, this._limit);
       for (; instIdx<limit; instIdx++) {
         let inst = this._instances[instIdx];
-        let itemIdx = viewOrder[instIdx];
+        let itemIdx = isntIdxToItemsIdx[instIdx];
         let item = items[itemIdx];
-        idxMap[itemIdx] = instIdx;
+        itemsIdxToInstIdx[itemIdx] = instIdx;
         if (inst && instIdx < this._limit) {
           inst.forwardProperty(this.as, item);
           inst.forwardProperty(this.indexAs, instIdx);
@@ -567,15 +562,18 @@ Then the `observe` property should be configured as follows:
     // responsible for notifying item.<path> changes to inst for key
     _forwardItemPath: function(path, value) {
       if (this._itemsIdxToInstIdx) {
+        path = path.slice(6); // 'items.'.length == 6
         var dot = path.indexOf('.');
-        var itemsIdx = path.substring(0, dot < 0 ? path.length : dot);
+        var itemsIdx = dot < 0 ? path : path.substring(0, dot);
         var instIdx = this._itemsIdxToInstIdx[itemsIdx];
         var inst = this._instances[instIdx];
         if (inst) {
-          path = this.as + ((dot >= 0) ? ('.' + path.substring(dot+1)) : '');
-          inst.forwardProperty(path, value);
-          inst.flushProperties();
-          return true;
+          path = dot < 0 ? '' : path.substring(dot+1);
+          if (!this._checkObservedPaths(path)) {
+            inst.forwardProperty(this.as + (path ? '.' + path : ''), value);
+            inst.flushProperties();
+            return true;
+          }        
         }
       }
     },
