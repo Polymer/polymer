@@ -556,7 +556,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // data api
 
-  // Note: this implemetation only accepts key-based array paths
+  // Note: this implemetation only accepts normalized paths
   function notifySplices(inst, array, path, splices) {
     let change = {
       indexSplices: splices
@@ -566,7 +566,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     inst._setProperty(path + '.length', array.length);
     // All path notification values are cached on `this.__data__`.
     // Null here to allow potentially large splice records to be GC'ed.
-    inst.__data[splicesPath] = {keySplices: null, indexSplices: null};
+    inst.__data[splicesPath] = {indexSplices: null};
   }
 
   function notifySplice(inst, array, path, index, added, removed) {
@@ -682,7 +682,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // system, and not in every step of the hot path.
       // If `path` is an unmanaged property (property without an accessor)
       // or a path, sets the value at that path.  If the root of the path
-      // is a managed property, returns an index-to-key transformed path
+      // is a managed property, returns a normalized string path
       // sutable for setting into the system via setProperty/setPendingProperty
       // `path` can be a user-facing path string or array of path parts.
       _setPathOrUnmanagedProperty(path, value) {
@@ -745,6 +745,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} from Source path to link.
        */
       linkPaths(to, from) {
+        to = Polymer.Path.normalize(to);
+        from = Polymer.Path.normalize(from);
         this.__dataLinkedPaths = this.__dataLinkedPaths || {};
         if (from) {
           this.__dataLinkedPaths[to] = from;
@@ -763,6 +765,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} path Target path to unlink.
        */
       unlinkPaths(path) {
+        path = Polymer.Path.normalize(path);
         if (this.__dataLinkedPaths) {
           delete this.__dataLinkedPaths[path];
         }
@@ -799,7 +802,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       notifySplices(path, splices) {
         let info = {};
         let array = Polymer.Path.get(this, path, info);
-        // Notify change to key-based path
         notifySplices(this, array, info.path, splices);
       }
 
@@ -836,12 +838,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @method set
        * @param {(string|Array<(string|number)>)} path Path to the value
-       *   to write.  The path may be specified as a string (e.g. `foo.bar.baz`)
+       *   to write.  The path may be specified as a string (e.g. `'foo.bar.baz'`)
        *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
        *   bracketed expressions are not supported; string-based path parts
        *   *must* be separated by dots.  Note that when dereferencing array
        *   indices, the index may be used as a dotted part directly
-       *   (e.g. `users.12.name` or `['users', 12, 'name']`).
+       *   (e.g. `'users.12.name'` or `['users', 12, 'name']`).
        * @param {*} value Value to set at the specified path.
        * @param {Object=} root Root object from which the path is evaluated.
        *   When specified, no notification will occur.
@@ -1010,9 +1012,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return ret;
       }
 
+      /**
+       * Notify that a path has changed.
+       *
+       * Example:
+       *
+       *     this.item.user.name = 'Bob';
+       *     this.notifyPath('item.user.name');
+       *
+       * @param {string} path Path that should be notified.
+       * @param {*=} value Value at the path (optional).
+      */
       notifyPath(path, value) {
         if (arguments.length == 1) {
-          value = this.get(path);
+          // Get value if not supplied
+          let info = {};
+          value = Polymer.Path.get(this, path, info);
+          path = info.path;
+        } else if (Array.isArray(path)) {
+          // Normalize path if needed
+          path = Polymer.Path.normalize(path);
         }
         this._setProperty(path, value);
       }
