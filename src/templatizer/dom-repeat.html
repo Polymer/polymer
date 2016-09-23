@@ -156,9 +156,9 @@ Then the `observe` property should be configured as follows:
        * for the inst.  If `sort` is provided, the index will reflect the
        * sorted order (rather than the original array order).
        */
-      origIndexAs: {
+      itemsIndexAs: {
         type: String,
-        value: 'origIndex'
+        value: 'itemsIndex'
       },
 
       /**
@@ -288,6 +288,7 @@ Then the `observe` property should be configured as follows:
       // it until then
       if (!this._ctor) {
         var template = this.template = this.querySelector('template');
+        template.__domRepeat = this;
         if (!template) {
           throw new Error('dom-repeat requires a <template> child');
         }
@@ -295,27 +296,25 @@ Then the `observe` property should be configured as follows:
         var instanceProps = {};
         instanceProps[this.as] = true;
         instanceProps[this.indexAs] = true;
-        instanceProps[this.origIndexAs] = true;
+        instanceProps[this.itemsIndexAs] = true;
         this._ctor = templatizer.templatize(template, {
           instanceProps: instanceProps,
           fwdHostPropToInstance: function(host, prop, value) {
-            //TODO(kschaaf): fallout from separating template from dom-repeat
-            var self = this.parentNode;
-            var i$ = self._instances;
+            var repeater = this.__domRepeat;
+            var i$ = repeater._instances;
             for (var i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
               inst.forwardProperty(prop, value, host);
             }
           },
           fwdInstancePropToHost: function(inst, prop, value) {
-            //TODO(kschaaf): fallout from separating template from dom-repeat
-            var self = this.__dataHost.parentNode;
-            if (Polymer.Path.matches(self.as, prop)) {
-              let idx = inst[self.origIndexAs];
-              if (prop == self.as) {
-                self.items[idx] = value;
+            var repeater = this.__dataHost.__domRepeat;
+            if (Polymer.Path.matches(repeater.as, prop)) {
+              let idx = inst[repeater.itemsIndexAs];
+              if (prop == repeater.as) {
+                repeater.items[idx] = value;
               }
-              let path = Polymer.Path.translate(self.as, 'items.' + idx, prop);
-              self.notifyPath(path, value);
+              let path = Polymer.Path.translate(repeater.as, 'items.' + idx, prop);
+              repeater.notifyPath(path, value);
             }
           }
         });
@@ -459,7 +458,7 @@ Then the `observe` property should be configured as follows:
 
     _applyFullRefresh: function() {
       const items = this.items || [];
-      let viewOrder = this._viewOrder = new Array(items.length);
+      let viewOrder = new Array(items.length);
       for (let i=0; i<items.length; i++) {
         viewOrder[i] = i;
       }
@@ -474,9 +473,9 @@ Then the `observe` property should be configured as follows:
       }
       // Generate instances and assign items
       const limit = Math.min(viewOrder.length, this._limit);
-      const idxMap = this._origIdxToInstIdx = {};
+      const idxMap = this._itemsIdxToInstIdx = {};
       let instIdx = 0;
-      this._origIdxToInstIdx = idxMap;
+      this._itemsIdxToInstIdx = idxMap;
       for (; instIdx<limit; instIdx++) {
         let inst = this._instances[instIdx];
         let itemIdx = viewOrder[instIdx];
@@ -485,7 +484,7 @@ Then the `observe` property should be configured as follows:
         if (inst && instIdx < this._limit) {
           inst.forwardProperty(this.as, item);
           inst.forwardProperty(this.indexAs, instIdx);
-          inst.forwardProperty(this.origIndexAs, itemIdx);
+          inst.forwardProperty(this.itemsIndexAs, itemIdx);
           inst.flushProperties();
         } else {
           this._insertInstance(item, instIdx, itemIdx);
@@ -526,7 +525,7 @@ Then the `observe` property should be configured as follows:
       var model = {};
       model[this.as] = item;
       model[this.indexAs] = instIdx;
-      model[this.origIndexAs] = itemIdx;
+      model[this.itemsIndexAs] = itemIdx;
       return new this._ctor(this, model);
     },
 
@@ -537,7 +536,7 @@ Then the `observe` property should be configured as follows:
         // need to be re-set to reused instances in addition to item
         inst.forwardProperty(this.as, item);
         inst.forwardProperty(this.indexAs, instIdx);
-        inst.forwardProperty(this.origIndexAs, itemIdx);
+        inst.forwardProperty(this.itemsIndexAs, itemIdx);
       } else {
         inst = this._stampInstance(item, instIdx, itemIdx);
       }
@@ -562,12 +561,12 @@ Then the `observe` property should be configured as follows:
     // Called as a side effect of a host items.<key>.<path> path change,
     // responsible for notifying item.<path> changes to inst for key
     _forwardItemPath: function(path, value) {
-      if (this._origIdxToInstIdx) {
+      if (this._itemsIdxToInstIdx) {
         // slice off 'items.' ('items.'.length == 6)
         path = path.slice(6);
         var dot = path.indexOf('.');
-        var origIdx = path.substring(0, dot < 0 ? path.length : dot);
-        var instIdx = this._origIdxToInstIdx[origIdx];
+        var itemsIdx = path.substring(0, dot < 0 ? path.length : dot);
+        var instIdx = this._itemsIdxToInstIdx[itemsIdx];
         var inst = this._instances[instIdx];
         if (inst) {
           path = this.as + ((dot >= 0) ? ('.' + path.substring(dot+1)) : '');
