@@ -50,14 +50,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     connect() {
       if (isSlot(this.target)) {
-        this.observeSlots([this.target]);
+        this.listenSlots([this.target]);
       } else {
-        this.observeSlots(this.target.children);
+        this.listenSlots(this.target.children);
         if (window.ShadyDOM) {
-          ShadyDOM.observeChildren(this.target, this._boundSchedule);
+          this.shadyChildrenObserver =
+            ShadyDOM.observeChildren(this.target, (mutations) => {
+              this.processMutations(mutations);
+            });
         } else {
-          this.observer = new MutationObserver(this._boundSchedule);
-          this.observer.observe(this.target, {childList: true});
+          this.nativeChildrenObserver =
+            new MutationObserver((mutations) => {
+              this.processMutations(mutations);
+            });
+          this.nativeChildrenObserver.observe(this.target, {childList: true});
         }
       }
       this.connected = true;
@@ -65,21 +71,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     disconnect() {
       if (isSlot(this.target)) {
-        this.observeSlots([this.target]);
+        this.unlistenSlots([this.target]);
       } else {
-        this.unobserveSlots(this.target.children);
-        if (window.ShadyDOM) {
-          ShadyDOM.unobserveChildren(this.target);
-        } else {
-          this.observer.disconnect();
-          this.observer = null;
+        this.unlistenSlots(this.target.children);
+        if (window.ShadyDOM && this.shadyChildrenObserver) {
+          ShadyDOM.unobserveChildren(this.shadyChildrenObserver);
+          this.shadyChildrenObserver = null;
+        } else if (this.nativeChildrenObserver) {
+          this.nativeChildrenObserver.disconnect();
+          this.nativeChildrenObserver = null;
         }
       }
       this.connected = false;
-    }
-
-    slotsFromNodeList(nodeList) {
-      return Array.from(nodeList).filter(isSlot);
     }
 
     schedule() {
@@ -91,6 +94,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    processMutations(mutations) {
+      this.processSlotMutations(mutations);
+      this.flush();
+    }
+
+    processSlotMutations(mutations) {
+      if (mutations) {
+        for (let i=0; i < mutations.length; i++) {
+          let mutation = mutations[i];
+          if (mutation.addedNodes) {
+            this.listenSlots(mutation.addedNodes);
+          }
+          if (mutation.removedNodes) {
+            this.unlistenSlots(mutation.removedNodes);
+          }
+        }
+      }
+    }
+
     flush() {
       if (!this.connected) {
         return;
@@ -98,8 +120,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (window.ShadyDOM) {
         ShadyDOM.flush();
       }
-      if (this.observer) {
-        this.observer.takeRecords();
+      if (this.nativeChildrenObserver) {
+        this.processSlotMutations(this.nativeChildrenObserver.takeRecords());
+      }
+      if (this.shadyChildrenObserver) {
+        this.processSlotMutations(this.shadyChildrenObserver.flush());
       }
       this.scheduled = false;
       let info = {
@@ -129,17 +154,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    observeSlots(nodeList) {
-      let slots = this.slotsFromNodeList(nodeList);
-      for (let i=0; i < slots.length; i++) {
-        slots[i].addEventListener('slotchange', this._boundSchedule);
+    listenSlots(nodeList) {
+      for (let i=0; i < nodeList.length; i++) {
+        let n = nodeList[i];
+        if (isSlot(n)) {
+          n.addEventListener('slotchange', this._boundSchedule);
+        }
       }
     }
 
-    unobserveSlots(nodeList) {
-      let slots = this.slotsFromNodeList(nodeList);
-      for (let i=0; i < slots.length; i++) {
-        slots[i].removeEventListener('slotchange', this._boundSchedule);
+    unlistenSlots(nodeList) {
+      for (let i=0; i < nodeList.length; i++) {
+        let n = nodeList[i];
+        if (isSlot(n)) {
+          n.removeEventListener('slotchange', this._boundSchedule);
+        }
       }
     }
 
