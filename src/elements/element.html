@@ -14,7 +14,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/case-map.html">
 <link rel="import" href="../events/event-listeners.html">
 <link rel="import" href="../template/template-stamp.html">
-<link rel="import" href="../properties/meta-effects.html">
+<link rel="import" href="../properties/batched-effects.html">
 <link rel="import" href="../styling/style-gather.html">
 <link rel="import" href="../styling/style-util.html">
 
@@ -28,7 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.ElementMixin = Polymer.Utils.cachingMixin(function(base) {
 
-    return class PolymerElement extends Polymer.MetaEffects(base) {
+    return class PolymerElement extends Polymer.BatchedEffects(base) {
 
       // returns the config object on specifically on `this` class (not super)
       // config is used for:
@@ -118,7 +118,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (config.properties) {
           // process properties
           for (let p in config.properties) {
-            this.prototype._createPropertyFromInfo(p, config.properties[p]);
+            this.prototype._createPropertyFromConfig(p, config.properties[p]);
           }
         }
         if (config.observers) {
@@ -153,7 +153,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           window.ShadyCSS.prepareTemplate(template, this.is, this.extends);
         }
         var proto = this.prototype;
-        proto._clearPropagateEffects();
+        // clear any existing propagation effects inherited from superClass.
+        proto._propagateEffects = {};
         this.prototype._bindTemplate(template);
         proto._template = template;
       }
@@ -172,8 +173,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.constructor.finalize();
         }
         super._initializeProperties();
-        // apply defaults first.
-        this._setPropertyDefaults(this.constructor._flattenedProperties);
+        // apply property defaults...
+        let p$ = this.constructor._flattenedProperties;
+        for (let p in p$) {
+          let info = p$[p];
+          if (('value' in info) && !this._isPropertyPending(p)) {
+            var value = typeof info.value == 'function' ?
+              info.value.call(this) :
+              info.value;
+            if (this._hasReadOnlyEffect(p)) {
+              this._setProperty(p, value)
+            } else {
+              this[p] = value;
+            }
+          }
+        }
+      }
+
+      // create a property using the metadata in the `config` object
+      _createPropertyFromConfig(name, info) {
+        // computed forces readOnly...
+        if (info.computed) {
+          info.readOnly = true;
+        }
+        // readOnly, computed, reflect, notify only if not already doing so...
+        if (info.readOnly && !this._hasReadOnlyEffect(name)) {
+          this._createReadOnlyProperty(name, !info.computed);
+        }
+        if (info.computed && !this._hasComputedEffect(name)) {
+          this._createComputedProperty(name, info.computed);
+        }
+        if (info.reflectToAttribute && !this._hasReflectEffect(name)) {
+          this._createReflectedProperty(name);
+        }
+        if (info.notify && !this._hasNotifyEffect(name)) {
+          this._createNotifyingProperty(name);
+        }
+        // always add observer
+        if (info.observer) {
+          this._createObservedProperty(name, info.observer);
+        }
       }
 
       // reserved for canonical behavior
