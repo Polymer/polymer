@@ -69,12 +69,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     inst.__dataInterimOld = inst.__dataInterimOld ?
       utils.mixin(inst.__dataInterimOld, oldProps) : oldProps;
     // Notify
-    if (runEffects(inst, inst.PROPERTY_EFFECT_TYPES.NOTIFY, props, oldProps, notifyPaths)) {
-      // Flush host
-      let host = inst.__dataHost;
-      if (host && host.setProperties) {
-        host._flushProperties();
-      }      
+    let notified;
+    let notifyEffects = inst[inst.PROPERTY_EFFECT_TYPES.NOTIFY];
+    let id = effectUid++;
+    // Try normal notify effects; if none, fall back to try path notification
+    for (let prop in props) {
+      if (notifyEffects && runEffectsForProperty(inst, notifyEffects, id,
+        prop, inst.__data[prop], oldProps && oldProps[prop])) {
+        notified = true;
+      } else if (notifyPath(inst, prop, props[prop])) {
+        notified = true;
+      }
+    }
+    // Flush host if we actually notified and host was batching
+    let host;
+    if (notified && (host = inst.__dataHost) && host.setProperties) {
+      host._flushProperties();
     }
     // Combine & return interim data only for last entry
     if (runId == inst._runId) {
@@ -82,11 +92,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       oldProps = inst.__dataInterimOld;
       inst.__dataInterim = null;
       inst.__dataInterimOld = null;
-      return {changedProps: changedProps, oldProps: oldProps};
+      return { changedProps, oldProps };
     }
   }
 
-  function notifyPaths(inst, prop, value) {
+  function notifyPath(inst, prop, value) {
     let rootProperty = Polymer.Path.root(prop);
     if (rootProperty !== prop) {
       let name = Polymer.CaseMap.camelToDashCase(rootProperty) + '-changed';
@@ -96,29 +106,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  function runEffects(inst, type, props, oldProps, fallback) {
+  function runEffects(inst, type, props, oldProps) {
     let ran;
     let effects = inst[type];
     if (effects) {
       let id = effectUid++;
       for (let prop in props) {
-        let rootProperty = Polymer.Path.root(prop);
-        let fxs = effects[rootProperty];
-        if (fxs) {
-          for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
-            if (Polymer.Path.matches(fx.path, prop) &&
-              (!fx.info || fx.info.lastRun !== id)) {
-              fx.fn(inst, prop, inst.__data[prop],
-                  oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
-              if (fx.info) {
-                fx.info.lastRun = id;
-              }
-              ran = true;
-            }
+        if (runEffectsForProperty(inst, effects, id, prop, inst.__data[prop],
+          oldProps && oldProps[prop])) {
+          ran = true;
+        }
+      }
+    }
+    return ran;
+  }
+
+  function runEffectsForProperty(inst, effects, id, prop, value, old) {
+    let ran;
+    let rootProperty = Polymer.Path.root(prop);
+    let fxs = effects[rootProperty];
+    if (fxs) {
+      let fromAbove = inst.__dataFromAbove;
+      for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
+        if (Polymer.Path.matches(fx.path, prop) &&
+          (!fx.info || fx.info.lastRun !== id)) {
+          fx.fn(inst, prop, value, old, fx.info, fromAbove);
+          if (fx.info) {
+            fx.info.lastRun = id;
           }
-        } else if (fallback && fallback(inst, prop, inst.__data[prop],
-            oldProps && oldProps[prop], inst.__dataFromAbove)) {
-          ran = true
+          ran = true;
         }
       }
     }
