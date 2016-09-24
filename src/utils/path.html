@@ -9,7 +9,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="boot.html">
-<link rel="import" href="../templatizer/collection.html">
 
 <script>
 
@@ -51,7 +50,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
              this.isDescendant(base, path);
     },
 
-    getParts: function(path) {
+    // Converts array-based paths to flattened path, optionally split into array
+    normalize: function(path, split) {
       if (Array.isArray(path)) {
         var parts = [];
         for (var i=0; i<path.length; i++) {
@@ -60,35 +60,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             parts.push(args[j]);
           }
         }
-        return parts;
+        return split ? parts : parts.join('.');
       } else {
-        return path.toString().split('.');
+        return split ? path.toString().split('.') : path;
       }
     },
 
     get: function(root, path, info) {
       var prop = root;
-      var parts = this.getParts(path);
-      var array;
+      var parts = this.normalize(path, true);
       // Loop over path parts[0..n-1] and dereference
       for (var i=0; i<parts.length; i++) {
         if (!prop) {
           return;
         }
         var part = parts[i];
-        if (array && part[0] == '#') {
-          // Part was key; lookup item in collection
-          prop = Polymer.Collection.from(array).getItem(part);
-        } else {
-          // Get item from simple property dereference
-          prop = prop[part];
-          if (info && array && (parseInt(part, 10) == part)) {
-            // Translate array indices to collection keys for path notificaiton
-            parts[i] = Polymer.Collection.from(array).getKey(prop);
-          }
-        }
-        // Cache previous part if it is an array
-        array = Array.isArray(prop) ? prop : null;
+        prop = prop[part];
       }
       if (info) {
         info.path = parts.join('.');
@@ -98,51 +85,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     set: function(root, path, value) {
       var prop = root;
-      var parts = this.getParts(path);
-      var array;
+      var parts = this.normalize(path, true);
       var last = parts[parts.length-1];
       if (parts.length > 1) {
         // Loop over path parts[0..n-2] and dereference
         for (var i=0; i<parts.length-1; i++) {
           var part = parts[i];
-          if (array && part[0] == '#') {
-            // Part was key; lookup item in collection
-            prop = Polymer.Collection.from(array).getItem(part);
-          } else {
-            // Get item from simple property dereference
-            prop = prop[part];
-            if (array && (parseInt(part, 10) == part)) {
-              // Translate array indices to collection keys for path notificaiton
-              parts[i] = Polymer.Collection.from(array).getKey(prop);
-            }
-          }
+          prop = prop[part];
           if (!prop) {
             return;
-          }
-          // Cache previous part if it is an array
-          array = Array.isArray(prop) ? prop : null;
-        }
-        // Special handling when last part is a array item: need to replace
-        // item in collection associated with key for that item
-        if (array) {
-          var coll = Polymer.Collection.from(array);
-          var old, key;
-          if (last[0] == '#') {
-            // Part was key; lookup item in collection
-            key = last;
-            old = coll.getItem(key);
-            // Update last part from key to index: O(n) lookup unavoidable
-            last = array.indexOf(old);
-            // Replace item associated with key in collection
-            coll.setItem(key, value);
-          } else if (parseInt(last, 10) == last) {
-            // Dereference index & lookup collection key
-            old = prop[last];
-            key = coll.getKey(old);
-            // Translate array indices to collection keys for path notificaiton
-            parts[i] = key;
-            // Replace item associated with key in collection
-            coll.setItem(key, value);
           }
         }
         // Set value to object at end of path

@@ -229,7 +229,7 @@ Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shady
 * `<style>` inside of a `<dom-module>`, but outside of `<template>` is no longer supported
 * Imperatively created custom-styles (e.g. `document.createElement('style', 'custom-style')`) are no longer supported.
 
-### Data layer
+### Data system
 * An element's template is not stamped & data system not initialized (observers, bindings, etc.) until the element has been connected to the main document.  This is a direct result of the V1 changes that prevent reading attributes in the constructor.
 * Re-setting an object or array no longer dirty checks, meaning you can make deep changes to an object/array and just re-set it, without needing to use `set`/`notifyPath`.  Although the `set` API remains and will often be the more efficient way to make changes, this change removes users of Polymer elements from needing to use this API, making it more compatible with alternate data-binding and state management libraries.
 * Propagation of data through the binding system is now batched, such that multi-property computing functions and observers run once with a set of coherent changes.  Single property accessors still propagate data synchronously, although there is a new `setProperties({...})` API on Polymer elements that can be used to propagate multiple values as a coherent set.
@@ -238,6 +238,7 @@ Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shady
 * Setting/changing any function used in inline template annotations will cause the binding to re-compute its value using the new function and current property values
 ‘notify’ events not fired when value changes as result of binding from host
 * In order for a property to be deserialized from its attribute, it must be declared in the `properties` metadata object
+* The `Polymer.Collection` and associated key-based path and splice notification for arrays has been eliminated.  See [explanation here](https://github.com/Polymer/polymer/pull/3970#issue-178203286) for more details.
 
 ### Removed API
 * `Polymer.instanceof` and `Polymer.isInstance`: no longer needed, use
