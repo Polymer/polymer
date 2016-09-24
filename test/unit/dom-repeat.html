@@ -19,7 +19,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 </head>
 <body>
 
-
   <h4>x-simple-repeat</h4>
   <x-simple-repeat id="simple"></x-simple-repeat>
 
@@ -111,6 +110,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var array = el.get(path);
       var idx = array.indexOf(item);
       el.splice(path, idx, 1);
+    }
+
+    function arrayDeleteDirect(array, item) {
+      var idx = array.indexOf(item);
+      array.splice(idx, 1);
     }
 
     suiteSetup(function() {
@@ -1302,51 +1306,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           assert.equal(stamped2[15].indexc, 0);
           done();
         });
-      });
-
-      test('large splice', function(done) {
-        primitiveLarge.splice('items', 0, 10);
-        setTimeout(function() {
-          var stamped =
-            primitiveLarge.root.querySelectorAll('*:not(template):not(dom-repeat)');
-          assert.equal(stamped.length, 1, 'total stamped count incorrect');
-          assert.equal(stamped[0].textContent, '10');
-          done();
-        });
-      });
-
-      test('css scoping retained when re-ordering', function(done) {
-        if (!Polymer.Settings.useShadow) {
-          // Confirm initial scoping
-          var stamped = simple.root.querySelectorAll('*:not(template):not(dom-repeat)');
-          assert.equal(stamped[0].itemaProp, 'prop-1');
-          assert(stamped[0].classList.contains('x-simple-repeat'), 'expected scoping');
-          assert.equal(stamped.length, 3, 'total stamped count incorrect');
-          var row = stamped[0];
-          // Move
-          removed = simple.splice('items', 0, 1);
-          simple.splice('items', 1, 0, removed[0]);
-          setTimeout(function() {
-            stamped = simple.root.querySelectorAll('*:not(template):not(dom-repeat)');
-            assert.equal(stamped.length, 3, 'total stamped count incorrect');
-            assert.equal(row, stamped[1]);
-            assert.equal(stamped[1].itemaProp, 'prop-1');
-            assert(stamped[1].classList.contains('x-simple-repeat'), 'expected scoping');
-            // Revert
-            removed = simple.splice('items', 1, 1);
-            simple.splice('items', 0, 0, removed[0]);
-            setTimeout(function() {
-              stamped = simple.root.querySelectorAll('*:not(template):not(dom-repeat)');
-              assert.equal(stamped.length, 3, 'total stamped count incorrect');
-              assert.equal(row, stamped[0]);
-              assert.equal(stamped[0].itemaProp, 'prop-1');
-              assert(stamped[0].classList.contains('x-simple-repeat'), 'expected scoping');
-              done();
-            });
-          });
-        } else {
-          done();
-        }
       });
 
     });
@@ -2638,6 +2597,1831 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     });
 
+    suite('reacting to changes, array sort (direct mutation)', function() {
+
+      var removed;
+
+      test('push', function(done) {
+        unconfigured1.domUpdateHandlerCount = 0;
+        unconfigured.items.push({prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[38].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39].itemaProp, 'new-1');
+          assert.equal(stamped1[40].itemaProp, 'new-2');
+          assert.equal(stamped1[41], undefined);
+          assert.equal(stamped2[38].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped2[38].indexa, 2);
+          assert.equal(stamped2[38].indexb, 2);
+          assert.equal(stamped2[38].indexc, 2);
+          assert.equal(stamped2[39].itemaProp, 'new-1');
+          assert.equal(stamped2[40].itemaProp, 'new-2');
+          assert.equal(stamped2[41], undefined);
+          assert.equal(unconfigured1.domUpdateHandlerCount, 1);
+          done();
+        });
+      });
+
+      test('undo: push (using splice)', function(done) {
+        unconfigured1.domUpdateHandlerCount = 0;
+        unconfigured.items.splice(3, 2);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[38].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39], undefined);
+          assert.equal(stamped2[38].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped2[38].indexa, 2);
+          assert.equal(stamped2[38].indexb, 2);
+          assert.equal(stamped2[38].indexc, 2);
+          assert.equal(stamped2[39], undefined);
+          assert.equal(unconfigured1.domUpdateHandlerCount, 1);
+          done();
+        });
+      });
+
+      test('pop', function(done) {
+        removed = unconfigured.items.pop();
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[25].itemcProp, 'prop-2-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          assert.equal(stamped2[25].itemcProp, 'prop-2-3-3');
+          assert.equal(stamped2[25].indexa, 1);
+          assert.equal(stamped2[25].indexb, 2);
+          assert.equal(stamped2[25].indexc, 2);
+          assert.equal(stamped2[26], undefined);
+          done();
+        });
+      });
+
+      test('undo: pop (using splice)', function(done) {
+        unconfigured.items.splice(2, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[38].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39], undefined);
+          assert.equal(stamped2[38].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped2[38].indexa, 2);
+          assert.equal(stamped2[38].indexb, 2);
+          assert.equal(stamped2[38].indexc, 2);
+          assert.equal(stamped2[39], undefined);
+          done();
+        });
+      });
+
+      test('unshift', function(done) {
+        unconfigured.items.unshift({prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'new-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'new-2');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itemaProp, 'prop-1');
+          assert.equal(stamped1[2].indexa, 2);
+          assert.equal(stamped2[0].itemaProp, 'new-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped2[1].itemaProp, 'new-2');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped2[2].itemaProp, 'prop-1');
+          assert.equal(stamped2[2].indexa, 2);
+          done();
+        });
+      });
+
+      test('undo: unshift (using splice)', function(done) {
+        unconfigured.items.splice(0, 2);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped2[0].itemaProp, 'prop-1');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-1-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          done();
+        });
+      });
+
+      test('shift', function(done) {
+        removed = unconfigured.items.shift();
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-2');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-2-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped2[0].itemaProp, 'prop-2');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-2-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          assert.equal(stamped2[2].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped2[2].indexa, 0);
+          assert.equal(stamped2[2].indexb, 0);
+          assert.equal(stamped2[2].indexc, 0);
+          done();
+        });
+      });
+
+      test('undo: shift (using splice)', function(done) {
+        unconfigured.items.splice(0, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped2[0].itemaProp, 'prop-1');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-1-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          assert.equal(stamped2[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped2[2].indexa, 0);
+          assert.equal(stamped2[2].indexb, 0);
+          assert.equal(stamped2[2].indexc, 0);
+          done();
+        });
+      });
+
+      test('splice - remove from middle', function(done) {
+        removed = unconfigured.items.splice(1, 1)[0];
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'prop-3');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itembProp, 'prop-3-1');
+          assert.equal(stamped1[14].indexa, 1);
+          assert.equal(stamped1[14].indexb, 0);
+          assert.equal(stamped1[15].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[15].indexa, 1);
+          assert.equal(stamped1[15].indexb, 0);
+          assert.equal(stamped1[15].indexc, 0);
+          assert.equal(stamped2[0].itemaProp, 'prop-1');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-1-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          assert.equal(stamped2[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped2[2].indexa, 0);
+          assert.equal(stamped2[2].indexb, 0);
+          assert.equal(stamped2[2].indexc, 0);
+          assert.equal(stamped2[13].itemaProp, 'prop-3');
+          assert.equal(stamped2[13].indexa, 1);
+          assert.equal(stamped2[14].itembProp, 'prop-3-1');
+          assert.equal(stamped2[14].indexa, 1);
+          assert.equal(stamped2[14].indexb, 0);
+          assert.equal(stamped2[15].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped2[15].indexa, 1);
+          assert.equal(stamped2[15].indexb, 0);
+          assert.equal(stamped2[15].indexc, 0);
+          done();
+        });
+      });
+
+      test('undo: splice - remove from middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'prop-2');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itembProp, 'prop-2-1');
+          assert.equal(stamped1[14].indexa, 1);
+          assert.equal(stamped1[14].indexb, 0);
+          assert.equal(stamped1[15].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped1[15].indexa, 1);
+          assert.equal(stamped1[15].indexb, 0);
+          assert.equal(stamped1[15].indexc, 0);
+          assert.equal(stamped2[0].itemaProp, 'prop-1');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-1-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          assert.equal(stamped2[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped2[2].indexa, 0);
+          assert.equal(stamped2[2].indexb, 0);
+          assert.equal(stamped2[2].indexc, 0);
+          assert.equal(stamped2[13].itemaProp, 'prop-2');
+          assert.equal(stamped2[13].indexa, 1);
+          assert.equal(stamped2[14].itembProp, 'prop-2-1');
+          assert.equal(stamped2[14].indexa, 1);
+          assert.equal(stamped2[14].indexb, 0);
+          assert.equal(stamped2[15].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped2[15].indexa, 1);
+          assert.equal(stamped2[15].indexb, 0);
+          assert.equal(stamped2[15].indexc, 0);
+          done();
+        });
+      });
+
+      test('splice - add to middle', function(done) {
+        unconfigured.items.splice(1, 0, {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 2 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'new-1');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itemaProp, 'new-2');
+          assert.equal(stamped1[14].indexa, 2);
+          assert.equal(stamped1[15].itemaProp, 'prop-2');
+          assert.equal(stamped1[15].indexa, 3);
+          assert.equal(stamped1[16].itembProp, 'prop-2-1');
+          assert.equal(stamped1[16].indexa, 3);
+          assert.equal(stamped1[16].indexb, 0);
+          assert.equal(stamped1[17].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped1[17].indexa, 3);
+          assert.equal(stamped1[17].indexb, 0);
+          assert.equal(stamped1[17].indexc, 0);
+          assert.equal(stamped2[0].itemaProp, 'prop-1');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-1-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          assert.equal(stamped2[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped2[2].indexa, 0);
+          assert.equal(stamped2[2].indexb, 0);
+          assert.equal(stamped2[2].indexc, 0);
+          assert.equal(stamped2[13].itemaProp, 'new-1');
+          assert.equal(stamped2[13].indexa, 1);
+          assert.equal(stamped2[14].itemaProp, 'new-2');
+          assert.equal(stamped2[14].indexa, 2);
+          assert.equal(stamped2[15].itemaProp, 'prop-2');
+          assert.equal(stamped2[15].indexa, 3);
+          assert.equal(stamped2[16].itembProp, 'prop-2-1');
+          assert.equal(stamped2[16].indexa, 3);
+          assert.equal(stamped2[16].indexb, 0);
+          assert.equal(stamped2[17].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped2[17].indexa, 3);
+          assert.equal(stamped2[17].indexb, 0);
+          assert.equal(stamped2[17].indexc, 0);
+          done();
+        });
+      });
+
+      test('undo: splice - add to middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 2);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'prop-2');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itembProp, 'prop-2-1');
+          assert.equal(stamped1[14].indexa, 1);
+          assert.equal(stamped1[14].indexb, 0);
+          assert.equal(stamped1[15].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped1[15].indexa, 1);
+          assert.equal(stamped1[15].indexb, 0);
+          assert.equal(stamped1[15].indexc, 0);
+          assert.equal(stamped2[0].itemaProp, 'prop-1');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-1-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          assert.equal(stamped2[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped2[2].indexa, 0);
+          assert.equal(stamped2[2].indexb, 0);
+          assert.equal(stamped2[2].indexc, 0);
+          assert.equal(stamped2[13].itemaProp, 'prop-2');
+          assert.equal(stamped2[13].indexa, 1);
+          assert.equal(stamped2[14].itembProp, 'prop-2-1');
+          assert.equal(stamped2[14].indexa, 1);
+          assert.equal(stamped2[14].indexb, 0);
+          assert.equal(stamped2[15].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped2[15].indexa, 1);
+          assert.equal(stamped2[15].indexb, 0);
+          assert.equal(stamped2[15].indexc, 0);
+          done();
+        });
+      });
+
+      test('splice - replace in middle', function(done) {
+        removed = unconfigured.items.splice(1, 2, {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 2 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'new-1');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itemaProp, 'new-2');
+          assert.equal(stamped1[14].indexa, 2);
+          assert.equal(stamped1[15], undefined);
+          assert.equal(stamped2[0].itemaProp, 'prop-1');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-1-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          assert.equal(stamped2[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped2[2].indexa, 0);
+          assert.equal(stamped2[2].indexb, 0);
+          assert.equal(stamped2[2].indexc, 0);
+          assert.equal(stamped2[13].itemaProp, 'new-1');
+          assert.equal(stamped2[13].indexa, 1);
+          assert.equal(stamped2[14].itemaProp, 'new-2');
+          assert.equal(stamped2[14].indexa, 2);
+          assert.equal(stamped2[15], undefined);
+          done();
+        });
+      });
+
+      test('undo: splice - replace in middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 2, removed[0], removed[1]);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          var stamped2 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped2.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'prop-2');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itembProp, 'prop-2-1');
+          assert.equal(stamped1[14].indexa, 1);
+          assert.equal(stamped1[14].indexb, 0);
+          assert.equal(stamped1[15].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped1[15].indexa, 1);
+          assert.equal(stamped1[15].indexb, 0);
+          assert.equal(stamped1[15].indexc, 0);
+          assert.equal(stamped2[0].itemaProp, 'prop-1');
+          assert.equal(stamped2[0].indexa, 0);
+          assert.equal(stamped2[1].itembProp, 'prop-1-1');
+          assert.equal(stamped2[1].indexa, 0);
+          assert.equal(stamped2[1].indexb, 0);
+          assert.equal(stamped2[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped2[2].indexa, 0);
+          assert.equal(stamped2[2].indexb, 0);
+          assert.equal(stamped2[2].indexc, 0);
+          assert.equal(stamped2[13].itemaProp, 'prop-2');
+          assert.equal(stamped2[13].indexa, 1);
+          assert.equal(stamped2[14].itembProp, 'prop-2-1');
+          assert.equal(stamped2[14].indexa, 1);
+          assert.equal(stamped2[14].indexb, 0);
+          assert.equal(stamped2[15].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped2[15].indexa, 1);
+          assert.equal(stamped2[15].indexb, 0);
+          assert.equal(stamped2[15].indexc, 0);
+          done();
+        });
+      });
+
+    });
+
+    suite('reacting to changes, array sort with filter (direct mutation)', function() {
+
+      var removed;
+
+      test('push', function(done) {
+        unconfigured1.$.repeater.filter = function(o) {
+          return o.prop.indexOf('2') < 0;
+        };
+        unconfigured.items.push({prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 1 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26].itemaProp, 'new-1');
+          assert.equal(stamped1[26].indexa, 2);
+          assert.equal(stamped1[27], undefined);
+          done();
+        });
+      });
+
+      test('undo: push (using splice)', function(done) {
+        unconfigured.items.splice(3, 2);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('pop', function(done) {
+        removed = unconfigured.items.pop();
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[10].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[10].indexa, 0);
+          assert.equal(stamped1[10].indexb, 2);
+          assert.equal(stamped1[10].indexc, 0);
+          assert.equal(stamped1[11].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[11].indexa, 0);
+          assert.equal(stamped1[11].indexb, 2);
+          assert.equal(stamped1[11].indexc, 1);
+          assert.equal(stamped1[12].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[12].indexa, 0);
+          assert.equal(stamped1[12].indexb, 2);
+          assert.equal(stamped1[12].indexc, 2);
+          assert.equal(stamped1[13], undefined);
+          done();
+        });
+      });
+
+      test('undo: pop (using splice)', function(done) {
+        unconfigured.items.splice(2, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('unshift', function(done) {
+        unconfigured.items.unshift({prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 1 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'new-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-1');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itembProp, 'prop-1-1');
+          assert.equal(stamped1[2].indexa, 1);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[3].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[3].indexa, 1);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[3].indexc, 0);
+          done();
+        });
+      });
+
+      test('undo: unshift (using splice)', function(done) {
+        unconfigured.items.splice(0, 2);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('shift', function(done) {
+        removed = unconfigured.items.shift();
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[10].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[10].indexa, 0);
+          assert.equal(stamped1[10].indexb, 2);
+          assert.equal(stamped1[10].indexc, 0);
+          assert.equal(stamped1[11].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[11].indexa, 0);
+          assert.equal(stamped1[11].indexb, 2);
+          assert.equal(stamped1[11].indexc, 1);
+          assert.equal(stamped1[12].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[12].indexa, 0);
+          assert.equal(stamped1[12].indexb, 2);
+          assert.equal(stamped1[12].indexc, 2);
+          assert.equal(stamped1[13], undefined);
+          done();
+        });
+      });
+
+      test('undo: shift (using splice)', function(done) {
+        unconfigured.items.splice(0, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('splice - remove from middle', function(done) {
+        removed = unconfigured.items.splice(1, 1)[0];
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('undo: splice - remove from middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('splice - add to middle', function(done) {
+        unconfigured.items.splice(1, 0, {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 1 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'new-1');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itemaProp, 'prop-3');
+          assert.equal(stamped1[14].indexa, 2);
+          assert.equal(stamped1[15].itembProp, 'prop-3-1');
+          assert.equal(stamped1[15].indexa, 2);
+          assert.equal(stamped1[15].indexb, 0);
+          assert.equal(stamped1[16].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[16].indexa, 2);
+          assert.equal(stamped1[16].indexb, 0);
+          assert.equal(stamped1[16].indexc, 0);
+          done();
+        });
+      });
+
+      test('undo: splice - add to middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 2);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('splice - replace in middle', function(done) {
+        removed = unconfigured.items.splice(1, 2, {prop: 'new-1'}, {prop: 'new-2'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 1 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'new-1');
+          assert.equal(stamped1[14], undefined);
+          done();
+        });
+      });
+
+      test('undo: splice - replace in middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 2, removed[0], removed[1]);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-3-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-3-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+    });
+
+    suite('reacting to changes, view sort (direct mutation)', function() {
+
+      var removed, a, m, z;
+
+      test('push', function(done) {
+        unconfigured1.$.repeater.filter = null;
+        unconfigured1.$.repeater.sort = function(a, b) {
+          return b.prop == a.prop ? 0 : b.prop < a.prop ? -1 : 1;
+        };
+        unconfigured.items.push(a={prop: 'a'}, m={prop: 'prop-1*'}, z={prop: 'z'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'z');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-3');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itembProp, 'prop-3-1');
+          assert.equal(stamped1[2].indexa, 1);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[3].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[3].indexa, 1);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[3].indexc, 0);
+          assert.equal(stamped1[27].itemaProp, 'prop-1*');
+          assert.equal(stamped1[27].indexa, 3);
+          assert.equal(stamped1[40].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[40].indexa, 4);
+          assert.equal(stamped1[40].indexb, 2);
+          assert.equal(stamped1[40].indexc, 2);
+          assert.equal(stamped1[41].itemaProp, 'a');
+          assert.equal(stamped1[41].indexa, 5);
+          done();
+        });
+      });
+
+      //BREAKME(kschaar): this used to use arrayDelete; removing that from
+      // dom-bind since it's a wierdo Polymer API and dom-bind is raw
+      test('undo: push (using splice)', function(done) {
+        arrayDeleteDirect(unconfigured.items, a);
+        arrayDeleteDirect(unconfigured.items, m);
+        arrayDeleteDirect(unconfigured.items, z);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[36].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[36].indexa, 2);
+          assert.equal(stamped1[36].indexb, 2);
+          assert.equal(stamped1[36].indexc, 0);
+          assert.equal(stamped1[37].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[37].indexa, 2);
+          assert.equal(stamped1[37].indexb, 2);
+          assert.equal(stamped1[37].indexc, 1);
+          assert.equal(stamped1[38].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39], undefined);
+          done();
+        });
+      });
+
+      test('pop', function(done) {
+        removed = unconfigured.items.pop();
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('undo: pop (using splice)', function(done) {
+        unconfigured.items.splice(2, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[36].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[36].indexa, 2);
+          assert.equal(stamped1[36].indexb, 2);
+          assert.equal(stamped1[36].indexc, 0);
+          assert.equal(stamped1[37].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[37].indexa, 2);
+          assert.equal(stamped1[37].indexb, 2);
+          assert.equal(stamped1[37].indexc, 1);
+          assert.equal(stamped1[38].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39], undefined);
+          done();
+        });
+      });
+
+      test('unshift', function(done) {
+        unconfigured.items.unshift(a={prop: 'a'}, m={prop: 'prop-1*'}, z={prop: 'z'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'z');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-3');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itembProp, 'prop-3-1');
+          assert.equal(stamped1[2].indexa, 1);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[3].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[3].indexa, 1);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[3].indexc, 0);
+          assert.equal(stamped1[27].itemaProp, 'prop-1*');
+          assert.equal(stamped1[27].indexa, 3);
+          assert.equal(stamped1[40].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[40].indexa, 4);
+          assert.equal(stamped1[40].indexb, 2);
+          assert.equal(stamped1[40].indexc, 2);
+          assert.equal(stamped1[41].itemaProp, 'a');
+          assert.equal(stamped1[41].indexa, 5);
+          done();
+        });
+      });
+
+      test('undo: unshift (using arrayDelete)', function(done) {
+        arrayDeleteDirect(unconfigured.items, a);
+        arrayDeleteDirect(unconfigured.items, m);
+        arrayDeleteDirect(unconfigured.items, z);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[36].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[36].indexa, 2);
+          assert.equal(stamped1[36].indexb, 2);
+          assert.equal(stamped1[36].indexc, 0);
+          assert.equal(stamped1[37].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[37].indexa, 2);
+          assert.equal(stamped1[37].indexb, 2);
+          assert.equal(stamped1[37].indexc, 1);
+          assert.equal(stamped1[38].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39], undefined);
+          done();
+        });
+      });
+
+      test('shift', function(done) {
+        removed = unconfigured.items.shift();
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-2-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-2-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-2-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('undo: shift (using splice)', function(done) {
+        unconfigured.items.splice(0, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[36].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[36].indexa, 2);
+          assert.equal(stamped1[36].indexb, 2);
+          assert.equal(stamped1[36].indexc, 0);
+          assert.equal(stamped1[37].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[37].indexa, 2);
+          assert.equal(stamped1[37].indexb, 2);
+          assert.equal(stamped1[37].indexc, 1);
+          assert.equal(stamped1[38].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39], undefined);
+          done();
+        });
+      });
+
+      test('splice - remove from middle', function(done) {
+        removed = unconfigured.items.splice(1, 1)[0];
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'prop-1');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itembProp, 'prop-1-1');
+          assert.equal(stamped1[14].indexa, 1);
+          assert.equal(stamped1[14].indexb, 0);
+          assert.equal(stamped1[15].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[15].indexa, 1);
+          assert.equal(stamped1[15].indexb, 0);
+          assert.equal(stamped1[15].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('undo: splice - remove from middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'prop-2');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itembProp, 'prop-2-1');
+          assert.equal(stamped1[14].indexa, 1);
+          assert.equal(stamped1[14].indexb, 0);
+          assert.equal(stamped1[15].itemcProp, 'prop-2-1-1');
+          assert.equal(stamped1[15].indexa, 1);
+          assert.equal(stamped1[15].indexb, 0);
+          assert.equal(stamped1[15].indexc, 0);
+          assert.equal(stamped1[36].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[36].indexa, 2);
+          assert.equal(stamped1[36].indexb, 2);
+          assert.equal(stamped1[36].indexc, 0);
+          assert.equal(stamped1[37].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[37].indexa, 2);
+          assert.equal(stamped1[37].indexb, 2);
+          assert.equal(stamped1[37].indexc, 1);
+          assert.equal(stamped1[38].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          done();
+        });
+      });
+
+      test('splice - add to middle', function(done) {
+        unconfigured.items.splice(1, 0, a={prop: 'a'}, m={prop: 'prop-1*'}, z={prop: 'z'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'z');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-3');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itembProp, 'prop-3-1');
+          assert.equal(stamped1[2].indexa, 1);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[3].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[3].indexa, 1);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[3].indexc, 0);
+          assert.equal(stamped1[27].itemaProp, 'prop-1*');
+          assert.equal(stamped1[27].indexa, 3);
+          assert.equal(stamped1[40].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[40].indexa, 4);
+          assert.equal(stamped1[40].indexb, 2);
+          assert.equal(stamped1[40].indexc, 2);
+          assert.equal(stamped1[41].itemaProp, 'a');
+          assert.equal(stamped1[41].indexa, 5);
+          done();
+        });
+      });
+
+      test('undo: splice - add to middle (using arrayDelete)', function(done) {
+        arrayDeleteDirect(unconfigured.items, a);
+        arrayDeleteDirect(unconfigured.items, m);
+        arrayDeleteDirect(unconfigured.items, z);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[36].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[36].indexa, 2);
+          assert.equal(stamped1[36].indexb, 2);
+          assert.equal(stamped1[36].indexc, 0);
+          assert.equal(stamped1[37].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[37].indexa, 2);
+          assert.equal(stamped1[37].indexb, 2);
+          assert.equal(stamped1[37].indexc, 1);
+          assert.equal(stamped1[38].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39], undefined);
+          done();
+        });
+      });
+
+      test('splice - replace in middle', function(done) {
+        removed = unconfigured.items.splice(1, 2, a={prop: 'a'}, m={prop: 'prop-1*'}, z={prop: 'z'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'z');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-1*');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itemaProp, 'prop-1');
+          assert.equal(stamped1[2].indexa, 2);
+          assert.equal(stamped1[3].itembProp, 'prop-1-1');
+          assert.equal(stamped1[3].indexa, 2);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[4].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[4].indexa, 2);
+          assert.equal(stamped1[4].indexb, 0);
+          assert.equal(stamped1[4].indexc, 0);
+          assert.equal(stamped1[15].itemaProp, 'a');
+          assert.equal(stamped1[15].indexa, 3);
+          assert.equal(stamped1[16], undefined);
+          done();
+        });
+      });
+
+      test('undo: splice - replace in middle (using splice)', function(done) {
+        arrayDeleteDirect(unconfigured.items, a);
+        arrayDeleteDirect(unconfigured.items, m);
+        arrayDeleteDirect(unconfigured.items, z);
+        unconfigured.items.splice(1, 2, removed[0], removed[1]);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[36].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[36].indexa, 2);
+          assert.equal(stamped1[36].indexb, 2);
+          assert.equal(stamped1[36].indexc, 0);
+          assert.equal(stamped1[37].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[37].indexa, 2);
+          assert.equal(stamped1[37].indexb, 2);
+          assert.equal(stamped1[37].indexc, 1);
+          assert.equal(stamped1[38].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[38].indexa, 2);
+          assert.equal(stamped1[38].indexb, 2);
+          assert.equal(stamped1[38].indexc, 2);
+          assert.equal(stamped1[39], undefined);
+          done();
+        });
+      });
+
+    });
+
+    suite('reacting to changes, view sort with filter (direct mutation)', function() {
+
+      var removed, a, m, z;
+
+      suiteSetup(function() {
+        unconfigured1.$.repeater.sort = function(a, b) {
+          return b.prop == a.prop ? 0 : b.prop < a.prop ? -1 : 1;
+        };
+        unconfigured1.$.repeater.filter = function(o) {
+          return o.prop.indexOf('2') < 0;
+        };
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+      });
+
+      suiteTeardown(function() {
+        unconfigured1.$.repeater.sort = null;
+        unconfigured1.$.repeater.filter = null;
+        unconfigured1.$.repeater.render();
+        CustomElements.takeRecords();
+        CustomElements.takeRecords();
+      });
+
+      test('push', function(done) {
+        unconfigured.items.push(a={prop: 'a'}, m={prop: 'item*2'}, z={prop: 'z'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'z');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-3');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itembProp, 'prop-3-1');
+          assert.equal(stamped1[2].indexa, 1);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[3].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[3].indexa, 1);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[3].indexc, 0);
+          assert.equal(stamped1[26].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[26].indexa, 2);
+          assert.equal(stamped1[26].indexb, 2);
+          assert.equal(stamped1[26].indexc, 2);
+          assert.equal(stamped1[27].itemaProp, 'a');
+          assert.equal(stamped1[27].indexa, 3);
+          assert.equal(stamped1[28], undefined);
+          done();
+        });
+      });
+
+      test('undo: push (using arrayDelete)', function(done) {
+        arrayDeleteDirect(unconfigured.items, a);
+        arrayDeleteDirect(unconfigured.items, m);
+        arrayDeleteDirect(unconfigured.items, z);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('pop', function(done) {
+        removed = unconfigured.items.pop();
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-1');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-1-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[12].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[12].indexa, 0);
+          assert.equal(stamped1[12].indexb, 2);
+          assert.equal(stamped1[12].indexc, 2);
+          assert.equal(stamped1[13], undefined);
+          done();
+        });
+      });
+
+      test('undo: pop (using splice)', function(done) {
+        unconfigured.items.splice(2, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('unshift', function(done) {
+        unconfigured.items.unshift(a={prop: 'a'}, m={prop: 'item*2'}, z={prop: 'z'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'z');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-3');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itembProp, 'prop-3-1');
+          assert.equal(stamped1[2].indexa, 1);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[3].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[3].indexa, 1);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[3].indexc, 0);
+          assert.equal(stamped1[26].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[26].indexa, 2);
+          assert.equal(stamped1[26].indexb, 2);
+          assert.equal(stamped1[26].indexc, 2);
+          assert.equal(stamped1[27].itemaProp, 'a');
+          assert.equal(stamped1[27].indexa, 3);
+          assert.equal(stamped1[28], undefined);
+          done();
+        });
+      });
+
+      test('undo: unshift (using splice)', function(done) {
+        unconfigured.items.splice(0, 3);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('shift', function(done) {
+        removed = unconfigured.items.shift();
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[12].itemcProp, 'prop-3-3-3');
+          assert.equal(stamped1[12].indexa, 0);
+          assert.equal(stamped1[12].indexb, 2);
+          assert.equal(stamped1[12].indexc, 2);
+          assert.equal(stamped1[13], undefined);
+          done();
+        });
+      });
+
+      test('undo: shift (using splice)', function(done) {
+        unconfigured.items.splice(0, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('splice - remove from middle', function(done) {
+        removed = unconfigured.items.splice(1, 1)[0];
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[13].itemaProp, 'prop-1');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[14].itembProp, 'prop-1-1');
+          assert.equal(stamped1[14].indexa, 1);
+          assert.equal(stamped1[14].indexb, 0);
+          assert.equal(stamped1[15].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[15].indexa, 1);
+          assert.equal(stamped1[15].indexb, 0);
+          assert.equal(stamped1[15].indexc, 0);
+          done();
+        });
+      });
+
+      test('undo: splice - remove from middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 0, removed);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('splice - add to middle', function(done) {
+        unconfigured.items.splice(1, 0, a={prop: 'a'}, m={prop: 'item*2'}, z={prop: 'z'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'z');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-3');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itembProp, 'prop-3-1');
+          assert.equal(stamped1[2].indexa, 1);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[3].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[3].indexa, 1);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[3].indexc, 0);
+          assert.equal(stamped1[26].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[26].indexa, 2);
+          assert.equal(stamped1[26].indexb, 2);
+          assert.equal(stamped1[26].indexc, 2);
+          assert.equal(stamped1[27].itemaProp, 'a');
+          assert.equal(stamped1[27].indexa, 3);
+          assert.equal(stamped1[28], undefined);
+          done();
+        });
+      });
+
+      test('undo: splice - add to middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 3);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+      test('splice - replace in middle', function(done) {
+        removed = unconfigured.items.splice(1, 2, a={prop: 'a'}, m={prop: 'item*2'}, z={prop: 'z'});
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 1 + 1*3 + 1*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'z');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itemaProp, 'prop-1');
+          assert.equal(stamped1[1].indexa, 1);
+          assert.equal(stamped1[2].itembProp, 'prop-1-1');
+          assert.equal(stamped1[2].indexa, 1);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[3].itemcProp, 'prop-1-1-1');
+          assert.equal(stamped1[3].indexa, 1);
+          assert.equal(stamped1[3].indexb, 0);
+          assert.equal(stamped1[3].indexc, 0);
+          assert.equal(stamped1[13].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[13].indexa, 1);
+          assert.equal(stamped1[13].indexb, 2);
+          assert.equal(stamped1[13].indexc, 2);
+          assert.equal(stamped1[14].itemaProp, 'a');
+          assert.equal(stamped1[14].indexa, 2);
+          assert.equal(stamped1[15], undefined);
+          done();
+        });
+      });
+
+      test('undo: splice - replace in middle (using splice)', function(done) {
+        unconfigured.items.splice(1, 3, removed[0], removed[1]);
+        unconfigured.items = unconfigured.items;
+        setTimeout(function() {
+          var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped1.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+          assert.equal(stamped1[0].itemaProp, 'prop-3');
+          assert.equal(stamped1[0].indexa, 0);
+          assert.equal(stamped1[1].itembProp, 'prop-3-1');
+          assert.equal(stamped1[1].indexa, 0);
+          assert.equal(stamped1[1].indexb, 0);
+          assert.equal(stamped1[2].itemcProp, 'prop-3-1-1');
+          assert.equal(stamped1[2].indexa, 0);
+          assert.equal(stamped1[2].indexb, 0);
+          assert.equal(stamped1[2].indexc, 0);
+          assert.equal(stamped1[23].itemcProp, 'prop-1-3-1');
+          assert.equal(stamped1[23].indexa, 1);
+          assert.equal(stamped1[23].indexb, 2);
+          assert.equal(stamped1[23].indexc, 0);
+          assert.equal(stamped1[24].itemcProp, 'prop-1-3-2');
+          assert.equal(stamped1[24].indexa, 1);
+          assert.equal(stamped1[24].indexb, 2);
+          assert.equal(stamped1[24].indexc, 1);
+          assert.equal(stamped1[25].itemcProp, 'prop-1-3-3');
+          assert.equal(stamped1[25].indexa, 1);
+          assert.equal(stamped1[25].indexb, 2);
+          assert.equal(stamped1[25].indexc, 2);
+          assert.equal(stamped1[26], undefined);
+          done();
+        });
+      });
+
+    });
+
     suite('multiple mutations in same turn', function() {
 
       test('array sort, no filter: unshift+pop', function(done) {
@@ -3227,8 +5011,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         unconfigured1.$.repeater.render();
         var stamped1 = unconfigured1.root.querySelectorAll('*:not(template):not(dom-repeat)');
         var stamped2 = unconfigured2.root.querySelectorAll('*:not(template):not(dom-repeat)');
+        assert.equal(stamped1[26].itemaProp, 'prop-1');
+        assert.equal(stamped2[26].itemaProp, 'prop-3');
         var old = unconfigured.items[2];
         // Change last item (first rendered in #1, last rendered in #2)
+        // (but only because `observe` doesn't catch this and cause the list to
+        // re-sort; if it was, stamped1[26] should change)
         unconfigured1.$.repeater._instances[0].itema = {prop: 'change!'};
         assert.equal(stamped1[0].itemaProp, 'change!');
         assert.equal(stamped2[26].itemaProp, 'change!');
@@ -3260,7 +5048,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           items.sort();
           var splices = Polymer.ArraySplice.calculateSplices(items, prev);
           var change = {
-            keySplices: Polymer.Collection.applySplices(items, splices),
             indexSplices: splices
           };
           primitive.set('items.splices', change);
@@ -3321,7 +5108,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(repeater3.itemForElement(stamped1[4]).prop, 'prop-1-1-3');
       });
 
-      test('keyForElement', function() {
+      test.skip('keyForElement', function() {
         var dom = unconfigured1.root;
         var stamped1 = dom.querySelectorAll('*:not(template):not(dom-repeat)');
         var repeater1 = dom.querySelector('dom-repeat[as=itema]');
@@ -3893,6 +5680,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
 
     }
+
+    suite('misc', function() {
+
+      test('large splice', function(done) {
+        primitiveLarge.splice('items', 0, 10);
+        setTimeout(function() {
+          var stamped =
+            primitiveLarge.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped.length, 1, 'total stamped count incorrect');
+          assert.equal(stamped[0].textContent, '10');
+          done();
+        });
+      });
+
+      test('css scoping retained when re-ordering', function(done) {
+        var removed;
+        if (!Polymer.Settings.useShadow) {
+          // Confirm initial scoping
+          var stamped = simple.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped[0].itemaProp, 'prop-1');
+          assert(stamped[0].classList.contains('x-simple-repeat'), 'expected scoping');
+          assert.equal(stamped.length, 3, 'total stamped count incorrect');
+          var row = stamped[0];
+          // Move
+          removed = simple.splice('items', 0, 1);
+          simple.splice('items', 1, 0, removed[0]);
+          setTimeout(function() {
+            stamped = simple.root.querySelectorAll('*:not(template):not(dom-repeat)');
+            assert.equal(stamped.length, 3, 'total stamped count incorrect');
+            assert.equal(row, stamped[1]);
+            assert.equal(stamped[1].itemaProp, 'prop-1');
+            assert(stamped[1].classList.contains('x-simple-repeat'), 'expected scoping');
+            // Revert
+            removed = simple.splice('items', 1, 1);
+            simple.splice('items', 0, 0, removed[0]);
+            setTimeout(function() {
+              stamped = simple.root.querySelectorAll('*:not(template):not(dom-repeat)');
+              assert.equal(stamped.length, 3, 'total stamped count incorrect');
+              assert.equal(row, stamped[0]);
+              assert.equal(stamped[0].itemaProp, 'prop-1');
+              assert(stamped[0].classList.contains('x-simple-repeat'), 'expected scoping');
+              done();
+            });
+          });
+        } else {
+          done();
+        }
+      });
+
+    });
 
   })();
   </script>

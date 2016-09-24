@@ -39,10 +39,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   function computeLinkedPaths(inst, changedProps, computedProps) {
-    if (inst.__dataLinkedPaths) {
+    const links = inst.__dataLinkedPaths;
+    if (links) {
       let link;
-      for (let a in inst.__dataLinkedPaths) {
-        let b = inst.__dataLinkedPaths[a];
+      for (let a in links) {
+        let b = links[a];
         for (let path in changedProps) {
           if (Polymer.Path.isDescendant(a, path)) {
             link = Polymer.Path.translate(a, b, path);
@@ -68,12 +69,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     inst.__dataInterimOld = inst.__dataInterimOld ?
       utils.mixin(inst.__dataInterimOld, oldProps) : oldProps;
     // Notify
-    if (runEffects(inst, inst.PROPERTY_EFFECT_TYPES.NOTIFY, props)) {
-      // Flush host
-      let host = inst.__dataHost;
-      if (host && host.setProperties) {
-        host._flushProperties();
-      }      
+    let notified;
+    let notifyEffects = inst[inst.PROPERTY_EFFECT_TYPES.NOTIFY];
+    let id = effectUid++;
+    // Try normal notify effects; if none, fall back to try path notification
+    for (let prop in props) {
+      if (notifyEffects && runEffectsForProperty(inst, notifyEffects, id,
+        prop, oldProps && oldProps[prop])) {
+        notified = true;
+      } else if (notifyPath(inst, prop)) {
+        notified = true;
+      }
+    }
+    // Flush host if we actually notified and host was batching
+    let host;
+    if (notified && (host = inst.__dataHost) && host.setProperties) {
+      host._flushProperties();
     }
     // Combine & return interim data only for last entry
     if (runId == inst._runId) {
@@ -81,7 +92,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       oldProps = inst.__dataInterimOld;
       inst.__dataInterim = null;
       inst.__dataInterimOld = null;
-      return {changedProps: changedProps, oldProps: oldProps};
+      return { changedProps, oldProps };
+    }
+  }
+
+  function notifyPath(inst, prop) {
+    let rootProperty = Polymer.Path.root(prop);
+    if (rootProperty !== prop) {
+      let name = Polymer.CaseMap.camelToDashCase(rootProperty) + '-changed';
+      let options = { detail: {value: inst.__data[prop], path: prop }};
+      inst._dispatchNotifyingEvent(new CustomEvent(name, options));
+      return true;
     }
   }
 
@@ -91,20 +112,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (effects) {
       let id = effectUid++;
       for (let prop in props) {
-        let rootProperty = Polymer.Path.root(prop);
-        let fxs = effects[rootProperty];
-        if (fxs) {
-          for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
-            if (Polymer.Path.matches(fx.path, prop) &&
-              (!fx.info || fx.info.lastRun !== id)) {
-              fx.fn(inst, prop, inst.__data[prop],
-                  oldProps && oldProps[prop], fx.info, inst.__dataFromAbove);
-              if (fx.info) {
-                fx.info.lastRun = id;
-              }
-              ran = true;
-            }
+        if (runEffectsForProperty(inst, effects, id, prop,
+          oldProps && oldProps[prop])) {
+          ran = true;
+        }
+      }
+    }
+    return ran;
+  }
+
+  function runEffectsForProperty(inst, effects, id, prop, old) {
+    let ran;
+    let rootProperty = Polymer.Path.root(prop);
+    let fxs = effects[rootProperty];
+    if (fxs) {
+      let fromAbove = inst.__dataFromAbove;
+      for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
+        if (Polymer.Path.matches(fx.path, prop) &&
+          (!fx.info || fx.info.lastRun !== id)) {
+          fx.fn(inst, prop, inst.__data[prop], old, fx.info, fromAbove);
+          if (fx.info) {
+            fx.info.lastRun = id;
           }
+          ran = true;
         }
       }
     }
@@ -123,11 +153,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // -- set properties machinery
 
       _propertiesChanged(currentProps, changedProps, oldProps) {
-        // if (window.debug) {
-        //   let c = Object.getOwnPropertyNames(changedProps);
-        //   console.group(inst.localName + '#' + inst.id + ': ' + c);
-        //   debugger;
-        // }
+        // ----------------------------
+        // let c = Object.getOwnPropertyNames(changedProps || {});
+        // console.group(this.localName + '#' + this.id + ': ' + c);
+        // ----------------------------
         // Compute
         let computedProps = runComputedEffects(this, changedProps, oldProps);
         // Compute linked paths
@@ -148,9 +177,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           runEffects(this, this.PROPERTY_EFFECT_TYPES.OBSERVE,
             changedProps, oldProps);
         }
-        // if (window.debug) {
-        //   console.groupEnd(inst.localName + '#' + inst.id + ': ' + c);
-        // }
+        // ----------------------------
+        // console.groupEnd(this.localName + '#' + this.id + ': ' + c);
+        // ----------------------------
       }
 
       _setPropertyToNodeFromAnnotation(node, prop, value) {
