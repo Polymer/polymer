@@ -55,27 +55,34 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       templatize(template, options) {
-        if (!template._content) {
-          template._content = template.content;
+        let klass = template.__templatizerClass;
+        // Return memoized class if already templatized (allows calling
+        // templatize on same template more than once)
+        if (klass) {
+          return klass;
         }
-        var ctor = template._content._ctor;
-        if (!ctor) {
-          // Lazily generate memoized constructor
-          ctor = template._content._ctor =
-            this._createConstructor(template, options);
+        // Ensure template has _content
+        template._content = template._content || template.content;
+        // Get memoized base class for the prototypical template
+        let baseClass = template._content.__templatizerClass;
+        if (!baseClass) {
+          baseClass = template._content.__templatizerClass =
+            this._createTemplatizerClass(template, options);
         }
         // Host property forwarding must be installed onto template instance
         this._prepHostProperties(template, options);
-        // Extend memoized constructor and provide reference to the host template
-        ctor = class TemplateInstance extends ctor {};
-        ctor.prototype.template = template;
-        ctor.instCount = 0;
-        return ctor;
+        // Subclass base class to add template reference for this specific
+        // template
+        klass = class TemplateInstance extends baseClass {};
+        klass.prototype.template = template;
+        klass.instCount = 0;   
+        template.__templatizerClass = klass;         
+        return klass;
       }
 
-      _createConstructor(template, options) {
+      _createTemplatizerClass(template, options) {
         // Anonymous class created by the templatizer
-        var ctor = class extends Polymer.BatchedEffects(nullClass) {
+        var klass = class extends Polymer.BatchedEffects(nullClass) {
           //TODO(kschaaf): for debugging; remove?
           get localName() { return 'template#' + this.template.id + '/TemplateInstance' }
           constructor(host, props) {
@@ -155,16 +162,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           dispatchEvent() { }
         }
         // TODO(kschaaf): event listeners created need to be decorated with e.model
-        ctor.prototype._bindTemplate(template);
-        this._prepInstanceProperties(ctor, template, options);
-        return ctor;
+        klass.prototype._bindTemplate(template);
+        this._prepInstanceProperties(klass, template, options);
+        return klass;
       }
 
       _prepHostProperties(template, options) {
-        // TODO(kschaaf): since _ctor is memoized on template._content, a
-        // template can only be templatized once; if this restriction were
-        // removed, then we'd want to allow prepping properties more than once
-        if (options.fwdHostPropToInstance && !template._addPropertyEffect) {
+        if (options.fwdHostPropToInstance) {
           // Provide data API
           // TODO(kschaaf): memoize template proto
           DataTemplate.upgradeTemplate(template);
@@ -181,7 +185,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // instances since they pull from the template at instance-time
           if (template.__dataProto) {
             Polymer.Utils.mixin(template.__data, template.__dataProto);
-            template.__dataProto = null;
           }
         }
       }
@@ -193,20 +196,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      _prepInstanceProperties(ctor, template, options) {
+      _prepInstanceProperties(klass, template, options) {
         var hostProps = template._content._hostProps || {};
         for (var iprop in options.instanceProps) {
           delete hostProps[iprop];
           if (options.fwdInstancePropToHost) {
-            ctor.prototype._addPropertyEffect(iprop,
-              ctor.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
+            klass.prototype._addPropertyEffect(iprop,
+              klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
               {fn: this._createIP2HEffector(iprop, options)});
           }
         }
         if (options.fwdHostPropToInstance && template.__dataHost) {
           for (var hprop in hostProps) {
-            ctor.prototype._addPropertyEffect(hprop,
-              ctor.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
+            klass.prototype._addPropertyEffect(hprop,
+              klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
               {fn: this._createHP2HEffector(template)})
           }
         }
