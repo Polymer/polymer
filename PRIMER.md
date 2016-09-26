@@ -143,7 +143,7 @@ MyElement = Polymer({
 
   is: 'my-element',
 
-  // See below for lifecycle callbacks
+  // See above for lifecycle callbacks
   created: function() {
     this.innerHTML = 'My element!';
   }
