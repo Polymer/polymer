@@ -285,6 +285,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return {properties: props, key: o};
       },
 
+      _rootSelector: /:root|:host\s*>\s*\*/,
+
+      _checkRoot: function(hostScope, selector) {
+        return Boolean(selector.match(this._rootSelector)) ||
+          (hostScope === 'html' && selector.indexOf('html') > -1);
+      },
+
       whenHostOrRootRule: function(scope, rule, style, callback) {
         if (!rule.propertyInfo) {
           self.decorateRule(rule);
@@ -296,21 +303,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         styleTransformer._calcHostScope(scope.is, scope.extends) :
         'html';
         var parsedSelector = rule.parsedSelector;
-        var isRoot = parsedSelector === ':root';
-        var isHost = parsedSelector.indexOf(':host') === 0;
+        var isRoot = this._checkRoot(hostScope, parsedSelector);
+        var isHost = !isRoot && parsedSelector.indexOf(':host') === 0;
         // build info is either in scope (when scope is an element) or in the style
         // when scope is the default scope; note: this allows default scope to have
         // mixed mode built and unbuilt styles.
         var cssBuild = scope.__cssBuild || style.__cssBuild;
         if (cssBuild === 'shady') {
           // :root -> x-foo > *.x-foo for elements and html for custom-style
-          isRoot = parsedSelector === (hostScope + ' > *.' + hostScope) || parsedSelector.indexOf('html') !== -1;
+          isRoot = parsedSelector === (hostScope + ' > *.' + hostScope) || parsedSelector.indexOf('html') > -1;
           // :host -> x-foo for elements, but sub-rules have .x-foo in them
           isHost = !isRoot && parsedSelector.indexOf(hostScope) === 0;
-        }
-        if (cssBuild === 'shadow') {
-          isRoot = parsedSelector === ':host > *' || parsedSelector === 'html';
-          isHost = isHost && !isRoot;
         }
         if (!isRoot && !isHost) {
           return;
@@ -329,6 +332,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             );
           }
           // parsedSelector fallback for 'shady' css build
+          selectorToMatch = rule.transformedSelector || rule.parsedSelector;
+        }
+        if (isRoot && hostScope === 'html') {
           selectorToMatch = rule.transformedSelector || rule.parsedSelector;
         }
         callback({
