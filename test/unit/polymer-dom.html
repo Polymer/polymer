@@ -1,0 +1,163 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+  <dom-module id="x-slot">
+    <template>
+      <div id="container"><slot id="slot"></slot></div>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-slot'
+      });
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-container-slot">
+    <template>
+      <x-slot id="container"><div id="first"></div><slot id="slot"></slot><div id="last"></div></x-slot>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-container-slot'
+      });
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-event-scoped">
+    <template>
+      <div id="scoped"></div>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-event-scoped',
+        fireComposed: function() {
+          return this.fire('composed', null, {node: this.$.scoped});
+        }
+      });
+    });
+    </script>
+  </dom-module>
+
+   <test-fixture id="scoped">
+    <template>
+      <x-event-scoped></x-event-scoped>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="slot">
+    <template>
+      <x-container-slot></x-container-slot>
+    </template>
+  </test-fixture>
+
+<script>
+
+  suite('exteded dom api', function() {
+    test('getEffectiveChildNodes', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      el.appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(Polymer.dom(el).getEffectiveChildNodes(),
+        [div]);
+      assert.deepEqual(Polymer.dom(el.$.container).getEffectiveChildNodes(),
+        [el.$.first, div, el.$.last]);
+      assert.deepEqual(Polymer.dom(el.$.container.$.container).getEffectiveChildNodes(),
+        [el.$.first, div, el.$.last]);
+    });
+
+    test('queryDistributedElements', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      el.appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(Polymer.dom(el).queryDistributedElements('foo'),
+        []);
+      assert.deepEqual(Polymer.dom(el).queryDistributedElements('div'),
+        [div]);
+      assert.deepEqual(Polymer.dom(el.$.container).queryDistributedElements('#first'),
+        [el.$.first]);
+      assert.deepEqual(Polymer.dom(el.$.container.$.container).queryDistributedElements('#last'),
+        [el.$.last]);
+    });
+
+  });
+
+  suite('distribution', function() {
+    test('getDistributedNodes', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      el.appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(Polymer.dom(el.$.slot).getDistributedNodes(), [div]);
+      assert.deepEqual(Polymer.dom(el.$.container.$.slot).getDistributedNodes(),
+        [el.$.first, div, el.$.last]);
+    });
+
+    test('getDestinationInsertionPoints', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      el.appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(Polymer.dom(el.$.first).getDestinationInsertionPoints(),
+        [el.$.container.$.slot]);
+      assert.deepEqual(Polymer.dom(div).getDestinationInsertionPoints(),
+        [el.$.slot, el.$.container.$.slot]);
+    });
+  });
+
+  suite('events', function() {
+
+    test('localTarget, rootTarget, path', function(done) {
+      var el = fixture('scoped');
+      el.addEventListener('composed', function(e) {
+        assert.equal(Polymer.dom(e).rootTarget, el.$.scoped);
+        assert.equal(Polymer.dom(e).localTarget, el);
+        let nodes = [];
+        let p = el.$.scoped;
+        while (p) {
+          nodes.push(p);
+          p = p.parentNode || p.host;
+        }
+        nodes.push(window);
+        assert.deepEqual(Array.from(Polymer.dom(e).path), nodes);
+        done();
+      });
+      el.fireComposed();
+    });
+
+  });
+
+</script>
+
+</body>
+</html>
