@@ -51,7 +51,7 @@
 
 - Update gulp-eslint to 3.x ([commit](https://github.com/Polymer/polymer/commit/8b89f02))
 
-- Fixes #3676: retain <style in <template preserve-content/> ([commit](https://github.com/Polymer/polymer/commit/8a4c00c))
+- Fixes #3676: retain `<style>` in `<template preserve-content/>` ([commit](https://github.com/Polymer/polymer/commit/8a4c00c))
 
 - [ci skip] Update Changelog for v1.6.1 ([commit](https://github.com/Polymer/polymer/commit/ec04461))
 
