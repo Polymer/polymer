@@ -1,5 +1,82 @@
 # Change Log
 
+##[v1.7.0](https://github.com/Polymer/polymer/tree/v1.7.0) (2016-09-28)
+- Fix IE style cache performance ([commit](https://github.com/Polymer/polymer/commit/d08b694))
+
+- no need for :root to be first in the selector ([commit](https://github.com/Polymer/polymer/commit/63433c8))
+
+- fix tests on !chrome browsers ([commit](https://github.com/Polymer/polymer/commit/7ce981b))
+
+- Translate `:root` to `:host > *` for element styles ([commit](https://github.com/Polymer/polymer/commit/fea64b9))
+
+- Define checkRoot only once ([commit](https://github.com/Polymer/polymer/commit/a49b366))
+
+- Fix normalizeRootSelector ([commit](https://github.com/Polymer/polymer/commit/c2278a0))
+
+- Comment on using the ast walker to replace selector ([commit](https://github.com/Polymer/polymer/commit/9658665))
+
+- update travis config ([commit](https://github.com/Polymer/polymer/commit/c00687a))
+
+- Transform ::slotted() to ::content ([commit](https://github.com/Polymer/polymer/commit/541fdfb))
+
+- Test on native shadow DOM also. ([commit](https://github.com/Polymer/polymer/commit/11afc1f))
+
+- Reorder. ([commit](https://github.com/Polymer/polymer/commit/cbae058))
+
+- Remove unused. ([commit](https://github.com/Polymer/polymer/commit/92d1d8a))
+
+- Add fallback support/test. ([commit](https://github.com/Polymer/polymer/commit/037abdd))
+
+- A little more dry. ([commit](https://github.com/Polymer/polymer/commit/6fd0e1f))
+
+- Use name. ([commit](https://github.com/Polymer/polymer/commit/4aa8da2))
+
+- Support default slot semantics. ([commit](https://github.com/Polymer/polymer/commit/d458dd3))
+
+- Remove opt-in. Exclude content from copy. ([commit](https://github.com/Polymer/polymer/commit/41e5dc0))
+
+- Make sure click events can always trigger tap, even on touch only devices ([commit](https://github.com/Polymer/polymer/commit/02441ca))
+
+- Add support for slot->content transformation. Need to bikeshed opt-in attribute (currently "auto-content") ([commit](https://github.com/Polymer/polymer/commit/ebf31ca))
+
+- Support more expressive `:root` and `html` selectors ([commit](https://github.com/Polymer/polymer/commit/2a8f21a))
+
+- Fix typo ([commit](https://github.com/Polymer/polymer/commit/192eb56))
+
+- test for mixins in custom-style ordering ([commit](https://github.com/Polymer/polymer/commit/37646f7))
+
+- Do not insert semicolon when fixing var() syntax ([commit](https://github.com/Polymer/polymer/commit/0a338a7))
+
+- Make sure mixins are applied no matter the ordering of definition ([commit](https://github.com/Polymer/polymer/commit/9daea3d))
+
+- Update gulp-eslint to 3.x ([commit](https://github.com/Polymer/polymer/commit/8b89f02))
+
+- Fixes #3676: retain <style in <template preserve-content/> ([commit](https://github.com/Polymer/polymer/commit/8a4c00c))
+
+- [ci skip] Update Changelog for v1.6.1 ([commit](https://github.com/Polymer/polymer/commit/ec04461))
+
+- Apply to _marshalArgs. ([commit](https://github.com/Polymer/polymer/commit/b2cd932))
+
+- Rename Path.head() to Path.root(). ([commit](https://github.com/Polymer/polymer/commit/77808d9))
+
+- Use head in templatizer ([commit](https://github.com/Polymer/polymer/commit/478978d))
+
+- Modify _annotationPathEffect ([commit](https://github.com/Polymer/polymer/commit/852aba0))
+
+- Use isDescendant ([commit](https://github.com/Polymer/polymer/commit/b9944fe))
+
+- Use isDeep ([commit](https://github.com/Polymer/polymer/commit/5627a55))
+
+- Replace _fixPath. ([commit](https://github.com/Polymer/polymer/commit/6d1dd88))
+
+- Replace _modelForPath. ([commit](https://github.com/Polymer/polymer/commit/b02eda0))
+
+- Replace _patchMatchesEffect. ([commit](https://github.com/Polymer/polymer/commit/6ad9295))
+
+- Add path library. ([commit](https://github.com/Polymer/polymer/commit/0320763))
+
+- Revert "Fix _patchMatchesEffect. (#3631)" ([commit](https://github.com/Polymer/polymer/commit/a64f227))
+
 ##[v1.6.1](https://github.com/Polymer/polymer/tree/v1.6.1) (2016-08-01)
 - Property Shim needs to handle build output from apply shim ([commit](https://github.com/Polymer/polymer/commit/d726a51))
 
