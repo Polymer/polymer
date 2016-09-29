@@ -629,12 +629,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var self = this;
         if (onload) {
           l.onload = function(e) {
-            return onload.call(self, e);
+            // NOTE: Push load handler until after `HTMLImports.whenReady`,
+            // if available, to better coordinate with use of customElements
+            // polyfill's document upgrade ordering guarantees (ensures,
+            // for example, a dom-module for an element in an async import
+            // customizes before any elements matching a define call).
+            if (window.HTMLImports) {
+              // wait until any other pending imports are ready
+              HTMLImports.whenReady(function() {
+                // wait until the CustomElements polyfill has upgraded elements.
+                // (needed because CE's whenReady is installed afer this one)
+                setTimeout(function() {
+                  onload.call(self, e);
+                });
+              });
+            } else {
+              onload.call(self, e);
+            }
           }
         }
         if (onerror) {
           l.onerror = function(e) {
-            return onerror.call(self, e);
+            onerror.call(self, e);
           }
         }
         document.head.appendChild(l);
