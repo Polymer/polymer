@@ -116,7 +116,7 @@ class MyElementSubclass extends MyElement {
 }
 
 // Register custom element definition using standard platform API
-customElements.define(MyElementSubclass, MyElementSubclass);
+customElements.define(MyElementSubclass.is, MyElementSubclass);
 ```
 
 Below are the general steps for defining a custom element using this new syntax:
@@ -177,7 +177,7 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
 * Changes to callback names:
   * When using `Polymer({...})` from the compatibility layer, all callbacks should use legacy Polymer API names (`created`, `attached`, `detached`, `attributeChanged`)
   * When extending from `Polymer.Element`, users should override the V1 standard callback names and call `super()`:
-    * `connected` changes to `constructor`
+    * `created` changes to `constructor`
     * `attached` changes to `connectedCallback`
     * `detached` changes to `disconnectedCallback`
     * `attributeChanged` changes to `attributeChangedCallback`
