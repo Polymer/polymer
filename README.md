@@ -66,6 +66,11 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
      * If you're interested in using pieces of Polymer's functionality in _a la carte_ fashion, you can try defining your own base element class, utilizing a subset of the libraries. For now, this use case should be considered experimental, as the factoring of libraries is subject to change and is not part of the official Polymer 2.0 API.
 
+## Installing
+You can install Polymer 2.0 using bower:
+
+      bower install --save Polymer/polymer#2.0-preview
+
 ## 1.0 Compatibility Layer
 Polymer 2.0 retains the existing `polymer/polymer.html` import that current Polymer 1.0 users can continue to import, which strives to provide a very minimally-breaking change for code written to the Polymer 1.0 API.  For the most part, existing users upgrading to Polymer 2.0 will only need to adapt existing code to be compliant with the V1 Shadow DOM API related to content distribution and styling, as well as minor breaking changes introduced due to changes in the V1 Custom Elements spec and data-layer improvements listed [below](#breaking-changes).
 
