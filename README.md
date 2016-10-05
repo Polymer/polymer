@@ -126,7 +126,7 @@ customElements.define(MyElementSubclass.is, MyElementSubclass);
 
 Below are the general steps for defining a custom element using this new syntax:
 
-* Extend from `Polymer.Element`. This class provides the minimal surface area to integrate with 2.0's data binding system. It provides only standard custom element lifecycle with the exception of `ready`. (You can extend from `Polymer.CompatElement` to get all of the Polymer 1.0 element api, but since most of this api was rarely used, this should not often be needed.)
+* Extend from `Polymer.Element`. This class provides the minimal surface area to integrate with 2.0's data binding system. It provides only standard custom element lifecycle with the addition of `ready`. (You can extend from `Polymer.LegacyElement` to get all of the Polymer 1.0 element api, but since most of this api was rarely used, this should not often be needed.)
 * Implement "behaviors" as [mixins that return class expressions](http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/)
 * Property metadata (`properties`) and multi-property/wildcard observers (`observers`) should be put on the class as a static in a property called `config`
 * Element's `is` property should be defined as a static on the class
@@ -202,7 +202,7 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
   </dom-repeat>
   ```
 
-  For the time being, `Polymer()` will automatically wrap template extensions used in Polymer element templates during template processing for backward-compatibility, although we may decide to remove this auto-wrapping in the future.  Templates used in the main document must be manually wrapped.
+  For the time being, Polymer (both legacy and class API) will automatically wrap template extensions used in Polymer element templates during template processing for backward-compatibility, although we may decide to remove this auto-wrapping in the future.  Templates used in the main document must be manually wrapped.
 * The `custom-style` element has also been changed to a standard custom element that must wrap a style element  e.g.
 
   ```
