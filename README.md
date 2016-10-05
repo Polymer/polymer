@@ -267,8 +267,5 @@ id is to use `id`.
 * Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
 
 ## Not yet implemented
-* Some utility functions are not yet implemented
-    * A number of utility functions that were previously on the Polymer 1.0 element prototype are not ported over yet.  These will warn with "not yet implemented" warnings.  In general, these can be avoided using standard DOM API.
 * `<array-selector>` not yet implemented
 * `Polymer.dom`: currently *most* of this is emulated, but some api's may be missing. Please file issues to determine if the missing behavior is an intended breaking change.
-* `Polymer.dom.observeNodes`: we're likely going to provide a breaking replacement for this that's more in the spirit of Shadow DOM V1.
