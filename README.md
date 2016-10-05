@@ -79,12 +79,12 @@ With the widespread adoption of ES6 in browsers, as well as the requirement that
 
 Basic syntax looks like this:
 
-```
+```html
 <!-- Load the Polymer.Element base class -->
 <link rel="import" href="bower_components/polymer/polymer-element.html">
 ```
 
-```
+```js
 // Extend Polymer.Element base class
 class MyElement extends Polymer.Element {
   static get is() { return 'my-element'; }
@@ -108,7 +108,7 @@ customElements.define(MyElement.is, MyElement);
 
 Users can then leverage native subclassing support provided by ES6 to extend and customize existing elements defined using ES6 syntax:
 
-```
+```js
 // Subclass existing element
 class MyElementSubclass extends MyElement {
   static get is() { return 'my-element-subclass'; }
@@ -190,13 +190,13 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
 * Polymer will no longer produce type-extension elements (aka `is="..."`). Although they are still included in the V1 Custom Elements [spec](https://html.spec.whatwg.org/#custom-elements-customized-builtin-example) and scheduled for implementation in Chrome, because Apple [has stated](https://github.com/w3c/webcomponents/issues/509#issuecomment-233419167) it will not implement `is`, we will not be encouraging its use to avoid indefinite reliance on the Custom Elements polyfill. Instead, a wrapper custom element can surround a native element, e.g. `<a is="my-anchor">...</a>` could become `<my-anchor><a>...</a></my-anchor>`. Users will need to change existing `is` elements where necessary.
 * All template type extensions provided by Polymer have now been changed to standard custom elements that take a `<template>` in their light dom,  e.g.
 
-  ```
+  ```html
   <template is="dom-repeat" items="{{items}}">...</template>
   ```
 
   should change to
 
-  ```
+  ```html
   <dom-repeat items="{{items}}">
       <template>...</template>
   </dom-repeat>
@@ -205,13 +205,13 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
   For the time being, Polymer (both legacy and class API) will automatically wrap template extensions used in Polymer element templates during template processing for backward-compatibility, although we may decide to remove this auto-wrapping in the future.  Templates used in the main document must be manually wrapped.
 * The `custom-style` element has also been changed to a standard custom element that must wrap a style element  e.g.
 
-  ```
+  ```html
   <style is="custom-style">...</style>
   ```
 
    should change to
 
-   ```
+   ```html
    <custom-style>
      <style>...</style>
    </custom-style>
