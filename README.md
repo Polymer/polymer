@@ -265,6 +265,7 @@ id is to use `id`.
 * Binding a default value of `false` via an _attribute binding_ to a boolean property will not override a default `true` property of the target, due to the semantics of boolean attributes.  In general, property binding should always be used when possible, and will avoid such situations.
 * `lazyRegister` option removed and all meta-programming (parsing template, creating accessors on prototype, etc.) is deferred until the first instance of the element is created
 * Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
+* `Polymer.dom.flush` does not currently flush templates (`dom-repeat`, `dom-if`) or `observeNodes` observers.  Use `Polymer.Templatizer.flush` to flush templates, and `observer.flush` to flush individual `observeNodes` observers (where `observer` is the return value from `observeNodes`).
 
 ## Not yet implemented
 * `<array-selector>` not yet implemented
