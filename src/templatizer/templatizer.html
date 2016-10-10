@@ -46,7 +46,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._debouncerQueue.push(debouncer);
       }
 
-      static flushDebouncers() {
+      static flush() {
         if (this._debouncerQueue) {
           while (this._debouncerQueue.length) {
             this._debouncerQueue.shift().flush();
@@ -74,7 +74,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Subclass base class to add template reference for this specific
         // template
         klass = class TemplateInstance extends baseClass {};
-        klass.prototype.template = template;
+        klass.prototype.__template = template;
         klass.instCount = 0;   
         template.__templatizerClass = klass;         
         return klass;
@@ -84,17 +84,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Anonymous class created by the templatizer
         var klass = class extends Polymer.BatchedEffects(nullClass) {
           //TODO(kschaaf): for debugging; remove?
-          get localName() { return 'template#' + this.template.id + '/TemplateInstance' }
+          get localName() { return 'template#' + this.__template.id + '/TemplateInstance' }
           constructor(host, props) {
             super();
             //TODO(kschaaf): for debugging; remove?
             this.id = this.constructor.instCount;
             this.constructor.instCount++;
-            this.__dataHost = this.template;
-            if (host) {
-              this._rootDataHost = host.__dataHost ?
-                host.__dataHost._rootDataHost || host.__dataHost : host;
-            }
+            this.__dataHost = this.__template;
+            let templateHost = this.__template.__dataHost;
+            this._rootDataHost = 
+              templateHost && templateHost._rootDataHost || templateHost;
             this._hostProps = template._content._hostProps;
             this._configureProperties(props);
             //TODO(kschaaf): id marshalling unnecessary
@@ -147,7 +146,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               }
             }
             for (var hprop in this._hostProps) {
-              this[hprop] = this.template['_host_' + hprop];
+              this[hprop] = this.__template['_host_' + hprop];
             }
           }
           forwardProperty(prop, value, host) {
@@ -190,8 +189,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       _createHP2IEffector(hostProp, options) {
-        return function(inst, prop, value) {
-          options.fwdHostPropToInstance.call(inst, inst,
+        return function(template, prop, value) {
+          options.fwdHostPropToInstance.call(template, template,
             prop.substring('_host_'.length), value);
         }
       }
@@ -210,7 +209,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           for (var hprop in hostProps) {
             klass.prototype._addPropertyEffect(hprop,
               klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
-              {fn: this._createHP2HEffector(template)})
+              {fn: this._createHP2HEffector()})
           }
         }
       }
@@ -223,12 +222,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      _createHP2HEffector(template) {
+      _createHP2HEffector() {
         return function fwdHostPropToHost(inst, prop, value, old, info, fromAbove) {
           if (!fromAbove) {
             // TODO(kschaaf) This does not take advantage of the efficient
             // upward flow in batched effects
-            template._setProperty('_host_' + prop, value);
+            inst.__template._setProperty('_host_' + prop, value);
           }
         }
       }
