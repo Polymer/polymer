@@ -1,0 +1,302 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+<script>
+
+(function() {
+
+  HTMLImports.whenReady(function() {
+    Polymer({is: 'my-element'});
+  });
+
+  let el1, el2;
+
+  setup(function() {
+    el1 = document.createElement('my-element');
+    document.body.appendChild(el1);
+    el2 = document.createElement('my-element');
+    el1.appendChild(el2);
+  });
+
+  teardown(function() {
+    document.body.removeChild(el1);
+  });
+
+  suite('CSS utilities', function() {
+
+    test('toggleClass', function() {
+
+      el1.toggleClass('foo-class', true);
+      assert(el1.classList.contains('foo-class'));
+      el1.toggleClass('foo-class', false);
+      assert(!el1.classList.contains('foo-class'));
+      el1.toggleClass('foo-class');
+      assert(el1.classList.contains('foo-class'));
+      el1.toggleClass('foo-class');
+      assert(!el1.classList.contains('foo-class'));
+
+      el1.toggleClass('foo-class', true, el2);
+      assert(el2.classList.contains('foo-class'));
+      el1.toggleClass('foo-class', false, el2);
+      assert(!el2.classList.contains('foo-class'));
+    });
+
+  });
+
+  suite('debounce', function() {
+
+    test('debounce (no-wait)', function(done) {
+
+      var called = 0;
+      var cb = function() {
+        called++;
+      };
+
+      assert(el1.isDebouncerActive('foo') === false);
+      el1.debounce('foo', cb);
+      el1.debounce('foo', cb);
+      el1.debounce('foo', cb);
+      assert(el1.isDebouncerActive('foo') === true);
+
+      setTimeout(function() {
+        assert.equal(called, 1, 'debounce should be called exactly once');
+        done();
+      });
+
+    });
+
+    test('debounce (wait)', function(done) {
+
+      var called = 0;
+      var cb = function() {
+        called++;
+      };
+
+      el1.debounce('foo', cb);
+      el1.debounce('foo', cb, 50);
+      el1.debounce('foo', cb, 100);
+
+      setTimeout(function() {
+        assert.equal(called, 0, 'callback is not called yet');
+      }, 50);
+
+      setTimeout(function() {
+        assert.equal(called, 1, 'callback was called exactly once');
+        done();
+      }, 200);
+
+    });
+
+    test('debounce flushing', function(done) {
+
+      var called = 0;
+      var cb = function() {
+        called++;
+      };
+
+      el1.debounce('foo', cb);
+      el1.flushDebouncer('foo');
+      el1.debounce('foo', cb);
+
+      setTimeout(function() {
+        assert.equal(called, 2, 'debounce should be called twice');
+        done();
+      }, 100);
+
+    });
+
+    test('debounce state', function(done) {
+
+      el1.debounce('foo', function() {
+        assert.equal(el1.isDebouncerActive('foo'), false, 'debouncer is inactive after resolution');
+        done();
+      });
+
+      assert.equal(el1.isDebouncerActive('foo'), true, 'debouncer is active immediately after triggering');
+
+    });
+
+    test('debounce cancelling', function(done) {
+
+      var triggered = false;
+
+      el1.debounce('foo', function() {
+        triggered = true;
+      });
+      el1.cancelDebouncer('foo');
+      assert.equal(el1.isDebouncerActive('foo'), false, 'debouncer is inactive after cancelling');
+
+      setTimeout(function() {
+        assert.equal(triggered, false, 'debounce never fired');
+        done();
+      }, 100);
+
+    });
+
+    test('duplicate debouncer assignment (no-wait)', function(done) {
+
+      var a, b;
+
+      el1.debounce('foo', function() {
+        a = 'foo';
+      });
+      el1.debounce('foo', function() {
+        b = 'bar';
+      });
+
+      setTimeout(function() {
+        assert.equal(a, undefined, 'first debouncer was never fired');
+        assert.equal(b, 'bar', 'only the second debouncer callback was executed');
+        done();
+      });
+
+    });
+
+    test('duplicate debouncer assignment (wait)', function(done) {
+
+      var a, b, delay = 50;
+
+      el1.debounce('foo', function() {
+        a = 'foo';
+      }, delay);
+      el1.debounce('foo', function() {
+        b = 'bar';
+      }, delay);
+
+      setTimeout(function() {
+        assert.equal(a, undefined, 'first debouncer was never fired');
+        assert.equal(b, 'bar', 'only the second debouncer callback was executed');
+        done();
+      }, (delay+50));
+
+    });
+
+  });
+
+  suite('class mixins', function() {
+
+    let ctors;
+    let methods;
+
+    class Base {
+      constructor() { ctors.push('Base'); }
+      method() { methods.push('Base'); }
+    }
+    let A = S => class A extends S {
+      constructor() { super(); ctors.push('A'); }
+      method() { methods.push('A'); super.method(); }
+    }
+    let B = S => class B extends S {
+      constructor() { super(); ctors.push('B'); }
+      method() { methods.push('B'); super.method(); }
+    }
+    let C = S => class C extends S {
+      constructor() { super(); ctors.push('C'); }
+      method() { methods.push('C'); super.method(); }
+    }
+
+    function getChain(inst) {
+      let chain = [];
+      let proto = Object.getPrototypeOf(inst);
+      while (proto) {
+        chain.push(proto.constructor.name);
+        proto = Object.getPrototypeOf(proto);
+      }
+      return chain;
+    }
+
+    setup(function() {
+      ctors = [];
+      methods = [];
+    });
+
+    test('basic', function() {
+      // No polymer here, just sanity check
+      ctors = [];
+      methods = [];
+      class X extends C(B(A(Base))) { }
+      let x = new X();
+      x.method();
+      assert.deepEqual(ctors, ['Base', 'A', 'B', 'C']);
+      assert.deepEqual(methods, ['C', 'B', 'A', 'Base']);
+      assert.deepEqual(getChain(x), ['X', 'C', 'B', 'A', 'Base', 'Object']);
+    });
+
+    test('mix/with', function() {
+      ctors = [];
+      methods = [];
+      class X extends Polymer.mix(Base).with(A, B, C) { }
+      let x = new X();
+      x.method();
+      assert.deepEqual(ctors, ['Base', 'A', 'B', 'C']);
+      assert.deepEqual(methods, ['C', 'B', 'A', 'Base']);
+      assert.deepEqual(getChain(x), ['X', 'C', 'B', 'A', 'Base', 'Object']);
+    });
+
+    test('non-caching', function() {
+      // Demonstrates problem: a cloned prototype
+      class X1 extends A(Base) { }
+      class X2 extends A(Base) { }
+      assert.notEqual(Object.getPrototypeOf(X1.prototype), Object.getPrototypeOf(X2.prototype));
+    });
+
+    test('caching', function() {
+      let dA = Polymer.Utils.cachingMixin(A);
+      class X1 extends dA(Base) { }
+      class X2 extends dA(Base) { }
+      assert.equal(Object.getPrototypeOf(X1.prototype), Object.getPrototypeOf(X2.prototype));
+      let x = new X2();
+      assert.deepEqual(ctors, ['Base', 'A']);
+      assert.deepEqual(getChain(x), ['X2', 'A', 'Base', 'Object']);
+    });
+
+    test('non-deduping', function() {
+      // Demonstrates problem: 'A' in chain twice
+      let AB = S => Polymer.mix(S).with(A, B);
+      let AC = S => Polymer.mix(S).with(A, C);
+      class X extends Polymer.mix(Base).with(AB, AC) { }
+      let x = new X();
+      x.method();
+      assert.deepEqual(ctors, ['Base', 'A', 'B', 'A', 'C']);
+      assert.deepEqual(methods, ['C', 'A', 'B', 'A', 'Base']);
+      assert.deepEqual(getChain(x), ['X', 'C', 'A', 'B', 'A', 'Base', 'Object']);
+    });
+
+    test('non-deduping', function() {
+      // Technically only A needs to dedupe, but we'll make all dedupe
+      let dA = Polymer.Utils.dedupingMixin(A);
+      let dB = Polymer.Utils.dedupingMixin(B);
+      let dC = Polymer.Utils.dedupingMixin(C);
+      let dAB = S => Polymer.mix(S).with(dA, dB);
+      let dAC = S => Polymer.mix(S).with(dA, dC);
+      class X extends Polymer.mix(Base).with(dAB, dAC) { }
+      let x = new X();
+      x.method();
+      assert.deepEqual(ctors, ['Base', 'A', 'B', 'C']);
+      assert.deepEqual(methods, ['C', 'B', 'A', 'Base']);
+      assert.deepEqual(getChain(x), ['X', 'C', 'B', 'A', 'Base', 'Object']);
+    });
+
+  });
+
+})();
+
+</script>
+</body>
+</html>
