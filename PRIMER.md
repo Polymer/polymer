@@ -279,7 +279,7 @@ Polymer({
 });
 ```
 
-Remember that the fields assigned to `count`, such as `readOnly` and `notify` don't do anything by themselves, it requires other features to give them life, and may depend on which layer of Polymer is in use.
+Remember that the fields assigned to `count` - such as `readOnly` and `notify` don't do anything by themselves - it requires other features to give them life, and may depend on which layer of Polymer is in use.
 
 <a name="attribute-deserialization"></a>
 ## Attribute deserialization
