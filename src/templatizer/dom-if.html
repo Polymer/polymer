@@ -8,7 +8,7 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="../../polymer-legacy.html">
+<link rel="import" href="../../polymer-element.html">
 <link rel="import" href="templatizer.html">
 <link rel="import" href="../utils/debounce.html">
 
@@ -30,63 +30,76 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Set the `restamp` property to true to force the stamped content to be
    * created / destroyed when the `if` condition changes.
    */
-  Polymer({
+  class DomIf extends Polymer.Element {
 
-    is: 'dom-if',
+    static get template() { return null; }
 
-    _template: null,
+    static get config() { 
 
-    /**
-     * Fired whenever DOM is added or removed/hidden by this template (by
-     * default, rendering occurs lazily).  To force immediate rendering, call
-     * `render`.
-     *
-     * @event dom-change
-     */
+      return {
 
-    properties: {
+        /**
+         * Fired whenever DOM is added or removed/hidden by this template (by
+         * default, rendering occurs lazily).  To force immediate rendering, call
+         * `render`.
+         *
+         * @event dom-change
+         */
 
-      /**
-       * A boolean indicating whether this template should stamp.
-       */
-      'if': {
-        type: Boolean,
-        observer: '_queueRender'
-      },
+        properties: {
 
-      /**
-       * When true, elements will be removed from DOM and discarded when `if`
-       * becomes false and re-created and added back to the DOM when `if`
-       * becomes true.  By default, stamped elements will be hidden but left
-       * in the DOM when `if` becomes false, which is generally results
-       * in better performance.
-       */
-      restamp: {
-        type: Boolean,
-        observer: '_queueRender'
-      }
+          /**
+           * A boolean indicating whether this template should stamp.
+           */
+          'if': {
+            type: Boolean,
+            observer: '_debounceRender'
+          },
 
-    },
+          /**
+           * When true, elements will be removed from DOM and discarded when `if`
+           * becomes false and re-created and added back to the DOM when `if`
+           * becomes true.  By default, stamped elements will be hidden but left
+           * in the DOM when `if` becomes false, which is generally results
+           * in better performance.
+           */
+          restamp: {
+            type: Boolean,
+            observer: '_debounceRender'
+          }
 
-    _queueRender: function() {
-      Polymer.Templatizer.enqueueDebouncer(this.debounce('_render', this._render));
-    },
+        }
 
-    detached: function() {
+      };
+
+    }
+
+    constructor() {
+      super();
+      this._renderDebouncer = null;
+    }
+
+    _debounceRender() {
+      this._renderDebouncer =
+        Polymer.Debouncer.debounce(this._renderDebouncer, this._render, null, this);
+      Polymer.Templatizer.enqueueDebouncer(this._renderDebouncer);
+    }
+
+    disconnectedCallback() {
+      super.disconnectedCallback();
       if (!this.parentNode ||
           (this.parentNode.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
            !this.parentNode.host)) {
         this._teardownInstance();
       }
-    },
+    }
 
-    attached: function() {
+    connectedCallback() {
+      super.connectedCallback();
       if (this.if) {
-        // NOTE: ideally should not be async, but node can be attached
-        // when shady dom is in the act of distributing/composing so push it out
-        this.async(this._ensureInstance);
+        this._debounceRender();
       }
-    },
+    }
 
     /**
      * Forces the element to render its content. Normally rendering is
@@ -95,11 +108,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * should be called if, for example, template rendering is required to
      * validate application state.
      */
-    render: function() {
+    render() {
       Polymer.Templatizer.flush();
-    },
+    }
 
-    _render: function() {
+    _render() {
       if (this.if) {
         this._ensureInstance();
         this._showHideChildren();
@@ -110,12 +123,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._showHideChildren();
       }
       if (this.if != this._lastIf) {
-        this.fire('dom-change');
+        this.dispatchEvent(new CustomEvent('dom-change', {bubbles: true}));
         this._lastIf = this.if;
       }
-    },
+    }
 
-    _ensureInstance: function() {
+    _ensureInstance() {
       var parentNode = this.parentNode;
       // Guard against element being detached while render was queued
       if (parentNode) {
@@ -151,9 +164,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
       }
-    },
+    }
 
-    _teardownInstance: function() {
+    _teardownInstance() {
       if (this._instance) {
         var c$ = this._instance.children;
         if (c$ && c$.length) {
@@ -165,16 +178,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         this._instance = null;
       }
-    },
+    }
 
-    _showHideChildren: function() {
+    _showHideChildren() {
       var hidden = this.__hideTemplateChildren__ || !this.if;
       if (this._instance) {
         this._instance._showHideChildren(hidden);
       }
     }
 
-  });
+  }
+
+  customElements.define('dom-if', DomIf);
+
+  Polymer.DomIf = DomIf;
 
 })();
 </script>

@@ -10,7 +10,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../legacy/dom-module.html">
-<link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/case-map.html">
 <link rel="import" href="../events/event-listeners.html">
 <link rel="import" href="../template/template-stamp.html">
@@ -23,8 +22,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
-  let utils = Polymer.Utils;
   let caseMap = Polymer.CaseMap;
+
+  // Same as Polymer.Utils.mixin, but upgrades shorthand type
+  // syntax to { type: Type }
+  function flattenProperties(flattenedProps, props) {
+    for (let p in props) {
+      let o = props[p];
+      if (typeof o == 'function') {
+        o = { type: o };
+      }
+      flattenedProps[p] = o;
+    }
+    return flattenedProps;
+  }
 
   Polymer.ElementMixin = Polymer.Utils.cachingMixin(function(base) {
 
@@ -49,10 +60,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // (2) element default values
       static get _flattenedProperties() {
         if (!this.hasOwnProperty('__flattenedProperties')) {
-          this.__flattenedProperties = this._ownConfig.properties || {};
+          // TODO(sorvell): consider optimizing; shorthand type support requires
+          // an extra loop to upgrade shorthand property info to longhand
+          this.__flattenedProperties = flattenProperties({}, this._ownConfig.properties);
           let superCtor = Object.getPrototypeOf(this.prototype).constructor;
           if (superCtor.prototype instanceof PolymerElement) {
-            this.__flattenedProperties = utils.mixin(
+            this.__flattenedProperties = flattenProperties(
               Object.create(superCtor._flattenedProperties),
               this.__flattenedProperties);
           }
@@ -153,8 +166,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           window.ShadyCSS.prepareTemplate(template, this.is, this.extends);
         }
         var proto = this.prototype;
-        // clear any existing propagation effects and listeners inherited from superClass.
-        proto._propagateEffects = {};
         proto._bindListeners = [];
         this.prototype._bindTemplate(template);
         proto._template = template;
@@ -280,6 +291,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (window.ShadyCSS) {
           ShadyCSS.applyStyle(this, properties);
         }
+      }
+
+      /**
+       * Rewrites a given URL relative to the original location of the document
+       * containing the `dom-module` for this element.  This method will return
+       * the same URL before and after vulcanization.
+       *
+       * @method resolveUrl
+       * @param {string} url URL to resolve.
+       * @return {string} Rewritten URL relative to the import
+       */
+      resolveUrl(url) {
+        var module = Polymer.DomModule.import(this.constructor.is);
+        var root = '';
+        if (module) {
+          var assetPath = module.getAttribute('assetpath') || '';
+          root = Polymer.ResolveUrl.resolveUrl(
+            assetPath, module.ownerDocument.baseURI);
+        }
+        return Polymer.ResolveUrl.resolveUrl(url, root);
       }
 
     }

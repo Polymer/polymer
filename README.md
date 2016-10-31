@@ -2,7 +2,9 @@
 
 This branch contains a preview of the Polymer 2.0 library.  The codebase is under active development, features may not be fully implemented, and APIs may change prior to the final 2.0 release.
 
-🚧 Note: Some tests currently fail on non-Chrome browsers; these will be addressed soon, but in the short term Chrome Canary is your best bet. 🚧
+🚧 **Currently to evaluate Polymer 2.0**, please load the `webcomponentsjs/webcomponents-lite.js` polyfills from the `v1` branch of [`webcomponentsjs`](https://github.com/webcomponents/webcomponentsjs/tree/v1/) even when running on Chrome and Safari Technical Preview. This is temporary, until polyfill refactoring is complete and we can provide better guidance on how to selectively load polyfills to target different browser capabilities.
+
+🚧 Note: Some tests currently fail on non-Chrome browsers; these will be addressed soon, but in the short term Chrome Canary is your best bet.
 
 ## Polymer 2.0 Goals
 
