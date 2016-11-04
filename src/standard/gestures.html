@@ -38,6 +38,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   })();
 
+  /* eslint no-empty: ["error", { "allowEmptyCatch": true }] */
+  // check for passive event listeners
+  var SUPPORTS_PASSIVE = false;
+  (function() {
+    try {
+      var opts = Object.defineProperty({}, 'passive', {get: function() {SUPPORTS_PASSIVE = true;}})
+      window.addEventListener('test', null, opts);
+      window.removeEventListener('test', null, opts);
+    } catch(e) {}
+  })();
+
   // Check for touch-only devices
   var IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
 
@@ -82,7 +93,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  function ignoreMouse() {
+  function ignoreMouse(ev) {
     if (!POINTERSTATE.mouse.mouseIgnoreJob) {
       setupTeardownMouseCanceller(true);
     }
@@ -91,6 +102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       POINTERSTATE.mouse.target = null;
       POINTERSTATE.mouse.mouseIgnoreJob = null;
     };
+    POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
     POINTERSTATE.mouse.mouseIgnoreJob =
       Polymer.Debounce(POINTERSTATE.mouse.mouseIgnoreJob, unset, MOUSE_TIMEOUT);
   }
@@ -178,6 +190,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     stateObj.upfn = null;
   }
 
+  // use a document-wide touchend listener to start the ghost-click prevention mechanism
+  // Use passive event listeners, if supported, to not affect scrolling performance
+  document.addEventListener('touchend', ignoreMouse, SUPPORTS_PASSIVE ? {passive: true} : false);
+
   var Gestures = {
     gestures: {},
     recognizers: [],
@@ -235,12 +251,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             if (type === 'touchstart' || type === 'touchmove') {
               Gestures.handleTouchAction(ev);
             }
-          }
-          // disable synth mouse events, unless this event is itself simulated
-          if (type === 'touchend') {
-            POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
-            // ignore syntethic mouse events after a touch
-            ignoreMouse();
           }
         }
       }
