@@ -160,37 +160,37 @@ Note that `Polymer.dom` is still provided in the `polymer.html` backward-compati
 Polymer 2.0 elements will stamp their templates into shadow roots created using V1's `attachShadow({mode: 'open'})` by default.  As such, user code related to scoped styling, distribution, and events must be adapted to native V1 API.  For a great writeup on all Shadow DOM V1 spec changes, [see this writeup](http://hayato.io/2016/shadowdomv1/).  Required changes for V1 are summarized below:
 
 #### Distribution
-* `<content>` insertion points must be changed to `<slot>`
-* Insertion points that selected content via `<content select="...">` must be changed to named slots: `<slot name="...">`
-* Selection of distributed content into named slots must use `slot="..."` rather than tag/class/attributes selected by `<content>`
-* Re-distributing content by placing a `<slot>` into an element that itself has named slots requires placing a `name` attribute on the `<slot>` to indicate what content _it_ selects from its host children, and placing a `slot` attribute to indicate where its selected content should be slotted into its parent
-* In the V1 "Shady DOM" shim, initial distribution of children into `<slot>` is asynchronous (microtask) to creating the `shadowRoot`, meaning distribution occurs after observers/`ready` (in Polymer 1.0's shim, initial distribution occurred before `ready`).  In order to force distribution synchronously, call `ShadyDOM.flush()`.
+* <a name="breaking-slot"></a>`<content>` insertion points must be changed to `<slot>`
+* <a name="breaking-slot-name"></a>Insertion points that selected content via `<content select="...">` must be changed to named slots: `<slot name="...">`
+* <a name="breaking-slot-slot"></a>Selection of distributed content into named slots must use `slot="..."` rather than tag/class/attributes selected by `<content>`
+* <a name="breaking-redistribution"></a>Re-distributing content by placing a `<slot>` into an element that itself has named slots requires placing a `name` attribute on the `<slot>` to indicate what content _it_ selects from its host children, and placing a `slot` attribute to indicate where its selected content should be slotted into its parent
+* <a name="breaking-async-distribution"></a>In the V1 "Shady DOM" shim, initial distribution of children into `<slot>` is asynchronous (microtask) to creating the `shadowRoot`, meaning distribution occurs after observers/`ready` (in Polymer 1.0's shim, initial distribution occurred before `ready`).  In order to force distribution synchronously, call `ShadyDOM.flush()`.
 
 #### Scoped styling
 
-* `::content` CSS pseudo-selectors must be changed to `::slotted`, and may only target immediate children and use no descendant selectors
-* `:host-context()` pseudo-selectors have been removed. These were primarily useful for writing bidi rules (e.g. `:host-context([dir=rtl])`); these should be replaced with the [new `:dir(rtl)` selector](https://developer.mozilla.org/en-US/docs/Web/CSS/:dir), which we plan to polyfill in the [styling shim](https://github.com/webcomponents/shadycss) soon
-* The previously deprecated `/deep/` and `::shadow` selectors have been completely removed from V1 native support and must not be used (use [CSS custom properties](https://www.polymer-project.org/1.0/docs/devguide/styling#custom-css-properties) to customize styling instead)
+* <a name="breaking-styling-content"></a>`::content` CSS pseudo-selectors must be changed to `::slotted`, and may only target immediate children and use no descendant selectors
+* <a name="breaking-styling-host-context"></a>`:host-context()` pseudo-selectors have been removed. These were primarily useful for writing bidi rules (e.g. `:host-context([dir=rtl])`); these should be replaced with the [new `:dir(rtl)` selector](https://developer.mozilla.org/en-US/docs/Web/CSS/:dir), which we plan to polyfill in the [styling shim](https://github.com/webcomponents/shadycss) soon
+* <a name="breaking-deep"></a>The previously deprecated `/deep/` and `::shadow` selectors have been completely removed from V1 native support and must not be used (use [CSS custom properties](https://www.polymer-project.org/1.0/docs/devguide/styling#custom-css-properties) to customize styling instead)
 
 #### Scoped events
 
-* Code using `Polymer.dom(event).localTarget` should change to the V1 standard API `event.target`
-* Code using `Polymer.dom(event).path` (aka V0 `event.path`) should change to the V1 standard API `event.composedPath()`
-* Code using `Polymer.dom(event).rootTarget` (aka V0 `event.path[0]`)  should change to the V1 standard API `event.composedPath()[0]`
+* <a name="breaking-event-localTarget"></a>Code using `Polymer.dom(event).localTarget` should change to the V1 standard API `event.target`
+* <a name="breaking-event-path"></a>Code using `Polymer.dom(event).path` (aka V0 `event.path`) should change to the V1 standard API `event.composedPath()`
+* <a name="breaking-event-rootTarget"></a>Code using `Polymer.dom(event).rootTarget` (aka V0 `event.path[0]`)  should change to the V1 standard API `event.composedPath()[0]`
 
 ### V1 Custom Elements
 Polymer 2.0 elements will target the V1 Custom Elements API, which primarily changes the "created" step to actually invoke the `class` constructor, imposes new restrictions on what can be done in the `constructor` (previously `createdCallback`), and introduces different callback names.
 
-* Changes to callback names:
+* <a name="breaking-callbacks"></a>Changes to callback names:
   * When using `Polymer({...})` from the compatibility layer, all callbacks should use legacy Polymer API names (`created`, `attached`, `detached`, `attributeChanged`)
   * When extending from `Polymer.Element`, users should override the V1 standard callback names and call `super()`:
     * `created` changes to `constructor`
     * `attached` changes to `connectedCallback`
     * `detached` changes to `disconnectedCallback`
     * `attributeChanged` changes to `attributeChangedCallback`
-* The V1 Custom Elements spec forbids reading attributes, children, or parent information from the DOM API in the `constructor` (or `created` when using the legacy API).  Likewise, attributes and children may not be added in the `constructor`.  Any such work must be deferred (e.g. until `connectedCallback` or microtask/`setTimeout`/`requestAnimationFrame`).
-* Polymer will no longer produce type-extension elements (aka `is="..."`). Although they are still included in the V1 Custom Elements [spec](https://html.spec.whatwg.org/#custom-elements-customized-builtin-example) and scheduled for implementation in Chrome, because Apple [has stated](https://github.com/w3c/webcomponents/issues/509#issuecomment-233419167) it will not implement `is`, we will not be encouraging its use to avoid indefinite reliance on the Custom Elements polyfill. Instead, a wrapper custom element can surround a native element, e.g. `<a is="my-anchor">...</a>` could become `<my-anchor><a>...</a></my-anchor>`. Users will need to change existing `is` elements where necessary.
-* All template type extensions provided by Polymer have now been changed to standard custom elements that take a `<template>` in their light dom,  e.g.
+* <a name="breaking-attributes"></a>The V1 Custom Elements spec forbids reading attributes, children, or parent information from the DOM API in the `constructor` (or `created` when using the legacy API).  Likewise, attributes and children may not be added in the `constructor`.  Any such work must be deferred (e.g. until `connectedCallback` or microtask/`setTimeout`/`requestAnimationFrame`).
+* <a name="breaking-is"></a>Polymer will no longer produce type-extension elements (aka `is="..."`). Although they are still included in the V1 Custom Elements [spec](https://html.spec.whatwg.org/#custom-elements-customized-builtin-example) and scheduled for implementation in Chrome, because Apple [has stated](https://github.com/w3c/webcomponents/issues/509#issuecomment-233419167) it will not implement `is`, we will not be encouraging its use to avoid indefinite reliance on the Custom Elements polyfill. Instead, a wrapper custom element can surround a native element, e.g. `<a is="my-anchor">...</a>` could become `<my-anchor><a>...</a></my-anchor>`. Users will need to change existing `is` elements where necessary.
+* <a name="breaking-templates"></a>All template type extensions provided by Polymer have now been changed to standard custom elements that take a `<template>` in their light dom,  e.g.
 
   ```html
   <template is="dom-repeat" items="{{items}}">...</template>
@@ -205,7 +205,7 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
   ```
 
   For the time being, Polymer (both legacy and class API) will automatically wrap template extensions used in Polymer element templates during template processing for backward-compatibility, although we may decide to remove this auto-wrapping in the future.  Templates used in the main document must be manually wrapped.
-* The `custom-style` element has also been changed to a standard custom element that must wrap a style element  e.g.
+* <a name="breaking-custom-style"></a>The `custom-style` element has also been changed to a standard custom element that must wrap a style element  e.g.
 
   ```html
   <style is="custom-style">...</style>
@@ -222,8 +222,8 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
 ### CSS Custom Property Shim
 Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shadycss) to provide limited [CSS Custom Properties](#https://www.polymer-project.org/1.0/docs/devguide/styling#custom-css-properties) support on browsers that do not yet natively support custom properties, to allow an element to expose a custom styling API.  The following changes have been made in the shim that Polymer 2.0 will use:
 
-* The shim will now always use native CSS Custom Properties by default on browsers that implement them (this was opt-in in 1.0).  The shim will perform a one-time transformation of stylesheets containing [CSS Custom Property mixins](https://www.polymer-project.org/1.0/docs/devguide/styling#custom-css-mixins) to leverage individual native CSS properties where possible for better performance.  This introduces [some limitations](https://github.com/webcomponents/shadycss#custom-properties-and-apply) to be aware of.
-* The following invalid styling syntax was previously accepted by the 1.0 custom property shim.  In order to support native CSS Custom Properties, rules should be correct to use only natively valid syntax:
+* <a name="breaking-css-native"></a>The shim will now always use native CSS Custom Properties by default on browsers that implement them (this was opt-in in 1.0).  The shim will perform a one-time transformation of stylesheets containing [CSS Custom Property mixins](https://www.polymer-project.org/1.0/docs/devguide/styling#custom-css-mixins) to leverage individual native CSS properties where possible for better performance.  This introduces [some limitations](https://github.com/webcomponents/shadycss#custom-properties-and-apply) to be aware of.
+* <a name="breaking-css-syntax"></a>The following invalid styling syntax was previously accepted by the 1.0 custom property shim.  In order to support native CSS Custom Properties, rules should be correct to use only natively valid syntax:
   * `:root {}`
     * Should be `:host > * {}` (in a shadow root)
     * Should be `html {}` (in main document)
@@ -232,43 +232,43 @@ Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shady
     * Should be `var(--a, var(--b))`
   * `@apply(--foo)`
     * Should be `@apply --foo;`
-* `element.customStyle` as an object that can be assigned to has been removed; use `element.updateStyles({...})` instead.
-* `<style>` inside of a `<dom-module>`, but outside of `<template>` is no longer supported
-* Imperatively created custom-styles (e.g. `document.createElement('style', 'custom-style')`) are no longer supported.
+* <a name="breaking-customStyle"></a>`element.customStyle` as an object that can be assigned to has been removed; use `element.updateStyles({...})` instead.
+* <a name="breaking-style-location"></a>`<style>` inside of a `<dom-module>`, but outside of `<template>` is no longer supported
+* <a name="breaking-imperative-custom-style"></a>Imperatively created custom-styles (e.g. `document.createElement('style', 'custom-style')`) are no longer supported.
 
 ### Data system
-* An element's template is not stamped & data system not initialized (observers, bindings, etc.) until the element has been connected to the main document.  This is a direct result of the V1 changes that prevent reading attributes in the constructor.
-* Re-setting an object or array no longer dirty checks, meaning you can make deep changes to an object/array and just re-set it, without needing to use `set`/`notifyPath`.  Although the `set` API remains and will often be the more efficient way to make changes, this change removes users of Polymer elements from needing to use this API, making it more compatible with alternate data-binding and state management libraries.
-* Propagation of data through the binding system is now batched, such that multi-property computing functions and observers run once with a set of coherent changes.  Single property accessors still propagate data synchronously, although there is a new `setProperties({...})` API on Polymer elements that can be used to propagate multiple values as a coherent set.
-* Multi-property observers and computed methods are now called once at initialization if any arguments are defined (and will see `undefined` for any undefined arguments)
-* Inline computed annotations run once unconditionally at initialization, regardless if any arguments are defined (and will see `undefined` for undefined arguments)
-* Setting/changing any function used in inline template annotations will cause the binding to re-compute its value using the new function and current property values
+* <a name="breaking-data-init"></a>An element's template is not stamped & data system not initialized (observers, bindings, etc.) until the element has been connected to the main document.  This is a direct result of the V1 changes that prevent reading attributes in the constructor.
+* <a name="breaking-data-dirty-checking"></a>Re-setting an object or array no longer dirty checks, meaning you can make deep changes to an object/array and just re-set it, without needing to use `set`/`notifyPath`.  Although the `set` API remains and will often be the more efficient way to make changes, this change removes users of Polymer elements from needing to use this API, making it more compatible with alternate data-binding and state management libraries.
+* <a name="breaking-data-batching"></a>Propagation of data through the binding system is now batched, such that multi-property computing functions and observers run once with a set of coherent changes.  Single property accessors still propagate data synchronously, although there is a new `setProperties({...})` API on Polymer elements that can be used to propagate multiple values as a coherent set.
+* <a name="breaking-method-args"></a>Multi-property observers and computed methods are now called once at initialization if any arguments are defined (and will see `undefined` for any undefined arguments)
+* <a name="breaking-inline-unconditional"></a>Inline computed annotations run once unconditionally at initialization, regardless if any arguments are defined (and will see `undefined` for undefined arguments)
+* <a name="breaking-inline-dynamic"></a>Setting/changing any function used in inline template annotations will cause the binding to re-compute its value using the new function and current property values
 ‘notify’ events not fired when value changes as result of binding from host
-* In order for a property to be deserialized from its attribute, it must be declared in the `properties` metadata object
-* The `Polymer.Collection` and associated key-based path and splice notification for arrays has been eliminated.  See [explanation here](https://github.com/Polymer/polymer/pull/3970#issue-178203286) for more details.
+* <a name="breaking-properties-deserialization"></a>In order for a property to be deserialized from its attribute, it must be declared in the `properties` metadata object
+* <a name="breaking-colleciton"></a>The `Polymer.Collection` and associated key-based path and splice notification for arrays has been eliminated.  See [explanation here](https://github.com/Polymer/polymer/pull/3970#issue-178203286) for more details.
 
 ### Removed API
-* `Polymer.instanceof` and `Polymer.isInstance`: no longer needed, use
+* <a name="breaking-instanceof"></a>`Polymer.instanceof` and `Polymer.isInstance`: no longer needed, use
 `instanceof` and `instanceof Polymer.Element` instead.
-* `dom-module`: Removed ability to use `is` and `name` attribute to
+* <a name="breaking-dom-module"></a>`dom-module`: Removed ability to use `is` and `name` attribute to
 configure the module name. The only supported declarative way set the module
 id is to use `id`.
-* `element.getPropertyInfo`: This api returned unexpected information some of the time and was rarely used.
-* `element.getNativePrototype`: Removed because it is no longer needed for internal code and was unused by users.
-* `element.beforeRegister`: This was originally added for metadata compatibility with ES6 classes. We now prefer users create ES6 classes by extending `Polymer.Element`, specifying metadata in the static `config` property. For legacy use via `Polymer({...})`, dynamic effects may now be added using the `registered` lifecycle method.
-* `element.attributeFollows`: Removed due to disuse.
-* `element.classFollows`: Removed due to disuse.
-* `listeners`: Removed ability to use `id.event` to add listeners to elements in local dom. Use declarative template event handlers instead.
-* Methods starting with `_` are not guaranteed to exist (most have been removed)
+* <a name="breaking-getPropertyInfo"></a>`element.getPropertyInfo`: This api returned unexpected information some of the time and was rarely used.
+* <a name="breaking-getNativePrototype"></a>`element.getNativePrototype`: Removed because it is no longer needed for internal code and was unused by users.
+* <a name="breaking-beforeRegister"></a>`element.beforeRegister`: This was originally added for metadata compatibility with ES6 classes. We now prefer users create ES6 classes by extending `Polymer.Element`, specifying metadata in the static `config` property. For legacy use via `Polymer({...})`, dynamic effects may now be added using the `registered` lifecycle method.
+* <a name="breaking-attributeFollows"></a>`element.attributeFollows`: Removed due to disuse.
+* <a name="breaking-classFollows"></a>`element.classFollows`: Removed due to disuse.
+* <a name="breaking-listeners"></a>`listeners`: Removed ability to use `id.event` to add listeners to elements in local dom. Use declarative template event handlers instead.
+* <a name="breaking-protected"></a>Methods starting with `_` are not guaranteed to exist (most have been removed)
 
 ### Other
-* Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
-* The legacy `created` callback is no longer called before default values in `properties` have been set.  As such, you should not rely on properties set in `created` from within `value` functions that define property defaults.  However, you can now set _any_ property defaults within the `created` callback (in 1.0 this was forbidden for observed properties) in lieu of using the `value` function in `properties`.
-* Binding a default value of `false` via an _attribute binding_ to a boolean property will not override a default `true` property of the target, due to the semantics of boolean attributes.  In general, property binding should always be used when possible, and will avoid such situations.
-* `lazyRegister` option removed and all meta-programming (parsing template, creating accessors on prototype, etc.) is deferred until the first instance of the element is created
-* Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
-* `Polymer.dom.flush` does not currently flush templates (`dom-repeat`, `dom-if`) or `observeNodes` observers.  Use `Polymer.Templatizer.flush` to flush templates, and `observer.flush` to flush individual `observeNodes` observers (where `observer` is the return value from `observeNodes`).
+* <a name="breaking-deferred-attach"></a>Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
+* <a name="breaking-created-timing"></a>The legacy `created` callback is no longer called before default values in `properties` have been set.  As such, you should not rely on properties set in `created` from within `value` functions that define property defaults.  However, you can now set _any_ property defaults within the `created` callback (in 1.0 this was forbidden for observed properties) in lieu of using the `value` function in `properties`.
+* <a name="breaking-boolean-attribute-binidng"></a>Binding a default value of `false` via an _attribute binding_ to a boolean property will not override a default `true` property of the target, due to the semantics of boolean attributes.  In general, property binding should always be used when possible, and will avoid such situations.
+* <a name="breaking-lazyRegister"></a>`lazyRegister` option removed and all meta-programming (parsing template, creating accessors on prototype, etc.) is deferred until the first instance of the element is created
+* <a name="breaking-transpiling"></a>Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
+* <a name="breaking-flush"></a>`Polymer.dom.flush` does not currently flush templates (`dom-repeat`, `dom-if`) or `observeNodes` observers.  Use `Polymer.Templatizer.flush` to flush templates, and `observer.flush` to flush individual `observeNodes` observers (where `observer` is the return value from `observeNodes`).
 
 ## Not yet implemented
-* `<array-selector>` not yet implemented
-* `Polymer.dom`: currently *most* of this is emulated, but some api's may be missing. Please file issues to determine if the missing behavior is an intended breaking change.
+* <a name="nyi-array-selector"></a>`<array-selector>` not yet implemented
+* <a name="nyi-polymer-dom"></a>`Polymer.dom`: currently *most* of this is emulated, but some api's may be missing. Please file issues to determine if the missing behavior is an intended breaking change.
