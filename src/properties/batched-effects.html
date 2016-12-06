@@ -48,12 +48,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (let path in changedProps) {
           if (Polymer.Path.isDescendant(a, path)) {
             link = Polymer.Path.translate(a, b, path);
-            changedProps[link] = computedProps[link] =
-              inst.__data[link] = changedProps[path];
+            changedProps[link] = computedProps[link] = changedProps[path];
           } else if (Polymer.Path.isDescendant(b, path)) {
             link = Polymer.Path.translate(b, a, path);
-            changedProps[link] = computedProps[link] =
-              inst.__data[link] = changedProps[path];
+            changedProps[link] = computedProps[link] = changedProps[path];
           }
         }
       }
@@ -77,7 +75,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // Try normal notify effects; if none, fall back to try path notification
     for (let prop in props) {
       if (notifyEffects && runEffectsForProperty(inst, notifyEffects, id,
-        prop, oldProps && oldProps[prop])) {
+        prop, props[prop], oldProps && oldProps[prop])) {
         notified = true;
       } else if (notifyPath(inst, prop)) {
         notified = true;
@@ -102,7 +100,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let rootProperty = Polymer.Path.root(prop);
     if (rootProperty !== prop) {
       let name = Polymer.CaseMap.camelToDashCase(rootProperty) + '-changed';
-      let options = { detail: {value: inst.__data[prop], path: prop }};
+      let options = { detail: {value: Polymer.Path.get(inst, prop), path: prop }};
       inst._dispatchNotifyingEvent(new CustomEvent(name, options));
       return true;
     }
@@ -114,7 +112,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (effects) {
       let id = effectUid++;
       for (let prop in props) {
-        if (runEffectsForProperty(inst, effects, id, prop,
+        if (runEffectsForProperty(inst, effects, id, prop, props[prop],
           oldProps && oldProps[prop])) {
           ran = true;
         }
@@ -123,7 +121,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return ran;
   }
 
-  function runEffectsForProperty(inst, effects, id, prop, old) {
+  function runEffectsForProperty(inst, effects, id, prop, value, old) {
     let ran;
     let rootProperty = Polymer.Path.root(prop);
     let fxs = effects[rootProperty];
@@ -132,7 +130,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
         if (Polymer.Path.matches(fx.path, prop) &&
           (!fx.info || fx.info.lastRun !== id)) {
-          fx.fn(inst, prop, inst.__data[prop], old, fx.info, fromAbove);
+          fx.fn(inst, prop, Polymer.Path.get(inst, prop) || value, old, fx.info, fromAbove);
           if (fx.info) {
             fx.info.lastRun = id;
           }
@@ -157,7 +155,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _propertiesChanged(currentProps, changedProps, oldProps) {
         // ----------------------------
         // let c = Object.getOwnPropertyNames(changedProps || {});
-        // console.group(this.localName + '#' + this.id + ': ' + c);
+        // window.debug && console.group(this.localName + '#' + this.id + ': ' + c);
         // ----------------------------
         // Compute
         let computedProps = runComputedEffects(this, changedProps, oldProps);
@@ -180,7 +178,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             changedProps, oldProps);
         }
         // ----------------------------
-        // console.groupEnd(this.localName + '#' + this.id + ': ' + c);
+        // window.debug && console.groupEnd(this.localName + '#' + this.id + ': ' + c);
         // ----------------------------
       }
 
@@ -201,7 +199,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let detail = event.detail;
         if (detail && detail.queueProperty) {
           if (!this._hasReadOnlyEffect(path)) {
-            if ((path = this._setPathOrUnmanagedProperty(path, value))) {
+            if ((path = this._setPathOrUnmanagedProperty(path, value, Boolean(detail.path)))) {
               this._setPendingProperty(path, value);
             }
           }

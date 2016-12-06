@@ -256,7 +256,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       //   or: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo'=obj.sub
       if (path != info.value) {
         value = Polymer.Path.get(inst, info.value);
-        inst.__data[info.value] = value;
       }
       // Propagate value to child
       applyAnnotationValue(inst, info, value);
@@ -890,7 +889,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function notifySplices(inst, array, path, splices) {
     let splicesPath = path + '.splices';
-    inst._setProperty(splicesPath, { indexSplices: splices });
+    inst._setProperty(splicesPath, { indexSplices: splices, __polymerSpliceInfo: true });
     inst._setProperty(path + '.length', array.length);
     // All path notification values are cached on `this.__data__`.
     // Null here to allow potentially large splice records to be GC'ed.
@@ -926,6 +925,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {string} name String to uppercase
    * @return {string} Uppercased string
+   * @private
    */
   function upper(name) {
     return name[0].toUpperCase() + name.substring(1);
@@ -981,25 +981,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this[p] = value;
           }
         }
-      }
-
-      /**
-       * Adds to the default implementation in `PropertyAccessors` by clearing
-       * any locally cached path values if a root object has been set, as that
-       * invalidates any descendant paths of that object.
-       *
-       * @override
-       */
-      _setPendingProperty(prop, value) {
-        // clear cached paths
-        if (typeof value == 'object') {
-          for (var p in this.__data) {
-            if (Polymer.Path.isDescendant(prop, p)) {
-              this.__data[p] = undefined;
-            }
-          }
-        }
-        return super._setPendingProperty(prop, value);
       }
 
       // Prototype setup ----------------------------------------
@@ -1131,23 +1112,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * 
        * If the root of the path is a managed property, returns a normalized
        * string path suitable for setting into the system via `_setProperty`/
-       * `_setPendingProperty`.
+       * `_setPendingProperty`.  A null path is returned if the path being set
+       * fails a dirty check, unless `fromPath` was true (in which case no dirty
+       * check is performed since this is a notification of change to a shared
+       * path).
        *
        * `path` can be a path string or array of path parts as accepted by the
        * public API.
        *
        * @param {string} path Path to set
        * @param {*} value Value to set
+       * @param {boolean} fromPath If the value being set was from a path; in
+       *   this case the value was shared, so no dirty is performed.
        * @return {?string} If the root property was managed, the normalized
        *   string representation of the path, otherwise returns falsey.
        * @protected
        */
-      _setPathOrUnmanagedProperty(path, value) {
+      _setPathOrUnmanagedProperty(path, value, fromPath) {
         let rootProperty = Polymer.Path.root(Array.isArray(path) ? path[0] : path);
         let hasEffect = this._hasPropertyEffect(rootProperty);
         let isPath = (rootProperty !== path);
-        if (!hasEffect || isPath) {
+        if ((!hasEffect || isPath) && !fromPath) {
+          let old = Polymer.Path.get(this, path);
           path = Polymer.Path.set(this, path, value);
+          if (!this._shouldPropChange(path, value, old)) {
+            return null;
+          }
         }
         if (hasEffect) {
           return path;
@@ -1188,7 +1178,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * is used to avoid sending upwards notification events in response to
        * downward data flow.  This is a performance optimization, but also
        * critical to avoid infinite looping when an object is notified, since
-       * the default implementation of `_shouldPropertyChange` always returns
+       * the default implementation of `_shouldPropChange` always returns
        * true for Objects, and without would result in a notify-propagate-notify
        * loop.
        *
