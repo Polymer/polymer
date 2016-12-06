@@ -38,44 +38,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     suite('async/sync loading', function() {
 
-      var url = 'dynamic-imports/dynamic-element.html';
+      test('importHref sync loads by default', function() {
+        var url = 'dynamic-imports/dynamic-element.html';
 
-      test('importHref does not cache failed results', function(done) {
-        Polymer.Base.importHref('does_not_exist.html', function() {
-          throw new Error('Load handler should not be called.');
-        }, function() {
-          var link = document.head
-              .querySelector('[href="does_not_exist.html"]');
-          assert.isNotOk(link, 'The link should not exist');
-          done();
-        });
-      });
+        var link = document.createElement('link');
+        link.rel = 'import';
+        link.href = url;
 
-      test('importHref caches successful results', function(done) {
-        var targetUrl = 'dynamic-imports/async-import.html';
-
-        Polymer.Base.importHref(targetUrl, function(event) {
-          var targetOne = event.target;
-          Polymer.Base.importHref(targetUrl, function(event) {
-            var targetTwo = event.target;
-
-            assert.isOk(targetOne, 'Event target should be available');
-            assert.strictEqual(targetOne, targetTwo,
-                'Link element references should be identical');
-            done();
-          }, done);
-        }, done);
-      });
-
-      test('importHref sync loads by default', function(done) {
-        Polymer.Base.importHref(url, function(e) {
-          assert.isFalse(e.target.hasAttribute('async'),
-                        'sync load is default');
-          done();
-        });
+        Polymer.Base.importHref(url);
+        var el = document.querySelector('link[href="' + url + '"]');
+        assert.isFalse(el.hasAttribute('async'), 'sync load is default');
       });
 
       test('importHref sync called again, triggers load', function(done) {
+        var url = 'dynamic-imports/sync-twice.html';
+
         Polymer.Base.importHref(url, function() {
           Polymer.Base.importHref(url, function() {
             done();
@@ -94,36 +71,117 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       test('importHref does not leak event listeners on load', function(done) {
         var errorSpy = sinon.spy();
-        var loadSpy = sinon.spy(function(e) {
-          var target = e.target;
-          target.dispatchEvent(new Event('error'));
-          assert.isFalse(errorSpy.called, 'doesn\'t trigger the error event listener');
-          setTimeout(function() {
-            loadSpy.reset();
-            target.dispatchEvent(new Event('load'));
-            assert.isFalse(loadSpy.called, 'doesn\'t trigger the load event listener');
-            done();
+        var createLoadSpy = function() {
+          var loadSpy = sinon.spy.create(function(e, target) {
+            target = e.target || target;
+            target.dispatchEvent(new Event('error'));
+            assert.isFalse(errorSpy.called, 'doesn\'t trigger the error event listener');
+            setTimeout(function() {
+              loadSpy.reset();
+              target.dispatchEvent(new Event('load'), target);
+              assert.isFalse(loadSpy.called, 'doesn\'t trigger the load event listener');
+              done();
+            });
           });
-        });
-
-        Polymer.Base.importHref('dynamic-imports/async-import.html', loadSpy, errorSpy, true);
+          return loadSpy;
+        }
+        Polymer.Base.importHref('dynamic-imports/async-import.html', createLoadSpy(), errorSpy, true);
       });
 
       test('importHref does not leak event listeners on error', function(done) {
         var loadSpy = sinon.spy();
-        var errorSpy = sinon.spy(function(e) {
-          var target = e.target;
-          target.dispatchEvent(new Event('load'));
-          assert.isFalse(loadSpy.called, 'doesn\'t trigger the load event listener');
-          setTimeout(function() {
-            errorSpy.reset();
-            target.dispatchEvent(new Event('error'));
-            assert.isFalse(errorSpy.called, 'doesn\'t trigger the error event listener');
+        var createErrorSpy = function() {
+          var errorSpy = sinon.spy(function(e, target) {
+            target = e.target || target;
+            target.dispatchEvent(new Event('load'));
+            assert.isFalse(loadSpy.called, 'doesn\'t trigger the load event listener');
+            setTimeout(function() {
+              errorSpy.reset();
+              target.dispatchEvent(new Event('error'));
+              assert.isFalse(errorSpy.called, 'doesn\'t trigger the error event listener');
+              done();
+            });
+          });
+          return errorSpy;
+        }
+
+        Polymer.Base.importHref('dynamic-imports/async-import-invalid.html', loadSpy, createErrorSpy(), true);
+      });
+
+      test('trigger load event of the second request of a resource when loading was not complete yet', function(done) {
+        var url = 'dynamic-imports/dynamic-notready.html'
+        Polymer.Base.importHref(url);
+        Polymer.Base.importHref(url, function() {
+          done();
+        });
+      });
+
+      test('trigger load event of the second request of a resource when loading was already completed', function(done) {
+        var url = 'dynamic-imports/dynamic-lazy.html';
+        var imprt = Polymer.Base.importHref(url);
+
+        var onLoad = function() {
+          imprt.removeEventListener('load', onLoad);
+          Polymer.Base.importHref(url, function() {
             done();
           });
-        });
+        }
 
-        Polymer.Base.importHref('dynamic-imports/async-import-invalid.html', loadSpy, errorSpy, true);
+        imprt.addEventListener('load', onLoad);        
+      });
+
+      test('triggers the callback only once even when the element was requested again later', function(done) {
+        var url = 'dynamic-imports/dynamic-once.html';
+        var count = 0;
+        Polymer.Base.importHref(url, function() {
+          count++;
+          if(count === 1) {
+            Polymer.Base.importHref(url, function() {
+              setTimeout(function() {
+                assert.equal(count, 1, 'the first callback should only be called once');
+                done();
+              }, 0);
+            });
+          }
+        });
+      });
+
+      test('importHref does not cache failed results', function(done) {
+
+        var a, b;
+
+        a = Polymer.Base.importHref('does_not_exist.html', function() {
+          throw new Error('Load handler should not be called.');
+        }, function() {
+          b = Polymer.Base.importHref('does_not_exist.html', function() {
+            throw new Error('Load handler should still not be called.');
+          }, function() {
+
+            setTimeout(function() {
+              assert.notEqual(a, b);
+              done();
+            }, 0);
+
+          });
+          
+        });
+      });
+
+      test('importHref does cache successful results', function(done) {
+
+        var url = 'dynamic-imports/dynamic-cached.html'
+        var a, b;
+
+        a = Polymer.Base.importHref(url, function() {
+          b = Polymer.Base.importHref(url, function() {
+
+            setTimeout(function() {
+              assert.equal(a, b);
+              done();
+            }, 0);
+
+          });
+        });
       });
 
     });

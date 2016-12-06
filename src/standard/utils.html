@@ -375,7 +375,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // In case of a successful load, cache the load event on the link so
         // that it can be used to short-circuit this method in the future when
         // it is called with the same href param.
-        link.__dynamicImportLoaded = true;
+
+        link.__loaded = true;
+        link.__error = false;
         if (onload != null) {
           return onload.call(self, event);
         }
@@ -386,7 +388,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // In case of an error, remove the link from the document so that it
         // will be automatically created again the next time `importHref` is
         // called.
-        document.head.removeChild(link);
+        link.__loaded = true;
+        link.__error = true;
+        if(link.parentNode) {
+          document.head.removeChild(link);
+        }
         if (onerror != null) {
           return onerror.call(self, event);
         }
@@ -396,24 +402,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         link = document.createElement('link');
         link.rel = 'import';
         link.href = href;
+        link.__loaded = false;
 
         if (optAsync) {
           link.setAttribute('async', '');
         }
-
-        link.addEventListener('load', loadListener);
-        link.addEventListener('error', errorListener);
-
         document.head.appendChild(link);
       }
+
+      link.addEventListener('load', loadListener);
+      link.addEventListener('error', errorListener);
 
       function cleanup() {
         link.removeEventListener('load', loadListener);
         link.removeEventListener('error', errorListener);
       }
 
-      if (link.__dynamicImportLoaded && (onload != null)) {
-        onload.call(self, event);
+      if (link.__error === true) {
+        link.dispatchEvent(new Event('error'));
+      } else if (link.__loaded === true && (link.import !== null)) {
+        link.dispatchEvent(new Event('load'));
       }
 
       return link;
