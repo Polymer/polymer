@@ -59,15 +59,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return computedProps;
   }
 
-  function notifyProperties(inst, changedProps, computedProps, oldProps) {
+  function notifyProperties(inst, changedProps, computedProps, oldProps, fromAbove) {
     // Determine which props to notify
-    let props = inst.__dataFromAbove ? computedProps : changedProps;
+    let props = fromAbove ? computedProps : changedProps;
     // Save interim data for potential re-entry
-    let runId = (inst._runId = ((inst._runId || 0) + 1));
-    inst.__dataInterim = inst.__dataInterim ?
-      utils.mixin(inst.__dataInterim, changedProps) : changedProps;
-    inst.__dataInterimOld = inst.__dataInterimOld ?
-      utils.mixin(inst.__dataInterimOld, oldProps) : oldProps;
+    // let runId = (inst._runId = ((inst._runId || 0) + 1));
+    // inst.__dataInterim = inst.__dataInterim ?
+    //   utils.mixin(inst.__dataInterim, changedProps) : changedProps;
+    // inst.__dataInterimOld = inst.__dataInterimOld ?
+    //   utils.mixin(inst.__dataInterimOld, oldProps) : oldProps;
     // Notify
     let notified;
     let notifyEffects = inst[inst.PROPERTY_EFFECT_TYPES.NOTIFY];
@@ -86,14 +86,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (notified && (host = inst.__dataHost) && host.setProperties) {
       host._flushProperties();
     }
-    // Combine & return interim data only for last entry
-    if (runId == inst._runId) {
-      changedProps = inst.__dataInterim;
-      oldProps = inst.__dataInterimOld;
-      inst.__dataInterim = null;
-      inst.__dataInterimOld = null;
-      return { changedProps, oldProps };
-    }
+    // // Combine & return interim data only for last entry
+    // if (runId == inst._runId) {
+    //   changedProps = inst.__dataInterim;
+    //   oldProps = inst.__dataInterimOld;
+    //   inst.__dataInterim = null;
+    //   inst.__dataInterimOld = null;
+    //   return { changedProps, oldProps };
+    // }
   }
 
   function notifyPath(inst, prop) {
@@ -156,27 +156,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // ----------------------------
         // let c = Object.getOwnPropertyNames(changedProps || {});
         // window.debug && console.group(this.localName + '#' + this.id + ': ' + c);
+        // if (window.debug) { debugger; }
         // ----------------------------
+        let fromAbove = this.__dataFromAbove;
         // Compute
         let computedProps = runComputedEffects(this, changedProps, oldProps);
         // Compute linked paths
         computedProps = computeLinkedPaths(this, changedProps, computedProps);
         // Notify
-        let props = notifyProperties(this, changedProps, computedProps, oldProps);
-        if (props) {
-          oldProps = props.oldProps;
-          changedProps = props.changedProps;
+        // let props = notifyProperties(this, changedProps, computedProps, oldProps);
+        // if (props) {
+          // oldProps = props.oldProps;
+          // changedProps = props.changedProps;
           // Propagate
           runEffects(this, this.PROPERTY_EFFECT_TYPES.PROPAGATE, changedProps);
           // Flush clients
           this._flushClients();
           // Reflect
-          runEffects(this, this.PROPERTY_EFFECT_TYPES.REFLECT,
-            changedProps, oldProps);
+          runEffects(this, this.PROPERTY_EFFECT_TYPES.REFLECT, changedProps, oldProps);
           // Observe
-          runEffects(this, this.PROPERTY_EFFECT_TYPES.OBSERVE,
-            changedProps, oldProps);
-        }
+          runEffects(this, this.PROPERTY_EFFECT_TYPES.OBSERVE, changedProps, oldProps);
+          // Notify
+          notifyProperties(this, changedProps, computedProps, oldProps, fromAbove);
+        // }
         // ----------------------------
         // window.debug && console.groupEnd(this.localName + '#' + this.id + ': ' + c);
         // ----------------------------
@@ -232,13 +234,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Flush all clients
         let clients = this.__dataPendingClients;
         if (clients) {
+          this.__dataPendingClients = null;
           clients.forEach((v, client) => {
             // TODO(kschaaf): more explicit check?
             if (client._flushProperties) {
               client._flushProperties(true);
             }
           });
-          this.__dataPendingClients = null;
         }
       }
 
