@@ -282,7 +282,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let prop = info.name;
       if (node._hasPropertyEffect && node._hasPropertyEffect(prop)) {
         inst._setPropertyToNodeFromAnnotation(node, prop, value);
-      } else if (inst._shouldPropChange(prop, node[prop], value)) {
+      // The `else` clause is for interop: binding to a non-Polymer element's
+      // property. Some native element properties have side-effects when
+      // re-setting the same value (e.g. setting <input>.value resets the
+      // cursor position), so we do a dirty-check before setting the value.
+      // However, for better interop with non-Polymer custom elements that
+      // accept objects, we explicitly re-set object changes coming from the
+      // Polymer world (which may include deep object changes without the
+      // top reference changing), erring on the side of providing more
+      // information
+      } else if (inst._shouldPropChange(prop, node[prop], value) ||
+          typeof value == 'object') {
         node[prop] = value;
       }
     }
@@ -889,9 +899,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function notifySplices(inst, array, path, splices) {
     let splicesPath = path + '.splices';
-    inst._setProperty(splicesPath, { indexSplices: splices, __polymerSpliceInfo: true });
+    inst._setProperty(splicesPath, { indexSplices: splices });
     inst._setProperty(path + '.length', array.length);
-    // All path notification values are cached on `this.__data__`.
     // Null here to allow potentially large splice records to be GC'ed.
     inst.__data[splicesPath] = {indexSplices: null};
   }
