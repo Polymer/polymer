@@ -370,47 +370,54 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var link = document.head.querySelector('[href="' + href + '"]');
       var self = this;
 
-      if (link == null) {
-        link = document.createElement('link');
-        link.rel = 'import';
-        link.__dynamicImport = true;
-      }
-
-      if (optAsync) {
-        link.setAttribute('async', '');
-      }
-
       var loadListener = function(event) {
-        link.removeEventListener('load', loadListener);
-        link.removeEventListener('error', errorListener);
+        cleanup();
         // In case of a successful load, cache the load event on the link so
         // that it can be used to short-circuit this method in the future when
         // it is called with the same href param.
-        link.__dynamicImportLoaded = true;
 
+        link.__loaded = true;
+        link.__error = false;
         if (onload != null) {
           return onload.call(self, event);
         }
       };
+
       var errorListener = function(event) {
-        link.removeEventListener('load', loadListener);
-        link.removeEventListener('error', errorListener);
+        cleanup();
         // In case of an error, remove the link from the document so that it
         // will be automatically created again the next time `importHref` is
         // called.
-        document.head.removeChild(link);
+        if(link.parentNode) {
+          document.head.removeChild(link);
+        }
         if (onerror != null) {
           return onerror.call(self, event);
         }
       };
 
+      if (link == null) {
+        link = document.createElement('link');
+        link.rel = 'import';
+        link.href = href;
+
+        if (optAsync) {
+          link.setAttribute('async', '');
+        }
+        document.head.appendChild(link);
+      }
+
       link.addEventListener('load', loadListener);
       link.addEventListener('error', errorListener);
 
-      if (link.parentNode == null) {
-        link.href = href;
-        document.head.appendChild(link);
-      } else if (link.__dynamicImportLoaded || !link.__dynamicImport) {
+      function cleanup() {
+        link.removeEventListener('load', loadListener);
+        link.removeEventListener('error', errorListener);
+      }
+
+      if (link.__error === true) {
+        link.dispatchEvent(new Event('error'));
+      } else if (link.__loaded === true && (link.import !== null)) {
         link.dispatchEvent(new Event('load'));
       }
 
