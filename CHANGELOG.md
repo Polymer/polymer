@@ -1,5 +1,50 @@
 # Change Log
 
+##[v1.7.1-dev](https://github.com/Polymer/polymer/tree/v1.7.1-dev) (2016-12-14)
+- Remove dependency on WebComponets for IE detection ([commit](https://github.com/Polymer/polymer/commit/650c16a9))
+
+- Make sure text nodes are distributed when translating slot to content ([commit](https://github.com/Polymer/polymer/commit/87e312f1))
+
+- always use the document listener ([commit](https://github.com/Polymer/polymer/commit/5ddcb8d1))
+
+- Add tests for no-gesture interop ([commit](https://github.com/Polymer/polymer/commit/4be7e9f6))
+
+- fix lint error ([commit](https://github.com/Polymer/polymer/commit/9c8eaa9d))
+
+- Use document-wide passive touch listener to update ghostclick blocker target ([commit](https://github.com/Polymer/polymer/commit/947172f8))
+
+- only need to recalc if styleProperties missing ([commit](https://github.com/Polymer/polymer/commit/5bfe2792))
+
+- simpler implementation, only recompute when using shim variables ([commit](https://github.com/Polymer/polymer/commit/5231d87f))
+
+- [ci skip] update travis.yml from 2.0 ([commit](https://github.com/Polymer/polymer/commit/1a9c5c8c))
+
+- Always update style properties when calling getComputedStyleValue ([commit](https://github.com/Polymer/polymer/commit/fb8575c6))
+
+- Add tests ([commit](https://github.com/Polymer/polymer/commit/29de0055))
+
+- Fix #4123: Memory leak when using `importHref` ([commit](https://github.com/Polymer/polymer/commit/132010ea))
+
+- Prevent _showHideChildren from being called on placeholders. ([commit](https://github.com/Polymer/polymer/commit/0468c60a))
+
+- fix broken link to Google JavaScript syle guide in documentation ([commit](https://github.com/Polymer/polymer/commit/376d146f))
+
+- Better explanation thanks to @kevinpschaaf ([commit](https://github.com/Polymer/polymer/commit/0dae8f0d))
+
+- [ci skip] fix changelog title ([commit](https://github.com/Polymer/polymer/commit/16712cb6))
+
+- [ci skip] Update Changelog for 1.7.0 ([commit](https://github.com/Polymer/polymer/commit/d6af21b5))
+
+- Resolving issue #1745 with Polymer docs ([commit](https://github.com/Polymer/polymer/commit/bb875275))
+
+- fixed broken tests/missing web components ([commit](https://github.com/Polymer/polymer/commit/f2b01e34))
+
+- 3430 - ie memory leak fixes - disable event caching, fixed resolver url adding to root doc, and weak map ie issues ([commit](https://github.com/Polymer/polymer/commit/a6e66f92))
+
+- Briefly explain how to split element definition ([commit](https://github.com/Polymer/polymer/commit/c6462286))
+
+- Fix copy&pasted comment ([commit](https://github.com/Polymer/polymer/commit/d595c0cc))
+
 ##[v1.7.0](https://github.com/Polymer/polymer/tree/v1.7.0) (2016-09-28)
 - Fix IE style cache performance ([commit](https://github.com/Polymer/polymer/commit/d08b694))
 
