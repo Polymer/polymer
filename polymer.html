@@ -14,11 +14,7 @@ The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
---><link rel="import" href="polymer-mini.html">
-
-
-
-<script>Polymer.nar = [];
+--><link rel="import" href="polymer-mini.html"><script>Polymer.nar = [];
 Polymer.Annotations = {
 parseAnnotations: function (template) {
 var list = [];
@@ -175,8 +171,9 @@ var attr = attrs[i];
 content.setAttribute(attr.name, attr.value);
 }
 var name = slot.getAttribute('name');
-var select = name ? '[slot=\'' + name + '\']' : ':not([slot])';
-content.setAttribute('select', select);
+if (name) {
+content.setAttribute('select', '[slot=\'' + name + '\']');
+}
 slot.parentNode.replaceChild(content, slot);
 return content;
 },
@@ -294,7 +291,7 @@ tempDocBase.href = baseUri;
 return resolve(url, tempDoc);
 }
 function getUrlResolver(ownerDocument) {
-return ownerDocument.__urlResolver || (ownerDocument.__urlResolver = ownerDocument.createElement('a'));
+return ownerDocument.body.__urlResolver || (ownerDocument.body.__urlResolver = ownerDocument.createElement('a'));
 }
 var CSS_URL_RX = /(url\()([^)]*)(\))/g;
 var URL_ATTRS = {
@@ -537,7 +534,9 @@ hbl = host.__boundListeners = new WeakMap();
 var bl = hbl.get(target);
 if (!bl) {
 bl = {};
+if (!Polymer.Settings.isIE || target != window) {
 hbl.set(target, bl);
+}
 }
 var key = this._boundListenerKey(eventName, methodName);
 bl[key] = handler;
@@ -610,6 +609,19 @@ return new MouseEvent('test', { buttons: 1 }).buttons === 1;
 return false;
 }
 }();
+var SUPPORTS_PASSIVE = false;
+(function () {
+try {
+var opts = Object.defineProperty({}, 'passive', {
+get: function () {
+SUPPORTS_PASSIVE = true;
+}
+});
+window.addEventListener('test', null, opts);
+window.removeEventListener('test', null, opts);
+} catch (e) {
+}
+}());
 var IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
 var mouseCanceller = function (mouseEvent) {
 var sc = mouseEvent.sourceCapabilities;
@@ -639,7 +651,7 @@ document.removeEventListener(en, mouseCanceller, true);
 }
 }
 }
-function ignoreMouse() {
+function ignoreMouse(ev) {
 if (!POINTERSTATE.mouse.mouseIgnoreJob) {
 setupTeardownMouseCanceller(true);
 }
@@ -648,6 +660,7 @@ setupTeardownMouseCanceller();
 POINTERSTATE.mouse.target = null;
 POINTERSTATE.mouse.mouseIgnoreJob = null;
 };
+POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
 POINTERSTATE.mouse.mouseIgnoreJob = Polymer.Debounce(POINTERSTATE.mouse.mouseIgnoreJob, unset, MOUSE_TIMEOUT);
 }
 function hasLeftMouseButton(ev) {
@@ -714,6 +727,7 @@ document.removeEventListener('mouseup', stateObj.upfn);
 stateObj.movefn = null;
 stateObj.upfn = null;
 }
+document.addEventListener('touchend', ignoreMouse, SUPPORTS_PASSIVE ? { passive: true } : false);
 var Gestures = {
 gestures: {},
 recognizers: [],
@@ -762,10 +776,6 @@ if (!HAS_NATIVE_TA) {
 if (type === 'touchstart' || type === 'touchmove') {
 Gestures.handleTouchAction(ev);
 }
-}
-if (type === 'touchend') {
-POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
-ignoreMouse();
 }
 }
 }
@@ -1382,20 +1392,22 @@ var list = Polymer.Base.importHref.imported = Polymer.Base.importHref.imported |
 var cached = list[link.href];
 var imprt = cached || link;
 var self = this;
-if (onload) {
 var loadListener = function (e) {
 e.target.__firedLoad = true;
 e.target.removeEventListener('load', loadListener);
+e.target.removeEventListener('error', errorListener);
 return onload.call(self, e);
 };
-imprt.addEventListener('load', loadListener);
-}
-if (onerror) {
 var errorListener = function (e) {
 e.target.__firedError = true;
+e.target.removeEventListener('load', loadListener);
 e.target.removeEventListener('error', errorListener);
 return onerror.call(self, e);
 };
+if (onload) {
+imprt.addEventListener('load', loadListener);
+}
+if (onerror) {
 imprt.addEventListener('error', errorListener);
 }
 if (cached) {
@@ -1456,7 +1468,7 @@ event = event || Polymer.CaseMap.camelToDashCase(source) + '-changed';
 this.fire(event, { value: value }, {
 bubbles: false,
 cancelable: false,
-_useCache: true
+_useCache: Polymer.Settings.eventDataCache || !Polymer.Settings.isIE
 });
 },
 _propertySetter: function (property, value, effects, fromAbove) {
@@ -2305,7 +2317,7 @@ path: path,
 value: value
 }, {
 bubbles: false,
-_useCache: true
+_useCache: Polymer.Settings.eventDataCache || !Polymer.Settings.isIE
 });
 },
 _EVENT_CHANGED: '-changed',
@@ -3886,6 +3898,9 @@ this._ownStylePropertyNames = this._styles && this._styles.length ? propertyUtil
 },
 customStyle: null,
 getComputedStyleValue: function (property) {
+if (!nativeVariables && !this._styleProperties) {
+this._computeStyleProperties();
+}
 return !nativeVariables && this._styleProperties && this._styleProperties[property] || getComputedStyle(this).getPropertyValue(property);
 },
 _setupStyleProperties: function () {
@@ -5042,6 +5057,7 @@ return inst;
 },
 _showHideChildren: function (hidden) {
 for (var i = 0; i < this._instances.length; i++) {
+if (!this._instances[i].isPlaceholder)
 this._instances[i]._showHideChildren(hidden);
 }
 },
@@ -5381,27 +5397,6 @@ this._insertChildren();
 this.fire('dom-change');
 }
 });</script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
