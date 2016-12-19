@@ -15,38 +15,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /** @constructor */
   Polymer.Debouncer = function Debouncer() {
-    this._scheduler = Polymer.Async.microTask;
+    this._asyncModule = null;
+    this._callback = null;
     this._timer = null;
-    this._wait = 0;
     this.flush = this.flush.bind(this);
   };
 
   Polymer.Utils.mixin(Polymer.Debouncer.prototype, {
     /**
-     * Sets the scheduler; that is, a module with the Async interface.
-     * This method can optionally receive a wait time if the scheduler supports a wait time
-     * and finally returns a reference to itself.
+     * Sets the scheduler; that is, a module with the Async interface,
+     * a callback and optional arguments to be passed to the run function
+     * from the async module.
      *
-     * @param {{run: function, cancel: function}}
-     * @param {number=}
+     * @param {{run: function, cancel: function}} asyncModule
+     * @param {function} callback
+     * @param {Array=}
      */
-    after(scheduler, wait) {
-      this._scheduler = scheduler;
-      this._wait = wait;
-      return this;
-    },
-
-    /**
-     * Sets the function callback that will run and the context for that function.
-     * Finally, returns a reference to itself.
-     *
-     * @param {function}
-     * @param {Object=}
-     */
-    run(callback, context) {
-      this._callback = context ? callback.bind(context) : callback;
-      this._timer = this._scheduler.run(this.flush, this._wait);
-      return this;
+    setConfig(asyncModule, cb) {
+      this._asyncModule = asyncModule;
+      this._callback = cb;
+      this._timer = this._asyncModule.run(this._callback);
     },
 
     /**
@@ -54,10 +42,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     cancel() {
       if (this.isActive()) {
-        this._scheduler.cancel(this._timer);
+        this._asyncModule.cancel(this._timer);
         this._timer = null;
       }
-      return this;
     },
 
     /**
@@ -68,7 +55,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.cancel();
         this._callback();
       }
-      return this;
     },
 
     /**
@@ -85,11 +71,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Creates a debouncer if no debouncer is passed as a parameter
    * or it cancels an active debouncer otherwise.
    *
-   * @param {Polymer.Debouncer?}
+   * @param {Polymer.Debouncer?} debouncer
+   * @param {{run: function, cancel: function}} asyncModule
+   * @param {function} cb
    * @return {Polymer.Debouncer}
    */
-  Polymer.Debouncer.debounce = function debounce(debouncer) {
-    return debouncer instanceof Polymer.Debouncer ? debouncer.cancel() : new Polymer.Debouncer();
+  Polymer.Debouncer.debounce = function debounce(debouncer, asyncModule, cb) {
+    if (debouncer instanceof Polymer.Debouncer) {
+      debouncer.cancel();
+    } else {
+      debouncer = new Polymer.Debouncer();
+    }
+    debouncer.setConfig(asyncModule, cb);
+    return debouncer;
   };
 
 </script>
