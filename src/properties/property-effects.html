@@ -451,9 +451,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // -- bindings ----------------------------------------------
 
   /**
-   * Adds "annotation" property effects for the template annotation
+   * Adds "binding" property effects for the template annotation
    * ("note" for short) and node index specified.  These may either be normal
-   * "annotation" effects (property/path bindings) or "annotation method"
+   * "binding" effects (property/path bindings) or "method binding"
    * effects, aka inline computing functions, depending on the type of binding
    * detailed in the note.
    *
@@ -463,18 +463,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *   note applies to
    * @private
    */
-  function addAnnotationEffect(model, note, index) {
+  function addBindingEffect(model, note, index) {
     for (let i=0; i<note.parts.length; i++) {
       let part = note.parts[i];
       if (part.signature) {
-        addAnnotationMethodEffect(model, note, part, index);
+        addMethodBindingEffect(model, note, part, index);
       } else if (!part.literal) {
         if (note.kind === 'attribute' && note.name[0] === '-') {
           console.warn('Cannot set attribute ' + note.name +
             ' because "-" is not a valid attribute starting character');
         } else {
           model._addPropertyEffect(part.value, TYPES.PROPAGATE, {
-            fn: runAnnotationEffect,
+            fn: runBindingEffect,
             info:  {
               kind: note.kind,
               index: index,
@@ -494,7 +494,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Implements the "annotation" (property/path binding) effect.
+   * Implements the "binding" (property/path binding) effect.
    *
    * @param {Object} inst The instance the effect will be run on
    * @param {string} property Name of property
@@ -503,7 +503,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runAnnotationEffect(inst, path, value, old, info) {
+  function runBindingEffect(inst, path, value, old, info) {
     let node = inst.__dataNodes[info.index];
     // Subpath notification: transform path and set to client
     // e.g.: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo.prop'=obj.sub.prop
@@ -511,7 +511,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         (info.kind == 'property') && !info.isCompound &&
         node._hasPropertyEffect && node._hasPropertyEffect(info.name)) {
       path = Polymer.Path.translate(info.value, info.name, path);
-      setPropertyToNodeFromAnnotation(inst, node, path, value);
+      setPropertyToNodeFromBinding(inst, node, path, value);
     } else {
       // Root or deeper path was set; extract bound path value
       // e.g.: foo="{{obj.sub}}", path: 'obj', set 'foo'=obj.sub
@@ -520,12 +520,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         value = Polymer.Path.get(inst, info.value);
       }
       // Propagate value to child
-      applyAnnotationValue(inst, info, value);
+      applyBindingValue(inst, info, value);
     }
   }
 
   /**
-   * Called by "annotation effect" to set a property to a node.  Note,
+   * Called by "binding effect" to set a property to a node.  Note,
    * the caller must ensure that the target node has a property effect for
    * the property in question, otherwise this method will error.
    *
@@ -534,7 +534,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {*} value Value to set
    * @protected
    */
-  function setPropertyToNodeFromAnnotation(inst, node, prop, value) {
+  function setPropertyToNodeFromBinding(inst, node, prop, value) {
     if (!node._hasReadOnlyEffect(prop)) {
       if (node._setPendingProperty(prop, value)) {
         inst._enqueueClient(node);
@@ -543,17 +543,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Sets the value for an "annotation" (binding) effect to a node,
+   * Sets the value for an "binding" (binding) effect to a node,
    * either as a property or attribute.
    *
-   * @param {Object} inst The instance owning the annotation effect
+   * @param {Object} inst The instance owning the binding effect
    * @param {Object} info Effect metadata
    * @param {*} value Value to set
    * @private
    */
-  function applyAnnotationValue(inst, info, value) {
+  function applyBindingValue(inst, info, value) {
     let node = inst.__dataNodes[info.index];
-    value = computeAnnotationValue(node, value, info);
+    value = computeBindingValue(node, value, info);
     if (Polymer.sanitizeDOMValue) {
       value = Polymer.sanitizeDOMValue(value, info.name, info.kind, node);
     }
@@ -564,7 +564,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Property binding
       let prop = info.name;
       if (node._hasPropertyEffect && node._hasPropertyEffect(prop)) {
-        setPropertyToNodeFromAnnotation(inst, node, prop, value);
+        setPropertyToNodeFromBinding(inst, node, prop, value);
       // The `else` clause is for interop: binding to a non-Polymer element's
       // property. Some native element properties have side-effects when
       // re-setting the same value (e.g. setting <input>.value resets the
@@ -585,7 +585,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Transforms an "annotation" effect value based on compound & negation
+   * Transforms an "binding" effect value based on compound & negation
    * effect metadata, as well as handling for special-case properties
    *
    * @param {Node} node Node the value will be set to
@@ -594,7 +594,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @return {*} Transformed value to set
    * @private
    */
-  function computeAnnotationValue(node, value, info) {
+  function computeBindingValue(node, value, info) {
     if (info.negate) {
       value = !value;
     }
@@ -614,19 +614,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Adds "annotation method" property effects for the template annotation
+   * Adds "binding method" property effects for the template binding
    * ("note" for short), part metadata, and node index specified.
    *
    * @param {Object} model Prototype or instance
-   * @param {Object} note Annotation note returned from Annotator
+   * @param {Object} note Binding note returned from Annotator
    * @param {number} part The compound part metadata
    * @param {number} index Index into `__dataNodes` list of annotated nodes that the
    *   note applies to
    * @private
    */
-  function addAnnotationMethodEffect(model, note, part, index) {
+  function addMethodBindingEffect(model, note, part, index) {
     createMethodEffect(model, part.signature, TYPES.PROPAGATE,
-      runAnnotationMethodEffect, {
+      runMethodBindingEffect, {
         index: index,
         isCompound: note.isCompound,
         compoundIndex: part.compoundIndex,
@@ -639,7 +639,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Implements the "annotation method" (inline computed function) effect.
+   * Implements the "binding method" (inline computed function) effect.
    *
    * Runs the method with the values of the arguments specified in the `info`
    * object and setting the return value to the node property/attribute.
@@ -651,14 +651,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runAnnotationMethodEffect(inst, property, value, old, info) {
+  function runMethodBindingEffect(inst, property, value, old, info) {
     let val = runMethodEffect(inst, property, value, old, info);
-    applyAnnotationValue(inst, info.methodInfo, val);
+    applyBindingValue(inst, info.methodInfo, val);
   }
 
   /**
-   * Post-processes template annotations (notes for short) provided by the
-   * Annotations library for use by the effects system:
+   * Post-processes template bindings (notes for short) provided by the
+   * Bindings library for use by the effects system:
    * - Parses bindings for methods into method `signature` objects
    * - Memoizes the root property for path bindings
    * - Recurses into nested templates and processes those templates and
@@ -827,7 +827,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Finds all bound nodes in the given `dom` fragment that were recorded in the
    * provided Annotator `notes` array and stores them in `__dataNodes` for this
    * instance.  The index of nodes in `__dataNodes` corresponds to the index
-   * of a note in the `notes` array, and annotation effect metadata uses this
+   * of a note in the `notes` array, and binding effect metadata uses this
    * index to identify bound nodes when propagating data.
    *
    * Compound binding storage structures are also initialized onto the bound
@@ -1578,7 +1578,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * dependent on the element having its properties initialized, e.g.
        * from defaults (initialized from `constructor`, `_initializeProperties`),
        * `attributeChangedCallback`, or binding values propagated from host
-       * "annotation effects".  `super.ready()` must be called to ensure the
+       * "binding effects".  `super.ready()` must be called to ensure the
        * data system becomes enabled.
        *
        * @public
@@ -2054,15 +2054,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property);
       }
 
-      // -- annotation ----------------------------------------------
+      // -- binding ----------------------------------------------
 
       /**
-       * Creates "annotation" property effects for all binding annotations
+       * Creates "binding" property effects for all binding bindings
        * in the provided template that forward host properties into DOM stamped
        * from the template via `_stampTemplate`.
        *
        * @param {HTMLTemplateElement} template Template containing binding
-       *   annotations
+       *   bindings
        * @protected
        */
       _bindTemplate(template) {
@@ -2080,7 +2080,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                 binding.parts[0].event,
                 binding.parts[0].negate);
             }
-            addAnnotationEffect(this, binding, i);
+            addBindingEffect(this, binding, i);
           }
         }
       }
