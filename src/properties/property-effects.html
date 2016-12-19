@@ -119,6 +119,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function runEffectsForProperty(inst, effects, id, prop, value, old) {
     let ran;
+    // TODO(kschaaf) ideally a system exists to parse path information once
+    // and send structured information through the system for better perf
     let rootProperty = Polymer.Path.root(prop);
     let fxs = effects[rootProperty];
     if (fxs) {
@@ -126,7 +128,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
         if (Polymer.Path.matches(fx.path, prop) &&
           (!fx.info || fx.info.lastRun !== id)) {
-          let v = Polymer.Path.get(inst, prop);
+          let v = (rootProperty != prop) ? Polymer.Path.get(inst, prop) : inst[prop];
           fx.fn(inst, prop, v == undefined ? value : v, old, fx.info, fromAbove);
           if (fx.info) {
             fx.info.lastRun = id;
@@ -181,6 +183,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let notifyEffects = inst[TYPES.NOTIFY];
     let id = effectUid++;
     // Try normal notify effects; if none, fall back to try path notification
+    // TODO(kschaaf) This is a hot path which we could avoid if (1) no
+    // "notify" effects AND (2) if we knew there were no paths to notify. This
+    // 2nd piece of info is not currently available but could be added perhaps
+    // in `_setProperty`.
     for (let prop in props) {
       if (notifyEffects && runEffectsForProperty(inst, notifyEffects, id,
         prop, props[prop], oldProps && oldProps[prop])) {
@@ -1200,6 +1206,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _initializeProperties() {
         super._initializeProperties();
+        this.__dataTemp = {};
         // initialize data with prototype values saved when creating accessors
         if (this.__dataProto) {
           this.__data = Object.create(this.__dataProto);
@@ -1380,6 +1387,64 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
+       * Overrides the `PropertyAccessors` implementation to introduce special
+       * dirty check logic depending on the property & value being set:
+       *
+       * 1. Any value set to a path (e.g. 'obj.prop': 42 or 'obj.prop': {...})
+       *    Stored in `__dataTemp`, dirty checked against `__dataTemp`
+       * 2. Object set to simple property (e.g. 'prop': {...})
+       *    Stored in `__dataTemp` and `__data`, dirty checked against `__dataTemp`
+       * 3. Primitive value set to simple property (e.g. 'prop': 42)
+       *    Stored in `__data`, dirty checked against `__data`
+       *
+       * The dirty-check is important to prevent cycles due to two-way
+       * notification, but paths and objects are only dirty checked against any
+       * previous value set during this turn via a "temporary cache" that is
+       * cleared when the last `_propertiesChaged` exits. This is so:
+       * a. any cached array paths (e.g. 'array.3.prop') may be invalidated
+       *    due to array mutations like shift/unshift/splice; this is fine
+       *    since path changes are dirty-checked at user entry points like `set`
+       * b. dirty-checking for objects only lasts one turn to allow the user
+       *    to mutate the object in-place and re-set it with the same identity
+       *    and have all sub-properties re-propagated in a subsequent turn.
+       *
+       * The temp cache is not necessarily sufficient to prevent invalid array
+       * paths, since a splice can happen during the same turn (with pathological
+       * user code); we could introduce a "fixup" for temporarily cached array
+       * paths if needed: https://github.com/Polymer/polymer/issues/4227
+       *
+       * @override
+       */
+      _setPendingProperty(property, value) {
+        let isPath = Polymer.Path.isPath(property);
+        let isObject = typeof value == 'object';
+        let prevProps = isPath || isObject ? this.__dataTemp : this.__data;
+        if (this._shouldPropChange(property, value, prevProps[property])) {
+          if (!this.__dataPending) {
+            this.__dataPending = {};
+            this.__dataOld = {};
+          }
+          // Ensure old is captured from the last turn
+          if (!(property in this.__dataOld)) {
+            this.__dataOld[property] = this.__data[property];
+          }
+          // Paths and objects are stored in temporary cache (cleared at end of
+          // turn), which is used for dirty-checking
+          if (isPath || isObject) {
+            this.__dataTemp[property] = value;
+          }
+          // Properties (but not sub-paths) get stored __data cache, used to
+          // return accessor values from getters
+          if (!isPath) {
+            this.__data[property] = value;
+          }
+          // All changes go into pending property bag, passed to _propertiesChanged
+          this.__dataPending[property] = value;
+          return true;
+        }
+      }
+
+      /**
        * Overrides PropertyAccessor's default async queuing of 
        * `_propertiesChanged`: if `__dataInitialized` is false (has not yet been
        * manually flushed), the function no-ops; otherwise flushes
@@ -1482,6 +1547,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this.__dataPending || this.__dataPendingClients) {
           this.__dataFromAbove = fromAbove;
           super._flushProperties();
+          if (!this.__dataCounter) {
+            // Clear temporary cache at end of turn
+            this.__dataTemp = {};
+          }
           this.__dataFromAbove = false;
         }
       }

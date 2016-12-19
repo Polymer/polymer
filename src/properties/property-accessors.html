@@ -83,7 +83,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _initializeProperties() {
         this.__data = {};
-        this.__dataTemp = {};
         this.__dataCounter = 0;
         this.__dataPending = null;
         this.__dataOld = null;
@@ -148,40 +147,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _setPendingProperty(property, value) {
-        let isPath = Polymer.Path.isPath(property);
-        let isObject = typeof value == 'object';
-        // Dirty check against temporary cache for paths & objects, and normal
-        // data storage for primitive properties; the dirty-check is important
-        // to prevent loops due to two-way notification, but the temporary cache
-        // is cleared at end of turn since:
-        // a.) any cached array paths (e.g. 'array.3.prop') may be invalidated
-        //     due to array mutations like shift/unshift/splice; this is fine
-        //     since path changes are dirty-checked at user entry points like `set`
-        // b.) dirty-checking for objects only lasts one turn to allow the user
-        //     to mutate the object in-place and re-set it with the same identity
-        //     and have all sub-properties re-propagated
-        // TODO(kschaaf): move path/object temp cache to property-effects
-        let prevProps = isPath || isObject ? this.__dataTemp : this.__data;
-        if (this._shouldPropChange(property, value, prevProps[property])) {
+        let old = this.__data[property];
+        if (this._shouldPropChange(property, value, old)) {
           if (!this.__dataPending) {
             this.__dataPending = {};
             this.__dataOld = {};
           }
           // Ensure old is captured from the last turn
           if (!(property in this.__dataOld)) {
-            this.__dataOld[property] = this.__data[property];
+            this.__dataOld[property] = old;
           }
-          // Paths and objects are stored in temporary cache (cleared at end of
-          // turn), which is used for dirty-checking
-          if (isPath || isObject) {
-            this.__dataTemp[property] = value;
-          }
-          // Properties (primitives and objects, but not sub-paths) get stored
-          // __data cache, used to return accessor values from getters
-          if (!isPath) {
-            this.__data[property] = value;
-          }
-          // All changes go into pending property bag, passed to _propertiesChanged
+          this.__data[property] = value;
           this.__dataPending[property] = value;
           return true;
         }
@@ -230,10 +206,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataCounter++;
         this._propertiesChanged(this.__data, changedProps, oldProps);
         this.__dataCounter--;
-        if (!this.__dataCounter) {
-          // Clear temporary cache at end of turn
-          this.__dataTemp = {};
-        }
       }
 
       /**
