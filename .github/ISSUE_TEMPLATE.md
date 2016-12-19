@@ -17,7 +17,7 @@ https://jsbin.com/xukike/edit?html,output
 Example:
 
 1. Create `my-element`
-2. Append `my-element to document.body
+2. Append `my-element` to document.body
 3. Create `div`.
 4. Append `div` to `my-element`
 -->
