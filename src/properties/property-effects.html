@@ -585,8 +585,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // "bad" and resettings objects is also "good"; alternatively we could
       // implement a whitelist of tag & property values that should never
       // be reset (e.g. <input>.value && <select>.value)
-      } else if (inst._shouldPropChange(prop, node[prop], value) ||
-          typeof value == 'object') {
+      } else if (value !== node[prop] || typeof value == 'object') {
         node[prop] = value;
       }
     }
@@ -1371,7 +1370,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * If `path` is an unmanaged property (property without an accessor)
        * or a path, sets the value at that path.
        * 
-       *
        * `path` can be a path string or array of path parts as accepted by the
        * public API.
        *
@@ -1381,7 +1379,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   this case the value was shared, so no dirty check is performed.
        * @return {?string} If the root of the path is a managed property,
        *   returns a normalized string path suitable for setting into the system
-       *   via `_setProperty`/`_setPendingProperty`.  A null path is returned if
+       *   via `_setProperty`/`_setPendingProperty`. A null path is returned if
        *   a path was being set and fails a dirty check, unless `fromPath`
        *   was true (in which case no dirty check is performed since this is a
        *   notification of change to a shared path).
@@ -1395,10 +1393,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           Polymer.Path.set(this, path, value);
         } else if (isPath && !fromPath) {
           // Dirty check changes being set to a path against the actual object,
-          // since we don't 
+          // since this is the entry point for paths into the system; from here
+          // the only dirty checks are against the `__dataTemp` cache to prevent
+          // duplicate work in the same turn only. Note, if this was a
+          // notification of a change already set to a path (fromPath: true),
+          // the notification 
           let old = Polymer.Path.get(this, path);
           path = Polymer.Path.set(this, path, value);
-          if (!this._shouldPropChange(path, value, old)) {
+          if (!super._shouldPropertyChange(path, value, old)) {
             return null;
           }
         } 
@@ -1414,7 +1416,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * 1. Any value set to a path (e.g. 'obj.prop': 42 or 'obj.prop': {...})
        *    Stored in `__dataTemp`, dirty checked against `__dataTemp`
        * 2. Object set to simple property (e.g. 'prop': {...})
-       *    Stored in `__dataTemp` and `__data`, dirty checked against `__dataTemp`
+       *    Stored in `__dataTemp` and `__data`, dirty checked against
+       *    `__dataTemp` by default implementation of `_shouldPropertyChange`
        * 3. Primitive value set to simple property (e.g. 'prop': 42)
        *    Stored in `__data`, dirty checked against `__data`
        *
@@ -1438,9 +1441,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _setPendingProperty(property, value) {
         let isPath = Polymer.Path.isPath(property);
-        let isObject = typeof value == 'object';
-        let prevProps = isPath || isObject ? this.__dataTemp : this.__data;
-        if (this._shouldPropChange(property, value, prevProps[property])) {
+        let prevProps = isPath ? this.__dataTemp : this.__data;
+        if (this._shouldPropertyChange(property, value, prevProps[property])) {
           if (!this.__dataPending) {
             this.__dataPending = {};
             this.__dataOld = {};
@@ -1451,7 +1453,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           // Paths and objects are stored in temporary cache (cleared at end of
           // turn), which is used for dirty-checking
-          if (isPath || isObject) {
+          if (isPath || typeof value == 'object') {
             this.__dataTemp[property] = value;
           }
           // Properties (but not sub-paths) get stored __data cache, used to
@@ -1463,6 +1465,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.__dataPending[property] = value;
           return true;
         }
+      }
+
+      /**
+       * Overrides default PropertyAccessors implementation to pull the value
+       * to dirty check objects against from the `__dataTemp` cache (rather
+       * than the normal `__data` cache) for Objects.  Since the temp cache is
+       * cleared at the end of a turn, this implementation allows objects to
+       * be reset by default (using the temp cache as a backstop to prevent
+       * cycles due to 2-way notification).
+       *
+       * Override this to provide more strict dirty checking, i.e. immutable
+       * (`value === old`) or based on type.
+       *
+       * @override
+       */
+      _shouldPropertyChange(property, value, old) {
+        if (typeof value == 'object') {
+          old = this.__dataTemp[property];
+        }
+        return super._shouldPropertyChange(property, value, old);
       }
 
       /**
@@ -1553,7 +1575,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * is used to avoid sending upwards notification events in response to
        * downward data flow.  This is a performance optimization, but also
        * critical to avoid infinite looping when an object is notified, since
-       * the default implementation of `_shouldPropChange` always returns
+       * the default implementation of `_shouldPropertyChange` always returns
        * true for Objects, and without would result in a notify-propagate-notify
        * loop.
        *
