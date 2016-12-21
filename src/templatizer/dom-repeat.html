@@ -267,6 +267,7 @@ Then the `observe` property should be configured as follows:
       this._pool = [];
       this._limit = Infinity;
       this._renderDebouncer = null;
+      this._itemsIdxToInstIdx = {};
     }
 
     disconnectedCallback() {
@@ -399,7 +400,7 @@ Then the `observe` property should be configured as follows:
       }
       // If path was to an item (e.g. 'items.3' or 'items.3.foo'), forward the
       // path to that instance synchronously (retuns false for non-item paths)
-      if (!this._forwardItemPath(change.path, change.value)) {
+      if (!this._handleItemPath(change.path, change.value)) {
         // Otherwise, the array was reset ('items') or spliced ('items.splices'),
         // so queue a full refresh
         this._needFullRefresh = true;
@@ -408,7 +409,7 @@ Then the `observe` property should be configured as follows:
       }
     }
 
-    _checkObservedPaths(path) {
+    _handleObservedPaths(path) {
       if (this._observePaths) {
         path = path.substring(path.indexOf('.') + 1);
         var paths = this._observePaths;
@@ -561,21 +562,24 @@ Then the `observe` property should be configured as follows:
 
     // Called as a side effect of a host items.<key>.<path> path change,
     // responsible for notifying item.<path> changes to inst for key
-    _forwardItemPath(path, value) {
-      if (this._itemsIdxToInstIdx) {
-        path = path.slice(6); // 'items.'.length == 6
-        var dot = path.indexOf('.');
-        var itemsIdx = dot < 0 ? path : path.substring(0, dot);
-        var instIdx = this._itemsIdxToInstIdx[itemsIdx];
-        var inst = this._instances[instIdx];
-        if (inst) {
-          path = dot < 0 ? '' : path.substring(dot+1);
-          if (!this._checkObservedPaths(path)) {
-            inst.forwardProperty(this.as + (path ? '.' + path : ''), value);
+    _handleItemPath(path, value) {
+      var itemsPath = path.slice(6); // 'items.'.length == 6
+      var dot = itemsPath.indexOf('.');
+      var itemsIdx = dot < 0 ? itemsPath : itemsPath.substring(0, dot);
+      // If path was index into array...
+      if (itemsIdx == parseInt(itemsIdx)) {
+        var itemPath = dot < 0 ? '' : itemsPath.substring(dot+1);
+        // See if the item subpath should trigger a full refresh...
+        if (!this._handleObservedPaths(itemPath)) {
+          // If not, forward to the instance for that index
+          var instIdx = this._itemsIdxToInstIdx[itemsIdx];
+          var inst = this._instances[instIdx];
+          if (inst) {
+            inst.forwardProperty(this.as + (itemPath ? '.' + itemPath : ''), value);
             inst.flushProperties();
-            return true;
           }
         }
+        return true;
       }
     }
 
