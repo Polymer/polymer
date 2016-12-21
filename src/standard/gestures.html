@@ -72,7 +72,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (mouseEvent.type === 'click') {
       var path = Polymer.dom(mouseEvent).path;
       for (var i = 0; i < path.length; i++) {
-        if (path[i] === POINTERSTATE.mouse.target) {
+        // Labels with a for attribute will trigger a second click event on the corresponding input field.
+        // If default is prevented on this second event, the checkbox/radio won't be checked/unchecked.
+        // The input field is most likely not in the path of the click event, so it has to be saved and skipped.
+        if (path[i] === POINTERSTATE.mouse.forwardClickTarget) {
+          resetForwardClickTarget();
+          return;
+        } else if (path[i] === POINTERSTATE.mouse.target) {
+          saveForwardClickTarget(POINTERSTATE.mouse.target);
           return;
         }
       }
@@ -80,6 +87,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       mouseEvent.stopPropagation();
     }
   };
+
+  function resetForwardClickTarget(target) {
+    POINTERSTATE.mouse.forwardClickTarget = null;
+  }
+
+  function saveForwardClickTarget(target) {
+    if (target.tagName === 'LABEL' && !target.hasAttribute('for')) {
+      return;
+    }
+    var forwardTarget = document.getElementById(target.getAttribute('for'));
+    if (forwardTarget) {
+      POINTERSTATE.mouse.forwardClickTarget = forwardTarget;
+    }
+  }
 
   function setupTeardownMouseCanceller(setup) {
     var events = IS_TOUCH_ONLY ? ['click'] : MOUSE_EVENTS;
@@ -101,10 +122,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       setupTeardownMouseCanceller();
       POINTERSTATE.mouse.target = null;
       POINTERSTATE.mouse.mouseIgnoreJob = null;
+      POINTERSTATE.mouse.forwardClickTarget = null;
     };
     POINTERSTATE.mouse.target = Polymer.dom(ev).rootTarget;
     POINTERSTATE.mouse.mouseIgnoreJob =
       Polymer.Debounce(POINTERSTATE.mouse.mouseIgnoreJob, unset, MOUSE_TIMEOUT);
+    POINTERSTATE.mouse.forwardClickTarget = null;
   }
 
   function hasLeftMouseButton(ev) {
