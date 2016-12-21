@@ -1,0 +1,315 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+Keeping structured data in sync requires that Polymer understand the path
+associations of data being bound.  The `array-selector` element ensures path
+linkage when selecting specific items from an array (either single or multiple).
+The `items` property accepts an array of user data, and via the `select(item)`
+and `deselect(item)` API, updates the `selected` property which may be bound to
+other parts of the application, and any changes to sub-fields of `selected`
+item(s) will be kept in sync with items in the `items` array.  When `multi`
+is false, `selected` is a property representing the last selected item.  When
+`multi` is true, `selected` is an array of multiply selected items.
+
+```html
+<dom-module id="employee-list">
+
+  <template>
+
+    <div> Employee list: </div>
+    <template is="dom-repeat" id="employeeList" items="{{employees}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
+        <button on-click="toggleSelection">Select</button>
+    </template>
+
+    <array-selector id="selector" items="{{employees}}" selected="{{selected}}" multi toggle></array-selector>
+
+    <div> Selected employees: </div>
+    <template is="dom-repeat" items="{{selected}}">
+        <div>First name: <span>{{item.first}}</span></div>
+        <div>Last name: <span>{{item.last}}</span></div>
+    </template>
+
+  </template>
+
+  <script>
+    Polymer({
+      is: 'employee-list',
+      ready() {
+        this.employees = [
+            {first: 'Bob', last: 'Smith'},
+            {first: 'Sally', last: 'Johnson'},
+            ...
+        ];
+      },
+      toggleSelection(e) {
+        var item = this.$.employeeList.itemForElement(e.target);
+        this.$.selector.select(item);
+      }
+    });
+  </script>
+
+</dom-module>
+```
+-->
+
+<link rel="import" href="../../polymer-element.html">
+<link rel="import" href="../utils/utils.html">
+<link rel="import" href="../utils/array-splice.html">
+
+<script>
+(function() {
+
+  let ArraySelectorMixin = Polymer.Utils.dedupingMixin(superClass => {
+
+    return class extends superClass {
+
+      static get config() {
+      
+        return {
+
+          properties: {
+
+            /**
+             * An array containing items from which selection will be made.
+             */
+            items: {
+              type: Array,
+            },
+
+            /**
+             * When `true`, multiple items may be selected at once (in this case,
+             * `selected` is an array of currently selected items).  When `false`,
+             * only one item may be selected at a time.
+             */
+            multi: {
+              type: Boolean,
+              value: false,
+            },
+
+            /**
+             * When `multi` is true, this is an array that contains any selected.
+             * When `multi` is false, this is the currently selected item, or `null`
+             * if no item is selected.
+             */
+            selected: {
+              type: Object,
+              notify: true
+            },
+
+            /**
+             * When `multi` is false, this is the currently selected item, or `null`
+             * if no item is selected.
+             */
+            selectedItem: {
+              type: Object,
+              notify: true
+            },
+
+            /**
+             * When `true`, calling `select` on an item that is already selected
+             * will deselect the item.
+             */
+            toggle: {
+              type: Boolean,
+              value: false
+            }
+
+          },
+
+          observers: ['_updateSelection(multi, items.*)'],
+
+        }
+
+      }
+
+      _updateSelection(multi, itemsInfo) {
+        if (itemsInfo.path == 'items') {
+          let newItems = itemsInfo.base;
+          let lastItems = this.__lastItems;
+          if (lastItems) {
+            let splices = Polymer.ArraySplice.calculateSplices(newItems, lastItems);
+            this._applySplices(splices, lastItems);
+          } else {
+            this.clearSelection();
+          }
+          this.__lastItems = newItems ? newItems.slice() : [];
+        } else if (itemsInfo.path == 'items.splices') {
+          this._applySplices(itemsInfo.value.indexSplices);
+        }
+      }
+
+      _applySplices(splices) {
+        for (let i=0; i<splices.length; i++) {
+          let s = splices[i];
+          for (let j=0; j<s.removed.length; j++) {
+            this.deselect(s.removed[i]);
+          }
+          if (this.multi) {
+            this._addRemoveMulti(s.index, s.removed.length, s.addedCount);
+          } else {
+            this._addRemoveSingle(s.index, s.removed.length, s.addedCount);
+          }
+        }
+      }
+
+      _addRemoveMulti(start, removed, added) {
+        const links = this.__dataLinkedPaths;
+        let selectedRemoved = 0;
+        for (let sidx=0; sidx<this.selected.length; sidx++) {
+          let idx = parseInt(links['selected.' + sidx].slice('items.'.length));
+          if (idx >= start) {
+            this.unlinkPaths('selected.' + sidx);
+            if (idx >= (start + removed)) {
+              this.linkPaths('selected.' + (sidx - selectedRemoved),
+                'items.' + (idx + added - removed));
+            }
+          }
+        }
+      }
+
+      _addRemoveSingle(start, removed, added) {
+        const links = this.__dataLinkedPaths;
+        if (this.selected != undefined) {
+          let idx = parseInt(links['selected'].slice('items.'.length));
+          if (idx >= start) {
+            this.unlinkPaths('selected');
+            this.unlinkPaths('selectedItem');
+            if (idx >= (start + removed)) {
+              let newItemPath = 'items.' + (idx + added - removed);
+              this.linkPaths('selected', newItemPath);
+              this.linkPaths('selectedItem', newItemPath);
+            }
+          }        
+        }
+      }
+
+      _unlinkMulti(sidx) {
+        const links = this.__dataLinkedPaths;
+        // shift other selected items down
+        for (let i=sidx+1; i<this.selected.length; i++) {
+          this.linkPaths('selected.' + (i-1), links['selected.' + i]);
+        }
+        // unlink last
+        this.unlinkPaths('selected.' + (this.selected.length-1));
+      }
+
+      /**
+       * Clears the selection state.
+       *
+       * @method clearSelection
+       */
+      clearSelection() {
+        // Unbind previous selection
+        if (Array.isArray(this.selected)) {
+          for (var i=0; i<this.selected.length; i++) {
+            this.unlinkPaths('selected.' + i);
+          }
+        } else {
+          this.unlinkPaths('selected');
+          this.unlinkPaths('selectedItem');
+        }
+        // Initialize selection
+        if (this.multi) {
+          if (!this.selected || this.selected.length) {
+            this.selected = [];
+          }
+        } else {
+          this.selected = null;
+        }
+        this.selectedItem = null;
+      }
+
+      /**
+       * Returns whether the item is currently selected.
+       *
+       * @method isSelected
+       * @param {*} item Item from `items` array to test
+       * @return {boolean} Whether the item is selected
+       */
+      isSelected(item) {
+        if (this.multi) {
+          // TODO(kschaaf) use Map for perf
+          return this.selected.indexOf(item) >= 0;
+        } else {
+          return this.selected == item;
+        }
+      }
+
+      /**
+       * Deselects the given item if it is already selected.
+       *
+       * @method deselect
+       * @param {*} item Item from `items` array to deselect
+       */
+      deselect(item) {
+        if (this.multi) {
+          let sidx = this.selected.indexOf(item);
+          if (sidx >= 0) {
+            this._unlinkMulti(sidx);
+            this.splice('selected', sidx, 1);
+          }
+        } else {
+          if (!item || this.selected === item){
+            this.selected = null;
+            this.selectedItem = null;
+            this.unlinkPaths('selected');
+            this.unlinkPaths('selectedItem');            
+          }
+        }
+      }
+
+      /**
+       * Selects the given item.  When `toggle` is true, this will automatically
+       * deselect the item if already selected.
+       *
+       * @method select
+       * @param {*} item Item from `items` array to select
+       */
+      select(item) {
+        let idx = this.items.indexOf(item);
+        if (this.multi) {
+          if (this.isSelected(item)) {
+            if (this.toggle) {
+              this.deselect(item);
+            }
+          } else {
+            let sidx = this.push('selected', item) - 1;
+            this.linkPaths('selected.' + sidx, 'items.' + idx);
+          }
+        } else {
+          if (this.toggle && item == this.selected) {
+            this.deselect();
+          } else {
+            this.selected = item;
+            this.selectedItem = item;
+            this.linkPaths('selected', 'items.' + idx);
+            this.linkPaths('selectedItem', 'items.' + idx);
+          }
+        }
+      }
+
+    }
+
+  });
+
+  // export mixin
+  Polymer.ArraySelectorMixin = ArraySelectorMixin;
+
+  // define element class & export
+  class ArraySelector extends ArraySelectorMixin(Polymer.Element) { }
+  customElements.define('array-selector', ArraySelector);
+  Polymer.ArraySelector = ArraySelector;
+
+})();
+
+</script>
