@@ -13,13 +13,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <meta charset="utf-8">
   <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
   <script src="../../../web-component-tester/browser.js"></script>
-  <script>
-    Polymer = function(prototype) {
-      HTMLImports.whenReady(function() {
-        Polymer(prototype);
-      });
-    };
-  </script>
   <link rel="import" href="../../polymer.html">
 <body>
 
@@ -170,64 +163,74 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <dom-module id="single-behavior">
     <script>
-      Polymer({
-        is: 'single-behavior',
-
-        behaviors: [
-          Polymer.BehaviorA
-        ]
-      });
+    HTMLImports.whenReady(function() {
+      customElements.define('single-behavior',
+        Polymer.mixinBehaviors(Polymer.BehaviorA, Polymer.LegacyElement));
+    });
     </script>
   </dom-module>
 
   <dom-module id="multi-behaviors">
     <script>
-      Polymer({
-        is: 'multi-behaviors',
+    HTMLImports.whenReady(function() {
+      customElements.define('multi-behaviors',
+        class extends Polymer.mixinBehaviors(
+          [Polymer.BehaviorA, Polymer.BehaviorB], Polymer.LegacyElement) {
 
-        behaviors: [
-          Polymer.BehaviorA,
-          Polymer.BehaviorB
-        ],
+          static get config() {
+            return {
+              hostAttributes: {
+                element: 'element'
+              },
 
-        hostAttributes: {
-          element: 'element'
-        },
+              properties: {
 
-        properties: {
+                foo: {
+                  type: String,
+                  reflectToAttribute: true,
+                  readOnly: true,
+                  observer: '_fooChanged'
+                },
 
-          foo: {
-            type: String,
-            reflectToAttribute: true,
-            readOnly: true,
-            observer: '_fooChanged'
-          },
+                overridableProperty: {
+                  value: true
+                }
 
-          overridableProperty: {
-            value: true
+              }
+            }
           }
 
-        },
+          constructor() {
+            super();
+            this._toOverride = Polymer._toOverride;
+          }
 
-        _fooChanged: function(foo) {
-          this.__foo = foo;
-        },
+          _fooChanged(foo) {
+            this.__foo = foo;
+          }
 
-       _toOverride: Polymer._toOverride
+          // note: to have hostAttributes applied before behaviors
+          // must override `_ensureAttributes`
+          _ensureAttributes() {
+            this._ensureConfigAttributes(this.constructor._ownConfig);
+            super._ensureAttributes();
+          }
       });
+    });
     </script>
   </dom-module>
 
   <dom-module id="nested-behaviors">
     <script>
-      Polymer({
-        is: 'nested-behaviors',
-
-        behaviors: [
-          [Polymer.BehaviorB, [Polymer.BehaviorC, Polymer.BehaviorB], Polymer.BehaviorA],
-          [Polymer.BehaviorD]
-        ]
+    HTMLImports.whenReady(function() {
+      customElements.define('nested-behaviors',
+        class extends Polymer.mixinBehaviors(
+          [
+            [Polymer.BehaviorB, [Polymer.BehaviorC, Polymer.BehaviorB], Polymer.BehaviorA],
+            [Polymer.BehaviorD]
+          ], Polymer.LegacyElement) {
       });
+    });
     </script>
   </dom-module>
 
@@ -236,6 +239,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <div id="content"></div>
     </template>
     <script>
+    HTMLImports.whenReady(function() {
+
       Polymer.registerBehavior1 ={
         registered: function() {
           this._createPropertyFromConfig('prop', {
@@ -243,8 +248,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           });
           this._createMethodObserver('propChanged2(prop)');
           this.registeredCount++;
-          this.registeredProps = [this.prop1, this.prop2, this.prop3, this.prop4];
-          this.registeredBehaviors = this.behaviors;
+          this.registeredProps = [this.prop1, this.prop2, this.prop3];
+          this.registeredBehaviors = this.constructor.behaviors;
         },
         prop1: true,
         ready: function() {
@@ -272,22 +277,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       };
 
-      Polymer({
-        behaviors: [
+      class BehaviorRegistered extends Polymer.mixinBehaviors([
           Polymer.registerBehavior1,
           Polymer.registerBehavior2,
           Polymer.registerBehavior3
-        ],
-        prop4: true,
+        ], Polymer.LegacyElement) {
 
-        registered: function() {
+        static get is() { return 'behavior-registered'}
+
+        _initializeProperties() {
+          super._initializeProperties();
           this.registeredCount++;
-        },
+        }
+      }
 
-        registeredCount: 0,
+      BehaviorRegistered.prototype.registeredCount = 0;
 
-        is: 'behavior-registered'
-      });
+      customElements.define(BehaviorRegistered.is, BehaviorRegistered);
+    });
     </script>
   </dom-module>
 
@@ -365,8 +372,8 @@ suite('behavior.registered', function() {
     var el = fixture('registered');
     assert.equal(el.registeredCount, 4);
     assert.equal(el.registeredBehaviors.length, 3);
-    assert.equal(el.registeredBehaviors, el.behaviors);
-    assert.deepEqual(el.registeredProps, [true, true, true, true]);
+    assert.equal(el.registeredBehaviors, el.constructor.behaviors);
+    assert.deepEqual(el.registeredProps, [true, true, true]);
   });
 
 });
@@ -449,19 +456,15 @@ suite('multi-behaviors element', function() {
   });
 
   test('behavior array is unique', function() {
-    Polymer({
-      is: 'behavior-unique',
-      behaviors: [Polymer.BehaviorA, Polymer.BehaviorA]
-    });
-    assert.equal(document.createElement('behavior-unique').behaviors.length, 1);
+    customElements.define('behavior-unique', Polymer.mixinBehaviors(
+      [Polymer.BehaviorA, Polymer.BehaviorA], Polymer.LegacyElement));
+    assert.equal(document.createElement('behavior-unique').constructor.behaviors.length, 1);
   });
 
   test('duplicate behaviors keep first behavior', function() {
-    Polymer({
-      is: 'behavior-unique-last-behavior',
-      behaviors: [Polymer.BehaviorA, Polymer.BehaviorB, Polymer.BehaviorC, Polymer.BehaviorA, Polymer.BehaviorB]
-    });
-    var behaviors = document.createElement('behavior-unique-last-behavior').behaviors;
+    customElements.define('behavior-unique-last-behavior', Polymer.mixinBehaviors(
+      [Polymer.BehaviorA, Polymer.BehaviorB, Polymer.BehaviorC, Polymer.BehaviorA, Polymer.BehaviorB], Polymer.LegacyElement));
+    var behaviors = document.createElement('behavior-unique-last-behavior').constructor.behaviors;
     assert.deepEqual(behaviors, [Polymer.BehaviorA, Polymer.BehaviorB, Polymer.BehaviorC]);
   });
 
@@ -475,7 +478,7 @@ suite('nested-behaviors element', function() {
   });
 
   test('nested-behavior dedups', function() {
-    assert.equal(el.behaviors.length, 4);
+    assert.equal(el.constructor.behaviors.length, 4);
   });
 
   test('nested-behavior overrides ordering', function() {
