@@ -69,6 +69,35 @@ is false, `selected` is a property representing the last selected item.  When
 <script>
 (function() {
 
+  // Limited polyfill of `Set` that accepts integer values backed by Object
+  // and relying on for/in iterating keys in insertion order ('.' prefix
+  // ensures insertion order on modern browsers, as integers are treated specially)
+  let IntegerSet = window.Set || class IntegerSet {
+    constructor() {
+      this.clear();
+    }
+    add(value) {
+      this._set['.' + value] = true;
+    }
+    delete(value) {
+      if (this.has(value)) {
+        delete this._set['.' + value];
+        return true;
+      }
+    }
+    has(value) {
+      return Boolean(this._set['.' + value]);
+    }
+    forEach(cb) {
+      for (let k in this._set) {
+        cb(parseInt(k.slice(1)));
+      }
+    }
+    clear() {
+      this._set = {};
+    }
+  }
+
   let ArraySelectorMixin = Polymer.Utils.dedupingMixin(superClass => {
 
     return class extends superClass {
@@ -160,56 +189,44 @@ is false, `selected` is a property representing the last selected item.  When
       _applySplices(splices) {
         for (let i=0; i<splices.length; i++) {
           let s = splices[i];
-          for (let j=0; j<s.removed.length; j++) {
-            this.deselect(s.removed[j]);
-          }
-          if (this.multi) {
-            this._addRemoveMulti(s.index, s.removed.length, s.addedCount);
-          } else {
-            this._addRemoveSingle(s.index, s.removed.length, s.addedCount);
-          }
-        }
-      }
-
-      _addRemoveMulti(start, removed, added) {
-        const links = this.__dataLinkedPaths;
-        for (let sidx=0; sidx<this.selected.length; sidx++) {
-          let idx = parseInt(links['selected.' + sidx].slice('items.'.length));
-          if (idx >= start) {
-            if (idx >= (start + removed)) {
-              this.linkPaths('selected.' + sidx, 'items.' + (idx + added - removed));
+          let selected = new IntegerSet();
+          let sidx = 0;
+          let toRemove = [];
+          this._selectedSet.forEach(idx => {
+            if (idx < s.index) {
+              selected.add(idx);
+            } else if (idx >= s.index + s.removed.length) {
+              selected.add(idx + s.addedCount - s.removed.length);
             } else {
-              this.unlinkPaths('selected.' + sidx);
+              toRemove.push(sidx);
+            }
+            sidx++;
+          });
+          this._selectedSet = selected;
+          this._updateLinks();
+          for (let i=toRemove.length-1; i>=0; i--) {
+            if (this.multi) {
+              this.splice('selected', toRemove[i], 1);
+            } else {
+              this.selected = this.selectedItem = null;
             }
           }
         }
       }
 
-      _addRemoveSingle(start, removed, added) {
-        const links = this.__dataLinkedPaths;
-        if (this.selected != undefined) {
-          let idx = parseInt(links['selected'].slice('items.'.length));
-          if (idx >= start) {
-            if (idx >= (start + removed)) {
-              let newItemPath = 'items.' + (idx + added - removed);
-              this.linkPaths('selected', newItemPath);
-              this.linkPaths('selectedItem', newItemPath);
-            } else {
-              this.unlinkPaths('selected');
-              this.unlinkPaths('selectedItem');
-            }
-          }        
+      _updateLinks() {
+        this.__dataLinkedPaths = {};
+        if (this.multi) {
+          let sidx = 0;
+          this._selectedSet.forEach(idx => {
+            this.linkPaths('items.' + idx, 'selected.' + sidx++);
+          });      
+        } else {
+          this._selectedSet.forEach(idx => {
+            this.linkPaths('selected', 'items.' + idx);
+            this.linkPaths('selectedItem', 'items.' + idx);
+          });
         }
-      }
-
-      _unlinkMulti(sidx) {
-        const links = this.__dataLinkedPaths;
-        // shift other selected items down
-        for (let i=sidx+1; i<this.selected.length; i++) {
-          this.linkPaths('selected.' + (i-1), links['selected.' + i]);
-        }
-        // unlink last
-        this.unlinkPaths('selected.' + (this.selected.length-1));
       }
 
       /**
@@ -219,20 +236,10 @@ is false, `selected` is a property representing the last selected item.  When
        */
       clearSelection() {
         // Unbind previous selection
-        if (Array.isArray(this.selected)) {
-          for (var i=0; i<this.selected.length; i++) {
-            this.unlinkPaths('selected.' + i);
-          }
-        } else {
-          this.unlinkPaths('selected');
-          this.unlinkPaths('selectedItem');
-        }
+        this.__dataLinkedPaths = {};
+        this._selectedSet = new IntegerSet();
         // Initialize selection
-        if (this.multi) {
-          this.selected = [];
-        } else {
-          this.selected = null;
-        }
+        this.selected = this.multi ? [] : null
         this.selectedItem = null;
       }
 
@@ -245,11 +252,14 @@ is false, `selected` is a property representing the last selected item.  When
        */
       isSelected(item) {
         if (this.multi) {
-          // TODO(kschaaf) use Map for perf
           return this.selected.indexOf(item) >= 0;
         } else {
           return this.selected == item;
         }
+      }
+
+      isIndexSelected(idx) {
+        return this._selectedSet.has(idx);
       }
 
       /**
@@ -259,18 +269,26 @@ is false, `selected` is a property representing the last selected item.  When
        * @param {*} item Item from `items` array to deselect
        */
       deselect(item) {
-        if (this.multi) {
-          let sidx = this.selected.indexOf(item);
-          if (sidx >= 0) {
-            this._unlinkMulti(sidx);
-            this.splice('selected', sidx, 1);
+        this.deselectIndex(this.items.indexOf(item));
+      }
+
+      /**
+       * Deselects the given index if it is already selected.
+       *
+       * @method deselect
+       * @param {number} index Index from `items` array to deselect
+       */
+      deselectIndex(idx) {
+        if (this._selectedSet.delete(idx)) {
+          let sidx;
+          if (this.multi) {
+            sidx = parseInt(this.__dataLinkedPaths['items.' + idx].slice('selected.'.length));
           }
-        } else {
-          if (!item || this.selected === item){
-            this.selected = null;
-            this.selectedItem = null;
-            this.unlinkPaths('selected');
-            this.unlinkPaths('selectedItem');            
+          this._updateLinks();
+          if (this.multi) {
+            this.splice('selected', sidx, 1);
+          } else {
+            this.selected = this.selectedItem = null;
           }
         }
       }
@@ -283,25 +301,31 @@ is false, `selected` is a property representing the last selected item.  When
        * @param {*} item Item from `items` array to select
        */
       select(item) {
-        let idx = this.items.indexOf(item);
-        if (this.multi) {
-          if (this.isSelected(item)) {
-            if (this.toggle) {
-              this.deselect(item);
-            }
-          } else {
-            let sidx = this.push('selected', item) - 1;
-            this.linkPaths('selected.' + sidx, 'items.' + idx);
+        this.selectIndex(this.items.indexOf(item));
+      }
+
+      /**
+       * Selects the given index.  When `toggle` is true, this will automatically
+       * deselect the item if already selected.
+       *
+       * @method select
+       * @param {number} index Index from `items` array to select
+       */
+      selectIndex(idx) {
+        if (!this._selectedSet.has(idx)) {
+          if (!this.multi) {
+            this._selectedSet.clear();
           }
-        } else {
-          if (this.toggle && item == this.selected) {
-            this.deselect();
+          this._selectedSet.add(idx);
+          this._updateLinks();
+          let item = this.items[idx];
+          if (this.multi) {
+            this.push('selected', item);
           } else {
-            this.selected = item;
-            this.selectedItem = item;
-            this.linkPaths('selected', 'items.' + idx);
-            this.linkPaths('selectedItem', 'items.' + idx);
+            this.selected = this.selectedItem = item;
           }
+        } else if (this.toggle) {
+          this.deselectIndex(idx);
         }
       }
 
