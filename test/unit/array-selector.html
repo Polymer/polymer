@@ -70,13 +70,13 @@ suite('single selection', function() {
     assert.isTrue(el.isSelected(el.items[0]));
     assert.isFalse(el.isSelected(el.items[1]));
     assert.isFalse(el.isSelected(el.items[2]));
-    // Select 2
-    el.select(el.items[2]);
+    // Select 2 (using index-based API)
+    el.selectIndex(2);
     assert.strictEqual(el.selected, el.items[2]);
     assert.strictEqual(el.selectedItem, el.items[2]);
-    assert.isFalse(el.isSelected(el.items[0]));
-    assert.isFalse(el.isSelected(el.items[1]));
-    assert.isTrue(el.isSelected(el.items[2]));
+    assert.isFalse(el.isIndexSelected(0));
+    assert.isFalse(el.isIndexSelected(1));
+    assert.isTrue(el.isIndexSelected(2));
     // Toggle 2
     el.toggle = true;
     el.select(el.items[2]);
@@ -259,12 +259,12 @@ suite('multi selection', function() {
     assert.isTrue(el.isSelected(el.items[0]));
     assert.isFalse(el.isSelected(el.items[1]));
     assert.isFalse(el.isSelected(el.items[2]));
-    // Select 2
-    el.select(el.items[2]);
+    // Select 2 (using index-based API)
+    el.selectIndex(2);
     assert.sameMembers(el.selected, [el.items[0], el.items[2]]);
-    assert.isTrue(el.isSelected(el.items[0]));
-    assert.isFalse(el.isSelected(el.items[1]));
-    assert.isTrue(el.isSelected(el.items[2]));
+    assert.isTrue(el.isIndexSelected(0));
+    assert.isFalse(el.isIndexSelected(1));
+    assert.isTrue(el.isIndexSelected(2));
     // Toggle 2
     el.toggle = true;
     el.select(el.items[2]);
@@ -507,6 +507,67 @@ suite('corner cases', function() {
     el.multi = false;
     assert.equal(el.selected, null);
     assert.equal(el.selectedItem, null);
+  });
+
+  test('reset mutated array with gaps resulting in multiple splices', function() {
+    var bind = fixture('bind');
+    let i = bind.items = [
+      {name: '0'}, {name: '1'}, {name: '2'}, {name: '3'},
+      {name: '4'}, {name: '5'}, {name: '6'}, {name: '7'}
+    ];
+    bind.$.multiBound.selectIndex(2);
+    bind.$.multiBound.selectIndex(6);
+    bind.$.multiBound.selectIndex(1);
+    bind.$.multiBound.selectIndex(5);
+    bind.$.multiBound.selectIndex(0);
+    bind.$.multiBound.selectIndex(4);
+    assert.sameMembers(bind.$.multiBound.selected, [i[2], i[6], i[1], i[5], i[0], i[4]]);
+    bind.$.observer.multiChanged = sinon.spy();
+    bind.set('items.4.name', 'changed1');
+    assert.isTrue(bind.$.observer.multiChanged.calledOnce);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].path, 'multiSelected.5.name');
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value, 'changed1');
+
+    bind.items = [
+      i[0], i[3], i[4], i[7]
+    ];
+    assert.sameMembers(bind.$.multiBound.selected, [i[0], i[4]]);
+    bind.$.observer.multiChanged = sinon.spy();
+    bind.set('items.2.name', 'changed2');
+    assert.isTrue(bind.$.observer.multiChanged.calledOnce);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].path, 'multiSelected.1.name');
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value, 'changed2');
+  });
+
+  // Current algorithm does not handle reordering array while maintaining selection state
+  test.skip('reset mutated array reordered resulting in multiple splices', function() {
+    var bind = fixture('bind');
+    let i = bind.items = [
+      {name: '0'}, {name: '1'}, {name: '2'}, {name: '3'},
+      {name: '4'}, {name: '5'}, {name: '6'}, {name: '7'}
+    ];
+    bind.$.multiBound.selectIndex(2);
+    bind.$.multiBound.selectIndex(6);
+    bind.$.multiBound.selectIndex(1);
+    bind.$.multiBound.selectIndex(5);
+    bind.$.multiBound.selectIndex(0);
+    bind.$.multiBound.selectIndex(4);
+    assert.sameMembers(bind.$.multiBound.selected, [i[2], i[6], i[1], i[5], i[0], i[4]]);
+    bind.$.observer.multiChanged = sinon.spy();
+    bind.set('items.4.name', 'changed1');
+    assert.isTrue(bind.$.observer.multiChanged.calledOnce);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].path, 'multiSelected.5.name');
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value, 'changed1');
+
+    bind.items = [
+      i[4], i[5], i[6], i[7], i[0], i[1], i[2], i[3]
+    ];
+    assert.sameMembers(bind.$.multiBound.selected, [i[2], i[6], i[1], i[5], i[0], i[4]]);
+    bind.$.observer.multiChanged = sinon.spy();
+    bind.set('items.0.name', 'changed2');
+    assert.isTrue(bind.$.observer.multiChanged.calledOnce);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].path, 'multiSelected.5.name');
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value, 'changed2');
   });
 
 });
