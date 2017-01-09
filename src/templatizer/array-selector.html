@@ -69,35 +69,6 @@ is false, `selected` is a property representing the last selected item.  When
 <script>
 (function() {
 
-  // Limited polyfill of `Set` that accepts integer values backed by Object
-  // and relying on for/in iterating keys in insertion order ('.' prefix
-  // ensures insertion order on modern browsers, as integers are treated specially)
-  let IntegerSet = window.Set || class IntegerSet {
-    constructor() {
-      this.clear();
-    }
-    add(value) {
-      this._set['.' + value] = true;
-    }
-    delete(value) {
-      if (this.has(value)) {
-        delete this._set['.' + value];
-        return true;
-      }
-    }
-    has(value) {
-      return Boolean(this._set['.' + value]);
-    }
-    forEach(cb) {
-      for (let k in this._set) {
-        cb(parseInt(k.slice(1)));
-      }
-    }
-    clear() {
-      this._set = {};
-    }
-  }
-
   let ArraySelectorMixin = Polymer.Utils.dedupingMixin(superClass => {
 
     return class extends superClass {
@@ -187,44 +158,52 @@ is false, `selected` is a property representing the last selected item.  When
       }
 
       _applySplices(splices) {
-        let toRemove = [];
+        let selected = this._selectedMap;
         for (let i=0; i<splices.length; i++) {
-          let removed = []
           let s = splices[i];
-          let selected = new IntegerSet();
-          let sidx = 0;
-          this._selectedSet.forEach(idx => {
+          selected.forEach((idx, item) => {
             if (idx < s.index) {
-              selected.add(idx);
+              selected.set(item, idx);
             } else if (idx >= s.index + s.removed.length) {
-              selected.add(idx + s.addedCount - s.removed.length);
+              selected.set(item, idx + s.addedCount - s.removed.length);
             } else {
-              removed.unshift(sidx);
+              selected.set(item, -1);
             }
-            sidx++;
           });
-          toRemove = toRemove.concat(removed);
-          this._selectedSet = selected;
-        }
-        this._updateLinks();
-        for (let i=0; i<toRemove.length; i++) {
-          if (this.multi) {
-            this.splice('selected', toRemove[i], 1);
-          } else {
-            this.selected = this.selectedItem = null;
+          for (let j=0; j<s.addedCount; j++) {
+            let idx = s.index + j;
+            if (selected.has(this.items[idx])) {
+              selected.set(this.items[idx], idx);
+            }
           }
         }
+        this._updateLinks();
+        let sidx = 0;
+        selected.forEach((idx, item) => {
+          if (idx < 0) {
+            if (this.multi) {
+              this.splice('selected', sidx, 1);
+            } else {
+              this.selected = this.selectedItem = null;
+            }
+            selected.delete(item);
+          } else {
+            sidx++;
+          }
+        });
       }
 
       _updateLinks() {
         this.__dataLinkedPaths = {};
         if (this.multi) {
           let sidx = 0;
-          this._selectedSet.forEach(idx => {
-            this.linkPaths('items.' + idx, 'selected.' + sidx++);
+          this._selectedMap.forEach(idx => {
+            if (idx >= 0) {
+              this.linkPaths('items.' + idx, 'selected.' + sidx++);
+            }
           });      
         } else {
-          this._selectedSet.forEach(idx => {
+          this._selectedMap.forEach(idx => {
             this.linkPaths('selected', 'items.' + idx);
             this.linkPaths('selectedItem', 'items.' + idx);
           });
@@ -239,7 +218,7 @@ is false, `selected` is a property representing the last selected item.  When
       clearSelection() {
         // Unbind previous selection
         this.__dataLinkedPaths = {};
-        this._selectedSet = new IntegerSet();
+        this._selectedMap = new Map();
         // Initialize selection
         this.selected = this.multi ? [] : null
         this.selectedItem = null;
@@ -268,7 +247,7 @@ is false, `selected` is a property representing the last selected item.  When
        * @return {boolean} Whether the item is selected
        */
       isIndexSelected(idx) {
-        return this._selectedSet.has(idx);
+        return this._selectedMap.has(this.items[idx]);
       }
 
       /**
@@ -288,7 +267,7 @@ is false, `selected` is a property representing the last selected item.  When
        * @param {number} index Index from `items` array to deselect
        */
       deselectIndex(idx) {
-        if (this._selectedSet.delete(idx)) {
+        if (this._selectedMap.delete(this.items[idx])) {
           let sidx;
           if (this.multi) {
             sidx = parseInt(this.__dataLinkedPaths['items.' + idx].slice('selected.'.length));
@@ -321,11 +300,11 @@ is false, `selected` is a property representing the last selected item.  When
        * @param {number} index Index from `items` array to select
        */
       selectIndex(idx) {
-        if (!this._selectedSet.has(idx)) {
+        if (!this._selectedMap.has(this.items[idx])) {
           if (!this.multi) {
-            this._selectedSet.clear();
+            this._selectedMap.clear();
           }
-          this._selectedSet.add(idx);
+          this._selectedMap.set(this.items[idx], idx);
           this._updateLinks();
           let item = this.items[idx];
           if (this.multi) {
