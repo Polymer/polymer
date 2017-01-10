@@ -8,10 +8,9 @@
  * subject to an additional IP rights grant found at http:polymer.github.io/PATENTS.txt
  */
 
-// jshint node: true
+/* eslint-env node */
 'use strict';
 
-/* global require */
 const gulp = require('gulp');
 const gulpif = require('gulp-if');
 const audit = require('gulp-audit');
@@ -46,6 +45,8 @@ const htmlmin = require('gulp-htmlmin');
 const gzipSize = require('gzip-size');
 const prettyBytes = require('pretty-bytes');
 
+const lazypipe = require('lazypipe');
+
 const closure = require('google-closure-compiler').gulp();
 
 gulp.task('clean', function () {
@@ -57,27 +58,35 @@ const {Transform} = require('stream');
 class LogStream extends Transform {
   constructor(prefix) {
     super({objectMode: true});
-    this.prefix = prefix;
+    this.prefix = `${prefix || ''}:`;
   }
   _transform(file, enc, cb) {
-    console.log(`${this.prefix}: ${file.path}`);
+    console.log(this.prefix, file.path);
     cb(null, file);
-  }
-  _flush(cb) {
-    cb();
   }
 }
 
-class FilterStream extends Transform {
-  constructor() {
+class OldNameStream extends Transform {
+  constructor(closureStream) {
     super({objectMode: true});
+    this.fileList = closureStream.fileList_;
   }
   _transform(file, enc, cb) {
-    if (file.path.match(/polymer\.html_script_\d+\.js$/)) {
-      cb(null, file);
-    } else {
-      cb(null, null);
+    const origFile = this.fileList.shift();
+    // console.log(`rename ${file.path} -> ${origFile.path}`)
+    file.path = origFile.path;
+    cb(null, file);
+  }
+  _flush(cb) {
+    if (this.fileList.length > 0) {
+      this.fileList.forEach((oldFile) => {
+        // console.log(`pumping fake file ${oldFile.path}`)
+        let newFile = oldFile.clone({deep: true, contents: false});
+        newFile.contents = new Buffer('');
+        this.push(newFile);
+      })
     }
+    cb();
   }
 }
 
@@ -90,12 +99,15 @@ gulp.task('build', ['clean'], () => {
     language_in: 'ES6_STRICT',
     language_out: 'ES5_STRICT',
     warning_level: 'VERBOSE',
-    js_output_file: 'polymer.js',
-    output_wrapper: `${require('fs').readFileSync('LICENSE.txt')}\n(function(){\n%output%\n}).call(self)`,
+    output_wrapper: '(function(){\n%output%\n}).call(self)',
     rewrite_polyfills: false,
     formatting: 'PRETTY_PRINT',
     externs: ['externs/externs.js']
   });
+
+  const closurePipeline = lazypipe()
+    .pipe(() => closureStream)
+    .pipe(() => new OldNameStream(closureStream))
 
   // process source files in the project
   const sources = project.sources()
@@ -109,8 +121,8 @@ gulp.task('build', ['clean'], () => {
   return mergedFiles
     .pipe(project.bundler)
     .pipe(project.splitHtml())
-    .pipe(new FilterStream())
-    .pipe(closureStream)
+    .pipe(gulpif(/polymer\.html_script_\d+\.js$/, closurePipeline()))
+    .pipe(project.rejoinHtml())
     .pipe(gulp.dest(BUNDLED_DIR))
 });
 
