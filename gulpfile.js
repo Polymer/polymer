@@ -55,36 +55,27 @@ gulp.task('clean', function () {
 
 const {Transform} = require('stream');
 
-class LogStream extends Transform {
-  constructor(prefix) {
-    super({objectMode: true});
-    this.prefix = `${prefix || ''}:`;
-  }
-  _transform(file, enc, cb) {
-    console.log(this.prefix, file.path);
-    cb(null, file);
-  }
-}
-
 class OldNameStream extends Transform {
-  constructor(closureStream) {
+  constructor(fileList) {
     super({objectMode: true});
-    this.fileList = closureStream.fileList_;
+    this.fileList = fileList;
   }
   _transform(file, enc, cb) {
-    const origFile = this.fileList.shift();
-    // console.log(`rename ${file.path} -> ${origFile.path}`)
-    file.path = origFile.path;
+    if (this.fileList) {
+      const origFile = this.fileList.shift();
+      // console.log(`rename ${file.path} -> ${origFile.path}`)
+      file.path = origFile.path;
+    }
     cb(null, file);
   }
   _flush(cb) {
-    if (this.fileList.length > 0) {
+    if (this.fileList && this.fileList.length > 0) {
       this.fileList.forEach((oldFile) => {
         // console.log(`pumping fake file ${oldFile.path}`)
         let newFile = oldFile.clone({deep: true, contents: false});
         newFile.contents = new Buffer('');
         this.push(newFile);
-      })
+      });
     }
     cb();
   }
@@ -93,6 +84,7 @@ class OldNameStream extends Transform {
 gulp.task('build', ['clean'], () => {
 
   const closureStream = closure({
+    // debug: true,
     // new_type_inf: true,
     compilation_level: 'ADVANCED',
     // compilation_level: 'SIMPLE',
@@ -107,7 +99,7 @@ gulp.task('build', ['clean'], () => {
 
   const closurePipeline = lazypipe()
     .pipe(() => closureStream)
-    .pipe(() => new OldNameStream(closureStream))
+    .pipe(() => new OldNameStream(closureStream.fileList_))
 
   // process source files in the project
   const sources = project.sources()

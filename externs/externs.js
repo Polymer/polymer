@@ -1,4 +1,5 @@
 window.Polymer = {};
+
 function Polymer(){}
 
 let customElements = {
@@ -13,8 +14,6 @@ let HTMLImports = {
 };
 
 window.HTMLImports = HTMLImports;
-
-let addEventListener = window.addEventListener;
 
 let ShadyCSS = {
   applyStyle(){},
@@ -39,12 +38,25 @@ window.ShadyDOM = ShadyDOM;
 let WebComponents = {};
 window.WebComponents = WebComponents;
 
-Event.prototype.composed = false;
-
-HTMLElement.prototype.attachShadow = function(){};
+/**
+ * @type {boolean}
+ */
+Event.prototype.composed;
 
 /**
- * @record
+ * @return {!Array<!(Element|ShadowRoot|Document|Window)>}
+ */
+Event.prototype.composedPath = function(){};
+
+/**
+ * @param {!{mode: string}} options
+ * @return {!ShadowRoot}
+ */
+HTMLElement.prototype.attachShadow = function(options){};
+
+/**
+ * @constructor
+ * @extends {HTMLElement}
  */
 function CustomStyle(){}
 /**
@@ -57,13 +69,13 @@ CustomStyle.prototype.processHook = function(style){};
  */
 function CustomElement(){}
 /**
- * @type {Array<string> | undefined}
+ * @type {!Array<string> | undefined}
  */
 CustomElement.observedAttributes;
 CustomElement.prototype.connectedCallback = function(){};
 CustomElement.prototype.disconnectedCallback = function(){};
 /**
- * @param {!string} attributeName
+ * @param {string} attributeName
  * @param {?string} oldValue
  * @param {?string} newValue
  * @param {?string} namespaceURI
@@ -72,12 +84,41 @@ CustomElement.prototype.attributeChangedCallback = function(attributeName, oldVa
 
 /**
  * @constructor
- * @extends HTMLElement
+ * @extends {HTMLElement}
  */
 function HTMLSlotElement(){}
 
 /**
- * @param {{flatten: boolean} | undefined} options
- * @return {Array<Node>}
+ * @param {!{flatten: boolean} | undefined} options
+ * @return {!Array<!Node>}
  */
 HTMLSlotElement.prototype.assignedNodes = function(options){};
+
+/**
+ * @type {HTMLSlotElement}
+ */
+Node.prototype.assignedSlot;
+
+/**
+ * @constructor
+ */
+function InputDeviceCapabilities(){}
+/**
+ * @type {boolean}
+ */
+InputDeviceCapabilities.prototype.firesTouchEvents;
+
+/**
+ * @type {InputDeviceCapabilities}
+ */
+MouseEvent.prototype.sourceCapabilities;
+
+/**
+ * @type {Element}
+ */
+HTMLElement.prototype._activeElement;
+
+/**
+ * @param {HTMLTemplateElement} template
+ */
+HTMLTemplateElement.prototype.decorate = function(template){};

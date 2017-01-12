@@ -12,55 +12,69 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="async.html">
 
 <script>
+class Debouncer {
 
-Polymer.Debouncer = function Debouncer(context) {
-  this.context = context;
-  var self = this;
-  this.boundFlush = function() {
-    self.flush();
-  };
-};
+  constructor(context) {
+    this.context = context;
+    /** @type {Function} */
+    this.finish;
+    /** @type {Function} */
+    this.callback;
+    this.boundFlush = () => {this.flush()};
+  }
 
-Polymer.Utils.mixin(Polymer.Debouncer.prototype, {
-
-  go: function(callback, wait) {
-    var h;
+  /**
+   * @param {Function} callback
+   * @param {?number=} wait
+   */
+  go(callback, wait) {
+    let cancelToken;
     this.finish = function() {
-      Polymer.Async.cancel(h);
+      Polymer.Async.cancel(cancelToken);
     };
-    h = Polymer.Async.run(this.boundFlush, wait);
+    cancelToken = Polymer.Async.run(this.boundFlush, wait);
     this.callback = callback;
-  },
+  }
 
-  cancel: function() {
+  cancel() {
     if (this.finish) {
       this.finish();
       this.finish = null;
     }
-  },
+  }
 
-  flush: function() {
+  flush() {
     if (this.finish) {
       this.cancel();
       this.callback.call(this.context);
     }
-  },
+  }
 
-  isActive: function() {
+  /**
+   * @return {boolean}
+   */
+  isActive() {
     return Boolean(this.finish);
   }
 
-});
-
-Polymer.Debouncer.debounce = function(debouncer, callback, wait, context) {
-  context = context || this;
-  if (debouncer) {
-    debouncer.cancel();
-  } else {
-    debouncer = new Polymer.Debouncer(context);
+    /**
+   * @param {Debouncer} debouncer
+   * @param {Function} callback
+   * @param {?number=} wait
+   * @param {Object=} context
+   * @return {Debouncer}
+   */
+  static debounce(debouncer, callback, wait, context) {
+    context = context || this;
+    if (debouncer) {
+      debouncer.cancel();
+    } else {
+      debouncer = new Debouncer(context);
+    }
+    debouncer.go(callback, wait);
+    return debouncer;
   }
-  debouncer.go(callback, wait);
-  return debouncer;
-};
+}
 
+Polymer.Debouncer = Debouncer;
 </script>
