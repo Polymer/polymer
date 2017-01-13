@@ -13,7 +13,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/case-map.html">
 <link rel="import" href="../events/event-listeners.html">
 <link rel="import" href="../template/template-stamp.html">
-<link rel="import" href="../properties/batched-effects.html">
+<link rel="import" href="../properties/property-effects.html">
 <link rel="import" href="../styling/style-gather.html">
 <link rel="import" href="../styling/style-util.html">
 
@@ -39,7 +39,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.ElementMixin = Polymer.Utils.cachingMixin(function(base) {
 
-    return class PolymerElement extends Polymer.BatchedEffects(base) {
+    return class PolymerElement extends Polymer.PropertyEffects(base) {
 
       // returns the config object on specifically on `this` class (not super)
       // config is used for:
@@ -241,7 +241,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * to an attribute of the same name. Note, the attribute is dash-cased
        * so a property named 'fooBar' is reflected as 'foo-bar'.
        *
-       * * notify: {boolean} sends a non-bubbline notification event when
+       * * notify: {boolean} sends a non-bubbling notification event when
        * the property changes. For example, a property named 'foo' sends an
        * event named 'foo-changed' with `event.detail` set to the value of
        * the property.
@@ -291,8 +291,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // reserved for canonical behavior
       connectedCallback() {
         if (hostStack.isEmpty()) {
-          this._flushProperties();
+          // note, this should never recurse to root elements; this will
+          // need new ShadyCSS api
+          // (see https://github.com/webcomponents/shadycss/issues/42)
           this.updateStyles();
+          this._flushProperties();
         }
       }
 
@@ -341,10 +344,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       attributeChangedCallback(name, old, value) {
-        let property = caseMap.dashToCamelCase(name);
-        let type = this.constructor._flattenedProperties[property].type;
-        if (!this._hasReadOnlyEffect(property)) {
-          this._attributeToProperty(name, value, type);
+        if (old !== value) {
+          let property = caseMap.dashToCamelCase(name);
+          let type = this.constructor._flattenedProperties[property].type;
+          if (!this._hasReadOnlyEffect(property)) {
+            this._attributeToProperty(name, value, type);
+          }
         }
       }
 

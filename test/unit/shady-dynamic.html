@@ -714,7 +714,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function createEnabledElement(tag) {
     var e = document.createElement(tag);
     document.body.appendChild(e);
-    CustomElements.takeRecords();
+    if (customElements.flush) {
+      customElements.flush();
+    }
     document.body.removeChild(e);
     return e;
   }
@@ -739,8 +741,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   suiteSetup(function() {
     testElement = document.querySelector('x-test');
-    ShadyDOM.patch(document);
-    ShadyDOM.patch(document.body);
   });
 
   test('querySelector (local)', function() {
@@ -793,7 +793,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   test('querySelectorAll with dom-repeat', function() {
     var el = document.createElement('polymer-dom-repeat');
     document.body.appendChild(el);
-    CustomElements.takeRecords();
+    if (customElements.flush) {
+      customElements.flush();
+    }
     el.$.repeater.render();
     ShadyDOM.flush();
     assert.equal(el.$.container.querySelectorAll('*').length, 7, 'querySelectorAll finds repeated elements');
@@ -1278,7 +1280,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   });
 
   test('childNodes is an array', function() {
-    assert.isTrue(Array.isArray(document.body.childNodes));
+    var test = document.querySelector('x-test');
+    assert.isTrue(Array.isArray(test.childNodes));
   });
 
   test('cloneNode shallow', function() {
@@ -1334,7 +1337,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       assert.equal(a.offsetHeight, 540);
       done();
     }
-    // note: CustomElements.takeRecords doesn't process all mutations under
+    // note: customElements.flush() doesn't process all mutations under
     // SD polyfill and therefore we have no measurement guarantee in that case.
     if (Polymer.Settings.useShadow && !Polymer.Settings.useNativeShadow) {
       setTimeout(testHeight);
@@ -1811,9 +1814,12 @@ suite('activeElement', function() {
   test('setting activeElement on document has no effect', function() {
     r_1_1.focus();
 
-    assert.throws(function() {
+    // throws on some browsers only
+    try {
       document.activeElement = "abc";
-    });
+    } catch(e) {
+      // no need to do anything
+    }
     assert.equal(document._activeElement, r, 'document.activeElement === r');
     assert.equal(r.root.activeElement, r_1, 'r.root.activeElement === r_1');
     assert.equal(r_0.root.activeElement, null, 'r_0.root.activeElement === null');
@@ -1827,9 +1833,12 @@ suite('activeElement', function() {
   test('setting activeElement on a shadow root has no effect', function() {
     r_1_1.focus();
 
-    assert.throws(function() {
+    // throws on some browsers only
+    try {
       r_1.root.activeElement = "abc";
-    });
+    } catch(e) {
+      // no need to do anything
+    }
     assert.equal(document._activeElement, r, 'document.activeElement === r');
     assert.equal(r.root.activeElement, r_1, 'r.root.activeElement === r_1');
     assert.equal(r_0.root.activeElement, null, 'r_0.root.activeElement === null');
@@ -1901,7 +1910,9 @@ suite('non-distributed elements', function() {
     // test with x-distribute
     var d = document.createElement('x-distribute');
     document.body.appendChild(d);
-    CustomElements.takeRecords();
+    if (customElements.flush) {
+      customElements.flush();
+    }
     var child = document.createElement('div');
     child.classList.add('child');
     child.textContent = 'Child';
@@ -1942,7 +1953,6 @@ suite('non-distributed elements', function() {
 
   test('getRootNode when out of tree', function() {
     var test = document.createElement('div');
-    ShadyDOM.patch(test);
     assert.equal(test.getRootNode(), test, 'getOwnerRoot incorrect when not in root');
     var c1 = createEnabledElement('x-compose');
     var project = c1.$.project;
@@ -1960,9 +1970,8 @@ suite('non-distributed elements', function() {
   test('getRootNode when out of tree and adding subtree', function() {
     var container = document.createDocumentFragment();
     var test = document.createElement('div');
-    ShadyDOM.patch(test);
     container.appendChild(test);
-    assert.equal(test.getRootNode(), test, 'getOwnerRoot incorrect when not in root');
+    assert.equal(test.getRootNode(), container, 'getOwnerRoot incorrect when not in root');
     var c1 = createEnabledElement('x-compose');
     var project = c1.$.project;
     project.appendChild(container);
@@ -1978,9 +1987,7 @@ suite('non-distributed elements', function() {
 
   test('getRootNode, subtree', function() {
     var test = document.createElement('div');
-    ShadyDOM.patch(test);
     var testChild = document.createElement('div');
-    ShadyDOM.patch(testChild);
     test.appendChild(testChild);
     assert.equal(test.getRootNode(), test, 'getOwnerRoot incorrect when not in root');
     var c1 = createEnabledElement('x-compose');
@@ -2016,16 +2023,8 @@ suite('non-distributed elements', function() {
     assert.equal(test.getRootNode(), c1, 'getOwnerRoot incorrect for child moved from a root to no root');
   });
 
-  test('getDistributedNodes on non-content element', function() {
-    var d = document.createElement('div');
-    ShadyDOM.patch(d);
-    assert.equal(d.assignedNodes({flatten: true}).length, 0);
-        assert.equal(document.assignedNodes({flatten: true}).length, 0);
-  });
-
   test('getDestinationInsertionPoints on non-distributable element', function() {
     var d = document.createElement('div');
-    ShadyDOM.patch(d);
     assert.equal(allInsertionPoints(d).length, 0);
     assert.equal(allInsertionPoints(document).length, 0);
   });
