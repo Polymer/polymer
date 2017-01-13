@@ -94,7 +94,8 @@ gulp.task('build', ['clean'], () => {
     output_wrapper: '(function(){\n%output%\n}).call(self)',
     rewrite_polyfills: false,
     formatting: 'PRETTY_PRINT',
-    externs: ['externs/externs.js']
+    externs: 'externs/externs.js'
+    // polymer_pass: true
   });
 
   const closurePipeline = lazypipe()

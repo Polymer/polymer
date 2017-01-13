@@ -1,16 +1,51 @@
-window.Polymer = {};
+/**
+ * @fileoverview Externs for Polymer, polyfills, and missing stuff in Closure Compiler
+ * @externs
+ * */
+/**
+ * @param {!{is: string}} init
+ */
+function Polymer(init){}
 
-function Polymer(){}
+/**
+ * @record
+ */
+function CustomElement(){}
+/** @type {!Array<string> | undefined} */
+CustomElement.observedAttributes;
+/** @type {function()|undefined} */
+CustomElement.prototype.connectedCallback;
+/** @type {function()|undefined} */
+CustomElement.prototype.disconnectedCallback;
+/** @type {function(string, ?string, ?string, ?string)|undefined} */
+CustomElement.prototype.attributeChangedCallback;
 
-let customElements = {
-  define(){},
-  get(){},
-  whenDefined(){}
+const customElements = {
+  /**
+   * @param {string} tagName
+   * @param {!CustomElement} klass
+   * @param {Object=} options
+   * @return {CustomElement}
+   */
+  define(tagName, klass, options){},
+  /**
+   * @param {string} tagName
+   * @return {CustomElement}
+   */
+  get(tagName){},
+  /**
+   * @param {string} tagName
+   * @return {Promise<!CustomElement>}
+   */
+  whenDefined(tagName){}
 }
 window.customElements = customElements;
 
 let HTMLImports = {
-  whenReady(){}
+  /**
+   * @param {function()} callback
+   */
+  whenReady(callback){}
 };
 
 window.HTMLImports = HTMLImports;
@@ -63,24 +98,6 @@ function CustomStyle(){}
  * @param {!HTMLStyleElement} style
  */
 CustomStyle.prototype.processHook = function(style){};
-
-/**
- * @record
- */
-function CustomElement(){}
-/**
- * @type {!Array<string> | undefined}
- */
-CustomElement.observedAttributes;
-CustomElement.prototype.connectedCallback = function(){};
-CustomElement.prototype.disconnectedCallback = function(){};
-/**
- * @param {string} attributeName
- * @param {?string} oldValue
- * @param {?string} newValue
- * @param {?string} namespaceURI
- */
-CustomElement.prototype.attributeChangedCallback = function(attributeName, oldValue, newValue, namespaceURI){};
 
 /**
  * @constructor
