@@ -7,7 +7,7 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="../elements/legacy-element.html">
+<link rel="import" href="legacy-api.html">
 <link rel="import" href="../utils/utils.html">
 <script>
 
@@ -16,7 +16,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     'use strict';
 
     let utils = Polymer.Utils;
-    let LegacyElementMixin = Polymer.LegacyElementMixin;
+    let LegacyApiMixin = Polymer.LegacyApiMixin;
 
     let metaProps = {
       attached: true,
@@ -38,6 +38,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!behaviors) {
         return klass;
       }
+      klass = LegacyApiMixin(klass);
       if (!Array.isArray(behaviors)) {
         behaviors = [behaviors];
       }
@@ -109,6 +110,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         generatedFrom: info
       };
 
+      let registered = false;
+
       class PolymerGenerated extends Base {
 
         static get config() {
@@ -119,16 +122,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return info._template || super.template || this.prototype._template;
         }
 
-        _invokeFunction(fn, args) {
-          if (fn) {
-            fn.apply(this, args);
+        constructor() {
+          super();
+          if (info.created) {
+            info.created.call(this);
           }
         }
 
         _initializeProperties() {
           // call `registered` only if it was not called for *this* constructor
-          if (!PolymerGenerated.hasOwnProperty('__registered')) {
-            PolymerGenerated.__registered = true;
+          if (!registered) {
+            registered = true;
             if (info.registered) {
               info.registered.call(Object.getPrototypeOf(this));
             }
@@ -136,40 +140,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           super._initializeProperties();
         }
 
-        created() {
-          super.created();
-          this._invokeFunction(info.created);
-        }
-
-        _applyListeners() {
-          super._applyListeners();
-          this._applyConfigListeners(info);
-        }
-
-        _ensureAttributes() {
-          // ensure before calling super so that subclasses can override defaults
-          this._ensureConfigAttributes(info);
-          super._ensureAttributes();
-        }
-
         ready() {
+          // apply listeners
+          if (info.listeners) {
+            for (let l in info.listeners) {
+              this._addMethodEventListenerToNode(this, l, info.listeners[l]);
+            }
+          }
+          if (info.hostAttributes) {
+            for (let a in info.hostAttributes) {
+              this._ensureAttribute(a, info.hostAttributes[a]);
+            }
+          }
           super.ready();
-          this._invokeFunction(info.ready);
+          if (info.ready) {
+            info.ready.call(this);
+          }
         }
 
-        attached() {
-          super.attached();
-          this._invokeFunction(info.attached);
+        connectedCallback() {
+          this.isAttached = true;
+          super.connectedCallback();
+          if (info.attached) {
+            info.attached.call(this);
+          }
         }
 
-        detached() {
-          super.detached();
-          this._invokeFunction(info.detached);
+        disconnectedCallback() {
+          this.isAttached = false;
+          super.disconnectedCallback();
+          if (info.detached) {
+            info.detached.call(this);
+          }
         }
 
-        attributeChanged(name, old, value) {
-          super.attributeChanged(name, old, value);
-          this._invokeFunction(info.attributeChanged, [name, old, value]);
+        attributeChangedCallback(name, old, value) {
+          if (old !== value) {
+            super.attributeChangedCallback(name, old, value);
+            if (info.attributeChanged) {
+              info.attributeChanged.call(this, name, old, value);
+            }
+
+          }
         }
       }
 
@@ -210,9 +222,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!info) {
         Polymer._warn('Polymer.Class requires `info` argument');
       }
-      let klass = LegacyElementMixin(getNativeConstructor(info.extends));
+      let klass = getNativeConstructor(info.extends);
       if (info.behaviors) {
+        // note: mixinBehaviors ensures `LegacyApiMixin`.
         klass = mixinBehaviors(info.behaviors, klass);
+      } else {
+        klass = LegacyApiMixin(getNativeConstructor(info.extends));
       }
       klass = GenerateClassFromInfo(info, klass);
       // decorate klass with registration info
