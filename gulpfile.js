@@ -20,10 +20,18 @@ const del = require('del');
 const eslint = require('gulp-eslint');
 const fs = require('fs');
 const path = require('path');
+const mergeStream = require('merge-stream');
+const babel = require('gulp-babel');
+const htmlmin = require('gulp-htmlmin');
+const size = require('gulp-size');
+const lazypipe = require('lazypipe');
+const closure = require('google-closure-compiler').gulp();
+const minimalDocument = require('./util/minimalDocument.js')
 
 const DIST_DIR = 'dist';
 const BUNDLED_DIR = path.join(DIST_DIR, 'bundled');
 const UNBUNDLED_DIR = path.join(DIST_DIR, 'unbundled');
+const COMPILED_DIR = path.join(DIST_DIR, 'compiled');
 const DEFAULT_BUILD_DIR = BUNDLED_DIR;
 const POLYMER_LEGACY = 'polymer.html';
 const POLYMER_ELEMENT = 'polymer-element.html';
@@ -32,24 +40,10 @@ const ENTRY_POINTS = [POLYMER_LEGACY, POLYMER_ELEMENT];
 
 const polymer = require('polymer-build');
 const PolymerProject = polymer.PolymerProject;
-const project = new PolymerProject({
-  sources: ['./polymer.html'],
-  shell: './polymer.html'
-});
+const project = new PolymerProject({ shell: DEFAULT_BUILD_TARGET });
 const fork = polymer.forkStream;
 
-const mergeStream = require('merge-stream');
-const babel = require('gulp-babel');
-const uglify = require('gulp-uglify');
-const htmlmin = require('gulp-htmlmin');
-const gzipSize = require('gzip-size');
-const prettyBytes = require('pretty-bytes');
-
-const lazypipe = require('lazypipe');
-
-const closure = require('google-closure-compiler').gulp();
-
-gulp.task('clean', function () {
+gulp.task('clean', function() {
   return del(DIST_DIR);
 });
 
@@ -81,21 +75,21 @@ class OldNameStream extends Transform {
   }
 }
 
-gulp.task('build', ['clean'], () => {
+gulp.task('closure', ['clean'], () => {
+
+  const project = new PolymerProject({
+    sources: ['./polymer.html'],
+    shell: './polymer.html'
+  });
 
   const closureStream = closure({
-    // debug: true,
-    // new_type_inf: true,
     compilation_level: 'ADVANCED',
-    // compilation_level: 'SIMPLE',
     language_in: 'ES6_STRICT',
     language_out: 'ES5_STRICT',
     warning_level: 'VERBOSE',
     output_wrapper: '(function(){\n%output%\n}).call(self)',
     rewrite_polyfills: false,
-    formatting: 'PRETTY_PRINT',
     externs: 'externs/externs.js'
-    // polymer_pass: true
   });
 
   const closurePipeline = lazypipe()
@@ -116,26 +110,65 @@ gulp.task('build', ['clean'], () => {
     .pipe(project.splitHtml())
     .pipe(gulpif(/polymer\.html_script_\d+\.js$/, closurePipeline()))
     .pipe(project.rejoinHtml())
-    .pipe(gulp.dest(BUNDLED_DIR))
+    .pipe(htmlmin({removeComments: true}))
+    .pipe(gulpif(/polymer\.html/, minimalDocument()))
+    .pipe(gulpif(/polymer\.html/, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
+    .pipe(gulp.dest(COMPILED_DIR))
+});
+
+gulp.task('build', ['clean'], () => {
+ // process source files in the project
+ const sources = project.sources();
+
+ // process dependencies
+ const dependencies = project.dependencies();
+
+ // merge the source and dependencies streams to we can analyze the project
+ const mergedFiles = mergeStream(sources, dependencies);
+
+ const bundlePipe = lazypipe()
+  .pipe(() => project.splitHtml())
+  .pipe(() => gulpif(/\.js$/, babel({presets: ['babili']})))
+  .pipe(() => project.rejoinHtml())
+  .pipe(htmlmin, {removeComments: true})
+  .pipe(minimalDocument)
+  .pipe(size, {title: 'bundled size', gzip: true, showTotal: false, showFiles: true})
+
+ return mergeStream(
+   fork(mergedFiles)
+    .pipe(project.bundler)
+    .pipe(gulpif(/polymer\.html/, bundlePipe()))
+    // write to the bundled folder
+    .pipe(gulp.dest(BUNDLED_DIR)),
+
+   fork(mergedFiles)
+    .pipe(project.splitHtml())
+    // add compilers or optimizers here!
+    .pipe(gulpif(/\.js$/, babel({presets: ['babili']})))
+    .pipe(project.rejoinHtml())
+    .pipe(htmlmin({removeComments: true}))
+    // write to the unbundled folder
+    .pipe(gulp.dest(UNBUNDLED_DIR))
+ );
 });
 
 // copy bower.json into dist folder
-gulp.task('copy-bower-json', function () {
+gulp.task('copy-bower-json', function() {
   return gulp.src('bower.json').pipe(gulp.dest(DEFAULT_BUILD_DIR));
 });
 
 // Build
-gulp.task('build-steps', function (cb) {
+gulp.task('build-steps', function(cb) {
   runseq('restore-src', 'build', 'print-size', cb);
 });
 
 // Bundled build
-gulp.task('build-bundled', function (cb) {
+gulp.task('build-bundled', function(cb) {
   runseq('build-steps', 'save-src', 'link-bundled', cb);
 });
 
 // Unbundled build
-gulp.task('build-unbundled', function (cb) {
+gulp.task('build-unbundled', function(cb) {
   runseq('build-steps', 'save-src', 'link-unbundled', cb);
 });
 
@@ -143,58 +176,49 @@ gulp.task('build-unbundled', function (cb) {
 gulp.task('default', ['build-bundled']);
 
 // switch src and build for testing
-gulp.task('save-src', function () {
+gulp.task('save-src', function() {
   return gulp.src(ENTRY_POINTS)
-    .pipe(rename(function (p) {
+    .pipe(rename(function(p) {
       p.extname += '.src';
     }))
     .pipe(gulp.dest('.'));
 });
 
-gulp.task('restore-src', function (cb) {
+gulp.task('restore-src', function(cb) {
   const files = ENTRY_POINTS.map(f => `${f}.src`);
   gulp.src(files)
-    .pipe(rename(function (p) {
+    .pipe(rename(function(p) {
       p.extname = '';
     }))
     .pipe(gulp.dest('.'))
     .on('end', () => Promise.all(files.map(f => del(f))).then(() => cb()));
 });
 
-gulp.task('link-bundled', function (cb) {
+gulp.task('link-bundled', function(cb) {
   ENTRY_POINTS.forEach(f => {
     fs.writeFileSync(f, `<link rel="import" href="${DEFAULT_BUILD_DIR}/${DEFAULT_BUILD_TARGET}">`);
   });
   cb();
 });
 
-gulp.task('link-unbundled', function (cb) {
+gulp.task('link-unbundled', function(cb) {
   ENTRY_POINTS.forEach(f => {
     fs.writeFileSync(f, `<link rel="import" href="${DEFAULT_BUILD_DIR}/${f}">`);
   });
   cb();
 });
 
-gulp.task('print-size', function (cb) {
-  fs.readFile(path.join(DEFAULT_BUILD_DIR, DEFAULT_BUILD_TARGET), function (err, contents) {
-    gzipSize(contents, function (err, size) {
-      console.log(`${DEFAULT_BUILD_TARGET} size: ${prettyBytes(size)}`);
-      cb();
-    });
-  });
-});
-
-gulp.task('audit', function () {
+gulp.task('audit', function() {
   return gulp.src(ENTRY_POINTS.map(f => path.join(DEFAULT_BUILD_DIR, f)))
     .pipe(audit('build.log', { repos: ['.'] }))
     .pipe(gulp.dest(DEFAULT_BUILD_DIR));
 });
 
-gulp.task('release', function (cb) {
+gulp.task('release', function(cb) {
   runseq('default', ['copy-bower-json', 'audit'], cb);
 });
 
-gulp.task('lint', function () {
+gulp.task('lint', function() {
   return gulp.src(['src/**/*.html', 'test/unit/*.html', 'util/*.js'])
     .pipe(eslint())
     .pipe(eslint.format())

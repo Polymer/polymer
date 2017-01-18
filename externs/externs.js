@@ -2,10 +2,8 @@
  * @fileoverview Externs for Polymer, polyfills, and missing stuff in Closure Compiler
  * @externs
  * */
-/**
- * @param {!{is: string}} init
- */
-function Polymer(init){}
+
+/* externs to upstream to closure compiler */
 
 /**
  * @record
@@ -20,12 +18,50 @@ CustomElement.prototype.disconnectedCallback;
 /** @type {function(string, ?string, ?string, ?string)|undefined} */
 CustomElement.prototype.attributeChangedCallback;
 
+/** @type {boolean} */
+Event.prototype.composed;
+
+/**
+ * @return {!Array<!(Element|ShadowRoot|Document|Window)>}
+ */
+Event.prototype.composedPath = function(){};
+
+/**
+ * @param {!{mode: string}} options
+ * @return {!ShadowRoot}
+ */
+HTMLElement.prototype.attachShadow = function(options){};
+
+/**
+ * @constructor
+ * @extends {HTMLElement}
+ */
+function HTMLSlotElement(){}
+
+/**
+ * @param {!{flatten: boolean}=} options
+ * @return {!Array<!Node>}
+ */
+HTMLSlotElement.prototype.assignedNodes = function(options){};
+
+/** @type {HTMLSlotElement} */
+Node.prototype.assignedSlot;
+
+/** @constructor */
+function InputDeviceCapabilities(){}
+
+/** @type {boolean} */
+InputDeviceCapabilities.prototype.firesTouchEvents;
+
+/** @type {InputDeviceCapabilities} */
+MouseEvent.prototype.sourceCapabilities;
+
 const customElements = {
   /**
    * @param {string} tagName
    * @param {!CustomElement} klass
    * @param {Object=} options
-   * @return {CustomElement}
+   * @return {!CustomElement}
    */
   define(tagName, klass, options){},
   /**
@@ -40,6 +76,17 @@ const customElements = {
   whenDefined(tagName){}
 }
 window.customElements = customElements;
+
+/* externs to include in webcomponents polyfills */
+/**
+ * @constructor
+ * @extends {HTMLElement}
+ */
+function CustomStyle(){}
+/**
+ * @param {!HTMLStyleElement} style
+ */
+CustomStyle.prototype.processHook = function(style){};
 
 let HTMLImports = {
   /**
@@ -73,69 +120,16 @@ window.ShadyDOM = ShadyDOM;
 let WebComponents = {};
 window.WebComponents = WebComponents;
 
-/**
- * @type {boolean}
- */
-Event.prototype.composed;
-
-/**
- * @return {!Array<!(Element|ShadowRoot|Document|Window)>}
- */
-Event.prototype.composedPath = function(){};
-
-/**
- * @param {!{mode: string}} options
- * @return {!ShadowRoot}
- */
-HTMLElement.prototype.attachShadow = function(options){};
-
-/**
- * @constructor
- * @extends {HTMLElement}
- */
-function CustomStyle(){}
-/**
- * @param {!HTMLStyleElement} style
- */
-CustomStyle.prototype.processHook = function(style){};
-
-/**
- * @constructor
- * @extends {HTMLElement}
- */
-function HTMLSlotElement(){}
-
-/**
- * @param {!{flatten: boolean} | undefined} options
- * @return {!Array<!Node>}
- */
-HTMLSlotElement.prototype.assignedNodes = function(options){};
-
-/**
- * @type {HTMLSlotElement}
- */
-Node.prototype.assignedSlot;
-
-/**
- * @constructor
- */
-function InputDeviceCapabilities(){}
-/**
- * @type {boolean}
- */
-InputDeviceCapabilities.prototype.firesTouchEvents;
-
-/**
- * @type {InputDeviceCapabilities}
- */
-MouseEvent.prototype.sourceCapabilities;
-
-/**
- * @type {Element}
- */
+/** @type {Element} */
 HTMLElement.prototype._activeElement;
 
 /**
  * @param {HTMLTemplateElement} template
  */
 HTMLTemplateElement.prototype.decorate = function(template){};
+
+/**
+ * @param {!{is: string}} init
+ * @return {!CustomElement}
+ */
+function Polymer(init){}
