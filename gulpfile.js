@@ -89,7 +89,7 @@ gulp.task('closure', ['clean'], () => {
     warning_level: 'VERBOSE',
     output_wrapper: '(function(){\n%output%\n}).call(self)',
     rewrite_polyfills: false,
-    externs: 'externs/externs.js'
+    externs: ['externs/closure-upstream-externs.js', 'externs/webcomponents-externs.js', 'externs/polymer-externs.js']
   });
 
   const closurePipeline = lazypipe()

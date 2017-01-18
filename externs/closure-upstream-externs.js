@@ -1,15 +1,11 @@
 /**
- * @fileoverview Externs for Polymer, polyfills, and missing stuff in Closure Compiler
+ * @fileoverview Externs to upstream to closure compiler
  * @externs
- * */
-
-/* externs to upstream to closure compiler */
-
-/**
- * @record
  */
+
+/** @record */
 function CustomElement(){}
-/** @type {!Array<string> | undefined} */
+/** @type {!Array<string>|undefined} */
 CustomElement.observedAttributes;
 /** @type {function()|undefined} */
 CustomElement.prototype.connectedCallback;
@@ -76,60 +72,3 @@ const customElements = {
   whenDefined(tagName){}
 }
 window.customElements = customElements;
-
-/* externs to include in webcomponents polyfills */
-/**
- * @constructor
- * @extends {HTMLElement}
- */
-function CustomStyle(){}
-/**
- * @param {!HTMLStyleElement} style
- */
-CustomStyle.prototype.processHook = function(style){};
-
-let HTMLImports = {
-  /**
-   * @param {function()} callback
-   */
-  whenReady(callback){}
-};
-
-window.HTMLImports = HTMLImports;
-
-let ShadyCSS = {
-  applyStyle(){},
-  updateStyles(){},
-  prepareTemplate(){},
-  nativeCss: false,
-  nativeCssApply: false,
-  nativeShadow: false
-};
-window.ShadyCSS = ShadyCSS;
-
-let ShadyDOM = {
-  inUse: false,
-  flush(){},
-  observeChildren(){},
-  unobserveChildren(){},
-  patch(){}
-};
-
-window.ShadyDOM = ShadyDOM;
-
-let WebComponents = {};
-window.WebComponents = WebComponents;
-
-/** @type {Element} */
-HTMLElement.prototype._activeElement;
-
-/**
- * @param {HTMLTemplateElement} template
- */
-HTMLTemplateElement.prototype.decorate = function(template){};
-
-/**
- * @param {!{is: string}} init
- * @return {!CustomElement}
- */
-function Polymer(init){}
