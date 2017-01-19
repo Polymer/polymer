@@ -8,10 +8,9 @@
  * subject to an additional IP rights grant found at http:polymer.github.io/PATENTS.txt
  */
 
-// jshint node: true
+/* eslint-env node */
 'use strict';
 
-/* global require */
 const gulp = require('gulp');
 const gulpif = require('gulp-if');
 const audit = require('gulp-audit');
@@ -21,10 +20,18 @@ const del = require('del');
 const eslint = require('gulp-eslint');
 const fs = require('fs');
 const path = require('path');
+const mergeStream = require('merge-stream');
+const babel = require('gulp-babel');
+const htmlmin = require('gulp-htmlmin');
+const size = require('gulp-size');
+const lazypipe = require('lazypipe');
+const closure = require('google-closure-compiler').gulp();
+const minimalDocument = require('./util/minimalDocument.js')
 
 const DIST_DIR = 'dist';
 const BUNDLED_DIR = path.join(DIST_DIR, 'bundled');
 const UNBUNDLED_DIR = path.join(DIST_DIR, 'unbundled');
+const COMPILED_DIR = path.join(DIST_DIR, 'compiled');
 const DEFAULT_BUILD_DIR = BUNDLED_DIR;
 const POLYMER_LEGACY = 'polymer.html';
 const POLYMER_ELEMENT = 'polymer-element.html';
@@ -36,49 +43,112 @@ const PolymerProject = polymer.PolymerProject;
 const project = new PolymerProject({ shell: DEFAULT_BUILD_TARGET });
 const fork = polymer.forkStream;
 
-const mergeStream = require('merge-stream');
-const babel = require('gulp-babel');
-const uglify = require('gulp-uglify');
-const htmlmin = require('gulp-htmlmin');
-const gzipSize = require('gzip-size');
-const prettyBytes = require('pretty-bytes');
-
 gulp.task('clean', function() {
   return del(DIST_DIR);
 });
 
+const {Transform} = require('stream');
+
+class OldNameStream extends Transform {
+  constructor(fileList) {
+    super({objectMode: true});
+    this.fileList = fileList;
+  }
+  _transform(file, enc, cb) {
+    if (this.fileList) {
+      const origFile = this.fileList.shift();
+      // console.log(`rename ${file.path} -> ${origFile.path}`)
+      file.path = origFile.path;
+    }
+    cb(null, file);
+  }
+  _flush(cb) {
+    if (this.fileList && this.fileList.length > 0) {
+      this.fileList.forEach((oldFile) => {
+        // console.log(`pumping fake file ${oldFile.path}`)
+        let newFile = oldFile.clone({deep: true, contents: false});
+        newFile.contents = new Buffer('');
+        this.push(newFile);
+      });
+    }
+    cb();
+  }
+}
+
+gulp.task('closure', ['clean'], () => {
+
+  const project = new PolymerProject({
+    sources: ['./polymer.html'],
+    shell: './polymer.html'
+  });
+
+  const closureStream = closure({
+    compilation_level: 'ADVANCED',
+    language_in: 'ES6_STRICT',
+    language_out: 'ES5_STRICT',
+    warning_level: 'VERBOSE',
+    output_wrapper: '(function(){\n%output%\n}).call(self)',
+    rewrite_polyfills: false,
+    externs: ['externs/closure-upstream-externs.js', 'externs/webcomponents-externs.js', 'externs/polymer-externs.js']
+  });
+
+  const closurePipeline = lazypipe()
+    .pipe(() => closureStream)
+    .pipe(() => new OldNameStream(closureStream.fileList_))
+
+  // process source files in the project
+  const sources = project.sources()
+
+  // process dependencies
+  const dependencies = project.dependencies()
+
+  // merge the source and dependencies streams to we can analyze the project
+  const mergedFiles = mergeStream(sources, dependencies);
+
+  return mergedFiles
+    .pipe(project.bundler)
+    .pipe(project.splitHtml())
+    .pipe(gulpif(/polymer\.html_script_\d+\.js$/, closurePipeline()))
+    .pipe(project.rejoinHtml())
+    .pipe(htmlmin({removeComments: true}))
+    .pipe(gulpif(/polymer\.html/, minimalDocument()))
+    .pipe(gulpif(/polymer\.html/, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
+    .pipe(gulp.dest(COMPILED_DIR))
+});
+
 gulp.task('build', ['clean'], () => {
  // process source files in the project
- const sources = project.sources()
-   .pipe(project.splitHtml())
-   // add compilers or optimizers here!
-   .pipe(gulpif(/\.js$/, babel({presets: ['es2015']/*, plugins: ['external-helpers']*/})))
-   .pipe(gulpif(/\.js$/, uglify()))
-   .pipe(project.rejoinHtml())
-   .pipe(htmlmin({removeComments: true}));
+ const sources = project.sources();
 
  // process dependencies
- const dependencies = project.dependencies()
-   .pipe(project.splitHtml())
-   // add compilers or optimizers here!
-   .pipe(gulpif(/\.js$/, babel({presets: ['es2015']/*, plugins: ['external-helpers']*/})))
-   .pipe(gulpif(/\.js$/, uglify()))
-   .pipe(project.rejoinHtml())
-   .pipe(htmlmin({removeComments: true}));
+ const dependencies = project.dependencies();
 
  // merge the source and dependencies streams to we can analyze the project
- const mergedFiles = mergeStream(sources, dependencies)
-   .pipe(project.analyzer);
+ const mergedFiles = mergeStream(sources, dependencies);
+
+ const bundlePipe = lazypipe()
+  .pipe(() => project.splitHtml())
+  .pipe(() => gulpif(/\.js$/, babel({presets: ['babili']})))
+  .pipe(() => project.rejoinHtml())
+  .pipe(htmlmin, {removeComments: true})
+  .pipe(minimalDocument)
+  .pipe(size, {title: 'bundled size', gzip: true, showTotal: false, showFiles: true})
 
  return mergeStream(
    fork(mergedFiles)
-     .pipe(project.bundler)
-     // write to the bundled folder
-     .pipe(gulp.dest(BUNDLED_DIR)),
+    .pipe(project.bundler)
+    .pipe(gulpif(/polymer\.html/, bundlePipe()))
+    // write to the bundled folder
+    .pipe(gulp.dest(BUNDLED_DIR)),
 
    fork(mergedFiles)
-     // write to the unbundled folder
-     .pipe(gulp.dest(UNBUNDLED_DIR))
+    .pipe(project.splitHtml())
+    // add compilers or optimizers here!
+    .pipe(gulpif(/\.js$/, babel({presets: ['babili']})))
+    .pipe(project.rejoinHtml())
+    .pipe(htmlmin({removeComments: true}))
+    // write to the unbundled folder
+    .pipe(gulp.dest(UNBUNDLED_DIR))
  );
 });
 
@@ -115,40 +185,31 @@ gulp.task('save-src', function() {
 });
 
 gulp.task('restore-src', function(cb) {
-  const files = ENTRY_POINTS.map(f=>`${f}.src`);
+  const files = ENTRY_POINTS.map(f => `${f}.src`);
   gulp.src(files)
     .pipe(rename(function(p) {
       p.extname = '';
     }))
     .pipe(gulp.dest('.'))
-    .on('end', ()=>Promise.all(files.map(f=>del(f))).then(()=>cb()));
+    .on('end', () => Promise.all(files.map(f => del(f))).then(() => cb()));
 });
 
 gulp.task('link-bundled', function(cb) {
-  ENTRY_POINTS.forEach(f=>{
+  ENTRY_POINTS.forEach(f => {
     fs.writeFileSync(f, `<link rel="import" href="${DEFAULT_BUILD_DIR}/${DEFAULT_BUILD_TARGET}">`);
   });
   cb();
 });
 
 gulp.task('link-unbundled', function(cb) {
-  ENTRY_POINTS.forEach(f=>{
+  ENTRY_POINTS.forEach(f => {
     fs.writeFileSync(f, `<link rel="import" href="${DEFAULT_BUILD_DIR}/${f}">`);
   });
   cb();
 });
 
-gulp.task('print-size', function(cb) {
-  fs.readFile(path.join(DEFAULT_BUILD_DIR, DEFAULT_BUILD_TARGET), function(err, contents) {
-    gzipSize(contents, function(err, size) {
-      console.log(`${DEFAULT_BUILD_TARGET} size: ${prettyBytes(size)}`);
-      cb();
-    });
-  });
-});
-
 gulp.task('audit', function() {
-  return gulp.src(ENTRY_POINTS.map(f=>path.join(DEFAULT_BUILD_DIR, f)))
+  return gulp.src(ENTRY_POINTS.map(f => path.join(DEFAULT_BUILD_DIR, f)))
     .pipe(audit('build.log', { repos: ['.'] }))
     .pipe(gulp.dest(DEFAULT_BUILD_DIR));
 });
