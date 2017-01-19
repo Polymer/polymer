@@ -32,9 +32,9 @@ let ShadyCSS = {
   /**
    * @param {!HTMLTemplateElement} template
    * @param {string} is
-   * @param {string=} extends
+   * @param {string=} extendsElement
    */
-  prepareTemplate(template, is, extends){},
+  prepareTemplate(template, is, extendsElement){},
   nativeCss: false,
   nativeShadow: false
 };
@@ -45,7 +45,7 @@ let ShadyDOM = {
   flush(){},
   /**
    * @param {!Node} target
-   * @param {function(Array<MutationRecords>, MutationObserver)} callback
+   * @param {function(Array<MutationRecord>, MutationObserver)} callback
    * @return {MutationObserver}
    */
   observeChildren(target, callback){},
