@@ -45,7 +45,7 @@ let ShadyDOM = {
   flush(){},
   /**
    * @param {!Node} target
-   * @param {function(Array<MutationRecords>, MutationObserver)} callback
+   * @param {function(Array<MutationRecord>, MutationObserver)} callback
    * @return {MutationObserver}
    */
   observeChildren(target, callback){},
