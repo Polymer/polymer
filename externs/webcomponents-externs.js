@@ -32,9 +32,9 @@ let ShadyCSS = {
   /**
    * @param {!HTMLTemplateElement} template
    * @param {string} is
-   * @param {string=} extends
+   * @param {string=} extendsElement
    */
-  prepareTemplate(template, is, extends){},
+  prepareTemplate(template, is, extendsElement){},
   nativeCss: false,
   nativeShadow: false
 };
