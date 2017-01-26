@@ -139,7 +139,8 @@ is false, `selected` is a property representing the last selected item.  When
       }
 
       _updateSelection(multi, itemsInfo) {
-        if (itemsInfo.path == 'items') {
+        let path = itemsInfo.path;
+        if (path == 'items') {
           let newItems = itemsInfo.base || [];
           let lastItems = this.__lastItems;
           let lastMulti = this.__lastMulti;
@@ -154,6 +155,12 @@ is false, `selected` is a property representing the last selected item.  When
           this.__lastMulti = multi;
         } else if (itemsInfo.path == 'items.splices') {
           this._applySplices(itemsInfo.value.indexSplices);
+        } else {
+          let part = path.slice('items.'.length);
+          let idx = parseInt(part, 10);
+          if ((part.indexOf('.') < 0) && part == idx) {
+            this._deselectChangedIdx(idx);
+          }
         }
       }
 
@@ -251,6 +258,26 @@ is false, `selected` is a property representing the last selected item.  When
         return this.isSelected(this.items[idx]);
       }
 
+      _deselectChangedIdx(idx) {
+        let sidx = this._selectedIndexForItemIndex(idx);
+        if (sidx >= 0) {
+          let i = 0;
+          this._selectedMap.forEach((idx, item) => {
+            if (sidx == i++) {
+              this.deselect(item);
+              return;
+            }
+          });
+        }
+      }
+
+      _selectedIndexForItemIndex(idx) {
+        let selected = this.__dataLinkedPaths['items.' + idx];
+        if (selected) {
+          return parseInt(selected.slice('selected.'.length), 10);          
+        }
+      }
+
       /**
        * Deselects the given item if it is already selected.
        *
@@ -258,7 +285,20 @@ is false, `selected` is a property representing the last selected item.  When
        * @param {*} item Item from `items` array to deselect
        */
       deselect(item) {
-        this.deselectIndex(this._selectedMap.get(item));
+        let idx = this._selectedMap.get(item);
+        if (idx >= 0) {
+          this._selectedMap.delete(item);
+          let sidx;
+          if (this.multi) {
+            sidx = this._selectedIndexForItemIndex(idx);
+          }
+          this._updateLinks();
+          if (this.multi) {
+            this.splice('selected', sidx, 1);
+          } else {
+            this.selected = this.selectedItem = null;
+          }
+        }
       }
 
       /**
@@ -268,18 +308,7 @@ is false, `selected` is a property representing the last selected item.  When
        * @param {number} idx Index from `items` array to deselect
        */
       deselectIndex(idx) {
-        if (this._selectedMap.delete(this.items[idx])) {
-          let sidx;
-          if (this.multi) {
-            sidx = parseInt(this.__dataLinkedPaths['items.' + idx].slice('selected.'.length), 10);
-          }
-          this._updateLinks();
-          if (this.multi) {
-            this.splice('selected', sidx, 1);
-          } else {
-            this.selected = this.selectedItem = null;
-          }
-        }
+        this.deselect(this.items[idx]);
       }
 
       /**
