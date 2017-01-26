@@ -30,10 +30,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         prototype = {};
       }
       // desugar the prototype and return a factory object
-      var factory = desugar(prototype);
-      // Polymer.Base is now chained to factory.prototype, and for IE10 compat
+      // Polymer.Base is now chained to prototype, and for IE10 compat
       // this may have resulted in a new prototype being created
-      //prototype = factory.prototype;
+      prototype = desugar(prototype);
+      // we have a custom constructor if the constructor's prototype
+      // is the prototype we're registering...
+      var customCtor = prototype === prototype.constructor.prototype ?
+        prototype.constructor : null;
       var options = {
         prototype: prototype
       };
@@ -44,7 +47,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       Polymer.telemetry._registrate(prototype);
       var ctor = document.registerElement(prototype.is, options);
-      return factory.__custom ? factory : ctor;
+      return customCtor || ctor;
     };
 
     var desugar = function(prototype) {
@@ -56,11 +59,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         base = Polymer.Base._getExtendedPrototype(prototype.extends);
       }
       prototype = Polymer.Base.chainObject(prototype, base);
-      var ctor = prototype.constructor;
       prototype.registerCallback();
-      var custom = ctor !== prototype.constructor;
-      prototype.constructor.__custom = custom;
-      return prototype.constructor;
+      return prototype;
     };
 
     if (userPolymer) {
@@ -69,7 +69,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    Polymer.Class = desugar;
+    Polymer.Class = function(prototype) {
+      return desugar(prototype).constructor;
+    }
 
   })();
 
