@@ -30,21 +30,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         prototype = {};
       }
       // desugar the prototype and return a factory object
-      var factory = desugar(prototype);
-      // Polymer.Base is now chained to factory.prototype, and for IE10 compat
+      // Polymer.Base is now chained to prototype, and for IE10 compat
       // this may have resulted in a new prototype being created
-      prototype = factory.prototype;
+      prototype = desugar(prototype);
+      // we have a custom constructor if the constructor's prototype
+      // is the prototype we're registering...
+      var customCtor = prototype === prototype.constructor.prototype ?
+        prototype.constructor : null;
       var options = {
         prototype: prototype
       };
-      // NOTE: we're specifically supporting older Chrome versions here 
+      // NOTE: we're specifically supporting older Chrome versions here
       // (specifically Chrome 39) that throw when options.extends is undefined.
       if (prototype.extends) {
         options.extends = prototype.extends;
       }
       Polymer.telemetry._registrate(prototype);
-      document.registerElement(prototype.is, options);
-      return factory;
+      var ctor = document.registerElement(prototype.is, options);
+      return customCtor || ctor;
     };
 
     var desugar = function(prototype) {
@@ -57,7 +60,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       prototype = Polymer.Base.chainObject(prototype, base);
       prototype.registerCallback();
-      return prototype.constructor;
+      return prototype;
     };
 
     if (userPolymer) {
@@ -66,7 +69,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    Polymer.Class = desugar;
+    Polymer.Class = function(prototype) {
+      return desugar(prototype).constructor;
+    }
 
   })();
 

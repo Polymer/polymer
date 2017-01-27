@@ -25,18 +25,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // pluggable features
     // `this` context is a prototype, not an instance
     _addFeature: function(feature) {
-      this.extend(this, feature);
+      this.mixin(this, feature);
     },
 
     // `this` context is a prototype, not an instance
     registerCallback: function() {
       /*
         When lazyRegister is 'max' defer all behavior work until first element
-        creation. 
-        When set, a behavior cannot setup an element's `is` or 
+        creation.
+        When set, a behavior cannot setup an element's `is` or
         custom constructor via defining `factoryImpl`.
         We do call beforeRegister on the prototype to preserve
-        the ability to use it in ES6. This orders the element 
+        the ability to use it in ES6. This orders the element
         prototype's `beforeRegister` before behaviors' rather than after
         as in the normal case.
       */
@@ -46,7 +46,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       } else {
         this._desugarBehaviors(); // abstract
-        this._doBehavior('beforeRegister'); // abstract
+        // this code was in a function but is unrolled here for perf
+        for (var i=0, b; i < this.behaviors.length; i++) {
+          b = this.behaviors[i];
+          if (b.beforeRegister) {
+            b.beforeRegister.call(this);
+          }
+        }
+        if (this.beforeRegister) {
+          this.beforeRegister();
+        }
       }
       this._registerFeatures();  // abstract
       if (!settings.lazyRegister) {
@@ -60,7 +69,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       Polymer.telemetry.instanceCount++;
       this.root = this;
-      this._doBehavior('created'); // abstract
+      // this code was in a function but is unrolled here for perf
+      for (var i=0, b; i < this.behaviors.length; i++) {
+        b = this.behaviors[i];
+        if (b.created) {
+          b.created.call(this);
+        }
+      }
+      if (this.created) {
+        this.created();
+      }
       this._initFeatures(); // abstract
     },
 
@@ -81,14 +99,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // IFF `lazyRegister` is 'max'
         if (settings.lazyRegister === 'max') {
           proto._desugarBehaviors(); // abstract
-          proto._doBehaviorOnly('beforeRegister'); // abstract
+          // this code was in a function but is unrolled here for perf
+          for (var i=0, b; i < proto.behaviors.length; i++) {
+            b = proto.behaviors[i];
+            if (b.beforeRegister) {
+              b.beforeRegister.call(proto);
+            }
+          }
         }
         proto.__hasRegisterFinished = proto.is;
         if (proto._finishRegisterFeatures) {
           proto._finishRegisterFeatures();
         }
         // registration extension point
-        proto._doBehavior('registered');
+        // this code was in a function but is unrolled here for perf
+        for (var j=0, pb; j < proto.behaviors.length; j++) {
+          pb = proto.behaviors[j];
+          if (pb.registered) {
+            pb.registered.call(proto);
+          }
+        }
+        if (proto.registered) {
+          proto.registered();
+        }
         // where prototypes are simulated (IE10), element instance
         // must be specfically fixed up.
         if (settings.usePolyfillProto && proto !== this) {
@@ -106,7 +139,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var self = this;
       Polymer.RenderStatus.whenReady(function() {
         self.isAttached = true;
-        self._doBehavior('attached'); // abstract
+        // this code was in a function but is unrolled here for perf
+        for (var i=0, b; i < self.behaviors.length; i++) {
+          b = self.behaviors[i];
+          if (b.attached) {
+            b.attached.call(self);
+          }
+        }
+        if (self.attached) {
+          self.attached();
+        }
       });
     },
 
@@ -116,7 +158,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var self = this;
       Polymer.RenderStatus.whenReady(function() {
         self.isAttached = false;
-        self._doBehavior('detached'); // abstract
+        // this code was in a function but is unrolled here for perf
+        for (var i=0, b; i < self.behaviors.length; i++) {
+          b = self.behaviors[i];
+          if (b.detached) {
+            b.detached.call(self);
+          }
+        }
+        if (self.detached) {
+          self.detached();
+        }
       });
     },
 
@@ -125,7 +176,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // TODO(sorvell): consider filtering out changes to host attributes
       // note: this was barely measurable with 3 host attributes.
       this._attributeChangedImpl(name); // abstract
-      this._doBehavior('attributeChanged', [name, oldValue, newValue]); // abstract
+      // this code was in a function but is unrolled here for perf
+      for (var i=0, b; i < this.behaviors.length; i++) {
+        b = this.behaviors[i];
+        if (b.attributeChanged) {
+          b.attributeChanged.call(this, name, oldValue, newValue);
+        }
+      }
+      if (this.attributeChanged) {
+        this.attributeChanged(name, oldValue, newValue);
+      }
     },
 
     _attributeChangedImpl: function(name) {
@@ -226,6 +286,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
   Polymer.Base = Polymer.Base.chainObject(Polymer.Base, HTMLElement.prototype);
+  Polymer.BaseDescriptors = {};
 
   if (window.CustomElements) {
     Polymer.instanceof = CustomElements.instanceof;
