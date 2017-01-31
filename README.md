@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/Polymer/polymer.svg?branch=master)](https://travis-ci.org/Polymer/polymer)
 
-Polymer lets you build encapsulated, re-usable elements that work just like standard HTML elements, to use in building web applications.
+Polymer lets you build encapsulated, reusable elements that work just like standard HTML elements, to use in building web applications.
 
 ```html
 <!-- Polyfill Web Components for older browsers -->
@@ -21,9 +21,9 @@ Or if you'd just like to download the library, check out our [releases page](htt
 
 ## Overview
 
-Polymer is a lightweight library built on top of the web standards-based [Web Components](http://webcomponents.org/) API's, and makes it easier to build your very own custom HTML elements. Creating re-usable custom elements - and using elements built by others - can make building complex web applications easier and more efficient. By being based on the Web Components API's built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), Polymer elements are interoperable at the browser level, and can be used with other frameworks or libraries that work with modern browsers.
+Polymer is a lightweight library built on top of the web standards-based [Web Components](http://webcomponents.org/) API's, and makes it easier to build your very own custom HTML elements. Creating reusable custom elements - and using elements built by others - can make building complex web applications easier and more efficient. By being based on the Web Components API's built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), Polymer elements are interoperable at the browser level, and can be used with other frameworks or libraries that work with modern browsers.
 
-Among many ways to leverage custom elements, they can be particularly useful for building re-usable UI components. Instead of continually re-building a specific navigation bar or button in different frameworks and for different projects, you can define this element once using Polymer, and then reuse it throughout your project or in any future project.
+Among many ways to leverage custom elements, they can be particularly useful for building reusable UI components. Instead of continually re-building a specific navigation bar or button in different frameworks and for different projects, you can define this element once using Polymer, and then reuse it throughout your project or in any future project.
 
 Polymer provides a declarative syntax to easily create your own custom elements, using all standard web technologies - define the structure of the element with HTML, style it with CSS, and add interactions to the element with JavaScript. 
 
@@ -197,4 +197,4 @@ Beyond Github, we try to have a variety of different lines of communication avai
 
 # License
 
-The Polymer library uses a BSD-like license available [here](./LICENSE.txt)
+The Polymer library uses a BSD-like license that is available [here](./LICENSE.txt)
