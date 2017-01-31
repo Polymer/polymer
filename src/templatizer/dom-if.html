@@ -65,7 +65,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            */
           restamp: {
             type: Boolean,
-            observer: '_debounceRender'
+          },
+
+          /**
+           * By default, `dom-if` will stamp (or hide/remove) nodes synchronous to
+           * its `if` value changing.  To cause it to stamp asynchronously at
+           * microtask timing, set `async` to true.  This should generally only
+           * be used if the `if` value may change multiple times in a turn,
+           * to debounce unnecessary work.
+           */
+          async: {
+            type: Boolean
           }
 
         }
@@ -80,9 +90,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _debounceRender() {
-      this._renderDebouncer =
-        Polymer.Debouncer.debounce(this._renderDebouncer, this._render, undefined, this);
-      Polymer.Templatizer.enqueueDebouncer(this._renderDebouncer);
+      if (this.async) {
+        this._renderDebouncer =
+          Polymer.Debouncer.debounce(this._renderDebouncer, this._render, undefined, this);
+        Polymer.Templatizer.enqueueDebouncer(this._renderDebouncer);
+      } else {
+        this._render();
+      }
     }
 
     disconnectedCallback() {
@@ -102,11 +116,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * Forces the element to render its content. Normally rendering is
-     * asynchronous to a provoking change. This is done for efficiency so
-     * that multiple changes trigger only a single render. The render method
-     * should be called if, for example, template rendering is required to
-     * validate application state.
+     * Forces the element to render its content (and any nested templates) when
+     * the `async` flag is in use.
      */
     render() {
       Polymer.Templatizer.flush();
@@ -150,10 +161,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             observer.observe(this, {childList: true});
             return false;
           }
-          template.__domIf = this;
+          template.__wrapper = this;
           this._ctor = templatizer.templatize(template, {
             fwdHostPropToInstance: function(host, prop, value) {
-              let domif = template.__domIf;
+              let domif = template.__wrapper;
               if (domif._instance) {
                 domif._instance.forwardProperty(prop, value, host);
               }

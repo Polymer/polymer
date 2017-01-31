@@ -245,7 +245,8 @@ Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shady
 * <a name="breaking-inline-dynamic"></a>Setting/changing any function used in inline template annotations will cause the binding to re-compute its value using the new function and current property values
 ‘notify’ events not fired when value changes as result of binding from host
 * <a name="breaking-properties-deserialization"></a>In order for a property to be deserialized from its attribute, it must be declared in the `properties` metadata object
-* <a name="breaking-colleciton"></a>The `Polymer.Collection` and associated key-based path and splice notification for arrays has been eliminated.  See [explanation here](https://github.com/Polymer/polymer/pull/3970#issue-178203286) for more details.
+* <a name="breaking-collection"></a>The `Polymer.Collection` and associated key-based path and splice notification for arrays has been eliminated.  See [explanation here](https://github.com/Polymer/polymer/pull/3970#issue-178203286) for more details.
+* <a name="breaking-domif-sync"></a>The `dom-if` element now stamps its template synchronous to the `if` value changing. To achieve async behavior for (rare) cases where the `if` value may change multiple times in a turn, set the `async` attribute on the `dom-if` element.
 
 ### Removed API
 * <a name="breaking-instanceof"></a>`Polymer.instanceof` and `Polymer.isInstance`: no longer needed, use
