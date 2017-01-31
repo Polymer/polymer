@@ -37,7 +37,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return flattenedProps;
   }
 
-  Polymer.ElementMixin = Polymer.Utils.cachingMixin(function(base) {
+  Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
 
     const mixin = Polymer.PropertyEffects(base);
 
@@ -77,6 +77,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         return this.__flattenedProperties;
       }
+
+      static get _flattenedPropertyDefaults() {
+        if (!this.hasOwnProperty('__flattenedPropertyDefaults')) {
+          this.__flattenedPropertyDefaults = null;
+          for (let p in this._flattenedProperties) {
+            let info = this._flattenedProperties[p];
+            if ('value' in info) {
+              this.__flattenedPropertyDefaults =
+                this.__flattenedPropertyDefaults || {};
+              this.__flattenedPropertyDefaults[p] = info;
+            }
+          }
+        }
+        return this.__flattenedPropertyDefaults;
+      }
+
+
 
       static get observedAttributes() {
         if (!this.hasOwnProperty(goog.reflect.objectProperty('_observedAttributes', this))) {
@@ -191,10 +208,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         super._initializeProperties();
         // apply property defaults...
-        let p$ = this.constructor._flattenedProperties;
+        let p$ = this.constructor._flattenedPropertyDefaults;
+        if (!p$) {
+          return;
+        }
         for (let p in p$) {
           let info = p$[p];
-          if (('value' in info) && !this._isPropertyPending(p)) {
+          if (!this._isPropertyPending(p)) {
             var value = typeof info.value == 'function' ?
               info.value.call(this) :
               info.value;
