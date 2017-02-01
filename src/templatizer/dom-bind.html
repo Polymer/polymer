@@ -18,7 +18,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   (function() {
 
-    class DomBind extends Polymer.PropertyEffects(HTMLElement) {
+    const mixin = Polymer.PropertyEffects(HTMLElement);
+
+    class DomBind extends mixin {
 
       connectedCallback() {
         this.render();
@@ -34,7 +36,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _removeChildren() {
         if (this._children) {
-          for (var i=0; i<this._children.length; i++) {
+          for (let i=0; i<this._children.length; i++) {
             this.root.appendChild(this._children[i]);
           }
         }
@@ -44,16 +46,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Forces the element to render its content. This is typically only
        * necessary to call if HTMLImports with the async attribute are used.
        */
-      render() {
+      render(template) {
         if (!this._children) {
-          var template = this.querySelector('template');
+          template = template || this.querySelector('template');
           if (!template) {
-            throw new Error('dom-bind requires a <template> child');
+            // Wait until childList changes and template should be there by then
+            let observer = new MutationObserver(() => {
+              template = this.querySelector('template');
+              if (template) {
+                observer.disconnect();
+                this.render(template);
+              } else {
+                throw new Error('dom-bind requires a <template> child');
+              }
+            })
+            observer.observe(this, {childList: true});
+            return;
           }
           this._bindTemplate(template);
           this.root = this._stampTemplate(template);
           this._children = [];
-          for (var n=this.root.firstChild; n; n=n.nextSibling) {
+          for (let n=this.root.firstChild; n; n=n.nextSibling) {
             this._children[this._children.length] = n;
           }
           this._flushProperties(this);

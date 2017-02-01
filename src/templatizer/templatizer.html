@@ -25,12 +25,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     PatchedHTMLTemplateElement.prototype = Object.create(HTMLTemplateElement.prototype, {
       constructor: {
-        value: PatchedHTMLTemplateElement
+        value: PatchedHTMLTemplateElement,
+        writable: true
       }
     });
     PatchedHTMLTemplateElement._newInstance = null;
 
-    class DataTemplate extends Polymer.PropertyEffects(PatchedHTMLTemplateElement) {
+    const mixin = Polymer.PropertyEffects(PatchedHTMLTemplateElement);
+    class DataTemplate extends mixin {
       static upgradeTemplate(template) {
         PatchedHTMLTemplateElement._newInstance = template;
         Object.setPrototypeOf(template, DataTemplate.prototype);
@@ -82,6 +84,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _createTemplatizerClass(template, options) {
         // Anonymous class created by the templatizer
+        /**
+         * @unrestricted
+         */
         var klass = class extends TemplateInstanceBase {
           //TODO(kschaaf): for debugging; remove?
           get localName() { return 'template#' + this.__template.id + '/TemplateInstance' }
@@ -157,8 +162,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
           forwardProperty(prop, value, host) {
-            this._setPendingProperty(prop, value);
-            if (host) {
+            if (this._setPendingPropertyOrPath(prop, value, true) && host) {
               host._enqueueClient(this);
             }
           }
@@ -207,9 +211,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       _createHP2IEffector(hostProp, options) {
-        return function(template, prop, value) {
+        return function(template, prop, props) {
           options.fwdHostPropToInstance.call(template, template,
-            prop.substring('_host_'.length), value);
+            prop.substring('_host_'.length), props[prop]);
         }
       }
 
@@ -233,19 +237,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       _createIP2HEffector(instProp, options) {
-        return function fwdInstPropToHost(inst, prop, value, old, info, fromAbove) {
+        return function fwdInstPropToHost(inst, prop, props, oldProps, info, fromAbove) {
           if (!fromAbove) {
-            options.fwdInstancePropToHost.call(inst, inst, prop, value);
+            options.fwdInstancePropToHost.call(inst, inst, prop, props[prop]);
           }
         }
       }
 
       _createHP2HEffector() {
-        return function fwdHostPropToHost(inst, prop, value, old, info, fromAbove) {
+        return function fwdHostPropToHost(inst, prop, props, oldProps, info, fromAbove) {
           if (!fromAbove) {
-            // TODO(kschaaf) This does not take advantage of the efficient
-            // upward flow in batched effects
-            inst.__template._setProperty('_host_' + prop, value);
+            inst.__template._setPendingPropertyOrPath('_host_' + prop, props[prop], true);
           }
         }
       }
@@ -265,7 +267,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @method modelForElement
        * @param {HTMLElement} el Element for which to return a template model.
-       * @return {Object<Polymer.Base>} Model representing the binding scope for
+       * TODO(kschaaf): replace return type with interface for TemplateInstanceBaseInterface
+       * @return {Object} Model representing the binding scope for
        *   the element.
        */
       modelForElement(host, el) {
@@ -288,6 +291,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             el = el.parentNode;
           }
         }
+        return null;
       }
     }
 

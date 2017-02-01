@@ -260,7 +260,6 @@ Then the `observe` property should be configured as follows:
 
     }
 
-
     constructor() {
       super();
       this._instances = [];
@@ -290,16 +289,26 @@ Then the `observe` property should be configured as follows:
       }
     }
 
-    ensureTemplatized() {
+    _ensureTemplatized() {
       // Templatizing (generating the instance constructor) needs to wait
       // until ready, since won't have its template content handed back to
       // it until then
       if (!this._ctor) {
         var template = this.template = this.querySelector('template');
-        template.__domRepeat = this;
         if (!template) {
-          throw new Error('dom-repeat requires a <template> child');
+          // // Wait until childList changes and template should be there by then
+          let observer = new MutationObserver(() => {
+            if (this.querySelector('template')) {
+              observer.disconnect();
+              this._render();
+            } else {
+              throw new Error('dom-repeat requires a <template> child');
+            }
+          })
+          observer.observe(this, {childList: true});
+          return false;
         }
+        template.__domRepeat = this;
         // Template instance props that should be excluded from forwarding
         var instanceProps = {};
         instanceProps[this.as] = true;
@@ -327,6 +336,7 @@ Then the `observe` property should be configured as follows:
           }
         });
       }
+      return true;
     }
 
     _getRootDataHost() {
@@ -423,6 +433,10 @@ Then the `observe` property should be configured as follows:
       }
     }
 
+    /**
+     * @param {function()} fn
+     * @param {number=} delay
+     */
     _debounceRender(fn, delay) {
       this._renderDebouncer =
         Polymer.Debouncer.debounce(this._renderDebouncer, fn, delay, this);
@@ -444,7 +458,10 @@ Then the `observe` property should be configured as follows:
     }
 
     _render() {
-      this.ensureTemplatized();
+      if (!this._ensureTemplatized()) {
+        // No template found yet
+        return;
+      }
       this._applyFullRefresh();
       // Reset the pool
       // TODO(kschaaf): Reuse pool across turns and nested templates
@@ -567,7 +584,7 @@ Then the `observe` property should be configured as follows:
       var dot = itemsPath.indexOf('.');
       var itemsIdx = dot < 0 ? itemsPath : itemsPath.substring(0, dot);
       // If path was index into array...
-      if (itemsIdx == parseInt(itemsIdx)) {
+      if (itemsIdx == parseInt(itemsIdx, 10)) {
         var itemPath = dot < 0 ? '' : itemsPath.substring(dot+1);
         // See if the item subpath should trigger a full refresh...
         if (!this._handleObservedPaths(itemPath)) {
@@ -593,7 +610,7 @@ Then the `observe` property should be configured as follows:
      *
      * @method itemForElement
      * @param {HTMLElement} el Element for which to return the item.
-     * @return {any} Item associated with the element.
+     * @return {*} Item associated with the element.
      */
     itemForElement(el) {
       var instance = this.modelForElement(el);
@@ -607,7 +624,7 @@ Then the `observe` property should be configured as follows:
      *
      * @method indexForElement
      * @param {HTMLElement} el Element for which to return the index.
-     * @return {any} Row index associated with the element (note this may
+     * @return {*} Row index associated with the element (note this may
      *   not correspond to the array index if a user `sort` is applied).
      */
     indexForElement(el) {
@@ -630,7 +647,8 @@ Then the `observe` property should be configured as follows:
      *
      * @method modelForElement
      * @param {HTMLElement} el Element for which to return a template model.
-     * @return {Object<Polymer.Base>} Model representing the binding scope for
+     * TODO(kschaaf): replace return type with interface for TemplateInstanceBaseInterface
+     * @return {Object} Model representing the binding scope for
      *   the element.
      */
     modelForElement(el) {

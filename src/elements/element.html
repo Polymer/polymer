@@ -37,9 +37,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return flattenedProps;
   }
 
-  Polymer.ElementMixin = Polymer.Utils.cachingMixin(function(base) {
+  Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
 
-    return class PolymerElement extends Polymer.PropertyEffects(base) {
+    const mixin = Polymer.PropertyEffects(base);
+
+    /**
+     * @unrestricted
+     */
+    class PolymerElement extends mixin {
 
       // returns the config object on specifically on `this` class (not super)
       // config is used for:
@@ -47,8 +52,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // then used to make observedAttributes and set property defaults
       // (2) properties effects and observers are created from it at `finalize` time.
       static get _ownConfig() {
-        if (!this.hasOwnProperty('__ownConfig')) {
-          this.__ownConfig = this.hasOwnProperty('config') ? this.config : {};
+        if (!this.hasOwnProperty(goog.reflect.objectProperty('__ownConfig', this))) {
+          this.__ownConfig = this.hasOwnProperty(goog.reflect.objectProperty('config', this)) ? this.config : {};
         }
         return this.__ownConfig;
       }
@@ -59,7 +64,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // (1) observedAttributes,
       // (2) element default values
       static get _flattenedProperties() {
-        if (!this.hasOwnProperty('__flattenedProperties')) {
+        if (!this.hasOwnProperty(goog.reflect.objectProperty('__flattenedProperties', this))) {
           // TODO(sorvell): consider optimizing; shorthand type support requires
           // an extra loop to upgrade shorthand property info to longhand
           this.__flattenedProperties = flattenProperties({}, this._ownConfig.properties);
@@ -73,8 +78,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this.__flattenedProperties;
       }
 
+      static get _flattenedPropertyDefaults() {
+        if (!this.hasOwnProperty('__flattenedPropertyDefaults')) {
+          this.__flattenedPropertyDefaults = null;
+          for (let p in this._flattenedProperties) {
+            let info = this._flattenedProperties[p];
+            if ('value' in info) {
+              this.__flattenedPropertyDefaults =
+                this.__flattenedPropertyDefaults || {};
+              this.__flattenedPropertyDefaults[p] = info;
+            }
+          }
+        }
+        return this.__flattenedPropertyDefaults;
+      }
+
+
+
       static get observedAttributes() {
-        if (!this.hasOwnProperty('_observedAttributes')) {
+        if (!this.hasOwnProperty(goog.reflect.objectProperty('_observedAttributes', this))) {
           // observedAttributes must be finalized at registration time
           this._observedAttributes = this._addPropertiesToAttributes(
             this._flattenedProperties, []);
@@ -90,7 +112,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       static get finalized() {
-        return this.hasOwnProperty('_finalized');
+        return this.hasOwnProperty(goog.reflect.objectProperty('_finalized', this));
       }
 
       static set finalized(value) {
@@ -113,7 +135,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             superCtor.finalize();
           }
           this.finalized = true;
-          if (this.hasOwnProperty('is') && this.is) {
+          if (this.hasOwnProperty(goog.reflect.objectProperty('is', this)) && this.is) {
             Polymer.telemetry.register(proto);
           }
           let config = this._ownConfig;
@@ -121,8 +143,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._finalizeConfig(config);
           }
           if (this.template) {
-            let template = this.template.cloneNode(true);
-            this._finalizeTemplate(template);
+            this._finalizeTemplate(this.template.cloneNode(true));
           }
         }
       }
@@ -141,11 +162,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
+      static _getTemplate() {
+        return Polymer.DomModule.import(this.is, 'template');
+      }
+
       static get template() {
-        if (!this.hasOwnProperty('_template')) {
-          // TODO(sorvell): support more ways to acquire template.
-          // this requires `is` on constructor...
-          this._template = Polymer.DomModule.import(this.is, 'template') ||
+        if (!this.hasOwnProperty(goog.reflect.objectProperty('_template', this))) {
+          this._template = this._getTemplate() ||
             // note: implemented so a subclass can retrieve the super
             // template; call the super impl this way so that `this` points
             // to the superclass.
@@ -186,10 +209,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         super._initializeProperties();
         // apply property defaults...
-        let p$ = this.constructor._flattenedProperties;
+        let p$ = this.constructor._flattenedPropertyDefaults;
+        if (!p$) {
+          return;
+        }
         for (let p in p$) {
           let info = p$[p];
-          if (('value' in info) && !this._isPropertyPending(p)) {
+          if (!this._isPropertyPending(p)) {
             var value = typeof info.value == 'function' ?
               info.value.call(this) :
               info.value;
@@ -322,8 +348,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * to put its dom in another location.
        *
        * @method _attachDom
+       * @throws {Error}
+       * @suppress {missingReturn}
        * @param {NodeList} dom to attach to the element.
-       * @returns {Node} node to which the dom has been attached.
+       * @return {Node} node to which the dom has been attached.
        */
       _attachDom(dom) {
         if (this.attachShadow) {
@@ -340,6 +368,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            `Polymer.Element can
               create dom as children instead of in ShadowDOM by setting
               \`this.root = this;\` before \`ready\`.`);
+
         }
       }
 
@@ -353,6 +382,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
+      /**
+       * Update styling for this element
+       *
+       * @param {Object=} properties
+       *  Override styling with an object of properties where the keys are css properties, and the values are strings
+       *  Example: `this.updateStyles({'color': 'blue'})`
+       *  These properties are retained unless a value of `null` is set.
+       */
       updateStyles(properties) {
         if (window.ShadyCSS) {
           ShadyCSS.applyStyle(this, properties);
@@ -381,6 +418,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     }
 
+    return PolymerElement;
   });
 
   let hostStack = {

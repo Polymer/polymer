@@ -16,7 +16,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 (function() {
 
-  var templatizer = new Polymer.Templatizer();
+  let templatizer = new Polymer.Templatizer();
 
   /**
    * Stamps the template iff the `if` property is truthy.
@@ -34,7 +34,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     static get template() { return null; }
 
-    static get config() { 
+    static get config() {
 
       return {
 
@@ -81,7 +81,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _debounceRender() {
       this._renderDebouncer =
-        Polymer.Debouncer.debounce(this._renderDebouncer, this._render, null, this);
+        Polymer.Debouncer.debounce(this._renderDebouncer, this._render, undefined, this);
       Polymer.Templatizer.enqueueDebouncer(this._renderDebouncer);
     }
 
@@ -114,7 +114,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     _render() {
       if (this.if) {
-        this._ensureInstance();
+        if (!this._ensureInstance()) {
+          // No template found yet
+          return;
+        }
         this._showHideChildren();
       } else if (this.restamp) {
         this._teardownInstance();
@@ -129,15 +132,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _ensureInstance() {
-      var parentNode = this.parentNode;
+      let parentNode = this.parentNode;
       // Guard against element being detached while render was queued
       if (parentNode) {
         if (!this._ctor) {
-          var template = this.querySelector('template');
-          template.__domIf = this;
+          let template = this.querySelector('template');
           if (!template) {
-            throw new Error('dom-if requires a <template> child');
+            // Wait until childList changes and template should be there by then
+            let observer = new MutationObserver(() => {
+              if (this.querySelector('template')) {
+                observer.disconnect();
+                this._render();
+              } else {
+                throw new Error('dom-if requires a <template> child');
+              }
+            })
+            observer.observe(this, {childList: true});
+            return false;
           }
+          template.__domIf = this;
           this._ctor = templatizer.templatize(template, {
             fwdHostPropToInstance: function(host, prop, value) {
               let domif = template.__domIf;
@@ -149,30 +162,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         if (!this._instance) {
           this._instance = new this._ctor(this);
-          var root = this._instance.root;
+          let root = this._instance.root;
           parentNode.insertBefore(root, this);
         } else {
-          var c$ = this._instance.children;
+          let c$ = this._instance.children;
           if (c$ && c$.length) {
             // Detect case where dom-if was re-attached in new position
-            var lastChild = this.previousSibling;
+            let lastChild = this.previousSibling;
             if (lastChild !== c$[c$.length-1]) {
-              for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
+              for (let i=0, n; (i<c$.length) && (n=c$[i]); i++) {
                 parentNode.insertBefore(n, this);
               }
             }
           }
-        }
+        }        
       }
+      return true;
     }
 
     _teardownInstance() {
       if (this._instance) {
-        var c$ = this._instance.children;
+        let c$ = this._instance.children;
         if (c$ && c$.length) {
           // use first child parent, for case when dom-if may have been detached
-          var parent = c$[0].parentNode;
-          for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
+          let parent = c$[0].parentNode;
+          for (let i=0, n; (i<c$.length) && (n=c$[i]); i++) {
             parent.removeChild(n);
           }
         }
@@ -181,7 +195,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _showHideChildren() {
-      var hidden = this.__hideTemplateChildren__ || !this.if;
+      let hidden = this.__hideTemplateChildren__ || !this.if;
       if (this._instance) {
         this._instance._showHideChildren(hidden);
       }

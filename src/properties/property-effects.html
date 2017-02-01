@@ -46,7 +46,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /**
    * Ensures that the model has an own-property map of effects for the given type.
    * The model may be a prototype or an instance.
-   * 
+   *
    * Property effects are stored as arrays of effects by property in a map,
    * by named type on the model. e.g.
    *
@@ -58,7 +58,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * If the model does not yet have an effect map for the type, one is created
    * and returned.  If it does, but it is not an own property (i.e. the
    * prototype had effects), the the map is deeply cloned and the copy is
-   * set on the model and returned, ready for new effects to be added. 
+   * set on the model and returned, ready for new effects to be added.
    *
    * @param {Object} model Prototype or instance
    * @param {string} type Property effect type
@@ -88,22 +88,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} inst The instance with effects to run
    * @param {string} type Type of effect to run
    * @param {Object} props Bag of current property changes
-   * @param {Object} oldProps Bag of previous values for changed properties
+   * @param {Object=} oldProps Bag of previous values for changed properties
    * @private
    */
-  function runEffects(inst, type, props, oldProps) {
-    let ran;
-    let effects = inst[type];
+  function runEffects(inst, effects, props, oldProps, fromAbove, hasPaths) {
     if (effects) {
+      let ran;
       let id = effectUid++;
       for (let prop in props) {
-        if (runEffectsForProperty(inst, effects, id, prop, props[prop],
-          oldProps && oldProps[prop])) {
+        if (runEffectsForProperty(inst, effects, id, prop, props, oldProps, fromAbove, hasPaths)) {
           ran = true;
         }
       }
+      return ran;
     }
-    return ran;
   }
 
   /**
@@ -117,30 +115,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {*} old Previous value of changed property
    * @private
    */
-  function runEffectsForProperty(inst, effects, id, prop, value, old) {
+  function runEffectsForProperty(inst, effects, id, prop, props, oldProps, fromAbove, hasPaths) {
     let ran;
     // TODO(kschaaf) ideally a system exists to parse path information once
     // and send structured information through the system for better perf
-    let rootProperty = Polymer.Path.root(prop);
+    let rootProperty = hasPaths ? Polymer.Path.root(prop) : prop;
     let fxs = effects[rootProperty];
     if (fxs) {
-      let fromAbove = inst.__dataFromAbove;
       for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
-        if (Polymer.Path.matches(fx.path, prop) &&
+        if ((!hasPaths || Polymer.Path.matches(fx.path, prop)) &&
           (!fx.info || fx.info.lastRun !== id)) {
-          if (rootProperty !== prop) {
-            // Pull the latest path value to pass to effect
-            let v = Polymer.Path.get(inst, prop);
-            // Fall back to the original changed value; this is mostly to thread
-            // array.splices through without it actually being on the array
-            if (v === undefined) {
-              v = value;
-            }
-          } else {
-            // Pull the latest property value to pass to effect
-            value = inst[prop];
-          }
-          fx.fn(inst, prop, value, old, fx.info, fromAbove);
+          fx.fn(inst, prop, props, oldProps, fx.info, fromAbove, hasPaths);
           if (fx.info) {
             fx.info.lastRun = id;
           }
@@ -164,10 +149,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runObserverEffect(inst, property, value, old, info) {
+  function runObserverEffect(inst, property, props, oldProps, info) {
     let fn = inst[info.methodName];
     if (fn) {
-      fn.call(inst, value, old);
+      fn.call(inst, inst.__data[property], oldProps[property]);
     } else {
       console.warn('observer method `' + info.methodName + '` not defined');
     }
@@ -183,49 +168,47 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * `notify: true` to ensure object sub-property notifications were
    * sent.
    *
-   * @param {Object} inst The instance with effects to run
+   * @param {Element} inst The instance with effects to run
    * @param {Object} props Bag of current property changes
    * @param {Object} oldProps Bag of previous values for changed properties
    * @private
    */
-  function runNotifyEffects(inst, props, oldProps) {
+  function runNotifyEffects(inst, props, oldProps, fromAbove, hasPaths) {
     // Notify
-    let notified;
-    let notifyEffects = inst[TYPES.NOTIFY];
-    let id = effectUid++;
-    // Try normal notify effects; if none, fall back to try path notification
-    // TODO(kschaaf) This is a hot path which we could avoid if (1) no
-    // "notify" effects AND (2) if we knew there were no paths to notify. This
-    // 2nd piece of info is not currently available but could be added perhaps
-    // in `_setProperty`.
-    for (let prop in props) {
-      if (notifyEffects && runEffectsForProperty(inst, notifyEffects, id,
-        prop, props[prop], oldProps && oldProps[prop])) {
-        notified = true;
-      } else if (notifyPath(inst, prop, props[prop])) {
-        notified = true;
+    let fxs = inst.__notifyEffects;
+    if (fxs || hasPaths) {
+      let notified;
+      let id = effectUid++;
+      // Try normal notify effects; if none, fall back to try path notification
+      for (let prop in props) {
+        if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, fromAbove, hasPaths)) {
+          notified = true;
+        } else if (hasPaths && notifyPath(inst, prop, props)) {
+          notified = true;
+        }
       }
-    }
-    // Flush host if we actually notified and host was batching
-    let host;
-    if (notified && (host = inst.__dataHost) && host.setProperties) {
-      host._flushProperties();
+      // Flush host if we actually notified and host was batching
+      let host;
+      if (notified && (host = inst.__dataHost) && host._flushProperties) {
+        host._flushProperties();
+      }      
     }
   }
 
   /**
-   * Dispatches {property}-changed events with path information in the detail 
+   * Dispatches {property}-changed events with path information in the detail
    * object to indicate a sub-path of the property was changed.
    *
    * @param {Element} inst The element from which to fire the event
    * @param {string} path The path that was changed
+   * @param {*} value
    * @private
    */
-  function notifyPath(inst, path, value) {
+  function notifyPath(inst, path, props) {
     let rootProperty = Polymer.Path.root(path);
     if (rootProperty !== path) {
       let eventName = Polymer.CaseMap.camelToDashCase(rootProperty) + '-changed';
-      dispatchNotifyEvent(inst, eventName, value, path);
+      dispatchNotifyEvent(inst, eventName, props[path], path);
       return true;
     }
   }
@@ -237,7 +220,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Element} inst The element from which to fire the event
    * @param {string} eventName The name of the event to send ('{property}-changed')
    * @param {*} value The value of the changed property
-   * @param {string=} path If a sub-path of this property changed, the path
+   * @param {string | null | undefined} path If a sub-path of this property changed, the path
    *   that changed (optional).
    * @private
    */
@@ -258,16 +241,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Dispatches a non-bubbling event named `info.eventName` on the instance
    * with a detail object containing the new `value`.
    *
-   * @param {Object} inst The instance the effect will be run on
+   * @param {Element} inst The instance the effect will be run on
    * @param {string} property Name of property
    * @param {*} value Current value of property
    * @param {*} old Previous value of property
    * @param {Object} info Effect metadata
    * @private
    */
-  function runNotifyEffect(inst, property, value, old, info) {
-    let rootProperty = Polymer.Path.root(property);
+  function runNotifyEffect(inst, property, props, oldProps, info, fromAbove, hasPaths) {
+    let rootProperty = hasPaths ? Polymer.Path.root(property) : property;
     let path = rootProperty != property ? property : null;
+    let value = path ? Polymer.Path.get(inst, path) : inst.__data[property];
+    if (path && value === undefined) {
+      value = props[property];  // specifically for .splices
+    }
     dispatchNotifyEvent(inst, info.eventName, value, path);
   }
 
@@ -297,7 +284,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Event} e Notification event (e.g. '<property>-changed')
    * @param {Object} inst Host element instance handling the notification event
    * @param {string} property Child element property that was bound
-   * @param {string} path Host property/path that was bound 
+   * @param {string} path Host property/path that was bound
    * @param {boolean} negate Whether the binding was negated
    * @private
    */
@@ -325,10 +312,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function setPropertyFromNotification(inst, path, value, event) {
     let detail = event.detail;
     if (detail && detail.queueProperty) {
-      if (!inst._hasReadOnlyEffect(path)) {
-        if ((path = inst._setPathOrUnmanagedProperty(path, value, Boolean(detail.path)))) {
-          inst._setPendingProperty(path, value);
-        }
+      if (!inst.__readOnly || !inst.__readOnly[path]) {
+        inst._setPendingPropertyOrPath(path, value, Boolean(detail.path));
       }
     } else {
       inst.set(path, value);
@@ -347,26 +332,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runReflectEffect(inst, property, value, old, info) {
+  function runReflectEffect(inst, property, props, oldProps, info) {
+    let value = inst.__data[property];
     if (Polymer.sanitizeDOMValue) {
       value = Polymer.sanitizeDOMValue(value, info.attrName, 'attribute', inst);
     }
     inst._propertyToAttribute(property, info.attrName, value);
-  }
-
-  /**
-   * Implements the "method observer" effect by running the method with the
-   * values of the arguments specified in the `info` object.
-   *
-   * @param {Object} inst The instance the effect will be run on
-   * @param {string} property Name of property
-   * @param {*} value Current value of property
-   * @param {*} old Previous value of property
-   * @param {Object} info Effect metadata
-   * @private
-   */
-  function runMethodObserverEffect(inst, property, value, old, info) {
-    runMethodEffect(inst, property, value, old, info);
   }
 
   /**
@@ -379,16 +350,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * computed before other effects (binding propagation, observers, and notify)
    * run.
    *
-   * @param {Object} inst The instance the effect will be run on
+   * @param {Element} inst The instance the effect will be run on
    * @param {Object} changedProps Bag of changed properties
    * @param {Object} oldProps Bag of previous values for changed properties
-   * @return {Object} Bag of newly computed properties from "computed" effects
+   * @return {Object | null | undefined} Bag of newly computed properties from "computed" effects
    */
-  function runComputedEffects(inst, changedProps, oldProps) {
-    if (inst[TYPES.COMPUTE]) {
+  function runComputedEffects(inst, changedProps, oldProps, fromAbove, hasPaths) {
+    let computeEffects = inst.__computeEffects;
+    if (computeEffects) {
       let inputProps = changedProps;
       let computedProps;
-      while (runEffects(inst, TYPES.COMPUTE, inputProps)) {
+      while (runEffects(inst, computeEffects, inputProps, fromAbove, hasPaths)) {
         mixin(oldProps, inst.__dataOld);
         mixin(changedProps, inst.__dataPending);
         computedProps = mixin(computedProps || {}, inst.__dataPending);
@@ -396,6 +368,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         inst.__dataPending = null;
       }
       return computedProps;
+    } else {
+      return undefined;
     }
   }
 
@@ -411,10 +385,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runComputedEffect(inst, property, value, old, info) {
-    var result = runMethodEffect(inst, property, value, old, info);
+  function runComputedEffect(inst, property, props, oldProps, info) {
+    var result = runMethodEffect(inst, property, props, oldProps, info);
     var computedProp = info.methodInfo;
-    if (inst._hasPropertyEffect(computedProp)) {
+    if (inst.__propertyEffects && inst.__propertyEffects[computedProp]) {
       inst._setPendingProperty(computedProp, result);
     } else {
       inst[computedProp] = result;
@@ -425,19 +399,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Computes path changes based on path links set up using the `linkPaths`
    * API.
    *
-   * @param {Object} inst The instance whose props are changing
+   * @param {Element} inst The instance whose props are changing
    * @param {Object} changedProps Bag of changed properties
-   * @param {Object} computedProps Bag of properties newly computed this turn
+   * @param {Object | undefined} computedProps Bag of properties newly computed this turn
    *   via "computed" effects; any linked paths generated via this method
    *   will be added both to the set of `changedProps` as well as to the
-   *   set of `computedProps`; this is because the `fromAbove: true` case will 
+   *   set of `computedProps`; this is because the `fromAbove: true` case will
    *   notify only from the `computedProps` bag.
+   * @return {Object | undefined}
    * @private
    */
-  function computeLinkedPaths(inst, changedProps, computedProps) {
-    const links = inst.__dataLinkedPaths;
-    const cache = inst.__dataTemp;
-    if (links) {
+  function computeLinkedPaths(inst, changedProps, computedProps, hasPaths) {
+    let links;
+    if (hasPaths && (links = inst.__dataLinkedPaths)) {
+      const cache = inst.__dataTemp;
       computedProps = computedProps || {};
       let link;
       for (let a in links) {
@@ -504,49 +479,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /**
    * Implements the "binding" (property/path binding) effect.
    *
-   * @param {Object} inst The instance the effect will be run on
-   * @param {string} property Name of property
+   * @param {Element} inst The instance the effect will be run on
+   * @param {string} path Name of property
    * @param {*} value Current value of property
    * @param {*} old Previous value of property
    * @param {Object} info Effect metadata
    * @private
    */
-  function runBindingEffect(inst, path, value, old, info) {
+  function runBindingEffect(inst, path, props, oldProps, info, fromAbove, hasPaths) {
+    let value;
     let node = inst.__dataNodes[info.index];
     // Subpath notification: transform path and set to client
     // e.g.: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo.prop'=obj.sub.prop
-    if ((path.length > info.value.length) &&
+    if (hasPaths && (path.length > info.value.length) &&
         (info.kind == 'property') && !info.isCompound &&
-        node._hasPropertyEffect && node._hasPropertyEffect(info.name)) {
+        node.__propertyEffects && node.__propertyEffects[info.name]) {
+      let value = props[path];
       path = Polymer.Path.translate(info.value, info.name, path);
-      setPropertyToNodeFromBinding(inst, node, path, value);
+      if (node._setPendingPropertyOrPath(path, value, true)) {
+        inst._enqueueClient(node);
+      }
     } else {
       // Root or deeper path was set; extract bound path value
       // e.g.: foo="{{obj.sub}}", path: 'obj', set 'foo'=obj.sub
       //   or: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo'=obj.sub
       if (path != info.value) {
         value = Polymer.Path.get(inst, info.value);
+      } else {
+        if (hasPaths && Polymer.Path.isPath(path)) {
+          value = Polymer.Path.get(inst, path);
+        } else {
+          value = inst.__data[path];
+        }
       }
       // Propagate value to child
       applyBindingValue(inst, info, value);
-    }
-  }
-
-  /**
-   * Called by "binding effect" to set a property to a node.  Note,
-   * the caller must ensure that the target node has a property effect for
-   * the property in question, otherwise this method will error.
-   *
-   * @param {Node} node Node to set property on
-   * @param {string} prop Property (or path) name to set
-   * @param {*} value Value to set
-   * @protected
-   */
-  function setPropertyToNodeFromBinding(inst, node, prop, value) {
-    if (!node._hasReadOnlyEffect(prop)) {
-      if (node._setPendingProperty(prop, value)) {
-        inst._enqueueClient(node);
-      }
     }
   }
 
@@ -571,8 +538,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     } else {
       // Property binding
       let prop = info.name;
-      if (node._hasPropertyEffect && node._hasPropertyEffect(prop)) {
-        setPropertyToNodeFromBinding(inst, node, prop, value);
+      if (node.__propertyEffects && node.__propertyEffects[prop]) {
+        if (!node.__readOnly || !node.__readOnly[prop]) {
+          if (node._setPendingProperty(prop, value)) {
+            inst._enqueueClient(node);
+          }
+        }
       // The `else` clause is for interop: binding to a non-Polymer element's
       // property. Some native element properties have side-effects when
       // re-setting the same value (e.g. setting <input>.value resets the
@@ -626,7 +597,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Object} model Prototype or instance
    * @param {Object} note Binding note returned from Annotator
-   * @param {number} part The compound part metadata
+   * @param {Object} part The compound part metadata
    * @param {number} index Index into `__dataNodes` list of annotated nodes that the
    *   note applies to
    * @private
@@ -658,8 +629,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runMethodBindingEffect(inst, property, value, old, info) {
-    let val = runMethodEffect(inst, property, value, old, info);
+  function runMethodBindingEffect(inst, property, props, oldProps, info) {
+    let val = runMethodEffect(inst, property, props, oldProps, info);
     applyBindingValue(inst, info.methodInfo, val);
   }
 
@@ -670,7 +641,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * - Memoizes the root property for path bindings
    * - Recurses into nested templates and processes those templates and
    *   extracts any host properties, which are set to the template's
-   *   `_content._hostProps` 
+   *   `_content._hostProps`
    * - Adds bindings from the host to <template> elements for any nested
    *   template's lexically bound "host properties"; template handling
    *   elements can then add accessors to the template for these properties
@@ -871,9 +842,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * optionally, for the method name if `dynamic` is true) that calls the
    * provided effect function.
    *
-   * @param {Object} inst Prototype or instance
+   * @param {Element | Object} model Prototype or instance
    * @param {Object} sig Method signature metadata
+   * @param {string} type
    * @param {Function} effectFn Function to run when arguments change
+   * @param {*=} methodInfo
    * @param {boolean=} dynamic Whether the method name should be included as
    *   a dependency to the effect.
    * @private
@@ -921,12 +894,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runMethodEffect(inst, property, value, old, info) {
+  function runMethodEffect(inst, property, props, oldProps, info) {
     // TODO(kschaaf): ideally rootDataHost would be a detail of Templatizer only
     let context = inst._rootDataHost || inst;
     let fn = context[info.methodName];
     if (fn) {
-      let args = marshalArgs(inst.__data, info.args, property, value);
+      let args = marshalArgs(inst.__data, info.args, property, props);
       return fn.apply(context, args);
     } else if (!info.dynamicFn) {
       console.warn('method `' + info.methodName + '` not defined');
@@ -959,6 +932,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return sig;
       }
     }
+    return null;
   }
 
   /**
@@ -1052,13 +1026,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * The `path` and `value` arguments are used to fill in wildcard descriptor
    * when the method is being called as a result of a path notification.
-   * 
+   *
    * @param {Object} data Instance data storage object to read properties from
    * @param {Array<Object>} args Array of argument metadata
    * @return {Array<*>} Array of argument values
    * @private
    */
-  function marshalArgs(data, args, path, value) {
+  function marshalArgs(data, args, path, props) {
     let values = [];
     for (let i=0, l=args.length; i<l; i++) {
       let arg = args[i];
@@ -1066,13 +1040,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let v;
       if (arg.literal) {
         v = arg.value;
-      } else if (path == name) {
-        v = value;
       } else {
-        // TODO(kschaaf): confirm design of this
-        v = data[name];
-        if (v === undefined && arg.structured) {
+        if (arg.structured) {
           v = Polymer.Path.get(data, name);
+          // when data is not stored e.g. `splices`
+          if (v === undefined) {
+            v = props[name];
+          }
+        } else {
+          v = data[name];
         }
       }
       if (arg.wildcard) {
@@ -1082,7 +1058,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let matches = (path.indexOf(name) === 0 && !baseChanged);
         values[i] = {
           path: matches ? path : name,
-          value: matches ? value : v,
+          value: matches ? props[path] : v,
           base: v
         };
       } else {
@@ -1096,7 +1072,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Initializes `__dataCompoundStorage` local storage on a bound node with
    * initial literal data for compound bindings, and sets the joined
    * literal parts to the bound property.
-   * 
+   *
    * When changes to compound parts occur, they are first set into the compound
    * storage array for that property, and then the array is joined to result in
    * the final value set to the property/attribute.
@@ -1137,11 +1113,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // data api
 
   /**
-   * Sends array splice notifications (`.splices` and `.length`) 
+   * Sends array splice notifications (`.splices` and `.length`)
    *
    * Note: this implementation only accepts normalized paths
    *
-   * @param {Object} inst Instance to send notifications to
+   * @param {Element} inst Instance to send notifications to
    * @param {Array} array The array the mutations occurred on
    * @param {string} path The path to the array that was mutated
    * @param {Array} splices Array of splice records
@@ -1149,8 +1125,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function notifySplices(inst, array, path, splices) {
     let splicesPath = path + '.splices';
-    inst._setProperty(splicesPath, { indexSplices: splices });
-    inst._setProperty(path + '.length', array.length);
+    inst.notifyPath(splicesPath, { indexSplices: splices });
+    inst.notifyPath(path + '.length', array.length);
     // Null here to allow potentially large splice records to be GC'ed.
     inst.__data[splicesPath] = {indexSplices: null};
   }
@@ -1161,7 +1137,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * Note: this implementation only accepts normalized paths
    *
-   * @param {Object} inst Instance to send notifications to
+   * @param {Element} inst Instance to send notifications to
    * @param {Array} array The array the mutations occurred on
    * @param {string} path The path to the array that was mutated
    * @param {number} index Index at which the array mutation occurred
@@ -1192,8 +1168,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   Polymer.PropertyEffects = Polymer.Utils.dedupingMixin(function(superClass) {
 
-    return class PropertyEffects extends Polymer.TemplateStamp(
-      Polymer.Attributes(Polymer.PropertyAccessors(superClass))) {
+    const mixin = Polymer.TemplateStamp(
+      Polymer.Attributes(Polymer.PropertyAccessors(superClass)));
+
+    /**
+     * @unrestricted
+     */
+    class PropertyEffects extends mixin {
 
       get PROPERTY_EFFECT_TYPES() {
         return TYPES;
@@ -1207,6 +1188,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataFromAbove = false;
         this.__dataLinkedPaths = null;
         this.__dataNodes = null;
+        this.__dataHasPaths = false;
         // May be set on instance prior to upgrade
         this.__dataCompoundStorage = this.__dataCompoundStorage || null;
         this.__dataHost = this.__dataHost || null;
@@ -1271,7 +1253,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string} path Property (or path) that should trigger the effect
        * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-       * @param {Object} effect Effect metadata object
+       * @param {Object=} effect Effect metadata object
        * @protected
        */
       _addPropertyEffect(path, type, effect) {
@@ -1299,7 +1281,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * of a certain type.
        *
        * @param {string} property Property name
-       * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
+       * @param {string=} type Effect type, from this.PROPERTY_EFFECT_TYPES
        * @return {boolean} True if the prototype/instance has an effect of this type
        * @protected
        */
@@ -1359,57 +1341,64 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Runtime ----------------------------------------
 
       /**
-       * Sets an unmanaged property (property without accessor) or leaf property
-       * of a path to the given value.  If the path in question was a simple
-       * property with an accessor, no action is taken.
+       * Sets a pending property or path.  If the root property of the path in
+       * question had no accessor, the path is set, otherwise it is enqueued
+       * via `_setPendingProperty`.
        *
        * This function isolates relatively expensive functionality necessary
-       * for the public API, such that it is only done when paths enter the
-       * system, and not in every step of the hot path.
+       * for the public API (`set`, `setProperties`, `notifyPath`, and property
+       * change listeners via {{...}} bindings), such that it is only done
+       * when paths enter the system, and not at every propagation step.  It
+       * also sets a `__dataHasPaths` flag on the instance which is used to
+       * fast-path slower path-matching code in the property effects host paths.
        *
-       * If `path` is an unmanaged property (property without an accessor)
-       * or a path, sets the value at that path.
-       * 
        * `path` can be a path string or array of path parts as accepted by the
        * public API.
        *
-       * @param {string} path Path to set
+       * @param {string | !Array<number|string>} path Path to set
        * @param {*} value Value to set
-       * @param {boolean} fromPath If the value being set was from a path; in
-       *   this case the value was shared, so no dirty check is performed.
-       * @return {?string} If the root of the path is a managed property,
-       *   returns a normalized string path suitable for setting into the system
-       *   via `_setProperty`/`_setPendingProperty`. A null path is returned if
-       *   a path was being set and fails a dirty check, unless `fromPath`
-       *   was true (in which case no dirty check is performed since this is a
-       *   notification of change to a shared path).
+       * @param {boolean=} isPathNotification If the path being set is a path
+       *   notification of an already changed value, as opposed to a request
+       *   to set and notify the change.  In the latter `false` case, a dirty
+       *   check is performed and then the value is set to the path before
+       *   enqueuing the pending property change.
+       * @return {boolean} Returns true if the property/path was enqueued in
+       *   the pending changes bag.
        * @protected
        */
-      _setPathOrUnmanagedProperty(path, value, fromPath) {
+      _setPendingPropertyOrPath(path, value, isPathNotification) {
         let rootProperty = Polymer.Path.root(Array.isArray(path) ? path[0] : path);
-        let hasEffect = this._hasPropertyEffect(rootProperty);
+        let hasEffect = this.__propertyEffects && this.__propertyEffects[rootProperty];
         let isPath = (rootProperty !== path);
-        if (!hasEffect) {
-          Polymer.Path.set(this, path, value);
-        } else if (isPath && !fromPath) {
-          // Dirty check changes being set to a path against the actual object,
-          // since this is the entry point for paths into the system; from here
-          // the only dirty checks are against the `__dataTemp` cache to prevent
-          // duplicate work in the same turn only. Note, if this was a
-          // notification of a change already set to a path (fromPath: true),
-          // we always let the change through and skip the `set` since it was
-          // already dirty checked at the point of entry and the underlying
-          // object has already been updated
-          let old = Polymer.Path.get(this, path);
-          path = Polymer.Path.set(this, path, value);
-          // Use property-accessor's simpler dirty check
-          if (!super._shouldPropertyChange(path, value, old)) {
-            return null;
-          }
-        } 
         if (hasEffect) {
-          return path;
+          if (isPath) {
+            if (!isPathNotification) {
+              // Dirty check changes being set to a path against the actual object,
+              // since this is the entry point for paths into the system; from here
+              // the only dirty checks are against the `__dataTemp` cache to prevent
+              // duplicate work in the same turn only. Note, if this was a notification
+              // of a change already set to a path (isPathNotification: true),
+              // we always let the change through and skip the `set` since it was
+              // already dirty checked at the point of entry and the underlying
+              // object has already been updated
+              let old = Polymer.Path.get(this, path);
+              path = /** @type {string} */ Polymer.Path.set(this, path, value);
+              // Use property-accessor's simpler dirty check
+              if (!path || !super._shouldPropertyChange(path, value, old)) {
+                return false;
+              }
+            }
+            this.__dataHasPaths = true;
+          }
+          return this._setPendingProperty(path, value);
+        } else {
+          if (isPath) {
+            Polymer.Path.set(this, path, value);
+          } else {
+            this[path] = value;
+          }
         }
+        return false;
       }
 
       /**
@@ -1443,7 +1432,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       _setPendingProperty(property, value) {
-        let isPath = Polymer.Path.isPath(property);
+        let isPath = this.__dataHasPaths && Polymer.Path.isPath(property);
         let prevProps = isPath ? this.__dataTemp : this.__data;
         if (this._shouldPropertyChange(property, value, prevProps[property])) {
           if (!this.__dataPending) {
@@ -1472,7 +1461,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       /**
        * Overrides default PropertyAccessors implementation to pull the value
-       * to dirty check against from the `__dataTemp` cache (rather than the 
+       * to dirty check against from the `__dataTemp` cache (rather than the
        * normal `__data` cache) for Objects.  Since the temp cache is cleared
        * at the end of a turn, this implementation allows side-effects of deep
        * object changes to be processed by re-setting the same object (using
@@ -1482,7 +1471,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Override this to provide more strict dirty checking, i.e. immutable
        * (`value === old`) or based on type.
        *
+       * TODO(kschaaf): Can this go away (and just use @override) once we start using mixin interfaces?
        * @override
+       * @param {string} property
+       * @param {*} value
+       * @param {*} old
+       * @return {boolean}
        */
       _shouldPropertyChange(property, value, old) {
         if (typeof value == 'object') {
@@ -1492,23 +1486,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides PropertyAccessor's default async queuing of 
+       * Overrides PropertyAccessor's default async queuing of
        * `_propertiesChanged`: if `__dataInitialized` is false (has not yet been
        * manually flushed), the function no-ops; otherwise flushes
        * `_propertiesChanged` synchronously.
-       *
-       * Subclasses may set `this._asyncEffects = true` to cause 
-       * `_propertiesChanged` to be flushed asynchronously.
        *
        * @override
        */
       _invalidateProperties() {
         if (this.__dataInitialized) {
-          if (this._asyncEffects) {
-            super._invalidateProperties();
-          } else {
-            this._flushProperties();
-          }
+          //TODO(kschaaf): consider option to flush async
+          this._flushProperties();
         }
       }
 
@@ -1521,9 +1509,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _enqueueClient(client) {
-        this.__dataPendingClients = this.__dataPendingClients || new Map();
+        this.__dataPendingClients = this.__dataPendingClients || [];
         if (client !== this) {
-          this.__dataPendingClients.set(client, true);
+          this.__dataPendingClients.push(client);
         }
       }
 
@@ -1538,36 +1526,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let clients = this.__dataPendingClients;
         if (clients) {
           this.__dataPendingClients = null;
-          clients.forEach((v, client) => {
+          for (let i=0; i < clients.length; i++) {
+            let client = clients[i];
             // TODO(kschaaf): more explicit check?
-            if (client._flushProperties) {
+            if (!client.__dataInitialized || client.__dataPending) {
               client._flushProperties(true);
             }
-          });
+          }
         }
       }
 
       /**
-       * Sets a bag of property (or path) changes to this instance, and
+       * Sets a bag of property changes to this instance, and
        * synchronously processes all effects of the properties as a batch.
        *
        * @param {Object} props Bag of one or more key-value pairs whose key is
-       *   a property (or path, such as `'object.foo'`) and value is the new
-       *   value to set for that property.
+       *   a property and value is the new value to set for that property.
        */
       setProperties(props) {
         for (let path in props) {
-          if (!this._hasReadOnlyEffect(path)) {
-            let value = props[path];
-            if ((path = this._setPathOrUnmanagedProperty(path, value))) {
-              this._setPendingProperty(path, value);
-            }
+          if (!this.__readOnly || !this.__readOnly[path]) {
+            //TODO(kschaaf): explicitly disallow paths in setProperty?
+            // wildcard observers currently only pass the first changed path
+            // in the `info` object, and you could do some odd things batching
+            // paths, e.g. {'foo.bar': {...}, 'foo': null}
+            this._setPendingPropertyOrPath(path, props[path]);
           }
         }
         this._invalidateProperties();
       }
       /**
-       * Overrides PropertyAccessor's default async queuing of 
+       * Overrides PropertyAccessor's default async queuing of
        * `_propertiesChanged`, to instead synchronously flush
        * `_propertiesChanged` unless the `this._asyncEffects` property is true.
        *
@@ -1598,7 +1587,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // Clear temporary cache at end of turn
             this.__dataTemp = {};
           }
-          this.__dataFromAbove = false;
         }
       }
 
@@ -1627,7 +1615,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * listeners, and the `this.$` map of `id`'s to nodes.  A document fragment
        * is returned containing the stamped DOM, ready for insertion into the
        * DOM.
-       * 
+       *
        * Note that for host data to be bound into the stamped DOM, the template
        * must have been previously bound to the prototype via a call to
        * `_bindTemplate`, which performs one-time template binding work.
@@ -1655,26 +1643,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       _propertiesChanged(currentProps, changedProps, oldProps) {
+        let hasPaths = this.__dataHasPaths;
+        let fromAbove = this.__dataFromAbove;
+        this.__dataHasPaths = this.__dataFromAbove = false;
         // ----------------------------
         // let c = Object.getOwnPropertyNames(changedProps || {});
         // window.debug && console.group(this.localName + '#' + this.id + ': ' + c);
         // if (window.debug) { debugger; }
         // ----------------------------
-        let fromAbove = this.__dataFromAbove;
         // Compute properties
-        let computedProps = runComputedEffects(this, changedProps, oldProps);
+        let computedProps = runComputedEffects(this, changedProps, oldProps, fromAbove, hasPaths);
         // Compute linked paths
-        computedProps = computeLinkedPaths(this, changedProps, computedProps);
+        computedProps = computeLinkedPaths(this, changedProps, computedProps, hasPaths);
         // Propagate properties to clients
-        runEffects(this, TYPES.PROPAGATE, changedProps);
+        runEffects(this, this.__propagateEffects, changedProps, oldProps, fromAbove, hasPaths);
         // Flush clients
         this._flushClients();
         // Reflect properties
-        runEffects(this, TYPES.REFLECT, changedProps, oldProps);
+        runEffects(this, this.__reflectEffects, changedProps, oldProps, fromAbove, hasPaths);
         // Observe properties
-        runEffects(this, TYPES.OBSERVE, changedProps, oldProps);
+        runEffects(this, this.__observeEffects, changedProps, oldProps, fromAbove, hasPaths);
         // Notify properties to host
-        runNotifyEffects(this, fromAbove ? computedProps : changedProps, oldProps);
+        runNotifyEffects(this, fromAbove ? computedProps : changedProps, oldProps, fromAbove, hasPaths);
         // ----------------------------
         // window.debug && console.groupEnd(this.localName + '#' + this.id + ': ' + c);
         // ----------------------------
@@ -1685,8 +1675,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * are routed to the other.
        *
        * @method linkPaths
-       * @param {string} to Target path to link.
-       * @param {string} from Source path to link.
+       * @param {string | !Array<string|number>} to Target path to link.
+       * @param {string | !Array<string|number>} from Source path to link.
        * @public
        */
       linkPaths(to, from) {
@@ -1703,7 +1693,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * linking the paths.
        *
        * @method unlinkPaths
-       * @param {string} path Target path to unlink.
+       * @param {string | !Array<string|number>} path Target path to unlink.
        * @public
        */
       unlinkPaths(path) {
@@ -1744,7 +1734,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       */
       notifySplices(path, splices) {
         let info = {};
-        let array = Polymer.Path.get(this, path, info);
+        let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         notifySplices(this, array, info.path, splices);
       }
 
@@ -1756,7 +1746,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * paths).
        *
        * @method get
-       * @param {(string|Array<(string|number)>)} path Path to the value
+       * @param {(string|!Array<(string|number)>)} path Path to the value
        *   to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
        *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
        *   bracketed expressions are not supported; string-based path parts
@@ -1781,7 +1771,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * dereferencing undefined paths).
        *
        * @method set
-       * @param {(string|Array<(string|number)>)} path Path to the value
+       * @param {(string|!Array<(string|number)>)} path Path to the value
        *   to write.  The path may be specified as a string (e.g. `'foo.bar.baz'`)
        *   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
        *   bracketed expressions are not supported; string-based path parts
@@ -1797,11 +1787,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (root) {
           Polymer.Path.set(root, path, value);
         } else {
-          if (!this._hasReadOnlyEffect(path)) {
-            if ((path = this._setPathOrUnmanagedProperty(path, value))) {
-              this._setProperty(path, value);
+          if (!this.__readOnly || !this.__readOnly[/** @type {string} */(path)]) {
+            if (this._setPendingPropertyOrPath(path, value)) {
+              this._invalidateProperties();
             }
-          }          
+          }
         }
       }
 
@@ -1815,14 +1805,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * splice occurred to the array.
        *
        * @method push
-       * @param {String} path Path to array.
-       * @param {...any} var_args Items to push onto array
+       * @param {string} path Path to array.
+       * @param {...*} items Items to push onto array
        * @return {number} New length of the array.
        * @public
        */
       push(path, ...items) {
         let info = {};
-        let array = Polymer.Path.get(this, path, info);
+        let array = /** @type {Array}*/(Polymer.Path.get(this, path, info));
         let len = array.length;
         let ret = array.push(...items);
         if (items.length) {
@@ -1841,13 +1831,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * splice occurred to the array.
        *
        * @method pop
-       * @param {String} path Path to array.
-       * @return {any} Item that was removed.
+       * @param {string} path Path to array.
+       * @return {*} Item that was removed.
        * @public
        */
       pop(path) {
         let info = {};
-        let array = Polymer.Path.get(this, path, info);
+        let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let hadLength = Boolean(array.length);
         let ret = array.pop();
         if (hadLength) {
@@ -1867,16 +1857,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * splice occurred to the array.
        *
        * @method splice
-       * @param {String} path Path to array.
+       * @param {string} path Path to array.
        * @param {number} start Index from which to start removing/inserting.
        * @param {number} deleteCount Number of items to remove.
-       * @param {...any} var_args Items to insert into array.
+       * @param {...*} items Items to insert into array.
        * @return {Array} Array of removed items.
        * @public
        */
       splice(path, start, deleteCount, ...items) {
         let info = {};
-        let array = Polymer.Path.get(this, path, info);
+        let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         // Normalize fancy native splice handling of crazy start values
         if (start < 0) {
           start = array.length - Math.floor(-start);
@@ -1903,13 +1893,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * splice occurred to the array.
        *
        * @method shift
-       * @param {String} path Path to array.
-       * @return {any} Item that was removed.
+       * @param {string} path Path to array.
+       * @return {*} Item that was removed.
        * @public
        */
       shift(path) {
         let info = {};
-        let array = Polymer.Path.get(this, path, info);
+        let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let hadLength = Boolean(array.length);
         let ret = array.shift();
         if (hadLength) {
@@ -1928,14 +1918,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * splice occurred to the array.
        *
        * @method unshift
-       * @param {String} path Path to array.
-       * @param {...any} var_args Items to insert info array
+       * @param {string} path Path to array.
+       * @param {...*} items Items to insert info array
        * @return {number} New length of the array.
        * @public
        */
       unshift(path, ...items) {
         let info = {};
-        let array = Polymer.Path.get(this, path, info);
+        let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let ret = array.unshift(...items);
         if (items.length) {
           notifySplice(this, array, info.path, 0, items.length, []);
@@ -1956,23 +1946,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
       */
       notifyPath(path, value) {
+        /** @type {string} */
+        let propPath;
         if (arguments.length == 1) {
           // Get value if not supplied
           let info = {};
           value = Polymer.Path.get(this, path, info);
-          path = info.path;
+          propPath = info.path;
         } else if (Array.isArray(path)) {
           // Normalize path if needed
-          path = Polymer.Path.normalize(path);
+          propPath = Polymer.Path.normalize(path);
+        } else {
+          propPath = /** @type{string} */(path);
         }
-        this._setProperty(path, value);
+        if (this._setPendingPropertyOrPath(propPath, value, true)) {
+          this._invalidateProperties();
+        }
       }
 
       /**
        * Creates a read-only accessor for the given property.
        *
        * To set the property, use the protected `_setProperty` API.
-       * To create a custom protected setter (e.g. `_setMyProp()` for 
+       * To create a custom protected setter (e.g. `_setMyProp()` for
        * property `myProp`), pass `true` for `protectedSetter`.
        *
        * Note, if the property will have other property effects, this method
@@ -2023,7 +2019,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!sig) {
           throw new Error("Malformed observer expression '" + expression + "'");
         }
-        createMethodEffect(this, sig, TYPES.OBSERVE, runMethodObserverEffect);
+        createMethodEffect(this, sig, TYPES.OBSERVE, runMethodEffect);
       }
 
       /**
@@ -2097,7 +2093,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _bindTemplate(template) {
         // Clear any existing propagation effects inherited from superClass
-        this[TYPES.PROPAGATE] = {};
+        this.__propagateEffects = {};
         let notes = this._parseTemplateAnnotations(template);
         processAnnotations(notes);
         for (let i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
@@ -2117,6 +2113,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     }
 
+    return PropertyEffects;
   });
 
 })();
