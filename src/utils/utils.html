@@ -86,41 +86,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return matchesSelector.call(node, selector);
     },
 
+    /**
+     * Given a mixin producing function, memoize applications of mixin to base
+     */
     cachingMixin(mixin) {
-      var fn = function(base) {
+      return function(base) {
         if (!mixin.__mixinApplications) {
           mixin.__mixinApplications = new WeakMap();
         }
-        let application = mixin.__mixinApplications.get(base);
+        let map = mixin.__mixinApplications;
+        let application = map.get(base);
         if (!application) {
           application = mixin(base);
-          mixin.__mixinApplications.set(base, application);
+          map.set(base, application);
         }
         return application;
-      }
-      // TODO(sorvell): for testing only
-      Object.defineProperty(fn, 'name', {value: mixin.name})
-      return fn;
+      };
     },
 
     /**
-     * @template T
-     * @param {T} mixin
-     * @return {T}
+     * Given a mixin producing function, only apply mixin if has not already been applied to base
+     * Also memoize mixin applications
      */
     dedupingMixin(mixin) {
       mixin = this.cachingMixin(mixin);
       return function(base) {
-        //console.group(mixin.name);
-        let extended = base;
-        let baseMap = base.__mixinMap;
-        if (!baseMap || !baseMap.has(mixin)) {
-          extended = mixin(base);
-          extended.__mixinMap = new Set(extended.__mixinMap || baseMap);
-          //extended.__mixinMap = new Set(baseMap);
-          extended.__mixinMap.add(mixin);
+        let baseSet = base.__mixinSet;
+        if (baseSet && baseSet.has(mixin)) {
+          return base;
         }
-        //console.groupEnd(mixin.name);
+        let extended = mixin(base);
+        if (!extended.__mixinSet) {
+          extended.__mixinSet = new Set(baseSet);
+        }
+        extended.__mixinSet.add(mixin);
         return extended;
       }
     },
