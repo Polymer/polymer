@@ -7,28 +7,190 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+<link rel="import" href="custom-style.html">
 <script>
   (function() {
     'use strict';
 
-    var StyleUtil = {
+    const ShadyCSS = window.ShadyCSS;
+    const ApplyShim = window.ApplyShim;
+    const CustomStyle = window.CustomStyle;
 
-      isTargetedBuild: function(buildType) {
+    function updateNativeProperties(element, properties) {
+      // remove previous properties
+      for (let p in properties) {
+        // NOTE: for bc with shim, don't apply null values.
+        if (p === null) {
+          element.style.removeProperty(p);
+        } else {
+          element.style.setProperty(p, properties[p]);
+        }
+      }
+    }
+
+    class ShadyInterface {
+      prepareTemplate(template, elementName, elementExtends) {
+        ShadyCSS.prepareTemplate(template, elementName, elementExtends);
+      }
+      flushCustomStyles() {
+        ShadyCSS.flushCustomStyles();
+      }
+      styleSubtree(element, properties) {
+        ShadyCSS.applySubtreeStyle(element, properties);
+      }
+      styleElement(element) {
+        ShadyCSS.applyElementStyle(element);
+      }
+      styleDocument(properties) {
+        ShadyCSS.updateStyles(properties);
+      }
+    }
+
+    class ApplyInterface {
+      constructor() {
+        this._validatorPromise = Promise.resolve();
+        this._templateMap = {};
+        ApplyShim.invalidCallback = (elementName) => {
+          let template = this._templateMap[elementName];
+          if (template) {
+            template._invalid = true;
+            template._validating = false;
+          }
+        };
+        CustomStyle._transformer = (style) => {
+          ApplyShim.transformCustomStyle(style);
+        };
+        CustomStyle._validator = () => {
+          this.flushCustomStyles();
+        }
+      }
+      prepareTemplate(template, elementName, elementExtends) {
+        this._templateMap[elementName] = template;
+        ApplyShim.transformTemplate(template, elementName);
+      }
+      flushCustomStyles() {
+        CustomStyle._flushCustomStyles();
+        let styles = CustomStyle._customStyles;
+        for (let i = 0; i < styles.length; i++ ) {
+          let cs = styles[i];
+          let style = cs.getStyle();
+          if (style) {
+            ApplyShim.transformCustomStyle(style);
+          }
+        }
+      }
+      styleSubtree(element, properties) {
+        if (properties) {
+          updateNativeProperties(element, properties);
+        }
+        if (element.shadowRoot) {
+          this.styleElement(element);
+          let shadowChildren = element.shadowRoot.children;
+          for (let i = 0; i < shadowChildren.length; i++) {
+            this.styleSubtree(shadowChildren[i]);
+          }
+        }
+        let children = element.children;
+        for (let i = 0; i < children.length; i++) {
+          this.styleSubtree(children[i]);
+        }
+      }
+      styleElement(element) {
+        let is = element.is;
+        let template = this._templateMap[is];
+        if (!template || !template._invalid) {
+          return;
+        }
+        // only revalidate template once
+        if (!template._validating) {
+          template._validating = true;
+          this.prepareTemplate(template, is);
+          // after a tick, assume all instances of this element are valid
+          this._validatorPromise.then(() => {
+            template._invalid = false;
+            template._validating = false;
+          });
+        }
+        // update all instances
+        let root = element.shadowRoot;
+        if (root) {
+          let style = root.querySelector('style');
+          ApplyShim.transformStyle(style, is);
+        }
+      }
+      styleDocument(properties) {
+        this.styleSubtree(document.documentElement, properties);
+      }
+    }
+
+    class CustomOnlyInterface {
+      prepareTemplate() {}
+      flushCustomStyles() {
+        CustomStyle._flushCustomStyles();
+      }
+      styleSubtree(element, properties) {
+        updateNativeProperties(element, properties);
+      }
+      styleElement(element) {}
+      styleDocument(properties) {
+        updateNativeProperties(document.documentElement, properties);
+      }
+    }
+
+    let styleInterface;
+
+    if (ShadyCSS) {
+      styleInterface = new ShadyInterface();
+    } else if (ApplyShim) {
+      styleInterface = new ApplyInterface();
+    } else {
+      styleInterface = new CustomOnlyInterface();
+    }
+
+    let StyleUtil = {
+
+      isTargetedBuild(buildType) {
         return (!window.ShadyDOM || !ShadyDOM.inUse) ?
           buildType === 'shadow' : buildType === 'shady';
       },
 
-      cssBuildTypeForModule: function (module) {
-        var dm = Polymer.DomModule.import(module);
+      cssBuildTypeForModule(module) {
+        let dm = Polymer.DomModule.import(module);
         if (dm) {
           return this.getCssBuildType(dm);
         }
       },
 
-      getCssBuildType: function(element) {
+      getCssBuildType(element) {
         return element.getAttribute('css-build');
-      }
+      },
 
+      prepareTemplate(template, elementName, elementExtends) {
+        styleInterface.prepareTemplate(template, elementName, elementExtends)
+      },
+
+      styleSubtree(element, properties) {
+        styleInterface.flushCustomStyles();
+        styleInterface.styleSubtree(element, properties);
+      },
+
+      styleElement(element) {
+        styleInterface.flushCustomStyles();
+        styleInterface.styleElement(element);
+      },
+
+      styleDocument(properties) {
+        styleInterface.flushCustomStyles();
+        styleInterface.styleDocument(properties);
+      },
+
+      getComputedStyleValue(element, property) {
+        if (ShadyCSS) {
+          return ShadyCSS.getComputedStyleValue(element, property);
+        } else {
+          return window.getComputedStyle(element).getPropertyValue(property).trim();
+        }
+      }
     };
 
     Polymer.StyleUtil = StyleUtil;

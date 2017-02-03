@@ -12,20 +12,112 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
 (function() {
   'use strict';
-  // NOTE: CustomStyle must be loaded prior to loading Polymer.
-  // To support asynchronous loading of custom-style, an async import
-  // can be made that loads custom-style and then polymer.
-  if (window.CustomStyle) {
-    var attr = 'include';
-    window.CustomStyle.processHook = function(style) {
-      var include = style.getAttribute(attr);
-      if (!include) {
+
+  const attr = 'include';
+
+  const ShadyCSS = window.ShadyCSS;
+
+  const ApplyShim = window.ApplyShim;
+
+  /** @const {!Array<!CustomStyle>} */
+  const customStyles = [];
+
+  /** @type {number} */
+  let validateToken = 0;
+
+  let transformFn = null;
+
+  let validateFn = null;
+
+  class CustomStyle extends HTMLElement {
+    static get _customStyles() {
+      return customStyles;
+    }
+    static _flushCustomStyles() {
+      if (validateToken) {
+        window.cancelAnimationFrame(validateToken);
+      }
+      for (let i = 0; i < customStyles.length; i++) {
+        let cs = customStyles[i];
+        cs.getStyle();
+      }
+      validateToken = 0;
+    }
+    static _scheduleFlush() {
+      if (validateToken === 0) {
+        validateToken = requestAnimationFrame(() => {
+          this._flushCustomStyles();
+        });
+      }
+    }
+    static set _transformer(fn) {
+      transformFn = fn;
+    }
+    static get _transformer() {
+      return transformFn;
+    }
+    static get _validator() {
+      return validateFn;
+    }
+    static set _validator(fn) {
+      validateFn = fn;
+    }
+    constructor() {
+      super();
+      this._style = null;
+      if (ShadyCSS) {
+        ShadyCSS.addDocumentStyle(this);
+      } else {
+        customStyles.push(this);
+        CustomStyle._scheduleFlush();
+      }
+    }
+    getStyle() {
+      if (this._style) {
+        return this._style;
+      }
+      const style = this.querySelector('style');
+      if (!style) {
         return;
       }
-      style.removeAttribute(attr);
-      style.textContent = Polymer.StyleGather.cssFromModules(include) + style.textContent;
-    };
+      this._style = style;
+      const include = style.getAttribute(attr);
+      if (include) {
+        style.removeAttribute(attr);
+        style.textContent = Polymer.StyleGather.cssFromModules(include) + style.textContent;
+      }
+      if (transformFn) {
+        transformFn(style);
+      }
+      return this._style;
+    }
   }
 
+  function flushOnDocumentReady() {
+    let fn = () => {
+      CustomStyle._flushCustomStyles();
+      if (validateFn) {
+        validateFn();
+      }
+    }
+    if (window.HTMLImports) {
+      HTMLImports.whenReady(fn)
+    } else if (document.readyState === 'complete') {
+      fn();
+    } else {
+      document.addEventListener('readystate', () => {
+        if (document.readyState === 'complete') {
+          fn();
+        }
+      });
+    }
+  }
+
+  if (!ShadyCSS) {
+    flushOnDocumentReady();
+  }
+
+  window.CustomStyle = CustomStyle;
+  window.customElements.define('custom-style', CustomStyle);
 })();
 </script>
