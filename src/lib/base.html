@@ -64,14 +64,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     createdCallback: function() {
-      if (Polymer.Settings.enableInert && this.hasAttribute('is-inert')) {
-        this.__data__ = {
-          isInert: true
-        };
-        this._propertySetter = inertPropertySetter;
-      } else {
-        this.__initialize();
+      if (Polymer.Settings.disableUpgradeEnabled) {
+        if (this.hasAttribute('disable-upgrade')) {
+          this._propertySetter = disableUpgradePropertySetter;
+          this.__data__ = {};
+          return;
+        } else {
+          this.__hasInitialized = true;
+        }
       }
+      this.__initialize();
     },
 
     __initialize: function() {
@@ -299,30 +301,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.Base = Polymer.Base.chainObject(Polymer.Base, HTMLElement.prototype);
   Polymer.BaseDescriptors = {};
 
-  if (Polymer.Settings.enableInert) {
+  var disableUpgradePropertySetter;
+  if (Polymer.Settings.disableUpgradeEnabled) {
 
-    var inertPropertySetter = function(property, value) {
+    var origAttributeChangedCallback = Polymer.Base.attributeChangedCallback;
+    Polymer.Base.attributeChangedCallback = function(name, oldValue, newValue) {
+      if (!this.__hasInitialized && name === 'disable-upgrade') {
+        this.__hasInitialized = true;
+        this._propertySetter = Polymer.Bind._modelApi._propertySetter;
+        this.__initialize();
+      }
+      origAttributeChangedCallback.call(this, name, oldValue, newValue);
+    }
+
+    disableUpgradePropertySetter = function(property, value) {
       this.__data__[property] = value;
     }
 
-    var inertDesc = {
-      configurable: true,
-      writeable: true,
-      set: function(val) {
-        if (!val && this.isInert) {
-          this.__data__.isInert = false;
-          this._propertySetter = Polymer.Bind._modelApi._propertySetter;
-          this.__initialize();
-          this.removeAttribute('is-inert');
-        }
-      },
-      get: function() {
-        return this.__data__.isInert;
-      }
-    }
-
-    Polymer.BaseDescriptors.isInert = inertDesc;
-    Object.defineProperty(Polymer.Base, 'isInert', inertDesc);
   }
 
   if (window.CustomElements) {
