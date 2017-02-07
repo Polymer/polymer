@@ -14,12 +14,14 @@ The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
---><link rel="import" href="polymer-mini.html"><script>Polymer.nar = [];
+--><link rel="import" href="polymer-mini.html"><script>(function () {
+Polymer.nar = [];
+var disableUpgradeEnabled = Polymer.Settings.disableUpgradeEnabled;
 Polymer.Annotations = {
-parseAnnotations: function (template) {
+parseAnnotations: function (template, stripWhiteSpace) {
 var list = [];
 var content = template._content || template.content;
-this._parseNodeAnnotations(content, list, template.hasAttribute('strip-whitespace'));
+this._parseNodeAnnotations(content, list, stripWhiteSpace || template.hasAttribute('strip-whitespace'));
 return list;
 },
 _parseNodeAnnotations: function (node, list, stripWhiteSpace) {
@@ -130,7 +132,7 @@ var i = 0;
 while (node) {
 var next = node.nextSibling;
 if (node.localName === 'template' && !node.hasAttribute('preserve-content')) {
-this._parseTemplate(node, i, list, annote);
+this._parseTemplate(node, i, list, annote, stripWhiteSpace);
 }
 if (node.localName == 'slot') {
 node = this._replaceSlotWithContent(node);
@@ -177,9 +179,9 @@ content.setAttribute('select', '[slot=\'' + name + '\']');
 slot.parentNode.replaceChild(content, slot);
 return content;
 },
-_parseTemplate: function (node, index, list, parent) {
+_parseTemplate: function (node, index, list, parent, stripWhiteSpace) {
 var content = document.createDocumentFragment();
-content._notes = this.parseAnnotations(node);
+content._notes = this.parseAnnotations(node, stripWhiteSpace);
 content.appendChild(node.content);
 list.push({
 bindings: Polymer.nar,
@@ -224,6 +226,9 @@ node.setAttribute(name, literal);
 if (node.localName === 'input' && origName === 'value') {
 node.setAttribute(origName, '');
 }
+if (disableUpgradeEnabled && origName === 'disable-upgrade$') {
+node.setAttribute(name, '');
+}
 node.removeAttribute(origName);
 var propertyName = Polymer.CaseMap.dashToCamelCase(name);
 if (kind === 'property') {
@@ -251,7 +256,8 @@ return n;
 return root;
 }
 }
-};(function () {
+};
+}());(function () {
 function resolveCss(cssText, ownerDocument) {
 return cssText.replace(CSS_URL_RX, function (m, pre, url, post) {
 return pre + '\'' + resolve(url.replace(/["']/g, ''), ownerDocument) + '\'' + post;
@@ -1628,7 +1634,7 @@ element.addEventListener(event, function (e) {
 return context._notifyListener(changedFn, e);
 });
 }
-};Polymer.Base.extend(Polymer.Bind, {
+};Polymer.Base.mixin(Polymer.Bind, {
 _shouldAddListener: function (effect) {
 return effect.name && effect.kind != 'attribute' && effect.kind != 'text' && !effect.isCompound && effect.parts[0].mode === '{';
 },
@@ -1974,7 +1980,7 @@ var pinfo = node._propertyInfo && node._propertyInfo[property];
 if (pinfo && pinfo.readOnly) {
 return;
 }
-this.__setProperty(property, value, false, node);
+this.__setProperty(property, value, Polymer.Settings.suppressBindingNotifications, node);
 }
 },
 _computeFinalAnnotationValue: function (node, property, value, info) {
@@ -4085,7 +4091,9 @@ var XSCOPE_NAME = propertyUtils.XSCOPE_NAME;
 }());Polymer.Base._addFeature({
 _registerFeatures: function () {
 this._prepIs();
+if (this.factoryImpl) {
 this._prepConstructor();
+}
 this._prepStyles();
 },
 _finishRegisterFeatures: function () {
@@ -4105,7 +4113,7 @@ this._addHostAttributes(b.hostAttributes);
 },
 _initFeatures: function () {
 this._setupGestures();
-this._setupConfigure();
+this._setupConfigure(this.__data__);
 this._setupStyleProperties();
 this._setupDebouncers();
 this._setupShady();
@@ -4371,6 +4379,8 @@ fn: Polymer.Bind._notifyEffect,
 effect: { event: Polymer.CaseMap.camelToDashCase(parentProp) + '-changed' }
 }
 ];
+proto._propertyEffects = proto._propertyEffects || {};
+proto._propertyEffects[parentProp] = effects;
 Polymer.Bind._createAccessors(proto, parentProp, effects);
 }
 }
@@ -4412,10 +4422,15 @@ template._propertySetter = proto._propertySetter;
 }
 for (var i = 0, n; i < n$.length && (n = n$[i]); i++) {
 var val = template[n];
+if (val && n == '_propertyEffects') {
+var pe = Polymer.Base.mixin({}, val);
+template._propertyEffects = Polymer.Base.mixin(pe, proto._propertyEffects);
+} else {
 var pd = Object.getOwnPropertyDescriptor(proto, n);
 Object.defineProperty(template, n, pd);
 if (val !== undefined) {
 template._propertySetter(n, val);
+}
 }
 }
 },
@@ -4683,7 +4698,7 @@ observer: '_observeChanged'
 delay: Number,
 renderedItemCount: {
 type: Number,
-notify: true,
+notify: !Polymer.Settings.suppressTemplateNotifications,
 readOnly: true
 },
 initialCount: {
@@ -4694,6 +4709,7 @@ targetFramerate: {
 type: Number,
 value: 20
 },
+notifyDomChange: { type: Boolean },
 _targetFrameTime: {
 type: Number,
 computed: '_computeFrameTime(targetFramerate)'
@@ -4861,7 +4877,9 @@ inst.__setProperty(this.indexAs, i, true);
 }
 this._pool.length = 0;
 this._setRenderedItemCount(this._instances.length);
+if (!Polymer.Settings.suppressTemplateNotifications || this.notifyDomChange) {
 this.fire('dom-change');
+}
 this._tryRenderChunk();
 },
 _applyFullRefresh: function () {
@@ -5226,7 +5244,8 @@ restamp: {
 type: Boolean,
 value: false,
 observer: '_queueRender'
-}
+},
+notifyDomChange: { type: Boolean }
 },
 behaviors: [Polymer.Templatizer],
 _queueRender: function () {
@@ -5259,7 +5278,9 @@ if (!this.restamp && this._instance) {
 this._showHideChildren();
 }
 if (this.if != this._lastIf) {
+if (!Polymer.Settings.suppressTemplateNotifications || this.notifyDomChange) {
 this.fire('dom-change');
+}
 this._lastIf = this.if;
 }
 },
@@ -5314,6 +5335,7 @@ this._instance._notifyPath(path, value, true);
 }
 });Polymer({
 is: 'dom-bind',
+properties: { notifyDomChange: { type: Boolean } },
 extends: 'template',
 _template: null,
 created: function () {
@@ -5394,7 +5416,9 @@ Polymer.Base._initFeatures.call(this);
 this._children = Polymer.TreeApi.arrayCopyChildNodes(this.root);
 }
 this._insertChildren();
+if (!Polymer.Settings.suppressTemplateNotifications || this.notifyDomChange) {
 this.fire('dom-change');
+}
 }
 });</script>
 
