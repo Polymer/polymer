@@ -16,10 +16,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
-  var p = Element.prototype;
-   var matchesSelector = p.matches || p.matchesSelector ||
-     p.mozMatchesSelector || p.msMatchesSelector ||
-     p.oMatchesSelector || p.webkitMatchesSelector;
+  let p = Element.prototype;
+  let matchesSelector = p.matches || p.matchesSelector ||
+    p.mozMatchesSelector || p.msMatchesSelector ||
+    p.oMatchesSelector || p.webkitMatchesSelector;
 
   Polymer.Utils = {
 
@@ -86,37 +86,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return matchesSelector.call(node, selector);
     },
 
+    /**
+     * Given a mixin producing function, memoize applications of mixin to base
+     */
     cachingMixin(mixin) {
       return function(base) {
         if (!mixin.__mixinApplications) {
           mixin.__mixinApplications = new WeakMap();
         }
-        let application = mixin.__mixinApplications.get(base);
+        let map = mixin.__mixinApplications;
+        let application = map.get(base);
         if (!application) {
           application = mixin(base);
-          mixin.__mixinApplications.set(base, application);
+          map.set(base, application);
         }
         return application;
-      }
+      };
     },
 
     /**
-     * @template T
-     * @param {T} mixin
-     * @return {T}
+     * Given a mixin producing function, only apply mixin if has not already been applied to base
+     * Also memoize mixin applications
      */
     dedupingMixin(mixin) {
       mixin = this.cachingMixin(mixin);
       return function(base) {
-        let baseMap = base.__mixinMap;
-        if (baseMap && baseMap.get(mixin)) {
+        let baseSet = base.__mixinSet;
+        if (baseSet && baseSet.has(mixin)) {
           return base;
-        } else {
-          let extended = mixin(base);
-          extended.__mixinMap = new Map(baseMap);
-          extended.__mixinMap.set(mixin, true);
-          return extended;
         }
+        let extended = mixin(base);
+        // copy inherited mixin set from the extended class, or the base class
+        // NOTE: the caching mixin may return exactly the same class as given,
+        // but copying the Set seems cheaper than using hasOwnProperty on the extended class
+        extended.__mixinSet = new Set(extended.__mixinSet || baseSet);
+        extended.__mixinSet.add(mixin);
+        return extended;
       }
     },
 
