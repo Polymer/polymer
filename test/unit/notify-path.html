@@ -43,9 +43,6 @@ suite('basic path bindings', function() {
   setup(function() {
     el = document.createElement('x-stuff');
     document.body.appendChild(el);
-    if (customElements.flush) {
-      customElements.flush();
-    }
   });
 
   teardown(function() {
@@ -319,9 +316,6 @@ suite('path effects', function() {
   setup(function() {
     el = document.createElement('x-stuff');
     document.body.appendChild(el);
-    if (customElements.flush) {
-      customElements.flush();
-    }
   });
 
   teardown(function() {
@@ -496,9 +490,6 @@ suite('path API', function() {
   setup(function() {
     el = document.createElement('x-stuff');
     document.body.appendChild(el);
-    if (customElements.flush) {
-      customElements.flush();
-    }
   });
 
   teardown(function() {
@@ -964,8 +955,9 @@ suite('path API', function() {
 
 });
 
-suite('malformed observers', function() {
-  test('has nice message on failure', function() {
+suite('corner cases', function() {
+  
+  test('malformed observer has nice message on failure', function() {
     var thrown = false;
     var verifyError = function(e) {
       assert.equal(e.message, "Malformed observer expression 'foo(missingParenthesis'");
@@ -982,6 +974,35 @@ suite('malformed observers', function() {
 
     assert.equal(thrown, true, "No exception thrown when parsing malformed observer");
   });
+
+  test('reentry during path processing', function() {
+    let host = document.createElement('x-reentry-host');
+    document.body.appendChild(host);
+    assert.equal(host.objChanged.callCount, 1);
+    assert.equal(host.obj.prop, 0);
+    host.set('obj.prop', host.obj.prop+1);
+    assert.equal(host.objChanged.callCount, 2);
+    assert.equal(host.objChanged.secondCall.args[0].path, 'obj.prop');
+    assert.equal(host.objChanged.secondCall.args[0].value, 1);
+  });
+
+  test('element without notify effects still notifies paths (1.x guarantee)', function() {
+    let host = document.createElement('x-path-host');
+    let listener = sinon.spy();
+    host.addEventListener('obj-changed', listener);
+    document.body.appendChild(host);
+    assert.equal(host.objChanged.callCount, 1);
+    assert.equal(host.obj.prop, 0);
+    assert.equal(listener.callCount, 0);
+    host.$.client.set('obj.prop', host.obj.prop+1);
+    assert.equal(host.objChanged.callCount, 2);
+    assert.equal(host.objChanged.secondCall.args[0].path, 'obj.prop');
+    assert.equal(host.objChanged.secondCall.args[0].value, 1);
+    assert.equal(listener.callCount, 1);
+    assert.equal(listener.firstCall.args[0].detail.path, 'obj.prop');
+    assert.equal(listener.firstCall.args[0].detail.value, 1);
+  });
+
 });
 
 
