@@ -56,13 +56,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      templatize(template, options) {
-        let klass = template.__templatizeClass;
-        // Return memoized class if already templatized (allows calling
-        // templatize on same template more than once)
-        if (klass) {
-          return klass;
+      templatize(template, owner, options) {
+        if (template.__templatizeClient) {
+          throw new Error('A <template> can only be templatized once');
         }
+        template.__templatizeOwner = owner;
         // Ensure template has _content
         template._content = template._content || template.content;
         // Get memoized base class for the prototypical template
@@ -75,10 +73,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._prepHostProperties(template, options);
         // Subclass base class to add template reference for this specific
         // template
-        klass = class TemplateInstance extends baseClass {};
-        klass.prototype.__template = template;
-        klass.instCount = 0;
-        template.__templatizeClass = klass;
+        let klass = class TemplateInstance extends baseClass {};
+        klass.prototype.__dataHost = template;
+        //TODO(kschaaf): for debugging
+        // klass.instCount = 0;
         return klass;
       },
 
@@ -88,18 +86,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @unrestricted
          */
         var klass = class extends TemplateInstanceBase {
-          //TODO(kschaaf): for debugging; remove?
-          get localName() { return 'template#' + this.__template.id + '/TemplateInstance' }
-          constructor(host, props) {
+          //TODO(kschaaf): for debugging
+          // get localName() { return 'template#' + this.__dataHost.id + '/TemplateInstance' }
+          constructor(props) {
             super();
-            //TODO(kschaaf): for debugging; remove?
-            this.id = this.constructor.instCount;
-            this.constructor.instCount++;
-            this.__dataHost = this.__template;
+            //TODO(kschaaf): for debugging
+            // this.id = this.constructor.instCount;
+            // this.constructor.instCount++;
             // Root data host is always calculated based on the template, which
             // is guaranteed to have a __dataHost (due to being in __dataNodes for
             // purposes of getting templateContent)
-            let templateHost = this.__template.__dataHost;
+            let templateHost = this.__dataHost.__dataHost;
             this._rootDataHost =
               templateHost && templateHost._rootDataHost || templateHost;
             this._hostProps = template._content._hostProps;
@@ -112,7 +109,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               children.push(n);
               n._templateInstance = this;
             }
-            if (host.__hideTemplateChildren__) {
+            if (this.__dataHost.__templatizeOwner.__hideTemplateChildren__) {
               this._showHideChildren(true);
             }
             // Flush props only when props are passed if instance props exist
@@ -158,18 +155,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               }
             }
             for (var hprop in this._hostProps) {
-              this[hprop] = this.__template['_host_' + hprop];
+              this[hprop] = this.__dataHost['_host_' + hprop];
             }
           }
-          forwardProperty(prop, value, host) {
-            if (this._setPendingPropertyOrPath(prop, value, true) && host) {
-              host._enqueueClient(this);
+          forwardHostProp(prop, value) {
+            if (this._setPendingPropertyOrPath(prop, value, true)) {
+              this.__dataHost._enqueueClient(this);
             }
           }
-          flushProperties() {
-            this._flushProperties(true);
-          }
-          dispatchEvent() { }
           _addEventListenerToNode(node, eventName, handler) {
             if (this._rootDataHost) {
               this._rootDataHost._addEventListenerToNode(node, eventName, (e) => {
@@ -212,7 +205,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _createForwardHostPropEffect(hostProp, options) {
         return function(template, prop, props) {
-          options.forwardHostProp.call(template, template,
+          options.forwardHostProp.call(template.__templatizeOwner,
             prop.substring('_host_'.length), props[prop]);
         }
       },
@@ -239,7 +232,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _createNotifyInstancePropEffect(instProp, options) {
         return function notifyInstanceProp(inst, prop, props, oldProps, info, fromAbove) {
           if (!fromAbove) {
-            options.notifyInstanceProp.call(inst, inst, prop, props[prop]);
+            options.notifyInstanceProp.call(inst.__dataHost.__templatizeOwner, 
+              inst, prop, props[prop]);
           }
         }
       },
@@ -247,7 +241,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _createNotifyHostPropEffect() {
         return function notifyHostProp(inst, prop, props, oldProps, info, fromAbove) {
           if (!fromAbove) {
-            inst.__template._setPendingPropertyOrPath('_host_' + prop, props[prop], true);
+            inst.__dataHost._setPendingPropertyOrPath('_host_' + prop, props[prop], true);
           }
         }
       },

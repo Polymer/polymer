@@ -306,30 +306,27 @@ Then the `observe` property should be configured as follows:
           observer.observe(this, {childList: true});
           return false;
         }
-        template.__domRepeat = this;
         // Template instance props that should be excluded from forwarding
         var instanceProps = {};
         instanceProps[this.as] = true;
         instanceProps[this.indexAs] = true;
         instanceProps[this.itemsIndexAs] = true;
-        this._ctor = Polymer.Templatize.templatize(template, {
+        this._ctor = Polymer.Templatize.templatize(template, this, {
           instanceProps: instanceProps,
-          forwardHostProp: function(template, prop, value) {
-            let repeater = template.__domRepeat;
-            var i$ = repeater._instances;
+          forwardHostProp: function(prop, value) {
+            var i$ = this._instances;
             for (var i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
-              inst.forwardProperty(prop, value, template);
+              inst.forwardHostProp(prop, value);
             }
           },
           notifyInstanceProp: function(inst, prop, value) {
-            let repeater = inst.__template.__domRepeat;
-            if (Polymer.Path.matches(repeater.as, prop)) {
-              let idx = inst[repeater.itemsIndexAs];
-              if (prop == repeater.as) {
-                repeater.items[idx] = value;
+            if (Polymer.Path.matches(this.as, prop)) {
+              let idx = inst[this.itemsIndexAs];
+              if (prop == this.as) {
+                this.items[idx] = value;
               }
-              let path = Polymer.Path.translate(repeater.as, 'items.' + idx, prop);
-              repeater.notifyPath(path, value);
+              let path = Polymer.Path.translate(this.as, 'items.' + idx, prop);
+              this.notifyPath(path, value);
             }
           }
         });
@@ -463,11 +460,9 @@ Then the `observe` property should be configured as follows:
       this._applyFullRefresh();
       // Reset the pool
       // TODO(kschaaf): Reuse pool across turns and nested templates
-      // Requires updating hostProps and dealing with the fact that path
-      // notifications won't reach instances sitting in the pool, which
-      // could result in out-of-sync instances since simply re-setting
-      // `item` may not be sufficient if the pooled instance happens to be
-      // the same item.
+      // Now that objects/arrays are re-evaluated when set, we can safely
+      // reuse pooled instances across turns, however we still need to decide
+      // semantics regarding how long to hold, how many to hold, etc.
       this._pool.length = 0;
       // Set rendered item count
       this._setRenderedItemCount(this._instances.length);
@@ -503,10 +498,10 @@ Then the `observe` property should be configured as follows:
         let item = items[itemIdx];
         itemsIdxToInstIdx[itemIdx] = instIdx;
         if (inst && instIdx < this._limit) {
-          inst.forwardProperty(this.as, item);
-          inst.forwardProperty(this.indexAs, instIdx);
-          inst.forwardProperty(this.itemsIndexAs, itemIdx);
-          inst.flushProperties();
+          inst._setPendingProperty(this.as, item);
+          inst._setPendingProperty(this.indexAs, instIdx);
+          inst._setPendingProperty(this.itemsIndexAs, itemIdx);
+          inst._flushProperties(true);
         } else {
           this._insertInstance(item, instIdx, itemIdx);
         }
@@ -547,7 +542,7 @@ Then the `observe` property should be configured as follows:
       model[this.as] = item;
       model[this.indexAs] = instIdx;
       model[this.itemsIndexAs] = itemIdx;
-      return new this._ctor(this, model);
+      return new this._ctor(model);
     }
 
     _insertInstance(item, instIdx, itemIdx) {
@@ -555,9 +550,10 @@ Then the `observe` property should be configured as follows:
       if (inst) {
         // TODO(kschaaf): If the pool is shared across turns, hostProps
         // need to be re-set to reused instances in addition to item
-        inst.forwardProperty(this.as, item);
-        inst.forwardProperty(this.indexAs, instIdx);
-        inst.forwardProperty(this.itemsIndexAs, itemIdx);
+        inst._setPendingProperty(this.as, item);
+        inst._setPendingProperty(this.indexAs, instIdx);
+        inst._setPendingProperty(this.itemsIndexAs, itemIdx);
+        inst._flushProperties(true);
       } else {
         inst = this._stampInstance(item, instIdx, itemIdx);
       }
@@ -590,8 +586,8 @@ Then the `observe` property should be configured as follows:
           var instIdx = this._itemsIdxToInstIdx[itemsIdx];
           var inst = this._instances[instIdx];
           if (inst) {
-            inst.forwardProperty(this.as + (itemPath ? '.' + itemPath : ''), value);
-            inst.flushProperties();
+            inst._setPendingPropertyOrPath(this.as + (itemPath ? '.' + itemPath : ''), value, true);
+            inst._flushProperties(true);
           }
         }
         return true;
