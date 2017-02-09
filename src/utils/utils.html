@@ -21,6 +21,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     p.mozMatchesSelector || p.msMatchesSelector ||
     p.oMatchesSelector || p.webkitMatchesSelector;
 
+  // unique global id for deduping mixins.
+  let dedupeId = 0;
+
   Polymer.Utils = {
 
     /**
@@ -110,17 +113,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     dedupingMixin(mixin) {
       mixin = this.cachingMixin(mixin);
+      // maintain a unique id for each mixin
+      if (!mixin.__id) {
+        mixin.__dedupeId = ++dedupeId;
+      }
       return function(base) {
         let baseSet = base.__mixinSet;
-        if (baseSet && baseSet.has(mixin)) {
+        if (baseSet && baseSet[mixin.__dedupeId]) {
           return base;
         }
         let extended = mixin(base);
         // copy inherited mixin set from the extended class, or the base class
-        // NOTE: the caching mixin may return exactly the same class as given,
-        // but copying the Set seems cheaper than using hasOwnProperty on the extended class
-        extended.__mixinSet = new Set(extended.__mixinSet || baseSet);
-        extended.__mixinSet.add(mixin);
+        // NOTE: we avoid use of Set here because some browser (IE11)
+        // cannot extend a base Set via the constructor.
+        extended.__mixinSet =
+          Object.create(extended.__mixinSet || baseSet || null);
+        extended.__mixinSet[mixin.__dedupeId] = true;
         return extended;
       }
     },
