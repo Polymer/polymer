@@ -68,6 +68,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._flushProperties(true);
         }
       }
+      _configureProperties(props) {
+        let options = this.__templatizeOptions;
+        if (props) {
+          for (var iprop in options.instanceProps) {
+            if (iprop in props) {
+              this[iprop] = props[iprop];
+            }
+          }
+        }
+        for (var hprop in this.__hostProps) {
+          this[hprop] = this.__dataHost['_host_' + hprop];
+        }
+      }
+      forwardHostProp(prop, value) {
+        if (this._setPendingPropertyOrPath(prop, value, true)) {
+          this.__dataHost._enqueueClient(this);
+        }
+      }
+      _addEventListenerToNode(node, eventName, handler) {
+        if (this._methodHost) {
+          this._methodHost._addEventListenerToNode(node, eventName, (e) => {
+            e.model = this;
+            handler(e);
+          });
+        }
+      }
       _showHideChildren(hide) {
         var c = this.children;
         for (var i=0; i<c.length; i++) {
@@ -96,30 +122,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
       }
-      _configureProperties(props) {
-        let options = this.__templatizeOptions;
-        if (props) {
-          for (var iprop in options.instanceProps) {
-            if (iprop in props) {
-              this[iprop] = props[iprop];
-            }
-          }
-        }
-        for (var hprop in this.__hostProps) {
-          this[hprop] = this.__dataHost['_host_' + hprop];
-        }
-      }
-      forwardHostProp(prop, value) {
-        if (this._setPendingPropertyOrPath(prop, value, true)) {
-          this.__dataHost._enqueueClient(this);
-        }
-      }
-      _addEventListenerToNode(node, eventName, handler) {
-        if (this._methodHost) {
-          this._methodHost._addEventListenerToNode(node, eventName, (e) => {
-            e.model = this;
-            handler(e);
-          });
+      /**
+       * Overrides default property-effects implementation to intercept
+       * textContent bindings while children are "hidden" and cache in
+       * private storage for later retrieval.
+       *
+       * @override
+       */
+      _setUnmanagedPropertyToNode(node, prop, value) {
+        if (node.__hideTemplateChildren__ && 
+            node.nodeType == Node.TEXT_NODE && prop == 'textContent') {
+          node.__polymerTextContent__ = value;
+        } else {
+          super._setUnmanagedPropertyToNode(node, prop, value);
         }
       }
     }      

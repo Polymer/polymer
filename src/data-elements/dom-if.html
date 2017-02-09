@@ -75,6 +75,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     constructor() {
       super();
       this._renderDebouncer = null;
+      this._invalidProps = null;
     }
 
     _debounceRender() {
@@ -151,16 +152,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._ctor = Polymer.Templatize.templatize(template, this, {
             forwardHostProp: function(prop, value) {
               if (this._instance) {
-                this._instance.forwardHostProp(prop, value);
+                if (this.if) {
+                  this._instance.forwardHostProp(prop, value);
+                } else {
+                  this._invalidProps = this._invalidProps || Object.create(null);
+                  this._invalidProps[Polymer.Path.root(prop)] = true;
+                }
               }
             }
           });
         }
         if (!this._instance) {
           this._instance = new this._ctor();
-          let root = this._instance.root;
-          parentNode.insertBefore(root, this);
+          parentNode.insertBefore(this._instance.root, this);
         } else {
+          this._syncHostProperties();
           let c$ = this._instance.children;
           if (c$ && c$.length) {
             // Detect case where dom-if was re-attached in new position
@@ -176,6 +182,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return true;
     }
 
+    _syncHostProperties() {
+      let props = this._invalidProps;
+      if (props) {
+        for (var prop in props) {
+          this._instance._setPendingProperty(prop, this.__dataHost[prop]);
+        }
+        this._invalidProps = null;
+        this._instance._flushProperties(true);
+      }
+    }
+
     _teardownInstance() {
       if (this._instance) {
         let c$ = this._instance.children;
@@ -187,6 +204,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         this._instance = null;
+        this._invalidProps = null;
       }
     }
 
