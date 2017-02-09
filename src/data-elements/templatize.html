@@ -57,7 +57,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       templatize(template, options) {
-        let klass = template.__templatizerClass;
+        let klass = template.__templatizeClass;
         // Return memoized class if already templatized (allows calling
         // templatize on same template more than once)
         if (klass) {
@@ -66,9 +66,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Ensure template has _content
         template._content = template._content || template.content;
         // Get memoized base class for the prototypical template
-        let baseClass = template._content.__templatizerClass;
+        let baseClass = template._content.__templatizeClass;
         if (!baseClass) {
-          baseClass = template._content.__templatizerClass =
+          baseClass = template._content.__templatizeClass =
             this._createTemplatizerClass(template, options);
         }
         // Host property forwarding must be installed onto template instance
@@ -78,12 +78,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         klass = class TemplateInstance extends baseClass {};
         klass.prototype.__template = template;
         klass.instCount = 0;
-        template.__templatizerClass = klass;
+        template.__templatizeClass = klass;
         return klass;
       },
 
       _createTemplatizerClass(template, options) {
-        // Anonymous class created by the templatizer
+        // Anonymous class created by the templatize
         /**
          * @unrestricted
          */
@@ -185,7 +185,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _prepHostProperties(template, options) {
-        if (options.fwdHostPropToInstance) {
+        if (options.forwardHostProp) {
           // Provide data API
           // TODO(kschaaf): memoize template proto
           DataTemplate.upgradeTemplate(template);
@@ -195,7 +195,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           for (var prop in hostProps) {
             template._addPropertyEffect('_host_' + prop,
               template.PROPERTY_EFFECT_TYPES.PROPAGATE,
-              {fn: this._createHP2IEffector(prop, options)});
+              {fn: this._createForwardHostPropEffect(prop, options)});
             template._createNotifyingProperty('_host_' + prop);
           }
           // Mix any pre-bound data into __data; no need to flush this to
@@ -210,9 +210,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      _createHP2IEffector(hostProp, options) {
+      _createForwardHostPropEffect(hostProp, options) {
         return function(template, prop, props) {
-          options.fwdHostPropToInstance.call(template, template,
+          options.forwardHostProp.call(template, template,
             prop.substring('_host_'.length), props[prop]);
         }
       },
@@ -221,31 +221,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var hostProps = template._content._hostProps || {};
         for (var iprop in options.instanceProps) {
           delete hostProps[iprop];
-          if (options.fwdInstancePropToHost) {
+          if (options.notifyInstanceProp) {
             klass.prototype._addPropertyEffect(iprop,
               klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
-              {fn: this._createIP2HEffector(iprop, options)});
+              {fn: this._createNotifyInstancePropEffect(iprop, options)});
           }
         }
-        if (options.fwdHostPropToInstance && template.__dataHost) {
+        if (options.forwardHostProp && template.__dataHost) {
           for (var hprop in hostProps) {
             klass.prototype._addPropertyEffect(hprop,
               klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
-              {fn: this._createHP2HEffector()})
+              {fn: this._createNotifyHostPropEffect()})
           }
         }
       },
 
-      _createIP2HEffector(instProp, options) {
-        return function fwdInstPropToHost(inst, prop, props, oldProps, info, fromAbove) {
+      _createNotifyInstancePropEffect(instProp, options) {
+        return function notifyInstanceProp(inst, prop, props, oldProps, info, fromAbove) {
           if (!fromAbove) {
-            options.fwdInstancePropToHost.call(inst, inst, prop, props[prop]);
+            options.notifyInstanceProp.call(inst, inst, prop, props[prop]);
           }
         }
       },
 
-      _createHP2HEffector() {
-        return function fwdHostPropToHost(inst, prop, props, oldProps, info, fromAbove) {
+      _createNotifyHostPropEffect() {
+        return function notifyHostProp(inst, prop, props, oldProps, info, fromAbove) {
           if (!fromAbove) {
             inst.__template._setPendingPropertyOrPath('_host_' + prop, props[prop], true);
           }
@@ -295,25 +295,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    let Templatizer = {
-      templatize(template) {
-        this._userTemplate = template;
-        this.ctor = Templatize.templatize(template, {
-          instanceProps: this._instanceProps,
-          fwdHostPropToInstance: this._fwdHostPropToInstance.bind(this),
-          fwdInstancePropToHost: this._fwdInstancePropToHost.bind(this)
-        });
-      },
-      stamp(model) {
-        return new this.ctor(this, model);
-      },
-      modelForElement(el) {
-        return Polymer.Templatize.modelForElement(this._userTemplate, el);
-      }
-    };
-
     Polymer.Templatize = Templatize;
-    Polymer.Templatizer = Templatizer;
 
   })();
 

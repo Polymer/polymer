@@ -1,7 +1,7 @@
 <dom-module id="x-host">
   <template>
 
-    <x-templatizer obj="{{objA}}" prop="{{propA}}" id="templatizerA">
+    <x-templatize obj="{{objA}}" prop="{{propA}}" id="templatizeA">
       <template>
         <x-child on-tap="handleTap" id="childA"
           outer-prop="{{outerProp}}"
@@ -14,13 +14,28 @@
           computed-from-literal="{{computeFromLiteral(33, prop)}}"
         ></x-child>
       </template>
-    </x-templatizer>
+    </x-templatize>
 
-    <x-templatizer prop="prop-a" name="templatizerB">
+    <x-templatize prop="prop-a" name="templatizeB">
       <template>
         <x-child id="childB" computed-from-literal="{{computeFromLiteral(33, prop)}}"></x-child>
       </template>
-    </x-templatizer>
+    </x-templatize>
+
+    <x-templatize-behavior obj="{{objA}}" prop="{{propA}}" id="templatizeC">
+      <template>
+        <x-child on-tap="handleTap" id="childC"
+          outer-prop="{{outerProp}}"
+          outer-obj="{{outerObj}}"
+          outer-obj-prop="{{outerObj.prop}}"
+          prop="{{prop}}"
+          obj="{{obj}}"
+          obj-prop="{{obj.prop}}"
+          conflict="{{outerInnerConflict.prop}}"
+          computed-from-literal="{{computeFromLiteral(33, prop)}}"
+        ></x-child>
+      </template>
+    </x-templatize>
 
   </template>
 </dom-module>
@@ -61,7 +76,7 @@
   });
 
   Polymer({
-    is: 'x-templatizer',
+    is: 'x-templatize',
     properties: {
       obj: {
         notify: true
@@ -87,7 +102,7 @@
       }
     },
     go: function(withProps) {
-      var template = Polymer.dom(this).querySelector('template');
+      var template = this.querySelector('template');
       template.host = this;
       var ctor = Polymer.Templatize.templatize(template, {
         instanceProps: {
@@ -95,12 +110,12 @@
           prop: true,
           outerInnerConflict: true
         },
-        fwdHostPropToInstance: function(template, prop, value) {
+        forwardHostProp: function(template, prop, value) {
           if (template.host.instance) {
             template.host.instance.forwardProperty(prop, value, template);
           }
         },
-        fwdInstancePropToHost: function(inst, prop, value) {
+        notifyInstanceProp: function(inst, prop, value) {
           // notify path on host (set won't work since it dirty checks)
           inst.__template.host.notifyPath(prop, value);
         }
@@ -113,11 +128,66 @@
             prop: 'bar'
           }
         } : null);
-      var parent = Polymer.dom(this).parentNode;
-      Polymer.dom(parent).appendChild(this.instance.root);
+      this.parentNode.appendChild(this.instance.root);
     }
   });
 
+  Polymer({
+    is: 'x-templatize-behavior',
+    properties: {
+      obj: {
+        notify: true
+      },
+      prop: {
+        notify: true,
+        observer: 'propChanged'
+      }
+    },
+    observers: [
+      'objChanged(obj.*)'
+    ],
+    behaviors: [Polymer.Templatizer],
+    propChanged: function(value) {
+      if (this.instance) {
+        this.instance.forwardProperty('prop', value);
+        this.instance.flushProperties();
+      }
+    },
+    objChanged: function(info) {
+      if (this.instance) {
+        this.instance.forwardProperty(info.path, info.value);
+        this.instance.flushProperties();
+      }
+    },
+    _instanceProps: {
+      obj: true,
+      prop: true,
+      outerInnerConflict: true
+    },
+    _forwardHostPropV2: function(template, prop, value) {
+      if (template.host.instance) {
+        template.host.instance.forwardProperty(prop, value, template);
+      }
+    },
+    _notifyInstancePropV2: function(inst, prop, value) {
+      // notify path on host (set won't work since it dirty checks)
+      inst.__template.host.notifyPath(prop, value);
+    },
+    go: function(withProps) {
+      var template = this.querySelector('template');
+      template.host = this;
+      this.templatize(template);
+      this.instance = this.stamp(
+        withProps ? {
+          obj: this.obj,
+          prop: this.prop,
+          outerInnerConflict: {
+            prop: 'bar'
+          }
+        } : null);
+      this.parentNode.appendChild(this.instance.root);
+    }
+  });
 
   Polymer({
     is: 'x-host',
