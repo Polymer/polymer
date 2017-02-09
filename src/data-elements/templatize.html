@@ -40,17 +40,193 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       PatchedHTMLTemplateElement._newInstance = null;
     }
 
+    function findMethodHost(template) {
+      // Technically this should be the owner of the outermost template.
+      // In shadow dom, this is always getRootNode().host, but we can
+      // approximate this via cooperation with our dataHost always setting
+      // `_methodHost` as long as there were bindings (or id's) on this
+      // instance causing it to get a dataHost.
+      let templateHost = template.__dataHost;
+      return templateHost && templateHost._methodHost || templateHost;
+    }
+
+    function createTemplatizerClass(template, options) {
+      // Anonymous class created by the templatize
+      /**
+       * @unrestricted
+       */
+      var klass = class extends TemplateInstanceBase {
+        //TODO(kschaaf): for debugging
+        // get localName() { return 'template#' + this.__dataHost.id + '/TemplateInstance' }
+        constructor(props) {
+          super();
+          //TODO(kschaaf): for debugging
+          // this.id = this.constructor.instCount;
+          // this.constructor.instCount++;
+          this._configureProperties(props);
+          //TODO(kschaaf): id marshalling unnecessary
+          this.root = this._stampTemplate(template);
+          // Save list of stamped children
+          var children = this.children = [];
+          for (var n = this.root.firstChild; n; n=n.nextSibling) {
+            children.push(n);
+            n._templateInstance = this;
+          }
+          if (this.__templatizeOwner.__hideTemplateChildren__) {
+            this._showHideChildren(true);
+          }
+          // Flush props only when props are passed if instance props exist
+          // or when there isn't instance props.
+          if ((props && options.instanceProps) || !options.instanceProps) {
+            this._flushProperties(true);
+          }
+        }
+        _showHideChildren(hide) {
+          var c = this.children;
+          for (var i=0; i<c.length; i++) {
+            var n = c[i];
+            // Ignore non-changes
+            if (Boolean(hide) != Boolean(n.__hideTemplateChildren__)) {
+              if (n.nodeType === Node.TEXT_NODE) {
+                if (hide) {
+                  n.__polymerTextContent__ = n.textContent;
+                  n.textContent = '';
+                } else {
+                  n.textContent = n.__polymerTextContent__;
+                }
+              } else if (n.style) {
+                if (hide) {
+                  n.__polymerDisplay__ = n.style.display;
+                  n.style.display = 'none';
+                } else {
+                  n.style.display = n.__polymerDisplay__;
+                }
+              }
+            }
+            n.__hideTemplateChildren__ = hide;
+            if (n._showHideChildren) {
+              n._showHideChildren(hide);
+            }
+          }
+        }
+        _configureProperties(props) {
+          if (props) {
+            for (var iprop in options.instanceProps) {
+              if (iprop in props) {
+                this[iprop] = props[iprop];
+              }
+            }
+          }
+          for (var hprop in this.__hostProps) {
+            this[hprop] = this.__dataHost['_host_' + hprop];
+          }
+        }
+        forwardHostProp(prop, value) {
+          if (this._setPendingPropertyOrPath(prop, value, true)) {
+            this.__dataHost._enqueueClient(this);
+          }
+        }
+        _addEventListenerToNode(node, eventName, handler) {
+          if (this._methodHost) {
+            this._methodHost._addEventListenerToNode(node, eventName, (e) => {
+              e.model = this;
+              handler(e);
+            });
+          }
+        }
+      }
+      klass.prototype._bindTemplate(template);
+      addNotifyEffects(klass, template, options);
+      return klass;
+    }
+
+    function addPropagateEffects(template, options) {
+      let userForwardHostProp = options.forwardHostProp;
+      if (userForwardHostProp) {
+        // Provide data API and property effects on memoized template class
+        let klass = template._content.__templatizeTemplateClass;
+        if (!klass) {
+          klass = template._content.__templatizeTemplateClass = 
+            class TemplatizedTemplate extends DataTemplate {}
+          // Add template - >instances effects
+          // and host <- template effects
+          var hostProps = template._content._hostProps;
+          for (var prop in hostProps) {
+            klass.prototype._addPropertyEffect('_host_' + prop,
+              klass.prototype.PROPERTY_EFFECT_TYPES.PROPAGATE,
+              {fn: createForwardHostPropEffect(prop, userForwardHostProp)});
+            klass.prototype._createNotifyingProperty('_host_' + prop);
+          }
+        }
+        upgradeTemplate(template, klass);
+        // Mix any pre-bound data into __data; no need to flush this to
+        // instances since they pull from the template at instance-time
+        if (template.__dataProto) {
+          Polymer.Utils.mixin(template.__data, template.__dataProto);
+        }
+        // Clear any pending data since we're eliding a flush for performance
+        template.__dataOld = {};
+        template.__dataTemp = {};
+        template.__dataPending = {};
+      }
+    }
+
+    function createForwardHostPropEffect(hostProp, userForwardHostProp) {
+      return function forwardHostProp(template, prop, props) {
+        userForwardHostProp.call(template.__templatizeOwner,
+          prop.substring('_host_'.length), props[prop]);
+      }
+    }
+
+    function addNotifyEffects(klass, template, options) {
+      var hostProps = template._content._hostProps || {};
+      for (var iprop in options.instanceProps) {
+        delete hostProps[iprop];
+        let userNotifyInstanceProp = options.notifyInstanceProp;
+        if (userNotifyInstanceProp) {
+          klass.prototype._addPropertyEffect(iprop,
+            klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
+            {fn: createNotifyInstancePropEffect(iprop, userNotifyInstanceProp)});
+        }
+      }
+      if (options.forwardHostProp && template.__dataHost) {
+        for (var hprop in hostProps) {
+          klass.prototype._addPropertyEffect(hprop,
+            klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
+            {fn: createNotifyHostPropEffect()})
+        }
+      }
+    }
+
+    function createNotifyInstancePropEffect(instProp, userNotifyInstanceProp) {
+      return function notifyInstanceProp(inst, prop, props, oldProps, info, fromAbove) {
+        if (!fromAbove) {
+          userNotifyInstanceProp.call(inst.__templatizeOwner, 
+            inst, prop, props[prop]);
+        }
+      }
+    }
+
+    function createNotifyHostPropEffect() {
+      return function notifyHostProp(inst, prop, props, oldProps, info, fromAbove) {
+        if (!fromAbove) {
+          inst.__dataHost._setPendingPropertyOrPath('_host_' + prop, props[prop], true);
+        }
+      }
+    }
+
+    let debouncerQueue = [];
+
     let Templatize = {
 
       enqueueDebouncer(debouncer) {
-        this._debouncerQueue = this._debouncerQueue || [];
-        this._debouncerQueue.push(debouncer);
+        debouncerQueue.push(debouncer);
       },
 
       flush() {
-        if (this._debouncerQueue) {
-          while (this._debouncerQueue.length) {
-            this._debouncerQueue.shift().flush();
+        if (debouncerQueue) {
+          while (debouncerQueue.length) {
+            debouncerQueue.shift().flush();
           }
         }
       },
@@ -67,194 +243,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let baseClass = template._content.__templatizeClass;
         if (!baseClass) {
           baseClass = template._content.__templatizeClass =
-            this._createTemplatizerClass(template, options);
+            createTemplatizerClass(template, options);
         }
         // Host property forwarding must be installed onto template instance
-        this._addPropagateEffects(template, options);
+        addPropagateEffects(template, options);
         // Subclass base class and add reference for this specific template
         let klass = class TemplateInstance extends baseClass {};
-        klass.prototype._methodHost = this._findMethodHost(template);
+        klass.prototype._methodHost = findMethodHost(template);
         klass.prototype.__dataHost = template;
         klass.prototype.__templatizeOwner = owner;
         klass.prototype.__hostProps = template._content._hostProps;
         //TODO(kschaaf): for debugging
         // klass.instCount = 0;
         return klass;
-      },
-
-      _findMethodHost(template) {
-        // Technically this should be the owner of the outermost template.
-        // In shadow dom, this is always getRootNode().host, but we can
-        // approximate this via cooperation with our dataHost always setting
-        // `_methodHost` as long as there were bindings (or id's) on this
-        // instance causing it to get a dataHost.
-        let templateHost = template.__dataHost;
-        return templateHost && templateHost._methodHost || templateHost;
-      },
-
-      _createTemplatizerClass(template, options) {
-        // Anonymous class created by the templatize
-        /**
-         * @unrestricted
-         */
-        var klass = class extends TemplateInstanceBase {
-          //TODO(kschaaf): for debugging
-          // get localName() { return 'template#' + this.__dataHost.id + '/TemplateInstance' }
-          constructor(props) {
-            super();
-            //TODO(kschaaf): for debugging
-            // this.id = this.constructor.instCount;
-            // this.constructor.instCount++;
-            this._configureProperties(props);
-            //TODO(kschaaf): id marshalling unnecessary
-            this.root = this._stampTemplate(template);
-            // Save list of stamped children
-            var children = this.children = [];
-            for (var n = this.root.firstChild; n; n=n.nextSibling) {
-              children.push(n);
-              n._templateInstance = this;
-            }
-            if (this.__templatizeOwner.__hideTemplateChildren__) {
-              this._showHideChildren(true);
-            }
-            // Flush props only when props are passed if instance props exist
-            // or when there isn't instance props.
-            if ((props && options.instanceProps) || !options.instanceProps) {
-              this._flushProperties(true);
-            }
-          }
-          _showHideChildren(hide) {
-            var c = this.children;
-            for (var i=0; i<c.length; i++) {
-              var n = c[i];
-              // Ignore non-changes
-              if (Boolean(hide) != Boolean(n.__hideTemplateChildren__)) {
-                if (n.nodeType === Node.TEXT_NODE) {
-                  if (hide) {
-                    n.__polymerTextContent__ = n.textContent;
-                    n.textContent = '';
-                  } else {
-                    n.textContent = n.__polymerTextContent__;
-                  }
-                } else if (n.style) {
-                  if (hide) {
-                    n.__polymerDisplay__ = n.style.display;
-                    n.style.display = 'none';
-                  } else {
-                    n.style.display = n.__polymerDisplay__;
-                  }
-                }
-              }
-              n.__hideTemplateChildren__ = hide;
-              if (n._showHideChildren) {
-                n._showHideChildren(hide);
-              }
-            }
-          }
-          _configureProperties(props) {
-            if (props) {
-              for (var iprop in options.instanceProps) {
-                if (iprop in props) {
-                  this[iprop] = props[iprop];
-                }
-              }
-            }
-            for (var hprop in this.__hostProps) {
-              this[hprop] = this.__dataHost['_host_' + hprop];
-            }
-          }
-          forwardHostProp(prop, value) {
-            if (this._setPendingPropertyOrPath(prop, value, true)) {
-              this.__dataHost._enqueueClient(this);
-            }
-          }
-          _addEventListenerToNode(node, eventName, handler) {
-            if (this._methodHost) {
-              this._methodHost._addEventListenerToNode(node, eventName, (e) => {
-                e.model = this;
-                handler(e);
-              });
-            }
-          }
-        }
-        klass.prototype._bindTemplate(template);
-        this._addNotifyEffects(klass, template, options);
-        return klass;
-      },
-
-      _addPropagateEffects(template, options) {
-        let userForwardHostProp = options.forwardHostProp;
-        if (userForwardHostProp) {
-          // Provide data API and property effects on memoized template class
-          let klass = template._content.__templatizeTemplateClass;
-          if (!klass) {
-            klass = template._content.__templatizeTemplateClass = 
-              class TemplatizedTemplate extends DataTemplate {}
-            // Add template - >instances effects
-            // and host <- template effects
-            var hostProps = template._content._hostProps;
-            for (var prop in hostProps) {
-              klass.prototype._addPropertyEffect('_host_' + prop,
-                klass.prototype.PROPERTY_EFFECT_TYPES.PROPAGATE,
-                {fn: this._createForwardHostPropEffect(prop, userForwardHostProp)});
-              klass.prototype._createNotifyingProperty('_host_' + prop);
-            }
-          }
-          upgradeTemplate(template, klass);
-          // Mix any pre-bound data into __data; no need to flush this to
-          // instances since they pull from the template at instance-time
-          if (template.__dataProto) {
-            Polymer.Utils.mixin(template.__data, template.__dataProto);
-          }
-          // Clear any pending data since we're eliding a flush for performance
-          template.__dataOld = {};
-          template.__dataTemp = {};
-          template.__dataPending = {};
-        }
-      },
-
-      _createForwardHostPropEffect(hostProp, userForwardHostProp) {
-        return function forwardHostProp(template, prop, props) {
-          userForwardHostProp.call(template.__templatizeOwner,
-            prop.substring('_host_'.length), props[prop]);
-        }
-      },
-
-      _addNotifyEffects(klass, template, options) {
-        var hostProps = template._content._hostProps || {};
-        for (var iprop in options.instanceProps) {
-          delete hostProps[iprop];
-          let userNotifyInstanceProp = options.notifyInstanceProp;
-          if (userNotifyInstanceProp) {
-            klass.prototype._addPropertyEffect(iprop,
-              klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
-              {fn: this._createNotifyInstancePropEffect(iprop, userNotifyInstanceProp)});
-          }
-        }
-        if (options.forwardHostProp && template.__dataHost) {
-          for (var hprop in hostProps) {
-            klass.prototype._addPropertyEffect(hprop,
-              klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
-              {fn: this._createNotifyHostPropEffect()})
-          }
-        }
-      },
-
-      _createNotifyInstancePropEffect(instProp, userNotifyInstanceProp) {
-        return function notifyInstanceProp(inst, prop, props, oldProps, info, fromAbove) {
-          if (!fromAbove) {
-            userNotifyInstanceProp.call(inst.__templatizeOwner, 
-              inst, prop, props[prop]);
-          }
-        }
-      },
-
-      _createNotifyHostPropEffect() {
-        return function notifyHostProp(inst, prop, props, oldProps, info, fromAbove) {
-          if (!fromAbove) {
-            inst.__dataHost._setPendingPropertyOrPath('_host_' + prop, props[prop], true);
-          }
-        }
       },
 
       /**
