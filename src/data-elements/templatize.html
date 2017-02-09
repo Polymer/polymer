@@ -63,21 +63,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         template.__templatizeOwner = owner;
         // Ensure template has _content
         template._content = template._content || template.content;
-        // Get memoized base class for the prototypical template
+        // Get memoized base class for the prototypical template, which
+        // includes property effects for binding template & forwarding
         let baseClass = template._content.__templatizeClass;
         if (!baseClass) {
           baseClass = template._content.__templatizeClass =
             this._createTemplatizerClass(template, options);
         }
         // Host property forwarding must be installed onto template instance
-        this._prepHostProperties(template, options);
-        // Subclass base class to add template reference for this specific
-        // template
+        this._addPropagateEffects(template, options);
+        // Subclass base class and add reference for this specific template
         let klass = class TemplateInstance extends baseClass {};
+        klass.prototype._rootDataHost = this._findRootDataHost(template);
         klass.prototype.__dataHost = template;
+        klass.prototype.__templatizeOwner = owner;
+        klass.prototype.__hostProps = template._content._hostProps;
         //TODO(kschaaf): for debugging
         // klass.instCount = 0;
         return klass;
+      },
+
+      _findRootDataHost(template) {
+        // Root data host is always calculated based on the template, which
+        // is guaranteed to have a __dataHost (due to being in __dataNodes for
+        // purposes of getting templateContent)
+        let templateHost = template.__dataHost;
+        return templateHost && templateHost._rootDataHost || templateHost;
       },
 
       _createTemplatizerClass(template, options) {
@@ -93,13 +104,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             //TODO(kschaaf): for debugging
             // this.id = this.constructor.instCount;
             // this.constructor.instCount++;
-            // Root data host is always calculated based on the template, which
-            // is guaranteed to have a __dataHost (due to being in __dataNodes for
-            // purposes of getting templateContent)
-            let templateHost = this.__dataHost.__dataHost;
-            this._rootDataHost =
-              templateHost && templateHost._rootDataHost || templateHost;
-            this._hostProps = template._content._hostProps;
             this._configureProperties(props);
             //TODO(kschaaf): id marshalling unnecessary
             this.root = this._stampTemplate(template);
@@ -109,7 +113,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               children.push(n);
               n._templateInstance = this;
             }
-            if (this.__dataHost.__templatizeOwner.__hideTemplateChildren__) {
+            if (this.__templatizeOwner.__hideTemplateChildren__) {
               this._showHideChildren(true);
             }
             // Flush props only when props are passed if instance props exist
@@ -154,7 +158,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                 }
               }
             }
-            for (var hprop in this._hostProps) {
+            for (var hprop in this.__hostProps) {
               this[hprop] = this.__dataHost['_host_' + hprop];
             }
           }
@@ -173,11 +177,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         klass.prototype._bindTemplate(template);
-        this._prepInstanceProperties(klass, template, options);
+        this._addNotifyEffects(klass, template, options);
         return klass;
       },
 
-      _prepHostProperties(template, options) {
+      _addPropagateEffects(template, options) {
         if (options.forwardHostProp) {
           // Provide data API
           // TODO(kschaaf): memoize template proto
@@ -210,7 +214,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       },
 
-      _prepInstanceProperties(klass, template, options) {
+      _addNotifyEffects(klass, template, options) {
         var hostProps = template._content._hostProps || {};
         for (var iprop in options.instanceProps) {
           delete hostProps[iprop];
@@ -232,7 +236,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _createNotifyInstancePropEffect(instProp, options) {
         return function notifyInstanceProp(inst, prop, props, oldProps, info, fromAbove) {
           if (!fromAbove) {
-            options.notifyInstanceProp.call(inst.__dataHost.__templatizeOwner, 
+            options.notifyInstanceProp.call(inst.__templatizeOwner, 
               inst, prop, props[prop]);
           }
         }
