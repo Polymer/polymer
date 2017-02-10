@@ -10,46 +10,79 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="boot.html">
 
 <script>
-(function() {
+(function(global) {
 
   'use strict';
 
-  Polymer.Async = {
+  Polymer.Async = {};
 
+  /**
+   * A timer with the async interface.
+   */
+  Polymer.Async.timeOut = {
+    after: function(delay) {
+      return delay === 0 ? Polymer.Async.timeOut :
+      {
+        run: function(fn) {
+          return global.setTimeout(fn, delay);
+        },
+        cancel: global.clearTimeout.bind(global)
+      }
+    },
+    run: global.setTimeout.bind(global),
+    cancel: global.clearTimeout.bind(global)
+  };
+
+  /**
+   * requestAnimationFrame with the async interface.
+   */
+  Polymer.Async.animationFrame = {
+    run:  global.requestAnimationFrame.bind(global),
+    cancel: global.cancelAnimationFrame.bind(global)
+  };
+
+  /**
+   * requestIdleCallback with the async interface.
+   */
+  Polymer.Async.idlePeriod = {
+    run(fn) {
+      return global.requestIdleCallback ? global.requestIdleCallback(fn) : global.setTimeout(fn, 16);
+    },
+    cancel(timer) {
+      return global.cancelIdleCallback ? global.cancelIdleCallback(timer) : global.clearTimeout(timer);
+    }
+  };
+
+  /**
+   * Micro task with the async interface.
+   */
+  Polymer.Async.microTask = {
     _currVal: 0,
     _lastVal: 0,
     _callbacks: [],
     _twiddleContent: 0,
     _twiddle: document.createTextNode(''),
 
-    run: function (callback, waitTime) {
-      if (waitTime > 0) {
-        return ~setTimeout(callback, waitTime);
-      } else {
-        this._twiddle.textContent = this._twiddleContent++;
-        this._callbacks.push(callback);
-        return this._currVal++;
-      }
+    run(callback) {
+      this._twiddle.textContent = this._twiddleContent++;
+      this._callbacks.push(callback);
+      return this._currVal++;
     },
 
-    cancel: function(handle) {
-      if (handle < 0) {
-        clearTimeout(~handle);
-      } else {
-        var idx = handle - this._lastVal;
-        if (idx >= 0) {
-          if (!this._callbacks[idx]) {
-            throw 'invalid async handle: ' + handle;
-          }
-          this._callbacks[idx] = null;
+    cancel(handle) {
+      const idx = handle - this._lastVal;
+      if (idx >= 0) {
+        if (!this._callbacks[idx]) {
+          throw 'invalid async handle: ' + handle;
         }
+        this._callbacks[idx] = null;
       }
     },
 
-    _atEndOfMicrotask: function() {
-      var len = this._callbacks.length;
-      for (var i=0; i<len; i++) {
-        var cb = this._callbacks[i];
+    _atEndOfMicrotask() {
+      const len = this._callbacks.length;
+      for (let i=0; i<len; i++) {
+        let cb = this._callbacks[i];
         if (cb) {
           try {
             cb();
@@ -67,16 +100,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._lastVal += len;
     },
 
-    flush: function() {
+    flush() {
       this.observer.takeRecords();
       this._atEndOfMicrotask();
     }
   };
 
-  Polymer.Async.observer = new window.MutationObserver(function() {
-    Polymer.Async._atEndOfMicrotask();
+  Polymer.Async.microTask.observer = new window.MutationObserver(function microTaskObserver() {
+    Polymer.Async.microTask._atEndOfMicrotask();
   });
-  Polymer.Async.observer.observe(Polymer.Async._twiddle, {characterData: true});
+  Polymer.Async.microTask.observer.observe(Polymer.Async.microTask._twiddle, {characterData: true});
 
-})();
+})(this);
 </script>
