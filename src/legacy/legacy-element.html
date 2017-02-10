@@ -8,7 +8,7 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="element.html">
+<link rel="import" href="../elements/element.html">
 <link rel="import" href="../events/gesture-event-listeners.html">
 <link rel="import" href="../utils/utils.html">
 <link rel="import" href="../utils/async-render.html">
@@ -23,45 +23,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var utils = Polymer.Utils;
 
-  Polymer.LegacyElementMixin = Polymer.Utils.cachingMixin(function(base) {
+  Polymer.LegacyElementMixin = Polymer.Utils.dedupingMixin(function(base) {
 
-    return class LegacyElement extends Polymer.Logging(
-      Polymer.GestureEventListeners(Polymer.ElementMixin(base))) {
+    const mixin = Polymer.Logging(
+      Polymer.GestureEventListeners(Polymer.ElementMixin(base)));
+
+    return class LegacyElement extends mixin {
 
       constructor() {
         super();
         this.created();
       }
 
-      _applyListeners() {
-        this._applyConfigListeners(this.constructor._ownConfig);
-      }
-
-      _applyConfigListeners(config) {
-        if (config.listeners) {
-          for (let l in config.listeners) {
-            this._addMethodEventListenerToNode(this, l, config.listeners[l]);
-          }
-        }
-      }
-
-      _ensureAttributes() {
-        this._ensureConfigAttributes(this.constructor._ownConfig);
-      }
-
-      _ensureConfigAttributes(config) {
-        if (config.hostAttributes) {
-          for (let a in config.hostAttributes) {
-            this._ensureAttribute(a, config.hostAttributes[a]);
-          }
-        }
-      }
-
-      ready() {
-        this._applyListeners();
-        this._ensureAttributes();
-        super.ready();
-      }
+      created() {}
 
       connectedCallback() {
         super.connectedCallback();
@@ -69,11 +43,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.attached();
       }
 
+      attached() {}
+
       disconnectedCallback() {
-        this.isAttached = false;
         super.disconnectedCallback();
+        this.isAttached = false;
         this.detached();
       }
+
+      detached() {}
 
       attributeChangedCallback(name, old, value) {
         if (old !== value) {
@@ -82,13 +60,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      created() {}
-
-      attached() {}
-
-      detached() {}
-
       attributeChanged() {}
+
+      _initializeProperties() {
+        this._registered();
+        super._initializeProperties();
+      }
+
+      // NOTE: implementers of `_registered` should/must ensure that work is
+      // only done once ever.
+      // TODO(sorvell): can this use `Polymer.Element.finalize` instead.
+      _registered() {}
+
+      ready() {
+        this._ensureAttributes();
+        this._applyListeners();
+        super.ready();
+      }
+
+      _ensureAttributes() {}
+
+      _applyListeners() {}
 
       serialize(value) {
         return this._serializeAttribute(value);
@@ -156,8 +148,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   template content.
       */
       instanceTemplate(template) {
-        var dom =
-          document.importNode(template._content || template.content, true);
+        var dom = /** @type {DocumentFragment} */
+          (document.importNode(template._content || template.content, true));
         return dom;
       }
 
@@ -166,14 +158,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Dispatches a custom event with an optional detail value.
        *
        * @method fire
-       * @param {String} type Name of event type.
+       * @param {string} type Name of event type.
        * @param {*=} detail Detail value containing event-specific
        *   payload.
        * @param {Object=} options Object specifying options.  These may include:
        *  `bubbles` (boolean, defaults to `true`),
        *  `cancelable` (boolean, defaults to false), and
        *  `node` on which to fire the event (HTMLElement, defaults to `this`).
-       * @return {CustomEvent} The new event that was fired.
+       * @return {Event} The new event that was fired.
        */
       fire(type, detail, options) {
         options = options || {};
@@ -340,7 +332,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * returned by <a href="#getEffectiveChildNodes>getEffectiveChildNodes</a>.
        *
        * @method getEffectiveTextContent
-       * @return {Array<Node>} List of effctive children.
+       * @return {string} List of effctive children.
        */
       getEffectiveTextContent() {
         var cn = this.getEffectiveChildNodes();
@@ -432,7 +424,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @method isLocalDescendant
        * @param {HTMLElement=} node The element to be checked.
-       * @return {Boolean} true if node is in this element's local DOM tree.
+       * @return {boolean} true if node is in this element's local DOM tree.
        */
       isLocalDescendant(node) {
         return this.root === node.getRootNode();
@@ -468,7 +460,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @method debounce
        * @param {String} jobName String to indentify the debounce job.
-       * @param {Function} callback Function that is called (with `this`
+       * @param {function()} callback Function that is called (with `this`
        *   context) when the wait time elapses.
        * @param {number} wait Optional wait time in milliseconds (ms) after the
        *   last signal that must elapse before invoking `callback`
@@ -658,8 +650,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Cross-platform helper for setting an element's CSS `transform` property.
        *
-       * @method transformText
-       * @param {String} transform Transform setting.
+       * @param {string} transformText Transform setting.
        * @param {HTMLElement=} node Element to apply the transform to.
        * Defaults to `this`
        */
@@ -696,9 +687,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * notification is generated**.
        *
        * @method arrayDelete
-       * @param {String|Array} path Path to array from which to remove the item
+       * @param {string | !Array<number|string>} arrayOrPath Path to array from which to remove the item
        *   (or the array itself).
-       * @param {any} item Item to remove.
+       * @param {*} item Item to remove.
        * @return {Array} Array containing item removed.
        */
       arrayDelete(arrayOrPath, item) {
@@ -715,6 +706,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             return this.splice(arrayOrPath, index, 1);
           }
         }
+        return null;
       }
 
     }

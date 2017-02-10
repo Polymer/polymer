@@ -98,16 +98,14 @@ Then the `observe` property should be configured as follows:
 
 -->
 
-<link rel="import" href="templatizer.html">
-<link rel="import" href="../utils/async.html">
-<link rel="import" href="../utils/debounce.html">
 <link rel="import" href="../../polymer-element.html">
+<link rel="import" href="templatize.html">
+<link rel="import" href="../utils/debounce.html">
+<link rel="import" href="../utils/flush.html">
 
 <script>
 (function() {
   'use strict';
-
-  var templatizer = new Polymer.Templatizer();
 
   class DomRepeat extends Polymer.Element {
 
@@ -261,13 +259,13 @@ Then the `observe` property should be configured as follows:
 
     }
 
-
     constructor() {
       super();
       this._instances = [];
       this._pool = [];
       this._limit = Infinity;
       this._renderDebouncer = null;
+      this._itemsIdxToInstIdx = {};
     }
 
     disconnectedCallback() {
@@ -290,53 +288,66 @@ Then the `observe` property should be configured as follows:
       }
     }
 
-    ensureTemplatized() {
+    _ensureTemplatized() {
       // Templatizing (generating the instance constructor) needs to wait
       // until ready, since won't have its template content handed back to
       // it until then
       if (!this._ctor) {
         var template = this.template = this.querySelector('template');
-        template.__domRepeat = this;
         if (!template) {
-          throw new Error('dom-repeat requires a <template> child');
+          // // Wait until childList changes and template should be there by then
+          let observer = new MutationObserver(() => {
+            if (this.querySelector('template')) {
+              observer.disconnect();
+              this._render();
+            } else {
+              throw new Error('dom-repeat requires a <template> child');
+            }
+          })
+          observer.observe(this, {childList: true});
+          return false;
         }
         // Template instance props that should be excluded from forwarding
         var instanceProps = {};
         instanceProps[this.as] = true;
         instanceProps[this.indexAs] = true;
         instanceProps[this.itemsIndexAs] = true;
-        this._ctor = templatizer.templatize(template, {
+        this._ctor = Polymer.Templatize.templatize(template, this, {
           instanceProps: instanceProps,
-          fwdHostPropToInstance: function(template, prop, value) {
-            let repeater = template.__domRepeat;
-            var i$ = repeater._instances;
+          forwardHostProp: function(prop, value) {
+            var i$ = this._instances;
             for (var i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
-              inst.forwardProperty(prop, value, template);
+              inst.forwardHostProp(prop, value);
             }
           },
-          fwdInstancePropToHost: function(inst, prop, value) {
-            let repeater = inst.__template.__domRepeat;
-            if (Polymer.Path.matches(repeater.as, prop)) {
-              let idx = inst[repeater.itemsIndexAs];
-              if (prop == repeater.as) {
-                repeater.items[idx] = value;
+          notifyInstanceProp: function(inst, prop, value) {
+            if (Polymer.Path.matches(this.as, prop)) {
+              let idx = inst[this.itemsIndexAs];
+              if (prop == this.as) {
+                this.items[idx] = value;
               }
-              let path = Polymer.Path.translate(repeater.as, 'items.' + idx, prop);
-              repeater.notifyPath(path, value);
+              let path = Polymer.Path.translate(this.as, 'items.' + idx, prop);
+              this.notifyPath(path, value);
             }
           }
         });
       }
+      return true;
     }
 
-    _getRootDataHost() {
-      return this.__dataHost._rootDataHost || this.__dataHost;
+    _getMethodHost() {
+      // Technically this should be the owner of the outermost template.
+      // In shadow dom, this is always getRootNode().host, but we can
+      // approximate this via cooperation with our dataHost always setting
+      // `_methodHost` as long as there were bindings (or id's) on this
+      // instance causing it to get a dataHost.
+      return this.__dataHost._methodHost || this.__dataHost;
     }
 
     _sortChanged(sort) {
-      var dataHost = this._getRootDataHost();
+      var methodHost = this._getMethodHost();
       this._sortFn = sort && (typeof sort == 'function' ? sort :
-        function() { return dataHost[sort].apply(dataHost, arguments); });
+        function() { return methodHost[sort].apply(methodHost, arguments); });
       this._needFullRefresh = true;
       if (this.items) {
         this._debounceRender(this._render);
@@ -344,9 +355,9 @@ Then the `observe` property should be configured as follows:
     }
 
     _filterChanged(filter) {
-      var dataHost = this._getRootDataHost();
+      var methodHost = this._getMethodHost();
       this._filterFn = filter && (typeof filter == 'function' ? filter :
-        function() { return dataHost[filter].apply(dataHost, arguments); });
+        function() { return methodHost[filter].apply(methodHost, arguments); });
       this._needFullRefresh = true;
       if (this.items) {
         this._debounceRender(this._render);
@@ -400,7 +411,7 @@ Then the `observe` property should be configured as follows:
       }
       // If path was to an item (e.g. 'items.3' or 'items.3.foo'), forward the
       // path to that instance synchronously (retuns false for non-item paths)
-      if (!this._forwardItemPath(change.path, change.value)) {
+      if (!this._handleItemPath(change.path, change.value)) {
         // Otherwise, the array was reset ('items') or spliced ('items.splices'),
         // so queue a full refresh
         this._needFullRefresh = true;
@@ -409,7 +420,7 @@ Then the `observe` property should be configured as follows:
       }
     }
 
-    _checkObservedPaths(path) {
+    _handleObservedPaths(path) {
       if (this._observePaths) {
         path = path.substring(path.indexOf('.') + 1);
         var paths = this._observePaths;
@@ -423,12 +434,22 @@ Then the `observe` property should be configured as follows:
       }
     }
 
+    /**
+     * @param {function()} fn
+     * @param {number=} delay
+     */
     _debounceRender(fn, delay) {
+<<<<<<< HEAD:src/templatizer/dom-repeat.html
       this._renderDebouncer = Polymer.Debouncer.debounce(
             this._renderDebouncer
           , delay > 0 ? Polymer.Async.timeOut.after(delay) : Polymer.Async.microTask
           , fn.bind(this));
       Polymer.Templatizer.enqueueDebouncer(this._renderDebouncer);
+=======
+      this._renderDebouncer =
+        Polymer.Debouncer.debounce(this._renderDebouncer, fn, delay, this);
+      Polymer.enqueueDebouncer(this._renderDebouncer);
+>>>>>>> 2.0-preview:src/data-elements/dom-repeat.html
     }
 
     /**
@@ -442,19 +463,20 @@ Then the `observe` property should be configured as follows:
       // Queue this repeater, then flush all in order
       this._needFullRefresh = true;
       this._debounceRender(this._render);
-      Polymer.Templatizer.flush();
+      Polymer.flush();
     }
 
     _render() {
-      this.ensureTemplatized();
+      if (!this._ensureTemplatized()) {
+        // No template found yet
+        return;
+      }
       this._applyFullRefresh();
       // Reset the pool
       // TODO(kschaaf): Reuse pool across turns and nested templates
-      // Requires updating hostProps and dealing with the fact that path
-      // notifications won't reach instances sitting in the pool, which
-      // could result in out-of-sync instances since simply re-setting
-      // `item` may not be sufficient if the pooled instance happens to be
-      // the same item.
+      // Now that objects/arrays are re-evaluated when set, we can safely
+      // reuse pooled instances across turns, however we still need to decide
+      // semantics regarding how long to hold, how many to hold, etc.
       this._pool.length = 0;
       // Set rendered item count
       this._setRenderedItemCount(this._instances.length);
@@ -490,10 +512,10 @@ Then the `observe` property should be configured as follows:
         let item = items[itemIdx];
         itemsIdxToInstIdx[itemIdx] = instIdx;
         if (inst && instIdx < this._limit) {
-          inst.forwardProperty(this.as, item);
-          inst.forwardProperty(this.indexAs, instIdx);
-          inst.forwardProperty(this.itemsIndexAs, itemIdx);
-          inst.flushProperties();
+          inst._setPendingProperty(this.as, item);
+          inst._setPendingProperty(this.indexAs, instIdx);
+          inst._setPendingProperty(this.itemsIndexAs, itemIdx);
+          inst._flushProperties(true);
         } else {
           this._insertInstance(item, instIdx, itemIdx);
         }
@@ -534,7 +556,7 @@ Then the `observe` property should be configured as follows:
       model[this.as] = item;
       model[this.indexAs] = instIdx;
       model[this.itemsIndexAs] = itemIdx;
-      return new this._ctor(this, model);
+      return new this._ctor(model);
     }
 
     _insertInstance(item, instIdx, itemIdx) {
@@ -542,24 +564,21 @@ Then the `observe` property should be configured as follows:
       if (inst) {
         // TODO(kschaaf): If the pool is shared across turns, hostProps
         // need to be re-set to reused instances in addition to item
-        inst.forwardProperty(this.as, item);
-        inst.forwardProperty(this.indexAs, instIdx);
-        inst.forwardProperty(this.itemsIndexAs, itemIdx);
+        inst._setPendingProperty(this.as, item);
+        inst._setPendingProperty(this.indexAs, instIdx);
+        inst._setPendingProperty(this.itemsIndexAs, itemIdx);
+        inst._flushProperties(true);
       } else {
         inst = this._stampInstance(item, instIdx, itemIdx);
       }
       var beforeRow = this._instances[instIdx + 1];
       var beforeNode = beforeRow ? beforeRow.children[0] : this;
-      // TODO(sorvell): remove when fragment patching is auto-magic.
-      if (window.ShadyDOM) {
-        ShadyDOM.patch(inst.root);
-      }
       this.parentNode.insertBefore(inst.root, beforeNode);
       this._instances[instIdx] = inst;
       return inst;
     }
 
-    // Implements extension point from Templatizer mixin
+    // Implements extension point from Templatize mixin
     _showHideChildren(hidden) {
       for (var i=0; i<this._instances.length; i++) {
         this._instances[i]._showHideChildren(hidden);
@@ -568,6 +587,7 @@ Then the `observe` property should be configured as follows:
 
     // Called as a side effect of a host items.<key>.<path> path change,
     // responsible for notifying item.<path> changes to inst for key
+<<<<<<< HEAD:src/templatizer/dom-repeat.html
     _forwardItemPath(path, value) {
       if (this._itemsIdxToInstIdx) {
         path = path.slice(6); // 'items.'.length == 6
@@ -581,8 +601,29 @@ Then the `observe` property should be configured as follows:
             inst.forwardProperty(this.as + (path ? '.' + path : ''), value);
             inst.flushProperties();
             return true;
+=======
+    _handleItemPath(path, value) {
+      var itemsPath = path.slice(6); // 'items.'.length == 6
+      var dot = itemsPath.indexOf('.');
+      var itemsIdx = dot < 0 ? itemsPath : itemsPath.substring(0, dot);
+      // If path was index into array...
+      if (itemsIdx == parseInt(itemsIdx, 10)) {
+        var itemSubPath = dot < 0 ? '' : itemsPath.substring(dot+1);
+        // See if the item subpath should trigger a full refresh...
+        if (!this._handleObservedPaths(itemSubPath)) {
+          // If not, forward to the instance for that index
+          var instIdx = this._itemsIdxToInstIdx[itemsIdx];
+          var inst = this._instances[instIdx];
+          if (inst) {
+            let itemPath = this.as + (itemSubPath ? '.' + itemSubPath : '');
+            // This is effectively `notifyPath`, but avoids some of the overhead
+            // of the public API
+            inst._setPendingPropertyOrPath(itemPath, value, true);
+            inst._flushProperties(true);
+>>>>>>> 2.0-preview:src/data-elements/dom-repeat.html
           }
         }
+        return true;
       }
     }
 
@@ -596,7 +637,7 @@ Then the `observe` property should be configured as follows:
      *
      * @method itemForElement
      * @param {HTMLElement} el Element for which to return the item.
-     * @return {any} Item associated with the element.
+     * @return {*} Item associated with the element.
      */
     itemForElement(el) {
       var instance = this.modelForElement(el);
@@ -610,7 +651,7 @@ Then the `observe` property should be configured as follows:
      *
      * @method indexForElement
      * @param {HTMLElement} el Element for which to return the index.
-     * @return {any} Row index associated with the element (note this may
+     * @return {*} Row index associated with the element (note this may
      *   not correspond to the array index if a user `sort` is applied).
      */
     indexForElement(el) {
@@ -633,11 +674,12 @@ Then the `observe` property should be configured as follows:
      *
      * @method modelForElement
      * @param {HTMLElement} el Element for which to return a template model.
-     * @return {Object<Polymer.Base>} Model representing the binding scope for
+     * TODO(kschaaf): replace return type with interface for TemplateInstanceBaseInterface
+     * @return {Object} Model representing the binding scope for
      *   the element.
      */
     modelForElement(el) {
-      return templatizer.modelForElement(this.template, el);
+      return Polymer.Templatize.modelForElement(this.template, el);
     }
 
   }

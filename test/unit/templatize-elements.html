@@ -1,7 +1,7 @@
 <dom-module id="x-host">
   <template>
 
-    <x-templatizer obj="{{objA}}" prop="{{propA}}" id="templatizerA">
+    <x-templatize obj="{{objA}}" prop="{{propA}}" id="templatizeA">
       <template>
         <x-child on-tap="handleTap" id="childA"
           outer-prop="{{outerProp}}"
@@ -14,20 +14,33 @@
           computed-from-literal="{{computeFromLiteral(33, prop)}}"
         ></x-child>
       </template>
-    </x-templatizer>
+    </x-templatize>
 
-    <x-templatizer prop="prop-a" name="templatizerB">
+    <x-templatize prop="prop-a" name="templatizeB">
       <template>
         <x-child id="childB" computed-from-literal="{{computeFromLiteral(33, prop)}}"></x-child>
       </template>
-    </x-templatizer>
+    </x-templatize>
+
+    <x-templatize-behavior obj="{{objA}}" prop="{{propA}}" id="templatizeC">
+      <template>
+        <x-child on-tap="handleTap" id="childC"
+          outer-prop="{{outerProp}}"
+          outer-obj="{{outerObj}}"
+          outer-obj-prop="{{outerObj.prop}}"
+          prop="{{prop}}"
+          obj="{{obj}}"
+          obj-prop="{{obj.prop}}"
+          conflict="{{outerInnerConflict.prop}}"
+          computed-from-literal="{{computeFromLiteral(33, prop)}}"
+        ></x-child>
+      </template>
+    </x-templatize>
 
   </template>
 </dom-module>
 
 <script>
-
-  const templatizer = new Polymer.Templatizer();
 
   Polymer({
     is: 'x-child',
@@ -63,7 +76,7 @@
   });
 
   Polymer({
-    is: 'x-templatizer',
+    is: 'x-templatize',
     properties: {
       obj: {
         notify: true
@@ -78,35 +91,33 @@
     ],
     propChanged: function(value) {
       if (this.instance) {
-        this.instance.forwardProperty('prop', value);
-        this.instance.flushProperties();
+        this.instance.prop = value;
       }
     },
     objChanged: function(info) {
       if (this.instance) {
-        this.instance.forwardProperty(info.path, info.value);
-        this.instance.flushProperties();
+        this.instance.notifyPath(info.path, info.value);
       }
     },
     go: function(withProps) {
-      var template = Polymer.dom(this).querySelector('template');
-      template.host = this;
-      var ctor = templatizer.templatize(template, {
+      var template = this.querySelector('template');
+      var ctor = Polymer.Templatize.templatize(template, this, {
         instanceProps: {
           obj: true,
           prop: true,
           outerInnerConflict: true
         },
-        fwdHostPropToInstance: function(template, prop, value) {
-          if (template.host.instance) {
-            template.host.instance.forwardProperty(prop, value, template);
+        forwardHostProp: function(prop, value) {
+          if (this.instance) {
+            this.instance.forwardHostProp(prop, value);
           }
         },
-        fwdInstancePropToHost: function(inst, prop, value) {
-          inst.__template.host.set(prop, value);
+        notifyInstanceProp: function(inst, prop, value) {
+          // notify path on host (set won't work since it dirty checks)
+          this.notifyPath(prop, value);
         }
       });
-      this.instance = new ctor(this,
+      this.instance = new ctor(
         withProps ? {
           obj: this.obj,
           prop: this.prop,
@@ -114,11 +125,63 @@
             prop: 'bar'
           }
         } : null);
-      var parent = Polymer.dom(this).parentNode;
-      Polymer.dom(parent).appendChild(this.instance.root);
+      this.parentNode.appendChild(this.instance.root);
     }
   });
 
+  Polymer({
+    is: 'x-templatize-behavior',
+    properties: {
+      obj: {
+        notify: true
+      },
+      prop: {
+        notify: true,
+        observer: 'propChanged'
+      }
+    },
+    observers: [
+      'objChanged(obj.*)'
+    ],
+    behaviors: [Polymer.Templatizer],
+    propChanged: function(value) {
+      if (this.instance) {
+        this.instance.prop = value;
+      }
+    },
+    objChanged: function(info) {
+      if (this.instance) {
+        this.instance.notifyPath(info.path, info.value);
+      }
+    },
+    _instanceProps: {
+      obj: true,
+      prop: true,
+      outerInnerConflict: true
+    },
+    _forwardHostPropV2: function(prop, value) {
+      if (this.instance) {
+        this.instance.forwardHostProp(prop, value);
+      }
+    },
+    _notifyInstancePropV2: function(inst, prop, value) {
+      // notify path on host (set won't work since it dirty checks)
+      this.notifyPath(prop, value);
+    },
+    go: function(withProps) {
+      var template = this.querySelector('template');
+      this.templatize(template);
+      this.instance = this.stamp(
+        withProps ? {
+          obj: this.obj,
+          prop: this.prop,
+          outerInnerConflict: {
+            prop: 'bar'
+          }
+        } : null);
+      this.parentNode.appendChild(this.instance.root);
+    }
+  });
 
   Polymer({
     is: 'x-host',
