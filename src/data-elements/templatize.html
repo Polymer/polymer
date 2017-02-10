@@ -53,8 +53,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         //TODO(kschaaf): id marshalling unnecessary
         this.root = this._stampTemplate(this.__dataHost);
         // Save list of stamped children
-        var children = this.children = [];
-        for (var n = this.root.firstChild; n; n=n.nextSibling) {
+        let children = this.children = [];
+        for (let n = this.root.firstChild; n; n=n.nextSibling) {
           children.push(n);
           n._templateInstance = this;
         }
@@ -68,10 +68,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._flushProperties(true);
         }
       }
+      _configureProperties(props) {
+        let options = this.__templatizeOptions;
+        if (props) {
+          for (let iprop in options.instanceProps) {
+            if (iprop in props) {
+              this[iprop] = props[iprop];
+            }
+          }
+        }
+        for (let hprop in this.__hostProps) {
+          this[hprop] = this.__dataHost['_host_' + hprop];
+        }
+      }
+      forwardHostProp(prop, value) {
+        if (this._setPendingPropertyOrPath(prop, value, true)) {
+          this.__dataHost._enqueueClient(this);
+        }
+      }
+      _addEventListenerToNode(node, eventName, handler) {
+        if (this._methodHost) {
+          this._methodHost._addEventListenerToNode(node, eventName, (e) => {
+            e.model = this;
+            handler(e);
+          });
+        }
+      }
       _showHideChildren(hide) {
-        var c = this.children;
-        for (var i=0; i<c.length; i++) {
-          var n = c[i];
+        let c = this.children;
+        for (let i=0; i<c.length; i++) {
+          let n = c[i];
           // Ignore non-changes
           if (Boolean(hide) != Boolean(n.__hideTemplateChildren__)) {
             if (n.nodeType === Node.TEXT_NODE) {
@@ -96,30 +122,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
       }
-      _configureProperties(props) {
-        let options = this.__templatizeOptions;
-        if (props) {
-          for (var iprop in options.instanceProps) {
-            if (iprop in props) {
-              this[iprop] = props[iprop];
-            }
-          }
-        }
-        for (var hprop in this.__hostProps) {
-          this[hprop] = this.__dataHost['_host_' + hprop];
-        }
-      }
-      forwardHostProp(prop, value) {
-        if (this._setPendingPropertyOrPath(prop, value, true)) {
-          this.__dataHost._enqueueClient(this);
-        }
-      }
-      _addEventListenerToNode(node, eventName, handler) {
-        if (this._methodHost) {
-          this._methodHost._addEventListenerToNode(node, eventName, (e) => {
-            e.model = this;
-            handler(e);
-          });
+      /**
+       * Overrides default property-effects implementation to intercept
+       * textContent bindings while children are "hidden" and cache in
+       * private storage for later retrieval.
+       *
+       * @override
+       */
+      _setUnmanagedPropertyToNode(node, prop, value) {
+        if (node.__hideTemplateChildren__ && 
+            node.nodeType == Node.TEXT_NODE && prop == 'textContent') {
+          node.__polymerTextContent__ = value;
+        } else {
+          super._setUnmanagedPropertyToNode(node, prop, value);
         }
       }
     }
@@ -139,7 +154,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * @unrestricted
        */
-      var klass = class extends TemplateInstanceBase { }
+      let klass = class extends TemplateInstanceBase { }
       klass.prototype.__templatizeOptions = options;
       klass.prototype._bindTemplate(template);
       addNotifyEffects(klass, template, options);
@@ -156,8 +171,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             class TemplatizedTemplate extends DataTemplate {}
           // Add template - >instances effects
           // and host <- template effects
-          var hostProps = template._content._hostProps;
-          for (var prop in hostProps) {
+          let hostProps = template._content._hostProps;
+          for (let prop in hostProps) {
             klass.prototype._addPropertyEffect('_host_' + prop,
               klass.prototype.PROPERTY_EFFECT_TYPES.PROPAGATE,
               {fn: createForwardHostPropEffect(prop, userForwardHostProp)});
@@ -185,8 +200,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function addNotifyEffects(klass, template, options) {
-      var hostProps = template._content._hostProps || {};
-      for (var iprop in options.instanceProps) {
+      let hostProps = template._content._hostProps || {};
+      for (let iprop in options.instanceProps) {
         delete hostProps[iprop];
         let userNotifyInstanceProp = options.notifyInstanceProp;
         if (userNotifyInstanceProp) {
@@ -196,7 +211,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       if (options.forwardHostProp && template.__dataHost) {
-        for (var hprop in hostProps) {
+        for (let hprop in hostProps) {
           klass.prototype._addPropertyEffect(hprop,
             klass.prototype.PROPERTY_EFFECT_TYPES.NOTIFY,
             {fn: createNotifyHostPropEffect()})
@@ -258,7 +273,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * Example:
        *
-       *   var model = modelForElement(el);
+       *   let model = modelForElement(el);
        *   if (model.index < 10) {
        *     model.set('item.checked', true);
        *   }
@@ -270,7 +285,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   the element.
        */
       modelForElement(host, el) {
-        var model;
+        let model;
         while (el) {
           // An element with a _templateInstance marks the top boundary
           // of a scope; walk up until we find one, and then ensure that
