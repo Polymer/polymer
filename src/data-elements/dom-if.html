@@ -79,6 +79,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     _debounceRender() {
+      // Render is async for 2 reasons:
+      // 1. To eliminate dom creation trashing if user code thrashes `if` in the
+      //    same turn. This was more common in 1.x where a compound computed
+      //    property could result in the result changing multiple times, but is
+      //    mitigated to a large extent by batched property processing in 2.x.
+      // 2. To avoid double object propagation when a bag including values bound
+      //    to the `if` property as well as one or more hostProps could enqueue
+      //    the <dom-if> to flush before the <template>'s host property
+      //    forwarding. In that scenario creating an instance would result in
+      //    the host props being set once, and then the enqueued changes on the
+      //    template would set properties a second time, potentially causing an
+      //    object to be set to an instance.  Creating the instance async from
+      //    flushing data ensures this doesn't happen. If we wanted a sync
+      //    option in the future, simply having <dom-if> flush (or clear) its
+      //    template's pending host properties before creating the instance would
+      //    also avoid the problem.
       this._renderDebouncer =
         Polymer.Debouncer.debounce(this._renderDebouncer, this._render, undefined, this);
       Polymer.Templatize.enqueueDebouncer(this._renderDebouncer);
