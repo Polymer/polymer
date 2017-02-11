@@ -30,7 +30,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // Monotonically increasing unique ID used for de-duping effects triggered
   // from multiple properties in the same turn
-  let effectUid = 0;
+  let dedupeId = 0;
 
   // Property effect types; effects are stored on the prototype using these keys
   const TYPES = {
@@ -94,7 +94,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function runEffects(inst, effects, props, oldProps, fromAbove, hasPaths) {
     if (effects) {
       let ran;
-      let id = effectUid++;
+      let id = dedupeId++;
       for (let prop in props) {
         if (runEffectsForProperty(inst, effects, id, prop, props, oldProps, fromAbove, hasPaths)) {
           ran = true;
@@ -115,7 +115,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {*} old Previous value of changed property
    * @private
    */
-  function runEffectsForProperty(inst, effects, id, prop, props, oldProps, fromAbove, hasPaths) {
+  function runEffectsForProperty(inst, effects, dedupeId, prop, props, oldProps, fromAbove, hasPaths) {
     let ran;
     // TODO(kschaaf) ideally a system exists to parse path information once
     // and send structured information through the system for better perf
@@ -123,17 +123,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let fxs = effects[rootProperty];
     if (fxs) {
       for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
-        if ((!hasPaths || Polymer.Path.matches(fx.path, prop)) &&
-          (!fx.info || fx.info.lastRun !== id)) {
+        if ((!fx.info || fx.info.lastRun !== dedupeId) &&
+            (!hasPaths || pathMatchesTrigger(prop, fx.trigger))) {
           fx.fn(inst, prop, props, oldProps, fx.info, fromAbove, hasPaths);
           if (fx.info) {
-            fx.info.lastRun = id;
+            fx.info.lastRun = dedupeId;
           }
           ran = true;
         }
       }
     }
     return ran;
+  }
+
+  /**
+   * Determines whether a property/path that has changed matches the trigger
+   * criteria for an effect.  A trigger is a descriptor with the following
+   * structure, which matches the descriptors returned from `parseArg`.
+   * e.g. for `foo.bar.*`:
+   * ```
+   * trigger: {
+   *   name: 'a.b',
+   *   structured: true,
+   *   wildcard: true
+   * }
+   * ```
+   * If no trigger is given, the path is deemed to match.
+   *
+   * @param {string} path Path or property that changed
+   * @param {Object} trigger Descriptor 
+   * @return {boolean} Whether the path matched the trigger
+   */
+  function pathMatchesTrigger(path, trigger) {
+    if (trigger) {
+      let triggerPath = trigger.name;
+      return (triggerPath == path) ||
+        (trigger.structured && Polymer.Path.isAncestor(triggerPath, path)) ||
+        (trigger.wildcard && Polymer.Path.isDescendant(triggerPath, path));
+    } else {
+      return true;
+    }
   }
 
   /**
@@ -178,7 +207,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let fxs = inst.__notifyEffects;
     if (fxs || hasPaths) {
       let notified;
-      let id = effectUid++;
+      let id = dedupeId++;
       // Try normal notify effects; if none, fall back to try path notification
       for (let prop in props) {
         if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, fromAbove, hasPaths)) {
@@ -456,7 +485,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           console.warn('Cannot set attribute ' + note.name +
             ' because "-" is not a valid attribute starting character');
         } else {
-          model._addPropertyEffect(part.value, TYPES.PROPAGATE, {
+          model._addPropertyEffect(Polymer.Path.root(part.value), TYPES.PROPAGATE, {
             fn: runBindingEffect,
             info:  {
               kind: note.kind,
@@ -669,7 +698,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               name: '_host_' + prop,
               parts: [{
                 mode: '{',
-                rootProperty: prop,
                 value: prop
               }]
             });
@@ -854,8 +882,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     } else {
       for (let i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
         if (!arg.literal) {
-          model._addPropertyEffect(arg.name, type, {
-            fn: effectFn, info: info
+          model._addPropertyEffect(arg.rootProperty, type, {
+            fn: effectFn, info: info, trigger: arg
           });
         }
       }
@@ -1245,8 +1273,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {Object=} effect Effect metadata object
        * @protected
        */
-      _addPropertyEffect(path, type, effect) {
-        let property = Polymer.Path.root(path);
+      _addPropertyEffect(property, type, effect) {
         let effects = ensureOwnEffectMap(this, TYPES.ANY)[property];
         if (!effects) {
           effects = this.__propertyEffects[property] = [];
@@ -1255,7 +1282,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // effects are accumulated into arrays per property based on type
         if (effect) {
-          effect.path = path;
           effects.push(effect);
         }
         effects = ensureOwnEffectMap(this, type)[property];
@@ -2018,7 +2044,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           fn: runObserverEffect,
           info: {
             methodName: methodName
-          }
+          },
+          trigger: {name: property}
         });
       }
 
