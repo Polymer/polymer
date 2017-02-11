@@ -9,14 +9,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../../polymer-element.html">
-<link rel="import" href="templatizer.html">
+<link rel="import" href="templatize.html">
 <link rel="import" href="../utils/debounce.html">
+<link rel="import" href="../utils/flush.html">
 
 <script>
 
 (function() {
-
-  let templatizer = new Polymer.Templatizer();
 
   /**
    * Stamps the template iff the `if` property is truthy.
@@ -77,12 +76,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     constructor() {
       super();
       this._renderDebouncer = null;
+      this._invalidProps = null;
     }
 
     _debounceRender() {
-      this._renderDebouncer =
-        Polymer.Debouncer.debounce(this._renderDebouncer, this._render, undefined, this);
-      Polymer.Templatizer.enqueueDebouncer(this._renderDebouncer);
+      // Render is async for 2 reasons:
+      // 1. To eliminate dom creation trashing if user code thrashes `if` in the
+      //    same turn. This was more common in 1.x where a compound computed
+      //    property could result in the result changing multiple times, but is
+      //    mitigated to a large extent by batched property processing in 2.x.
+      // 2. To avoid double object propagation when a bag including values bound
+      //    to the `if` property as well as one or more hostProps could enqueue
+      //    the <dom-if> to flush before the <template>'s host property
+      //    forwarding. In that scenario creating an instance would result in
+      //    the host props being set once, and then the enqueued changes on the
+      //    template would set properties a second time, potentially causing an
+      //    object to be set to an instance more than once.  Creating the
+      //    instance async from flushing data ensures this doesn't happen. If
+      //    we wanted a sync option in the future, simply having <dom-if> flush
+      //    (or clear) its template's pending host properties before creating
+      //    the instance would also avoid the problem.
+      this._renderDebouncer = Polymer.Debouncer.debounce(
+            this._renderDebouncer
+          , Polymer.Async.microTask
+          , this._render.bind(this));
+      Polymer.enqueueDebouncer(this._renderDebouncer);
     }
 
     disconnectedCallback() {
@@ -109,7 +127,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * validate application state.
      */
     render() {
-      Polymer.Templatizer.flush();
+      Polymer.flush();
     }
 
     _render() {
@@ -150,21 +168,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             observer.observe(this, {childList: true});
             return false;
           }
-          template.__domIf = this;
-          this._ctor = templatizer.templatize(template, {
-            fwdHostPropToInstance: function(host, prop, value) {
-              let domif = template.__domIf;
-              if (domif._instance) {
-                domif._instance.forwardProperty(prop, value, host);
+          this._ctor = Polymer.Templatize.templatize(template, this, {
+            forwardHostProp: function(prop, value) {
+              if (this._instance) {
+                if (this.if) {
+                  this._instance.forwardHostProp(prop, value);
+                } else {
+                  // If we have an instance but are squelching host property
+                  // forwarding due to if being false, note the invalidated
+                  // properties so `_syncHostProperties` can sync them the next
+                  // time `if` becomes true
+                  this._invalidProps = this._invalidProps || Object.create(null);
+                  this._invalidProps[Polymer.Path.root(prop)] = true;
+                }
               }
             }
           });
         }
         if (!this._instance) {
-          this._instance = new this._ctor(this);
-          let root = this._instance.root;
-          parentNode.insertBefore(root, this);
+          this._instance = new this._ctor();
+          parentNode.insertBefore(this._instance.root, this);
         } else {
+          this._syncHostProperties();
           let c$ = this._instance.children;
           if (c$ && c$.length) {
             // Detect case where dom-if was re-attached in new position
@@ -175,9 +200,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               }
             }
           }
-        }        
+        }
       }
       return true;
+    }
+
+    _syncHostProperties() {
+      let props = this._invalidProps;
+      if (props) {
+        for (let prop in props) {
+          this._instance._setPendingProperty(prop, this.__dataHost[prop]);
+        }
+        this._invalidProps = null;
+        this._instance._flushProperties(true);
+      }
     }
 
     _teardownInstance() {
@@ -191,6 +227,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         this._instance = null;
+        this._invalidProps = null;
       }
     }
 

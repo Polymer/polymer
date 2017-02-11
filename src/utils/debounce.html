@@ -15,70 +15,78 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
   'use strict';
 
-  class Debouncer {
+  /** @constructor */
+  Polymer.Debouncer = function Debouncer() {
+    this._asyncModule = null;
+    this._callback = null;
+    this._timer = null;
+    this.flush = this.flush.bind(this);
+  };
 
-    constructor(context) {
-      this.context = context;
-      /** @type {Function} */
-      this.finish;
-      /** @type {Function} */
-      this.callback;
-      this.boundFlush = () => {this.flush()};
-    }
-
+  Polymer.Utils.mixin(Polymer.Debouncer.prototype, {
     /**
-     * @param {function()} callback
-     * @param {?number=} wait
+     * Sets the scheduler; that is, a module with the Async interface,
+     * a callback and optional arguments to be passed to the run function
+     * from the async module.
+     *
+     * @param {{run: function, cancel: function}} asyncModule
+     * @param {function} callback
+     * @param {Array=}
      */
-    go(callback, wait) {
-      let cancelToken;
-      this.finish = function() {
-        Polymer.Async.cancel(cancelToken);
-      };
-      cancelToken = Polymer.Async.run(this.boundFlush, wait);
-      this.callback = callback;
-    }
-
-    cancel() {
-      if (this.finish) {
-        this.finish();
-        this.finish = null;
-      }
-    }
-
-    flush() {
-      if (this.finish) {
-        this.cancel();
-        this.callback.call(this.context);
-      }
-    }
+    setConfig(asyncModule, cb) {
+      this._asyncModule = asyncModule;
+      this._callback = cb;
+      this._timer = this._asyncModule.run(this._callback);
+    },
 
     /**
+     * Cancels an active debouncer and returns a reference to itself.
+     */
+    cancel() {
+      if (this.isActive()) {
+        this._asyncModule.cancel(this._timer);
+        this._timer = null;
+      }
+    },
+
+    /**
+     * Flushes an active debouncer and returns a reference to itself.
+     */
+    flush() {
+      if (this.isActive()) {
+        this.cancel();
+        this._callback();
+      }
+    },
+
+    /**
+     * Returns true if the debouncer is active.
+     *
      * @return {boolean}
      */
     isActive() {
-      return Boolean(this.finish);
+      return this._timer != null;
     }
+  });
 
-    /**
-     * @param {Debouncer} debouncer
-     * @param {function()} callback
-     * @param {number=} wait
-     * @param {Object=} context
-     * @return {Debouncer}
-     */
-    static debounce(debouncer, callback, wait, context) {
-      context = context || this;
-      if (debouncer) {
-        debouncer.cancel();
-      } else {
-        debouncer = new Debouncer(context);
-      }
-      debouncer.go(callback, wait);
-      return debouncer;
+  /**
+   * Creates a debouncer if no debouncer is passed as a parameter
+   * or it cancels an active debouncer otherwise.
+   *
+   * @param {Polymer.Debouncer?} debouncer
+   * @param {{run: function, cancel: function}} asyncModule
+   * @param {function} cb
+   * @return {Polymer.Debouncer}
+   */
+  Polymer.Debouncer.debounce = function debounce(debouncer, asyncModule, cb) {
+    if (debouncer instanceof Polymer.Debouncer) {
+      debouncer.cancel();
+    } else {
+      debouncer = new Polymer.Debouncer();
     }
-  }
+    debouncer.setConfig(asyncModule, cb);
+    return debouncer;
+  };
 
-  Polymer.Debouncer = Debouncer;
 })();
 </script>
