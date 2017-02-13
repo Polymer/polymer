@@ -43,9 +43,6 @@ suite('basic path bindings', function() {
   setup(function() {
     el = document.createElement('x-stuff');
     document.body.appendChild(el);
-    if (customElements.flush) {
-      customElements.flush();
-    }
   });
 
   teardown(function() {
@@ -53,11 +50,15 @@ suite('basic path bindings', function() {
   });
 
   function verifyObserverOutput(nestingLevel, nested) {
+    assert.equal(el.nestedChanged.callCount, nestingLevel == 0 ? 1 : 0);
+    if (nestingLevel == 0) {
+      assert.equal(el.nestedChanged.firstCall.args[0], nested);
+    }
     assert.equal(el.nestedSubpathChanged.callCount, 1);
-    // TODO/BREAKME(kschaaf): non-wildcard object observers now called
-    // for deep path changes
-    assert.equal(el.nestedObjChanged.callCount, 1);
-    assert.equal(el.nestedObjChanged.firstCall.args[0], nested.obj);
+    assert.equal(el.nestedObjChanged.callCount, nestingLevel <= 1 ? 1 : 0);
+    if (nestingLevel <= 1) {
+      assert.equal(el.nestedObjChanged.firstCall.args[0], nested.obj);
+    }
     assert.equal(el.nestedObjSubpathChanged.callCount, 1);
     assert.equal(el.nestedObjSubpathChanged.firstCall.args[0].base, nested.obj);
     assert.equal(el.nestedObjValueChanged.callCount, 1);
@@ -319,9 +320,6 @@ suite('path effects', function() {
   setup(function() {
     el = document.createElement('x-stuff');
     document.body.appendChild(el);
-    if (customElements.flush) {
-      customElements.flush();
-    }
   });
 
   teardown(function() {
@@ -336,7 +334,7 @@ suite('path effects', function() {
       }
     };
     // Do the thing
-    // BREAKME(kschaaf): setting multiple properties initially will cause
+    // BREAKME(kschaaf): setting multiple properties individually will cause
     // multi-prop observers to go for each set unless setProperties is used
     el.setProperties({
       a: 'a',
@@ -352,7 +350,6 @@ suite('path effects', function() {
     assert.equal(el.multipleChanged.firstCall.args[2].base, nested.obj);
   });
 
-  // BREAKME(kschaaf): order of args doesn't make a difference when using setProperties
   test('observer with multiple args, path not last', function() {
     // Setup
     var nested = {
@@ -447,7 +444,6 @@ suite('path effects', function() {
 
   test('array.splices notified, multiple args, prop first', function() {
     var array = [];
-    // Ensure keySplices are generated for test purposes
     el.setProperties({
       array: array,
       prop: 'first'
@@ -459,13 +455,12 @@ suite('path effects', function() {
     assert.equal(el.arrayOrPropChanged.callCount, 3);
   });
 
-  //BREAKME(kschaaf): arg order doesn't matter with set properties
-  test.skip('array.splices notified, multiple args, prop last', function() {
+  test('array.splices notified, multiple args, prop last', function() {
     el.array = [];
-    // Ensure keySplices are generated for test purposes
     el.push('array', 1, 2, 3);
     el.prop = 'last';
-    assert.equal(el.arrayOrPropChanged.callCount, 1);
+    // Twice for array (.splices & .length), once for prop
+    assert.equal(el.arrayOrPropChanged.callCount, 3);
   });
 
   test('array.length notified', function() {
@@ -496,9 +491,6 @@ suite('path API', function() {
   setup(function() {
     el = document.createElement('x-stuff');
     document.body.appendChild(el);
-    if (customElements.flush) {
-      customElements.flush();
-    }
   });
 
   teardown(function() {
@@ -964,8 +956,9 @@ suite('path API', function() {
 
 });
 
-suite('malformed observers', function() {
-  test('has nice message on failure', function() {
+suite('corner cases', function() {
+  
+  test('malformed observer has nice message on failure', function() {
     var thrown = false;
     var verifyError = function(e) {
       assert.equal(e.message, "Malformed observer expression 'foo(missingParenthesis'");
@@ -982,6 +975,35 @@ suite('malformed observers', function() {
 
     assert.equal(thrown, true, "No exception thrown when parsing malformed observer");
   });
+
+  test('reentry during path processing', function() {
+    let host = document.createElement('x-reentry-host');
+    document.body.appendChild(host);
+    assert.equal(host.objChanged.callCount, 1);
+    assert.equal(host.obj.prop, 0);
+    host.set('obj.prop', host.obj.prop+1);
+    assert.equal(host.objChanged.callCount, 2);
+    assert.equal(host.objChanged.secondCall.args[0].path, 'obj.prop');
+    assert.equal(host.objChanged.secondCall.args[0].value, 1);
+  });
+
+  test('element without notify effects still notifies paths (1.x guarantee)', function() {
+    let host = document.createElement('x-path-host');
+    let listener = sinon.spy();
+    host.addEventListener('obj-changed', listener);
+    document.body.appendChild(host);
+    assert.equal(host.objChanged.callCount, 1);
+    assert.equal(host.obj.prop, 0);
+    assert.equal(listener.callCount, 0);
+    host.$.client.set('obj.prop', host.obj.prop+1);
+    assert.equal(host.objChanged.callCount, 2);
+    assert.equal(host.objChanged.secondCall.args[0].path, 'obj.prop');
+    assert.equal(host.objChanged.secondCall.args[0].value, 1);
+    assert.equal(listener.callCount, 1);
+    assert.equal(listener.firstCall.args[0].detail.path, 'obj.prop');
+    assert.equal(listener.firstCall.args[0].detail.value, 1);
+  });
+
 });
 
 

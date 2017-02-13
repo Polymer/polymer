@@ -471,7 +471,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       debounce(jobName, callback, wait) {
         this._debouncers = this._debouncers || {};
         return this._debouncers[jobName] = Polymer.Debouncer.debounce(
-          this._debouncers[jobName], callback, wait, this);
+              this._debouncers[jobName]
+            , wait > 0 ? Polymer.Async.timeOut.after(wait) : Polymer.Async.microTask
+            , callback.bind(this));
       }
 
       /**
@@ -529,10 +531,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {number} Handle that may be used to cancel the async job.
        */
       async(callback, waitTime) {
-        var self = this;
-        return Polymer.Async.run(function() {
-          callback.call(self);
-        }, waitTime);
+        return waitTime > 0 ? Polymer.Async.timeOut.run(callback.bind(this), waitTime) :
+            ~Polymer.Async.microTask.run(callback.bind(this));
       }
 
       /**
@@ -543,7 +543,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   cancel.
        */
       cancelAsync(handle) {
-        Polymer.Async.cancel(handle);
+        handle < 0 ? Polymer.Async.microTask.cancel(~handle) :
+            Polymer.Async.timeOut.cancel(handle);
       }
 
       // other
@@ -590,7 +591,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {HTMLLinkElement} The link element for the URL to be loaded.
        */
       importHref(href, onload, onerror, optAsync) { // eslint-disable-line no-unused-vars
-        return Polymer.Utils.importHref.apply(this, arguments);
+        let loadFn = onload ? onload.bind(this) : null;
+        let errorFn = onerror ? onerror.bind(this) : null;
+        return Polymer.Utils.importHref(href, loadFn, errorFn, optAsync);
       }
 
       /**
