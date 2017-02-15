@@ -8,13 +8,19 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="../utils/boot.html">
-<link rel="import" href="../utils/utils.html">
+<link rel="import" href="../lib/boot.html">
+<link rel="import" href="../lib/utils.html">
+<link rel="import" href="../lib/case-map.html">
+<link rel="import" href="../lib/async.html">
 
 <script>
 (function() {
 
   'use strict';
+
+  var caseMap = Polymer.CaseMap;
+
+  var microtask = Polymer.Async.microTask;
 
   // Save map of native properties; this forms a blacklist or properties
   // that won't have their values "saved" by `saveAccessorValue`, since
@@ -68,26 +74,222 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return class PropertyAccessors extends superClass {
 
+      static createPropertiesForAttributes() {
+        let a$ = this.observedAttributes;
+        for (let i=0; i < a$.length; i++) {
+          this.prototype._createPropertyAccessor(caseMap.dashToCamelCase(a$[i]));
+        }
+      }
+
       constructor() {
         super();
         this._initializeProperties();
       }
 
+      attributeChangedCallback(name, old, value) {
+        if (old !== value) {
+          this._attributeToProperty(name, value);
+        }
+      }
+
       /**
        * Initializes the local storage for property accessors.
        *
-       * Override to initialize with e.g. default values by setting values into
-       * accessors.
+       * Default initialization via initializing
+       * local property & pending data storage with any accessor values saved
+       * in `__dataProto`.  If instance properties had been set before the
+       * element upgraded and gained accessors on its prototype, these values
+       * are set into the prototype's accessors after being deleted from the
+       * instance.
        *
        * @protected
        */
       _initializeProperties() {
-        this.__data = {};
+        this.__serializing = false;
         this.__dataCounter = 0;
+        this.__dataInvalid = false;
+        // initialize data with prototype values saved when creating accessors
+        this.__data = {};
         this.__dataPending = null;
         this.__dataOld = null;
-        this.__dataInvalid = false;
+        if (this.__dataProto) {
+          this._initializeProtoProperties(this.__dataProto);
+        }
       }
+
+      _initializeProtoProperties(props) {
+        for (let p in props) {
+          this._setProperty(p, props[p]);
+        }
+      }
+
+      /**
+       * Ensures the element has the given attribute. If it does not,
+       * assigns the given value to the attribute.
+       *
+       *
+       * @method _ensureAttribute
+       * @param {string} attribute Name of attribute to ensure is set.
+       * @param {string} value of the attribute.
+       */
+      _ensureAttribute(attribute, value) {
+        if (!this.hasAttribute(attribute)) {
+          this._valueToNodeAttribute(this, value, attribute);
+        }
+      }
+
+      /**
+       * Deserializes an attribute to its associated property.
+       *
+       * This method calls the `_deserializeValue` method to convert the string to
+       * a typed value.
+       *
+       * @method _attributeToProperty
+       * @param {string} attribute Name of attribute to deserialize.
+       * @param {string} value of the attribute.
+       * @param {*} type type to deserialize to.
+       */
+      _attributeToProperty(attribute, value, type) {
+        // Don't deserialize back to property if currently reflecting
+        if (!this.__serializing) {
+          var property = caseMap.dashToCamelCase(attribute);
+          this[property] = this._deserializeValue(value, type);
+        }
+      }
+
+      /**
+       * Serializes a property to its associated attribute.
+       *
+       * @method _propertyToAttribute
+       * @param {string} property Property name to reflect.
+       * @param {string=} attribute Attribute name to reflect.
+       * @param {*=} value Property value to refect.
+       */
+      _propertyToAttribute(property, attribute, value) {
+        this.__serializing = true;
+        value = (arguments.length < 3) ? this[property] : value;
+        this._valueToNodeAttribute(this, value,
+          attribute || caseMap.camelToDashCase(property));
+        this.__serializing = false;
+      }
+
+      /**
+       * Sets a typed value to an HTML attribute on a node.
+       *
+       * This method calls the `_serializeValue` method to convert the typed
+       * value to a string.  If the `_serializeValue` method returns `undefined`,
+       * the attribute will be removed (this is the default for boolean
+       * type `false`).
+       *
+       * @method _valueToNodeAttribute
+       * @param {Element} node Element to set attribute to.
+       * @param {*} value Value to serialize.
+       * @param {string} attribute Attribute name to serialize to.
+       */
+      _valueToNodeAttribute(node, value, attribute) {
+        var str = this._serializeValue(value);
+        if (str === undefined) {
+          node.removeAttribute(attribute);
+        } else {
+          node.setAttribute(attribute, str);
+        }
+      }
+
+      /**
+       * Converts a typed value to a string.
+       *
+       * This method is called by Polymer when setting JS property values to
+       * HTML attributes.  Users may override this method on Polymer element
+       * prototypes to provide serialization for custom types.
+       *
+       * @method _serializeValue
+       * @param {*} value Property value to serialize.
+       * @return {string | undefined} String serialized from the provided property value.
+       */
+      _serializeValue(value) {
+        /* eslint-disable no-fallthrough */
+        switch (typeof value) {
+          case 'boolean':
+            return value ? '' : undefined;
+
+          case 'object':
+            if (value instanceof Date) {
+              return value.toString();
+            } else if (value) {
+              try {
+                return JSON.stringify(value);
+              } catch(x) {
+                return '';
+              }
+            }
+
+          default:
+            return value != null ? value.toString() : undefined;
+        }
+      }
+
+      /**
+       * Converts a string to a typed value.
+       *
+       * This method is called by Polymer when reading HTML attribute values to
+       * JS properties.  Users may override this method on Polymer element
+       * prototypes to provide deserialization for custom `type`s.  Note,
+       * the `type` argument is the value of the `type` field provided in the
+       * `properties` configuration object for a given property, and is
+       * by convention the constructor for the type to deserialize.
+       *
+       * Note: The return value of `undefined` is used as a sentinel value to
+       * indicate the attribute should be removed.
+       *
+       * @method _deserializeValue
+       * @param {string} value Attribute value to deserialize.
+       * @param {*} type Type to deserialize the string to.
+       * @return {*} Typed value deserialized from the provided string.
+       */
+      _deserializeValue(value, type) {
+        /**
+         * @type {*}
+         */
+        let outValue;
+        switch (type) {
+          case Number:
+            outValue = Number(value);
+            break;
+
+          case Boolean:
+            outValue = (value !== null);
+            break;
+
+          case Object:
+            try {
+              outValue = JSON.parse(value);
+            } catch(x) {
+              // allow non-JSON literals like Strings and Numbers
+            }
+            break;
+
+          case Array:
+            try {
+              outValue = JSON.parse(value);
+            } catch(x) {
+              outValue = null;
+              console.warn('Polymer::Attributes: couldn`t decode Array as JSON');
+            }
+            break;
+
+          case Date:
+            outValue = new Date(value);
+            break;
+
+          case String:
+          default:
+            outValue = value;
+            break;
+        }
+
+        return outValue;
+      }
+      /* eslint-enable no-fallthrough */
 
       /**
        * Creates a setter/getter pair for the named property with its own
@@ -183,7 +385,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _invalidateProperties() {
         if (!this.__dataInvalid) {
           this.__dataInvalid = true;
-          Promise.resolve().then(() => {
+          microtask.run(() => {
             if (this.__dataInvalid) {
               this.__dataInvalid = false;
               this._flushProperties();
