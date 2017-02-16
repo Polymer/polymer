@@ -435,27 +435,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     Polymer.ResolveUrl.resolveAttrs(element, currentTemplate.ownerDocument);
   }
 
+  function findTemplateAnnotatedNode(root, note) {
+    // recursively ascend tree until we hit root
+    let parent = note.parent && findTemplateAnnotatedNode(root,
+      note.parent);
+    // unwind the stack, returning the indexed node at each level
+    if (parent) {
+      // note: marginally faster than indexing via childNodes
+      // (http://jsperf.com/childnodes-lookup)
+      for (let n=parent.firstChild, i=0; n; n=n.nextSibling) {
+        if (note.index === i++) {
+          return n;
+        }
+      }
+    } else {
+      return root;
+    }
+  }
+
   // construct `$` map (from id annotations)
-  function applyIdToMap(inst, map, dom, note) {
+  function applyIdToMap(inst, map, node, note) {
     if (note.id) {
-      map[note.id] = inst._findTemplateAnnotatedNode(dom, note);
+      map[note.id] = node;
     }
   }
 
   // install event listeners (from event annotations)
-  function applyEventListener(inst, dom, note, host) {
+  function applyEventListener(inst, node, note, host) {
     if (note.events && note.events.length) {
-      var node = inst._findTemplateAnnotatedNode(dom, note);
-      for (var j=0, e$=note.events, e; (j<e$.length) && (e=e$[j]); j++) {
+      for (let j=0, e$=note.events, e; (j<e$.length) && (e=e$[j]); j++) {
         inst._addMethodEventListenerToNode(node, e.name, e.value, host);
       }
     }
   }
 
   // push configuration references at configure time
-  function applyTemplateContent(inst, dom, note) {
+  function applyTemplateContent(inst, node, note) {
     if (note.templateContent) {
-      var node = inst._findTemplateAnnotatedNode(dom, note);
       node._content = note.templateContent;
     }
   }
@@ -464,7 +480,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // Instances can optionally have a _methodHost which allows redirecting where
     // to find methods. Currently used by `templatize`.
     context = context._methodHost || context;
-    var handler = function(e) {
+    let handler = function(e) {
       if (context[methodName]) {
         context[methodName](e, e.detail);
       } else {
@@ -481,6 +497,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       constructor() {
         super();
         this.$ = null;
+        this._templateNodes = null;
       }
 
       _stampTemplate(template) {
@@ -489,15 +506,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             window.HTMLTemplateElement && HTMLTemplateElement.decorate) {
           HTMLTemplateElement.decorate(template);
         }
-        var notes = this._parseTemplateAnnotations(template);
-        var dom = document.importNode(template._content || template.content, true);
+        let notes = this._templateNotes = this._parseTemplateAnnotations(template);
+        let dom = document.importNode(template._content || template.content, true);
         // NOTE: ShadyDom optimization indicating there is an insertion point
         dom.__noInsertionPoint = !notes._hasInsertionPoint;
         this.$ = {};
-        for (var i=0, l=notes.length, note; (i<l) && (note=notes[i]); i++) {
-          applyIdToMap(this, this.$, dom, note);
-          applyTemplateContent(this, dom, note);
-          applyEventListener(this, dom, note, this);
+        this._templateNodes = new Array(notes.length);
+        for (let i=0, l=notes.length, note, node; (i<l) && (note=notes[i]); i++) {
+          node = this._templateNodes[i] = findTemplateAnnotatedNode(dom, note);
+          applyIdToMap(this, this.$, node, note);
+          applyTemplateContent(this, node, note);
+          applyEventListener(this, node, note, this);
         }
         return dom;
       }
@@ -513,31 +532,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return parseTemplateAnnotations(template);
       }
 
-      // instance-time
-      // TODO(sorvell): consider trying to use QS instead of this proprietary
-      // search. This would require some unique way to identify a node, a guid.
-      // Is this faster? simpler? Is that worth polluting the node?
-      _findTemplateAnnotatedNode(root, note) {
-        // recursively ascend tree until we hit root
-        let parent = note.parent && this._findTemplateAnnotatedNode(root,
-          note.parent);
-        // unwind the stack, returning the indexed node at each level
-        if (parent) {
-          // note: marginally faster than indexing via childNodes
-          // (http://jsperf.com/childnodes-lookup)
-          for (let n=parent.firstChild, i=0; n; n=n.nextSibling) {
-            if (note.index === i++) {
-              return n;
-            }
-          }
-        } else {
-          return root;
-        }
-      }
-
       _addMethodEventListenerToNode(node, eventName, methodName, context) {
         context = context || node;
-        var handler = createNodeEventHandler(context, eventName, methodName);
+        let handler = createNodeEventHandler(context, eventName, methodName);
         this._addEventListenerToNode(node, eventName, handler);
         return handler;
       }

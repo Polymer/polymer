@@ -470,7 +470,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Object} model Prototype or instance
    * @param {Object} note Annotation note returned from Annotator
-   * @param {number} index Index into `__dataNodes` list of annotated nodes that the
+   * @param {number} index Index into `_templateNodes` list of annotated nodes that the
    *   note applies to
    * @private
    */
@@ -516,7 +516,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function runBindingEffect(inst, path, props, oldProps, info, fromAbove, hasPaths) {
     let value;
-    let node = inst.__dataNodes[info.index];
+    let node = inst._templateNodes[info.index];
     // Subpath notification: transform path and set to client
     // e.g.: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo.prop'=obj.sub.prop
     if (hasPaths && (path.length > info.value.length) &&
@@ -555,7 +555,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function applyBindingValue(inst, info, value) {
-    let node = inst.__dataNodes[info.index];
+    let node = inst._templateNodes[info.index];
     value = computeBindingValue(node, value, info);
     if (Polymer.sanitizeDOMValue) {
       value = Polymer.sanitizeDOMValue(value, info.name, info.kind, node);
@@ -614,7 +614,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} model Prototype or instance
    * @param {Object} note Binding note returned from Annotator
    * @param {Object} part The compound part metadata
-   * @param {number} index Index into `__dataNodes` list of annotated nodes that the
+   * @param {number} index Index into `_templateNodes` list of annotated nodes that the
    *   note applies to
    * @private
    */
@@ -776,7 +776,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * instance time to add event listeners for 2-way bindings.
    *
    * @param {Object} model Prototype (instances not currently supported)
-   * @param {number} index Index into `__dataNodes` list of annotated nodes that the
+   * @param {number} index Index into `_templateNodes` list of annotated nodes that the
    *   event should be added to
    * @param {string} property Property of target node to listen for changes
    * @param {string} path Host path that the change should be propagated to
@@ -811,39 +811,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function setupBindListeners(inst) {
     let b$ = inst._bindListeners;
     for (let i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
-      let node = inst.__dataNodes[info.index];
+      let node = inst._templateNodes[info.index];
       addNotifyListener(node, inst, info);
     }
   }
 
   /**
-   * Finds all bound nodes in the given `dom` fragment that were recorded in the
-   * provided Annotator `notes` array and stores them in `__dataNodes` for this
-   * instance.  The index of nodes in `__dataNodes` corresponds to the index
-   * of a note in the `notes` array, and binding effect metadata uses this
-   * index to identify bound nodes when propagating data.
-   *
-   * Compound binding storage structures are also initialized onto the bound
-   * nodes, and 2-way binding event listeners are also added.
+   * On the `inst` element that was previously bound, uses `inst._templateNotes`
+   * to setup compound binding storage structures onto the bound
+   * nodes (`inst._templateNodes`).
+   * (`inst._, and 2-way binding event listeners are also added.)
    *
    * @param {Object} inst Instance that bas been previously bound
-   * @param {DocumentFragment} dom Document fragment containing stamped nodes
-   * @param {Array<Object>} notes Array of annotation notes provided by
-   *   Polymer.Annotator
    * @private
    */
-  function setupBindings(inst, dom, notes) {
+  function setupBindings(inst) {
+    let notes = inst._templateNotes;
     if (notes.length) {
-      let nodes = new Array(notes.length);
       for (let i=0; i < notes.length; i++) {
         let note = notes[i];
-        let node = nodes[i] = inst._findTemplateAnnotatedNode(dom, note);
+        let node = inst._templateNodes[i];
         node.__dataHost = inst;
         if (note.bindings) {
           setupCompoundBinding(note, node);
         }
       }
-      inst.__dataNodes = nodes;
     }
     if (inst._bindListeners) {
       setupBindListeners(inst);
@@ -1197,12 +1189,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _initializeProperties() {
         super._initializeProperties();
-        this._asyncEffects = false;
         this.__dataInitialized = false;
         this.__dataPendingClients = null;
         this.__dataFromAbove = false;
         this.__dataLinkedPaths = null;
-        this.__dataNodes = null;
         this.__dataHasPaths = false;
         // May be set on instance prior to upgrade
         this.__dataCompoundStorage = this.__dataCompoundStorage || null;
@@ -1655,8 +1645,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _stampTemplate(template) {
         let dom = super._stampTemplate(template);
-        let notes = (template._content || template.content)._notes;
-        setupBindings(this, dom, notes);
+        setupBindings(this);
         return dom;
       }
 
