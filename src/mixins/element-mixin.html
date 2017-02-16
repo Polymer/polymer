@@ -16,14 +16,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="property-effects.html">
 
 <script>
-(function() {
+Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
 
-  'use strict';
+  const mixin = Polymer.PropertyEffects(base);
 
   let caseMap = Polymer.CaseMap;
 
-  // Same as Polymer.Utils.mixin, but upgrades shorthand type
-  // syntax to { type: Type }
+  /**
+   * Returns the config object specifically on `klass`. Use for:
+   * (1) super chain mixes togther to make `propertiesForClass` which is
+   * then used to make `observedAttributes`.
+   * (2) properties effects and observers are created from it at `finalize` time.
+   * @param {HTMLElement} klass
+   * @private
+   */
+  function ownConfigForClass(klass) {
+    if (!klass.hasOwnProperty(
+      goog.reflect.objectProperty('__ownConfig', klass))) {
+      klass.__ownConfig =
+        klass.hasOwnProperty(goog.reflect.objectProperty('config', klass)) ?
+        klass.config : {};
+    }
+    return klass.__ownConfig;
+  }
+
+  /**
+   * Mixes `props` into `flattenedProps` but upgrades shorthand type
+   * syntax to { type: Type}.
+   * @param {Object} flattenedProps
+   * @param {Object} props
+   * @private
+   */
   function flattenProperties(flattenedProps, props) {
     for (let p in props) {
       let o = props[p];
@@ -35,432 +58,468 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return flattenedProps;
   }
 
-  Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
-
-    const mixin = Polymer.PropertyEffects(base);
-
-    /**
-     * @unrestricted
-     */
-    class PolymerElement extends mixin {
-
-      // returns the config object on specifically on `this` class (not super)
-      // config is used for:
-      // (1) super chain mixes togther to make `flattenedProperties` which is
-      // then used to make observedAttributes and set property defaults
-      // (2) properties effects and observers are created from it at `finalize` time.
-      static get _ownConfig() {
-        if (!this.hasOwnProperty(goog.reflect.objectProperty('__ownConfig', this))) {
-          this.__ownConfig = this.hasOwnProperty(goog.reflect.objectProperty('config', this)) ? this.config : {};
-        }
-        return this.__ownConfig;
+  /**
+   * Returns a flattened list of properties mixed together from the chain of all
+   * constructor's `config.properties`. This list is used to create
+   * (1) observedAttributes,
+   * (2) class property default values
+   * @param {HTMLElement} klass
+   * @private
+   */
+  function propertiesForClass(klass) {
+    if (!klass.hasOwnProperty(
+      goog.reflect.objectProperty('__classProperties', klass))) {
+      klass.__classProperties =
+      flattenProperties({}, ownConfigForClass(klass).properties);
+      let superCtor = Object.getPrototypeOf(klass.prototype).constructor;
+      if (superCtor.prototype instanceof PolymerElement) {
+        klass.__classProperties = Polymer.Utils.mixin(
+          Object.create(propertiesForClass(superCtor)),
+          klass.__classProperties);
       }
+    }
+    return klass.__classProperties;
+  }
 
-      // a flattened list of properties mixed together from the chain of all
-      // constructor's `config.properties`
-      // This list is used to create
-      // (1) observedAttributes,
-      // (2) element default values
-      static get _flattenedProperties() {
-        if (!this.hasOwnProperty(goog.reflect.objectProperty('__flattenedProperties', this))) {
-          this.__flattenedProperties = flattenProperties({}, this._ownConfig.properties);
-          let superCtor = Object.getPrototypeOf(this.prototype).constructor;
-          if (superCtor.prototype instanceof PolymerElement) {
-            this.__flattenedProperties = Polymer.Utils.mixin(
-              Object.create(superCtor._flattenedProperties),
-              this.__flattenedProperties);
-          }
+  /**
+   * Returns a list of properties with default values.
+   * This list is created as an optimization since it is a subset of
+   * the list returned from `propertiesForClass`.
+   * This list is used in `_initializeProperties` to set property defaults.
+   * @param {HTMLElement} klass
+   * @private
+   */
+  function propertyDefaultsForClass(klass) {
+    if (!klass.hasOwnProperty(
+      goog.reflect.objectProperty('__classPropertyDefaults', klass))) {
+      this.__classPropertyDefaults = null;
+      let props = propertiesForClass(klass);
+      for (let p in props) {
+        let info = props[p];
+        if ('value' in info) {
+          klass.__classPropertyDefaults = klass.__classPropertyDefaults || {};
+          klass.__classPropertyDefaults[p] = info;
         }
-        return this.__flattenedProperties;
       }
+    }
+    return klass.__classPropertyDefaults;
+  }
 
-      static get _flattenedPropertyDefaults() {
-        if (!this.hasOwnProperty('__flattenedPropertyDefaults')) {
-          this.__flattenedPropertyDefaults = null;
-          for (let p in this._flattenedProperties) {
-            let info = this._flattenedProperties[p];
-            if ('value' in info) {
-              this.__flattenedPropertyDefaults =
-                this.__flattenedPropertyDefaults || {};
-              this.__flattenedPropertyDefaults[p] = info;
-            }
-          }
-        }
-        return this.__flattenedPropertyDefaults;
+  /**
+   * Returns true if a `klass` has finalized. Called in `element.ensureFinalized`
+   * @param {HTMLElement} klass
+   * @private
+   */
+  function hasClassFinalized(klass) {
+    return klass.hasOwnProperty(goog.reflect.objectProperty('__finalized', klass));
+  }
+
+  /**
+   * Called by `element.ensureFinalized()`. Ensures this `klass` and
+   * *all superclasses* are finalized by traversing the prototype chain
+   * and calling `klass.ensureFinalized()`.
+   * @param {HTMLElement} klass
+   * @private
+   */
+  function finalizeClassAndSuper(klass) {
+    let proto = klass.prototype;
+    let superCtor = Object.getPrototypeOf(proto).constructor;
+    if (superCtor.prototype instanceof PolymerElement) {
+      superCtor.ensureFinalized();
+    }
+    klass._finalize();
+  }
+
+  /**
+   * Configures a `klass` based on a staic `klass.config` object and
+   * a `template`. This includes creating accessors and effects
+   * for properties in `config` and the `template` as well as preparing the
+   * `template` for stamping.
+   */
+  function finalizeClass(klass) {
+    klass.__finalized = true;
+    let proto = klass.prototype;
+    if (klass.hasOwnProperty(
+      goog.reflect.objectProperty('is', klass)) && klass.is) {
+      Polymer.telemetry.register(proto);
+    }
+    let config = ownConfigForClass(klass);
+    if (config) {
+      finalizeConfig(proto, config);
+    }
+    if (klass.template) {
+      finalizeTemplate(proto, klass.template.cloneNode(true),
+        klass.is, klass.extends);
+    }
+  }
+
+  /**
+   * Configures a `proto` based on a `config` object.
+   * Leverages `PropertyEffects` to create property accessors and effects
+   * supporting, observers, reflecting to attributes, change notification,
+   * computed properties, and read only properties.
+   * @param {HTMLElement} proto
+   * @param {Object} config
+   * @private
+   */
+  function finalizeConfig(proto, config) {
+    if (config.properties) {
+      // process properties
+      for (let p in config.properties) {
+        createPropertyFromConfig(proto, p, config.properties[p]);
       }
-
-
-
-      static get observedAttributes() {
-        if (!this.hasOwnProperty(goog.reflect.objectProperty('_observedAttributes', this))) {
-          // observedAttributes must be finalized at registration time
-          this._observedAttributes = this._addPropertiesToAttributes(
-            this._flattenedProperties, []);
-        }
-        return this._observedAttributes;
+    }
+    if (config.observers) {
+      for (let i=0; i < config.observers.length; i++) {
+        proto._createMethodObserver(config.observers[i]);
       }
+    }
+  }
 
-      static _addPropertiesToAttributes(properties, list) {
+  /**
+   * Creates effects for a property.
+   *
+   * Note, once a property has been set to
+   * `readOnly`, `computed`, `reflectToAttribute`, or `notify`
+   * these values may not be changed. For example, a subclass cannot
+   * alter these settings. However, additional `observers` may be added
+   * by subclasses.
+   *
+   * @param {string} name Name of the property.
+   * @param {*=} info Info object from which to create property effects.
+   * Supported keys:
+   *
+   * * type: {function} type to which an attribute matching the property
+   * is deserialized. Note the property is camel-cased from a dash-cased
+   * attribute. For example, 'foo-bar' attribute is dersialized to a
+   * property named 'fooBar'.
+   *
+   * * readOnly: {boolean} creates a readOnly property and
+   * makes a private setter for the private of the form '_setFoo' for a
+   * property 'foo',
+   *
+   * * computed: {string} creates a computed property. A computed property
+   * also automatically is set to `readOnly: true`. The value is calculated
+   * by running a method and arguments parsed from the given string. For
+   * example 'compute(foo)' will compute a given property when the
+   * 'foo' property changes by executing the 'compute' method. This method
+   * must return the computed value.
+   *
+   * * reflectToAttriute: {boolean} If true, the property value is reflected
+   * to an attribute of the same name. Note, the attribute is dash-cased
+   * so a property named 'fooBar' is reflected as 'foo-bar'.
+   *
+   * * notify: {boolean} sends a non-bubbling notification event when
+   * the property changes. For example, a property named 'foo' sends an
+   * event named 'foo-changed' with `event.detail` set to the value of
+   * the property.
+   *
+   * * observer: {string} name of a method that runs when the property
+   * changes. The arguments of the method are (value, previousValue).
+   *
+   * @param {HTMLElement} proto
+   * @param {string} name
+   * @param {object} info
+   * @private
+   */
+  /* Note: Users may want control over modifying property
+   effects via subclassing. For example, a user might want to make a
+   reflectToAttribute property not do so in a subclass. We've chosen to
+   disable this because it leads to additional complication.
+   For example, a readOnly effect generates a special setter. If a subclass
+   disables the effect, the setter would fail unexpectedly.
+   Based on feedback, we may want to try to make effects more malleable
+   and/or provide an advanced api for manipulating them.
+   Also consider adding warnings when an effect cannot be changed.
+  */
+  function createPropertyFromConfig(proto, name, info) {
+    // computed forces readOnly...
+    if (info.computed) {
+      info.readOnly = true;
+    }
+    // Note, since all computed properties are readOnly, this prevents
+    // adding additional computed property effects (which leads to a confusing
+    // setup where multiple triggers for setting a property)
+    // While we do have `hasComputedEffect` this is set on the property's
+    // dependencies rather than itself.
+    if (info.computed  && !proto._hasReadOnlyEffect(name)) {
+      proto._createComputedProperty(name, info.computed);
+    }
+    if (info.readOnly && !proto._hasReadOnlyEffect(name)) {
+      proto._createReadOnlyProperty(name, !info.computed);
+    }
+    if (info.reflectToAttribute && !proto._hasReflectEffect(name)) {
+      proto._createReflectedProperty(name);
+    }
+    if (info.notify && !proto._hasNotifyEffect(name)) {
+      proto._createNotifyingProperty(name);
+    }
+    // always add observer
+    if (info.observer) {
+      proto._createObservedProperty(name, info.observer);
+    }
+  }
+
+  /**
+   * Configures an element `proto` to function with a given `template`.
+   * The element name `is` and extends `ext` must be specified for ShadyCSS
+   * style scoping.
+   * @param {HTMLElement} proto
+   * @param {HTMLTemplateElement} template
+   * @param {string} is
+   * @param {string} ext
+   * @private
+   */
+  function finalizeTemplate(proto, template, is, ext) {
+    // support `include="module-name"`
+    let cssText = Polymer.StyleGather.cssFromElement(template);
+    if (cssText) {
+      let style = document.createElement('style');
+      style.textContent = cssText;
+      template.content.insertBefore(style, template.content.firstChild);
+    }
+    if (window.ShadyCSS) {
+      window.ShadyCSS.prepareTemplate(template, is, ext);
+    }
+    proto._bindTemplate(template);
+    proto._template = template;
+  }
+
+  /**
+   * @unrestricted
+   */
+  class PolymerElement extends mixin {
+
+    static get observedAttributes() {
+      if (!this.hasOwnProperty(goog.reflect.objectProperty('__observedAttributes', this))) {
+        let list = [];
+        let properties = propertiesForClass(this);
         for (let prop in properties) {
           list.push(Polymer.CaseMap.camelToDashCase(prop));
         }
-        return list;
+        this.__observedAttributes = list;
       }
-
-      static get finalized() {
-        return this.hasOwnProperty(goog.reflect.objectProperty('_finalized', this));
-      }
-
-      static set finalized(value) {
-        this._finalized = value;
-      }
-
-      // TODO(sorvell): need to work on public api surrouding `finalize`.
-      // Due to meta-programming, it's awkward to make a subclass impl of this.
-      // However, a user might want to call `finalize` prior to define to do
-      // this work eagerly. Need to also decide on `finalizeConfig(config)` and
-      // `finalizeTemplate(template)`. Both are public but have simiarly
-      // awkward subclassing characteristics.
-      static finalize() {
-        let proto = this.prototype;
-        if (!this.finalized) {
-
-          let superProto = Object.getPrototypeOf(proto);
-          let superCtor = superProto && superProto.constructor;
-          if (superCtor.prototype instanceof PolymerElement) {
-            superCtor.finalize();
-          }
-          this.finalized = true;
-          if (this.hasOwnProperty(goog.reflect.objectProperty('is', this)) && this.is) {
-            Polymer.telemetry.register(proto);
-          }
-          let config = this._ownConfig;
-          if (config) {
-            this._finalizeConfig(config);
-          }
-          if (this.template) {
-            this._finalizeTemplate(this.template.cloneNode(true));
-          }
-        }
-      }
-
-      static _finalizeConfig(config) {
-        if (config.properties) {
-          // process properties
-          for (let p in config.properties) {
-            this.prototype._createPropertyFromConfig(p, config.properties[p]);
-          }
-        }
-        if (config.observers) {
-          for (let i=0; i < config.observers.length; i++) {
-            this.prototype._createMethodObserver(config.observers[i]);
-          }
-        }
-      }
-
-      static _getTemplate() {
-        return Polymer.DomModule.import(this.is, 'template');
-      }
-
-      static get template() {
-        if (!this.hasOwnProperty(goog.reflect.objectProperty('_template', this))) {
-          this._template = this._getTemplate() ||
-            // note: implemented so a subclass can retrieve the super
-            // template; call the super impl this way so that `this` points
-            // to the superclass.
-            Object.getPrototypeOf(this.prototype).constructor.template;
-        }
-        return this._template;
-      }
-
-      static _finalizeTemplate(template) {
-        // support `include="module-name"`
-        let cssText = Polymer.StyleGather.cssFromElement(template);
-        if (cssText) {
-          let style = document.createElement('style');
-          style.textContent = cssText;
-          template.content.insertBefore(style, template.content.firstChild);
-        }
-        if (window.ShadyCSS) {
-          window.ShadyCSS.prepareTemplate(template, this.is, this.extends);
-        }
-        var proto = this.prototype;
-        this.prototype._bindTemplate(template);
-        proto._template = template;
-      }
-
-      constructor() {
-        super();
-        // note: `this.constructor.prototype` is wrong in Safari so make sure to
-        // use `__proto__`
-        Polymer.telemetry.instanceCount++;
-        // add self to host's pending client list
-        hostStack.registerHost(this);
-      }
-
-      _initializeProperties() {
-        if (!this.constructor.finalized) {
-          this.constructor.finalize();
-        }
-        super._initializeProperties();
-        // apply property defaults...
-        let p$ = this.constructor._flattenedPropertyDefaults;
-        if (!p$) {
-          return;
-        }
-        for (let p in p$) {
-          let info = p$[p];
-          if (!this._isPropertyPending(p)) {
-            var value = typeof info.value == 'function' ?
-              info.value.call(this) :
-              info.value;
-            if (this._hasReadOnlyEffect(p)) {
-              this._setProperty(p, value)
-            } else {
-              this[p] = value;
-            }
-          }
-        }
-      }
-
-      /**
-       * Creates effects for a property.
-       *
-       * Example:
-       *
-       *     this._createPropertyFromConfig('foo', {
-       *       type: String, value: 'foo', reflectToAttribute: true
-       *     });
-       *
-       * Note, once a property has been set to
-       * `readOnly`, `computed`, `reflectToAttribute`, or `notify`
-       * these values may not be changed. For example, a subclass cannot
-       * alter these settings. However, additional `observers` may be added
-       * by subclasses.
-       *
-       * @param {string} name Name of the property.
-       * @param {*=} info Info object from which to create property effects.
-       * Supported keys:
-       *
-       * * type: {function} type to which an attribute matching the property
-       * is deserialized. Note the property is camel-cased from a dash-cased
-       * attribute. For example, 'foo-bar' attribute is dersialized to a
-       * property named 'fooBar'.
-       *
-       * * readOnly: {boolean} creates a readOnly property and
-       * makes a private setter for the private of the form '_setFoo' for a
-       * property 'foo',
-       *
-       * * computed: {string} creates a computed property. A computed property
-       * also automatically is set to `readOnly: true`. The value is calculated
-       * by running a method and arguments parsed from the given string. For
-       * example 'compute(foo)' will compute a given property when the
-       * 'foo' property changes by executing the 'compute' method. This method
-       * must return the computed value.
-       *
-       * * reflectToAttriute: {boolean} If true, the property value is reflected
-       * to an attribute of the same name. Note, the attribute is dash-cased
-       * so a property named 'fooBar' is reflected as 'foo-bar'.
-       *
-       * * notify: {boolean} sends a non-bubbling notification event when
-       * the property changes. For example, a property named 'foo' sends an
-       * event named 'foo-changed' with `event.detail` set to the value of
-       * the property.
-       *
-       * * observer: {string} name of a method that runs when the property
-       * changes. The arguments of the method are (value, previousValue).
-       *
-      */
-      /* Note: Users may want control over modifying property
-       effects via subclassing. For example, a user might want to make a
-       reflectToAttribute property not do so in a subclass. We've chosen to
-       disable this because it leads to additional complication.
-       For example, a readOnly effect generates a special setter. If a subclass
-       disables the effect, the setter would fail unexpectedly.
-       Based on feedback, we may want to try to make effects more malleable
-       and/or provide an advanced api for manipulating them.
-       Also consider adding warnings when an effect cannot be changed.
-      */
-      _createPropertyFromConfig(name, info) {
-        // computed forces readOnly...
-        if (info.computed) {
-          info.readOnly = true;
-        }
-        // Note, since all computed properties are readOnly, this prevents
-        // adding additional computed property effects (which leads to a confusing
-        // setup where multiple triggers for setting a property)
-        // While we do have `hasComputedEffect` this is set on the property's
-        // dependencies rather than itself.
-        if (info.computed  && !this._hasReadOnlyEffect(name)) {
-          this._createComputedProperty(name, info.computed);
-        }
-        if (info.readOnly && !this._hasReadOnlyEffect(name)) {
-          this._createReadOnlyProperty(name, !info.computed);
-        }
-        if (info.reflectToAttribute && !this._hasReflectEffect(name)) {
-          this._createReflectedProperty(name);
-        }
-        if (info.notify && !this._hasNotifyEffect(name)) {
-          this._createNotifyingProperty(name);
-        }
-        // always add observer
-        if (info.observer) {
-          this._createObservedProperty(name, info.observer);
-        }
-      }
-
-      // reserved for canonical behavior
-      connectedCallback() {
-        this.updateStyles();
-        if (hostStack.isEmpty()) {
-          // note, this should never recurse to root elements; this will
-          // need new ShadyCSS api
-          // (see https://github.com/webcomponents/shadycss/issues/42)
-          this._flushProperties();
-        }
-      }
-
-      disconnectedCallback() {}
-
-      ready() {
-        super.ready();
-        if (this._template) {
-          hostStack.beginHosting(this);
-          this.root = this._stampTemplate(this._template);
-          this._flushProperties();
-          this.root = this._attachDom(this.root);
-          hostStack.endHosting(this);
-        } else {
-          this.root = this;
-          this._flushProperties();
-        }
-      }
-
-      /**
-       * Attach an element's stamped dom to itself. By default,
-       * this method creates a `shadowRoot` and adds the dom to it.
-       * However, this method may be overridden to allow an element
-       * to put its dom in another location.
-       *
-       * @method _attachDom
-       * @throws {Error}
-       * @suppress {missingReturn}
-       * @param {NodeList} dom to attach to the element.
-       * @return {Node} node to which the dom has been attached.
-       */
-      _attachDom(dom) {
-        if (this.attachShadow) {
-          if (dom) {
-            if (!this.shadowRoot) {
-              this.attachShadow({mode: 'open'});
-            }
-            this.shadowRoot.appendChild(dom);
-            return this.shadowRoot;
-          }
-        } else {
-          throw new Error(`ShadowDOM not available. ` +
-            // BREAKME(sorvell): move to developer conditional when supported.
-           `Polymer.Element can
-              create dom as children instead of in ShadowDOM by setting
-              \`this.root = this;\` before \`ready\`.`);
-
-        }
-      }
-
-      attributeChangedCallback(name, old, value) {
-        if (old !== value) {
-          let property = caseMap.dashToCamelCase(name);
-          let type = this.constructor._flattenedProperties[property].type;
-          if (!this._hasReadOnlyEffect(property)) {
-            this._attributeToProperty(name, value, type);
-          }
-        }
-      }
-
-      /**
-       * Update styling for this element
-       *
-       * @param {Object=} properties
-       *  Override styling with an object of properties where the keys are css properties, and the values are strings
-       *  Example: `this.updateStyles({'color': 'blue'})`
-       *  These properties are retained unless a value of `null` is set.
-       */
-      updateStyles(properties) {
-        if (window.ShadyCSS) {
-          ShadyCSS.applyStyle(this, properties);
-        }
-      }
-
-      /**
-       * Rewrites a given URL relative to the original location of the document
-       * containing the `dom-module` for this element.  This method will return
-       * the same URL before and after vulcanization.
-       *
-       * @method resolveUrl
-       * @param {string} url URL to resolve.
-       * @return {string} Rewritten URL relative to the import
-       */
-      resolveUrl(url) {
-        const module = Polymer.DomModule.import(this.constructor.is);
-        const root = module ? module.assetpath : document.baseURI;
-        return Polymer.ResolveUrl.resolveUrl(url, root);
-      }
-
+      return this.__observedAttributes;
     }
 
-    return PolymerElement;
-  });
+    /**
+     * Implement to perform class time finalization work. This method is
+     * automatically called once when the first element instance is created.
+     * @protected
+     */
+    static _finalize() {
+      finalizeClass(this);
+    }
 
-  let hostStack = {
-
-    stack: [],
-
-    isEmpty() {
-      return !this.stack.length;
-    },
-
-    registerHost(inst) {
-      if (this.stack.length) {
-        let host = this.stack[this.stack.length-1];
-        host._enqueueClient(inst);
+    /**
+     * Called automatically when the first element instance is created to
+     * ensure that class finalization work has been completed.
+     * May be called by users to eagerly perform class finalization work
+     * prior to the creation of the first element instance.
+     * @public
+     */
+    static ensureFinalized() {
+      if (!hasClassFinalized(this)) {
+        finalizeClassAndSuper(this);
       }
-    },
+    }
 
-    beginHosting(inst) {
-      this.stack.push(inst);
-    },
+    static _getTemplate() {
+      return Polymer.DomModule.import(this.is, 'template');
+    }
 
-    endHosting(inst) {
-      let stackLen = this.stack.length;
-      if (stackLen && this.stack[stackLen-1] == inst) {
-        this.stack.pop();
+    static get template() {
+      if (!this.hasOwnProperty(goog.reflect.objectProperty('_template', this))) {
+        this._template = this._getTemplate() ||
+          // note: implemented so a subclass can retrieve the super
+          // template; call the super impl this way so that `this` points
+          // to the superclass.
+          Object.getPrototypeOf(this.prototype).constructor.template;
       }
+      return this._template;
+    }
+
+    constructor() {
+      super();
+      // note: `this.constructor.prototype` is wrong in Safari so make sure to
+      // use `__proto__`
+      Polymer.telemetry.instanceCount++;
+      // add self to host's pending client list
+      hostStack.registerHost(this);
+    }
+
+    _initializeProperties() {
+      this.constructor.ensureFinalized();
+      super._initializeProperties();
+      // apply property defaults...
+      let p$ = propertyDefaultsForClass(this.constructor);
+      if (!p$) {
+        return;
+      }
+      for (let p in p$) {
+        let info = p$[p];
+        if (!this._isPropertyPending(p)) {
+          var value = typeof info.value == 'function' ?
+            info.value.call(this) :
+            info.value;
+          if (this._hasReadOnlyEffect(p)) {
+            this._setProperty(p, value)
+          } else {
+            this[p] = value;
+          }
+        }
+      }
+    }
+
+    // reserved for canonical behavior
+    connectedCallback() {
+      this.updateStyles();
+      if (hostStack.isEmpty()) {
+        // note, this should never recurse to root elements; this will
+        // need new ShadyCSS api
+        // (see https://github.com/webcomponents/shadycss/issues/42)
+        this._flushProperties();
+      }
+    }
+
+    disconnectedCallback() {}
+
+    ready() {
+      super.ready();
+      if (this._template) {
+        hostStack.beginHosting(this);
+        this.root = this._stampTemplate(this._template);
+        this._flushProperties();
+        this.root = this._attachDom(this.root);
+        hostStack.endHosting(this);
+      } else {
+        this.root = this;
+        this._flushProperties();
+      }
+    }
+
+    /**
+     * Attach an element's stamped dom to itself. By default,
+     * this method creates a `shadowRoot` and adds the dom to it.
+     * However, this method may be overridden to allow an element
+     * to put its dom in another location.
+     *
+     * @method _attachDom
+     * @throws {Error}
+     * @suppress {missingReturn}
+     * @param {NodeList} dom to attach to the element.
+     * @return {Node} node to which the dom has been attached.
+     */
+    _attachDom(dom) {
+      if (this.attachShadow) {
+        if (dom) {
+          if (!this.shadowRoot) {
+            this.attachShadow({mode: 'open'});
+          }
+          this.shadowRoot.appendChild(dom);
+          return this.shadowRoot;
+        }
+      } else {
+        throw new Error(`ShadowDOM not available. ` +
+          // BREAKME(sorvell): move to developer conditional when supported.
+         `Polymer.Element can
+            create dom as children instead of in ShadowDOM by setting
+            \`this.root = this;\` before \`ready\`.`);
+
+      }
+    }
+
+    attributeChangedCallback(name, old, value) {
+      if (old !== value) {
+        let property = caseMap.dashToCamelCase(name);
+        let type = propertiesForClass(this.constructor)[property].type;
+        if (!this._hasReadOnlyEffect(property)) {
+          this._attributeToProperty(name, value, type);
+        }
+      }
+    }
+
+    /**
+     * Update styling for this element
+     *
+     * @param {Object=} properties
+     *  Override styling with an object of properties where the keys are css properties, and the values are strings
+     *  Example: `this.updateStyles({'color': 'blue'})`
+     *  These properties are retained unless a value of `null` is set.
+     */
+    updateStyles(properties) {
+      if (window.ShadyCSS) {
+        ShadyCSS.applyStyle(this, properties);
+      }
+    }
+
+    /**
+     * Rewrites a given URL relative to the original location of the document
+     * containing the `dom-module` for this element.  This method will return
+     * the same URL before and after vulcanization.
+     *
+     * @method resolveUrl
+     * @param {string} url URL to resolve.
+     * @return {string} Rewritten URL relative to the import
+     */
+    resolveUrl(url) {
+      const module = Polymer.DomModule.import(this.constructor.is);
+      const root = module ? module.assetpath : document.baseURI;
+      return Polymer.ResolveUrl.resolveUrl(url, root);
     }
 
   }
 
-  // telemetry
-  Polymer.telemetry = {
-    instanceCount: 0,
-    registrations: [],
-    _regLog: function(prototype) {
-      console.log('[' + prototype.is + ']: registered')
-    },
-    register: function(prototype) {
-      this.registrations.push(prototype);
-      Polymer.log && this._regLog(prototype);
-    },
-    dumpRegistrations: function() {
-      this.registrations.forEach(this._regLog);
+  return PolymerElement;
+});
+
+let hostStack = {
+
+  stack: [],
+
+  isEmpty() {
+    return !this.stack.length;
+  },
+
+  registerHost(inst) {
+    if (this.stack.length) {
+      let host = this.stack[this.stack.length-1];
+      host._enqueueClient(inst);
     }
-  };
+  },
 
-  Polymer.updateStyles = function(props) {
-    if (window.ShadyCSS) {
-      ShadyCSS.updateStyles(props);
+  beginHosting(inst) {
+    this.stack.push(inst);
+  },
+
+  endHosting(inst) {
+    let stackLen = this.stack.length;
+    if (stackLen && this.stack[stackLen-1] == inst) {
+      this.stack.pop();
     }
-  };
+  }
 
-})();
+}
 
+// telemetry
+Polymer.telemetry = {
+  instanceCount: 0,
+  registrations: [],
+  _regLog: function(prototype) {
+    console.log('[' + prototype.is + ']: registered')
+  },
+  register: function(prototype) {
+    this.registrations.push(prototype);
+    Polymer.log && this._regLog(prototype);
+  },
+  dumpRegistrations: function() {
+    this.registrations.forEach(this._regLog);
+  }
+};
+
+Polymer.updateStyles = function(props) {
+  if (window.ShadyCSS) {
+    ShadyCSS.updateStyles(props);
+  }
+};
 </script>
