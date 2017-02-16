@@ -138,14 +138,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   })();
 
   let insertionPointTag = 'slot';
-  let currentTemplate;
 
   /**
    * @param {HTMLTemplateElement} template
    * @param {boolean=} stripWhiteSpace
    * @return {Array<Object>}
    */
-  function parseTemplateAnnotations(template, stripWhiteSpace) {
+  function parseTemplateAnnotations(template, stripWhiteSpace, ownerDocument) {
     // TODO(kschaaf): File issue and/or remove when fixed
     // hold a reference to content as _content to prevent odd Chrome gc issue
     // nested templates also may receive their content as _content
@@ -155,19 +154,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       content._notes = [];
       // TODO(sorvell): whitespace and processAnnotations need to be factored
       // into plugins
-      // TODO(kschaaf): template should be threaded through rather than implied state
-      currentTemplate = currentTemplate || template;
+      ownerDocument = ownerDocument || template.ownerDocument;
       parseNodeAnnotations(content, content._notes,
-        stripWhiteSpace || template.hasAttribute('strip-whitespace'));
+        stripWhiteSpace || template.hasAttribute('strip-whitespace'), ownerDocument);
     }
     return content._notes;
   }
 
   // add annotations gleaned from subtree at `node` to `list`
-  function parseNodeAnnotations(node, list, stripWhiteSpace) {
+  function parseNodeAnnotations(node, list, stripWhiteSpace, ownerDocument) {
     return node.nodeType === Node.TEXT_NODE ?
       parseTextNodeAnnotation(node, list) :
-        parseElementAnnotations(node, list, stripWhiteSpace);
+        parseElementAnnotations(node, list, stripWhiteSpace, ownerDocument);
   }
 
   // TODO(kschaaf): We could modify this to allow an escape mechanism by
@@ -255,7 +253,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   // add annotations gleaned from Element `node` to `list`
-  function parseElementAnnotations(element, list, stripWhiteSpace) {
+  function parseElementAnnotations(element, list, stripWhiteSpace, ownerDocument) {
     let note = {
       bindings: [],
       events: []
@@ -263,10 +261,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (element.localName === insertionPointTag) {
       list._hasInsertionPoint = true;
     }
-    parseChildNodesAnnotations(element, note, list, stripWhiteSpace);
+    parseChildNodesAnnotations(element, note, list, stripWhiteSpace, ownerDocument);
     if (element.attributes) {
       parseNodeAttributeAnnotations(element, note);
-      prepElement(element);
+      Polymer.ResolveUrl.resolveAttrs(element, ownerDocument);
     }
     if (note.bindings.length || note.events.length || note.id) {
       list.push(note);
@@ -274,32 +272,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return note;
   }
 
+  // 1.x backwards-compatible auto-wrapper for template type extensions
+  // This is a clear layering violation and gives favored-nation status to
+  // dom-if and dom-repeat templates.  This is a conceit we're choosing to keep
+  // a.) to ease 1.x backwards-compatibility due to loss of `is`, and
+  // b.) to maintain if/repeat capability in parser-constrained elements
+  //     (e.g. table, select) in lieu of native CE type extensions without
+  //     massive new invention in this space (e.g. directive system)
+  const templateExtensions = {
+    'dom-if': true,
+    'dom-repeat': true
+  };
+  function wrapTemplateExtension(node) {
+    let is = node.getAttribute('is');
+    if (is && templateExtensions[is]) {
+      let t = node;
+      t.removeAttribute('is');
+      node = t.ownerDocument.createElement(is);
+      t.parentNode.replaceChild(node, t);
+      node.appendChild(t);
+      while(t.attributes.length) {
+        node.setAttribute(t.attributes[0].name, t.attributes[0].value);
+        t.removeAttribute(t.attributes[0].name);
+      }
+    }
+    return node;
+  }
+
   // add annotations gleaned from children of `root` to `list`, `root`'s
   // `note` is supplied as it is the note.parent of added annotations
-  function parseChildNodesAnnotations(root, note, list, stripWhiteSpace) {
+  function parseChildNodesAnnotations(root, note, list, stripWhiteSpace, ownerDocument) {
     if (root.firstChild) {
       let node = root.firstChild;
       let i = 0;
       while (node) {
-        // BREAKME(kschaaf): pseudo-bc auto-wrapper for template type extensions
-        if (node.localName === 'template') {
-          let t = node;
-          let is = t.getAttribute('is');
-          // stamp `<dom-*>` elements
-          if (is && is.indexOf('dom-') === 0) {
-            t.removeAttribute('is');
-            node = t.ownerDocument.createElement(is);
-            root.replaceChild(node, t);
-            node.appendChild(t);
-            while(t.attributes.length) {
-              node.setAttribute(t.attributes[0].name, t.attributes[0].value);
-              t.removeAttribute(t.attributes[0].name);
-            }
-          }
+        // Wrap templates
+        if (node.localName == 'template') {
+          node = wrapTemplateExtension(node);
         }
-        if (node.localName === 'template' &&
+        // Recurse
+        if (node.localName == 'template' &&
           !node.hasAttribute('preserve-content')) {
-          parseTemplate(node, i, list, note, stripWhiteSpace);
+          parseTemplate(node, i, list, note, stripWhiteSpace, ownerDocument);
         }
         // collapse adjacent textNodes: fixes an IE issue that can cause
         // text nodes to be inexplicably split =(
@@ -324,7 +338,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // if this node didn't get evacipated, parse it.
         if (node.parentNode) {
           let childAnnotation = parseNodeAnnotations(node, list,
-            stripWhiteSpace);
+            stripWhiteSpace, ownerDocument);
           if (childAnnotation) {
             childAnnotation.parent = note;
             childAnnotation.index = i;
@@ -343,9 +357,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   //    (this is both an optimization to avoid re-stamping nested template
   //    children and avoids a bug in Chrome where nested template children
   //    upgrade)
-  function parseTemplate(node, index, list, parent, stripWhiteSpace) {
+  function parseTemplate(node, index, list, parent, stripWhiteSpace, ownerDocument) {
     let content = node.content.ownerDocument.createDocumentFragment();
-    content._notes = parseTemplateAnnotations(node, stripWhiteSpace);
+    content._notes = parseTemplateAnnotations(node, stripWhiteSpace, ownerDocument);
     content.appendChild(node.content);
     list.push({
       bindings: emptyArray,
@@ -357,8 +371,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   // add annotation data from attributes to the `annotation` for node `node`
-  // TODO(sjmiles): the distinction between an `annotation` and
-  // `annotation data` is not as clear as it could be
   function parseNodeAttributeAnnotations(node, annotation) {
     // Make copy of original attribute list, since the order may change
     // as attributes are added and removed
