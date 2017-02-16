@@ -171,7 +171,7 @@ Then the `observe` property should be configured as follows:
            */
           sort: {
             type: Function,
-            observer: '_sortChanged'
+            observer: '__sortChanged'
           },
 
           /**
@@ -183,7 +183,7 @@ Then the `observe` property should be configured as follows:
            */
           filter: {
             type: Function,
-            observer: '_filterChanged'
+            observer: '__filterChanged'
           },
 
           /**
@@ -195,7 +195,7 @@ Then the `observe` property should be configured as follows:
            */
           observe: {
             type: String,
-            observer: '_observeChanged'
+            observer: '__observeChanged'
           },
 
           /**
@@ -228,7 +228,7 @@ Then the `observe` property should be configured as follows:
            */
           initialCount: {
             type: Number,
-            observer: '_initializeChunking'
+            observer: '__initializeChunking'
           },
 
           /**
@@ -246,13 +246,13 @@ Then the `observe` property should be configured as follows:
 
           _targetFrameTime: {
             type: Number,
-            computed: '_computeFrameTime(targetFramerate)'
+            computed: '__computeFrameTime(targetFramerate)'
           }
 
         },
 
         observers: [
-          '_itemsChanged(items.*)'
+          '__itemsChanged(items.*)'
         ]
 
       }
@@ -261,18 +261,25 @@ Then the `observe` property should be configured as follows:
 
     constructor() {
       super();
-      this._instances = [];
-      this._pool = [];
-      this._limit = Infinity;
-      this._renderDebouncer = null;
-      this._itemsIdxToInstIdx = {};
+      this.__instances = [];
+      this.__limit = Infinity;
+      this.__pool = [];
+      this.__renderDebouncer = null;
+      this.__itemsIdxToInstIdx = {};
+      this.__chunkCount = null;
+      this.__lastChunkTime = null;
+      this.__needFullRefresh = false;
+      this.__sortFn = null;
+      this.__filterFn = null;
+      this.__observePaths = null;
+      this.__ctor = null;
     }
 
     disconnectedCallback() {
       super.disconnectedCallback();
       this.__isDetached = true;
-      for (var i=0; i<this._instances.length; i++) {
-        this._detachInstance(i);
+      for (var i=0; i<this.__instances.length; i++) {
+        this.__detachInstance(i);
       }
     }
 
@@ -282,24 +289,24 @@ Then the `observe` property should be configured as follows:
       if (this.__isDetached) {
         this.__isDetached = false;
         var parent = this.parentNode;
-        for (var i=0; i<this._instances.length; i++) {
-          this._attachInstance(i, parent);
+        for (var i=0; i<this.__instances.length; i++) {
+          this.__attachInstance(i, parent);
         }
       }
     }
 
-    _ensureTemplatized() {
+    __ensureTemplatized() {
       // Templatizing (generating the instance constructor) needs to wait
       // until ready, since won't have its template content handed back to
       // it until then
-      if (!this._ctor) {
+      if (!this.__ctor) {
         var template = this.template = this.querySelector('template');
         if (!template) {
           // // Wait until childList changes and template should be there by then
           let observer = new MutationObserver(() => {
             if (this.querySelector('template')) {
               observer.disconnect();
-              this._render();
+              this.__render();
             } else {
               throw new Error('dom-repeat requires a <template> child');
             }
@@ -312,10 +319,10 @@ Then the `observe` property should be configured as follows:
         instanceProps[this.as] = true;
         instanceProps[this.indexAs] = true;
         instanceProps[this.itemsIndexAs] = true;
-        this._ctor = Polymer.Templatize.templatize(template, this, {
+        this.__ctor = Polymer.Templatize.templatize(template, this, {
           instanceProps: instanceProps,
           forwardHostProp: function(prop, value) {
-            var i$ = this._instances;
+            var i$ = this.__instances;
             for (var i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
               inst.forwardHostProp(prop, value);
             }
@@ -335,7 +342,7 @@ Then the `observe` property should be configured as follows:
       return true;
     }
 
-    _getMethodHost() {
+    __getMethodHost() {
       // Technically this should be the owner of the outermost template.
       // In shadow dom, this is always getRootNode().host, but we can
       // approximate this via cooperation with our dataHost always setting
@@ -344,90 +351,90 @@ Then the `observe` property should be configured as follows:
       return this.__dataHost._methodHost || this.__dataHost;
     }
 
-    _sortChanged(sort) {
-      var methodHost = this._getMethodHost();
-      this._sortFn = sort && (typeof sort == 'function' ? sort :
+    __sortChanged(sort) {
+      var methodHost = this.__getMethodHost();
+      this.__sortFn = sort && (typeof sort == 'function' ? sort :
         function() { return methodHost[sort].apply(methodHost, arguments); });
-      this._needFullRefresh = true;
+      this.__needFullRefresh = true;
       if (this.items) {
-        this._debounceRender(this._render);
+        this.__debounceRender(this.__render);
       }
     }
 
-    _filterChanged(filter) {
-      var methodHost = this._getMethodHost();
-      this._filterFn = filter && (typeof filter == 'function' ? filter :
+    __filterChanged(filter) {
+      var methodHost = this.__getMethodHost();
+      this.__filterFn = filter && (typeof filter == 'function' ? filter :
         function() { return methodHost[filter].apply(methodHost, arguments); });
-      this._needFullRefresh = true;
+      this.__needFullRefresh = true;
       if (this.items) {
-        this._debounceRender(this._render);
+        this.__debounceRender(this.__render);
       }
     }
 
-    _computeFrameTime(rate) {
+    __computeFrameTime(rate) {
       return Math.ceil(1000/rate);
     }
 
-    _initializeChunking() {
+    __initializeChunking() {
       if (this.initialCount) {
-        this._limit = this.initialCount;
-        this._chunkCount = this.initialCount;
-        this._lastChunkTime = performance.now();
+        this.__limit = this.initialCount;
+        this.__chunkCount = this.initialCount;
+        this.__lastChunkTime = performance.now();
       }
     }
 
-    _tryRenderChunk() {
+    __tryRenderChunk() {
       // Debounced so that multiple calls through `_render` between animation
       // frames only queue one new rAF (e.g. array mutation & chunked render)
-      if (this.items && this._limit < this.items.length) {
-        this._debounceRender(this._requestRenderChunk);
+      if (this.items && this.__limit < this.items.length) {
+        this.__debounceRender(this.__requestRenderChunk);
       }
     }
 
-    _requestRenderChunk() {
-      requestAnimationFrame(()=>this._renderChunk());
+    __requestRenderChunk() {
+      requestAnimationFrame(()=>this.__renderChunk());
     }
 
-    _renderChunk() {
+    __renderChunk() {
       // Simple auto chunkSize throttling algorithm based on feedback loop:
       // measure actual time between frames and scale chunk count by ratio
       // of target/actual frame time
       var currChunkTime = performance.now();
-      var ratio = this._targetFrameTime / (currChunkTime - this._lastChunkTime);
-      this._chunkCount = Math.round(this._chunkCount * ratio) || 1;
-      this._limit += this._chunkCount;
-      this._lastChunkTime = currChunkTime;
-      this._debounceRender(this._render);
+      var ratio = this._targetFrameTime / (currChunkTime - this.__lastChunkTime);
+      this.__chunkCount = Math.round(this.__chunkCount * ratio) || 1;
+      this.__limit += this.__chunkCount;
+      this.__lastChunkTime = currChunkTime;
+      this.__debounceRender(this.__render);
     }
 
-    _observeChanged() {
-      this._observePaths = this.observe &&
+    __observeChanged() {
+      this.__observePaths = this.observe &&
         this.observe.replace('.*', '.').split(' ');
     }
 
-    _itemsChanged(change) {
+    __itemsChanged(change) {
       if (this.items && !Array.isArray(this.items)) {
         console.warn('dom-repeat expected array for `items`, found', this.items);
       }
       // If path was to an item (e.g. 'items.3' or 'items.3.foo'), forward the
       // path to that instance synchronously (retuns false for non-item paths)
-      if (!this._handleItemPath(change.path, change.value)) {
+      if (!this.__handleItemPath(change.path, change.value)) {
         // Otherwise, the array was reset ('items') or spliced ('items.splices'),
         // so queue a full refresh
-        this._needFullRefresh = true;
-        this._initializeChunking();
-        this._debounceRender(this._render);
+        this.__needFullRefresh = true;
+        this.__initializeChunking();
+        this.__debounceRender(this.__render);
       }
     }
 
-    _handleObservedPaths(path) {
-      if (this._observePaths) {
+    __handleObservedPaths(path) {
+      if (this.__observePaths) {
         path = path.substring(path.indexOf('.') + 1);
-        var paths = this._observePaths;
+        var paths = this.__observePaths;
         for (var i=0; i<paths.length; i++) {
           if (path.indexOf(paths[i]) === 0) {
-            this._needFullRefresh = true;
-            this._debounceRender(this._render, this.delay);
+            this.__needFullRefresh = true;
+            this.__debounceRender(this.__render, this.delay);
             return true;
           }
         }
@@ -438,12 +445,12 @@ Then the `observe` property should be configured as follows:
      * @param {function()} fn
      * @param {number=} delay
      */
-    _debounceRender(fn, delay) {
-      this._renderDebouncer = Polymer.Debouncer.debounce(
-            this._renderDebouncer
+    __debounceRender(fn, delay) {
+      this.__renderDebouncer = Polymer.Debouncer.debounce(
+            this.__renderDebouncer
           , delay > 0 ? Polymer.Async.timeOut.after(delay) : Polymer.Async.microTask
           , fn.bind(this));
-      Polymer.enqueueDebouncer(this._renderDebouncer);
+      Polymer.enqueueDebouncer(this.__renderDebouncer);
     }
 
     /**
@@ -455,73 +462,73 @@ Then the `observe` property should be configured as follows:
      */
     render() {
       // Queue this repeater, then flush all in order
-      this._needFullRefresh = true;
-      this._debounceRender(this._render);
+      this.__needFullRefresh = true;
+      this.__debounceRender(this.__render);
       Polymer.flush();
     }
 
-    _render() {
-      if (!this._ensureTemplatized()) {
+    __render() {
+      if (!this.__ensureTemplatized()) {
         // No template found yet
         return;
       }
-      this._applyFullRefresh();
+      this.__applyFullRefresh();
       // Reset the pool
       // TODO(kschaaf): Reuse pool across turns and nested templates
       // Now that objects/arrays are re-evaluated when set, we can safely
       // reuse pooled instances across turns, however we still need to decide
       // semantics regarding how long to hold, how many to hold, etc.
-      this._pool.length = 0;
+      this.__pool.length = 0;
       // Set rendered item count
-      this._setRenderedItemCount(this._instances.length);
+      this._setRenderedItemCount(this.__instances.length);
       // Notify users
       this.dispatchEvent(new CustomEvent('dom-change', {bubbles: true}));
       // Check to see if we need to render more items
-      this._tryRenderChunk();
+      this.__tryRenderChunk();
     }
 
-    _applyFullRefresh() {
+    __applyFullRefresh() {
       const items = this.items || [];
       let isntIdxToItemsIdx = new Array(items.length);
       for (let i=0; i<items.length; i++) {
         isntIdxToItemsIdx[i] = i;
       }
       // Apply user filter
-      if (this._filterFn) {
+      if (this.__filterFn) {
         isntIdxToItemsIdx = isntIdxToItemsIdx.filter((i, idx, array) =>
-          this._filterFn(items[i], idx, array));
+          this.__filterFn(items[i], idx, array));
       }
       // Apply user sort
-      if (this._sortFn) {
-        isntIdxToItemsIdx.sort((a, b) => this._sortFn(items[a], items[b]));
+      if (this.__sortFn) {
+        isntIdxToItemsIdx.sort((a, b) => this.__sortFn(items[a], items[b]));
       }
       // items->inst map kept for item path forwarding
-      const itemsIdxToInstIdx = this._itemsIdxToInstIdx = {};
+      const itemsIdxToInstIdx = this.__itemsIdxToInstIdx = {};
       let instIdx = 0;
       // Generate instances and assign items
-      const limit = Math.min(isntIdxToItemsIdx.length, this._limit);
+      const limit = Math.min(isntIdxToItemsIdx.length, this.__limit);
       for (; instIdx<limit; instIdx++) {
-        let inst = this._instances[instIdx];
+        let inst = this.__instances[instIdx];
         let itemIdx = isntIdxToItemsIdx[instIdx];
         let item = items[itemIdx];
         itemsIdxToInstIdx[itemIdx] = instIdx;
-        if (inst && instIdx < this._limit) {
+        if (inst && instIdx < this.__limit) {
           inst._setPendingProperty(this.as, item);
           inst._setPendingProperty(this.indexAs, instIdx);
           inst._setPendingProperty(this.itemsIndexAs, itemIdx);
           inst._flushProperties(true);
         } else {
-          this._insertInstance(item, instIdx, itemIdx);
+          this.__insertInstance(item, instIdx, itemIdx);
         }
       }
       // Remove any extra instances from previous state
-      for (let i=this._instances.length-1; i>=instIdx; i--) {
-        this._detachAndRemoveInstance(i);
+      for (let i=this.__instances.length-1; i>=instIdx; i--) {
+        this.__detachAndRemoveInstance(i);
       }
     }
 
-    _detachInstance(idx) {
-      var inst = this._instances[idx];
+    __detachInstance(idx) {
+      var inst = this.__instances[idx];
       for (var i=0; i<inst.children.length; i++) {
         var el = inst.children[i];
         inst.root.appendChild(el);
@@ -529,29 +536,29 @@ Then the `observe` property should be configured as follows:
       return inst;
     }
 
-    _attachInstance(idx, parent) {
-      var inst = this._instances[idx];
+    __attachInstance(idx, parent) {
+      var inst = this.__instances[idx];
       parent.insertBefore(inst.root, this);
     }
 
-    _detachAndRemoveInstance(idx) {
-      var inst = this._detachInstance(idx);
+    __detachAndRemoveInstance(idx) {
+      var inst = this.__detachInstance(idx);
       if (inst) {
-        this._pool.push(inst);
+        this.__pool.push(inst);
       }
-      this._instances.splice(idx, 1);
+      this.__instances.splice(idx, 1);
     }
 
-    _stampInstance(item, instIdx, itemIdx) {
+    __stampInstance(item, instIdx, itemIdx) {
       var model = {};
       model[this.as] = item;
       model[this.indexAs] = instIdx;
       model[this.itemsIndexAs] = itemIdx;
-      return new this._ctor(model);
+      return new this.__ctor(model);
     }
 
-    _insertInstance(item, instIdx, itemIdx) {
-      var inst = this._pool.pop();
+    __insertInstance(item, instIdx, itemIdx) {
+      var inst = this.__pool.pop();
       if (inst) {
         // TODO(kschaaf): If the pool is shared across turns, hostProps
         // need to be re-set to reused instances in addition to item
@@ -560,25 +567,25 @@ Then the `observe` property should be configured as follows:
         inst._setPendingProperty(this.itemsIndexAs, itemIdx);
         inst._flushProperties(true);
       } else {
-        inst = this._stampInstance(item, instIdx, itemIdx);
+        inst = this.__stampInstance(item, instIdx, itemIdx);
       }
-      var beforeRow = this._instances[instIdx + 1];
+      var beforeRow = this.__instances[instIdx + 1];
       var beforeNode = beforeRow ? beforeRow.children[0] : this;
       this.parentNode.insertBefore(inst.root, beforeNode);
-      this._instances[instIdx] = inst;
+      this.__instances[instIdx] = inst;
       return inst;
     }
 
     // Implements extension point from Templatize mixin
     _showHideChildren(hidden) {
-      for (var i=0; i<this._instances.length; i++) {
-        this._instances[i]._showHideChildren(hidden);
+      for (var i=0; i<this.__instances.length; i++) {
+        this.__instances[i]._showHideChildren(hidden);
       }
     }
 
     // Called as a side effect of a host items.<key>.<path> path change,
     // responsible for notifying item.<path> changes to inst for key
-    _handleItemPath(path, value) {
+    __handleItemPath(path, value) {
       var itemsPath = path.slice(6); // 'items.'.length == 6
       var dot = itemsPath.indexOf('.');
       var itemsIdx = dot < 0 ? itemsPath : itemsPath.substring(0, dot);
@@ -586,10 +593,10 @@ Then the `observe` property should be configured as follows:
       if (itemsIdx == parseInt(itemsIdx, 10)) {
         var itemSubPath = dot < 0 ? '' : itemsPath.substring(dot+1);
         // See if the item subpath should trigger a full refresh...
-        if (!this._handleObservedPaths(itemSubPath)) {
+        if (!this.__handleObservedPaths(itemSubPath)) {
           // If not, forward to the instance for that index
-          var instIdx = this._itemsIdxToInstIdx[itemsIdx];
-          var inst = this._instances[instIdx];
+          var instIdx = this.__itemsIdxToInstIdx[itemsIdx];
+          var inst = this.__instances[instIdx];
           if (inst) {
             let itemPath = this.as + (itemSubPath ? '.' + itemSubPath : '');
             // This is effectively `notifyPath`, but avoids some of the overhead
