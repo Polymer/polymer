@@ -268,7 +268,4 @@ id is to use `id`.
 * <a name="breaking-attribute-property-timing"></a>Any attribute values will take priority over property values set prior to upgrade due to V1 `attributeChangedCallback` timing semantics.  In 1.x properties set prior to upgrade overrode attributes.
 * <a name="breaking-transpiling"></a>Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
 * <a name="breaking-hostAttributes-class"></a>In Polymer 1.x, the `class` attribute was explicitly blacklisted from `hostAttributes` and never serialized. This is no longer the case using the 2.0 legacy API.
-
-## Not yet implemented
-* <a name="nyi-array-selector"></a>`<array-selector>` not yet implemented
-* <a name="nyi-polymer-dom"></a>`Polymer.dom`: currently *most* of this is emulated, but some api's may be missing. Please file issues to determine if the missing behavior is an intended breaking change.
+* <a name="breaking-render-status"></a>`Polymer.RenderStatus.afterNextRender(context, callback, args)` is now called only with a `callback` argument (`Polymer.RenderStatus.afterNextRender(callback)`). The callback should be bound as needed with the correct context and arguments.
