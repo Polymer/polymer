@@ -8,7 +8,6 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 <link rel="import" href="../lib/boot.html">
-<link rel="import" href="../lib/utils.html">
 <link rel="import" href="../lib/array-splice.html">
 <link rel="import" href="../lib/async.html">
 <link rel="import" href="../lib/flush.html">
@@ -37,106 +36,106 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     constructor(target, callback) {
       /** @type {MutationObserver} */
-      this.shadyChildrenObserver = null;
+      this._shadyChildrenObserver = null;
       /** @type {MutationObserver} */
-      this.nativeChildrenObserver = null;
-      this.connected = false;
-      this.target = target;
+      this._nativeChildrenObserver = null;
+      this._connected = false;
+      this._target = target;
       this.callback = callback;
-      this.effectiveNodes = [];
-      this.observer = null;
-      this.scheduled = false;
+      this._effectiveNodes = [];
+      this._observer = null;
+      this._scheduled = false;
       this._boundSchedule = () => {
-        this.schedule();
+        this._schedule();
       }
-      this.connect();
-      this.schedule();
+      this._connect();
+      this._schedule();
     }
 
-    connect() {
-      if (isSlot(this.target)) {
-        this.listenSlots([this.target]);
+    _connect() {
+      if (isSlot(this._target)) {
+        this._listenSlots([this._target]);
       } else {
-        this.listenSlots(this.target.children);
+        this._listenSlots(this._target.children);
         if (window.ShadyDOM) {
-          this.shadyChildrenObserver =
-            ShadyDOM.observeChildren(this.target, (mutations) => {
-              this.processMutations(mutations);
+          this._shadyChildrenObserver =
+            ShadyDOM.observeChildren(this._target, (mutations) => {
+              this._processMutations(mutations);
             });
         } else {
-          this.nativeChildrenObserver =
+          this._nativeChildrenObserver =
             new MutationObserver((mutations) => {
-              this.processMutations(mutations);
+              this._processMutations(mutations);
             });
-          this.nativeChildrenObserver.observe(this.target, {childList: true});
+          this._nativeChildrenObserver.observe(this._target, {childList: true});
         }
       }
-      this.connected = true;
+      this._connected = true;
     }
 
     disconnect() {
-      if (isSlot(this.target)) {
-        this.unlistenSlots([this.target]);
+      if (isSlot(this._target)) {
+        this._unlistenSlots([this._target]);
       } else {
-        this.unlistenSlots(this.target.children);
-        if (window.ShadyDOM && this.shadyChildrenObserver) {
-          ShadyDOM.unobserveChildren(this.shadyChildrenObserver);
-          this.shadyChildrenObserver = null;
-        } else if (this.nativeChildrenObserver) {
-          this.nativeChildrenObserver.disconnect();
-          this.nativeChildrenObserver = null;
+        this._unlistenSlots(this._target.children);
+        if (window.ShadyDOM && this._shadyChildrenObserver) {
+          ShadyDOM.unobserveChildren(this._shadyChildrenObserver);
+          this._shadyChildrenObserver = null;
+        } else if (this._nativeChildrenObserver) {
+          this._nativeChildrenObserver.disconnect();
+          this._nativeChildrenObserver = null;
         }
       }
-      this.connected = false;
+      this._connected = false;
     }
 
-    schedule() {
-      if (!this.scheduled) {
-        this.scheduled = true;
+    _schedule() {
+      if (!this._scheduled) {
+        this._scheduled = true;
         Polymer.Async.microTask.run(() => this.flush());
       }
     }
 
-    processMutations(mutations) {
-      this.processSlotMutations(mutations);
+    _processMutations(mutations) {
+      this._processSlotMutations(mutations);
       this.flush();
     }
 
-    processSlotMutations(mutations) {
+    _processSlotMutations(mutations) {
       if (mutations) {
         for (let i=0; i < mutations.length; i++) {
           let mutation = mutations[i];
           if (mutation.addedNodes) {
-            this.listenSlots(mutation.addedNodes);
+            this._listenSlots(mutation.addedNodes);
           }
           if (mutation.removedNodes) {
-            this.unlistenSlots(mutation.removedNodes);
+            this._unlistenSlots(mutation.removedNodes);
           }
         }
       }
     }
 
     flush() {
-      if (!this.connected) {
+      if (!this._connected) {
         return;
       }
       if (window.ShadyDOM) {
         ShadyDOM.flush();
       }
-      if (this.nativeChildrenObserver) {
-        this.processSlotMutations(this.nativeChildrenObserver.takeRecords());
+      if (this._nativeChildrenObserver) {
+        this._processSlotMutations(this._nativeChildrenObserver.takeRecords());
       } else if (this.shadyChildrenObserver) {
-        this.processSlotMutations(this.shadyChildrenObserver.takeRecords());
+        this._processSlotMutations(this._shadyChildrenObserver.takeRecords());
       }
-      this.scheduled = false;
+      this._scheduled = false;
       let info = {
-        target: this.target,
+        target: this._target,
         addedNodes: [],
         removedNodes: []
       };
-      let newNodes = getEffectiveNodes(this.target);
+      let newNodes = getEffectiveNodes(this._target);
       let splices = Polymer.ArraySplice.calculateSplices(newNodes,
-        this.effectiveNodes);
+        this._effectiveNodes);
       // process removals
       for (let i=0, s; (i<splices.length) && (s=splices[i]); i++) {
         for (let j=0, n; (j < s.removed.length) && (n=s.removed[j]); j++) {
@@ -150,13 +149,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       // update cache
-      this.effectiveNodes = newNodes;
+      this._effectiveNodes = newNodes;
       if (info.addedNodes.length || info.removedNodes.length) {
-        this.callback.call(this.target, info);
+        this.callback.call(this._target, info);
       }
     }
 
-    listenSlots(nodeList) {
+    _listenSlots(nodeList) {
       for (let i=0; i < nodeList.length; i++) {
         let n = nodeList[i];
         if (isSlot(n)) {
@@ -165,7 +164,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    unlistenSlots(nodeList) {
+    _unlistenSlots(nodeList) {
       for (let i=0; i < nodeList.length; i++) {
         let n = nodeList[i];
         if (isSlot(n)) {
@@ -244,7 +243,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let list = [];
       for (let i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
         if ((c.nodeType === Node.ELEMENT_NODE) &&
-            Polymer.Utils.matchesSelector(c, selector)) {
+            matchesSelector(c, selector)) {
           list.push(c);
         }
       }
@@ -337,6 +336,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     return obj.__domApi;
   };
+
+  let p = Element.prototype;
+  let normalizedMatchesSelector = p.matches || p.matchesSelector ||
+    p.mozMatchesSelector || p.msMatchesSelector ||
+    p.oMatchesSelector || p.webkitMatchesSelector;
+
+  let matchesSelector = Polymer.dom.matchesSelector = function(node, selector) {
+    return normalizedMatchesSelector.call(node, selector);
+  }
 
   Polymer.dom.flush = Polymer.flush;
 
