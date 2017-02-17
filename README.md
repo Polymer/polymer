@@ -48,7 +48,14 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
    Based on developer feedback and observations of Polymer apps in the wild, we've also made some key improvements to Polymer's data system. These changes are designed to make it easier to reason about and debug the propagation of data through and between elements:
 
-   * Changes are now batched, and the effects of those changes are run in well-defined order (compute, notify, propagate, observe).
+   * Changes are now batched, and the effects of those changes are run in well-defined order:
+     1. computed properties (`computed`)
+     1. template bindings (both property bindngs `[[...]]` and computed bindings `[[compute(...)]]` and any side-effects of child elements on the bound property/attribute changes)
+     1. attribute reflection (`reflectToAttribute: true`)
+     1. observers (both single-property `observer` and multi-property `observers`)
+     1. property-changed notify events (and any side-effects of host elements on the bound property changes)
+
+     Note that this order changes
 
    * We ensure that multi-property observers run exactly once per turn for any set of changes to dependencies (removing the [multi-property undefined rule](https://www.polymer-project.org/1.0/docs/devguide/observers#multi-property-observers)).
 
@@ -240,6 +247,7 @@ Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shady
 * <a name="breaking-data-init"></a>An element's template is not stamped & data system not initialized (observers, bindings, etc.) until the element has been connected to the main document.  This is a direct result of the V1 changes that prevent reading attributes in the constructor.
 * <a name="breaking-data-dirty-checking"></a>Re-setting an object or array no longer dirty checks, meaning you can make deep changes to an object/array and just re-set it, without needing to use `set`/`notifyPath`.  Although the `set` API remains and will often be the more efficient way to make changes, this change removes users of Polymer elements from needing to use this API, making it more compatible with alternate data-binding and state management libraries.
 * <a name="breaking-data-batching"></a>Propagation of data through the binding system is now batched, such that multi-property computing functions and observers run once with a set of coherent changes.  Single property accessors still propagate data synchronously, although there is a new `setProperties({...})` API on Polymer elements that can be used to propagate multiple values as a coherent set.
+# <a name="breaking-notify-order"></a>Property change notification event dispatch (`notify: true`) occurs after all other side effects of a property change occurs (computed properties, downward binding, reflectToAttribute, and observers).  In 1.x notification happened after binding side effects, but before observers, which was counter-intuitive.  This rationalizes the concept of upward notification to ensure it happens after _all_ local and downward side-effects based on the change occur.
 * <a name="breaking-method-args"></a>Multi-property observers and computed methods are now called once at initialization if any arguments are defined (and will see `undefined` for any undefined arguments).  Subsequently setting multi-property method arguments will cause the method to be called once for each property changed via accessors, or once per batch of changes via `setProperties({...})`.
 * <a name="breaking-inline-unconditional"></a>Inline computed annotations run once unconditionally at initialization, regardless if any arguments are defined (and will see `undefined` for undefined arguments)
 * <a name="breaking-inline-dynamic"></a>Setting/changing any function used in inline template annotations will cause the binding to re-compute its value using the new function and current property values
