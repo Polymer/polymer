@@ -108,7 +108,7 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
   }
 
   /**
-   * Returns true if a `klass` has finalized. Called in `element.ensureFinalized`
+   * Returns true if a `klass` has finalized. Called in `ElementClass.finalize()`
    * @param {HTMLElement} klass
    * @private
    */
@@ -117,9 +117,9 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
   }
 
   /**
-   * Called by `element.ensureFinalized()`. Ensures this `klass` and
+   * Called by `ElementClass.finalize()`. Ensures this `klass` and
    * *all superclasses* are finalized by traversing the prototype chain
-   * and calling `klass.ensureFinalized()`.
+   * and calling `klass.finalize()`.
    * @param {HTMLElement} klass
    * @private
    */
@@ -127,9 +127,9 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
     let proto = klass.prototype;
     let superCtor = Object.getPrototypeOf(proto).constructor;
     if (superCtor.prototype instanceof PolymerElement) {
-      superCtor.ensureFinalized();
+      superCtor.finalize();
     }
-    klass._finalize();
+    finalizeClass(klass);
   }
 
   /**
@@ -305,34 +305,21 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
     }
 
     /**
-     * Implement to perform class time finalization work. This method is
-     * automatically called once when the first element instance is created.
-     * @protected
-     */
-    static _finalize() {
-      finalizeClass(this);
-    }
-
-    /**
      * Called automatically when the first element instance is created to
      * ensure that class finalization work has been completed.
      * May be called by users to eagerly perform class finalization work
      * prior to the creation of the first element instance.
      * @public
      */
-    static ensureFinalized() {
+    static finalize() {
       if (!hasClassFinalized(this)) {
         finalizeClassAndSuper(this);
       }
     }
 
-    static _getTemplate() {
-      return Polymer.DomModule.import(this.is, 'template');
-    }
-
     static get template() {
       if (!this.hasOwnProperty(goog.reflect.objectProperty('_template', this))) {
-        this._template = this._getTemplate() ||
+        this._template = Polymer.DomModule.import(this.is, 'template') ||
           // note: implemented so a subclass can retrieve the super
           // template; call the super impl this way so that `this` points
           // to the superclass.
@@ -351,7 +338,7 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
     }
 
     _initializeProperties() {
-      this.constructor.ensureFinalized();
+      this.constructor.finalize();
       super._initializeProperties();
       // apply property defaults...
       let p$ = propertyDefaultsForClass(this.constructor);
