@@ -462,21 +462,21 @@ suite('scoped-styling-apply', function() {
   });
 
   test('variable mixins calculated correctly and inherit', function() {
-    if (ShadyCSS.nativeCss) {
+    if (!window.ShadyCSS || ShadyCSS.nativeCss) {
       this.skip();
     }
     var suffix = '';
     if (stylesBuilt) {
-      suffix = ApplyShim._separator + 'border';
+      suffix = window.ShadyCSS.ApplyShim._separator + 'border';
     }
     var e = styled;
-    var info = ShadyCSS._styleInfoForNode(e);
+    var info = ShadyCSS.ScopingShim._styleInfoForNode(e);
     assert.property(info.styleProperties, '--mixin1' + suffix);
     assert.property(info.styleProperties, '--mixin2' + suffix);
     assert.property(info.styleProperties, '--mixin3' + suffix);
     assert.property(info.styleProperties, '--mixin4' + suffix);
     e = styled.$.child;
-    info = ShadyCSS._styleInfoForNode(e);
+    info = ShadyCSS.ScopingShim._styleInfoForNode(e);
     assert.property(info.styleProperties, '--mixin1' + suffix);
     assert.property(info.styleProperties, '--mixin2' + suffix);
     assert.property(info.styleProperties, '--mixin3' + suffix);
@@ -498,13 +498,13 @@ suite('scoped-styling-apply', function() {
     var url = 'http://www.google.com/icon.png';
     var e = styled.$.child;
     var actual, unescaped;
-    if (ShadyCSS.nativeCssApply) {
+    if (window.ShadyCSS && ShadyCSS.nativeCssApply) {
       actual = getComputedStyle(e).getPropertyValue('--mixin2');
       // if strings aren't used in the url, getPropertyValue will escape the string, which breaks assert.include
       unescaped = actual.replace(/\\/g, '');
       assert.include(unescaped, url);
-    } else if (ShadyCSS.nativeCss) {
-      var propertyName = '--mixin2' + ApplyShim._separator + 'background';
+    } else if (!window.ShadyCSS || ShadyCSS.nativeCss) {
+      var propertyName = '--mixin2' + window.ShadyCSS.ApplyShim._separator + 'background';
       actual = getComputedStyle(e).getPropertyValue(propertyName);
       // if strings aren't used in the url, getPropertyValue will escape the string, which breaks assert.include
       unescaped = actual.replace(/\\/g, '');
@@ -512,9 +512,9 @@ suite('scoped-styling-apply', function() {
     } else {
       var propName = '--mixin2';
       if (stylesBuilt) {
-        propName = propName + ApplyShim._separator + 'background';
+        propName = propName + window.ShadyCSS.ApplyShim._separator + 'background';
       }
-      var info = ShadyCSS._styleInfoForNode(e);
+      var info = ShadyCSS.ScopingShim._styleInfoForNode(e);
       assert.include(info.styleProperties[propName], url);
       assert.include(info.customStyle.textContent, url);
     }
@@ -586,11 +586,12 @@ suite('scoped-styling-apply', function() {
   test('producing a var that consumes results in static and not dynamic stylesheet', function() {
     var d = document.createElement('x-var-produce-via-consume');
     document.body.appendChild(d);
-    var styleRoot = !window.ShadyDOM || !ShadyDOM.isShadyRoot(d.shadowRoot) ? d.shadowRoot : document.head;
-    var staticStyle = styleRoot.querySelector('style[scope=x-var-produce-via-consume]');
+    var styleRoot = (!window.ShadyDOM || !ShadyDOM.isShadyRoot(d.shadowRoot)) ? d.shadowRoot : document.head;
+    var selector = window.ShadyDOM ? 'style[scope~=x-var-produce-via-consume]' : 'style';
+    var staticStyle = styleRoot.querySelector(selector);
     assert.ok(staticStyle);
     assert.match(staticStyle.textContent, /display/, 'static style does not contain style content');
-    assert.equal(styleRoot.querySelectorAll('style[scope~=x-var-produce-via-consume]').length, 1);
+    assert.equal(styleRoot.querySelectorAll(selector).length, 1);
   });
 
   test('mixin values can be overridden by subsequent concrete properties', function() {
