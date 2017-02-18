@@ -8,17 +8,16 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="../lib/boot.html">
-<!-- NOTE: We want users to have access to Polymer.Utils via element-mixin -->
-<link rel="import" href="../lib/utils.html">
-<link rel="import" href="../lib/case-map.html">
-<link rel="import" href="../lib/style-gather.html">
-<link rel="import" href="../lib/resolve-url.html">
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/mixin.html">
+<link rel="import" href="../utils/case-map.html">
+<link rel="import" href="../utils/style-gather.html">
+<link rel="import" href="../utils/resolve-url.html">
 <link rel="import" href="../elements/dom-module.html">
 <link rel="import" href="property-effects.html">
 
 <script>
-Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
+Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
 
   const mixin = Polymer.PropertyEffects(base);
 
@@ -75,7 +74,7 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
       flattenProperties({}, ownConfigForClass(klass).properties);
       let superCtor = Object.getPrototypeOf(klass.prototype).constructor;
       if (superCtor.prototype instanceof PolymerElement) {
-        klass.__classProperties = Polymer.Utils.mixin(
+        klass.__classProperties = Polymer.mixin(
           Object.create(propertiesForClass(superCtor)),
           klass.__classProperties);
       }
@@ -149,8 +148,9 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
     if (config) {
       finalizeConfig(proto, config);
     }
-    if (klass.template) {
-      finalizeTemplate(proto, klass.template.cloneNode(true),
+    let template = klass.template;
+    if (template) {
+      finalizeTemplate(proto, template.cloneNode(true),
         klass.is, klass.extends);
     }
   }
@@ -165,15 +165,16 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
    * @private
    */
   function finalizeConfig(proto, config) {
-    if (config.properties) {
+    let {properties, observers} = config;
+    if (properties) {
       // process properties
-      for (let p in config.properties) {
-        createPropertyFromConfig(proto, p, config.properties[p]);
+      for (let p in properties) {
+        createPropertyFromConfig(proto, p, properties[p], properties);
       }
     }
-    if (config.observers) {
-      for (let i=0; i < config.observers.length; i++) {
-        proto._createMethodObserver(config.observers[i]);
+    if (observers) {
+      for (let i=0; i < observers.length; i++) {
+        proto._createMethodObserver(observers[i], properties);
       }
     }
   }
@@ -222,6 +223,7 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
    * @param {HTMLElement} proto
    * @param {string} name
    * @param {object} info
+   * @param {object} props
    * @private
    */
   /* Note: Users may want control over modifying property
@@ -234,7 +236,7 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
    and/or provide an advanced api for manipulating them.
    Also consider adding warnings when an effect cannot be changed.
   */
-  function createPropertyFromConfig(proto, name, info) {
+  function createPropertyFromConfig(proto, name, info, allProps) {
     // computed forces readOnly...
     if (info.computed) {
       info.readOnly = true;
@@ -245,7 +247,7 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
     // While we do have `hasComputedEffect` this is set on the property's
     // dependencies rather than itself.
     if (info.computed  && !proto._hasReadOnlyEffect(name)) {
-      proto._createComputedProperty(name, info.computed);
+      proto._createComputedProperty(name, info.computed, allProps);
     }
     if (info.readOnly && !proto._hasReadOnlyEffect(name)) {
       proto._createReadOnlyProperty(name, !info.computed);
@@ -258,7 +260,7 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
     }
     // always add observer
     if (info.observer) {
-      proto._createObservedProperty(name, info.observer);
+      proto._createPropertyObserver(name, info.observer, allProps[info.observer]);
     }
   }
 
@@ -283,7 +285,7 @@ Polymer.ElementMixin = Polymer.Utils.dedupingMixin(function(base) {
     if (window.ShadyCSS) {
       window.ShadyCSS.prepareTemplate(template, is, ext);
     }
-    proto._bindTemplate(template);
+    proto._bindTemplate(template, propertiesForClass(proto.constructor));
     proto._template = template;
   }
 

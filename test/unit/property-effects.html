@@ -327,8 +327,8 @@ suite('single-element binding effects', function() {
     el.earlyBoundObserver = sinon.spy();
     el.lateBoundObserver = sinon.spy();
     el.earlyBound = 'early';
-    el._createObservedProperty('earlyBound', 'earlyBoundObserver');
-    el._createObservedProperty('lateBound', 'lateBoundObserver');
+    el._createPropertyObserver('earlyBound', 'earlyBoundObserver');
+    el._createPropertyObserver('lateBound', 'lateBoundObserver');
     el._flushProperties();
     el.lateBound = 'late';
     assert.equal(el.earlyBound, 'early');
@@ -375,12 +375,9 @@ suite('computed bindings with dynamic functions', function() {
     assert.equal(el.$.check.textContent, 'translated: Hello');
   });
 
-  // TODO(kschaaf): using 1.0 rules for dynamic functions (needs to be defined
-  // in properties block) leads to layering violations between property-effects
-  // and meta-effects.  Skipping for now.
-  test.skip('observer with dynamic function', function() {
+  test('method observer with dynamic function', function() {
     Polymer({
-      is: 'x-observer-with-dynamic-function',
+      is: 'x-method-observer-with-dynamic-function',
       properties: {
         translateMessage: {
           type: Function
@@ -395,22 +392,39 @@ suite('computed bindings with dynamic functions', function() {
 
     });
 
-    el = document.createElement('x-observer-with-dynamic-function');
+    el = document.createElement('x-method-observer-with-dynamic-function');
     document.body.appendChild(el);
 
-    var called = 0;
-    el.translateMessage = function() {
-      called += 1;
-    };
-
-    assert.equal(called, 1);
+    el.translateMessage = sinon.spy();
+    assert.equal(el.translateMessage.callCount, 1);
 
   });
 
-  // TODO(kschaaf): using 1.0 rules for dynamic functions (needs to be defined
-  // in properties block) leads to layering violations between property-effects
-  // and meta-effects.  Skipping for now.
-  test.skip('computed property with dynamic function', function() {
+  test('observer with dynamic function', function() {
+    Polymer({
+      is: 'x-observer-with-dynamic-function',
+      properties: {
+        messageChanged: {
+          type: Function
+        },
+        message: {
+          type: String,
+          value: 'Hello',
+          observer: 'messageChanged'
+        }
+      }
+
+    });
+
+    el = document.createElement('x-observer-with-dynamic-function');
+    document.body.appendChild(el);
+
+    el.messageChanged = sinon.spy();
+    assert.equal(el.messageChanged.callCount, 1);
+
+  });
+
+  test('computed property with dynamic function', function() {
     Polymer({
       is: 'x-computed-property-with-dynamic-function',
       properties: {
@@ -871,9 +885,7 @@ suite('warnings', function() {
     assert.isTrue(console.warn.calledOnce, 'no warning for undefined computed function');
   });
 
-  // TODO(kschaaf): all inline computed functions are currently treated as
-  // dynamic, meaning they will never warn when undefined
-  test.skip('undefined inline computed function', function() {
+  test('undefined inline computed function', function() {
     el.noInlineComputed = 99;
     assert.isTrue(console.warn.calledOnce, 'no warning for undefined computed function');
   });
@@ -1025,13 +1037,13 @@ suite('compound binding / string interpolation', function() {
 
   test('compound adjacent property bindings', function() {
     // Adjacent compound binding with no literal do not override the default
-    assert.equal(el.$.boundProps.prop1, 'literalComputed');
+    assert.equal(el.$.boundProps.prop1, 'default');
     assert.isTrue(el.$.boundProps.prop1Changed.calledOnce);
     el.cpnd2 = 'cpnd2';
-    assert.equal(el.$.boundProps.prop1, 'cpnd2literalComputed');
+    assert.equal(el.$.boundProps.prop1, 'cpnd2');
     el.cpnd1 = 'cpnd1';
     el.cpnd3 = {prop: 'cpnd3'};
-    assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3literalComputed');
+    assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
     assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
@@ -1039,7 +1051,7 @@ suite('compound binding / string interpolation', function() {
   });
 
   test('compound property bindings with literals', function() {
-    assert.equal(el.$.boundProps.prop2, 'literal1  literal2  literal3 literalComputed literal4');
+    assert.equal(el.$.boundProps.prop2, 'literal1  literal2  literal3  literal4');
     assert.isTrue(el.$.boundProps.prop2Changed.calledOnce);
     el.cpnd1 = 'cpnd1';
     el.cpnd2 = 'cpnd2';
@@ -1057,12 +1069,12 @@ suite('compound binding / string interpolation', function() {
 
   test('compound adjacent attribute bindings', function() {
     // Adjacent compound binding with no literal do not override the default
-    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'literalComputed');
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), null);
     el.cpnd2 = 'cpnd2';
-    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd2literalComputed');
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd2');
     el.cpnd1 = 'cpnd1';
     el.cpnd3 = {prop: 'cpnd3'};
-    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3literalComputed');
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
     assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
@@ -1070,7 +1082,7 @@ suite('compound binding / string interpolation', function() {
   });
 
   test('compound property attribute with literals', function() {
-    assert.equal(el.$.boundChild.getAttribute('compoundAttr2'), 'literal1  literal2  literal3 literalComputed literal4');
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr2'), 'literal1  literal2  literal3  literal4');
     el.cpnd1 = 'cpnd1';
     el.cpnd2 = 'cpnd2';
     el.cpnd3 = {prop: 'cpnd3'};
@@ -1094,12 +1106,12 @@ suite('compound binding / string interpolation', function() {
     // The single space is due to the gambit to prevent empty text nodes
     // from being evacipated on IE during importNode from the template; it will
     // only be there the when in the virgin state after cloning the template
-    assert.equal(el.$.compound1.textContent, 'literalComputed');
+    assert.equal(el.$.compound1.textContent, ' ');
     el.cpnd2 = 'cpnd2';
-    assert.equal(el.$.compound1.textContent, 'cpnd2literalComputed');
+    assert.equal(el.$.compound1.textContent, 'cpnd2');
     el.cpnd1 = 'cpnd1';
     el.cpnd3 = {prop: 'cpnd3'};
-    assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3literalComputed');
+    assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
     assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
@@ -1115,7 +1127,7 @@ suite('compound binding / string interpolation', function() {
   });
 
   test('compound textNode bindings with literals', function() {
-    assert.equal(el.$.compound2.textContent.trim(), 'literal1  literal2  literal3 literalComputed literal4');
+    assert.equal(el.$.compound2.textContent.trim(), 'literal1  literal2  literal3  literal4');
     el.cpnd1 = 'cpnd1';
     el.cpnd2 = 'cpnd2';
     el.cpnd3 = {prop: 'cpnd3'};
@@ -1144,21 +1156,23 @@ suite('order of effects', function() {
   var el;
 
   setup(function() {
-    el = document.createElement('x-order-of-effects-grand-parent').$.child;
+    let gp = document.createElement('x-order-of-effects-grand-parent');
+    document.body.appendChild(gp);
+    el = gp.$.child;
   });
 
-  test.skip('effects are sorted', function() {
+  test('effects are sorted', function() {
     assert.equal(el.invocations.length, 0);
     el.base = 'changed';
 
     var expected = [
       'compute',
-      'annotation',            // as observed by child
-      'annotatedComputation',  // as observed by child
+      'propagate',  // as observed by child; note: order of binding vs.
+      'propagate',  // computed binding is not guaranteed
       'reflect',
-      'notify',                // as observed by grand-parent
-      'observer',
-      'complexObserver'
+      'observe',    // note: order of single-property observer vs.
+      'observe',    // multi-property observer is not guaranteed
+      'notify'      // as observed by grand-parent
     ];
 
     assert.deepEqual(el.invocations, expected);

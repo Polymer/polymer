@@ -2,9 +2,7 @@
 
 This branch contains a preview of the Polymer 2.0 library.  The codebase is under active development, features may not be fully implemented, and APIs may change prior to the final 2.0 release.
 
-🚧 **Currently to evaluate Polymer 2.0**, please load the `webcomponentsjs/webcomponents-lite.js` polyfills from the `v1` branch of [`webcomponentsjs`](https://github.com/webcomponents/webcomponentsjs/tree/v1/) even when running on Chrome and Safari Technical Preview. This is temporary, until polyfill refactoring is complete and we can provide better guidance on how to selectively load polyfills to target different browser capabilities.
-
-🚧 Note: Some tests currently fail on non-Chrome browsers; these will be addressed soon, but in the short term Chrome Canary is your best bet.
+🚧 **To evaluate Polymer 2.0**, please load the `webcomponentsjs/webcomponents-lite.js` or `webcomponentsjs/webcomponents-loader.js` polyfills from the `v1` branch of [`webcomponentsjs`](https://github.com/webcomponents/webcomponentsjs/tree/v1/)
 
 ## Polymer 2.0 Goals
 
@@ -48,8 +46,7 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
    Based on developer feedback and observations of Polymer apps in the wild, we've also made some key improvements to Polymer's data system. These changes are designed to make it easier to reason about and debug the propagation of data through and between elements:
 
-   * Changes are now batched, and the effects of those changes are run in well-defined order (compute, notify, propagate, observe).
-
+   * Changes are now batched, and the effects of those changes are run in well-defined order.
    * We ensure that multi-property observers run exactly once per turn for any set of changes to dependencies (removing the [multi-property undefined rule](https://www.polymer-project.org/1.0/docs/devguide/observers#multi-property-observers)).
 
    * To improve compatibility with top-down data-flow approaches (e.g. Flux), we no longer dirty-check properties whose values are objects or arrays.
@@ -239,11 +236,22 @@ Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shady
 ### Data system
 * <a name="breaking-data-init"></a>An element's template is not stamped & data system not initialized (observers, bindings, etc.) until the element has been connected to the main document.  This is a direct result of the V1 changes that prevent reading attributes in the constructor.
 * <a name="breaking-data-dirty-checking"></a>Re-setting an object or array no longer dirty checks, meaning you can make deep changes to an object/array and just re-set it, without needing to use `set`/`notifyPath`.  Although the `set` API remains and will often be the more efficient way to make changes, this change removes users of Polymer elements from needing to use this API, making it more compatible with alternate data-binding and state management libraries.
+  * To achieve the same strict equality dirty-checking that 1.x did, simply override the new `_shouldPropertyChange` method as follows:
+    ```js
+    _shouldPropertyChange(property, value, old) {
+      return value !== old;
+    }
+    ```
 * <a name="breaking-data-batching"></a>Propagation of data through the binding system is now batched, such that multi-property computing functions and observers run once with a set of coherent changes.  Single property accessors still propagate data synchronously, although there is a new `setProperties({...})` API on Polymer elements that can be used to propagate multiple values as a coherent set.
-* <a name="breaking-method-args"></a>Multi-property observers and computed methods are now called once at initialization if any arguments are defined (and will see `undefined` for any undefined arguments).  Subsequently setting multi-property method arguments will cause the method to be called once for each property changed via accessors, or once per batch of changes via `setProperties({...})`.
-* <a name="breaking-inline-unconditional"></a>Inline computed annotations run once unconditionally at initialization, regardless if any arguments are defined (and will see `undefined` for undefined arguments)
-* <a name="breaking-inline-dynamic"></a>Setting/changing any function used in inline template annotations will cause the binding to re-compute its value using the new function and current property values
-* ‘notify’ events are no longer fired when value changes _as result of binding from host_, as a major performance optimization over 1.x behavior.  Use cases such as `<my-el foo="{{bar}}" on-foo-changed="fooChanged">` are no longer supported.  In this case you should simply user a `bar` observer in the host.  Use cases such as dynamically adding a `property-changed` event listener on for properties bound by an element's host by an actor other than the host are no longer supported.
+* <a name="breaking-notify-order"></a>Property change notification event dispatch (`notify: true`) occurs after all other side effects of a property change occurs.  In 1.x notification happened after binding side effects, but before observers, which was counter-intuitive.  This rationalizes the concept of upward notification to ensure it happens after _all_ local and downward side-effects based on the change occur.  Concretely, the order of effect processing in 2.x is as follows:
+  1. computed properties (`computed`)
+  1. template bindings (both property bindngs `[[...]]` and computed bindings `[[compute(...)]]`, including any side-effects on child elements for the bound property/attribute changes)
+  1. attribute reflection (`reflectToAttribute: true`)
+  1. observers (both single-property `observer` and multi-property `observers`)
+  1. property-changed event notification (`notify: true`, including any side-effects on host elements for the bound property changes)
+* <a name="breaking-method-args"></a>Multi-property observers, computed methods, and computed bindings are now called once at initialization if any arguments are defined (and will see `undefined` for any undefined arguments).  As such, the [1.x rule requiring all properties of a multi-property observer to be defined](https://www.polymer-project.org/1.0/docs/devguide/observers#multi-property-observers) no longer applies, as this was a major source of confusion and unintended consequences.  Subsequently setting multi-property method arguments will cause the method to be called once for each property changed via accessors, or once per batch of changes via `setProperties({...})`.
+* <a name="breaking-dynamic-functions"> Declaring a method name used as an observer or computing function in the `properties` block causes the method property itself to become a dependency for any effects it is used in, meaning the effect for that method will run whenever the method is set, similar to 1.x. However, due to removing the `undefined` rule noted above, in 2.x if such a method exists when the element is created, it will run with initial values of arguments, even in the case some or all arguments are `undefined`.
+* <a name="breaking-binding-notifications>‘notify’ events are no longer fired when value changes _as result of binding from host_, as a major performance optimization over 1.x behavior.  Use cases such as `<my-el foo="{{bar}}" on-foo-changed="fooChanged">` are no longer supported.  In this case you should simply user a `bar` observer in the host.  Use cases such as dynamically adding a `property-changed` event listener on for properties bound by an element's host by an actor other than the host are no longer supported.
 * <a name="breaking-properties-deserialization"></a>In order for a property to be deserialized from its attribute, it must be declared in the `properties` metadata object
 * <a name="breaking-colleciton"></a>The `Polymer.Collection` and associated key-based path and splice notification for arrays has been eliminated.  See [explanation here](https://github.com/Polymer/polymer/pull/3970#issue-178203286) for more details.
 
@@ -265,6 +273,7 @@ id is to use `id`.
 * <a name="breaking-deferred-attach"></a>Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
 * <a name="breaking-created-timing"></a>The legacy `created` callback is no longer called before default values in `properties` have been set.  As such, you should not rely on properties set in `created` from within `value` functions that define property defaults.  However, you can now set _any_ property defaults within the `created` callback (in 1.0 this was forbidden for observed properties) in lieu of using the `value` function in `properties`.
 * <a name="breaking-boolean-attribute-binidng"></a>Binding a default value of `false` via an _attribute binding_ to a boolean property will not override a default `true` property of the target, due to the semantics of boolean attributes.  In general, property binding should always be used when possible, and will avoid such situations.
+* <a name="breaking-lazyRegister"></a>`lazyRegister` option removed and all meta-programming (parsing template, creating accessors on prototype, etc.) is deferred until the first instance of the element is created
 * <a name="breaking-attribute-property-timing"></a>Any attribute values will take priority over property values set prior to upgrade due to V1 `attributeChangedCallback` timing semantics.  In 1.x properties set prior to upgrade overrode attributes.
 * <a name="breaking-transpiling"></a>Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
 * <a name="breaking-hostAttributes-class"></a>In Polymer 1.x, the `class` attribute was explicitly blacklisted from `hostAttributes` and never serialized. This is no longer the case using the 2.0 legacy API.
