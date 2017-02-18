@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../../polymer-element.html">
-<link rel="import" href="templatize.html">
+<link rel="import" href="../utils/templatize.html">
 <link rel="import" href="../utils/debounce.html">
 <link rel="import" href="../utils/flush.html">
 
@@ -52,7 +52,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            */
           'if': {
             type: Boolean,
-            observer: '_debounceRender'
+            observer: '__debounceRender'
           },
 
           /**
@@ -64,7 +64,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            */
           restamp: {
             type: Boolean,
-            observer: '_debounceRender'
+            observer: '__debounceRender'
           }
 
         }
@@ -75,11 +75,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     constructor() {
       super();
-      this._renderDebouncer = null;
-      this._invalidProps = null;
+      this.__renderDebouncer = null;
+      this.__invalidProps = null;
+      this.__instance = null;
     }
 
-    _debounceRender() {
+    __debounceRender() {
       // Render is async for 2 reasons:
       // 1. To eliminate dom creation trashing if user code thrashes `if` in the
       //    same turn. This was more common in 1.x where a compound computed
@@ -96,11 +97,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       //    we wanted a sync option in the future, simply having <dom-if> flush
       //    (or clear) its template's pending host properties before creating
       //    the instance would also avoid the problem.
-      this._renderDebouncer = Polymer.Debouncer.debounce(
-            this._renderDebouncer
+      this.__renderDebouncer = Polymer.Debouncer.debounce(
+            this.__renderDebouncer
           , Polymer.Async.microTask
-          , this._render.bind(this));
-      Polymer.enqueueDebouncer(this._renderDebouncer);
+          , () => this.__render());
+      Polymer.enqueueDebouncer(this.__renderDebouncer);
     }
 
     disconnectedCallback() {
@@ -108,14 +109,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!this.parentNode ||
           (this.parentNode.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
            !this.parentNode.host)) {
-        this._teardownInstance();
+        this.__teardownInstance();
       }
     }
 
     connectedCallback() {
       super.connectedCallback();
       if (this.if) {
-        this._debounceRender();
+        this.__debounceRender();
       }
     }
 
@@ -130,17 +131,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.flush();
     }
 
-    _render() {
+    __render() {
       if (this.if) {
-        if (!this._ensureInstance()) {
+        if (!this.__ensureInstance()) {
           // No template found yet
           return;
         }
         this._showHideChildren();
       } else if (this.restamp) {
-        this._teardownInstance();
+        this.__teardownInstance();
       }
-      if (!this.restamp && this._instance) {
+      if (!this.restamp && this.__instance) {
         this._showHideChildren();
       }
       if (this.if != this._lastIf) {
@@ -149,18 +150,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    _ensureInstance() {
+    __ensureInstance() {
       let parentNode = this.parentNode;
       // Guard against element being detached while render was queued
       if (parentNode) {
-        if (!this._ctor) {
+        if (!this.__ctor) {
           let template = this.querySelector('template');
           if (!template) {
             // Wait until childList changes and template should be there by then
             let observer = new MutationObserver(() => {
               if (this.querySelector('template')) {
                 observer.disconnect();
-                this._render();
+                this.__render();
               } else {
                 throw new Error('dom-if requires a <template> child');
               }
@@ -168,29 +169,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             observer.observe(this, {childList: true});
             return false;
           }
-          this._ctor = Polymer.Templatize.templatize(template, this, {
+          this.__ctor = Polymer.Templatize.templatize(template, this, {
             forwardHostProp: function(prop, value) {
-              if (this._instance) {
+              if (this.__instance) {
                 if (this.if) {
-                  this._instance.forwardHostProp(prop, value);
+                  this.__instance.forwardHostProp(prop, value);
                 } else {
                   // If we have an instance but are squelching host property
                   // forwarding due to if being false, note the invalidated
-                  // properties so `_syncHostProperties` can sync them the next
+                  // properties so `__syncHostProperties` can sync them the next
                   // time `if` becomes true
-                  this._invalidProps = this._invalidProps || Object.create(null);
-                  this._invalidProps[Polymer.Path.root(prop)] = true;
+                  this.__invalidProps = this.__invalidProps || Object.create(null);
+                  this.__invalidProps[Polymer.Path.root(prop)] = true;
                 }
               }
             }
           });
         }
-        if (!this._instance) {
-          this._instance = new this._ctor();
-          parentNode.insertBefore(this._instance.root, this);
+        if (!this.__instance) {
+          this.__instance = new this.__ctor();
+          parentNode.insertBefore(this.__instance.root, this);
         } else {
-          this._syncHostProperties();
-          let c$ = this._instance.children;
+          this.__syncHostProperties();
+          let c$ = this.__instance.children;
           if (c$ && c$.length) {
             // Detect case where dom-if was re-attached in new position
             let lastChild = this.previousSibling;
@@ -205,20 +206,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return true;
     }
 
-    _syncHostProperties() {
-      let props = this._invalidProps;
+    __syncHostProperties() {
+      let props = this.__invalidProps;
       if (props) {
         for (let prop in props) {
-          this._instance._setPendingProperty(prop, this.__dataHost[prop]);
+          this.__instance._setPendingProperty(prop, this.__dataHost[prop]);
         }
-        this._invalidProps = null;
-        this._instance._flushProperties(true);
+        this.__invalidProps = null;
+        this.__instance._flushProperties(true);
       }
     }
 
-    _teardownInstance() {
-      if (this._instance) {
-        let c$ = this._instance.children;
+    __teardownInstance() {
+      if (this.__instance) {
+        let c$ = this.__instance.children;
         if (c$ && c$.length) {
           // use first child parent, for case when dom-if may have been detached
           let parent = c$[0].parentNode;
@@ -226,15 +227,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             parent.removeChild(n);
           }
         }
-        this._instance = null;
-        this._invalidProps = null;
+        this.__instance = null;
+        this.__invalidProps = null;
       }
     }
 
     _showHideChildren() {
       let hidden = this.__hideTemplateChildren__ || !this.if;
-      if (this._instance) {
-        this._instance._showHideChildren(hidden);
+      if (this.__instance) {
+        this.__instance._showHideChildren(hidden);
       }
     }
 

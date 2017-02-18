@@ -12,6 +12,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <meta charset="utf-8">
   <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script>
+  (function() {
+    let define = window.customElements.define;
+    let order = [];
+    window.customElements.define = function(name, fn, options) {
+      order.push(name);
+      return define.call(window.customElements, name, fn, options);
+    }
+    customElements.defineOrder = order;
+  })();
+  </script>
   <script src="../../../web-component-tester/browser.js"></script>
   <link rel="import" href="../../polymer.html">
   <style>
@@ -874,11 +885,7 @@ HTMLImports.whenReady(function() {
       });
 
       test.skip('styles shimmed in registration order', function() {
-        // TODO(sorvell): no longer listed in registraion order
-        // instead in first creation order
-        var regList = Polymer.telemetry.registrations.map(function(reg) {
-          return reg.is;
-        });
+        var regList = customElements.defineOrder;
         function regIndex(styleScope) {
           for (var i=0, r; (r=regList[i]); i++) {
             if (styleScope.match(new RegExp(r + '\\-?\\d*$'))) {
@@ -887,11 +894,13 @@ HTMLImports.whenReady(function() {
           }
         }
         var s$ = document.head.querySelectorAll('style[scope]');
-        for (var i=0, scope, n=0, o=0; i<s$.length; i++) {
+        for (var i=0, scope, prevScope, n=0, o=0; i<s$.length; i++) {
           scope = s$[i].getAttribute('scope');
           n = regIndex(scope);
-          assert.isTrue(n >= o, 'style not in registration order: ' + scope);
+          assert.isTrue(n >= o, 'style not in registration order, expected `' +
+            scope + '` to be before `' + prevScope + '`');
           o = n;
+          prevScope = scope;
         }
       });
 

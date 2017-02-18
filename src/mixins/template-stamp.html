@@ -7,66 +7,107 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
+
 <link rel="import" href="../utils/boot.html">
-<link rel="import" href="../utils/utils.html">
-<link rel="import" href="../utils/case-map.html">
-<link rel="import" href="resolve-url.html">
+<link rel="import" href="../utils/mixin.html">
 
 <script>
-/**
- * Scans a template to produce an annotation list that that associates
- * metadata culled from markup with tree locations
- * metadata and information to associate the metadata with nodes in an instance.
- *
- * Supported expressions include:
- *
- * Double-mustache annotations in text content. The annotation must be the only
- * content in the tag, compound expressions are not supported.
- *
- *     <[tag]>{{annotation}}<[tag]>
- *
- * Double-escaped annotations in an attribute, either {{}} or [[]].
- *
- *     <[tag] someAttribute="{{annotation}}" another="[[annotation]]"><[tag]>
- *
- * `on-` style event declarations.
- *
- *     <[tag] on-<event-name>="annotation"><[tag]>
- *
- * Note that the `annotations` feature does not implement any behaviors
- * associated with these expressions, it only captures the data.
- *
- * Generated data-structure:
- *
- *     [
- *       {
- *         id: '<id>',
- *         events: [
- *           {
- *             name: '<name>'
- *             value: '<annotation>'
- *           }, ...
- *         ],
- *         bindings: [
- *           {
- *             kind: ['text'|'attribute'],
- *             mode: ['{'|'['],
- *             name: '<name>'
- *             value: '<annotation>'
- *           }, ...
- *         ],
- *         // TODO(sjmiles): this is annotation-parent, not node-parent
- *         parent: <reference to parent annotation object>,
- *         index: <integer index in parent's childNodes collection>
- *       },
- *       ...
- *     ]
- *
- * @class Annotations feature
- */
 (function() {
 
   'use strict';
+
+  /**
+   * Scans a template to produce an annotation object that stores expression
+   * metadata along with information to associate the metadata with nodes in an
+   * instance.
+   *
+   * Elements with `id` in the template are noted and marshaled into an
+   * the `$` hash in an instance.
+   *
+   * Example
+   *
+   *     &lt;template>
+   *       &lt;div id="foo">&lt;/div>
+   *     &lt;/template>
+   *     &lt;script>
+   *      Polymer({
+   *        task: function() {
+   *          this.$.foo.style.color = 'red';
+   *        }
+   *      });
+   *     &lt;/script>
+   *
+   * Other expressions that are noted include:
+   *
+   * Double-mustache annotations in text content. The annotation must be the only
+   * content in the tag, compound expressions are not (currently) supported.
+   *
+   *     <[tag]>{{path.to.host.property}}<[tag]>
+   *
+   * Double-mustache annotations in an attribute.
+   *
+   *     <[tag] someAttribute="{{path.to.host.property}}"><[tag]>
+   *
+   * Only immediate host properties can automatically trigger side-effects.
+   * Setting `host.path` in the example above triggers the binding, setting
+   * `host.path.to.host.property` does not.
+   *
+   * `on-` style event declarations.
+   *
+   *     <[tag] on-<event-name>="{{hostMethodName}}"><[tag]>
+   *
+   * Note: **the `annotations` feature does not actually implement the behaviors
+   * associated with these expressions, it only captures the data**.
+   *
+   * Other optional features contain actual data implementations.
+   *
+   * @class standard feature: annotations
+   */
+
+  /*
+
+  Scans a template to produce an annotation map that stores expression metadata
+  and information that associates the metadata to nodes in a template instance.
+
+  Supported annotations are:
+
+    * id attributes
+    * binding annotations in text nodes
+      * double-mustache expressions: {{expression}}
+      * double-bracket expressions: [[expression]]
+    * binding annotations in attributes
+      * attribute-bind expressions: name="{{expression}} || [[expression]]"
+      * property-bind expressions: name*="{{expression}} || [[expression]]"
+      * property-bind expressions: name:="expression"
+    * event annotations
+      * event delegation directives: on-<eventName>="expression"
+
+  Generated data-structure:
+
+    [
+      {
+        id: '<id>',
+        events: [
+          {
+            mode: ['auto'|''],
+            name: '<name>'
+            value: '<expression>'
+          }, ...
+        ],
+        bindings: [
+          {
+            kind: ['text'|'attribute'|'property'],
+            mode: ['auto'|''],
+            name: '<name>'
+            value: '<expression>'
+          }, ...
+        ],
+        parent: <reference to parent annotation>,
+        index: <integer index in parent's childNodes collection>
+      },
+      ...
+    ]
+  */
 
   // null-array (shared empty array to avoid null-checks)
   const emptyArray = [];
@@ -91,14 +132,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   })();
 
   let insertionPointTag = 'slot';
-  let currentTemplate;
 
   /**
    * @param {HTMLTemplateElement} template
    * @param {boolean=} stripWhiteSpace
    * @return {Array<Object>}
    */
-  function parseTemplateAnnotations(template, stripWhiteSpace) {
+  function parseTemplateAnnotations(template, stripWhiteSpace, ownerDocument) {
     // TODO(kschaaf): File issue and/or remove when fixed
     // hold a reference to content as _content to prevent odd Chrome gc issue
     // nested templates also may receive their content as _content
@@ -108,25 +148,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       content._notes = [];
       // TODO(sorvell): whitespace and processAnnotations need to be factored
       // into plugins
-      // TODO(kschaaf): template should be threaded through rather than implied state
-      currentTemplate = currentTemplate || template;
+      ownerDocument = ownerDocument || template.ownerDocument;
       parseNodeAnnotations(content, content._notes,
-        stripWhiteSpace || template.hasAttribute('strip-whitespace'));
+        stripWhiteSpace || template.hasAttribute('strip-whitespace'), ownerDocument);
     }
     return content._notes;
   }
 
   // add annotations gleaned from subtree at `node` to `list`
-  function parseNodeAnnotations(node, list, stripWhiteSpace) {
+  function parseNodeAnnotations(node, list, stripWhiteSpace, ownerDocument) {
     return node.nodeType === Node.TEXT_NODE ?
       parseTextNodeAnnotation(node, list) :
-        parseElementAnnotations(node, list, stripWhiteSpace);
+        parseElementAnnotations(node, list, stripWhiteSpace, ownerDocument);
   }
 
-  // TODO(kschaaf): We could modify this to allow an escape mechanism by
-  // looking for the escape sequence in each of the matches and converting
-  // the part back to a literal type, and then bailing if only literals
-  // were found
   function parseBindings(text) {
     let parts = [];
     let lastIndex = 0;
@@ -208,7 +243,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   // add annotations gleaned from Element `node` to `list`
-  function parseElementAnnotations(element, list, stripWhiteSpace) {
+  function parseElementAnnotations(element, list, stripWhiteSpace, ownerDocument) {
     let note = {
       bindings: [],
       events: []
@@ -216,10 +251,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (element.localName === insertionPointTag) {
       list._hasInsertionPoint = true;
     }
-    parseChildNodesAnnotations(element, note, list, stripWhiteSpace);
+    parseChildNodesAnnotations(element, note, list, stripWhiteSpace, ownerDocument);
     if (element.attributes) {
       parseNodeAttributeAnnotations(element, note);
-      prepElement(element);
+      Polymer.ResolveUrl.resolveAttrs(element, ownerDocument);
     }
     if (note.bindings.length || note.events.length || note.id) {
       list.push(note);
@@ -227,32 +262,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return note;
   }
 
+  // 1.x backwards-compatible auto-wrapper for template type extensions
+  // This is a clear layering violation and gives favored-nation status to
+  // dom-if and dom-repeat templates.  This is a conceit we're choosing to keep
+  // a.) to ease 1.x backwards-compatibility due to loss of `is`, and
+  // b.) to maintain if/repeat capability in parser-constrained elements
+  //     (e.g. table, select) in lieu of native CE type extensions without
+  //     massive new invention in this space (e.g. directive system)
+  const templateExtensions = {
+    'dom-if': true,
+    'dom-repeat': true
+  };
+  function wrapTemplateExtension(node) {
+    let is = node.getAttribute('is');
+    if (is && templateExtensions[is]) {
+      let t = node;
+      t.removeAttribute('is');
+      node = t.ownerDocument.createElement(is);
+      t.parentNode.replaceChild(node, t);
+      node.appendChild(t);
+      while(t.attributes.length) {
+        node.setAttribute(t.attributes[0].name, t.attributes[0].value);
+        t.removeAttribute(t.attributes[0].name);
+      }
+    }
+    return node;
+  }
+
   // add annotations gleaned from children of `root` to `list`, `root`'s
   // `note` is supplied as it is the note.parent of added annotations
-  function parseChildNodesAnnotations(root, note, list, stripWhiteSpace) {
+  function parseChildNodesAnnotations(root, note, list, stripWhiteSpace, ownerDocument) {
     if (root.firstChild) {
       let node = root.firstChild;
       let i = 0;
       while (node) {
-        // BREAKME(kschaaf): pseudo-bc auto-wrapper for template type extensions
-        if (node.localName === 'template') {
-          let t = node;
-          let is = t.getAttribute('is');
-          // stamp `<dom-*>` elements
-          if (is && is.indexOf('dom-') === 0) {
-            t.removeAttribute('is');
-            node = t.ownerDocument.createElement(is);
-            root.replaceChild(node, t);
-            node.appendChild(t);
-            while(t.attributes.length) {
-              node.setAttribute(t.attributes[0].name, t.attributes[0].value);
-              t.removeAttribute(t.attributes[0].name);
-            }
-          }
+        // Wrap templates
+        if (node.localName == 'template') {
+          node = wrapTemplateExtension(node);
         }
-        if (node.localName === 'template' &&
+        // Recurse
+        if (node.localName == 'template' &&
           !node.hasAttribute('preserve-content')) {
-          parseTemplate(node, i, list, note, stripWhiteSpace);
+          parseTemplate(node, i, list, note, stripWhiteSpace, ownerDocument);
         }
         // collapse adjacent textNodes: fixes an IE issue that can cause
         // text nodes to be inexplicably split =(
@@ -277,7 +328,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // if this node didn't get evacipated, parse it.
         if (node.parentNode) {
           let childAnnotation = parseNodeAnnotations(node, list,
-            stripWhiteSpace);
+            stripWhiteSpace, ownerDocument);
           if (childAnnotation) {
             childAnnotation.parent = note;
             childAnnotation.index = i;
@@ -296,9 +347,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   //    (this is both an optimization to avoid re-stamping nested template
   //    children and avoids a bug in Chrome where nested template children
   //    upgrade)
-  function parseTemplate(node, index, list, parent, stripWhiteSpace) {
+  function parseTemplate(node, index, list, parent, stripWhiteSpace, ownerDocument) {
     let content = node.content.ownerDocument.createDocumentFragment();
-    content._notes = parseTemplateAnnotations(node, stripWhiteSpace);
+    content._notes = parseTemplateAnnotations(node, stripWhiteSpace, ownerDocument);
     content.appendChild(node.content);
     list.push({
       bindings: emptyArray,
@@ -310,8 +361,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   // add annotation data from attributes to the `annotation` for node `node`
-  // TODO(sjmiles): the distinction between an `annotation` and
-  // `annotation data` is not as clear as it could be
   function parseNodeAttributeAnnotations(node, annotation) {
     // Make copy of original attribute list, since the order may change
     // as attributes are added and removed
@@ -383,14 +432,119 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  // TODO(sorvell): this should be factored into a plugin
-  function prepElement(element) {
-    Polymer.ResolveUrl.resolveAttrs(element, currentTemplate.ownerDocument);
+  function findTemplateAnnotatedNode(root, note) {
+    // recursively ascend tree until we hit root
+    let parent = note.parent && findTemplateAnnotatedNode(root,
+      note.parent);
+    // unwind the stack, returning the indexed node at each level
+    if (parent) {
+      // note: marginally faster than indexing via childNodes
+      // (http://jsperf.com/childnodes-lookup)
+      for (let n=parent.firstChild, i=0; n; n=n.nextSibling) {
+        if (note.index === i++) {
+          return n;
+        }
+      }
+    } else {
+      return root;
+    }
   }
 
-  Polymer.Annotations = Polymer.Utils.dedupingMixin(function(superClass) {
+  // construct `$` map (from id annotations)
+  function applyIdToMap(inst, map, node, note) {
+    if (note.id) {
+      map[note.id] = node;
+    }
+  }
 
-    return class Annotations extends superClass {
+  // install event listeners (from event annotations)
+  function applyEventListener(inst, node, note, host) {
+    if (note.events && note.events.length) {
+      for (let j=0, e$=note.events, e; (j<e$.length) && (e=e$[j]); j++) {
+        inst._addMethodEventListenerToNode(node, e.name, e.value, host);
+      }
+    }
+  }
+
+  // push configuration references at configure time
+  function applyTemplateContent(inst, node, note) {
+    if (note.templateContent) {
+      node._content = note.templateContent;
+    }
+  }
+
+  function createNodeEventHandler(context, eventName, methodName) {
+    // Instances can optionally have a _methodHost which allows redirecting where
+    // to find methods. Currently used by `templatize`.
+    context = context._methodHost || context;
+    let handler = function(e) {
+      if (context[methodName]) {
+        context[methodName](e, e.detail);
+      } else {
+        console.warn('listener method `' + methodName + '` not defined');
+      }
+    };
+    return handler;
+  }
+
+  Polymer.TemplateStamp = Polymer.dedupingMixin(function(superClass) {
+
+    return class TemplateStamp extends superClass {
+
+      constructor() {
+        super();
+        this.$ = null;
+        this._templateNodes = null;
+        this._templateNotes = null;
+      }
+
+      /**
+       * Clones the provided template content and returns a document fragment
+       * containing the cloned dom.
+       *
+       * The template is parsed (once and memoized) using this library's
+       * template parsing features, which identify nodes with declarative
+       * event listeners (`on-...``), `id`'s, `<template>`s, and bindings
+       * (`{{...}}` and `[[...]]`).  This template metadata ("notes")
+       * are stored as `this._templateNotes`, and any nodes identified in
+       * with notes are collected for this instance into `_templateNodes` in
+       * the same order as the notes array.
+       *
+       * Finally, this method generates an "id map" for all nodes with id's
+       * under `this.$`, passes template content back to templates as `_content`
+       * (a performance optimization to avoid deep template cloning), and
+       * installs declarative event listeners.
+       *
+       * Note that the memoized template parsing process is destructive to the
+       * template: attributes for bindings and declarative event listeners are
+       * removed after being noted in notes, and any nested <template>.content
+       * is removed and stored in notes as well.
+       *
+       * Note that this method may only be called once per instance (it does
+       * not support stamping multiple templates per element instance).
+       *
+       * @param {HTMLTemplateElement} template Template to stamp
+       */
+      _stampTemplate(template) {
+        // Polyfill support: bootstrap the template if it has not already been
+        if (template && !template.content &&
+            window.HTMLTemplateElement && HTMLTemplateElement.decorate) {
+          HTMLTemplateElement.decorate(template);
+        }
+        let notes = this._templateNotes = this._parseTemplateAnnotations(template);
+        let dom = document.importNode(template._content || template.content, true);
+        // NOTE: ShadyDom optimization indicating there is an insertion point
+        dom.__noInsertionPoint = !notes._hasInsertionPoint;
+        this.$ = {};
+        this._templateNodes = new Array(notes.length);
+        for (let i=0, l=notes.length, note, node; (i<l) && (note=notes[i]); i++) {
+          node = this._templateNodes[i] = findTemplateAnnotatedNode(dom, note);
+          applyIdToMap(this, this.$, node, note);
+          applyTemplateContent(this, node, note);
+          applyEventListener(this, node, note, this);
+        }
+        return dom;
+      }
 
       // preprocess-time
 
@@ -403,26 +557,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return parseTemplateAnnotations(template);
       }
 
-      // instance-time
-      // TODO(sorvell): consider trying to use QS instead of this proprietary
-      // search. This would require some unique way to identify a node, a guid.
-      // Is this faster? simpler? Is that worth polluting the node?
-      _findTemplateAnnotatedNode(root, note) {
-        // recursively ascend tree until we hit root
-        let parent = note.parent && this._findTemplateAnnotatedNode(root,
-          note.parent);
-        // unwind the stack, returning the indexed node at each level
-        if (parent) {
-          // note: marginally faster than indexing via childNodes
-          // (http://jsperf.com/childnodes-lookup)
-          for (let n=parent.firstChild, i=0; n; n=n.nextSibling) {
-            if (note.index === i++) {
-              return n;
-            }
-          }
-        } else {
-          return root;
-        }
+      _addMethodEventListenerToNode(node, eventName, methodName, context) {
+        context = context || node;
+        let handler = createNodeEventHandler(context, eventName, methodName);
+        this._addEventListenerToNode(node, eventName, handler);
+        return handler;
+      }
+
+      _addEventListenerToNode(node, eventName, handler) {
+        node.addEventListener(eventName, handler);
+      }
+
+      _removeEventListenerFromNode(node, eventName, handler) {
+        node.removeEventListener(eventName, handler);
       }
 
     }

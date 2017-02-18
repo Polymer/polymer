@@ -10,14 +10,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 
 <link rel="import" href="../utils/boot.html">
-<link rel="import" href="../utils/utils.html">
+<link rel="import" href="../utils/mixin.html">
 <link rel="import" href="../utils/path.html">
-<link rel="import" href="property-accessors.html">
-<link rel="import" href="../attributes/attributes.html">
 <!-- for notify, reflect -->
 <link rel="import" href="../utils/case-map.html">
+<link rel="import" href="property-accessors.html">
 <!-- for annotated effects -->
-<link rel="import" href="../template/template-stamp.html">
+<link rel="import" href="template-stamp.html">
 
 
 <script>
@@ -26,7 +25,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   'use strict';
 
   const CaseMap = Polymer.CaseMap;
-  const mixin = Polymer.Utils.mixin;
+  const mixin = Polymer.mixin;
 
   // Monotonically increasing unique ID used for de-duping effects triggered
   // from multiple properties in the same turn
@@ -72,8 +71,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     } else if (!model.hasOwnProperty(type)) {
       effects = model[type] = Object.create(model[type]);
       for (let p in effects) {
-        // TODO(kschaaf): replace with fast array copy #!%&$!
-        effects[p] = effects[p].slice();
+        let protoFx = effects[p];
+        let instFx = effects[p] = Array(protoFx.length);
+        for (let i=0; i<protoFx.length; i++) {
+          instFx[i] = protoFx[i];
+        }
       }
     }
     return effects;
@@ -117,8 +119,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function runEffectsForProperty(inst, effects, dedupeId, prop, props, oldProps, fromAbove, hasPaths) {
     let ran;
-    // TODO(kschaaf) ideally a system exists to parse path information once
-    // and send structured information through the system for better perf
     let rootProperty = hasPaths ? Polymer.Path.root(prop) : prop;
     let fxs = effects[rootProperty];
     if (fxs) {
@@ -151,7 +151,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * If no trigger is given, the path is deemed to match.
    *
    * @param {string} path Path or property that changed
-   * @param {Object} trigger Descriptor 
+   * @param {Object} trigger Descriptor
    * @return {boolean} Whether the path matched the trigger
    */
   function pathMatchesTrigger(path, trigger) {
@@ -180,8 +180,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function runObserverEffect(inst, property, props, oldProps, info) {
     let fn = inst[info.methodName];
+    let changedProp = info.property;
     if (fn) {
-      fn.call(inst, inst.__data[property], oldProps[property]);
+      fn.call(inst, inst.__data[changedProp], oldProps[changedProp]);
     } else {
       console.warn('observer method `' + info.methodName + '` not defined');
     }
@@ -471,15 +472,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Object} model Prototype or instance
    * @param {Object} note Annotation note returned from Annotator
-   * @param {number} index Index into `__dataNodes` list of annotated nodes that the
+   * @param {number} index Index into `_templateNodes` list of annotated nodes that the
    *   note applies to
+   * @param {Object=} dynamicFns Map indicating whether method names should
+   *   be included as a dependency to the effect.
    * @private
    */
-  function addBindingEffect(model, note, index) {
+  function addBindingEffect(model, note, index, dynamicFns) {
     for (let i=0; i<note.parts.length; i++) {
       let part = note.parts[i];
       if (part.signature) {
-        addMethodBindingEffect(model, note, part, index);
+        addMethodBindingEffect(model, note, part, index, dynamicFns);
       } else if (!part.literal) {
         if (note.kind === 'attribute' && note.name[0] === '-') {
           console.warn('Cannot set attribute ' + note.name +
@@ -517,7 +520,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function runBindingEffect(inst, path, props, oldProps, info, fromAbove, hasPaths) {
     let value;
-    let node = inst.__dataNodes[info.index];
+    let node = inst._templateNodes[info.index];
     // Subpath notification: transform path and set to client
     // e.g.: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo.prop'=obj.sub.prop
     if (hasPaths && (path.length > info.value.length) &&
@@ -556,7 +559,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function applyBindingValue(inst, info, value) {
-    let node = inst.__dataNodes[info.index];
+    let node = inst._templateNodes[info.index];
     value = computeBindingValue(node, value, info);
     if (Polymer.sanitizeDOMValue) {
       value = Polymer.sanitizeDOMValue(value, info.name, info.kind, node);
@@ -615,11 +618,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} model Prototype or instance
    * @param {Object} note Binding note returned from Annotator
    * @param {Object} part The compound part metadata
-   * @param {number} index Index into `__dataNodes` list of annotated nodes that the
+   * @param {number} index Index into `_templateNodes` list of annotated nodes that the
    *   note applies to
+   * @param {Object=} dynamicFns Map indicating whether method names should
+   *   be included as a dependency to the effect.
    * @private
    */
-  function addMethodBindingEffect(model, note, part, index) {
+  function addMethodBindingEffect(model, note, part, index, dynamicFns) {
     createMethodEffect(model, part.signature, TYPES.PROPAGATE,
       runMethodBindingEffect, {
         index: index,
@@ -629,7 +634,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         name: note.name,
         negate: part.negate,
         part: part
-      }, true
+      }, dynamicFns
     );
   }
 
@@ -777,7 +782,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * instance time to add event listeners for 2-way bindings.
    *
    * @param {Object} model Prototype (instances not currently supported)
-   * @param {number} index Index into `__dataNodes` list of annotated nodes that the
+   * @param {number} index Index into `_templateNodes` list of annotated nodes that the
    *   event should be added to
    * @param {string} property Property of target node to listen for changes
    * @param {string} path Host path that the change should be propagated to
@@ -812,39 +817,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function setupBindListeners(inst) {
     let b$ = inst._bindListeners;
     for (let i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
-      let node = inst.__dataNodes[info.index];
+      let node = inst._templateNodes[info.index];
       addNotifyListener(node, inst, info);
     }
   }
 
   /**
-   * Finds all bound nodes in the given `dom` fragment that were recorded in the
-   * provided Annotator `notes` array and stores them in `__dataNodes` for this
-   * instance.  The index of nodes in `__dataNodes` corresponds to the index
-   * of a note in the `notes` array, and binding effect metadata uses this
-   * index to identify bound nodes when propagating data.
-   *
-   * Compound binding storage structures are also initialized onto the bound
-   * nodes, and 2-way binding event listeners are also added.
+   * On the `inst` element that was previously bound, uses `inst._templateNotes`
+   * to setup compound binding storage structures onto the bound
+   * nodes (`inst._templateNodes`).
+   * (`inst._, and 2-way binding event listeners are also added.)
    *
    * @param {Object} inst Instance that bas been previously bound
-   * @param {DocumentFragment} dom Document fragment containing stamped nodes
-   * @param {Array<Object>} notes Array of annotation notes provided by
-   *   Polymer.Annotator
    * @private
    */
-  function setupBindings(inst, dom, notes) {
+  function setupBindings(inst) {
+    let notes = inst._templateNotes;
     if (notes.length) {
-      let nodes = new Array(notes.length);
       for (let i=0; i < notes.length; i++) {
         let note = notes[i];
-        let node = nodes[i] = inst._findTemplateAnnotatedNode(dom, note);
+        let node = inst._templateNodes[i];
         node.__dataHost = inst;
         if (note.bindings) {
           setupCompoundBinding(note, node);
         }
       }
-      inst.__dataNodes = nodes;
     }
     if (inst._bindListeners) {
       setupBindListeners(inst);
@@ -863,32 +860,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {string} type
    * @param {Function} effectFn Function to run when arguments change
    * @param {*=} methodInfo
-   * @param {boolean=} dynamic Whether the method name should be included as
-   *   a dependency to the effect.
+   * @param {Object=} dynamicFns Map indicating whether method names should
+   *   be included as a dependency to the effect.
    * @private
    */
-  function createMethodEffect(model, sig, type, effectFn, methodInfo, dynamic) {
+  function createMethodEffect(model, sig, type, effectFn, methodInfo, dynamicFns) {
+    let dynamicFn = sig.static || dynamicFns && dynamicFns[sig.methodName];
     let info = {
       methodName: sig.methodName,
       args: sig.args,
-      methodInfo: methodInfo,
-      dynamicFn: dynamic
+      methodInfo,
+      dynamicFn
     };
-    // TODO(sorvell): why still here?
-    if (sig.static) {
-      model._addPropertyEffect('__static__', type, {
-        fn: effectFn, info: info
-      });
-    } else {
-      for (let i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
-        if (!arg.literal) {
-          model._addPropertyEffect(arg.rootProperty, type, {
-            fn: effectFn, info: info, trigger: arg
-          });
-        }
+    for (let i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
+      if (!arg.literal) {
+        model._addPropertyEffect(arg.rootProperty, type, {
+          fn: effectFn, info: info, trigger: arg
+        });
       }
     }
-    if (dynamic) {
+    if (dynamicFn) {
       model._addPropertyEffect(sig.methodName, type, {
         fn: effectFn, info: info
       });
@@ -1116,12 +1107,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         storage[name] = literals;
         // Configure properties with their literal parts
         if (binding.literal && binding.kind == 'property') {
-          // TODO(kschaaf) config integration
-          // if (node._configValue) {
-          //   node._configValue(name, binding.literal);
-          // } else {
-            node[name] = binding.literal;
-          // }
+          node[name] = binding.literal;
         }
       }
     }
@@ -1183,10 +1169,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return name[0].toUpperCase() + name.substring(1);
   }
 
-  Polymer.PropertyEffects = Polymer.Utils.dedupingMixin(function(superClass) {
+  Polymer.PropertyEffects = Polymer.dedupingMixin(function(superClass) {
 
-    const mixin = Polymer.TemplateStamp(
-      Polymer.Attributes(Polymer.PropertyAccessors(superClass)));
+    const mixin = Polymer.TemplateStamp(Polymer.PropertyAccessors(superClass));
 
     /**
      * @unrestricted
@@ -1197,41 +1182,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return TYPES;
       }
 
-      constructor() {
-        super();
-        this._asyncEffects = false;
+      _initializeProperties() {
+        super._initializeProperties();
         this.__dataInitialized = false;
         this.__dataPendingClients = null;
         this.__dataFromAbove = false;
         this.__dataLinkedPaths = null;
-        this.__dataNodes = null;
         this.__dataHasPaths = false;
         // May be set on instance prior to upgrade
         this.__dataCompoundStorage = this.__dataCompoundStorage || null;
         this.__dataHost = this.__dataHost || null;
-      }
-
-      /**
-       * Adds to default initialization in `PropertyAccessors` by initializing
-       * local property & pending data storage with any accessor values saved
-       * in `__dataProto`.  If instance properties had been set before the
-       * element upgraded and gained accessors on its prototype, these values
-       * are set into the prototype's accessors after being deleted from the
-       * instance.
-       *
-       * @override
-       */
-      _initializeProperties() {
-        super._initializeProperties();
         this.__dataTemp = {};
-        // initialize data with prototype values saved when creating accessors
-        if (this.__dataProto) {
-          this.__data = Object.create(this.__dataProto);
-          this.__dataPending = Object.create(this.__dataProto);
-          this.__dataOld = {};
-        } else {
-          this.__dataPending = null;
-        }
         // update instance properties
         for (let p in this.__propertyEffects) {
           if (this.hasOwnProperty(p)) {
@@ -1240,6 +1201,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this[p] = value;
           }
         }
+      }
+
+      _initializeProtoProperties(props) {
+        this.__data = Object.create(props);
+        this.__dataPending = Object.create(props);
+        this.__dataOld = {};
       }
 
       // Prototype setup ----------------------------------------
@@ -1418,7 +1385,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       /**
        * Applies a value to a non-Polymer element/node's property.
-       * 
+       *
        * The implementation makes a best-effort at binding interop:
        * Some native element properties have side-effects when
        * re-setting the same value (e.g. setting <input>.value resets the
@@ -1427,7 +1394,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * accept objects, we explicitly re-set object changes coming from the
        * Polymer world (which may include deep object changes without the
        * top reference changing), erring on the side of providing more
-       * information. 
+       * information.
        *
        * Users may override this method to provide alternate approaches.
        *
@@ -1515,7 +1482,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Override this to provide more strict dirty checking, i.e. immutable
        * (`value === old`) or based on type.
        *
-       * TODO(kschaaf): Can this go away (and just use @override) once we start using mixin interfaces?
        * @override
        * @param {string} property
        * @param {*} value
@@ -1539,7 +1505,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _invalidateProperties() {
         if (this.__dataInitialized) {
-          //TODO(kschaaf): consider option to flush async
           this._flushProperties();
         }
       }
@@ -1572,7 +1537,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.__dataPendingClients = null;
           for (let i=0; i < clients.length; i++) {
             let client = clients[i];
-            // TODO(kschaaf): more explicit check?
             if (!client.__dataInitialized || client.__dataPending) {
               client._flushProperties(true);
             }
@@ -1583,6 +1547,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Sets a bag of property changes to this instance, and
        * synchronously processes all effects of the properties as a batch.
+       *
+       * Property names must be simple properties, not paths.  Batched
+       * path propagation is not supported.
        *
        * @param {Object} props Bag of one or more key-value pairs whose key is
        *   a property and value is the new value to set for that property.
@@ -1673,8 +1640,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _stampTemplate(template) {
         let dom = super._stampTemplate(template);
-        let notes = (template._content || template.content)._notes;
-        setupBindings(this, dom, notes);
+        setupBindings(this);
         return dom;
       }
 
@@ -2037,16 +2003,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string} property Property name
        * @param {string} methodName Name of observer method to call
+       * @param {boolean=} dynamicFn Whether the method name should be included as
+       *   a dependency to the effect.
        * @protected
        */
-      _createObservedProperty(property, methodName) {
+      _createPropertyObserver(property, methodName, dynamicFn) {
+        let info = { property, methodName };
         this._addPropertyEffect(property, TYPES.OBSERVE, {
-          fn: runObserverEffect,
-          info: {
-            methodName: methodName
-          },
-          trigger: {name: property}
+          fn: runObserverEffect, info, trigger: {name: property}
         });
+        if (dynamicFn) {
+          this._addPropertyEffect(methodName, TYPES.OBSERVE, {
+            fn: runObserverEffect, info, trigger: {name: methodName}
+          });
+        }
       }
 
       /**
@@ -2057,14 +2027,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * prototype (or instance), or may be a literal string or number.
        *
        * @param {string} expression Method expression
+       * @param {Object=} dynamicFns Map indicating whether method names should
+       *   be included as a dependency to the effect.
        * @protected
        */
-      _createMethodObserver(expression) {
+      _createMethodObserver(expression, dynamicFns) {
         let sig = parseMethod(expression);
         if (!sig) {
           throw new Error("Malformed observer expression '" + expression + "'");
         }
-        createMethodEffect(this, sig, TYPES.OBSERVE, runMethodEffect);
+        createMethodEffect(this, sig, TYPES.OBSERVE, runMethodEffect, null, dynamicFns);
       }
 
       /**
@@ -2115,14 +2087,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string} property Name of computed property to set
        * @param {string} expression Method expression
+       * @param {Object=} dynamicFns Map indicating whether method names should
+       *   be included as a dependency to the effect.
        * @protected
        */
-      _createComputedProperty(property, expression) {
+      _createComputedProperty(property, expression, dynamicFns) {
         let sig = parseMethod(expression);
         if (!sig) {
           throw new Error("Malformed computed expression '" + expression + "'");
         }
-        createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property);
+        createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property, dynamicFns);
       }
 
       // -- binding ----------------------------------------------
@@ -2134,9 +2108,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {HTMLTemplateElement} template Template containing binding
        *   bindings
+       * @param {Object=} dynamicFns Map indicating whether method names should
+       *   be included as a dependency to the effect.
        * @protected
        */
-      _bindTemplate(template) {
+      _bindTemplate(template, dynamicFns) {
         // Clear any existing propagation effects inherited from superClass
         this.__propagateEffects = {};
         let notes = this._parseTemplateAnnotations(template);
@@ -2151,7 +2127,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                 binding.parts[0].event,
                 binding.parts[0].negate);
             }
-            addBindingEffect(this, binding, i);
+            addBindingEffect(this, binding, i, dynamicFns);
           }
         }
       }

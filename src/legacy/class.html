@@ -7,15 +7,13 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
-<link rel="import" href="legacy-element.html">
-<link rel="import" href="../utils/utils.html">
+<link rel="import" href="legacy-element-mixin.html">
 <script>
 
   (function() {
 
     'use strict';
 
-    let utils = Polymer.Utils;
     let LegacyElementMixin = Polymer.LegacyElementMixin;
 
     let metaProps = {
@@ -139,8 +137,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return config;
         }
 
-        static _getTemplate() {
-          return info._template || super._getTemplate() ||
+        static get template() {
+          // get template first from any imperative set in `info._template`
+          return info._template ||
+            // next look in dom-module associated with this element's is.
+            Polymer.DomModule.import(this.is, 'template') ||
+            // next look for superclass template (note: use superclass symbol
+            // to ensure correct `this.is`)
+            Base.template ||
+            // finally fall back to `_template` in element's protoype.
             this.prototype._template;
         }
 
@@ -215,40 +220,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (let p in info) {
         // NOTE: cannot copy `metaProps` methods onto prototype at least because
         // `super.ready` must be called and is not included in the user fn.
-        if (!(p in metaProps))
-          utils.copyOwnProperty(p, info, PolymerGenerated.prototype);
+        if (!(p in metaProps)) {
+          let pd = Object.getOwnPropertyDescriptor(info, p);
+          if (pd) {
+            Object.defineProperty(PolymerGenerated.prototype, p, pd);
+          }
+        }
       }
 
       return PolymerGenerated;
-    }
-
-    /**
-     * Returns the native element constructor for the tag specified.
-     *
-     * @method getNativeConstructor
-     * @param {string} tag  HTML tag name.
-     * @return {Object} Native constructor for specified tag.
-    */
-    // TODO(sorvell): currently `extends` is not supported.
-    let getNativeConstructor = function() {
-      return HTMLElement;
     }
 
     Polymer.Class = function(info) {
       if (!info) {
         Polymer._warn('Polymer.Class requires `info` argument');
       }
-      let klass = getNativeConstructor(info.extends);
-      if (info.behaviors) {
-        // note: mixinBehaviors ensures `LegacyApiMixin`.
-        klass = mixinBehaviors(info.behaviors, klass);
-      } else {
-        klass = LegacyElementMixin(getNativeConstructor(info.extends));
-      }
-      klass = GenerateClassFromInfo(info, klass);
+      let klass = GenerateClassFromInfo(info, info.behaviors ?
+        // note: mixinBehaviors ensures `LegacyElementMixin`.
+        mixinBehaviors(info.behaviors, HTMLElement) :
+        LegacyElementMixin(HTMLElement));
       // decorate klass with registration info
       klass.is = info.is;
-      klass.extends = info.extends;
       // behaviors on prototype for BC...
       klass.prototype.behaviors = klass.behaviors;
       // NOTE: while we could call `beforeRegister` here to maintain

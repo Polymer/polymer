@@ -1,13 +1,20 @@
 <link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/resolve-url.html">
 <script>
 
 (function() {
 
-  var modules = {};
-  var lcModules = {};
-  var findModule = function(id) {
+  let modules = {};
+  let lcModules = {};
+  function findModule(id) {
     return modules[id] || lcModules[id.toLowerCase()];
-  };
+  }
+
+  function styleOutsideTemplateCheck(inst) {
+    if (inst.querySelector('style')) {
+      console.warn('dom-module %s has style outside template', inst.id);
+    }
+  }
 
   /**
    * The `dom-module` element registers the dom it contains to the name given
@@ -21,7 +28,7 @@
    *
    * Then in code in some other location that cannot access the dom-module above
    *
-   * var img = document.createElement('dom-module').import('foo', 'img');
+   * let img = document.createElement('dom-module').import('foo', 'img');
    *
    */
   class DomModule extends HTMLElement {
@@ -34,29 +41,17 @@
       }
     }
 
-    _styleOutsideTemplateCheck() {
-      if (this.querySelector('style')) {
-        console.warn('dom-module %s has style outside template', this.id);
-      }
-    }
-
     get assetpath() {
-      let assetpath = this.__assetpath || this.getAttribute('assetpath');
       // Don't override existing assetpath.
-      if (assetpath) {}
-      // Polyfilled import.
-      else if (window.HTMLImports && !HTMLImports.useNative &&
-        HTMLImports.importForElement) {
-        const imp = HTMLImports.importForElement(this);
-        assetpath = imp ? imp.href : '';
+      if (!this.__assetpath) {
+        // note: assetpath set via an attribute must be relative to this
+        // element's location; accomodate polyfilled HTMLImports
+        const owner = window.HTMLImports && HTMLImports.importForElement ?
+          HTMLImports.importForElement(this) || document : this.ownerDocument;
+        this.__assetpath = Polymer.ResolveUrl.resolveUrl(
+          this.getAttribute('assetpath') || '', owner.baseURI);
       }
-      // Native import.
-      else if (this.ownerDocument !== document && this.baseURI) {
-        assetpath = this.baseURI;
-      }
-      // Memoize.
-      this.__assetpath = assetpath;
-      return assetpath;
+      return this.__assetpath;
     }
 
     /**
@@ -75,7 +70,7 @@
         // and lowercase version is a fallback
         modules[id] = this;
         lcModules[id.toLowerCase()] = this;
-        this._styleOutsideTemplateCheck();
+        styleOutsideTemplateCheck(this);
       }
     }
 
@@ -90,7 +85,7 @@
      */
     import(id, selector) {
       if (id) {
-        var m = findModule(id);
+        let m = findModule(id);
         if (m && selector) {
           return m.querySelector(selector);
         }

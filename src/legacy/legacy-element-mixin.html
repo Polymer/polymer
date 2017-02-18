@@ -8,25 +8,22 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-<link rel="import" href="../elements/element.html">
-<link rel="import" href="../events/gesture-event-listeners.html">
-<link rel="import" href="../utils/utils.html">
-<link rel="import" href="../utils/async-render.html">
-<link rel="import" href="../utils/polymer.dom.html">
+<link rel="import" href="../mixins/element-mixin.html">
+<link rel="import" href="../mixins/gesture-event-listeners.html">
+<link rel="import" href="../utils/mixin.html">
+<link rel="import" href="../utils/import-href.html">
+<link rel="import" href="../utils/render-status.html">
 <link rel="import" href="../utils/unresolved.html">
-<link rel="import" href="../legacy/logging.html">
+<link rel="import" href="polymer.dom.html">
 
 <script>
 (function() {
 
   'use strict';
 
-  var utils = Polymer.Utils;
+  Polymer.LegacyElementMixin = Polymer.dedupingMixin(function(base) {
 
-  Polymer.LegacyElementMixin = Polymer.Utils.dedupingMixin(function(base) {
-
-    const mixin = Polymer.Logging(
-      Polymer.GestureEventListeners(Polymer.ElementMixin(base)));
+    const mixin = Polymer.GestureEventListeners(Polymer.ElementMixin(base));
 
     return class LegacyElement extends mixin {
 
@@ -67,9 +64,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         super._initializeProperties();
       }
 
-      // NOTE: implementers of `_registered` should/must ensure that work is
-      // only done once ever.
-      // TODO(sorvell): can this use `Polymer.Element.finalize` instead.
+      /**
+       * Called automatically when an element is initializing.
+       * Users may override this method to perform class registration time
+       * work. The implementation should ensure the work is performed
+       * only once for the class.
+       * @protected
+       */
       _registered() {}
 
       ready() {
@@ -78,16 +79,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         super.ready();
       }
 
+      /**
+       * Ensures an element has required attributes. Called when the element
+       * is being readied via `ready`. Users should override to set the
+       * element's required attributes. The implementation should be sure
+       * to check and not override existing attributes added by
+       * the user of the element. Typically, setting attributes should be left
+       * to the element user and not done here; reasonable exceptions include
+       * setting aria roles and focusability.
+       * @protected
+       */
       _ensureAttributes() {}
 
+      /**
+       * Adds element event listeners. Called when the element
+       * is being readied via `ready`. Users should override to
+       * add any required element event listeners.
+       * In performance critical elements, the work done here should be kept
+       * to a minimum since it is done before the element is rendered. In
+       * these elements, consider adding listeners asychronously so as not to
+       * block render.
+       * @protected
+       */
       _applyListeners() {}
 
       serialize(value) {
-        return this._serializeAttribute(value);
+        return this._serializeValue(value);
       }
 
       deserialize(value, type) {
-        return this._deserializeAttribute(value, type);
+        return this._deserializeValue(value, type);
       }
 
       reflectPropertyToAttribute(property, attribute, value) {
@@ -108,7 +129,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {Object} prototype object that was passed as first argument.
        */
       extend(prototype, api) {
-        return utils.extend(prototype, api);
+        if (!(prototype && api)) {
+          return prototype || api;
+        }
+        let n$ = Object.getOwnPropertyNames(api);
+        for (let i=0, n; (i<n$.length) && (n=n$[i]); i++) {
+          let pd = Object.getOwnPropertyDescriptor(api, n);
+          if (pd) {
+            Object.defineProperty(prototype, n, pd);
+          }
+        }
+        return prototype;
       }
 
       /**
@@ -124,14 +155,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {Object} Target object that was passed as first argument.
        */
       mixin(target, source) {
-        return utils.mixin(target, source);
+        return Polymer.mixin(target, source);
       }
 
       chainObject(object, inherited) {
         if (object && inherited && object !== inherited) {
-          if (!Object.__proto__) {
-            object = this.extend(Object.create(inherited), object);
-          }
           object.__proto__ = inherited;
         }
         return object;
@@ -590,7 +618,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       importHref(href, onload, onerror, optAsync) { // eslint-disable-line no-unused-vars
         let loadFn = onload ? onload.bind(this) : null;
         let errorFn = onerror ? onerror.bind(this) : null;
-        return Polymer.Utils.importHref(href, loadFn, errorFn, optAsync);
+        return Polymer.importHref(href, loadFn, errorFn, optAsync);
       }
 
       /**
@@ -603,7 +631,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {boolean} Whether the element matches the selector.
        */
       elementMatches(selector, node) {
-        return Polymer.Utils.matchesSelector(node || this, selector);
+        return Polymer.dom.matchesSelector(node || this, selector);
       }
 
       /**
@@ -711,13 +739,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return null;
       }
 
+      // logging
+      _logger(level, args) {
+        // accept ['foo', 'bar'] and [['foo', 'bar']]
+        if (Array.isArray(args) && args.length === 1) {
+          args = args[0];
+        }
+        switch(level) {
+          case 'log':
+          case 'warn':
+          case 'error':
+            console[level](...args);
+        }
+      }
+
+      _log(...args) {
+        this._logger('log', args);
+      }
+
+      _warn(...args) {
+        this._logger('warn', args);
+      }
+
+      _error(...args) {
+        this._logger('error', args)
+      }
+
+      _logf(...args) {
+        return ['[%s::%s]', this.is, ...args];
+      }
+
     }
 
   });
-
-  // bc
-  Polymer.LegacyElement = Polymer.LegacyElementMixin(HTMLElement);
-  Polymer.Base = Polymer.LegacyElement.prototype;
 
 })();
 </script>
