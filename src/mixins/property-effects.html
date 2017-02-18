@@ -297,15 +297,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function addNotifyListener(node, inst, info) {
+    let {path, property} = info;
     node.addEventListener(info.event, function(e) {
-      handleNotification(e, inst, info.property, info.path, info.negate);
+      handleNotification(e, inst, property, path, info.negate);
     });
+    // Sync host property with 2-way bound notifying child property as
+    // optimization to elide cost of notifying all default properties
+    if (!inst._isPropertyPending(path) &&
+        node.__notifyEffects && node.__notifyEffects[property] &&
+        (property in node.__data) &&
+        (!inst.__readOnly || !inst.__readOnly[path])) {
+      inst._setPendingPropertyOrPath(path, node[property]);
+    }
   }
 
   /**
    * Handler function for 2-way notification events. Receives context
    * information captured in the `addNotifyListener` closure from the
-   * `_bindListeners` metadata.
+   * `__notifyListeners` metadata.
    *
    * Sets the value of the notified property to the host property or path.  If
    * the event contained path information, translate that path to the host
@@ -778,7 +787,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Sets up a prototypical `_bindListeners` metadata array to be used at
+   * Sets up a prototypical `__notifyListeners` metadata array to be used at
    * instance time to add event listeners for 2-way bindings.
    *
    * @param {Object} model Prototype (instances not currently supported)
@@ -793,12 +802,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function addAnnotatedListener(model, index, property, path, event, negate) {
-    if (!model._bindListeners) {
-      model._bindListeners = [];
-    }
     let eventName = event ||
       (CaseMap.camelToDashCase(property) + '-changed');
-    model._bindListeners.push({
+    model.__notifyListeners = model.__notifyListeners || [];
+    model.__notifyListeners.push({
       index: index,
       property: property,
       path: path,
@@ -809,13 +816,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /**
    * Adds all 2-way binding notification listeners to a host based on
-   * `_bindListeners` metadata recorded by prior calls to`addAnnotatedListener`
+   * `__notifyListeners` metadata recorded by prior calls to
+   * `addAnnotatedListener`
    *
    * @param {Object} inst Host element instance
    * @private
    */
-  function setupBindListeners(inst) {
-    let b$ = inst._bindListeners;
+  function setupNotifyListeners(inst) {
+    let b$ = inst.__notifyListeners;
     for (let i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
       let node = inst._templateNodes[info.index];
       addNotifyListener(node, inst, info);
@@ -843,8 +851,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
     }
-    if (inst._bindListeners) {
-      setupBindListeners(inst);
+    if (inst.__notifyListeners.length) {
+      setupNotifyListeners(inst);
     }
   }
 
@@ -2115,6 +2123,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _bindTemplate(template, dynamicFns) {
         // Clear any existing propagation effects inherited from superClass
         this.__propagateEffects = {};
+        this.__notifyListeners = [];
         let notes = this._parseTemplateAnnotations(template);
         processAnnotations(notes);
         for (let i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
