@@ -266,6 +266,7 @@ id is to use `id`.
 * <a name="breaking-beforeRegister"></a>`element.beforeRegister`: This was originally added for metadata compatibility with ES6 classes. We now prefer users create ES6 classes by extending `Polymer.Element`, specifying metadata in the static `config` property. For legacy use via `Polymer({...})`, dynamic effects may now be added using the `registered` lifecycle method.
 * <a name="breaking-attributeFollows"></a>`element.attributeFollows`: Removed due to disuse.
 * <a name="breaking-classFollows"></a>`element.classFollows`: Removed due to disuse.
+* <a name="breaking-copyOwnProperty"></a>`element.copyOwnProperty`: Removed due to disuse.
 * <a name="breaking-listeners"></a>`listeners`: Removed ability to use `id.event` to add listeners to elements in local dom. Use declarative template event handlers instead.
 * <a name="breaking-protected"></a>Methods starting with `_` are not guaranteed to exist (most have been removed)
 
@@ -277,4 +278,3 @@ id is to use `id`.
 * <a name="breaking-attribute-property-timing"></a>Any attribute values will take priority over property values set prior to upgrade due to V1 `attributeChangedCallback` timing semantics.  In 1.x properties set prior to upgrade overrode attributes.
 * <a name="breaking-transpiling"></a>Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
 * <a name="breaking-hostAttributes-class"></a>In Polymer 1.x, the `class` attribute was explicitly blacklisted from `hostAttributes` and never serialized. This is no longer the case using the 2.0 legacy API.
-* <a name="breaking-render-status"></a>`Polymer.RenderStatus.afterNextRender(context, callback, args)` is now called only with a `callback` argument (`Polymer.RenderStatus.afterNextRender(callback)`). The callback should be bound as needed with the correct context and arguments.
