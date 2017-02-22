@@ -43,6 +43,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   var usePolyfillProto = Polymer.Settings.usePolyfillProto;
 
+  // When true, `this.properties` is bad juju due to obsolete `properties`
+  // accessors on instances of HTMLElement
+  var avoidInstanceProperties =
+    Boolean(Object.getOwnPropertyDescriptor(document.documentElement, 'properties'));
+
   Polymer.Base._addFeature({
 
     // storage for configuration
@@ -101,7 +106,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._configureProperties(this.behaviors[i].properties, config);
       }
       // prototypical behavior
-      this._configureProperties(this.properties, config);
+      // Read `properties` off of the prototype, as a concession to non-spec
+      // compliant browsers (e.g. Android UC Browser 11.2.0.915) where
+      // a.) HTMLElement's have a non-spec `properties` property, and
+      // b.) the `properties` accessor is on instances rather than
+      // `HTMLElement.prototype`; going under the instance to the prototype
+      // avoids the problem. Note can't always go to __proto__ due to IE10
+      // hence conditional, but IE10 doesn't suffer from the instance properties
+      // issue (happy coincidence of browser quirks).
+      this._configureProperties(avoidInstanceProperties ?
+        this.__proto__.properties : this.properties, config);
       // TODO(sorvell): it *may* be faster to loop over _propertyInfo but
       // there are some test issues.
       //this._configureProperties(this._propertyInfo, config);
