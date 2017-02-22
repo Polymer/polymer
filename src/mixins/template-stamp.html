@@ -16,99 +16,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
-  /**
-   * Scans a template to produce an annotation object that stores expression
-   * metadata along with information to associate the metadata with nodes in an
-   * instance.
-   *
-   * Elements with `id` in the template are noted and marshaled into an
-   * the `$` hash in an instance.
-   *
-   * Example
-   *
-   *     &lt;template>
-   *       &lt;div id="foo">&lt;/div>
-   *     &lt;/template>
-   *     &lt;script>
-   *      Polymer({
-   *        task: function() {
-   *          this.$.foo.style.color = 'red';
-   *        }
-   *      });
-   *     &lt;/script>
-   *
-   * Other expressions that are noted include:
-   *
-   * Double-mustache annotations in text content. The annotation must be the only
-   * content in the tag, compound expressions are not (currently) supported.
-   *
-   *     <[tag]>{{path.to.host.property}}<[tag]>
-   *
-   * Double-mustache annotations in an attribute.
-   *
-   *     <[tag] someAttribute="{{path.to.host.property}}"><[tag]>
-   *
-   * Only immediate host properties can automatically trigger side-effects.
-   * Setting `host.path` in the example above triggers the binding, setting
-   * `host.path.to.host.property` does not.
-   *
-   * `on-` style event declarations.
-   *
-   *     <[tag] on-<event-name>="{{hostMethodName}}"><[tag]>
-   *
-   * Note: **the `annotations` feature does not actually implement the behaviors
-   * associated with these expressions, it only captures the data**.
-   *
-   * Other optional features contain actual data implementations.
-   *
-   * @class standard feature: annotations
-   */
-
-  /*
-
-  Scans a template to produce an annotation map that stores expression metadata
-  and information that associates the metadata to nodes in a template instance.
-
-  Supported annotations are:
-
-    * id attributes
-    * binding annotations in text nodes
-      * double-mustache expressions: {{expression}}
-      * double-bracket expressions: [[expression]]
-    * binding annotations in attributes
-      * attribute-bind expressions: name="{{expression}} || [[expression]]"
-      * property-bind expressions: name*="{{expression}} || [[expression]]"
-      * property-bind expressions: name:="expression"
-    * event annotations
-      * event delegation directives: on-<eventName>="expression"
-
-  Generated data-structure:
-
-    [
-      {
-        id: '<id>',
-        events: [
-          {
-            mode: ['auto'|''],
-            name: '<name>'
-            value: '<expression>'
-          }, ...
-        ],
-        bindings: [
-          {
-            kind: ['text'|'attribute'|'property'],
-            mode: ['auto'|''],
-            name: '<name>'
-            value: '<expression>'
-          }, ...
-        ],
-        parent: <reference to parent annotation>,
-        index: <integer index in parent's childNodes collection>
-      },
-      ...
-    ]
-  */
-
   // null-array (shared empty array to avoid null-checks)
   const emptyArray = [];
 
@@ -134,6 +41,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   let insertionPointTag = 'slot';
 
   /**
+   * Scans a template to produce an annotation map that stores expression metadata
+   * and information that associates the metadata to nodes in a template instance.
+   *
+   * Supported annotations are:
+   *   * id attributes
+   *   * binding annotations in text nodes
+   *     * double-mustache expressions: {{expression}}
+   *     * double-bracket expressions: [[expression]]
+   *   * binding annotations in attributes
+   *     * attribute-bind expressions: name="{{expression}} || [[expression]]"
+   *     * property-bind expressions: name*="{{expression}} || [[expression]]"
+   *     * property-bind expressions: name:="expression"
+   *   * event annotations
+   *     * event delegation directives: on-<eventName>="expression"
+   *
+   * Generated data-structure:
+   *   [
+   *     {
+   *       id: '<id>',
+   *       events: [
+   *         {
+   *           mode: ['auto'|''],
+   *           name: '<name>'
+   *           value: '<expression>'
+   *         }, ...
+   *       ],
+   *       bindings: [
+   *         {
+   *           kind: ['text'|'attribute'|'property'],
+   *           mode: ['auto'|''],
+   *           name: '<name>'
+   *           value: '<expression>'
+   *         }, ...
+   *       ],
+   *       parent: <reference to parent annotation>,
+   *       index: <integer index in parent's childNodes collection>
+   *     },
+   *     ...
+   *   ]
+   *
    * @param {HTMLTemplateElement} template
    * @param {boolean=} stripWhiteSpace
    * @return {Array<Object>}
@@ -487,6 +434,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return handler;
   }
 
+  /**
+   * Element mixin that provides basic template parsing and stamping, including
+   * the following template-related features for stamped templates:
+   *
+   * - Declarative event listeners (`on-eventname="listener"`)
+   * - Map of node id's to stamped node instances (`this.$.id`)
+   * - Nested template content caching/removal and re-installation (performance
+   *   optimization)
+   * - Relative URL's relative to original template location
+   * - Template binding annotation parsing (note that this library only parses
+   *   template bindings and provides annotation metadata; see
+   *   `Polymer.PropertyEffects` for a full implementation of data-binding)
+   *
+   * @polymerMixin
+   * @memberof Polymer
+   */
   Polymer.TemplateStamp = Polymer.dedupingMixin(function(superClass) {
 
     return class TemplateStamp extends superClass {
@@ -507,7 +470,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * event listeners (`on-...``), `id`'s, `<template>`s, and bindings
        * (`{{...}}` and `[[...]]`).  This template metadata ("notes")
        * are stored as `this._templateNotes`, and any nodes identified in
-       * with notes are collected for this instance into `_templateNodes` in
+       * notes are collected for this instance into `_templateNodes` in
        * the same order as the notes array.
        *
        * Finally, this method generates an "id map" for all nodes with id's
