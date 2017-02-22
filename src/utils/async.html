@@ -10,118 +10,172 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="boot.html">
 
 <script>
-(function () {
-
+{
   'use strict';
 
   /** @typedef {{run: function(function(), number=):number, cancel: function(number)}} */
   let AsyncInterface; // eslint-disable-line no-unused-vars
 
-  /**
-   * A timer with the async interface.
-   * @implements {AsyncInterface}
-   */
-  let timeOut = {
-    run(fn, delay = 0) {
-      return window.setTimeout(fn, delay);
-    },
-    cancel(handle) {
-      window.clearTimeout(handle);
-    }
-  };
+  // Microtask implemented using Mutation Observer
+  let microtaskCurrHandle = 0;
+  let microtaskLastHandle = 0;
+  let microtaskCallbacks = [];
+  let microtaskNodeContent = 0;
+  let microtaskNode = document.createTextNode('');
+  new window.MutationObserver(microtaskFlush).observe(microtaskNode, {characterData: true});
 
-  /**
-   * @param {number} wait
-   * @return {!AsyncInterface}
-   */
-  timeOut.after = function (wait) {
-    let after = {
-      run(fn) {
-        return window.setTimeout(fn, wait);
-      },
-      cancel: timeOut.cancel
-    }
-    return after;
-  };
-
-  /**
-   * requestAnimationFrame with the async interface.
-   * @implements {AsyncInterface}
-   */
-  let animationFrame = {
-    run(fn) {
-      return window.requestAnimationFrame(fn);
-    },
-    cancel(handle) {
-      return window.cancelAnimationFrame(handle);
-    }
-  };
-
-  /**
-   * requestIdleCallback with the async interface.
-   * @implements {AsyncInterface}
-   */
-  let idlePeriod = window.requestIdleCallback ? {
-    run(fn) {
-      return window.requestIdleCallback(fn);
-    },
-    cancel(handle) {
-      return window.cancelIdleCallback(handle);
-    }
-  } : timeOut.after(16);
-
-  /**
-   * Micro task with the async interface.
-   * @implements {AsyncInterface}
-   */
-  class MicroTask {
-    constructor() {
-      this._currVal = 0;
-      this._lastVal = 0;
-      this._callbacks = [];
-      this._twiddleContent = 0;
-      this._twiddle = document.createTextNode('');
-      new MutationObserver(() => {
-        this._atEndOfMicrotask();
-      }).observe(this._twiddle, { characterData: true });
-    }
-    run(callback) {
-      this._twiddle.textContent = this._twiddleContent++;
-      this._callbacks.push(callback);
-      return this._currVal++;
-    }
-    cancel(handle) {
-      const idx = handle - this._lastVal;
-      if (idx >= 0) {
-        if (!this._callbacks[idx]) {
-          throw `invalid async handle: ${handle}`;
-        }
-        this._callbacks[idx] = null;
-      }
-    }
-    _atEndOfMicrotask() {
-      const len = this._callbacks.length;
-      for (let i = 0; i < len; i++) {
-        let cb = this._callbacks[i];
-        if (cb) {
-          try {
-            cb();
-          } catch (e) {
-            setTimeout(() => { throw e });
-          }
+  function microtaskFlush() {
+    const len = microtaskCallbacks.length;
+    for (let i = 0; i < len; i++) {
+      let cb = microtaskCallbacks[i];
+      if (cb) {
+        try {
+          cb();
+        } catch (e) {
+          setTimeout(() => { throw e });
         }
       }
-      this._callbacks.splice(0, len);
-      this._lastVal += len;
     }
+    microtaskCallbacks.splice(0, len);
+    microtaskLastHandle += len;
   }
 
-  /** @type {Object<string, !AsyncInterface>} */
+  /**
+   * TODOC
+   *
+   * @namespace
+   * @memberof Polymer
+   */
   Polymer.Async = {
-    timeOut,
-    animationFrame,
-    idlePeriod,
-    microTask: new MicroTask()
+
+    /**
+     * A timer with the async interface.
+     *
+     * TODOC
+     *
+     * @namespace
+     * @memberof Polymer.Async
+     */
+    timeOut: {
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       * @param {number} delay Time to wait before calling callbacks in ms
+       * @return {AsyncInterface} An async timeout interface
+       */
+      after(delay) {
+        return  {
+          run(fn) { return setTimeout(fn, delay) },
+          cancel: window.clearTimeout.bind(window)
+        }
+      },
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       */
+      run: window.setTimeout.bind(window),
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       */
+      cancel: window.clearTimeout.bind(window)
+    },
+
+    /**
+     * requestAnimationFrame with the async interface.
+     *
+     * TODOC
+     *
+     * @namespace
+     * @memberof Polymer.Async
+     */
+    animationFrame: {
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       */
+      run: window.requestAnimationFrame.bind(window),
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       */
+      cancel: window.cancelAnimationFrame.bind(window)
+    },
+
+    /**
+     * requestIdleCallback with the async interface.
+     *
+     * TODOC
+     *
+     * @namespace
+     * @memberof Polymer.Async
+     */
+    idlePeriod: {
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       */
+      run(fn) {
+        return window.requestIdleCallback ?
+          window.requestIdleCallback(fn) :
+          window.setTimeout(fn, 16);
+      },
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       */
+      cancel(timer) {
+        return window.cancelIdleCallback ?
+          window.cancelIdleCallback(timer) :
+          window.clearTimeout(timer);
+      }
+    },
+
+    /**
+     * Micro task with the async interface.
+     *
+     * TODOC
+     *
+     * @namespace
+     * @memberof Polymer.Async
+     */
+    microTask: {
+
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       */
+      run(callback) {
+        microtaskNode.textContent = microtaskNodeContent++;
+        microtaskCallbacks.push(callback);
+        return microtaskCurrHandle++;
+      },
+
+      /**
+       * TODOC
+       *
+       * @memberof Polymer.Async.timeOut
+       */
+      cancel(handle) {
+        const idx = handle - microtaskLastHandle;
+        if (idx >= 0) {
+          if (!microtaskCallbacks[idx]) {
+            throw new Error('invalid async handle: ' + handle);
+          }
+          microtaskCallbacks[idx] = null;
+        }
+      }
+
+    }
   };
-})();
+
+}
 </script>
