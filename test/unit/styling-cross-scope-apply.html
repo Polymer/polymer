@@ -455,32 +455,26 @@ suite('scoped-styling-apply', function() {
   }
 
   var styled = document.querySelector('x-scope')
-  var stylesBuilt;
-
-  suiteSetup(function() {
-    stylesBuilt = Polymer.StyleUtil.cssBuildTypeForModule('x-scope');
-  });
 
   test('variable mixins calculated correctly and inherit', function() {
-    if (ShadyCSS.nativeCss) {
+    if (!window.ShadyCSS || ShadyCSS.nativeCss) {
       this.skip();
     }
-    var suffix = '';
-    if (stylesBuilt) {
-      suffix = ApplyShim._separator + 'border';
-    }
+    var suffix = window.ShadyCSS.ApplyShim._separator + 'border';
     var e = styled;
-    var info = ShadyCSS._styleInfoForNode(e);
-    assert.property(info.styleProperties, '--mixin1' + suffix);
-    assert.property(info.styleProperties, '--mixin2' + suffix);
-    assert.property(info.styleProperties, '--mixin3' + suffix);
-    assert.property(info.styleProperties, '--mixin4' + suffix);
+    let mixin1 = ShadyCSS.ScopingShim.getComputedStyleValue(e, '--mixin1' + suffix);
+    let mixin2 = ShadyCSS.ScopingShim.getComputedStyleValue(e, '--mixin2' + suffix);
+    let mixin3 = ShadyCSS.ScopingShim.getComputedStyleValue(e, '--mixin3' + suffix);
+    let mixin4 = ShadyCSS.ScopingShim.getComputedStyleValue(e, '--mixin4' + suffix);
     e = styled.$.child;
-    info = ShadyCSS._styleInfoForNode(e);
-    assert.property(info.styleProperties, '--mixin1' + suffix);
-    assert.property(info.styleProperties, '--mixin2' + suffix);
-    assert.property(info.styleProperties, '--mixin3' + suffix);
-    assert.property(info.styleProperties, '--mixin4' + suffix);
+    let cmixin1 = ShadyCSS.ScopingShim.getComputedStyleValue(e, '--mixin1' + suffix);
+    let cmixin2 = ShadyCSS.ScopingShim.getComputedStyleValue(e, '--mixin2' + suffix);
+    let cmixin3 = ShadyCSS.ScopingShim.getComputedStyleValue(e, '--mixin3' + suffix);
+    let cmixin4 = ShadyCSS.ScopingShim.getComputedStyleValue(e, '--mixin4' + suffix);
+    assert.equal(mixin1, cmixin1);
+    assert.equal(mixin2, cmixin2);
+    assert.equal(mixin3, cmixin3);
+    assert.equal(mixin4, cmixin4);
   });
 
   test('variable mixins apply', function() {
@@ -497,26 +491,23 @@ suite('scoped-styling-apply', function() {
   test('mixins apply with url values', function() {
     var url = 'http://www.google.com/icon.png';
     var e = styled.$.child;
-    var actual, unescaped;
-    if (ShadyCSS.nativeCssApply) {
+    var actual, unescaped, propertyName;
+    if (window.ShadyCSS && ShadyCSS.nativeCssApply) {
       actual = getComputedStyle(e).getPropertyValue('--mixin2');
       // if strings aren't used in the url, getPropertyValue will escape the string, which breaks assert.include
       unescaped = actual.replace(/\\/g, '');
       assert.include(unescaped, url);
-    } else if (ShadyCSS.nativeCss) {
-      var propertyName = '--mixin2' + ApplyShim._separator + 'background';
+    } else if (!window.ShadyCSS || ShadyCSS.nativeCss) {
+      propertyName = '--mixin2' + window.ShadyCSS.ApplyShim._separator + 'background';
       actual = getComputedStyle(e).getPropertyValue(propertyName);
       // if strings aren't used in the url, getPropertyValue will escape the string, which breaks assert.include
       unescaped = actual.replace(/\\/g, '');
       assert.include(unescaped, url);
     } else {
-      var propName = '--mixin2';
-      if (stylesBuilt) {
-        propName = propName + ApplyShim._separator + 'background';
-      }
-      var info = ShadyCSS._styleInfoForNode(e);
-      assert.include(info.styleProperties[propName], url);
-      assert.include(info.customStyle.textContent, url);
+      propertyName = '--mixin2';
+      actual = ShadyCSS.ScopingShim.getComputedStyleValue(e, propertyName);
+      unescaped = actual.replace(/\\/g, '');
+      assert.include(unescaped, url);
     }
   });
 
@@ -580,23 +571,18 @@ suite('scoped-styling-apply', function() {
   test('producing a var that consumes another var preserves static styling', function() {
     var d = document.createElement('x-var-produce-via-consume');
     document.body.appendChild(d);
-    if (customElements.flush) {
-      customElements.flush();
-    }
     assertComputed(d, '10px');
   });
 
   test('producing a var that consumes results in static and not dynamic stylesheet', function() {
     var d = document.createElement('x-var-produce-via-consume');
     document.body.appendChild(d);
-    if (customElements.flush) {
-      customElements.flush();
-    }
-    var styleRoot = !window.ShadyDOM || !ShadyDOM.isShadyRoot(d.shadowRoot) ? d.shadowRoot : document.head;
-    var staticStyle = styleRoot.querySelector('style[scope=x-var-produce-via-consume]');
+    var styleRoot = (!window.ShadyDOM || !ShadyDOM.isShadyRoot(d.shadowRoot)) ? d.shadowRoot : document.head;
+    var selector = window.ShadyDOM ? 'style[scope~=x-var-produce-via-consume]' : 'style';
+    var staticStyle = styleRoot.querySelector(selector);
     assert.ok(staticStyle);
     assert.match(staticStyle.textContent, /display/, 'static style does not contain style content');
-    assert.equal(styleRoot.querySelectorAll('style[scope~=x-var-produce-via-consume]').length, 1);
+    assert.equal(styleRoot.querySelectorAll(selector).length, 1);
   });
 
   test('mixin values can be overridden by subsequent concrete properties', function() {
@@ -608,7 +594,7 @@ suite('scoped-styling-apply', function() {
     var e2 = document.createElement('x-cache-host-2');
     document.body.appendChild(e1);
     document.body.appendChild(e2);
-    Polymer.dom.flush();
+    Polymer.flush();
     assertComputed(e1.$.child, '10px');
     assertComputed(e2.$.child, '1px');
   });
@@ -616,14 +602,14 @@ suite('scoped-styling-apply', function() {
   test('@apply without parens triggers property shim', function() {
     var e = document.createElement('x-no-paren-apply-only');
     document.body.appendChild(e);
-    Polymer.dom.flush();
+    Polymer.flush();
     assertComputed(e.$.child, '2px');
   });
 
   test('mixin redefinition resets old properties', function() {
     var e = document.createElement('x-redefine-one');
     document.body.appendChild(e);
-    Polymer.dom.flush();
+    Polymer.flush();
     var div = e.$.two.$.three.$.div;
     assertComputed(div, '2px');
     assertComputed(div, '0px', 'height');

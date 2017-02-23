@@ -299,12 +299,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var xBar, xFoo, stylesBuilt;
 
       suiteSetup(function() {
-        var customStyle = document.querySelector('style[is="custom-style"]');
-        stylesBuilt = Polymer.StyleUtil.getCssBuildType(customStyle);
-
         xBar = document.querySelector('x-bar');
         xFoo = document.querySelector('x-foo');
-
       });
 
       test('root styles applied', function() {
@@ -317,21 +313,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       test('custom properties registered as defaults', function() {
         var propsToCheck = ['--italic'];
-        if (ShadyCSS.nativeCss || stylesBuilt) {
-          var sep = ApplyShim._separator;
+        if (!window.ShadyCSS || ShadyCSS.nativeCss || stylesBuilt) {
+          var sep = window.ShadyCSS.ApplyShim._separator;
           propsToCheck.push('--bag' + sep + 'margin', '--bag' + sep + 'border');
         } else {
           propsToCheck.push('--bag');
         }
-        if (ShadyCSS.nativeCss) {
+        if (!window.ShadyCSS || ShadyCSS.nativeCss) {
           var cs = getComputedStyle(document.documentElement);
           propsToCheck.forEach(function(p) {
             assert.ok(cs.getPropertyValue(p));
           });
         } else {
-          var props = ShadyCSS._documentOwner.__styleInfo.styleProperties;
           propsToCheck.forEach(function(p) {
-            assert.property(props, p);
+            assert.ok(ShadyCSS.ScopingShim.getComputedStyleValue(document.documentElement, p));
           });
         }
       });
@@ -358,7 +353,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
 
       test('imported custom-styles apply', function() {
-        if (stylesBuilt && !ShadyCSS.nativeCss) {
+        if (stylesBuilt && window.ShadyCSS && !ShadyCSS.nativeCss) {
           // css build will test this by using vulcanize.
           // this inlines the custom-style after the consumption point, and changes the timing for custom property shim
           // Force an update style for this weird corner case in the tests
@@ -378,9 +373,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         s.textContent = ':root { --dynamic: 11px solid orange; }';
         cs.appendChild(s);
         document.body.appendChild(cs);
-        if (customElements.flush) {
-          customElements.flush();
-        }
         Polymer.updateStyles();
         assertComputed(dynamic, '11px');
       });
@@ -401,54 +393,54 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.include(url, 'sub/google.png');
       });
 
-      test.skip('imperative custom style', function() {
-        var style = document.createElement('style', 'custom-style');
+      test('imperative custom style', function() {
+        var cs = document.createElement('custom-style');
+        var style = document.createElement('style');
         style.textContent = '.zonk { border: 13px solid tomato;}';
+        cs.appendChild(style);
         var d = document.createElement('div');
         d.classList.add('zonk');
         document.body.appendChild(d);
-        document.body.appendChild(style);
-        if (customElements.flush) {
-          customElements.flush();
+        document.body.appendChild(cs);
+        Polymer.updateStyles();
+        if (window.ShadyDOM) {
+          assert.ok(style.textContent.match(':not'));
         }
         assertComputed(d, '13px');
         document.body.removeChild(d);
-        document.body.removeChild(style);
+        document.body.removeChild(cs);
+
       });
 
-      test.skip('imperative custom style with include', function() {
-        var style = document.createElement('style', 'custom-style');
-        style.include = 'shared-style2';
+      test('imperative custom style with include', function() {
+        var cs = document.createElement('custom-style');
+        var style = document.createElement('style');
+        style.setAttribute('include', 'shared-style2');
+        cs.appendChild(style);
         var d = document.createElement('div');
         d.classList.add('zazz');
         document.body.appendChild(d);
-        document.body.appendChild(style);
-        if (customElements.flush) {
-          customElements.flush();
-        }
+        document.body.appendChild(cs);
         Polymer.updateStyles();
         assertComputed(d, '16px');
         document.body.removeChild(d);
-        document.body.removeChild(style);
+        document.body.removeChild(cs);
       });
 
-      test.skip('imperative custom style with non-existent include', function() {
-        var s1 = document.createElement('style', 'custom-style');
-        s1.include = 'does-not-exist';
-        var style = document.createElement('style', 'custom-style');
+      test('imperative custom style with non-existent include', function() {
+        var s1 = document.createElement('custom-style');
+        var style = document.createElement('style');
+        s1.appendChild(style);
+        style.setAttribute('include', 'does-not-exist');
         style.textContent = '.ziz { border: 14px solid tomato;}';
         var d = document.createElement('div');
         d.classList.add('ziz');
         document.body.appendChild(d);
         document.body.appendChild(s1)
-        document.body.appendChild(style);
-        if (customElements.flush) {
-          customElements.flush();
-        }
+        Polymer.updateStyles();
         assertComputed(d, '14px');
         document.body.removeChild(d);
         document.body.removeChild(s1);
-        document.body.removeChild(style);
       });
 
       test('include style data applied before textContent', function() {

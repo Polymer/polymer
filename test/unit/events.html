@@ -25,25 +25,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var el;
 
       suite('listeners block', function() {
-        suiteSetup(function(done) {
+        suiteSetup(function() {
           el = document.createElement('x-listeners');
           document.body.appendChild(el);
-          Polymer.AsyncRender.afterRender(done);
         });
 
         suiteTeardown(function() {
           document.body.removeChild(el);
-        });
-
-        test.skip('setup', function() {
-          var boundListeners = el.__boundListeners;
-          assert(boundListeners, 'listeners are bound');
-          var map = boundListeners.get(el);
-          assert(map, 'events have handlers');
-          Object.keys(el.listeners).forEach(function(l) {
-            var key = Polymer.Base._boundListenerKey(l, el.listeners[l]);
-            assert(map[key], 'listener is in event map');
-          });
         });
 
         test('fire - method exists', function() {
@@ -51,45 +39,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           assert.equal(el._handled[el.localName], 'foo');
         });
 
-        test.skip('fire - method missing', function() {
+        test('fire - method missing', function() {
+          sinon.spy(console, 'warn');
           el.fire('bar');
-          assert.equal(el._warned.length, 1);
-          assert.equal(el._warned[0], 'listener method `missing` not defined');
+          assert.isTrue(console.warn.calledOnce);
+          assert.equal(console.warn.getCall(0).args[0], 'listener method `missing` not defined');
+          console.warn.restore();
         });
 
-        test('teardown', function() {
-          el.teardown();
-          assert.deepEqual(el._removed[0], {target: el.localName, event: 'foo'});
-          assert.deepEqual(el._removed[1], {target: el.localName, event: 'bar'});
-        });
       });
 
       suite('on-*', function() {
 
         var options;
-        suiteSetup(function(done) {
+        suiteSetup(function() {
           el = document.createElement('x-on');
           document.body.appendChild(el);
-          Polymer.AsyncRender.afterRender(function() {
-            options = {node: el.$.inner};
-            done();
-          });
+          options = {node: el.$.inner};
         });
 
         suiteTeardown(function() {
           document.body.removeChild(el);
-        });
-
-        test.skip('setup', function() {
-          var boundListeners = el.__boundListeners;
-          assert(boundListeners, 'listeners are bound');
-          var map = boundListeners.get(el.$.inner);
-          assert(map, 'events have handlers');
-          assert(el._notes[0].events.length, 2);
-          el._notes[0].events.forEach(function(l) {
-            var key = Polymer.Base._boundListenerKey(l.name, l.value);
-            assert(map[key], 'listener is in event map');
-          });
         });
 
         test('fire - method exists', function() {
@@ -98,17 +68,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           assert(!el._handled[el.localName]);
         });
 
-        test.skip('fire - method missing', function() {
+        test('fire - method missing', function() {
+          sinon.spy(console, 'warn');
           el.fire('bar', {}, options);
-          assert.equal(el._warned.length, 1);
-          assert.equal(el._warned[0], 'listener method `missing` not defined');
+          assert.isTrue(console.warn.calledOnce);
+          assert.equal(console.warn.getCall(0).args[0], 'listener method `missing` not defined');
+          console.warn.restore();
         });
 
-        test('teardown', function() {
-          el.teardown();
-          assert.deepEqual(el._removed[0], {target: 'div', event: 'foo'});
-          assert.deepEqual(el._removed[1], {target: 'div', event: 'bar'});
-        });
       });
 
       suite('dynamic', function() {
@@ -117,7 +84,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         suiteSetup(function(done) {
           el = document.createElement('x-dynamic');
           document.body.appendChild(el);
-          Polymer.AsyncRender.afterRender(function() {
+          Polymer.RenderStatus.afterNextRender(null, function() {
             options = {node: el.$.inner};
             done();
           });
@@ -144,11 +111,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           assert.equal(el._handled[el.localName], 'foo', 'outer handler');
         });
 
-        test.skip('fire - method missing', function() {
+        test('fire - method missing', function() {
+          sinon.spy(console, 'warn');
           el.fire('bar', {}, options);
-          assert.equal(el._warned.length, 2);
-          assert.equal(el._warned[0], 'listener method `missing` not defined');
-          assert.equal(el._warned[1], 'listener method `missing` not defined');
+          assert.isTrue(console.warn.calledTwice);
+          assert.equal(console.warn.getCall(0).args[0], 'listener method `missing` not defined');
+          assert.equal(console.warn.getCall(1).args[0], 'listener method `missing` not defined');
+          console.warn.restore();
         });
 
         test('teardown', function() {
@@ -160,48 +129,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       });
 
-      suite.skip('Event Listener Cache', function() {
+      suite('Event Listener Cache', function() {
         suiteSetup(function() {
           el = document.createElement('x-double');
-          document.body.appendChild(el);
           el.setup();
+          document.body.appendChild(el);
         });
 
         suiteTeardown(function() {
           document.body.removeChild(el);
         });
 
-        test('listen marks event handler as listening', function() {
-          var handler = el._recallEventHandler(el, 'foo', el, 'missing');
-          assert.equal(handler._listening, true, 'handler should be marked');
-        });
-
         test('Event handler fires only once', function() {
           el.fire('foo');
-          assert.equal(el._warned.length, 1, 'event should fire only once');
-        });
-
-        test('listen reuses handler cache', function() {
-          var expected = el._recallEventHandler(el, 'foo', el, 'missing');
-          el.listen(el, 'foo', 'missing');
-          var actual = el._recallEventHandler(el, 'foo', el, 'missing');
-          assert.equal(actual, expected, 'function was not cached');
-        });
-
-        test('unlisten keeps handler for caching', function() {
-          el.teardown();
-          var fn = el._recallEventHandler(el, 'foo', el, 'missing');
-          assert.ok(fn, 'should be cached');
-        });
-
-        test('unlisten markes cached handler as not listening', function() {
-          var handler = el._recallEventHandler(el, 'foo', el, 'missing');
-          assert.equal(handler._listening, false, 'handler should not be listening');
+          assert.isTrue(el.fooChanged.calledOnce, 'event should fire only once');
         });
 
         test('once unlistened, no handler fire', function() {
+          el.teardown();
           el.fire('foo');
-          assert.equal(el._warned.length, 1, 'event should not be handled anymore');
+          assert.isTrue(el.fooChanged.calledOnce, 'event should not be handled anymore');
         });
       });
     });
