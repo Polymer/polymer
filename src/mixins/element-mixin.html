@@ -24,21 +24,37 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
   let caseMap = Polymer.CaseMap;
 
   /**
-   * Returns the config object specifically on `klass`. Use for:
+   * Returns the `properties` object specifically on `klass`. Use for:
    * (1) super chain mixes togther to make `propertiesForClass` which is
    * then used to make `observedAttributes`.
    * (2) properties effects and observers are created from it at `finalize` time.
    * @param {HTMLElement} klass
    * @private
    */
-  function ownConfigForClass(klass) {
+  function ownPropertiesForClass(klass) {
     if (!klass.hasOwnProperty(
-      goog.reflect.objectProperty('__ownConfig', klass))) {
-      klass.__ownConfig =
-        klass.hasOwnProperty(goog.reflect.objectProperty('config', klass)) ?
-        klass.config : {};
+      goog.reflect.objectProperty('__ownProperties', klass))) {
+      klass.__ownProperties =
+        klass.hasOwnProperty(goog.reflect.objectProperty('properties', klass)) ?
+        klass.properties : {};
     }
-    return klass.__ownConfig;
+    return klass.__ownProperties;
+  }
+
+  /**
+   * Returns the `observers` array specifically on `klass`. Use for
+   * setting up observers.
+   * @param {HTMLElement} klass
+   * @private
+   */
+  function ownObserversForClass(klass) {
+    if (!klass.hasOwnProperty(
+      goog.reflect.objectProperty('__ownObservers', klass))) {
+      klass.__ownObservers =
+        klass.hasOwnProperty(goog.reflect.objectProperty('observers', klass)) ?
+        klass.observers : [];
+    }
+    return klass.__ownObservers;
   }
 
   /**
@@ -71,7 +87,7 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
     if (!klass.hasOwnProperty(
       goog.reflect.objectProperty('__classProperties', klass))) {
       klass.__classProperties =
-      flattenProperties({}, ownConfigForClass(klass).properties);
+      flattenProperties({}, ownPropertiesForClass(klass));
       let superCtor = Object.getPrototypeOf(klass.prototype).constructor;
       if (superCtor.prototype instanceof PolymerElement) {
         klass.__classProperties = Polymer.mixin(
@@ -144,38 +160,53 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
       goog.reflect.objectProperty('is', klass)) && klass.is) {
       Polymer.telemetry.register(proto);
     }
-    let config = ownConfigForClass(klass);
-    if (config) {
-      finalizeConfig(proto, config);
+    let props = ownPropertiesForClass(klass);
+    if (props) {
+      finalizeProperties(proto, props);
     }
+    let observers = ownObserversForClass(klass);
+    if (observers) {
+      finalizeObservers(proto, observers, props);
+    }
+    // note: create "working" template that is finalized at instance time
     let template = klass.template;
     if (template) {
-      finalizeTemplate(proto, template.cloneNode(true),
-        klass.is, klass.extends);
+      if (typeof template === 'string') {
+        let t = document.createElement('template');
+        t.innerHTML = template;
+        template = t;
+      } else {
+        template = template.cloneNode(true);
+      }
+      proto._template = template;
     }
   }
 
   /**
-   * Configures a `proto` based on a `config` object.
+   * Configures a `proto` based on a `properties` object.
    * Leverages `PropertyEffects` to create property accessors and effects
    * supporting, observers, reflecting to attributes, change notification,
    * computed properties, and read only properties.
    * @param {HTMLElement} proto
-   * @param {Object} config
+   * @param {Object} properties
    * @private
    */
-  function finalizeConfig(proto, config) {
-    let {properties, observers} = config;
-    if (properties) {
-      // process properties
-      for (let p in properties) {
-        createPropertyFromConfig(proto, p, properties[p], properties);
-      }
+  function finalizeProperties(proto, properties) {
+    for (let p in properties) {
+      createPropertyFromConfig(proto, p, properties[p], properties);
     }
-    if (observers) {
-      for (let i=0; i < observers.length; i++) {
-        proto._createMethodObserver(observers[i], properties);
-      }
+  }
+
+  /**
+   * Configures a `proto` based on a `observers` array.
+   * Leverages `PropertyEffects` to create observers.
+   * @param {HTMLElement} proto
+   * @param {Array} observers
+   * @private
+   */
+  function finalizeObservers(proto, observers, dynamicProperties) {
+    for (let i=0; i < observers.length; i++) {
+      proto._createMethodObserver(observers[i], dynamicProperties);
     }
   }
 
@@ -286,7 +317,6 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
       window.ShadyCSS.prepareTemplate(template, is, ext);
     }
     proto._bindTemplate(template, propertiesForClass(proto.constructor));
-    proto._template = template;
   }
 
   /**
@@ -343,6 +373,12 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
 
     _initializeProperties() {
       this.constructor.finalize();
+      // note: finalize template when we have access to `localName` to
+      // avoid dependence on `is` for polyfilling styling.
+      if (this._template && !this._template.__polymerFinalized) {
+        this._template.__polymerFinalized = true;
+        finalizeTemplate(this.__proto__, this._template, this.localName);
+      }
       super._initializeProperties();
       // apply property defaults...
       let p$ = propertyDefaultsForClass(this.constructor);
