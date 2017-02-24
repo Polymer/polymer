@@ -412,6 +412,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Element} inst The instance the effect will be run on
    * @param {Object} changedProps Bag of changed properties
    * @param {Object} oldProps Bag of previous values for changed properties
+   * @private
    */
   function runComputedEffects(inst, changedProps, oldProps, hasPaths) {
     let computeEffects = inst.__computeEffects;
@@ -1191,6 +1192,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {HTMLElement} inst Instance to apply data to
    * @param {object} props Bag of instance properties to set
+   * @private
    */
   function initalizeInstanceProperties(inst, props) {
     inst.__dataOld = inst.__dataOld || {};
@@ -1207,7 +1209,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Element class mixin that provides meta-programming for Polymer's template
    * binding and data observation (collectively, "property effects") system.
    *
-   * TODOC
+   * This mixin uses provides the following key methods for adding property effects
+   * to this element:
+   * - `_createPropertyObserver`
+   * - `_createMethodObserver`
+   * - `_createNotifyingProperty`
+   * - `_createReadOnlyProperty`
+   * - `_createReflectedProperty`
+   * - `_createComputedProperty`
+   * - `_bindTemplate`
+   *
+   * Each method creates one or more property accessors, along with metadata
+   * used by this mixin's implementation of `_propertiesChanged` to perform
+   * the property effects.  These methods may be called on element instances,
+   * but are designed to be called on element prototypes such that the work to
+   * set up accessors and effect metadata are done once per element class.
    *
    * @polymerMixin
    * @mixes Polymer.TemplateStamp
@@ -1216,18 +1232,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   Polymer.PropertyEffects = Polymer.dedupingMixin(function(superClass) {
 
-    const mixin = Polymer.TemplateStamp(Polymer.PropertyAccessors(superClass));
+    const propertyEffectsBase = Polymer.TemplateStamp(Polymer.PropertyAccessors(superClass));
 
     /**
      * @polymerMixinClass
      * @unrestricted
      */
-    class PropertyEffects extends mixin {
+    class PropertyEffects extends propertyEffectsBase {
 
       get PROPERTY_EFFECT_TYPES() {
         return TYPES;
       }
 
+      /**
+       * Overrides `Polymer.PropertyAccessors` implementation to initialize
+       * additional property-effect related properties.
+       *
+       * @override
+       */
       _initializeProperties() {
         super._initializeProperties();
         hostStack.registerHost(this);
@@ -1252,6 +1274,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
+      /**
+       * Overrides `Polymer.PropertyAccessors` implementation to provide a
+       * more efficient implementation of initializing properties from
+       * the prototype on the instance.
+       *
+       * @override
+       */
       _initializeProtoProperties(props) {
         this.__data = Object.create(props);
         this.__dataPending = Object.create(props);
@@ -1450,6 +1479,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {Node} node The node to set a property on
        * @param {string} prop The property to set
        * @param {*} value The value to set
+       * @protected
        */
       _setUnmanagedPropertyToNode(node, prop, value) {
         // It is a judgment call that resetting primitives is
@@ -1537,7 +1567,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides default PropertyAccessors implementation to pull the value
+       * Overrides default `PropertyAccessors` implementation to pull the value
        * to dirty check against from the `__dataTemp` cache (rather than the
        * normal `__data` cache) for Objects.  Since the temp cache is cleared
        * at the end of a turn, this implementation allows side-effects of deep
@@ -1563,7 +1593,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides PropertyAccessor's default async queuing of
+       * Overrides `PropertyAccessor`'s default async queuing of
        * `_propertiesChanged`: if `__dataInitialized` is false (has not yet been
        * manually flushed), the function no-ops; otherwise flushes
        * `_propertiesChanged` synchronously.
@@ -1620,6 +1650,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {Object} props Bag of one or more key-value pairs whose key is
        *   a property and value is the new value to set for that property.
+       * @public
        */
       setProperties(props) {
         for (let path in props) {
@@ -1633,6 +1664,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         this._invalidateProperties();
       }
+
       /**
        * Overrides PropertyAccessor's default async queuing of
        * `_propertiesChanged`, to instead synchronously flush
