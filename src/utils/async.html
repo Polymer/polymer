@@ -10,106 +10,118 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="boot.html">
 
 <script>
-(function(global) {
+(function () {
 
   'use strict';
 
-  Polymer.Async = {};
+  /** @typedef {{run: function(function(), number=):number, cancel: function(number)}} */
+  let AsyncInterface; // eslint-disable-line no-unused-vars
 
   /**
    * A timer with the async interface.
+   * @implements {AsyncInterface}
    */
-  Polymer.Async.timeOut = {
-    after: function(delay) {
-      return delay === 0 ? Polymer.Async.timeOut :
-      {
-        run: function(fn) {
-          return global.setTimeout(fn, delay);
-        },
-        cancel: global.clearTimeout.bind(global)
-      }
+  let timeOut = {
+    run(fn, delay = 0) {
+      return window.setTimeout(fn, delay);
     },
-    run: global.setTimeout.bind(global),
-    cancel: global.clearTimeout.bind(global)
-  };
-
-  /**
-   * requestAnimationFrame with the async interface.
-   */
-  Polymer.Async.animationFrame = {
-    run:  global.requestAnimationFrame.bind(global),
-    cancel: global.cancelAnimationFrame.bind(global)
-  };
-
-  /**
-   * requestIdleCallback with the async interface.
-   */
-  Polymer.Async.idlePeriod = {
-    run(fn) {
-      return global.requestIdleCallback ? global.requestIdleCallback(fn) : global.setTimeout(fn, 16);
-    },
-    cancel(timer) {
-      return global.cancelIdleCallback ? global.cancelIdleCallback(timer) : global.clearTimeout(timer);
+    cancel(handle) {
+      window.clearTimeout(handle);
     }
   };
 
   /**
-   * Micro task with the async interface.
+   * @param {number} wait
+   * @return {!AsyncInterface}
    */
-  Polymer.Async.microTask = {
-    _currVal: 0,
-    _lastVal: 0,
-    _callbacks: [],
-    _twiddleContent: 0,
-    _twiddle: document.createTextNode(''),
+  timeOut.after = function (wait) {
+    let after = {
+      run(fn) {
+        return window.setTimeout(fn, wait);
+      },
+      cancel: timeOut.cancel
+    }
+    return after;
+  };
 
+  /**
+   * requestAnimationFrame with the async interface.
+   * @implements {AsyncInterface}
+   */
+  let animationFrame = {
+    run(fn) {
+      return window.requestAnimationFrame(fn);
+    },
+    cancel(handle) {
+      return window.cancelAnimationFrame(handle);
+    }
+  };
+
+  /**
+   * requestIdleCallback with the async interface.
+   * @implements {AsyncInterface}
+   */
+  let idlePeriod = window.requestIdleCallback ? {
+    run(fn) {
+      return window.requestIdleCallback(fn);
+    },
+    cancel(handle) {
+      return window.cancelIdleCallback(handle);
+    }
+  } : timeOut.after(16);
+
+  /**
+   * Micro task with the async interface.
+   * @implements {AsyncInterface}
+   */
+  class MicroTask {
+    constructor() {
+      this._currVal = 0;
+      this._lastVal = 0;
+      this._callbacks = [];
+      this._twiddleContent = 0;
+      this._twiddle = document.createTextNode('');
+      new MutationObserver(() => {
+        this._atEndOfMicrotask();
+      }).observe(this._twiddle, { characterData: true });
+    }
     run(callback) {
       this._twiddle.textContent = this._twiddleContent++;
       this._callbacks.push(callback);
       return this._currVal++;
-    },
-
+    }
     cancel(handle) {
       const idx = handle - this._lastVal;
       if (idx >= 0) {
         if (!this._callbacks[idx]) {
-          throw 'invalid async handle: ' + handle;
+          throw `invalid async handle: ${handle}`;
         }
         this._callbacks[idx] = null;
       }
-    },
-
+    }
     _atEndOfMicrotask() {
       const len = this._callbacks.length;
-      for (let i=0; i<len; i++) {
+      for (let i = 0; i < len; i++) {
         let cb = this._callbacks[i];
         if (cb) {
           try {
             cb();
-          } catch(e) {
-            // Clear queue up to this point & start over after throwing
-            i++;
-            this._callbacks.splice(0, i);
-            this._lastVal += i;
-            this._twiddle.textContent = this._twiddleContent++;
-            throw e;
+          } catch (e) {
+            setTimeout(() => { throw e });
           }
         }
       }
       this._callbacks.splice(0, len);
       this._lastVal += len;
-    },
-
-    flush() {
-      this._observer.takeRecords();
-      this._atEndOfMicrotask();
     }
+  }
+
+  /** @type {Object<string, !AsyncInterface>} */
+  Polymer.Async = {
+    timeOut,
+    animationFrame,
+    idlePeriod,
+    microTask: new MicroTask()
   };
-
-  Polymer.Async.microTask._observer = new window.MutationObserver(function microTaskObserver() {
-    Polymer.Async.microTask._atEndOfMicrotask();
-  });
-  Polymer.Async.microTask._observer.observe(Polymer.Async.microTask._twiddle, {characterData: true});
-
-})(this);
+})();
 </script>
