@@ -168,10 +168,17 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
     if (observers) {
       finalizeObservers(proto, observers, props);
     }
+    // note: create "working" template that is finalized at instance time
     let template = klass.template;
     if (template) {
-      finalizeTemplate(proto, template.cloneNode(true),
-        klass.is, klass.extends);
+      if (typeof template === 'string') {
+        let t = document.createElement('template');
+        t.innerHTML = template;
+        template = t;
+      } else {
+        template = template.cloneNode(true);
+      }
+      proto._template = template;
     }
   }
 
@@ -310,7 +317,6 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
       window.ShadyCSS.prepareTemplate(template, is, ext);
     }
     proto._bindTemplate(template, propertiesForClass(proto.constructor));
-    proto._template = template;
   }
 
   /**
@@ -367,6 +373,12 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
 
     _initializeProperties() {
       this.constructor.finalize();
+      // note: finalize template when we have access to `localName` to
+      // avoid dependence on `is` for polyfilling styling.
+      if (this._template && !this._template.__polymerFinalized) {
+        this._template.__polymerFinalized = true;
+        finalizeTemplate(this.__proto__, this._template, this.localName);
+      }
       super._initializeProperties();
       // apply property defaults...
       let p$ = propertyDefaultsForClass(this.constructor);
