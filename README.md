@@ -87,9 +87,8 @@ Basic syntax looks like this:
 // Extend Polymer.Element base class
 class MyElement extends Polymer.Element {
   static get is() { return 'my-element'; }
-  static get config() {
-   return { /* properties, observers meta data */ }
-  }
+  static get properties() { return { /* properties metadata */ } }
+  static get observers() { return [ /* observer descriptors */ ] }
   constructor() {
     super();
     ...
@@ -111,7 +110,8 @@ Users can then leverage native subclassing support provided by ES6 to extend and
 // Subclass existing element
 class MyElementSubclass extends MyElement {
   static get is() { return 'my-element-subclass'; }
-  static get config() { ... }
+  static get properties() { return { /* properties metadata */ } }
+  static get observers() { return [ /* observer descriptors */ ] }
   constructor() {
     super();
     ...
@@ -125,12 +125,11 @@ customElements.define(MyElementSubclass.is, MyElementSubclass);
 
 Below are the general steps for defining a custom element using this new syntax:
 
-* Extend from `Polymer.Element`. This class provides the minimal surface area to integrate with 2.0's data binding system. It provides only standard custom element lifecycle with the addition of `ready`. (You can extend from `Polymer.LegacyElement` to get all of the Polymer 1.0 element api, but since most of this api was rarely used, this should not often be needed.)
-* Implement "behaviors" as [mixins that return class expressions](http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/)
-* Property metadata (`properties`) and multi-property/wildcard observers (`observers`) should be put on the class as a static in a property called `config`
-* Element's `is` property should be defined as a static on the class
-* Implement a static `template` getter to provide a template to stamp inside the element. By default the first `<template>` found in a `<dom-module>` with an `id` matching the element's `is` property is used.
-* `listeners` and `hostAttributes` have been removed from element metadata; they can be installed how and when needed but for convenience `ensureAttribute` is available.
+* Extend from `Polymer.Element`. This class provides the minimal surface area to integrate with 2.0's data binding system. It provides only standard custom element lifecycle with the addition of `ready`. (You can apply the `Polymer.LegacyElementMixin` to get all of the Polymer 1.0 element API, but since most of this API was rarely used, this should not often be needed.)
+* Implement "behaviors" as [mixins that return class expressions](http://justinfagnani.com/2015/12/21/real-mixins-with-javascript-classes/) and apply to the base class you are extending from.
+* Property metadata (`properties`) and multi-property/wildcard observers (`observers`) should be put on the class as static getters, but otherwise match the 1.x syntax.
+* In order to provide a template to stamp into the element's shadow DOM, either define a static `is` getter that returns the id of a `dom-module` containing the element's template, or else provide a static `template` getter that returns a template to stamp.  The `template` getter may either return an HTMLTemplateElement or a string containing HTML which will be parsed into a template.
+* `listeners` and `hostAttributes` have been removed from element metadata; listeners and attributes should be installed using standard platform API (`this.addEventListener`, `this.setAttribute`) how and when needed (e.g. in `connectedCallback`).  For convenience `_ensureAttribute` is available that sets an attribute if and only if the element does not yet have that attribute, to match `hostAttribute` semantics.
 
 Note that `Polymer.Element` provides a cleaner base class void of a lot of sugared utility API that present on elements defined with `Polymer()`, such as `fire`, `transform`, etc.  With web platform surface area becoming far more stable across browsers, we intend to hew towards sugaring less and embracing the raw platform API more.  So when using `Polymer.Element`, instead of using the legacy `this.fire('some-event')` API, simply use the equivalent platform API's such as `this.dispatchEvent(new CustomEvent('some-event'), {bubbles: true})`.  #usetheplatform
 
@@ -142,7 +141,7 @@ See below for a visual guide on migrating Polymer 1.0's declarative syntax to th
 
 ## Polyfills
 
-Polymer 2.0 has been developed alongside and tested with a new suite of V1-spec compatible polyfills for Custom Elements and Shadow DOM.   Polymer 2.0 can currently be tested by loading the `v1` branch of [`webcomponentsjs/webcomponents-lite.js`](https://github.com/webcomponents/webcomponentsjs/tree/v1), which is included as a bower dependency to Polymer 2.x and loads all necessary polyfills.  The polyfills are still under active development and are not fully ready for use in other browsers or for production.
+Polymer 2.0 has been developed alongside and tested with a new suite of V1-spec compatible polyfills for Custom Elements and Shadow DOM.   Polymer 2.0 can currently be tested by loading the `v1` branch of [`webcomponentsjs/webcomponents-lite.js`](https://github.com/webcomponents/webcomponentsjs/tree/v1), which is included as a bower dependency to Polymer 2.x and loads all necessary polyfills.
 
 ## Breaking Changes
 Below is a list of intentional breaking changes made in Polymer 2.0, along with their rationale/justification and migration guidance.  If you find changes that broke existing code not documented here, please [file an issue](https://github.com/Polymer/polymer/issues/new) and we'll investigate to determine whether they are expected/intentional or not.
