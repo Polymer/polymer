@@ -235,24 +235,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function runNotifyEffects(inst, notifyProps, props, oldProps, hasPaths) {
     // Notify
     let fxs = inst.__notifyEffects;
-    if (fxs || hasPaths) {
-      let notified;
-      let id = dedupeId++;
-      // Try normal notify effects; if none, fall back to try path notification
-      for (let prop in notifyProps) {
-        if (notifyProps[prop]) {
-          if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, hasPaths)) {
-            notified = true;
-          } else if (hasPaths && notifyPath(inst, prop, props)) {
-            notified = true;
-          }
+    let notified;
+    let id = dedupeId++;
+    // Try normal notify effects; if none, fall back to try path notification
+    for (let prop in notifyProps) {
+      if (notifyProps[prop]) {
+        if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, hasPaths)) {
+          notified = true;
+        } else if (hasPaths && notifyPath(inst, prop, props)) {
+          notified = true;
         }
       }
-      // Flush host if we actually notified and host was batching
-      let host;
-      if (notified && (host = inst.__dataHost) && host._flushProperties) {
-        host._flushProperties();
-      }
+    }
+    // Flush host if we actually notified and host was batching
+    let host;
+    if (notified && (host = inst.__dataHost) && host._flushProperties) {
+      host._flushProperties();
     }
   }
 
@@ -461,22 +459,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function computeLinkedPaths(inst, changedProps, hasPaths) {
     let links;
     if (hasPaths && (links = inst.__dataLinkedPaths)) {
+      const cache = inst.__dataTemp;
       let link;
       for (let a in links) {
         let b = links[a];
         for (let path in changedProps) {
           if (Polymer.Path.isDescendant(a, path)) {
             link = Polymer.Path.translate(a, b, path);
-            inst._setPendingProperty(link, changedProps[path], true);
+            cache[link] = changedProps[link] = changedProps[path];
+            let notifyProps = inst.__dataToNotify || (inst.__dataToNotify = {});
+            notifyProps[link] = true;
           } else if (Polymer.Path.isDescendant(b, path)) {
             link = Polymer.Path.translate(b, a, path);
-            inst._setPendingProperty(link, changedProps[path], true);
+            cache[link] = changedProps[link] = changedProps[path];
+            let notifyProps = inst.__dataToNotify || (inst.__dataToNotify = {});
+            notifyProps[link] = true;
           }
         }
-      }
-      if (inst.__dataPending) {
-        mixin(changedProps, inst.__dataPending);
-        inst.__dataPending = null;
       }
     }
   }
@@ -1712,13 +1711,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // if (window.debug) { debugger; }
         // ----------------------------
         let hasPaths = this.__dataHasPaths;
+        this.__dataHasPaths = false;
         // Compute properties
         runComputedEffects(this, changedProps, oldProps, hasPaths);
         // Compute linked paths
         computeLinkedPaths(this, changedProps, hasPaths);
-        // Capture notify properties prior to possible reentry (propagate, observe)
+        // Clear notify properties prior to possible reentry (propagate, observe),
+        // but after computing effects have a chance to add to them
         let notifyProps = this.__dataToNotify;
-        this.__dataToNotify = this.__dataHasPaths = false;
+        this.__dataToNotify = null;
         // Propagate properties to clients
         runEffects(this, this.__propagateEffects, changedProps, oldProps, hasPaths);
         // Flush clients
@@ -1728,7 +1729,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Observe properties
         runEffects(this, this.__observeEffects, changedProps, oldProps, hasPaths);
         // Notify properties to host
-        runNotifyEffects(this, notifyProps, changedProps, oldProps, hasPaths);
+        if (notifyProps) {
+          runNotifyEffects(this, notifyProps, changedProps, oldProps, hasPaths);
+        }
         // ----------------------------
         // window.debug && console.groupEnd(this.localName + '#' + this.id + ': ' + c);
         // ----------------------------
