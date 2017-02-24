@@ -1,4 +1,4 @@
-<!--
+z<!--
 @license
 Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
@@ -373,44 +373,55 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var list = Polymer.Base.importHref.imported = 
         Polymer.Base.importHref.imported || {};
       var cached = list[link.href];
-      var imprt = cached || link;
       var self = this;
-      var loadListener = function(e) {
-        e.target.__firedLoad = true;
-        e.target.removeEventListener('load', loadListener);
-        e.target.removeEventListener('error', errorListener);
-        return onload.call(self, e);
-      };
-      var errorListener = function(e) {
-        e.target.__firedError = true;
-        e.target.removeEventListener('load', loadListener);
-        e.target.removeEventListener('error', errorListener);
-        return onerror.call(self, e);
-      };
-      if (onload) {
-        imprt.addEventListener('load', loadListener);
-      }
-      if (onerror) {
-        imprt.addEventListener('error', errorListener);
-      }
+
       // if already loaded/erroed, fire 'fake' load/error event
       if (cached) {
-        if (cached.__firedLoad) {
-          cached.dispatchEvent(new Event('load'));
+        if (cached.__loadEvent) {
+          if(onload) {
+            onload.call(self, cached.__loadEvent, cached);
+          }
+          return cached;
         }
-        if (cached.__firedError) {
-          cached.dispatchEvent(new Event('error'));
+        if (cached.__errorEvent) {
+          // try again when previous attempt errored
+          document.head.removeChild(cached);
+          delete list[link.href];
+          cached = null;
         }
-      // otherwise put in dom!
-      } else {
-        list[link.href] = link;
-        optAsync = Boolean(optAsync);
-        if (optAsync) {
-          link.setAttribute('async', '');
-        }
-        document.head.appendChild(link);
       }
-      return imprt;
+
+      // when not already cached and complete, wait for load event
+      var loadListener, errorListener;
+
+      loadListener = function(e) {
+        e.target.__loadEvent = e;
+        e.target.removeEventListener('load', loadListener);
+        e.target.removeEventListener('error', errorListener);
+        if (onload) {
+          onload.call(self, e, link);
+        }
+      };
+      link.addEventListener('load', loadListener);
+
+      errorListener = function(e) {
+        e.target.__errorEvent = e;
+        e.target.removeEventListener('load', loadListener);
+        e.target.removeEventListener('error', errorListener);
+        if (onerror) {
+          onerror.call(self, e, link);
+        }
+      };
+      link.addEventListener('error', errorListener);
+
+      list[link.href] = link;
+      optAsync = Boolean(optAsync);
+      if (optAsync) {
+        link.setAttribute('async', '');
+      }
+      document.head.appendChild(link);
+
+      return link;
     },
 
     /**
