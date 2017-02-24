@@ -356,11 +356,13 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
 
     constructor() {
       super();
-      // note: `this.constructor.prototype` is wrong in Safari so make sure to
-      // use `__proto__`
       Polymer.telemetry.instanceCount++;
-      // add self to host's pending client list
-      hostStack.registerHost(this);
+      // Stamp template
+      if (this._template) {
+        this.root = this._stampTemplate(this._template);
+      } else {
+        this.root = this;
+      }
     }
 
     _initializeProperties() {
@@ -377,7 +379,7 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
           var value = typeof info.value == 'function' ?
             info.value.call(this) :
             info.value;
-          if (this._hasReadOnlyEffect(p)) {
+          if (this._hasPropertyEffect(p)) {
             this._setProperty(p, value)
           } else {
             this[p] = value;
@@ -386,17 +388,11 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
       }
     }
 
-    // reserved for canonical behavior
     connectedCallback() {
       if (window.ShadyCSS) {
         window.ShadyCSS.styleElement(this);
       }
-      if (hostStack.isEmpty()) {
-        // note, this should never recurse to root elements; this will
-        // need new ShadyCSS api
-        // (see https://github.com/webcomponents/shadycss/issues/42)
-        this._flushProperties();
-      }
+      this._flushProperties();
     }
 
     disconnectedCallback() {}
@@ -404,14 +400,7 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
     ready() {
       super.ready();
       if (this._template) {
-        hostStack.beginHosting(this);
-        this.root = this._stampTemplate(this._template);
-        this._flushProperties();
         this.root = this._attachDom(this.root);
-        hostStack.endHosting(this);
-      } else {
-        this.root = this;
-        this._flushProperties();
       }
     }
 
@@ -487,34 +476,6 @@ Polymer.ElementMixin = Polymer.dedupingMixin(function(base) {
 
   return PolymerElement;
 });
-
-let hostStack = {
-
-  stack: [],
-
-  isEmpty() {
-    return !this.stack.length;
-  },
-
-  registerHost(inst) {
-    if (this.stack.length) {
-      let host = this.stack[this.stack.length-1];
-      host._enqueueClient(inst);
-    }
-  },
-
-  beginHosting(inst) {
-    this.stack.push(inst);
-  },
-
-  endHosting(inst) {
-    let stackLen = this.stack.length;
-    if (stackLen && this.stack[stackLen-1] == inst) {
-      this.stack.pop();
-    }
-  }
-
-}
 
 // telemetry
 Polymer.telemetry = {

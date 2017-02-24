@@ -27,6 +27,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           color: black;
         }
       </style>
+      <!-- dummy nodes with notes be removed by subclass -->
+      <i i=[[i]]></i>
+      <i i=[[i]]></i>
+      <i i=[[i]]></i>
+      <i i=[[i]]></i>
+      <i i=[[i]]></i>
+      <input id="input" value="{{foo::input}}" on-custom="handleCustomEvent">
       <span>base element: <code>foo = [[foo]]</code></span>
     </template>
 
@@ -36,6 +43,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         static get is() { return 'base-el' }
         static get properties() {
           return { foo: { type: String, value: 5 } }
+        }
+        constructor() {
+          super();
+          this.handleCustomEvent = sinon.spy();
         }
       }
       customElements.define(BaseEl.is, BaseEl);
@@ -88,6 +99,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var div = document.createElement('div');
           div.textContent = 'child';
           template.content.appendChild(div);
+          // Move input to the end
+          template.content.appendChild(template.content.querySelector('#input'));
+          // Remove all the <i>'s, such that the total number of nodes in
+          // this template is less than the super
+          Array.from(template.content.querySelectorAll('i'))
+            .forEach(i=>i.parentNode.removeChild(i));
           return template;
         }
       }
@@ -147,13 +164,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(childEl.innerHTML, baseEl.innerHTML);
       }
 
-
       // And it's something that we expect.
       var code = child.shadowRoot.querySelector('code');
       assert.equal(code.innerHTML, 'foo = 5');
 
       // And the base style is the same.
       assert.equal(getComputedStyle(base).color, getComputedStyle(child).color);
+
+      // Id map works as expected
+      assert.equal(child.$.input.localName, 'input');
+      assert.equal(child.$.input.id, 'input');
+
+      // 2-way bindings work as expected
+      child.$.input.value = 'changed';
+      child.$.input.dispatchEvent(new CustomEvent('input'));
+      assert.equal(child.foo, 'changed');
+
+      // Declarative event listeners work as expected
+      assert.equal(child.handleCustomEvent.callCount, 0);
+      child.$.input.dispatchEvent(new CustomEvent('custom'));
+      assert.equal(child.handleCustomEvent.callCount, 1);
     });
 
     test('child with properties has updated base template', function() {
@@ -192,6 +222,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       // And the base style is the same.
       assert.equal(getComputedStyle(base).color, getComputedStyle(child).color);
+
+      // Id map works as expected
+      assert.equal(child.$.input.localName, 'input');
+      assert.equal(child.$.input.id, 'input');
+
+      // 2-way bindings work as expected
+      child.$.input.value = 'changed';
+      child.$.input.dispatchEvent(new CustomEvent('input'));
+      assert.equal(child.foo, 'changed');
+
+      // Declarative event listeners work as expected
+      assert.equal(child.handleCustomEvent.callCount, 0);
+      child.$.input.dispatchEvent(new CustomEvent('custom'));
+      assert.equal(child.handleCustomEvent.callCount, 1);
     });
   });
   </script>

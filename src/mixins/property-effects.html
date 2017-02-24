@@ -27,6 +27,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   const CaseMap = Polymer.CaseMap;
   const mixin = Polymer.mixin;
 
+  // For tracking nested clients that will require flushing
+  let hostStack = {
+
+    stack: [],
+
+    isEmpty() {
+      return !this.stack.length;
+    },
+
+    registerHost(inst) {
+      if (this.stack.length) {
+        let host = this.stack[this.stack.length-1];
+        host._enqueueClient(inst);
+      }
+    },
+
+    beginHosting(inst) {
+      this.stack.push(inst);
+    },
+
+    endHosting(inst) {
+      let stackLen = this.stack.length;
+      if (stackLen && this.stack[stackLen-1] == inst) {
+        this.stack.pop();
+      }
+    }
+
+  }
+
   // Monotonically increasing unique ID used for de-duping effects triggered
   // from multiple properties in the same turn
   let dedupeId = 0;
@@ -93,12 +122,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object=} oldProps Bag of previous values for changed properties
    * @private
    */
-  function runEffects(inst, effects, props, oldProps, fromAbove, hasPaths) {
+  function runEffects(inst, effects, props, oldProps, hasPaths) {
     if (effects) {
       let ran;
       let id = dedupeId++;
       for (let prop in props) {
-        if (runEffectsForProperty(inst, effects, id, prop, props, oldProps, fromAbove, hasPaths)) {
+        if (runEffectsForProperty(inst, effects, id, prop, props, oldProps, hasPaths)) {
           ran = true;
         }
       }
@@ -117,7 +146,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {*} old Previous value of changed property
    * @private
    */
-  function runEffectsForProperty(inst, effects, dedupeId, prop, props, oldProps, fromAbove, hasPaths) {
+  function runEffectsForProperty(inst, effects, dedupeId, prop, props, oldProps, hasPaths) {
     let ran;
     let rootProperty = hasPaths ? Polymer.Path.root(prop) : prop;
     let fxs = effects[rootProperty];
@@ -125,7 +154,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
         if ((!fx.info || fx.info.lastRun !== dedupeId) &&
             (!hasPaths || pathMatchesTrigger(prop, fx.trigger))) {
-          fx.fn(inst, prop, props, oldProps, fx.info, fromAbove, hasPaths);
+          fx.fn(inst, prop, props, oldProps, fx.info, hasPaths);
           if (fx.info) {
             fx.info.lastRun = dedupeId;
           }
@@ -203,25 +232,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} oldProps Bag of previous values for changed properties
    * @private
    */
-  function runNotifyEffects(inst, props, oldProps, fromAbove, hasPaths) {
+  function runNotifyEffects(inst, notifyProps, props, oldProps, hasPaths) {
     // Notify
     let fxs = inst.__notifyEffects;
-    if (fxs || hasPaths) {
-      let notified;
-      let id = dedupeId++;
-      // Try normal notify effects; if none, fall back to try path notification
-      for (let prop in props) {
-        if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, fromAbove, hasPaths)) {
+    let notified;
+    let id = dedupeId++;
+    // Try normal notify effects; if none, fall back to try path notification
+    for (let prop in notifyProps) {
+      if (notifyProps[prop]) {
+        if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, hasPaths)) {
           notified = true;
         } else if (hasPaths && notifyPath(inst, prop, props)) {
           notified = true;
         }
       }
-      // Flush host if we actually notified and host was batching
-      let host;
-      if (notified && (host = inst.__dataHost) && host._flushProperties) {
-        host._flushProperties();
-      }
+    }
+    // Flush host if we actually notified and host was batching
+    let host;
+    if (notified && (host = inst.__dataHost) && host._flushProperties) {
+      host._flushProperties();
     }
   }
 
@@ -278,7 +307,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runNotifyEffect(inst, property, props, oldProps, info, fromAbove, hasPaths) {
+  function runNotifyEffect(inst, property, props, oldProps, info, hasPaths) {
     let rootProperty = hasPaths ? Polymer.Path.root(property) : property;
     let path = rootProperty != property ? property : null;
     let value = path ? Polymer.Path.get(inst, path) : inst.__data[property];
@@ -305,7 +334,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /**
    * Handler function for 2-way notification events. Receives context
    * information captured in the `addNotifyListener` closure from the
-   * `_bindListeners` metadata.
+   * `__notifyListeners` metadata.
    *
    * Sets the value of the notified property to the host property or path.  If
    * the event contained path information, translate that path to the host
@@ -343,7 +372,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let detail = event.detail;
     if (detail && detail.queueProperty) {
       if (!inst.__readOnly || !inst.__readOnly[path]) {
-        inst._setPendingPropertyOrPath(path, value, Boolean(detail.path));
+        inst._setPendingPropertyOrPath(path, value, true, Boolean(detail.path));
       }
     } else {
       inst.set(path, value);
@@ -383,23 +412,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Element} inst The instance the effect will be run on
    * @param {Object} changedProps Bag of changed properties
    * @param {Object} oldProps Bag of previous values for changed properties
-   * @return {Object | null | undefined} Bag of newly computed properties from "computed" effects
    */
-  function runComputedEffects(inst, changedProps, oldProps, fromAbove, hasPaths) {
+  function runComputedEffects(inst, changedProps, oldProps, hasPaths) {
     let computeEffects = inst.__computeEffects;
     if (computeEffects) {
       let inputProps = changedProps;
-      let computedProps;
-      while (runEffects(inst, computeEffects, inputProps, fromAbove, hasPaths)) {
+      while (runEffects(inst, computeEffects, inputProps, oldProps, hasPaths)) {
         mixin(oldProps, inst.__dataOld);
         mixin(changedProps, inst.__dataPending);
-        computedProps = mixin(computedProps || {}, inst.__dataPending);
         inputProps = inst.__dataPending;
         inst.__dataPending = null;
       }
-      return computedProps;
-    } else {
-      return undefined;
     }
   }
 
@@ -419,7 +442,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     var result = runMethodEffect(inst, property, props, oldProps, info);
     var computedProp = info.methodInfo;
     if (inst.__propertyEffects && inst.__propertyEffects[computedProp]) {
-      inst._setPendingProperty(computedProp, result);
+      inst._setPendingProperty(computedProp, result, true);
     } else {
       inst[computedProp] = result;
     }
@@ -431,34 +454,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Element} inst The instance whose props are changing
    * @param {Object} changedProps Bag of changed properties
-   * @param {Object | undefined} computedProps Bag of properties newly computed this turn
-   *   via "computed" effects; any linked paths generated via this method
-   *   will be added both to the set of `changedProps` as well as to the
-   *   set of `computedProps`; this is because the `fromAbove: true` case will
-   *   notify only from the `computedProps` bag.
-   * @return {Object | undefined}
    * @private
    */
-  function computeLinkedPaths(inst, changedProps, computedProps, hasPaths) {
+  function computeLinkedPaths(inst, changedProps, hasPaths) {
     let links;
     if (hasPaths && (links = inst.__dataLinkedPaths)) {
       const cache = inst.__dataTemp;
-      computedProps = computedProps || {};
       let link;
       for (let a in links) {
         let b = links[a];
         for (let path in changedProps) {
           if (Polymer.Path.isDescendant(a, path)) {
             link = Polymer.Path.translate(a, b, path);
-            cache[link] = changedProps[link] = computedProps[link] = changedProps[path];
+            cache[link] = changedProps[link] = changedProps[path];
+            let notifyProps = inst.__dataToNotify || (inst.__dataToNotify = {});
+            notifyProps[link] = true;
           } else if (Polymer.Path.isDescendant(b, path)) {
             link = Polymer.Path.translate(b, a, path);
-            cache[link] = changedProps[link] = computedProps[link] = changedProps[path];
+            cache[link] = changedProps[link] = changedProps[path];
+            let notifyProps = inst.__dataToNotify || (inst.__dataToNotify = {});
+            notifyProps[link] = true;
           }
         }
       }
     }
-    return computedProps;
   }
 
   // -- bindings ----------------------------------------------
@@ -518,7 +537,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} info Effect metadata
    * @private
    */
-  function runBindingEffect(inst, path, props, oldProps, info, fromAbove, hasPaths) {
+  function runBindingEffect(inst, path, props, oldProps, info, hasPaths) {
     let value;
     let node = inst._templateNodes[info.index];
     // Subpath notification: transform path and set to client
@@ -528,7 +547,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node.__propertyEffects && node.__propertyEffects[info.name]) {
       let value = props[path];
       path = Polymer.Path.translate(info.value, info.name, path);
-      if (node._setPendingPropertyOrPath(path, value, true)) {
+      if (node._setPendingPropertyOrPath(path, value, false, true)) {
         inst._enqueueClient(node);
       }
     } else {
@@ -778,7 +797,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Sets up a prototypical `_bindListeners` metadata array to be used at
+   * Sets up a prototypical `__notifyListeners` metadata array to be used at
    * instance time to add event listeners for 2-way bindings.
    *
    * @param {Object} model Prototype (instances not currently supported)
@@ -793,12 +812,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function addAnnotatedListener(model, index, property, path, event, negate) {
-    if (!model._bindListeners) {
-      model._bindListeners = [];
-    }
     let eventName = event ||
       (CaseMap.camelToDashCase(property) + '-changed');
-    model._bindListeners.push({
+    model.__notifyListeners = model.__notifyListeners || [];
+    model.__notifyListeners.push({
       index: index,
       property: property,
       path: path,
@@ -809,13 +826,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /**
    * Adds all 2-way binding notification listeners to a host based on
-   * `_bindListeners` metadata recorded by prior calls to`addAnnotatedListener`
+   * `__notifyListeners` metadata recorded by prior calls to`addAnnotatedListener`
    *
    * @param {Object} inst Host element instance
    * @private
    */
-  function setupBindListeners(inst) {
-    let b$ = inst._bindListeners;
+  function setupNotifyListeners(inst) {
+    let b$ = inst.__notifyListeners;
     for (let i=0, l=b$.length, info; (i<l) && (info=b$[i]); i++) {
       let node = inst._templateNodes[info.index];
       addNotifyListener(node, inst, info);
@@ -843,8 +860,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
     }
-    if (inst._bindListeners) {
-      setupBindListeners(inst);
+    if (inst.__notifyListeners) {
+      setupNotifyListeners(inst);
     }
   }
 
@@ -1169,6 +1186,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return name[0].toUpperCase() + name.substring(1);
   }
 
+  /**
+   * Sets the provided properties into pending data on the instance.
+   *
+   * @param {HTMLElement} inst Instance to apply data to
+   * @param {object} props Bag of instance properties to set
+   */
+  function initalizeInstanceProperties(inst, props) {
+    inst.__dataOld = inst.__dataOld || {};
+    inst.__dataPending = inst.__dataPending || {};
+    let readOnly = inst.__readOnly;
+    for (let prop in props) {
+      if (!readOnly || !readOnly[prop]) {
+        inst.__data[prop] = inst.__dataPending[prop] = props[prop];
+      }
+    }
+  }
+
   Polymer.PropertyEffects = Polymer.dedupingMixin(function(superClass) {
 
     const mixin = Polymer.TemplateStamp(Polymer.PropertyAccessors(superClass));
@@ -1184,21 +1218,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _initializeProperties() {
         super._initializeProperties();
+        hostStack.registerHost(this);
         this.__dataInitialized = false;
         this.__dataPendingClients = null;
-        this.__dataFromAbove = false;
+        this.__dataToNotify = null;
         this.__dataLinkedPaths = null;
         this.__dataHasPaths = false;
         // May be set on instance prior to upgrade
         this.__dataCompoundStorage = this.__dataCompoundStorage || null;
         this.__dataHost = this.__dataHost || null;
         this.__dataTemp = {};
-        // update instance properties
+        // Capture instance properties; these will be set into accessors
+        // during first flush. Don't set them here, since we want
+        // these to overwrite defaults/constructor assignments
         for (let p in this.__propertyEffects) {
           if (this.hasOwnProperty(p)) {
-            let value = this[p];
+            this.__dataInstanceProps = this.__dataInstanceProps || {};
+            this.__dataInstanceProps[p] = this[p];
             delete this[p];
-            this[p] = value;
           }
         }
       }
@@ -1348,7 +1385,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   the pending changes bag.
        * @protected
        */
-      _setPendingPropertyOrPath(path, value, isPathNotification) {
+      _setPendingPropertyOrPath(path, value, shouldNotify, isPathNotification) {
         let rootProperty = Polymer.Path.root(Array.isArray(path) ? path[0] : path);
         let hasEffect = this.__propertyEffects && this.__propertyEffects[rootProperty];
         let isPath = (rootProperty !== path);
@@ -1372,7 +1409,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
             this.__dataHasPaths = true;
           }
-          return this._setPendingProperty(path, value);
+          return this._setPendingProperty(path, value, shouldNotify);
         } else {
           if (isPath) {
             Polymer.Path.set(this, path, value);
@@ -1442,7 +1479,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @override
        */
-      _setPendingProperty(property, value) {
+      _setPendingProperty(property, value, shouldNotify) {
         let isPath = this.__dataHasPaths && Polymer.Path.isPath(property);
         let prevProps = isPath ? this.__dataTemp : this.__data;
         if (this._shouldPropertyChange(property, value, prevProps[property])) {
@@ -1466,7 +1503,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           // All changes go into pending property bag, passed to _propertiesChanged
           this.__dataPending[property] = value;
+          // Track properties that should notify separately
+          if (isPath || (this.__notifyEffects && this.__notifyEffects[property])) {
+            this.__dataToNotify = this.__dataToNotify || {};
+            this.__dataToNotify[property] = shouldNotify;
+          }
           return true;
+        }
+      }
+
+      /**
+       * Overrides base implementation to ensure all accessors set `shouldNotify`
+       * to true, for per-property notification tracking.
+       *
+       * @override
+       */
+      _setProperty(property, value) {
+        if (this._setPendingProperty(property, value, true)) {
+          this._invalidateProperties();
         }
       }
 
@@ -1538,7 +1592,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           for (let i=0; i < clients.length; i++) {
             let client = clients[i];
             if (!client.__dataInitialized || client.__dataPending) {
-              client._flushProperties(true);
+              client._flushProperties();
             }
           }
         }
@@ -1561,7 +1615,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // wildcard observers currently only pass the first changed path
             // in the `info` object, and you could do some odd things batching
             // paths, e.g. {'foo.bar': {...}, 'foo': null}
-            this._setPendingPropertyOrPath(path, props[path]);
+            this._setPendingPropertyOrPath(path, props[path], true);
           }
         }
         this._invalidateProperties();
@@ -1574,25 +1628,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * If this is the first time properties are being flushed, the `ready`
        * callback will be called.
        *
-       * Also adds an optional `fromAbove` argument to indicate when properties
-       * are being flushed by a host during data propagation. This information
-       * is used to avoid sending upwards notification events in response to
-       * downward data flow.  This is a performance optimization, but also
-       * critical to avoid infinite looping when an object is notified, since
-       * the default implementation of `_shouldPropertyChange` always returns
-       * true for Objects, and without would result in a notify-propagate-notify
-       * loop.
-       *
-       * @param {boolean=} fromAbove When true, sets `this.__dataFromAbove` to
-       *   `true` for the duration of the call to `_propertiesChanged`.
        * @override
        */
-      _flushProperties(fromAbove) {
+      _flushProperties() {
         if (!this.__dataInitialized) {
-          this.ready();
-        }
-        if (this.__dataPending || this.__dataPendingClients) {
-          this.__dataFromAbove = fromAbove;
+          this.ready()
+        } else if (this.__dataPending || this.__dataPendingClients) {
           super._flushProperties();
           if (!this.__dataCounter) {
             // Clear temporary cache at end of turn
@@ -1617,7 +1658,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       ready() {
+        // Update instance properties that shadowed proto accessors; these take
+        // priority over any defaults set in `properties` or constructor
+        let instanceProps = this.__dataInstanceProps;
+        if (instanceProps) {
+          initalizeInstanceProperties(this, instanceProps);
+        }
+        // Enable acceessors
         this.__dataInitialized = true;
+        // Run normal flush
+        this._flushProperties();
       }
 
       /**
@@ -1639,7 +1689,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _stampTemplate(template) {
+        hostStack.beginHosting(this);
         let dom = super._stampTemplate(template);
+        hostStack.endHosting(this);
         setupBindings(this);
         return dom;
       }
@@ -1653,28 +1705,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       _propertiesChanged(currentProps, changedProps, oldProps) {
-        let hasPaths = this.__dataHasPaths;
-        let fromAbove = this.__dataFromAbove;
-        this.__dataHasPaths = this.__dataFromAbove = false;
         // ----------------------------
         // let c = Object.getOwnPropertyNames(changedProps || {});
         // window.debug && console.group(this.localName + '#' + this.id + ': ' + c);
         // if (window.debug) { debugger; }
         // ----------------------------
+        let hasPaths = this.__dataHasPaths;
+        this.__dataHasPaths = false;
         // Compute properties
-        let computedProps = runComputedEffects(this, changedProps, oldProps, fromAbove, hasPaths);
+        runComputedEffects(this, changedProps, oldProps, hasPaths);
         // Compute linked paths
-        computedProps = computeLinkedPaths(this, changedProps, computedProps, hasPaths);
+        computeLinkedPaths(this, changedProps, hasPaths);
+        // Clear notify properties prior to possible reentry (propagate, observe),
+        // but after computing effects have a chance to add to them
+        let notifyProps = this.__dataToNotify;
+        this.__dataToNotify = null;
         // Propagate properties to clients
-        runEffects(this, this.__propagateEffects, changedProps, oldProps, fromAbove, hasPaths);
+        runEffects(this, this.__propagateEffects, changedProps, oldProps, hasPaths);
         // Flush clients
         this._flushClients();
         // Reflect properties
-        runEffects(this, this.__reflectEffects, changedProps, oldProps, fromAbove, hasPaths);
+        runEffects(this, this.__reflectEffects, changedProps, oldProps, hasPaths);
         // Observe properties
-        runEffects(this, this.__observeEffects, changedProps, oldProps, fromAbove, hasPaths);
+        runEffects(this, this.__observeEffects, changedProps, oldProps, hasPaths);
         // Notify properties to host
-        runNotifyEffects(this, fromAbove ? computedProps : changedProps, oldProps, fromAbove, hasPaths);
+        if (notifyProps) {
+          runNotifyEffects(this, notifyProps, changedProps, oldProps, hasPaths);
+        }
         // ----------------------------
         // window.debug && console.groupEnd(this.localName + '#' + this.id + ': ' + c);
         // ----------------------------
@@ -1798,7 +1855,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           Polymer.Path.set(root, path, value);
         } else {
           if (!this.__readOnly || !this.__readOnly[/** @type {string} */(path)]) {
-            if (this._setPendingPropertyOrPath(path, value)) {
+            if (this._setPendingPropertyOrPath(path, value, true)) {
               this._invalidateProperties();
             }
           }
@@ -1969,7 +2026,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           propPath = /** @type{string} */(path);
         }
-        if (this._setPendingPropertyOrPath(propPath, value, true)) {
+        if (this._setPendingPropertyOrPath(propPath, value, true, true)) {
           this._invalidateProperties();
         }
       }
@@ -2115,6 +2172,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _bindTemplate(template, dynamicFns) {
         // Clear any existing propagation effects inherited from superClass
         this.__propagateEffects = {};
+        this.__notifyListeners = [];
         let notes = this._parseTemplateAnnotations(template);
         processAnnotations(notes);
         for (let i=0, note; (i<notes.length) && (note=notes[i]); i++)  {

@@ -231,7 +231,6 @@ Polymer 2.0 will continue to use a [shim](https://github.com/webcomponents/shady
     * Should be `@apply --foo;`
 * <a name="breaking-customStyle"></a>`element.customStyle` as an object that can be assigned to has been removed; use `element.updateStyles({...})` instead.
 * <a name="breaking-style-location"></a>`<style>` inside of a `<dom-module>`, but outside of `<template>` is no longer supported
-* <a name="breaking-imperative-custom-style"></a>Imperatively created custom-styles (e.g. `document.createElement('style', 'custom-style')`) are no longer supported.
 
 ### Data system
 * <a name="breaking-data-init"></a>An element's template is not stamped & data system not initialized (observers, bindings, etc.) until the element has been connected to the main document.  This is a direct result of the V1 changes that prevent reading attributes in the constructor.

@@ -56,7 +56,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // or when there isn't instance props.
         let options = this.__templatizeOptions;
         if ((props && options.instanceProps) || !options.instanceProps) {
-          this._flushProperties(true);
+          this._flushProperties();
         }
       }
       _configureProperties(props) {
@@ -64,16 +64,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (props) {
           for (let iprop in options.instanceProps) {
             if (iprop in props) {
-              this[iprop] = props[iprop];
+              this._setPendingProperty(iprop, props[iprop]);
             }
           }
         }
         for (let hprop in this.__hostProps) {
-          this[hprop] = this.__dataHost['_host_' + hprop];
+          this._setPendingProperty(hprop, this.__dataHost['_host_' + hprop]);
         }
       }
       forwardHostProp(prop, value) {
-        if (this._setPendingPropertyOrPath(prop, value, true)) {
+        if (this._setPendingPropertyOrPath(prop, value, false, true)) {
           this.__dataHost._enqueueClient(this);
         }
       }
@@ -176,10 +176,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (template.__dataProto) {
           Polymer.mixin(template.__data, template.__dataProto);
         }
-        // Clear any pending data since we're eliding a flush for performance
-        template.__dataOld = {};
+        // Clear any pending data for performance
         template.__dataTemp = {};
-        template.__dataPending = {};
+        template.__dataPending = null;
+        template.__dataOld = null;
+        template._flushProperties();
       }
     }
 
@@ -211,19 +212,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function createNotifyInstancePropEffect(instProp, userNotifyInstanceProp) {
-      return function notifyInstanceProp(inst, prop, props, oldProps, info, fromAbove) {
-        if (!fromAbove) {
-          userNotifyInstanceProp.call(inst.__templatizeOwner,
-            inst, prop, props[prop]);
-        }
+      return function notifyInstanceProp(inst, prop, props) {
+        userNotifyInstanceProp.call(inst.__templatizeOwner,
+          inst, prop, props[prop]);
       }
     }
 
     function createNotifyHostPropEffect() {
-      return function notifyHostProp(inst, prop, props, oldProps, info, fromAbove) {
-        if (!fromAbove) {
-          inst.__dataHost._setPendingPropertyOrPath('_host_' + prop, props[prop], true);
-        }
+      return function notifyHostProp(inst, prop, props) {
+        inst.__dataHost._setPendingPropertyOrPath('_host_' + prop, props[prop], true, true);
       }
     }
 
