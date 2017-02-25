@@ -12,6 +12,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <meta charset="utf-8">
   <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script>
+  var capturedErrors = [];
+  var captureEnabled = false;
+  window.addEventListener('error', function(e) {
+    if (captureEnabled) {
+      capturedErrors.push(e);
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return true;
+    }
+  });
+  </script>
   <script src="../../../web-component-tester/browser.js"></script>
   <link rel="import" href="../../src/utils/async.html">
 </head>
@@ -72,8 +84,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       });
     });
 
-    test('Errors are thrown but the queue is continued in' +
-        ' another microtask.', function(done) {
+    test('Errors are thrown but the queue is continued', function(done) {
+      captureEnabled = true;
       var callCount1 = 0;
       var callCount2 = 0;
       var callCount3 = 0;
@@ -101,112 +113,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       Polymer.Async.microTask.run(callback2);
       Polymer.Async.microTask.run(callback3);
       Polymer.Async.microTask.run(callback4);
-      // Manually flush the queue so the error can be caught.
-      assert.throws(function() {
-        Polymer.Async.microTask.flush();
-      });
-      // Only `callback1` and `callback2` were called during the last flush.
-      assert.equal(callCount1, 1);
-      assert.equal(callCount2, 1);
-      assert.equal(callCount3, 0);
-      assert.equal(callCount4, 0);
-      assert.equal(callCount5, 0);
-      // Manually flush the queue so the error can be caught.
-      assert.throws(function() {
-        Polymer.Async.microTask.flush();
-      });
-      // Only `callback3` was called during the last flush.
-      assert.equal(callCount1, 1);
-      assert.equal(callCount2, 1);
-      assert.equal(callCount3, 1);
-      assert.equal(callCount4, 0);
-      assert.equal(callCount5, 0);
       // All callbacks have been called by the next task.
       setTimeout(function() {
+        captureEnabled = false;
         assert.equal(callCount1, 1);
         assert.equal(callCount2, 1);
         assert.equal(callCount3, 1);
         assert.equal(callCount4, 1);
         assert.equal(callCount5, 1);
+        assert.equal(capturedErrors.length, 2);
+        capturedErrors.length = 0;
         done();
-      });
+      }, 100);
     });
-
-    test('`flush` synchronously runs all functions queued with microtask' +
-        '  timing.', function() {
-      var callCount1 = 0;
-      var callCount2 = 0;
-      var callCount3 = 0;
-      var callback1 = function() {
-        callCount1++;
-      };
-      var callback2 = function() {
-        callCount2++;
-      };
-      var callback3 = function() {
-        callCount3++;
-      };
-      Polymer.Async.microTask.run(callback1);
-      Polymer.Async.microTask.run(callback2);
-      Polymer.Async.microTask.run(callback3);
-      Polymer.Async.microTask.flush();
-      assert.equal(callCount1, 1);
-      assert.equal(callCount2, 1);
-      assert.equal(callCount3, 1);
-    });
-
-    test('`flush` rethrows any error thrown by a dequeued callback and leaves' +
-        ' any remaining callbacks in the queue.', function(done) {
-      var callCount1 = 0;
-      var callCount2 = 0;
-      var callCount3 = 0;
-      var callback1Error = new Error("callback1Error");
-      var callback1 = function() {
-        callCount1++;
-        throw callback1Error;
-      };
-      var callback2Error = new Error("callback2Error");
-      var callback2 = function() {
-        callCount2++;
-        throw callback2Error;
-      };
-      var callback3 = function() {
-        callCount3++;
-      };
-      Polymer.Async.microTask.run(callback1);
-      Polymer.Async.microTask.run(callback2);
-      Polymer.Async.microTask.run(callback3);
-      try {
-        Polymer.Async.microTask.flush();
-        assert.fail();
-      } catch (err) {
-        assert.equal(err, callback1Error);
-      }
-      // `callback1` throws, so items later in the queue were not dequeued or
-      // called during the flush.
-      assert.equal(callCount1, 1);
-      assert.equal(callCount2, 0);
-      assert.equal(callCount3, 0);
-      try {
-        Polymer.Async.microTask.flush();
-        assert.fail();
-      } catch (err) {
-        assert.equal(err, callback2Error);
-      }
-      // `callback2` throws, so items later in the queue were not dequeued or
-      // called during the flush.
-      assert.equal(callCount1, 1);
-      assert.equal(callCount2, 1);
-      assert.equal(callCount3, 0);
-      setTimeout(function() {
-        // `callback3` was called in another microtask.
-        assert.equal(callCount1, 1);
-        assert.equal(callCount2, 1);
-        assert.equal(callCount3, 1);
-        done();
-      });
-    });
-
   });
 
   suite('Cancelling micro tasks', function() {

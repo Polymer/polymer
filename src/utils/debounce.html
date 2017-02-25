@@ -15,30 +15,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
   'use strict';
 
-  /** @constructor */
-  Polymer.Debouncer = function Debouncer() {
-    this._asyncModule = null;
-    this._callback = null;
-    this._timer = null;
-    this.flush = this.flush.bind(this);
-  };
+  /** @typedef {{run: function(function(), number=):number, cancel: function(number)}} */
+  let AsyncModule; // eslint-disable-line no-unused-vars
 
-  Polymer.mixin(Polymer.Debouncer.prototype, {
+  class Debouncer {
+    constructor() {
+      this._asyncModule = null;
+      this._callback = null;
+      this._timer = null;
+    }
     /**
      * Sets the scheduler; that is, a module with the Async interface,
      * a callback and optional arguments to be passed to the run function
      * from the async module.
      *
-     * @param {{run: function, cancel: function}} asyncModule
-     * @param {function} callback
-     * @param {Array=}
+     * @param {!AsyncModule} asyncModule
+     * @param {function()} callback
      */
     setConfig(asyncModule, cb) {
       this._asyncModule = asyncModule;
       this._callback = cb;
-      this._timer = this._asyncModule.run(this.flush);
-    },
-
+      this._timer = this._asyncModule.run(() => {
+        this._timer = null;
+        this._callback()
+      });
+    }
     /**
      * Cancels an active debouncer and returns a reference to itself.
      */
@@ -47,8 +48,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._asyncModule.cancel(this._timer);
         this._timer = null;
       }
-    },
-
+    }
     /**
      * Flushes an active debouncer and returns a reference to itself.
      */
@@ -57,8 +57,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.cancel();
         this._callback();
       }
-    },
-
+    }
     /**
      * Returns true if the debouncer is active.
      *
@@ -67,26 +66,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     isActive() {
       return this._timer != null;
     }
-  });
-
   /**
    * Creates a debouncer if no debouncer is passed as a parameter
    * or it cancels an active debouncer otherwise.
    *
    * @param {Polymer.Debouncer?} debouncer
-   * @param {{run: function, cancel: function}} asyncModule
-   * @param {function} cb
-   * @return {Polymer.Debouncer}
+   * @param {!AsyncModule} asyncModule
+   * @param {function()} cb
+   * @return {!Debouncer}
    */
-  Polymer.Debouncer.debounce = function debounce(debouncer, asyncModule, cb) {
-    if (debouncer instanceof Polymer.Debouncer) {
-      debouncer.cancel();
-    } else {
-      debouncer = new Polymer.Debouncer();
+    static debounce(debouncer, asyncModule, cb) {
+      if (debouncer instanceof Debouncer) {
+        debouncer.cancel();
+      } else {
+        debouncer = new Debouncer();
+      }
+      debouncer.setConfig(asyncModule, cb);
+      return debouncer;
     }
-    debouncer.setConfig(asyncModule, cb);
-    return debouncer;
-  };
+  }
 
+  Polymer.Debouncer = Debouncer;
 })();
 </script>
