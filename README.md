@@ -161,6 +161,7 @@ Polymer 2.0 elements will stamp their templates into shadow roots created using 
 * <a name="breaking-slot-slot"></a>Selection of distributed content into named slots must use `slot="..."` rather than tag/class/attributes selected by `<content>`
 * <a name="breaking-redistribution"></a>Re-distributing content by placing a `<slot>` into an element that itself has named slots requires placing a `name` attribute on the `<slot>` to indicate what content _it_ selects from its host children, and placing a `slot` attribute to indicate where its selected content should be slotted into its parent
 * <a name="breaking-async-distribution"></a>In the V1 "Shady DOM" shim, initial distribution of children into `<slot>` is asynchronous (microtask) to creating the `shadowRoot`, meaning distribution occurs after observers/`ready` (in Polymer 1.0's shim, initial distribution occurred before `ready`).  In order to force distribution synchronously, call `ShadyDOM.flush()`.
+* <a name="breaking-observe-nodes-flush"></a>Calling `Polymer.dom.flush` no longer results in callbacks registered with `Polymer.dom.observeNodes` being called. Instead, the object returned from `Polymer.dom.observeNodes` now contains a `flush` method which can be used to immediately call the registered callback if any changes are pending.
 
 #### Scoped styling
 
