@@ -47,7 +47,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let children = this.children = [];
         for (let n = this.root.firstChild; n; n=n.nextSibling) {
           children.push(n);
-          n._templateInstance = this;
+          n.__templatizeInstance = this;
         }
         if (this.__templatizeOwner.__hideTemplateChildren__) {
           this._showHideChildren(true);
@@ -78,11 +78,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       _addEventListenerToNode(node, eventName, handler) {
-        if (this._methodHost) {
+        if (this._methodHost && this.__templatizeOptions.parentModel) {
+          // If this instance should be considered a parent model, decorate
+          // events this template instance as `model`
           this._methodHost._addEventListenerToNode(node, eventName, (e) => {
             e.model = this;
             handler(e);
           });
+        } else {
+          // Otherwise delegate to the template's host (which could be)
+          // another template instance
+          let templateHost = this.__dataHost.__dataHost;
+          if (templateHost) {
+            templateHost._addEventListenerToNode(node, eventName, handler);
+          }
         }
       }
       _showHideChildren(hide) {
@@ -127,6 +136,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else {
           super._setUnmanagedPropertyToNode(node, prop, value);
         }
+      }
+      /**
+       * Find the parent model of this template instance.  The parent model
+       * is either another templatize instance that had option `parentModel: true`,
+       * or else the host element.
+       *
+       * @return {Polymer.PropertyEffectsInterface} The parent model of this instance
+       */
+      get parentModel() {
+        let model = this.__parentModel;
+        if (!model) {
+          let options;
+          model = this
+          do {
+            // A template instance's `__dataHost` is a <template>
+            // `model.__dataHost.__dataHost` is the template's host
+            model = model.__dataHost.__dataHost;
+          } while ((options = model.__templatizeOptions) && !options.parentModel)
+          this.__parentModel = model;
+        }
+        return model;
       }
     }
 
@@ -272,10 +302,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       modelForElement(host, el) {
         let model;
         while (el) {
-          // An element with a _templateInstance marks the top boundary
+          // An element with a __templatizeInstance marks the top boundary
           // of a scope; walk up until we find one, and then ensure that
           // its __dataHost matches `this`, meaning this dom-repeat stamped it
-          if ((model = el._templateInstance)) {
+          if ((model = el.__templatizeInstance)) {
             // Found an element stamped by another template; keep walking up
             // from its __dataHost
             if (model.__dataHost != host) {
@@ -285,7 +315,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           } else {
             // Still in a template scope, keep going up until
-            // a _templateInstance is found
+            // a __templatizeInstance is found
             el = el.parentNode;
           }
         }
