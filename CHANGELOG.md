@@ -1,5 +1,28 @@
 # Change Log
 
+##[v1.8.1-dev](https://github.com/Polymer/polymer/tree/v1.8.1-dev) (2017-02-27)
+- Exclude SD polyfill tests for Edge due to lack of workarounds for Edge DocFrag bugs. ([commit](https://github.com/Polymer/polymer/commit/de45ba02))
+
+- [ci skip] Update comment to include reference to problem browser. ([commit](https://github.com/Polymer/polymer/commit/72f21fe6))
+
+- Check documentElement instead of body to guarantee it's there. ([commit](https://github.com/Polymer/polymer/commit/a0ad3bbe))
+
+- add tests ([commit](https://github.com/Polymer/polymer/commit/20de9287))
+
+- Adds a setting `preserveStyleIncludes` which, when used with a shadow dom targeted css build and native custom properties, will copy styles into the Shadow DOM template rather than collapsing them into a single style. This will (1) allow the browser to optimize parsing of shared styles because they remain intact, (2) reduce the size of the css build resources when shared styles are used since they are not pre-collapsed. This option does perform registration runtime work to add included styles to element templates. ([commit](https://github.com/Polymer/polymer/commit/2315547e))
+
+- Fix test failures by feature detecting instance `properties` accessors. Can't rely on `__proto__` on IE10, but that browser doesn't need to avoid `properties`. ([commit](https://github.com/Polymer/polymer/commit/f2a12cb1))
+
+- Read properties off of proto during configuration. ([commit](https://github.com/Polymer/polymer/commit/a68c0b3e))
+
+- remove cruft. ([commit](https://github.com/Polymer/polymer/commit/632f0e47))
+
+- Ensure disable-upgrade elements are not "configured". Fixes #4302 ([commit](https://github.com/Polymer/polymer/commit/b36915f6))
+
+- change lastresponse to last-response in dom-bind example ([commit](https://github.com/Polymer/polymer/commit/4427b0b6))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/2d804a28))
+
 ##[v1.8.0-dev](https://github.com/Polymer/polymer/tree/v1.8.0-dev) (2017-02-06)
 - Add comment. ([commit](https://github.com/Polymer/polymer/commit/a42cb209))
 
