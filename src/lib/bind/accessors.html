@@ -14,7 +14,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     // for prototypes (usually)
     prepareModel: function(model) {
+      // TODO(timvdlippe): temporarily store this method as it is explicitly
+      // overridable by the user. Will be fixed in the refactoring for 2.0
+      var dirty = model._isPropertyDirty;
       Polymer.Base.mixin(model, this._modelApi);
+      if (dirty) {
+        model._isPropertyDirty = dirty;
+      }
     },
 
     _modelApi: {
@@ -44,10 +50,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // in the closure for the accessor for efficiency
       _propertySetter: function(property, value, effects, fromAbove) {
         var old = this.__data__[property];
-        // NaN is always not equal to itself,
-        // if old and value are both NaN we treat them as equal
-        // x === x is 10x faster, and equivalent to !isNaN(x)
-        if (old !== value && (old === old || value === value)) {
+
+        if (this._isPropertyDirty(old, value)) {
           this.__data__[property] = value;
           if (typeof value == 'object') {
             this._clearPath(property);
@@ -60,6 +64,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
         }
         return old;
+      },
+
+      /**
+       * Check if a property has changed.
+       * @param  {*} old   The old value of the property
+       * @param  {*} value The new value of the property
+       * @return {Boolean}       Whether the property has changed.
+       */
+      _isPropertyDirty: function(old, value) {
+        // NaN is always not equal to itself,
+        // if old and value are both NaN we treat them as equal
+        // x == x is 10x faster and equivalent to !isNaN(x)
+        return (old !== value && (old === old || value === value));
       },
 
       // Called during _applyConfig (well-known downward data-flow hot path)
