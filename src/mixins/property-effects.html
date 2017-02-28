@@ -27,35 +27,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   const CaseMap = Polymer.CaseMap;
   const mixin = Polymer.mixin;
 
-  // For tracking nested clients that will require flushing
-  let hostStack = {
-
-    stack: [],
-
-    isEmpty() {
-      return !this.stack.length;
-    },
-
-    registerHost(inst) {
-      if (this.stack.length) {
-        let host = this.stack[this.stack.length-1];
-        host._enqueueClient(inst);
-      }
-    },
-
-    beginHosting(inst) {
-      this.stack.push(inst);
-    },
-
-    endHosting(inst) {
-      let stackLen = this.stack.length;
-      if (stackLen && this.stack[stackLen-1] == inst) {
-        this.stack.pop();
-      }
-    }
-
-  }
-
   // Monotonically increasing unique ID used for de-duping effects triggered
   // from multiple properties in the same turn
   let dedupeId = 0;
@@ -1218,8 +1189,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       _initializeProperties() {
         super._initializeProperties();
-        hostStack.registerHost(this);
         this.__dataInitialized = false;
+        this.__dataClientsInitialized = false;
         this.__dataPendingClients = null;
         this.__dataToNotify = null;
         this.__dataLinkedPaths = null;
@@ -1586,6 +1557,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _flushClients() {
+        if (!this.__dataClientsInitialized) {
+          this._readyClients();
+        }
         // Flush all clients
         let clients = this.__dataPendingClients;
         if (clients) {
@@ -1667,8 +1641,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // Enable acceessors
         this.__dataInitialized = true;
-        // Run normal flush
-        this._flushProperties();
+        if (this.__dataPending || this.__dataPendingClients) {
+          // Run normal flush
+          this._flushProperties();
+        } else {
+          this._readyClients();
+        }
+      }
+
+      /**
+       * Perform any initial setup on client dom. Called before the first
+       * `_flushProperties` call on client dom and before any element
+       * observers are called.
+       *
+       * @protected
+       */
+      _readyClients() {
+        this.__dataClientsInitialized = true;
       }
 
       /**
@@ -1690,9 +1679,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _stampTemplate(template) {
-        hostStack.beginHosting(this);
         let dom = super._stampTemplate(template);
-        hostStack.endHosting(this);
         setupBindings(this);
         return dom;
       }
