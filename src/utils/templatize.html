@@ -76,7 +76,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       /**
-       * TODOC
+       * Forwards a host property to this instance.  This method should be
+       * called on instances from the `options.forwardHostProp` to propagate
+       * changes of host properties to each instance.
+       *
+       * Note this method enqueues the change, which are flushed as a batch.
+       *
+       * @param {string} prop Property or path name
+       * @param {*} value Value of the property to forward
        */
       forwardHostProp(prop, value) {
         if (this._setPendingPropertyOrPath(prop, value, false, true)) {
@@ -267,17 +274,102 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * TODOC
+     * Module for preparing and stamping instances of templates that utilize
+     * Polymer's data-binding and declarative event listener features.
+     *
+     * Example:
+     *
+     *     // Get a template from somewhere, e.g. light DOM
+     *     let template = this.querySelector('template');
+     *     // Prepare the template
+     *     let TemplateClass = Polymer.Tempaltize.templatize(template);
+     *     // Instance the template with an initial data model
+     *     let instance = new TemplateClass({myProp: 'initial'});
+     *     // Insert the instance's DOM somewhere, e.g. element's shadow DOM
+     *     this.shadowRoot.appendChild(instance.root);
+     *     // Changing a property on the instance will propagate to bindings
+     *     // in the template
+     *     instance.myProp = 'new value';
+     *
+     * The `options` dictionary passed to `templatize` allows for customizing
+     * features of the generated template class, including how outer-scope host
+     * properties should be forwarded into template instances, how any instance
+     * properties added into the template's scope should be notified out to
+     * the host, and whether the instance should be decorated as a "parent model"
+     * of any event handlers.
+     *
+     *     // Customze property forwarding and event model decoration
+     *     let TemplateClass = Polymer.Tempaltize.templatize(template, this, {
+     *       parentModel: true,
+     *       instanceProps: {...},
+     *       forwardHostProp(property, value) {...},
+     *       notifyInstanceProp(instance, property, value) {...},
+     *     });
+     *
      *
      * @namespace
      * @memberof Polymer
+     * @summary Module for preparing and stamping instances of templates
+     *   utilizing Polymer templating features.
      */
     const Templatize = {
 
       /**
-       * TODOC
+       * Returns an anonymous `Polymer.PropertyEffects` class bound to the
+       * `<template>` provided.  Instancing the class will result in the
+       * template being stamped into document fragment stored as the instance's
+       * `root` property, after which it can be appended to the DOM.
+       *
+       * Templates may utilize all Polymer data-binding features as well as
+       * declarative event listeners.  Event listeners and inline computing
+       * functions in the template will be called on the host of the template.
+       *
+       * The constructor returned takes a single argument dictionary of initial
+       * property values to propagate into template bindings.  Additionally
+       * host properties can be forwarded in, and instance properties can be
+       * notified out by providing optional callbacks in the `options` dictionary.
+       *
+       * Valid configuration in `options` are as follows:
+       *
+       * - `forwardHostProp(property, value)`: Called when a property referenced
+       *   in the template changed on the template's host. As this library does
+       *   not retain references to templates instanced by the user, it is the
+       *   templatize owner's responsibility to forward host property changes into
+       *   user-stamped instances.  The `instance.forwardHostProp(property, value)`
+       *    method on the generated class should be called to forward host
+       *   properties into the template to prevent unnecessary property-changed
+       *   notifications. Any properties referenced in the template that are not
+       *   defined in `instanceProps` will be notified up to the template's host
+       *   automatically.
+       * - `instanceProps`: Dictionary of property names that will be added
+       *   to the instance by the templatize owner.  These properties shadow any
+       *   host properties, and changes within the template to these properties
+       *   will result in `notifyInstanceProperties` to be called.
+       * - `notifyInstanceProperties(instance, property, value)`: Called when
+       *   an instance property changes.  Users may choose to call `notifyPath`
+       *   on e.g. the owner to notify the change.
+       * - `parentModel`: When `true`, events handled by declarative event listeners
+       *   (`on-event="handler"`) will be decorated with a `model` property pointing
+       *   to the template instance that stamped it.  It will also be returned
+       *   from `instance.parentModel` in cases where template instance nesting
+       *   causes an inner model to shadow an outer model.
+       *
+       * Note that the class returned from `templatize` is generated only once
+       * for a given `<template>` using `options` from the first call for that
+       * template, and the cached class is returned for all subsequent calls to
+       * `templatize` for that template.  As such, `options` callbacks should not
+       * close over owner-specific properties since only the first `options` is
+       * used; rather, callbacks are called bound to the `owner`, and so context
+       * needed from the callbacks (such as references to `instances` stamped)
+       * should be stored on the `owner` such that they can be retrieved via `this`.
        *
        * @memberof Polymer.Templatize
+       * @param {HTMLTemplateElement} template Template to templatize
+       * @param {*} owner Owner of the template instances; any optional callbacks
+       *   will be bound to this owner.
+       * @param {*} options Options dictionary (see summary for details)
+       * @return {TemplateInstanceBase} Generated class bound to the template
+       *   provided
        */
       templatize(template, owner, options) {
         if (template.__templatizeOwner) {
@@ -320,8 +412,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @memberof Polymer.Templatize
        * @method modelForElement
        * @param {HTMLElement} el Element for which to return a template model.
-       * @return {TemplateInstanceBase} Model representing the binding scope for
-       *   the element.
+       * @return {TemplateInstanceBase} Template instance representing the
+       *   binding scope for the element
        */
       modelForElement(host, el) {
         let model;
