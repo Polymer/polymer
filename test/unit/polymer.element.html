@@ -288,6 +288,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   });
   </script>
 
+  <dom-module id="element-with-bind-listeners">
+    <template>
+      <div id="content" imaginary-prop="{{someBindListener}}">[[prop]]</div>
+    </template>
+  </dom-module>
+
+  <dom-module id="sub-extended-template">
+    <script>
+    HTMLImports.whenReady(function() {
+
+      // Setting up property bind listeners in both base and sub class
+      // is required to catch regression bug
+      class ElementWithBindListeners extends window.MyElement {
+        static get is() { return 'element-with-bind-listeners'; }
+      }
+
+      class SubExtendedTemplate extends ElementWithBindListeners {
+        static get is() { return 'sub-extended-template'; }
+        static get template() {
+          if (!this.hasOwnProperty('_template')) {
+            const baseClass = Object.getPrototypeOf(this.prototype).constructor;
+            this._template = baseClass.template.cloneNode(true);
+            const newElement = document.createElement('div');
+            newElement.id = 'subContent';
+            newElement.setAttribute('imaginary-prop', '{{prop}}');
+            this._template.content.appendChild(newElement);
+          }
+          return this._template;
+        }
+      }
+
+      customElements.define(ElementWithBindListeners.is, ElementWithBindListeners);
+      customElements.define(SubExtendedTemplate.is, SubExtendedTemplate);
+    })
+    </script>
+  </dom-module>
+
   <test-fixture id="my-element-attr">
     <template>
       <my-element prop="attr"></my-element>
@@ -524,25 +561,35 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       assert.equal(el.$.subContent.textContent, el.prop2);
       assert.notOk(el.$.content);
     });
+  });
 
-    suite('use without dom-module', function() {
-      var el;
+  suite('extend sub-class template', function() {
+    var el, baseEl;
 
-      setup(function() {
-        el = document.createElement('no-dom-module');
-        document.body.appendChild(el);
-      });
+    setup(function() {
+      el = document.createElement('sub-extended-template');
+      document.body.appendChild(el);
+      baseEl = document.createElement('element-with-bind-listeners');
+      document.body.appendChild(baseEl);
+    });
 
-      teardown(function() {
-        document.body.removeChild(el);
-      });
+    teardown(function() {
+      document.body.removeChild(el);
+      document.body.removeChild(baseEl);
+    });
 
-      test('template', function() {
-        assert.ok(el.$.child);
-        assert.equal(el.$.child.textContent, 'Content');
-        assert.equal(window.ShadyCSS.getComputedStyleValue(el, 'border-top-width'), '10px');
-      });
-    })
+    test('has original template', function() {
+      assert.equal(el.prop, 'base');
+      assert.equal(el.$.content.textContent, el.prop);
+    });
+
+    test('has new element', function() {
+      assert.ok(el.$.subContent);
+    });
+
+    test('base doesnt have new element', function() {
+      assert.notOk(baseEl.$.subContent);
+    });
   });
 
   </script>
