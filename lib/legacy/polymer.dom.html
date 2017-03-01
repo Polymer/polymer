@@ -1,0 +1,277 @@
+<!--
+@license
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/flattened-nodes-observer.html">
+<link rel="import" href="../utils/flush.html">
+<script>
+(function() {
+
+  const p = Element.prototype;
+  const normalizedMatchesSelector = p.matches || p.matchesSelector ||
+    p.mozMatchesSelector || p.msMatchesSelector ||
+    p.oMatchesSelector || p.webkitMatchesSelector;
+
+  /**
+   * Cross-platform `element.matches` shim.
+   *
+   * TODOC
+   *
+   * @function matchesSelector
+   * @memberof Polymer.dom
+   * @param {Node} node Node to check selector against
+   * @param {string} selector Selector to match
+   * @return {boolean} True if node matched selector
+   */
+  const matchesSelector = function(node, selector) {
+    return normalizedMatchesSelector.call(node, selector);
+  }
+
+  class DomApi {
+
+    constructor(node) {
+      this.node = node;
+    }
+
+    /**
+     * TODOC
+     */
+    observeNodes(callback) {
+      return new Polymer.FlattenedNodesObserver(this.node, callback);
+    }
+
+    /**
+     * TODOC
+     */
+    unobserveNodes(observerHandle) {
+      observerHandle.disconnect();
+    }
+
+    /**
+     * TODOC
+     */
+    notifyObserver() {}
+
+    /**
+     * TODOC
+     */
+    deepContains(node) {
+      if (this.node.contains(node)) {
+        return true;
+      }
+      let n = node;
+      let doc = node.ownerDocument;
+      // walk from node to `this` or `document`
+      while (n && n !== doc && n !== this.node) {
+        // use logical parentnode, or native ShadowRoot host
+        n = Polymer.dom(n).parentNode || n.host;
+      }
+      return n === this.node;
+    }
+
+    /**
+     * TODOC
+     */
+    getOwnerRoot() {
+      return this.node.getRootNode();
+    }
+
+    /**
+     * TODOC
+     */
+    getDistributedNodes() {
+      return (this.node.localName === 'slot') ?
+        this.node.assignedNodes({flatten: true}) :
+        [];
+    }
+
+    /**
+     * TODOC
+     */
+    getDestinationInsertionPoints() {
+      let ip$ = [];
+      let n = this.node.assignedSlot;
+      while (n) {
+        ip$.push(n);
+        n = n.assignedSlot;
+      }
+      return ip$;
+    }
+
+    /**
+     * TODOC
+     */
+    importNode(externalNode, deep) {
+      let doc = this.node instanceof Document ? this.node :
+        this.node.ownerDocument;
+      return doc.importNode(externalNode, deep);
+    }
+
+    /**
+     * TODOC
+     */
+    getEffectiveChildNodes() {
+      return Polymer.FlattenedNodesObserver.getFlattenedNodes(this.node);
+    }
+
+    /**
+     * TODOC
+     */
+    queryDistributedElements(selector) {
+      let c$ = this.getEffectiveChildNodes();
+      let list = [];
+      for (let i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+        if ((c.nodeType === Node.ELEMENT_NODE) &&
+            matchesSelector(c, selector)) {
+          list.push(c);
+        }
+      }
+      return list;
+    }
+
+    /**
+     * TODOC
+     */
+    get activeElement() {
+      let node = this.node;
+      return node._activeElement !== undefined ? node._activeElement : node.activeElement;
+    }
+  }
+
+  function forwardMethods(proto, methods) {
+    for (let i=0; i < methods.length; i++) {
+      let method = methods[i];
+      proto[method] = function() {
+        return this.node[method].apply(this.node, arguments);
+      }
+    }
+  }
+
+  function forwardReadOnlyProperties(proto, properties) {
+    for (let i=0; i < properties.length; i++) {
+      let name = properties[i];
+      Object.defineProperty(proto, name, {
+        get: function() {
+          return this.node[name];
+        },
+        configurable: true
+      });
+    }
+  }
+
+  function forwardProperties(proto, properties) {
+    for (let i=0; i < properties.length; i++) {
+      let name = properties[i];
+      Object.defineProperty(proto, name, {
+        get: function() {
+          return this.node[name];
+        },
+        set: function(value) {
+          this.node[name] = value;
+        },
+        configurable: true
+      });
+    }
+  }
+
+  forwardMethods(DomApi.prototype, [
+    'cloneNode', 'appendChild', 'insertBefore', 'removeChild',
+    'replaceChild', 'setAttribute', 'removeAttribute',
+    'querySelector', 'querySelectorAll'
+  ]);
+
+  forwardReadOnlyProperties(DomApi.prototype, [
+    'parentNode', 'firstChild', 'lastChild',
+    'nextSibling', 'previousSibling', 'firstElementChild',
+    'lastElementChild', 'nextElementSibling', 'previousElementSibling',
+    'childNodes', 'children', 'classList'
+  ]);
+
+  forwardProperties(DomApi.prototype, [
+    'textContent', 'innerHTML'
+  ]);
+
+
+  class EventApi {
+    constructor(event) {
+      this.event = event;
+    }
+
+    /**
+     * TODOC
+     */
+    get rootTarget() {
+      return this.event.composedPath()[0];
+    }
+
+    /**
+     * TODOC
+     */
+    get localTarget() {
+      return this.event.target;
+    }
+
+    /**
+     * TODOC
+     */
+    get path() {
+      return this.event.composedPath();
+    }
+  }
+
+  /**
+   * Legacy DOM manipulation API used to abstract differences between native
+   * Shadow DOM and "Shady DOM" when polyfilling on older browsers.
+   *
+   * Note that in Polymer 2.x use of `Polymer.dom` is no longer required and
+   * in the majority of cases simply facades directly to the standard native
+   * API.
+   *
+   * TODOC
+   *
+   * @memberof Polymer
+   * @param {Node|Event} obj Node or event to operate on
+   * @return {DomApi|EventApi} Wrapper providing either node API or event API
+   */
+  Polymer.dom = function(obj) {
+    obj = obj || document;
+    let ctor = obj instanceof Event ? EventApi : DomApi;
+    if (!obj.__domApi) {
+      obj.__domApi = new ctor(obj);
+    }
+    return obj.__domApi;
+  };
+
+  Polymer.dom.matchesSelector = matchesSelector;
+
+  /**
+   * TODOC (not sure how to alias)
+   *
+   * @memberof Polymer.dom
+   */
+  Polymer.dom.flush = Polymer.flush;
+
+  /**
+   * TODOC (not sure how to alias)
+   *
+   * @memberof Polymer.dom
+   */
+  Polymer.dom.addDebouncer = Polymer.enqueueDebouncer;
+
+  // expose BC settings.
+  let settings = Polymer.Settings || {};
+  settings.useShadow = !(window.ShadyDOM);
+  settings.useNativeCSSProperties =
+    Boolean(!window.ShadyCSS || window.ShadyCSS.nativeCss);
+  settings.useNativeCustomElements =
+    !(window.customElements.polyfillWrapFlushCallback);
+  Polymer.Settings = settings;
+
+})();
+</script>
