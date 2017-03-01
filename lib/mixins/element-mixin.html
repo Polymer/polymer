@@ -49,6 +49,57 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * features including template stamping, data-binding, attribute deserialization,
    * and property change observation.
    *
+   * Subclassers may provide the following static getters to return metadata
+   * used to configure Polymer's features for the class:
+   *
+   * - `static get is()`: When the template is provided via a `dom-module`,
+   *   users should return the `dom-module` id from a static `is` getter.  If
+   *   no template is needed or the template is provided directly via the
+   *   `template` getter, there is no need to define `is` for the element.
+   *
+   * - `static get template()`: Users may provide the template directly (as
+   *   opposed to via `dom-module`) by implementing a static `template` getter.
+   *   The getter may return an `HTMLTemplateElement` or a string, which will
+   *   automatically be parsed into a template.
+   *
+   * - `static get properties()`: Should return an object describing
+   *   property-related metadata used by Polymer features (key: property name
+   *   value: object containing property metadata). Valid keys in per-property
+   *   metadata include:
+   *   - `type` (String|Number|Object|Array|...): Used by
+   *     `attributeChangedCallback` to determine how string-based attributes
+   *     are deserialized to JavaScript property values.
+   *   - `notify` (boolean): Causes a change in the property to fire a
+   *     non-bubbling event called `<property>-changed`. Elements that have
+   *     enabled two-way binding to the property use this event to observe changes.
+   *   - `readOnly` (boolean): Creates a getter for the property, but no setter.
+   *     To set a read-only property, use the private setter method
+   *     `_setProperty(property, value)`.
+   *   - `observer` (string): Observer method name that will be called when
+   *     the property changes. The arguments of the method are
+   *     `(value, previousValue)`.
+   *   - `computed` (string): String describing method and dependent properties
+   *     for computing the value of this property (e.g. `'computeFoo(bar, zot)'`).
+   *     Computed properties are read-only by default and can only be changed
+   *     via the return value of the computing method.
+   *
+   * - `static get observers()`: Array of strings describing multi-property
+   *   observer methods and their dependent properties (e.g.
+   *   `'observeABC(a, b, c)'`).
+   *
+   * The base class provides default implementations for the following standard
+   * custom element lifecycle callbacks; users may override these, but should
+   * call the super method to ensure
+   * - `constructor`: Run when the element is created or upgraded
+   * - `connectedCallback`: Run each time the element is connected to the
+   *   document
+   * - `disconnectedCallback`: Run each time the element is disconnected from
+   *   the document
+   * - `attributeChangedCallback`: Run each time an attribute in
+   *   `observedAttributes` is set or removed (note: this element's default
+   *   `observedAttributes` implementation will automatically return an array
+   *   of dash-cased attributes based on `properties`)
+   *
    * @polymerMixin
    * @mixes Polymer.PropertyEffects
    * @memberof Polymer
@@ -259,31 +310,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * alter these settings. However, additional `observers` may be added
      * by subclasses.
      *
-     * @param {string} name Name of the property.
-     * @param {*=} info Info object from which to create property effects.
-     * Supported keys:
+     * The info object should may contain property metadata as follows:
      *
-     * * type: {function} type to which an attribute matching the property
+     * * `type`: {function} type to which an attribute matching the property
      * is deserialized. Note the property is camel-cased from a dash-cased
      * attribute. For example, 'foo-bar' attribute is dersialized to a
      * property named 'fooBar'.
      *
-     * * readOnly: {boolean} creates a readOnly property and
+     * * `readOnly`: {boolean} creates a readOnly property and
      * makes a private setter for the private of the form '_setFoo' for a
      * property 'foo',
      *
-     * * computed: {string} creates a computed property. A computed property
+     * * `computed`: {string} creates a computed property. A computed property
      * also automatically is set to `readOnly: true`. The value is calculated
      * by running a method and arguments parsed from the given string. For
      * example 'compute(foo)' will compute a given property when the
      * 'foo' property changes by executing the 'compute' method. This method
      * must return the computed value.
      *
-     * * reflectToAttriute: {boolean} If true, the property value is reflected
+     * * `reflectToAttriute`: {boolean} If true, the property value is reflected
      * to an attribute of the same name. Note, the attribute is dash-cased
      * so a property named 'fooBar' is reflected as 'foo-bar'.
      *
-     * * notify: {boolean} sends a non-bubbling notification event when
+     * * `notify`: {boolean} sends a non-bubbling notification event when
      * the property changes. For example, a property named 'foo' sends an
      * event named 'foo-changed' with `event.detail` set to the value of
      * the property.
@@ -291,22 +340,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * * observer: {string} name of a method that runs when the property
      * changes. The arguments of the method are (value, previousValue).
      *
+     * Note: Users may want control over modifying property
+     * effects via subclassing. For example, a user might want to make a
+     * reflectToAttribute property not do so in a subclass. We've chosen to
+     * disable this because it leads to additional complication.
+     * For example, a readOnly effect generates a special setter. If a subclass
+     * disables the effect, the setter would fail unexpectedly.
+     * Based on feedback, we may want to try to make effects more malleable
+     * and/or provide an advanced api for manipulating them.
+     * Also consider adding warnings when an effect cannot be changed.
+     *
      * @param {HTMLElement} proto
-     * @param {string} name
-     * @param {object} info
-     * @param {object} props
+     * @param {string} name Name of the property.
+     * @param {object} info Info object from which to create property effects.
+     * Supported keys:
+     * @param {object} allProps Flattened map of all properties defined in this
+     *   element (including inherited properties)
      * @private
      */
-    /* Note: Users may want control over modifying property
-    effects via subclassing. For example, a user might want to make a
-    reflectToAttribute property not do so in a subclass. We've chosen to
-    disable this because it leads to additional complication.
-    For example, a readOnly effect generates a special setter. If a subclass
-    disables the effect, the setter would fail unexpectedly.
-    Based on feedback, we may want to try to make effects more malleable
-    and/or provide an advanced api for manipulating them.
-    Also consider adding warnings when an effect cannot be changed.
-    */
     function createPropertyFromConfig(proto, name, info, allProps) {
       // computed forces readOnly...
       if (info.computed) {
@@ -366,6 +417,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     class PolymerElement extends polymerElementBase {
 
+      /**
+       * Standard Custom Elements V1 API.  The default implementation returns
+       * a list of dash-cased attributes based on a flattening of all properties
+       * declared in `static get properties()` for this element and any
+       * superclasses.
+       *
+       * @return {Array} Observed attribute list
+       */
       static get observedAttributes() {
         if (!this.hasOwnProperty(goog.reflect.objectProperty('__observedAttributes', this))) {
           let list = [];
@@ -383,6 +442,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * ensure that class finalization work has been completed.
        * May be called by users to eagerly perform class finalization work
        * prior to the creation of the first element instance.
+       *
+       * Class finalization work generally includes meta-programming such as
+       * creating property accessors and any property effect metadata needed for
+       * the features used.
+       *
        * @public
        */
       static finalize() {
@@ -391,6 +455,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
+      /**
+       * Returns the template stamped into this element's shadow root.
+       *
+       * If a `static get is()` getter is defined, the default implementation
+       * will return the first `<template>` in a `dom-module` whose `id`
+       * matches this element's `is`.
+       *
+       * Users may override this getter to return an arbitrary template
+       * (in which case the `is` getter is unnecessary). The template returned
+       * may be either an `HTMLTemplateElement` or a string that will be
+       * automatically parsed into a template.
+       *
+       * Note that when subclassing, if the super class overrode the default
+       * implementation and the subclass would like to provide an alternate
+       * template via a `dom-module`, it should override this getter and
+       * return `Polymer.DomModule.import(this.is, 'template')`.
+       *
+       * If a subclass would like to modify the super class template, it should
+       * clone it rather than modify it in place.  If the getter does expensive
+       * work such as cloning/modifying a template, it should memoize the
+       * template for maximum performance:
+       *
+       *   let memoizedTemplate;
+       *   class MySubClass extends MySuperClass {
+       *     static get template() {
+       *       if (!memoizedTemplate) {
+       *         memoizedTemplate = super.template.cloneNode(true);
+       *         let subContent = document.createElement('div');
+       *         subContent.textContent = 'This came from MySubClass';
+       *         memoizedTemplate.appendChild(subContent);
+       *       }
+       *       return memoizedTemplate;
+       *     }
+       *   }
+       */
       static get template() {
         if (!this.hasOwnProperty(goog.reflect.objectProperty('_template', this))) {
           this._template = Polymer.DomModule.import(this.is, 'template') ||
@@ -413,6 +512,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
+      /**
+       * Overrides the default `Polymer.PropertyAccessors` to ensure class
+       * metaprogramming related to property accessors and effects is completed.
+       *
+       * It also initializes any property defaults based on the `properties`
+       * metadata's `value` property.
+       *
+       * @override
+       */
       _initializeProperties() {
         this.constructor.finalize();
         // note: finalize template when we have access to `localName` to
@@ -498,12 +606,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Update styling for this element
+       * When using the ShadyCSS scoping and custom property shim, causes all
+       * shimmed styles in this element (and its subtree) to be updated
+       * based on current custom property values.
        *
-       * @param {Object=} properties
-       *  Override styling with an object of properties where the keys are css properties, and the values are strings
-       *  Example: `this.updateStyles({'color': 'blue'})`
-       *  These properties are retained unless a value of `null` is set.
+       * The optional parameter overrides inline custom property styles with an
+       * object of properties where the keys are CSS properties, and the values
+       * are strings.
+       *
+       * Example: `this.updateStyles({'--color': 'blue'})`
+       *
+       * These properties are retained unless a value of `null` is set.
+       *
+       * @param {Object=} properties Bag of custom property key/values to
+       *   apply to this element.
        */
       updateStyles(properties) {
         if (window.ShadyCSS) {
@@ -551,6 +667,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   };
 
+  /**
+   * When using the ShadyCSS scoping and custom property shim, causes all
+   * shimmed `styles` (via `custom-style`) in the document (and its subtree)
+   * to be updated based on current custom property values.
+   *
+   * The optional parameter overrides inline custom property styles with an
+   * object of properties where the keys are CSS properties, and the values
+   * are strings.
+   *
+   * Example: `Polymer.updateStyles({'--color': 'blue'})`
+   *
+   * These properties are retained unless a value of `null` is set.
+   *
+   * @param {Object=} properties Bag of custom property key/values to
+   *   apply to the document.
+   */
   Polymer.updateStyles = function(props) {
     if (window.ShadyCSS) {
       window.ShadyCSS.styleDocument(props);
