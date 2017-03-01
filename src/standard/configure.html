@@ -53,6 +53,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // storage for configuration
     _setupConfigure: function(initialConfig) {
       this._config = {};
+      this.__effectsSkippedDuringConfig = {};
       this._handlers = [];
       this._aboveConfig = null;
       if (initialConfig) {
@@ -163,32 +164,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (var p in config) {
           var fx = fx$[p];
           if (fx) {
+            var skippedEffects = [];
             for (var i=0, l=fx.length, x; (i<l) && (x=fx[i]); i++) {
               // TODO(kschaaf): computed annotations are excluded from top-down
               // configure for now; to be revisited
               if (x.kind === 'annotation') {
-                var node = this._nodes[x.effect.index];
-                var name = x.effect.propertyName;
-                // seeding configuration only
-                var isAttr = (x.effect.kind == 'attribute');
-                var hasEffect = (node._propertyEffects &&
-                  node._propertyEffects[name]);
-                if (node._configValue && (hasEffect || !isAttr)) {
-                  var value = (p === x.effect.value) ? config[p] :
-                    this._get(x.effect.value, config);
-                  value = this._computeFinalAnnotationValue(node, name, value,
-                                                            x.effect);
-                  if (isAttr) {
-                    // For attribute bindings, flow through the same ser/deser
-                    // process to ensure the value is the same as if it were
-                    // bound through the attribute
-                    value = node.deserialize(this.serialize(value),
-                      node._propertyInfo[name].type);
-                  }
-                  node._configValue(name, value);
-                }
+                var path = x.effect.value;
+                var value = (path === p) ? config[p] : this._get(path, config);
+                x.fn.call(this, path, value, x.effect);
+              } else {
+                skippedEffects.push(x);
               }
             }
+            this.__effectsSkippedDuringConfig[p] = skippedEffects;
           }
         }
       }
@@ -202,17 +190,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._flushHandlers();
     },
 
-    // NOTE: values are already propagated to children via
-    // _distributeConfig so propagation triggered by effects here is
-    // redundant, but safe due to dirty checking
     _applyConfig: function(config, aboveConfig) {
       for (var n in config) {
         // Don't stomp on values that may have been set by other side effects
         if (this[n] === undefined) {
-          // Call _propertySet for any properties with accessors, which will
-          // initialize read-only properties also; set quietly if value was
-          // configured from above, as opposed to default
-          this.__setProperty(n, config[n], n in aboveConfig);
+          var effects = this.__effectsSkippedDuringConfig[n] || (
+            this._propertyEffects && this._propertyEffects[n]);
+          // Call _propertySetter for any properties with effects; set
+          // fromAbove if value was configured from above
+          if (effects) {
+            this._propertySetter(n, config[n], effects, n in aboveConfig);
+          } else {
+            this[n] = config[n];
+          }
         }
       }
     },
