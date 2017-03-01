@@ -16,13 +16,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
-  // let DIRECTION_MAP = {
-  //   x: 'pan-x',
-  //   y: 'pan-y',
-  //   none: 'none',
-  //   all: 'auto'
-  // };
-
   // detect native touch action support
   let HAS_NATIVE_TA = typeof document.head.style.touchAction === 'string';
   let GESTURE_KEY = '__polymerGestures';
@@ -45,6 +38,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     } catch (e) {
       return false;
     }
+  })();
+
+  /* eslint no-empty: ["error", { "allowEmptyCatch": true }] */
+  // check for passive event listeners
+  let SUPPORTS_PASSIVE = false;
+  (function() {
+    try {
+      let opts = Object.defineProperty({}, 'passive', {get: function() {SUPPORTS_PASSIVE = true;}})
+      window.addEventListener('test', null, opts);
+      window.removeEventListener('test', null, opts);
+    } catch(e) {}
   })();
 
   // Check for touch-only devices
@@ -96,7 +100,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  function ignoreMouse() {
+  function ignoreMouse(e) {
     if (!POINTERSTATE.mouse.mouseIgnoreJob) {
       setupTeardownMouseCanceller(true);
     }
@@ -105,6 +109,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       POINTERSTATE.mouse.target = null;
       POINTERSTATE.mouse.mouseIgnoreJob = null;
     };
+    POINTERSTATE.mouse.target = e.composedPath()[0];
     POINTERSTATE.mouse.mouseIgnoreJob = Polymer.Debouncer.debounce(
           POINTERSTATE.mouse.mouseIgnoreJob
         , Polymer.Async.timeOut.after(MOUSE_TIMEOUT)
@@ -196,6 +201,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     stateObj.upfn = null;
   }
 
+  // use a document-wide touchend listener to start the ghost-click prevention mechanism
+  // Use passive event listeners, if supported, to not affect scrolling performance
+  document.addEventListener('touchend', ignoreMouse, SUPPORTS_PASSIVE ? {passive: true} : false);
+
   /**
    * Module for adding listeners to a node for the following normalized
    * cross-platform "gesture" events:
@@ -283,12 +292,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             if (type === 'touchstart' || type === 'touchmove') {
               Gestures._handleTouchAction(ev);
             }
-          }
-          if (type === 'touchend') {
-            let rootTarget = ev.composedPath ? ev.composedPath()[0] : ev.target;
-            POINTERSTATE.mouse.target = rootTarget;
-            // ignore syntethic mouse events after a touch
-            ignoreMouse();
           }
         }
       }
