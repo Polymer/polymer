@@ -27,19 +27,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   window.clearTestLists();
 
   window.readyBehavior = {
-    moniker: function() {
-      return this.is + (this.id ? '#' + this.id : '');
+    properties: {
+      prop: {
+        value: true,
+        observer: '_propChanged'
+      },
+    },
+    _propChanged: function() {
+      this.observerShadowRoot = Boolean(this.shadowRoot);
     },
     ready: function() {
       this._readied = true;
-      window.actualReadyList.push(this.moniker());
+      this.readyList = window.actualReadyList.slice();
+      this.readyShadowRoot = Boolean(this.shadowRoot);
+      window.actualReadyList.push(this);
     },
 
     attached: function() {
+      this.attachedShadowRoot = Boolean(this.shadowRoot);
       this.attachedTime$Keys = Object.keys(this.$);
-      window.actualAttachedList.push(this.moniker());
+      this.attachedList = window.actualAttachedList.slice();
+      window.actualAttachedList.push(this);
       if (!this._readied) {
-        window.actualReadyBeforeAtachedList.push(this.moniker());
+        window.actualReadyBeforeAtachedList.push(this);
       }
     }
   };
@@ -61,7 +71,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <dom-module id="x-bar">
   <template>
-    <x-zot></x-zot>
+    <x-zot id="zot"></x-zot>
   </template>
   <script>
   HTMLImports.whenReady(function() {
@@ -124,18 +134,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       document.body.removeChild(el);
     });
 
-    test('element ready called bottom-up', function() {
-      assert.deepEqual(window.actualReadyList, ['x-zot#a', 'x-zot#b',
-        'x-zot#c', 'x-zot#d', 'x-zot', 'x-bar#bar1', 'x-zot', 'x-bar#bar2',
-        'x-foo#foo', 'x-ready']);
+    test('element dom ready before element', function() {
+      assert.includeMembers(el.readyList, [el.$.a, el.$.b, el.$.c, el.$.d, el.$.foo]);
+      var foo = el.$.foo;
+      assert.includeMembers(foo.readyList, [foo.$.bar1, foo.$.bar1.$.zot, foo.$.bar2, foo.$.bar2.$.zot]);
+      var b1 = foo.$.bar1, b2 = foo.$.bar2;
+      assert.includeMembers(b1.readyList, [b1.$.zot]);
+      assert.includeMembers(b2.readyList, [b2.$.zot]);
     });
 
-    test('element attached called top-down', function() {
-      // on native, top element is last because it kicks off the process.
-      var expectedAttachedList = ['x-zot#a', 'x-zot#b',
-        'x-zot#c', 'x-zot#d', 'x-foo#foo', 'x-bar#bar1', 'x-zot', 'x-bar#bar2',
-        'x-zot', 'x-ready'];
-      assert.deepEqual(window.actualAttachedList, expectedAttachedList);
+    test('element dom connected before element', function() {
+      assert.includeMembers(el.attachedList, [el.$.a, el.$.b, el.$.c, el.$.d, el.$.foo]);
+      var foo = el.$.foo;
+      assert.includeMembers(foo.attachedList, [foo.$.bar1, foo.$.bar2]);
+      var b1 = foo.$.bar1, b2 = foo.$.bar2;
+      assert.includeMembers(b1.attachedList, [b1.$.zot]);
+      assert.includeMembers(b2.attachedList, [b2.$.zot]);
+    });
+
+    test('shadowRoot available in ready, connected, observer', function() {
+      [el, el.$.a, el.$.b, el.$.c, el.$.d, el.$.foo,
+        el.$.foo.$.bar1, el.$.foo.$.bar1.$.zot,
+        el.$.foo.$.bar2, el.$.foo.$.bar2.$.zot].forEach((e) => {
+        assert.isTrue(e.observerShadowRoot);
+        assert.isTrue(e.readyShadowRoot);
+        assert.isTrue(e.attachedShadowRoot);
+      });
     });
 
     test('element attached called after ready', function() {
