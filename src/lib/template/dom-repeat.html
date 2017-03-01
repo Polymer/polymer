@@ -363,9 +363,10 @@ Then the `observe` property should be configured as follows:
       this._debounceTemplate(this._render);
     },
 
-    _observeChanged: function() {
-      this._observePaths = this.observe &&
-        this.observe.replace('.*', '.').split(' ');
+    _observeChanged: function(observe) {
+      // All observed paths are handled as wildcard/deep observation. So if
+      // the user specifies a wildcard, we just strip it.
+      this._observePaths = observe && observe.replace('.*', '').split(' ');
     },
 
     _itemsChanged: function(change) {
@@ -387,29 +388,57 @@ Then the `observe` property should be configured as follows:
         this._keySplices = this._keySplices.concat(change.value.keySplices);
         this._indexSplices = this._indexSplices.concat(change.value.indexSplices);
         this._debounceTemplate(this._render);
+      } else if (change.path === 'items.length') {
+        // nothing to do
       } else { // items.*
         // slice off 'items.' ('items.'.length == 6)
         var subpath = change.path.slice(6);
-        this._forwardItemPath(subpath, change.value);
-        this._checkObservedPaths(subpath);
+        var headTail = this._splitHeadTail(subpath);
+        var key = headTail.head;
+        var path = headTail.tail;
+        this._forwardItemPath(key, path, change.value);
+        if (this._shouldResortOrFilter(key, path)) {
+          // TODO(kschaaf): interim solution: ideally this is just an
+          // incremental insertion sort of the changed item
+          this._needFullRefresh = true;
+          if (this.delay) {
+            this.debounce('render', this._render, this.delay);
+          } else {
+            this._debounceTemplate(this._render);
+          }
+        }
       }
     },
 
-    _checkObservedPaths: function(path) {
-      if (this._observePaths) {
-        path = path.substring(path.indexOf('.') + 1);
+    _splitHeadTail: function(path) {
+      var dot = path.indexOf('.');
+      if (dot === -1) {
+        return {head: path};
+      } else {
+        var head = path.slice(0, dot);
+        var tail = path.slice(dot + 1);
+        return {head: head, tail: tail};
+      }
+    },
+
+    _shouldResortOrFilter: function(key, path) {
+      if (!this._sortFn && !this._filterFn) {
+        return;
+      }
+      if (this._needFullRefresh) {
+        return;
+      }
+
+      if (path === undefined) {
+        return true;
+      } else if (this._observePaths) {
         var paths = this._observePaths;
         for (var i=0; i<paths.length; i++) {
-          if (path.indexOf(paths[i]) === 0) {
-            // TODO(kschaaf): interim solution: ideally this is just an incremental
-            // insertion sort of the changed item
-            this._needFullRefresh = true;
-            if (this.delay) {
-              this.debounce('render', this._render, this.delay);
-            } else {
-              this._debounceTemplate(this._render);
-            }
-            return;
+          var observedPath = paths[i];
+          if (path === observedPath ||
+              observedPath.indexOf(path + '.') === 0 ||
+              path.indexOf(observedPath + '.') === 0) {
+            return true;
           }
         }
       }
@@ -791,15 +820,13 @@ Then the `observe` property should be configured as follows:
 
     // Called as a side effect of a host items.<key>.<path> path change,
     // responsible for notifying item.<path> changes to inst for key
-    _forwardItemPath: function(path, value) {
+    _forwardItemPath: function(key, path, value) {
       if (this._keyToInstIdx) {
-        var dot = path.indexOf('.');
-        var key = path.substring(0, dot < 0 ? path.length : dot);
         var idx = this._keyToInstIdx[key];
         var inst = this._instances[idx];
         if (inst && !inst.isPlaceholder) {
-          if (dot >= 0) {
-            path = this.as + '.' + path.substring(dot+1);
+          if (path !== undefined) {
+            path = this.as + '.' + path;
             inst._notifyPath(path, value, true);
           } else {
             inst.__setProperty(this.as, value, true);
