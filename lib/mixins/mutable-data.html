@@ -12,9 +12,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
 
   // Common implementation for mixin & behavior
-  function mutablePropertyChange(inst, property, value, old, useObjectIdentity) {
+  function mutablePropertyChange(inst, property, value, old, mutableData) {
     let isObject;
-    if (!useObjectIdentity) {
+    if (mutableData) {
       isObject = (typeof value === 'object' && value !== null);
       // Pull `old` for Objects from temp cache, but treat `null` as a primitive
       if (isObject) {
@@ -32,8 +32,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Element class mixin to skip strict dirty-checking for objects and arrays,
-   * for use on elements utilizing `Polymer.PropertyEffects`
+   * Element class mixin to add the ability to skip strict dirty-checking for
+   * objects and arrays, for use on elements utilizing `Polymer.PropertyEffects`
    *
    * By default, `Polymer.PropertyEffects` performs strict dirty checking on
    * objects, which means that any deep modifications to an object or array will
@@ -46,7 +46,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * bound to the same object graph.
    *
    * In cases where neither immutable patterns or the data mutation API can be
-   * used, applying this mixin will cause Polymer to skip dirty checking for
+   * used, applying this mixin will allow Polymer to skip dirty checking for
    * objects and arrays.  This allows a user to make a deep modification to a
    * bound object graph, and then either simply re-set the object (e.g.
    * `this.items = this.items`) or call `notifyPath`
@@ -54,19 +54,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * elements that wish to be updated based on deep mutations must apply this
    * mixin or otherwise skip strict dirty checking for objects/arrays.
    *
+   * The second `strictByDefault` argument to the mixin determines whether
+   * the element defaults to strict dirty checking or not. In cases where
+   * the intent is to allow the element user to determine the dirty checking
+   * strategy, set this argument to `true` and the element user can apply the
+   * `mutable-data` attribute (or set the `mutableData` property) to skip
+   * Object/Array dirty checking.
+   *
+   * Note, the performance characteristics of propagating large object graphs
+   * will be worse by relying on `mutableData: true` as opposed to using
+   * strict dirty checking with immutable patterns or Polymer's path notification
+   * API.
+   *
    * @polymerMixin
    * @memberof Polymer
-   * @summary Element class mixin to skip strict dirty-checking for objects and
-   *   arrays
+   * @summary Element class mixin to optionally skip strict dirty-checking
+   *   for objects and arrays
    */
-  Polymer.MutableData = Polymer.dedupingMixin(superClass => {
+  Polymer.MutableData = (superClass, strictByDefault) => {
 
-    return class MutableData extends superClass {
+    class MutableData extends superClass {
+
+      static get properties() {
+        return {
+          /**
+           * Instance-level flag for configuring the dirty-checking strategy
+           * for this element.  When true, Objects and Arrays will skip dirty
+           * checking, otherwise strict equality checking will be used.
+           * The default is determined at the point of mixin application.
+           */
+          mutableData: {
+            type: Boolean,
+            value: !strictByDefault
+          }
+        };
+      }
+
       /**
-       * Overrides `Polymer.PropertyEffects` to skip strict equality checking
-       * for Objects and Arrays.
+       * Overrides `Polymer.PropertyEffects` to provide option for skipping
+       * strict equality checking for Objects and Arrays.
        *
-       * Pulls the value to dirty check against from the `__dataTemp` cache
+       * When `this.mutableData` is true on this instance, this method
+       * pulls the value to dirty check against from the `__dataTemp` cache
        * (rather than the normal `__data` cache) for Objects.  Since the temp
        * cache is cleared at the end of a turn, this implementation allows
        * side-effects of deep object changes to be processed by re-setting the
@@ -80,18 +109,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} property Property name
        * @param {*} value New property value
        * @param {*} old Previous property value
-       * @param {boolean} useObjectIdentity When true, the method falls back
-       *   to using strict object identity dirty checking
        * @return {boolean} Whether the property should be considered a change
        *   and enqueue a `_proeprtiesChanged` callback
        * @protected
        */
-      _shouldPropertyChange(property, value, old, useObjectIdentity) {
-        return mutablePropertyChange(this, property, value, old, useObjectIdentity);
+      _shouldPropertyChange(property, value, old) {
+        return mutablePropertyChange(this, property, value, old, this.mutableData);
       }
     }
 
-  });
+    // For application directly to `Polymer.PropertyEffects` clients that
+    // don't use property defaults
+    MutableData.prototype.mutableData = !strictByDefault;
+
+    return MutableData;
+  };
 
   // Export for use by legacy behavior
   Polymer.MutableData.mutablePropertyChange = mutablePropertyChange;
