@@ -277,3 +277,12 @@ id is to use `id`.
 * <a name="breaking-attribute-property-timing"></a>Any attribute values will take priority over property values set prior to upgrade due to V1 `attributeChangedCallback` timing semantics.  In 1.x properties set prior to upgrade overrode attributes.
 * <a name="breaking-transpiling"></a>Polymer 2.0 uses ES2015 syntax, and can be run without transpilation in current Chrome, Safari 10, Safari Technology Preview, Firefox, and Edge.  Transpilation is required to run in IE11 and Safari 9.  We will be releasing tooling for development and production time to support this need in the future.
 * <a name="breaking-hostAttributes-class"></a>In Polymer 1.x, the `class` attribute was explicitly blacklisted from `hostAttributes` and never serialized. This is no longer the case using the 2.0 legacy API.
+* <a name="breaking-url-changes"></a>In Polymer 1.x, the class attribute was explicitly blacklisted from hostAttributes and never serialized. This is no longer the case using the 2.0 legacy API. *In Polymer 1.x, URLs in element attributes and styles inside element templates were re-written to be relative to the HTMLImport that loaded the document. Based on user feedback, we are changing this behavior. Two new properties are being added to Polymer.Element: importPath and rootPath. The importPath property is a static on the element that defaults to the element HTMLImport document URL and is overridable. The rootPath property is set to the value of Polymer.rootPtah which is globally settable and defaults to the main document URL. URL's in styles are re-written to be relative to the importPath property. Inside element templates, URLs in element attributes are no longer re-written. Instead, they should be bound using importPath and rootPath where appropriate. For example:
+  A Polymer 1.x template that included:
+  ```html
+  <img src="foo.jpg">
+  ```
+  Should be this in Polymer 2.x:
+  ```html
+  <img src$="[[importPath]]foo.jpg">
+  ```
