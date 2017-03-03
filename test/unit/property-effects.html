@@ -1231,7 +1231,7 @@ suite('DOM sanitization', function() {
   });
 
   teardown(function() {
-    Polymer.sanitizeDOMValue = function() {}
+    Polymer.sanitizeDOMValue = null;
   });
 
   test('bound property', function() {
@@ -1276,6 +1276,126 @@ suite('DOM sanitization', function() {
     assert.equal(el.getAttribute('reflectedstring'), 'notallowed!');
     assert.deepEqual(Polymer.sanitizeDOMValue.lastCall.args,
       ['javascript', 'reflectedstring', 'attribute', el]);
+  });
+
+});
+
+suite('data (im)mutability', function() {
+
+  test('immutable data propagation', function() {
+    let el = document.createElement('x-immutable-a');
+    document.body.appendChild(el);
+    // Flow initial data
+    el.a = {x: 'xb', b: {x: 'xc', c: 'c'}};
+    assert.equal(el.a, el.a);
+    assert.equal(el.aChanged.callCount, 1);
+    assert.equal(el.$.b.b, el.a.b);
+    assert.equal(el.$.b.x, 'xb');
+    assert.equal(el.$.b.bChanged.callCount, 1);
+    assert.equal(el.$.b.xChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.c, 'c');
+    assert.equal(el.$.b.$.c.x, 'xc');
+    assert.equal(el.$.b.$.c.cChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.xChanged.callCount, 1);
+    // Mutate in place with reset (error, does nothing)
+    el.a.b.c = 'wontchange';
+    el.a = el.a;
+    assert.equal(el.a, el.a);
+    assert.equal(el.aChanged.callCount, 1);
+    assert.equal(el.$.b.b, el.a.b);
+    assert.equal(el.$.b.x, 'xb');
+    assert.equal(el.$.b.bChanged.callCount, 1);
+    assert.equal(el.$.b.xChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.c, 'c');
+    assert.equal(el.$.b.$.c.x, 'xc');
+    assert.equal(el.$.b.$.c.cChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.xChanged.callCount, 1);
+    // Mutate via immutable pattern:
+    el.a = Object.assign({}, el.a, {b:
+      Object.assign({}, el.a.b, {
+        c: 'willchange1'
+      })
+    });
+    assert.equal(el.a, el.a);
+    assert.equal(el.aChanged.callCount, 2);
+    assert.equal(el.$.b.b, el.a.b);
+    assert.equal(el.$.b.x, 'xb');
+    assert.equal(el.$.b.bChanged.callCount, 2);
+    assert.equal(el.$.b.xChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.c, 'willchange1');
+    assert.equal(el.$.b.$.c.x, 'xc');
+    assert.equal(el.$.b.$.c.cChanged.callCount, 2);
+    assert.equal(el.$.b.$.c.xChanged.callCount, 1);
+    // Mutate via path API
+    el.set('a.b.c', 'willchange2');
+    assert.equal(el.a, el.a);
+    assert.equal(el.aChanged.callCount, 2);
+    assert.equal(el.$.b.b, el.a.b);
+    assert.equal(el.$.b.x, 'xb');
+    assert.equal(el.$.b.bChanged.callCount, 2);
+    assert.equal(el.$.b.xChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.c, 'willchange2');
+    assert.equal(el.$.b.$.c.x, 'xc');
+    assert.equal(el.$.b.$.c.cChanged.callCount, 3);
+    assert.equal(el.$.b.$.c.xChanged.callCount, 1);
+  });
+
+  test('mutable data propagation', function() {
+    let el = document.createElement('x-mutable-a');
+    document.body.appendChild(el);
+    // Flow initial data
+    el.a = {x: 'xb', b: {x: 'xc', c: 'c'}};
+    assert.equal(el.a, el.a);
+    assert.equal(el.aChanged.callCount, 1);
+    assert.equal(el.$.b.b, el.a.b);
+    assert.equal(el.$.b.x, 'xb');
+    assert.equal(el.$.b.bChanged.callCount, 1);
+    assert.equal(el.$.b.xChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.c, 'c');
+    assert.equal(el.$.b.$.c.x, 'xc');
+    assert.equal(el.$.b.$.c.cChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.xChanged.callCount, 1);
+    // Mutate in place with reset
+    el.a.b.c = 'willchange1';
+    el.a = el.a;
+    assert.equal(el.a, el.a);
+    assert.equal(el.aChanged.callCount, 2);
+    assert.equal(el.$.b.b, el.a.b);
+    assert.equal(el.$.b.x, 'xb');
+    assert.equal(el.$.b.bChanged.callCount, 2);
+    assert.equal(el.$.b.xChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.c, 'willchange1');
+    assert.equal(el.$.b.$.c.x, 'xc');
+    assert.equal(el.$.b.$.c.cChanged.callCount, 2);
+    assert.equal(el.$.b.$.c.xChanged.callCount, 1);
+    // Mutate via immutable pattern:
+    el.a = Object.assign({}, el.a, {b:
+      Object.assign({}, el.a.b, {
+        c: 'willchange2'
+      })
+    });
+    assert.equal(el.a, el.a);
+    assert.equal(el.aChanged.callCount, 3);
+    assert.equal(el.$.b.b, el.a.b);
+    assert.equal(el.$.b.x, 'xb');
+    assert.equal(el.$.b.bChanged.callCount, 3);
+    assert.equal(el.$.b.xChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.c, 'willchange2');
+    assert.equal(el.$.b.$.c.x, 'xc');
+    assert.equal(el.$.b.$.c.cChanged.callCount, 3);
+    assert.equal(el.$.b.$.c.xChanged.callCount, 1);
+    // Mutate via path API
+    el.set('a.b.c', 'willchange3');
+    assert.equal(el.a, el.a);
+    assert.equal(el.aChanged.callCount, 3);
+    assert.equal(el.$.b.b, el.a.b);
+    assert.equal(el.$.b.x, 'xb');
+    assert.equal(el.$.b.bChanged.callCount, 3);
+    assert.equal(el.$.b.xChanged.callCount, 1);
+    assert.equal(el.$.b.$.c.c, 'willchange3');
+    assert.equal(el.$.b.$.c.x, 'xc');
+    assert.equal(el.$.b.$.c.cChanged.callCount, 4);
+    assert.equal(el.$.b.$.c.xChanged.callCount, 1);
   });
 
 });
