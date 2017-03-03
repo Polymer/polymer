@@ -1,5 +1,81 @@
 # Change Log
 
+##[v1.8.1-dev](https://github.com/Polymer/polymer/tree/v1.8.1-dev) (2017-02-27)
+- Exclude SD polyfill tests for Edge due to lack of workarounds for Edge DocFrag bugs. ([commit](https://github.com/Polymer/polymer/commit/de45ba02))
+
+- [ci skip] Update comment to include reference to problem browser. ([commit](https://github.com/Polymer/polymer/commit/72f21fe6))
+
+- Check documentElement instead of body to guarantee it's there. ([commit](https://github.com/Polymer/polymer/commit/a0ad3bbe))
+
+- add tests ([commit](https://github.com/Polymer/polymer/commit/20de9287))
+
+- Adds a setting `preserveStyleIncludes` which, when used with a shadow dom targeted css build and native custom properties, will copy styles into the Shadow DOM template rather than collapsing them into a single style. This will (1) allow the browser to optimize parsing of shared styles because they remain intact, (2) reduce the size of the css build resources when shared styles are used since they are not pre-collapsed. This option does perform registration runtime work to add included styles to element templates. ([commit](https://github.com/Polymer/polymer/commit/2315547e))
+
+- Fix test failures by feature detecting instance `properties` accessors. Can't rely on `__proto__` on IE10, but that browser doesn't need to avoid `properties`. ([commit](https://github.com/Polymer/polymer/commit/f2a12cb1))
+
+- Read properties off of proto during configuration. ([commit](https://github.com/Polymer/polymer/commit/a68c0b3e))
+
+- remove cruft. ([commit](https://github.com/Polymer/polymer/commit/632f0e47))
+
+- Ensure disable-upgrade elements are not "configured". Fixes #4302 ([commit](https://github.com/Polymer/polymer/commit/b36915f6))
+
+- change lastresponse to last-response in dom-bind example ([commit](https://github.com/Polymer/polymer/commit/4427b0b6))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/2d804a28))
+
+##[v1.8.0-dev](https://github.com/Polymer/polymer/tree/v1.8.0-dev) (2017-02-06)
+- Add comment. ([commit](https://github.com/Polymer/polymer/commit/a42cb209))
+
+- Only keep `disable-upgrade` attribute if it is an attribute binding. ([commit](https://github.com/Polymer/polymer/commit/62e9b84b))
+
+- spacing. ([commit](https://github.com/Polymer/polymer/commit/5030c1b9))
+
+- Update webcomponentsjs dependency ([commit](https://github.com/Polymer/polymer/commit/ca7dbb84))
+
+- Change `isInert` to `disable-upgrade` and feature is now supported only via the `disable-upgrade` attribute. ([commit](https://github.com/Polymer/polymer/commit/f8f903cf))
+
+- Add tests for `is-inert` ([commit](https://github.com/Polymer/polymer/commit/e1561f65))
+
+- Prevent annotator from removing the `is-inert` attribute. ([commit](https://github.com/Polymer/polymer/commit/91925148))
+
+- fixes for users of Polymer.Class ([commit](https://github.com/Polymer/polymer/commit/0f53bef4))
+
+- Add support for `isInert` to allow elements to boot up in an inert state. e.g. `<x-foo is-inert></x-foo>`. Setting `xFoo.isInert = false` causes the element to boot up. ([commit](https://github.com/Polymer/polymer/commit/ca3f59d3))
+
+- Small typos updated ([commit](https://github.com/Polymer/polymer/commit/bc023648))
+
+- work around older firefox handling of the "properties" property on HTMLElement prototype ([commit](https://github.com/Polymer/polymer/commit/13f36c7f))
+
+- improve comments ([commit](https://github.com/Polymer/polymer/commit/c76ba5b9))
+
+- Add comments. Behavior fast copy flag changed to `_noAccessors`. ([commit](https://github.com/Polymer/polymer/commit/52ea6002))
+
+- Fix tests on IE10 and simplify constructor shortcut. ([commit](https://github.com/Polymer/polymer/commit/e588f1f5))
+
+- Make dom-module work on older Safari. ([commit](https://github.com/Polymer/polymer/commit/73b62a63))
+
+- micro-optimizations: (1) favor mixin over extends where possible, (2) unroll behavior lifecycle calls, (3) avoid creating a custom constructor when not used, (4) provide `_skipDefineProperty` setting on behaviors which copies properties via assignment rather than `copyOwnProperty` ([commit](https://github.com/Polymer/polymer/commit/a1c1285d))
+
+- Ensure done. ([commit](https://github.com/Polymer/polymer/commit/08753237))
+
+- Test positive case of suppressBindingNotifications ([commit](https://github.com/Polymer/polymer/commit/1b19b784))
+
+- Add notifyDomBind to dom-bind. ([commit](https://github.com/Polymer/polymer/commit/ad7f91d6))
+
+- Test Polymer.Settings inside test. ([commit](https://github.com/Polymer/polymer/commit/4b286f19))
+
+- Revert unnecessary change. ([commit](https://github.com/Polymer/polymer/commit/dcde6d4c))
+
+- Fix test lint issue. ([commit](https://github.com/Polymer/polymer/commit/26c669ce))
+
+- Add global flags to suppress unnecessary notification events. Fixes #4262. * `Polymer.Settings.suppressTemplateNotifications `- disables `dom-change` and `rendered-item-count` events from `dom-if`, `dom-repeat`, and `don-bind`. Users can opt back into `dom-change` events by setting the `notify-dom-change` attribute (`notifyDomChange: true` property) to `dom-if`/`don-repeat` instances. * `Polymer.Settings.suppressBindingNotifications` - disables notify effects when propagating data downward via bindings. Generally these are never useful unless users are explicitly doing something like `<my-el foo="{{foo}} on-foo-changed="{{handleFoo}}">` or calling `addEventListener('foo-changed', ...)` on an element where `foo` is bound (we attempted to make this the default some time back but needed to revert it when we found via https://github.com/Polymer/polymer/issues/3077 that users were indeed doing this).  Users that avoid these patterns can enjoy the potentially significant benefit of suppressing unnecessary events during downward data flow by opting into this flag. ([commit](https://github.com/Polymer/polymer/commit/83e14c43))
+
+- Fix `strip-whitespace` for nested templates. ([commit](https://github.com/Polymer/polymer/commit/a3b75eb3))
+
+- [ci skip] update changelog v1.7.1 ([commit](https://github.com/Polymer/polymer/commit/03e22a1c))
+
+- Close backtick in ISSUE_TEMPLATE.md ([commit](https://github.com/Polymer/polymer/commit/b0dea8bc))
+
 ##[v1.7.1-dev](https://github.com/Polymer/polymer/tree/v1.7.1-dev) (2016-12-14)
 - Remove dependency on WebComponets for IE detection ([commit](https://github.com/Polymer/polymer/commit/650c16a9))
 
