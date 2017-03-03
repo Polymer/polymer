@@ -219,7 +219,7 @@ gulp.task('release', function(cb) {
 });
 
 gulp.task('lint', function() {
-  return gulp.src(['src/**/*.html', 'test/unit/*.html', 'util/*.js'])
+  return gulp.src(['lib/**/*.html', 'test/unit/*.html', 'util/*.js'])
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
