@@ -392,13 +392,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * style scoping.
      * @param {HTMLElement} proto
      * @param {HTMLTemplateElement} template
+     * @param {string} baseURI URL against which to resolve urls in
+     * style element cssText.
      * @param {string} is
      * @param {string} ext
      * @private
      */
-    function finalizeTemplate(proto, template, is, ext) {
+    function finalizeTemplate(proto, template, baseURI, is, ext) {
       // support `include="module-name"`
-      let cssText = Polymer.StyleGather.cssFromTemplate(template) +
+      let cssText =
+        Polymer.StyleGather.cssFromTemplate(template, baseURI) +
         Polymer.StyleGather.cssFromModuleImports(is);
       if (cssText) {
         let style = document.createElement('style');
@@ -489,6 +492,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *       return memoizedTemplate;
        *     }
        *   }
+       *
+       * @returns {HTMLTemplateElement|string}
        */
       static get template() {
         if (!this.hasOwnProperty(goog.reflect.objectProperty('_template', this))) {
@@ -499,6 +504,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             Object.getPrototypeOf(this.prototype).constructor.template;
         }
         return this._template;
+      }
+
+      /**
+       * Path matching the url from which the element was imported.
+       * This path is used to resolve url's in template style cssText.
+       * The `importPath` property is also set on element instances and can be
+       * used to create bindings relative to the import path.
+       * Defaults to the path matching the url containing a `dom-module` element
+       * matching this element's static `is` property.
+       * Note, this path should contain a trailing `/`.
+       *
+       * @returns {string}
+       */
+      static get importPath() {
+        if (!this.hasOwnProperty(goog.reflect.objectProperty('_importPath', this))) {
+            const module = Polymer.DomModule.import(this.is);
+            this._importPath = module ? module.assetpath : '' ||
+            Object.getPrototypeOf(this.prototype).constructor.importPath;
+        }
+        return this._importPath;
       }
 
       constructor() {
@@ -524,13 +549,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _initializeProperties() {
         this.constructor.finalize();
+        const importPath = this.constructor.importPath;
         // note: finalize template when we have access to `localName` to
         // avoid dependence on `is` for polyfilling styling.
         if (this._template && !this._template.__polymerFinalized) {
           this._template.__polymerFinalized = true;
-          finalizeTemplate(this.__proto__, this._template, this.localName);
+          const baseURI =
+            importPath ? Polymer.ResolveUrl.resolveUrl(importPath) : '';
+          finalizeTemplate(this.__proto__, this._template, baseURI,
+            this.localName);
         }
         super._initializeProperties();
+        // set path defaults
+        this.rootPath = Polymer.rootPath;
+        this.importPath = importPath;
         // apply property defaults...
         let p$ = propertyDefaultsForClass(this.constructor);
         if (!p$) {
@@ -673,13 +705,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string} url URL to resolve.
        * @param {string=} base Optional base URL to resolve against, defaults
-       * to the element template's ownerDocument baseURI.
-       * @return {string} Rewritten URL relative to the import
+       * to the element's `importPath`
+       * @return {string} Rewritten URL relative to base
        */
       resolveUrl(url, base) {
-        if (!base) {
-          const module = Polymer.DomModule.import(this.constructor.is);
-          base = module ? module.assetpath : document.baseURI;
+        if (!base && this.importPath) {
+          base = Polymer.ResolveUrl.resolveUrl(this.importPath);
         }
         return Polymer.ResolveUrl.resolveUrl(url, base);
       }
