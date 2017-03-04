@@ -32,7 +32,7 @@ Polymer is a lightweight library built on top of the web standards-based [Web Co
 
 Among many ways to leverage custom elements, they can be particularly useful for building reusable UI components. Instead of continually re-building a specific navigation bar or button in different frameworks and for different projects, you can define this element once using Polymer, and then reuse it throughout your project or in any future project.
 
-Polymer provides a declarative syntax to easily create your own custom elements, using all standard web technologies - define the structure of the element with HTML, style it with CSS, and add interactions to the element with JavaScript. 
+Polymer provides a declarative syntax to easily create your own custom elements, using all standard web technologies - define the structure of the element with HTML, style it with CSS, and add interactions to the element with JavaScript.
 
 Polymer also provides optional two-way data-binding, meaning:
 
@@ -102,7 +102,7 @@ class MyPropertyNamecard extends Polymer.Element {
   static get is() { return 'my-property-namecard'; }
 
   // Define property/attribute API:
-  static get properties() { 
+  static get properties() {
     return {
       myName: {
         type: String,
@@ -110,7 +110,7 @@ class MyPropertyNamecard extends Polymer.Element {
       }
     };
   }
-  
+
   myNameChanged(myName) {
     this.textContent = 'Hi! My name is ' + myName;
   }
@@ -146,7 +146,7 @@ class MyBoundNamecard extends Polymer.Element {
 
   static get is() { return 'my-bound-namecard'; }
 
-  static get properties() { 
+  static get properties() {
     return {
       myName: String
     };
@@ -189,7 +189,7 @@ class MyStyledNamecard extends Polymer.Element {
 
   static get is() { return 'my-styled-namecard'; }
 
-  static get properties() { 
+  static get properties() {
     return {
       myName: String
     };
@@ -496,7 +496,7 @@ id is to use `id`.
 * <a name="breaking-protected"></a>Methods starting with `_` are not guaranteed to exist (most have been removed)
 
 ### Other
-* <a name="breaking-deferred-attach"></a>Attached: no longer deferred until first render time. Instead when measurement is needed use... API TBD.
+* <a name="breaking-deferred-attach"></a>The `attached` legacy callback is no longer deferred until first render time; it now runs at the time of the native `connectedCallback`, which may be before styles have resolved and measurement is possible.  Instead when measurement is needed use `Polymer.RenderStatus.beforeNextRender`.
 * <a name="breaking-created-timing"></a>The legacy `created` callback is no longer called before default values in `properties` have been set.  As such, you should not rely on properties set in `created` from within `value` functions that define property defaults.  However, you can now set _any_ property defaults within the `created` callback (in 1.0 this was forbidden for observed properties) in lieu of using the `value` function in `properties`.
 * <a name="breaking-boolean-attribute-binidng"></a>Binding a default value of `false` via an _attribute binding_ to a boolean property will not override a default `true` property of the target, due to the semantics of boolean attributes.  In general, property binding should always be used when possible, and will avoid such situations.
 * <a name="breaking-lazyRegister"></a>`lazyRegister` option removed and all meta-programming (parsing template, creating accessors on prototype, etc.) is deferred until the first instance of the element is created
