@@ -4,6 +4,8 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
 🚧 **To evaluate Polymer 2.0**, please load the `webcomponentsjs/webcomponents-lite.js` or `webcomponentsjs/webcomponents-loader.js` polyfills from the `v1` branch of [`webcomponentsjs`](https://github.com/webcomponents/webcomponentsjs/tree/v1/)
 
+👀 **Looking for Polymer v1.x?** Please see the [the v1 branch](https://github.com/Polymer/polymer/tree/1.x)
+
 ## Polymer 2.0 Goals
 
 1. **Take advantage of native "v1" Web Components implementations across browsers.**
@@ -273,15 +275,15 @@ id is to use `id`.
 * <a name="breaking-url-changes"></a>In Polymer 1.x, URLs in attributes and styles inside element templates were re-written to be relative to the element HTMLImport. Based on user feedback, we are changing this behavior.
 
   Two new properties are being added to `Polymer.Element`: `importPath` and `rootPath`. The `importPath` property is a static getter on the element class that defaults to the element HTMLImport document URL and is overridable. It may be useful to override `importPath` when an element `template` is not retrieved from a `dom-module` or the element is not defined using an HTMLImport. The `rootPath` property is set to the value of `Polymer.rootPath` which is globally settable and defaults to the main document URL. It may be useful to set `Polymer.rootPath` to provide a stable application mount path when using client side routing. URL's in styles are re-written to be relative to the `importPath` property. Inside element templates, URLs in element attributes are *no longer* re-written. Instead, they should be bound using `importPath` and `rootPath` where appropriate. For example:
-  
+
   A Polymer 1.x template that included:
-  
+
   ```html
   <img src="foo.jpg">
   ```
-  
+
   in Polymer 2.x should be:
-  
+
   ```html
   <img src$="[[importPath]]foo.jpg">
   ```
