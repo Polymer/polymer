@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+ * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
  * This code may only be used under the BSD style license found at http:polymer.github.io/LICENSE.txt
  * The complete set of authors may be found at http:polymer.github.io/AUTHORS.txt
  * The complete set of contributors may be found at http:polymer.github.io/CONTRIBUTORS.txt
@@ -219,7 +219,7 @@ gulp.task('release', function(cb) {
 });
 
 gulp.task('lint', function() {
-  return gulp.src(['src/**/*.html', 'test/unit/*.html', 'util/*.js'])
+  return gulp.src(['lib/**/*.html', 'test/unit/*.html', 'util/*.js'])
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
