@@ -2,7 +2,7 @@
 
 This branch contains a preview of the Polymer 2.0 library.  The codebase is under active development, features may not be fully implemented, and APIs may change prior to the final 2.0 release.
 
-🚧 **To evaluate Polymer 2.0**, please load the `webcomponentsjs/webcomponents-lite.js` or `webcomponentsjs/webcomponents-loader.js` polyfills from the `v1` branch of [`webcomponentsjs`](https://github.com/webcomponents/webcomponentsjs/tree/v1/)
+**To evaluate Polymer 2.0**, please load the `webcomponentsjs/webcomponents-lite.js` or `webcomponentsjs/webcomponents-loader.js` polyfills from the `v1.0.0-rc.4` tag of [`webcomponentsjs`](https://github.com/webcomponents/webcomponentsjs)
 
 👀 **Looking for Polymer v1.x?** Please see the [the v1 branch](https://github.com/Polymer/polymer/tree/1.x)
 
