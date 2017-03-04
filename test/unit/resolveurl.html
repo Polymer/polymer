@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 @license
-Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
 The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
@@ -13,18 +13,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <meta charset="UTF-8">
   <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
   <script src="../../../web-component-tester/browser.js"></script>
+  <script>
+    Polymer = {
+      rootPath: 'earlyRootPath/'
+    }
+  </script>
   <link rel="import" href="../../polymer.html">
   <link id="elements" rel="import" href="sub/resolveurl-elements.html">
 </head>
 <body>
   <x-resolve></x-resolve>
 
+  <dom-module id="x-late">
+    <template>
+      <style>
+        :host {
+          background: url('foo.png');
+        }
+      </style>
+      <img id="root" src$="[[rootPath]]foo.png">
+      <img id="import" src$="[[importPath]]foo.png">
+    </template>
+  </dom-module>
+
   <dom-module id="x-resolve">
   </dom-module>
 
   <script>
-    addEventListener('HTMLImportsLoaded', function() {
-      Polymer({is: 'x-resolve'});
+    HTMLImports.whenReady(function() {
+      class XResolve extends Polymer.Element {
+        static get is() { return 'x-resolve'; }
+      }
+      customElements.define(XResolve.is, XResolve);
     });
   </script>
 
@@ -34,12 +54,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       test('Urls in styles and attributes', function() {
         var el = document.createElement('p-r');
+        document.body.appendChild(el);
         var rx = /sub\/foo\.z/;
-        assert.match(el._styles[0].textContent, rx, 'url not relative to main document');
+        var style = el.shadowRoot.querySelector('style') || document.querySelector('style[scope=p-r]');
+        assert.match(style.textContent, rx, 'url not relative to main document');
         assert.match(el.$.div.getAttribute('style'), rx, 'style url not relative to main document');
         assert.match(el.$.img.src, rx, 'src url not relative to main document');
         assert.match(el.$.a.href, rx, 'href url not relative to main document');
-        assert.match(el.$.zonk.getAttribute('url'), rx, 'url url not relative to main document');
+        assert.match(el.$.import.getAttribute('url'), rx, 'url url not relative to main document');
+        assert.match(el.$.resolveUrl.getAttribute('url'), rx, 'url url not relative to main document');
+        assert.notMatch(el.$.root.getAttribute('url'), rx, 'url url not relative to main document');
         assert.notMatch(el.$.rel.href, rx, 'relative href url not relative to main document');
         assert.match(el.$.rel.href, /\?123$/, 'relative href does not preserve query string');
         assert.equal(el.$.action.getAttribute('action'), 'foo.z', 'action attribute relativized for incorrect element type');
@@ -47,18 +71,69 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(el.$.hash.getAttribute('href'), '#foo.z', 'hash-only url should not be resolved');
         assert.equal(el.$.absolute.getAttribute('href'), '/foo.z', 'absolute urls should not be resolved');
         assert.equal(el.$.protocol.getAttribute('href'), 'data:foo.z', 'urls with other protocols should not be resolved');
+        document.body.removeChild(el);
+      });
+
+      test('url changes via setting importPath/rootPath on element instance', function() {
+        var el = document.createElement('p-r');
+        document.body.appendChild(el);
+        el.rootPath = 'instanceRoot/';
+        el.importPath = 'instanceImport/';
+        var matchRoot = /instanceRoot\//;
+        var matchImport = /instanceImport\//;
+        assert.match(el.$.div.getAttribute('style'), matchImport);
+        assert.match(el.$.import.getAttribute('url'), matchImport);
+        assert.match(el.$.root.getAttribute('url'), matchRoot);
+        document.body.removeChild(el);
+      });
+
+      test('rootPath set early', function() {
+        class XEarly extends Polymer.Element {
+          static get is() { return 'x-late'}
+        }
+        customElements.define('x-early', XEarly);
+        var el = document.createElement('x-early');
+        document.body.appendChild(el);
+        var matchRoot = /earlyRootPath\//i;
+        assert.match(el.$.root.getAttribute('src'), matchRoot);
+        document.body.removeChild(el);
+      });
+
+      test('url changes via setting importPath/rootPath when defining element', function() {
+        Polymer.rootPath = 'defineRoot/';
+        class XLate extends Polymer.Element {
+          static get is() { return 'x-late'}
+          static get importPath() { return 'defineImport/'}
+        }
+        customElements.define(XLate.is, XLate);
+        var el = document.createElement('x-late');
+        document.body.appendChild(el);
+        var matchRoot = /defineRoot\//i;
+        var matchImport = /defineImport\//i;
+        var style = el.shadowRoot.querySelector('style') || document.querySelector('style[scope=x-late]');
+        assert.match(style.textContent, matchImport);
+        assert.match(el.$.import.getAttribute('src'), matchImport);
+        assert.match(el.$.root.getAttribute('src'), matchRoot);
+        document.body.removeChild(el);
       });
 
       test('resolveUrl api', function() {
         var el = document.createElement('p-r');
-        var expected = document.baseURI.replace(/[?#].*$/, '');
+        var expected = document.location.href.replace(/[?#].*$/, '');
         var actual = el.resolveUrl('../resolveurl.html');
+        assert.equal(actual, expected);
+      });
+
+      test('resolveUrl api with base', function() {
+        var el = document.createElement('p-r');
+        var expected = 'http://example.com/resolveurl.html';
+        var actual = el.resolveUrl('resolveurl.html', 'http://example.com/');
         assert.equal(actual, expected);
       });
 
       test('resolveUrl api, when defined in main doc', function() {
         var el = document.querySelector('x-resolve');
-        var expected = document.baseURI.replace(/[?#].*$/, '');
+        var expected = document.location.href.replace(/[?#].*$/, '');
         expected = expected.split('/');
         expected.pop();
         expected = expected.join('/') + '/foo/bar.png';
@@ -72,7 +147,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // URL object for this test for IE! Otherwise, would do this:
         // var importPath = document.querySelector('#elements').href;
         // var expected = new URL('../../assets/Beaker2.jpg', importPath);
-        var expected = document.baseURI.replace(/[?#].*$/, '');
+        var expected = document.location.href.replace(/[?#].*$/, '');
         expected = expected.split('/');
         expected.pop();
         expected.pop();

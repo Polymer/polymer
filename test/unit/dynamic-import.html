@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
 @license
-Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
 The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
@@ -26,11 +26,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     test('use importHref to load and create an element', function(done) {
       var d = document.querySelector('dynamic-element');
       d.whenDynamicContentReady(function() {
-        assert(d._readied, true, 'dynamic element not readied');
+        assert.isTrue(d.isAttached, true, 'dynamic element not readied');
         assert.ok(d.$.content, 'dynamic element does not have content');
-        assert(d.$.outer._readied, true, 'dynamic sub-element not readied');
+        assert.isTrue(d.$.outer.isAttached, true, 'dynamic sub-element not readied');
         assert.ok(d.$.outer.$.content, 'dynamic sub-element does not have content');
-        assert(d.$.outer.$.inner._readied, true, 'dynamic sub-element not readied');
+        assert.isTrue(d.$.outer.$.inner.isAttached, true, 'dynamic sub-element not readied');
         assert.ok(d.$.outer.$.inner.$.content, 'dynamic sub-element does not have content');
         done();
       });
@@ -39,6 +39,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     suite('async/sync loading', function() {
 
       var url = 'dynamic-imports/dynamic-element.html';
+
+      test('importHref does not cache failed results', function(done) {
+        Polymer.Base.importHref('does_not_exist.html', function() {
+          throw new Error('Load handler should not be called.');
+        }, function() {
+          var link = document.head
+              .querySelector('[href="does_not_exist.html"]');
+          assert.isNotOk(link, 'The link should not exist');
+          done();
+        });
+      });
+
+      test('importHref caches successful results', function(done) {
+        var targetUrl = 'dynamic-imports/async-import.html';
+
+        Polymer.Base.importHref(targetUrl, function(event) {
+          var targetOne = event.target;
+          Polymer.Base.importHref(targetUrl, function(event) {
+            var targetTwo = event.target;
+
+            assert.isOk(targetOne, 'Event target should be available');
+            assert.strictEqual(targetOne, targetTwo,
+                'Link element references should be identical');
+            done();
+          }, done);
+        }, done);
+      });
 
       test('importHref sync loads by default', function(done) {
         Polymer.Base.importHref(url, function(e) {

@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
 @license
-Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
 The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
@@ -12,310 +12,464 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <meta charset="utf-8">
   <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script>
+  var capturedErrors = [];
+  var captureEnabled = false;
+  window.addEventListener('error', function(e) {
+    if (captureEnabled) {
+      capturedErrors.push(e);
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return true;
+    }
+  });
+  </script>
   <script src="../../../web-component-tester/browser.js"></script>
-  <link rel="import" href="../../src/polymer-lib.html">
-  <link rel="import" href="../../src/lib/async.html">
+  <link rel="import" href="../../lib/utils/async.html">
 </head>
 <body>
 
 <script>
-/* global Async */
-  setup(function() {
-    window.Async = Polymer.Async;
-  });
+  suite('Queueing micro tasks', function() {
 
-  teardown(function() {
-    delete window.Async;
-  });
-
-  suite('no-wait async', function() {
-
-    test('async runs', function(done) {
-      var called = 0;
+    test('The queued function runs.', function(done) {
+      var callCount = 0;
       var callback = function() {
-        called++;
+        callCount++;
       };
-      Async.run(callback);
+
+      Polymer.Async.microTask.run(callback);
       setTimeout(function() {
-        assert.equal(called, 1);
+        assert.equal(callCount, 1);
         done();
       });
     });
 
-    test('multiple asyncs of same fn run', function(done) {
-      var called = 0;
-      var callback = function() {
-        called++;
-      };
-      Async.run(callback);
-      Async.run(callback);
-      Async.run(callback);
-      setTimeout(function() {
-        assert.equal(called, 3);
-        done();
+    test('Functions queued multiple times are run multiple times.',
+      function(done) {
+        var callCount = 0;
+        var callback = function() {
+          callCount++;
+        };
+        Polymer.Async.microTask.run(callback);
+        Polymer.Async.microTask.run(callback);
+        Polymer.Async.microTask.run(callback);
+        setTimeout(function() {
+          assert.equal(callCount, 3);
+          done();
+        });
       });
-    });
 
-    test('multiple asyncs of different fns run', function(done) {
-      var called1 = 0;
-      var called2 = 0;
-      var called3 = 0;
+    test('All queued functions are run.', function(done) {
+      var callCount1 = 0;
+      var callCount2 = 0;
+      var callCount3 = 0;
       var callback1 = function() {
-        called1++;
+        callCount1++;
       };
       var callback2 = function() {
-        called2++;
+        callCount2++;
       };
       var callback3 = function() {
-        called3++;
+        callCount3++;
       };
-      Async.run(callback1);
-      Async.run(callback2);
-      Async.run(callback3);
+      Polymer.Async.microTask.run(callback1);
+      Polymer.Async.microTask.run(callback2);
+      Polymer.Async.microTask.run(callback3);
       setTimeout(function() {
-        assert.equal(called1, 1);
-        assert.equal(called2, 1);
-        assert.equal(called3, 1);
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 1);
         done();
       });
     });
 
-    test('error handling', function(done) {
-      var called1 = 0;
-      var called2 = 0;
-      var called3 = 0;
-      var called4 = 0;
-      var called5 = 0;
+    test('Errors are thrown but the queue is continued', function(done) {
+      captureEnabled = true;
+      var callCount1 = 0;
+      var callCount2 = 0;
+      var callCount3 = 0;
+      var callCount4 = 0;
+      var callCount5 = 0;
       var callback1 = function() {
-        called1++;
+        callCount1++;
       };
       var callback2 = function() {
-        called2++;
+        callCount2++;
         throw new Error('intentional error 1');
       };
       var callback3 = function() {
-        called3++;
-        Async.run(callback5);
+        callCount3++;
+        Polymer.Async.microTask.run(callback5);
         throw new Error('intentional error 2');
       };
       var callback4 = function() {
-        called4++;
+        callCount4++;
       };
       var callback5 = function() {
-        called5++;
+        callCount5++;
       };
-      Async.run(callback1);
-      Async.run(callback2);
-      Async.run(callback3);
-      Async.run(callback4);
-      // Force synchronous microtask, since we can't catch the error otherwise
-      assert.throws(function() {
-        Async._atEndOfMicrotask();
-      });
-      // Have been called
-      assert.equal(called1, 1);
-      assert.equal(called2, 1);
-      // Not yet called, due to exception
-      assert.equal(called3, 0);
-      assert.equal(called4, 0);
-      assert.equal(called5, 0);
-      // Force next synchronous microtask
-      assert.throws(function() {
-        Async._atEndOfMicrotask();
-      });
-      // Have been called
-      assert.equal(called1, 1);
-      assert.equal(called2, 1);
-      assert.equal(called3, 1);
-      // Not yet called, due to exception
-      assert.equal(called4, 0);
-      assert.equal(called5, 0);
-      // Wait for actual microtask, and verify remaining queue was flushed
+      Polymer.Async.microTask.run(callback1);
+      Polymer.Async.microTask.run(callback2);
+      Polymer.Async.microTask.run(callback3);
+      Polymer.Async.microTask.run(callback4);
+      // All callbacks have been called by the next task.
       setTimeout(function() {
-        // Have been called
-        assert.equal(called1, 1);
-        assert.equal(called2, 1);
-        assert.equal(called3, 1);
-        assert.equal(called4, 1);
-        assert.equal(called5, 1);
+        captureEnabled = false;
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 1);
+        assert.equal(callCount4, 1);
+        assert.equal(callCount5, 1);
+        assert.equal(capturedErrors.length, 2);
+        capturedErrors.length = 0;
+        done();
+      }, 100);
+    });
+  });
+
+  suite('Cancelling micro tasks', function() {
+
+    test('Queued functions are cancelable.', function(done) {
+      var callCount = 0;
+      var callback = function() {
+        callCount++;
+      };
+      var asyncRef = Polymer.Async.microTask.run(callback);
+      Polymer.Async.microTask.cancel(asyncRef);
+      setTimeout(function() {
+        assert.equal(callCount, 0);
+        done();
+      });
+    });
+
+    test('Multiple instances of the same queued function are cancelable.', function(done) {
+      var callCount = 0;
+      var callback = function() {
+        callCount++;
+      };
+      var asyncRefs = [];
+      asyncRefs.push(Polymer.Async.microTask.run(callback));
+      asyncRefs.push(Polymer.Async.microTask.run(callback));
+      asyncRefs.push(Polymer.Async.microTask.run(callback));
+      Polymer.Async.microTask.cancel(asyncRefs.pop());
+      Polymer.Async.microTask.cancel(asyncRefs.pop());
+      Polymer.Async.microTask.cancel(asyncRefs.pop());
+      setTimeout(function() {
+        assert.equal(callCount, 0);
+        done();
+      });
+    });
+
+    test('Multiple queued functions are individually cancelable.', function(done) {
+      var callCount1 = 0;
+      var callCount2 = 0;
+      var callCount3 = 0;
+      var callback1 = function() {
+        callCount1++;
+      };
+      var callback2 = function() {
+        callCount2++;
+      };
+      var callback3 = function() {
+        callCount3++;
+      };
+      var asyncRef1 = Polymer.Async.microTask.run(callback1);
+      Polymer.Async.microTask.run(callback2);
+      var asyncRef3 = Polymer.Async.microTask.run(callback3);
+      Polymer.Async.microTask.cancel(asyncRef1);
+      Polymer.Async.microTask.cancel(asyncRef3);
+      setTimeout(function() {
+        assert.equal(callCount1, 0);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 0);
         done();
       });
     });
 
   });
 
-  suite('cancel no-wait async', function() {
+  suite('Queueing timeouts with a wait time', function() {
 
-    test('async cancels', function(done) {
-      var called = 0;
+    test('The queued function runs.', function(done) {
+      var callCount = 0;
       var callback = function() {
-        called++;
+        callCount++;
       };
-      var h = Async.run(callback);
-      Async.cancel(h);
+      Polymer.Async.timeOut.run(callback, 50);
+      Polymer.Async.timeOut.after(50).run(callback);
       setTimeout(function() {
-        assert.equal(called, 0);
+        assert.equal(callCount, 2);
         done();
-      });
+      }, 100);
     });
 
-    test('multiple asyncs of same fn cancel', function(done) {
-      var called = 0;
+    test('Functions queued multiple times are run multiple times.', function(done) {
+      var callCount = 0;
       var callback = function() {
-        called++;
+        callCount++;
       };
-      var h = [];
-      h.push(Async.run(callback));
-      h.push(Async.run(callback));
-      h.push(Async.run(callback));
-      Async.cancel(h.pop());
-      Async.cancel(h.pop());
-      Async.cancel(h.pop());
+      Polymer.Async.timeOut.run(callback, 50);
+      Polymer.Async.timeOut.after(50).run(callback);
+      Polymer.Async.timeOut.run(callback, 50);
+      Polymer.Async.timeOut.after(50).run(callback);
+      Polymer.Async.timeOut.run(callback, 200);
+      Polymer.Async.timeOut.after(200).run(callback);
       setTimeout(function() {
-        assert.equal(called, 0);
+        assert.equal(callCount, 4);
         done();
-      });
+      }, 100); // Only wait until the first two callbacks are called.
     });
 
-    test('multiple asyncs of different fns cancel', function(done) {
-      var called1 = 0;
-      var called2 = 0;
-      var called3 = 0;
+    test('All queued functions are run.', function(done) {
+      var callCount1 = 0;
+      var callCount2 = 0;
+      var callCount3 = 0;
       var callback1 = function() {
-        called1++;
+        callCount1++;
       };
       var callback2 = function() {
-        called2++;
+        callCount2++;
       };
       var callback3 = function() {
-        called3++;
+        callCount3++;
       };
-      var h1 = Async.run(callback1);
-      var h2 = Async.run(callback2); //eslint-disable-line no-unused-vars
-      var h3 = Async.run(callback3);
-      Async.cancel(h1);
-      Async.cancel(h3);
+      Polymer.Async.timeOut.run(callback1, 50);
+      Polymer.Async.timeOut.run(callback2, 50);
+      Polymer.Async.timeOut.run(callback3, 200);
       setTimeout(function() {
-        assert.equal(called1, 0);
-        assert.equal(called2, 1);
-        assert.equal(called3, 0);
+        assert.equal(callCount1, 1);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 0);
+        done();
+      }, 100); // Only wait until the first two callbacks are called.
+    });
+
+  });
+
+  suite('Cancelling timers queued with a wait time', function() {
+
+    test('Queued functions are cancelable.', function(done) {
+      var callCount = 0;
+      var callback = function() {
+        callCount++;
+      };
+      var asyncRef = Polymer.Async.timeOut.run(callback, 50);
+      Polymer.Async.timeOut.cancel(asyncRef);
+      setTimeout(function() {
+        assert.equal(callCount, 0);
+        done();
+      }, 100);
+    });
+
+    test('Multiple instances of the same queued function are cancelable.', function(done) {
+      var callCount = 0;
+      var callback = function() {
+        callCount++;
+      };
+      var queue = [];
+      queue.push(Polymer.Async.timeOut.run(callback, 50));
+      queue.push(Polymer.Async.timeOut.run(callback, 50));
+      queue.push(Polymer.Async.timeOut.after(50).run(callback));
+      queue.push(Polymer.Async.timeOut.run(callback, 200));
+      while (queue.length > 0) {
+        Polymer.Async.timeOut.cancel(queue.pop());
+      }
+      setTimeout(function() {
+        assert.equal(callCount, 0);
+        done();
+      }, 250);
+    });
+
+    test('Multiple queued functions are individually cancelable.', function(done) {
+      var callCount1 = 0;
+      var callCount2 = 0;
+      var callCount3 = 0;
+      var callback1 = function() {
+        callCount1++;
+      };
+      var callback2 = function() {
+        callCount2++;
+      };
+      var callback3 = function() {
+        callCount3++;
+      };
+      var asyncRef1 = Polymer.Async.timeOut.run(callback1, 50);
+      Polymer.Async.microTask.run(callback2, 50);
+      var asyncRef3 = Polymer.Async.timeOut.run(callback3, 200);
+      Polymer.Async.timeOut.cancel(asyncRef1);
+      Polymer.Async.timeOut.cancel(asyncRef3);
+      setTimeout(function() {
+        assert.equal(callCount1, 0);
+        assert.equal(callCount2, 1);
+        assert.equal(callCount3, 0);
+        done();
+      }, 250);
+    });
+
+  });
+
+  suite('Queueing functions to run before the next paint', function() {
+
+    test('The queued function runs.', function(done) {
+      var callback = sinon.spy();
+      Polymer.Async.animationFrame.run(callback);
+      requestAnimationFrame(function() {
+        assert.isTrue(callback.calledOnce);
+        done();
+      });
+    });
+
+    test('Functions queued multiple times are run multiple times.', function(done) {
+      var callback = sinon.spy();
+      Polymer.Async.animationFrame.run(callback);
+      Polymer.Async.animationFrame.run(callback);
+      requestAnimationFrame(function() {
+        assert.isTrue(callback.calledTwice);
+        done();
+      });
+    });
+
+    test('All queued functions are run.', function(done) {
+      var callback1 = sinon.spy();
+      var callback2 = sinon.spy();
+      Polymer.Async.animationFrame.run(callback1);
+      Polymer.Async.animationFrame.run(callback2);
+      requestAnimationFrame(function() {
+        assert.isTrue(callback1.calledOnce);
+        assert.isTrue(callback2.calledOnce);
         done();
       });
     });
 
   });
 
-  suite('wait async', function() {
+  suite('Cancelling functions queued to run before the next paint', function() {
 
-    test('async runs', function(done) {
-      var called = 0;
-      var callback = function() {
-        called++;
-      };
-      Async.run(callback, 50);
-      setTimeout(function() {
-        assert.equal(called, 1);
+    test('Queued functions are cancelable.', function(done) {
+      var callback = sinon.spy();
+      var asyncRef = Polymer.Async.animationFrame.run(callback);
+      Polymer.Async.animationFrame.cancel(asyncRef);
+      requestAnimationFrame(function() {
+        assert.isFalse(callback.called);
         done();
-      }, 51);
+      });
     });
 
-    test('multiple asyncs of same fn run', function(done) {
-      var called = 0;
-      var callback = function() {
-        called++;
-      };
-      Async.run(callback, 50);
-      Async.run(callback, 50);
-      Async.run(callback, 200);
-      setTimeout(function() {
-        assert.equal(called, 2);
+    test('Multiple instances of the same queued function are cancelable.', function(done) {
+      var callback = sinon.spy();
+      var asyncRefs = [];
+      asyncRefs.push(Polymer.Async.animationFrame.run(callback));
+      asyncRefs.push(Polymer.Async.animationFrame.run(callback));
+      asyncRefs.push(Polymer.Async.animationFrame.run(callback));
+      Polymer.Async.animationFrame.cancel(asyncRefs.pop());
+      Polymer.Async.animationFrame.cancel(asyncRefs.pop());
+      Polymer.Async.animationFrame.cancel(asyncRefs.pop());
+      requestAnimationFrame(function() {
+        assert.isFalse(callback.called);
         done();
-      }, 51);
+      });
     });
 
-    test('multiple asyncs of different fns run', function(done) {
-      var called1 = 0;
-      var called2 = 0;
-      var called3 = 0;
-      var callback1 = function() {
-        called1++;
-      };
-      var callback2 = function() {
-        called2++;
-      };
-      var callback3 = function() {
-        called3++;
-      };
-      Async.run(callback1, 50);
-      Async.run(callback2, 50);
-      Async.run(callback3, 200);
-      setTimeout(function() {
-        assert.equal(called1, 1);
-        assert.equal(called2, 1);
-        assert.equal(called3, 0);
+    test('Multiple queued functions are individually cancelable.', function(done) {
+      var callback1 = sinon.spy();
+      var callback2 = sinon.spy();
+      var callback3 = sinon.spy();
+      var asyncRef1 = Polymer.Async.animationFrame.run(callback1, 50);
+      Polymer.Async.animationFrame.run(callback2, 50);
+      var asyncRef3 = Polymer.Async.animationFrame.run(callback3, 200);
+      Polymer.Async.animationFrame.cancel(asyncRef1);
+      Polymer.Async.animationFrame.cancel(asyncRef3);
+      requestAnimationFrame(function() {
+        assert.isFalse(callback1.called);
+        assert.isTrue(callback2.calledOnce);
+        assert.isFalse(callback3.called);
         done();
-      }, 51);
+      });
     });
 
   });
 
-  suite('cancel wait async', function() {
+  suite('Queueing functions to run during idle period', function() {
+    var whenIdle = window.requestIdleCallback ? window.requestIdleCallback : function(fn) { setTimeout(fn, 16); };
 
-    test('async cancels', function(done) {
-      var called = 0;
-      var callback = function() {
-        called++;
-      };
-      var h = Async.run(callback, 50);
-      Async.cancel(h);
-      setTimeout(function() {
-        assert.equal(called, 0);
+    test('The queued function runs.', function(done) {
+      var callback = sinon.spy();
+      Polymer.Async.idlePeriod.run(callback);
+      whenIdle(function() {
+        assert.isTrue(callback.calledOnce);
         done();
-      }, 51);
+      });
     });
 
-    test('multiple asyncs of same fn cancel', function(done) {
-      var called = 0;
-      var callback = function() {
-        called++;
-      };
-      var h = [];
-      h.push(Async.run(callback, 50));
-      h.push(Async.run(callback, 50));
-      h.push(Async.run(callback, 200));
-      Async.cancel(h.pop());
-      Async.cancel(h.pop());
-      Async.cancel(h.pop());
-      setTimeout(function() {
-        assert.equal(called, 0);
+    test('Functions queued multiple times are run multiple times.', function(done) {
+      var callback = sinon.spy();
+      Polymer.Async.idlePeriod.run(callback);
+      Polymer.Async.idlePeriod.run(callback);
+      whenIdle(function() {
+        assert.isTrue(callback.calledTwice);
         done();
-      }, 51);
+      });
     });
 
-    test('multiple asyncs of different fns cancel', function(done) {
-      var called1 = 0;
-      var called2 = 0;
-      var called3 = 0;
-      var callback1 = function() {
-        called1++;
-      };
-      var callback2 = function() {
-        called2++;
-      };
-      var callback3 = function() {
-        called3++;
-      };
-      var h1 = Async.run(callback1, 50);
-      var h2 = Async.run(callback2, 50); //eslint-disable-line no-unused-vars
-      var h3 = Async.run(callback3, 200);
-      Async.cancel(h1);
-      Async.cancel(h3);
-      setTimeout(function() {
-        assert.equal(called1, 0);
-        assert.equal(called2, 1);
-        assert.equal(called3, 0);
+    test('All queued functions are run.', function(done) {
+      var callback1 = sinon.spy();
+      var callback2 = sinon.spy();
+      Polymer.Async.idlePeriod.run(callback1);
+      Polymer.Async.idlePeriod.run(callback2);
+      whenIdle(function() {
+        assert.isTrue(callback1.calledOnce);
+        assert.isTrue(callback2.calledOnce);
         done();
-      }, 51);
+      });
+    });
+
+  });
+
+
+  suite('Cancelling functions queued to run during idle period', function() {
+    var whenIdle = window.requestIdleCallback ? window.requestIdleCallback : function(fn) { setTimeout(fn, 16); };
+
+    test('Queued functions are cancelable.', function(done) {
+      var callback = sinon.spy();
+      var asyncRef = Polymer.Async.idlePeriod.run(callback);
+      Polymer.Async.idlePeriod.cancel(asyncRef);
+      whenIdle(function() {
+        assert.isFalse(callback.called);
+        done();
+      });
+    });
+
+    test('Multiple instances of the same queued function are cancelable.', function(done) {
+      var callback = sinon.spy();
+      var asyncRefs = [];
+      asyncRefs.push(Polymer.Async.idlePeriod.run(callback));
+      asyncRefs.push(Polymer.Async.idlePeriod.run(callback));
+      asyncRefs.push(Polymer.Async.idlePeriod.run(callback));
+      Polymer.Async.idlePeriod.cancel(asyncRefs.pop());
+      Polymer.Async.idlePeriod.cancel(asyncRefs.pop());
+      Polymer.Async.idlePeriod.cancel(asyncRefs.pop());
+      whenIdle(function() {
+        assert.isFalse(callback.called);
+        done();
+      });
+    });
+
+    test('Multiple queued functions are individually cancelable.', function(done) {
+      var callback1 = sinon.spy();
+      var callback2 = sinon.spy();
+      var callback3 = sinon.spy();
+      var asyncRef1 = Polymer.Async.idlePeriod.run(callback1, 50);
+      Polymer.Async.idlePeriod.run(callback2, 50);
+      var asyncRef3 = Polymer.Async.idlePeriod.run(callback3, 200);
+      Polymer.Async.idlePeriod.cancel(asyncRef1);
+      Polymer.Async.idlePeriod.cancel(asyncRef3);
+      whenIdle(function() {
+        assert.isFalse(callback1.called);
+        assert.isTrue(callback2.calledOnce);
+        assert.isFalse(callback3.called);
+        done();
+      });
     });
 
   });

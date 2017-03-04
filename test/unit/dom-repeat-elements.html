@@ -1,5 +1,14 @@
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
 <script>
-window.data = [
+window.getData = () => [
   {
     prop: 'prop-1',
     items: [
@@ -88,21 +97,22 @@ window.data = [
     ]
   }
 ];
+
 </script>
 
 <dom-module id="x-foo">
-  <style>
-    :host {
-      display: block;
-      border: 1px solid black;
-      padding: 3px;
-      margin: 3px;
-    }
-  </style>
   <template>
-    <span>{{itemcProp}}</span>
-    <span>{{itembProp}}</span>
+    <style>
+      :host {
+        display: block;
+        border: 1px solid black;
+        padding: 3px;
+        margin: 3px;
+      }
+    </style>
     <span>{{itemaProp}}</span>
+    <span>{{itembProp}}</span>
+    <span>{{itemcProp}}</span>
     <x-bar id="bar"
            outer-prop="{{outerProp}}"
            outer-item-prop="{{outerItemProp}}"
@@ -238,7 +248,7 @@ window.data = [
   </template>
 </dom-module>
 <script>
-  Polymer({
+  let XNestedRepeat = Polymer({
     is: 'x-nested-repeat',
     testHandler1Count: 0,
     testHandler2Count: 0,
@@ -257,11 +267,24 @@ window.data = [
       this.domUpdateHandlerCount++;
     }
   });
+  class XNestedRepeatMutable extends Polymer.MutableData(XNestedRepeat) {
+    static get template() {
+      return this.makeRepeatsMutable(XNestedRepeat.template.cloneNode(true));
+    }
+    static makeRepeatsMutable(template) {
+      Array.from(template.content.querySelectorAll('[is=dom-repeat]')).forEach(e => {
+        e.setAttribute('mutable-data', '');
+        this.makeRepeatsMutable(e);
+      });
+      return template;
+    }
+  }
+  customElements.define('x-nested-repeat-mutable', XNestedRepeatMutable);
 </script>
 
 <dom-module id="x-nested-repeat-configured">
   <template>
-    <template id="repeater" is="dom-repeat" items="{{items}}" as="itema" index-as="indexa"observe="prop">
+    <template id="repeater" is="dom-repeat" items="{{items}}" as="itema" index-as="indexa" observe="prop">
       <x-foo
              innera-prop="{{innera.prop}}"
              itema-prop="{{itema.prop}}"
@@ -307,7 +330,7 @@ window.data = [
     is: 'x-nested-repeat-configured',
     properties: {
       items: {
-        value: window.data
+        value: window.getData()
       },
       prop: {
         value: 'outer'
@@ -345,7 +368,7 @@ window.data = [
 
 <dom-module id="x-simple-repeat">
   <template>
-    <template is="dom-repeat" items="{{items}}">
+    <template id="repeat" is="dom-repeat" items="{{items}}">
       <x-foo itema-prop="{{item.prop}}"></x-foo>
     </template>
   </template>
@@ -354,7 +377,7 @@ window.data = [
     is: 'x-simple-repeat',
     properties: {
       items: {
-        value: window.data
+        value: window.getData()
       }
     }
   });
@@ -468,6 +491,37 @@ window.data = [
         var time = performance.now();
         time += 4;
         while (performance.now() < time) {} //eslint-disable-line no-empty
+      }
+    });
+  </script>
+</dom-module>
+
+<dom-module id="x-repeat-with-if">
+  <template>
+    <template is="dom-repeat" items="{{items}}" id="outer">
+      <template is="dom-if" if>
+        <template is="dom-repeat" items="{{item.items}}" id="inner">
+          <template is="dom-if" if>
+            <button on-click="handleClick">{{item.prop}}</button>
+          </template>
+        </template>
+      </template>
+    </template>
+  </template>
+  <script>
+    Polymer({
+      is: 'x-repeat-with-if',
+      properties: {
+        items: {
+          value: () => [
+            {items: [{prop:'a'}, {prop: 'b'}]},
+            {items: [{prop:'c'}, {prop: 'd'}]}
+          ]
+        }
+      },
+      created() {
+        // cache target so it's available in spy after event stack returns
+        this.handleClick = sinon.spy((event) => event._target = event.target);
       }
     });
   </script>

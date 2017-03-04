@@ -1,0 +1,242 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+<body>
+
+  <dom-module id="base-el">
+    <template>
+      <style>
+        :host {
+          display: block;
+          color: red;
+        }
+        code {
+          color: black;
+        }
+      </style>
+      <!-- dummy nodes with notes be removed by subclass -->
+      <i i=[[i]]></i>
+      <i i=[[i]]></i>
+      <i i=[[i]]></i>
+      <i i=[[i]]></i>
+      <i i=[[i]]></i>
+      <input id="input" value="{{foo::input}}" on-custom="handleCustomEvent">
+      <span>base element: <code>foo = [[foo]]</code></span>
+    </template>
+
+    <script>
+    HTMLImports.whenReady(function() {
+      class BaseEl extends Polymer.Element {
+        static get is() { return 'base-el' }
+        static get properties() {
+          return { foo: { type: String, value: 5 } }
+        }
+        constructor() {
+          super();
+          this.handleCustomEvent = sinon.spy();
+        }
+      }
+      customElements.define(BaseEl.is, BaseEl);
+      window.BaseEl = BaseEl;
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="child-el">
+    <script>
+    HTMLImports.whenReady(function() {
+      class ChildEl extends window.BaseEl {
+        static get is() { return 'child-el' }
+        static get properties() {
+          return { bar: { type: String, value: 3 } }
+        }
+      }
+      customElements.define(ChildEl.is, ChildEl);
+      window.ChildEl = ChildEl;
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="grand-child-el">
+    <script>
+    HTMLImports.whenReady(function() {
+      class GrandChildEl extends window.ChildEl {
+        static get is() { return 'grand-child-el' }
+        static get properties() {
+          return { bar: { type: String, value: 3 } }
+        }
+      }
+      customElements.define(GrandChildEl.is, GrandChildEl);
+      window.GrandChildEl = GrandChildEl;
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="child-el-with-template">
+    <template>should ignore this template</template>
+    <script>
+    HTMLImports.whenReady(function() {
+      class ChildElWithTemplate extends window.GrandChildEl {
+        static get properties() {
+          return { bar: { type: String, value: 3 } }
+        }
+        static get template() {
+          var template = window.GrandChildEl.template.cloneNode(true);
+          var div = document.createElement('div');
+          div.textContent = 'child';
+          template.content.appendChild(div);
+          // Move input to the end
+          template.content.appendChild(template.content.querySelector('#input'));
+          // Remove all the <i>'s, such that the total number of nodes in
+          // this template is less than the super
+          Array.from(template.content.querySelectorAll('i'))
+            .forEach(i=>i.parentNode.removeChild(i));
+          return template;
+        }
+      }
+      customElements.define('child-el-with-template', ChildElWithTemplate);
+      window.ChildElWithTemplate = ChildElWithTemplate;
+    });
+    </script>
+  </dom-module>
+
+  <test-fixture id="basic">
+    <template>
+      <base-el></base-el>
+      <child-el></child-el>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="basic-with-attributes">
+    <template>
+      <base-el></base-el>
+      <child-el foo="7" bar="7"></child-el>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="with-template">
+    <template>
+      <base-el></base-el>
+      <child-el-with-template></child-el-with-template>
+    </template>
+  </test-fixture>
+
+  <script>
+  suite('ChildElement extends BaseElement', function() {
+    test('child has base properties', function() {
+      var f = fixture('basic');
+      var child = f[1];
+      assert.equal(child.foo, 5);
+      assert.equal(child.bar, 3);
+    });
+
+    test('child can change base properties', function() {
+      var f  = fixture('basic-with-attributes');
+      var child = f[1];
+      assert.equal(child.foo, 7);
+      assert.equal(child.bar, 7);
+    });
+
+    test('child has base template and style', function() {
+      var f = fixture('basic');
+      var base = f[0];
+      var child = f[1];
+
+      // Child template is the same as the base template.
+      assert.equal(child.shadowRoot.childNodes.length, child.shadowRoot.childNodes.length);
+      for (var i=0; i < child.shadowRoot.childNodes.length; i++) {
+        var childEl = child.shadowRoot.childNodes[i];
+        var baseEl = child.shadowRoot.childNodes[i];
+        assert.equal(childEl.innerHTML, baseEl.innerHTML);
+      }
+
+      // And it's something that we expect.
+      var code = child.shadowRoot.querySelector('code');
+      assert.equal(code.innerHTML, 'foo = 5');
+
+      // And the base style is the same.
+      assert.equal(getComputedStyle(base).color, getComputedStyle(child).color);
+
+      // Id map works as expected
+      assert.equal(child.$.input.localName, 'input');
+      assert.equal(child.$.input.id, 'input');
+
+      // 2-way bindings work as expected
+      child.$.input.value = 'changed';
+      child.$.input.dispatchEvent(new CustomEvent('input'));
+      assert.equal(child.foo, 'changed');
+
+      // Declarative event listeners work as expected
+      assert.equal(child.handleCustomEvent.callCount, 0);
+      child.$.input.dispatchEvent(new CustomEvent('custom'));
+      assert.equal(child.handleCustomEvent.callCount, 1);
+    });
+
+    test('child with properties has updated base template', function() {
+      var f = fixture('basic-with-attributes');
+      var base = f[0];
+      var child = f[1];
+
+      // Child template is not the same as the base template.
+      assert.notEqual(child.shadowRoot.innerHTML, base.shadowRoot.innerHTML);
+
+      // And it's something that we expect.
+      var code = child.shadowRoot.querySelector('code');
+      assert.equal(code.innerHTML, 'foo = 7');
+    });
+  });
+
+  suite('ChildElement extends BaseElement and the template', function() {
+    test('child has base properties', function() {
+      var f = fixture('with-template');
+      var child = f[1];
+      assert.equal(child.foo, 5);
+      assert.equal(child.bar, 3);
+    });
+
+    test('child has derived template and style', function() {
+      var f = fixture('with-template');
+      var base = f[0];
+      var child = f[1];
+
+      // Child template is not the same as the base template.
+      assert.notEqual(child.shadowRoot.innerHTML, base.shadowRoot.innerHTML);
+
+      // And it's something that we expect.
+      assert.equal(child.shadowRoot.querySelector('code').innerHTML, 'foo = 5');
+      assert.equal(child.shadowRoot.querySelector('div').innerHTML, 'child');
+
+      // And the base style is the same.
+      assert.equal(getComputedStyle(base).color, getComputedStyle(child).color);
+
+      // Id map works as expected
+      assert.equal(child.$.input.localName, 'input');
+      assert.equal(child.$.input.id, 'input');
+
+      // 2-way bindings work as expected
+      child.$.input.value = 'changed';
+      child.$.input.dispatchEvent(new CustomEvent('input'));
+      assert.equal(child.foo, 'changed');
+
+      // Declarative event listeners work as expected
+      assert.equal(child.handleCustomEvent.callCount, 0);
+      child.$.input.dispatchEvent(new CustomEvent('custom'));
+      assert.equal(child.handleCustomEvent.callCount, 1);
+    });
+  });
+  </script>
+</body>
+</html>
