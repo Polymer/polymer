@@ -1,12 +1,248 @@
-# Polymer 2.0 (pre-release)
+# Polymer
 
-This branch contains a preview of the Polymer 2.0 library.  The codebase is under active development, features may not be fully implemented, and APIs may change prior to the final 2.0 release.
+[![Build Status](https://travis-ci.org/Polymer/polymer.svg?branch=master)](https://travis-ci.org/Polymer/polymer)
 
-**To evaluate Polymer 2.0**, please load the `webcomponentsjs/webcomponents-lite.js` or `webcomponentsjs/webcomponents-loader.js` polyfills from the `v1.0.0-rc.4` tag of [`webcomponentsjs`](https://github.com/webcomponents/webcomponentsjs)
+Polymer lets you build encapsulated, reusable elements that work just like standard HTML elements, to use in building web applications.
+
+```html
+<!-- Polyfill Web Components for older browsers -->
+<script src="webcomponentsjs/webcomponents-lite.js"></script>
+
+<!-- Import element -->
+<link rel="import" href="google-map.html">
+
+<!-- Use element -->
+<google-map latitude="37.790" longitude="-122.390"></google-map>
+```
+
+Check out [polymer-project.org](https://www.polymer-project.org) for all of the library documentation, including getting started guides, tutorials, developer reference, and more.
+
+Or if you'd just like to download the library, check out our [releases page](https://github.com/polymer/polymer/releases).
+
+## Polymer 2.0 now at Release Candidate!
+Polymer 2.0 is now at Release Candidate stage, and will be the future focus of Polymer development going forward.  We intend to keep the 2.x public API stable barring critical feedback or issues during the release candidate period.  For background and migration information on the 2.x see the [2.0 documentation](https://www.polymer-project.org/2.0/docs/about_20) on the website or the [2.0 sction below](#release-candidate), and we welcome your feedback via [issues](https://github.com/Polymer/polymer/issues/new) or [Slack](https://polymer-slack.herokuapp.com/).
+
+**To evaluate Polymer 2.0**, please point your bower at the latest `2.0.0-rc.x` tag for polymer, and be sure load to the `webcomponentsjs/webcomponents-lite.js` or `webcomponentsjs/webcomponents-loader.js` polyfills from the latest `v1.0.0-rc.x` tag of [`webcomponentsjs`](https://github.com/webcomponents/webcomponentsjs)
 
 👀 **Looking for Polymer v1.x?** Please see the [the v1 branch](https://github.com/Polymer/polymer/tree/1.x)
 
-## Polymer 2.0 Goals
+## Overview
+
+Polymer is a lightweight library built on top of the web standards-based [Web Components](http://webcomponents.org/) API's, and makes it easier to build your very own custom HTML elements. Creating reusable custom elements - and using elements built by others - can make building complex web applications easier and more efficient. By being based on the Web Components API's built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), Polymer elements are interoperable at the browser level, and can be used with other frameworks or libraries that work with modern browsers.
+
+Among many ways to leverage custom elements, they can be particularly useful for building reusable UI components. Instead of continually re-building a specific navigation bar or button in different frameworks and for different projects, you can define this element once using Polymer, and then reuse it throughout your project or in any future project.
+
+Polymer provides a declarative syntax to easily create your own custom elements, using all standard web technologies - define the structure of the element with HTML, style it with CSS, and add interactions to the element with JavaScript. 
+
+Polymer also provides optional two-way data-binding, meaning:
+
+1. When properties in the model for an element get updated, the element can update itself in response.
+2. When the element is updated internally, the changes can be propagated back to the model.
+
+Polymer is designed to be flexible, lightweight, and close to the web platform - the library doesn't invent complex new abstractions and magic, but uses the best features of the web platform in straightforward ways to simply sugar the creation of custom elements.
+
+In addition to the Polymer library for building your own custom elements, the Polymer project includes a collection of [pre-built elements](https://elements.polymer-project.org) that you can  drop on a page and use immediately, or use as starting points for your own custom elements.
+
+## Polymer in 1 Minute
+
+Polymer adds convenient features to make it easy to build complex elements:
+
+**Basic custom element without Polymer:**
+
+```js
+// Standard custom element that Extends HTMLElement
+class MyElement extends HTMLElement {
+  constructor() {
+    super();
+    console.log('my-element was created!');
+  }
+}
+
+// Register custom element class with browser
+customElements.define('my-element', MyElement);
+```
+
+```html
+<!-- use the element -->
+<my-element></my-element>
+```
+
+**Custom element using Polymer**
+
+```html
+<!-- Define template that your element will use -->
+<dom-module id="my-simple-namecard">
+  <template>
+    <div>
+      Hi! My name is <span>Jane</span>
+    </div>
+  </template>
+</dom-module>
+```
+
+```js
+// Custom element that extends Polymer base class
+class MySimpleNamecard extends Polymer.Element {
+
+  // Stamp template from this dom-module into element's shadow DOM:
+  static get is() { return 'my-simple-namecard'; }
+
+}
+
+// Register custom element class with browser
+customElements.define(MySimpleNamecard.is, MySimpleNamecard);
+```
+
+**Configure properties on your element...**
+
+```js
+// Create an element that takes a property
+class MyPropertyNamecard extends Polymer.Element {
+
+  static get is() { return 'my-property-namecard'; }
+
+  // Define property/attribute API:
+  static get properties() { 
+    return {
+      myName: {
+        type: String,
+        observer: 'myNameChanged'
+      }
+    };
+  }
+  
+  myNameChanged(myName) {
+    this.textContent = 'Hi! My name is ' + myName;
+  }
+
+}
+
+customElements.define(MyPropertyNamecard.is, MyPropertyNamecard);
+```
+
+**...and have them set using declarative attributes**
+
+```html
+<!-- using the element -->
+<my-property-namecard my-name="Jim"></my-property-namecard>
+```
+
+> Hi! My name is Jim
+
+**Bind data into your element using the familiar mustache-syntax**
+
+```html
+<!-- Define template with bindings -->
+<dom-module id="my-bound-namecard">
+  <template>
+    <div>
+      Hi! My name is <span>[[myName]]</span>
+    </div>
+  </template>
+</dom-module>
+```
+```js
+class MyBoundNamecard extends Polymer.Element {
+
+  static get is() { return 'my-bound-namecard'; }
+
+  static get properties() { 
+    return {
+      myName: String
+    };
+  }
+
+}
+
+customElements.define(MyBoundNamecard.is, MyBoundNamecard);
+```
+
+```html
+<!-- using the element -->
+<my-bound-namecard my-name="Josh"></my-bound-namecard>
+```
+
+> Hi! My name is Josh
+
+**Style the internals of your element, without the style leaking out**
+
+```html
+<!-- Add style to your element -->
+<dom-module id="my-styled-namecard">
+  <template>
+    <style>
+      /* This would be crazy without webcomponents, but with shadow DOM */
+      /* it only applies to this element's private "shadow DOM" */
+      span {
+        font-weight: bold;
+      }
+    </style>
+
+    <div>
+      Hi! My name is <span>{{myName}}</span>
+    </div>
+  </template>
+</dom-module>
+```
+```js
+class MyStyledNamecard extends Polymer.Element {
+
+  static get is() { return 'my-styled-namecard'; }
+
+  static get properties() { 
+    return {
+      myName: String
+    };
+  }
+
+}
+
+customElements.define(MyStyledNamecard.is, MyStyledNamecard);
+```
+```html
+<!-- using the element -->
+<my-styled-namecard my-name="Jesse"></my-styled-namecard>
+```
+
+> Hi! My name is **Jesse**
+
+**and so much more!**
+
+Web components are an incredibly powerful new set of primitives baked into the web platform, and open up a whole new world of possibility when it comes to componentizing front-end code and easily creating powerful, immersive, app-like experiences on the web.
+
+By being based on Web Components, elements built with Polymer are:
+
+* Built from the platform up
+* Self-contained
+* Don't require an overarching framework - are interoperable across frameworks
+* Re-usable
+
+## Contributing
+
+The Polymer team loves contributions from the community! Take a look at our [contributing guide](CONTRIBUTING.md) for more information on how to contribute.
+
+## Communicating with the Polymer team
+
+Beyond Github, we try to have a variety of different lines of communication available:
+
+* [Blog](https://blog.polymer-project.org/)
+* [Twitter](https://twitter.com/polymer)
+* [Google+ community](https://plus.google.com/communities/115626364525706131031)
+* [Mailing list](https://groups.google.com/forum/#!forum/polymer-dev)
+* [Slack channel](https://bit.ly/polymerslack)
+
+# License
+
+The Polymer library uses a BSD-like license that is available [here](./LICENSE.txt)
+
+-----------
+
+<a name="release-candidate"></a>
+# Polymer 2.0 (release candidate)
+
+Polymer 2.0 is a major new release of Polymer that is compatible with the latest web components standards and web platform APIs, and makes significant improvements over the 1.x version of the library.  The following section provides context and migration information for existing users of Polymer 1.x:
+
+## Goals of Polymer 2.0
 
 1. **Take advantage of native "v1" Web Components implementations across browsers.**
 
@@ -54,9 +290,9 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
 
 1. **Improve factoring of Polymer and the polyfills**
 
-   We've done some refactoring of Polymer and the webcomponentsjs polyfills to improve efficiency, utility and flexibility:
+   We've done major refactoring of Polymer and the webcomponentsjs polyfills to improve efficiency, utility and flexibility:
 
-   * The "Shady DOM" shim that was part of Polymer 1.x has been factored out of Polymer and added to the webcomponentsjs polyfills, along with the related shim for CSS Custom Properties. (As noted above, the Shady DOM shim no longer exposes an alternative API but instead patches the native DOM API.)
+   * The "Shady DOM" shim that was part of Polymer 1.x has been factored out of Polymer and added to the webcomponentsjs polyfills, along with the related shim for CSS Custom Properties. (As noted above, the Shady DOM shim no longer exposes an alternative API but instead patches the native DOM API for transparent usage).
 
    * Polymer itself has been internally factored into several loosely coupled libraries.
 
@@ -65,11 +301,6 @@ This branch contains a preview of the Polymer 2.0 library.  The codebase is unde
      * The idiomatic way of using Polymer 2.0 (assuming you're not using the 1.x compatibility layer) is to define your own custom elements that subclass `Polymer.Element`, using standard ES class definition syntax.
 
      * If you're interested in using pieces of Polymer's functionality in _a la carte_ fashion, you can try defining your own base element class, utilizing a subset of the libraries. For now, this use case should be considered experimental, as the factoring of libraries is subject to change and is not part of the official Polymer 2.0 API.
-
-## Installing
-You can install Polymer 2.0 using bower:
-
-      bower install --save Polymer/polymer#2.0-preview
 
 ## 1.0 Compatibility Layer
 Polymer 2.0 retains the existing `polymer/polymer.html` import that current Polymer 1.0 users can continue to import, which strives to provide a very minimally-breaking change for code written to the Polymer 1.0 API.  For the most part, existing users upgrading to Polymer 2.0 will only need to adapt existing code to be compliant with the V1 Shadow DOM API related to content distribution and styling, as well as minor breaking changes introduced due to changes in the V1 Custom Elements spec and data-layer improvements listed [below](#breaking-changes).
@@ -142,7 +373,7 @@ See below for a visual guide on migrating Polymer 1.0's declarative syntax to th
 
 ## Polyfills
 
-Polymer 2.0 has been developed alongside and tested with a new suite of V1-spec compatible polyfills for Custom Elements and Shadow DOM.   Polymer 2.0 can currently be tested by loading the `v1` branch of [`webcomponentsjs/webcomponents-lite.js`](https://github.com/webcomponents/webcomponentsjs/tree/v1), which is included as a bower dependency to Polymer 2.x and loads all necessary polyfills.
+Polymer 2.0 has been developed alongside and tested with a new suite of V1-spec compatible polyfills for Custom Elements and Shadow DOM.   Polymer 2.0 is compatible the latest releases of [`webcomponentsjs/webcomponents-lite.js`](https://github.com/webcomponents/webcomponentsjs), which is included as a bower dependency to Polymer 2.x.
 
 ## Breaking Changes
 Below is a list of intentional breaking changes made in Polymer 2.0, along with their rationale/justification and migration guidance.  If you find changes that broke existing code not documented here, please [file an issue](https://github.com/Polymer/polymer/issues/new) and we'll investigate to determine whether they are expected/intentional or not.
