@@ -1,5 +1,203 @@
 # Change Log
 
+##[v1.8.1-dev](https://github.com/Polymer/polymer/tree/v1.8.1-dev) (2017-02-27)
+- Exclude SD polyfill tests for Edge due to lack of workarounds for Edge DocFrag bugs. ([commit](https://github.com/Polymer/polymer/commit/de45ba02))
+
+- [ci skip] Update comment to include reference to problem browser. ([commit](https://github.com/Polymer/polymer/commit/72f21fe6))
+
+- Check documentElement instead of body to guarantee it's there. ([commit](https://github.com/Polymer/polymer/commit/a0ad3bbe))
+
+- add tests ([commit](https://github.com/Polymer/polymer/commit/20de9287))
+
+- Adds a setting `preserveStyleIncludes` which, when used with a shadow dom targeted css build and native custom properties, will copy styles into the Shadow DOM template rather than collapsing them into a single style. This will (1) allow the browser to optimize parsing of shared styles because they remain intact, (2) reduce the size of the css build resources when shared styles are used since they are not pre-collapsed. This option does perform registration runtime work to add included styles to element templates. ([commit](https://github.com/Polymer/polymer/commit/2315547e))
+
+- Fix test failures by feature detecting instance `properties` accessors. Can't rely on `__proto__` on IE10, but that browser doesn't need to avoid `properties`. ([commit](https://github.com/Polymer/polymer/commit/f2a12cb1))
+
+- Read properties off of proto during configuration. ([commit](https://github.com/Polymer/polymer/commit/a68c0b3e))
+
+- remove cruft. ([commit](https://github.com/Polymer/polymer/commit/632f0e47))
+
+- Ensure disable-upgrade elements are not "configured". Fixes #4302 ([commit](https://github.com/Polymer/polymer/commit/b36915f6))
+
+- change lastresponse to last-response in dom-bind example ([commit](https://github.com/Polymer/polymer/commit/4427b0b6))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/2d804a28))
+
+##[v1.8.0-dev](https://github.com/Polymer/polymer/tree/v1.8.0-dev) (2017-02-06)
+- Add comment. ([commit](https://github.com/Polymer/polymer/commit/a42cb209))
+
+- Only keep `disable-upgrade` attribute if it is an attribute binding. ([commit](https://github.com/Polymer/polymer/commit/62e9b84b))
+
+- spacing. ([commit](https://github.com/Polymer/polymer/commit/5030c1b9))
+
+- Update webcomponentsjs dependency ([commit](https://github.com/Polymer/polymer/commit/ca7dbb84))
+
+- Change `isInert` to `disable-upgrade` and feature is now supported only via the `disable-upgrade` attribute. ([commit](https://github.com/Polymer/polymer/commit/f8f903cf))
+
+- Add tests for `is-inert` ([commit](https://github.com/Polymer/polymer/commit/e1561f65))
+
+- Prevent annotator from removing the `is-inert` attribute. ([commit](https://github.com/Polymer/polymer/commit/91925148))
+
+- fixes for users of Polymer.Class ([commit](https://github.com/Polymer/polymer/commit/0f53bef4))
+
+- Add support for `isInert` to allow elements to boot up in an inert state. e.g. `<x-foo is-inert></x-foo>`. Setting `xFoo.isInert = false` causes the element to boot up. ([commit](https://github.com/Polymer/polymer/commit/ca3f59d3))
+
+- Small typos updated ([commit](https://github.com/Polymer/polymer/commit/bc023648))
+
+- work around older firefox handling of the "properties" property on HTMLElement prototype ([commit](https://github.com/Polymer/polymer/commit/13f36c7f))
+
+- improve comments ([commit](https://github.com/Polymer/polymer/commit/c76ba5b9))
+
+- Add comments. Behavior fast copy flag changed to `_noAccessors`. ([commit](https://github.com/Polymer/polymer/commit/52ea6002))
+
+- Fix tests on IE10 and simplify constructor shortcut. ([commit](https://github.com/Polymer/polymer/commit/e588f1f5))
+
+- Make dom-module work on older Safari. ([commit](https://github.com/Polymer/polymer/commit/73b62a63))
+
+- micro-optimizations: (1) favor mixin over extends where possible, (2) unroll behavior lifecycle calls, (3) avoid creating a custom constructor when not used, (4) provide `_skipDefineProperty` setting on behaviors which copies properties via assignment rather than `copyOwnProperty` ([commit](https://github.com/Polymer/polymer/commit/a1c1285d))
+
+- Ensure done. ([commit](https://github.com/Polymer/polymer/commit/08753237))
+
+- Test positive case of suppressBindingNotifications ([commit](https://github.com/Polymer/polymer/commit/1b19b784))
+
+- Add notifyDomBind to dom-bind. ([commit](https://github.com/Polymer/polymer/commit/ad7f91d6))
+
+- Test Polymer.Settings inside test. ([commit](https://github.com/Polymer/polymer/commit/4b286f19))
+
+- Revert unnecessary change. ([commit](https://github.com/Polymer/polymer/commit/dcde6d4c))
+
+- Fix test lint issue. ([commit](https://github.com/Polymer/polymer/commit/26c669ce))
+
+- Add global flags to suppress unnecessary notification events. Fixes #4262. * `Polymer.Settings.suppressTemplateNotifications `- disables `dom-change` and `rendered-item-count` events from `dom-if`, `dom-repeat`, and `don-bind`. Users can opt back into `dom-change` events by setting the `notify-dom-change` attribute (`notifyDomChange: true` property) to `dom-if`/`don-repeat` instances. * `Polymer.Settings.suppressBindingNotifications` - disables notify effects when propagating data downward via bindings. Generally these are never useful unless users are explicitly doing something like `<my-el foo="{{foo}} on-foo-changed="{{handleFoo}}">` or calling `addEventListener('foo-changed', ...)` on an element where `foo` is bound (we attempted to make this the default some time back but needed to revert it when we found via https://github.com/Polymer/polymer/issues/3077 that users were indeed doing this).  Users that avoid these patterns can enjoy the potentially significant benefit of suppressing unnecessary events during downward data flow by opting into this flag. ([commit](https://github.com/Polymer/polymer/commit/83e14c43))
+
+- Fix `strip-whitespace` for nested templates. ([commit](https://github.com/Polymer/polymer/commit/a3b75eb3))
+
+- [ci skip] update changelog v1.7.1 ([commit](https://github.com/Polymer/polymer/commit/03e22a1c))
+
+- Close backtick in ISSUE_TEMPLATE.md ([commit](https://github.com/Polymer/polymer/commit/b0dea8bc))
+
+##[v1.7.1-dev](https://github.com/Polymer/polymer/tree/v1.7.1-dev) (2016-12-14)
+- Remove dependency on WebComponets for IE detection ([commit](https://github.com/Polymer/polymer/commit/650c16a9))
+
+- Make sure text nodes are distributed when translating slot to content ([commit](https://github.com/Polymer/polymer/commit/87e312f1))
+
+- always use the document listener ([commit](https://github.com/Polymer/polymer/commit/5ddcb8d1))
+
+- Add tests for no-gesture interop ([commit](https://github.com/Polymer/polymer/commit/4be7e9f6))
+
+- fix lint error ([commit](https://github.com/Polymer/polymer/commit/9c8eaa9d))
+
+- Use document-wide passive touch listener to update ghostclick blocker target ([commit](https://github.com/Polymer/polymer/commit/947172f8))
+
+- only need to recalc if styleProperties missing ([commit](https://github.com/Polymer/polymer/commit/5bfe2792))
+
+- simpler implementation, only recompute when using shim variables ([commit](https://github.com/Polymer/polymer/commit/5231d87f))
+
+- [ci skip] update travis.yml from 2.0 ([commit](https://github.com/Polymer/polymer/commit/1a9c5c8c))
+
+- Always update style properties when calling getComputedStyleValue ([commit](https://github.com/Polymer/polymer/commit/fb8575c6))
+
+- Add tests ([commit](https://github.com/Polymer/polymer/commit/29de0055))
+
+- Fix #4123: Memory leak when using `importHref` ([commit](https://github.com/Polymer/polymer/commit/132010ea))
+
+- Prevent _showHideChildren from being called on placeholders. ([commit](https://github.com/Polymer/polymer/commit/0468c60a))
+
+- fix broken link to Google JavaScript syle guide in documentation ([commit](https://github.com/Polymer/polymer/commit/376d146f))
+
+- Better explanation thanks to @kevinpschaaf ([commit](https://github.com/Polymer/polymer/commit/0dae8f0d))
+
+- [ci skip] fix changelog title ([commit](https://github.com/Polymer/polymer/commit/16712cb6))
+
+- [ci skip] Update Changelog for 1.7.0 ([commit](https://github.com/Polymer/polymer/commit/d6af21b5))
+
+- Resolving issue #1745 with Polymer docs ([commit](https://github.com/Polymer/polymer/commit/bb875275))
+
+- fixed broken tests/missing web components ([commit](https://github.com/Polymer/polymer/commit/f2b01e34))
+
+- 3430 - ie memory leak fixes - disable event caching, fixed resolver url adding to root doc, and weak map ie issues ([commit](https://github.com/Polymer/polymer/commit/a6e66f92))
+
+- Briefly explain how to split element definition ([commit](https://github.com/Polymer/polymer/commit/c6462286))
+
+- Fix copy&pasted comment ([commit](https://github.com/Polymer/polymer/commit/d595c0cc))
+
+##[v1.7.0](https://github.com/Polymer/polymer/tree/v1.7.0) (2016-09-28)
+- Fix IE style cache performance ([commit](https://github.com/Polymer/polymer/commit/d08b694))
+
+- no need for :root to be first in the selector ([commit](https://github.com/Polymer/polymer/commit/63433c8))
+
+- fix tests on !chrome browsers ([commit](https://github.com/Polymer/polymer/commit/7ce981b))
+
+- Translate `:root` to `:host > *` for element styles ([commit](https://github.com/Polymer/polymer/commit/fea64b9))
+
+- Define checkRoot only once ([commit](https://github.com/Polymer/polymer/commit/a49b366))
+
+- Fix normalizeRootSelector ([commit](https://github.com/Polymer/polymer/commit/c2278a0))
+
+- Comment on using the ast walker to replace selector ([commit](https://github.com/Polymer/polymer/commit/9658665))
+
+- update travis config ([commit](https://github.com/Polymer/polymer/commit/c00687a))
+
+- Transform ::slotted() to ::content ([commit](https://github.com/Polymer/polymer/commit/541fdfb))
+
+- Test on native shadow DOM also. ([commit](https://github.com/Polymer/polymer/commit/11afc1f))
+
+- Reorder. ([commit](https://github.com/Polymer/polymer/commit/cbae058))
+
+- Remove unused. ([commit](https://github.com/Polymer/polymer/commit/92d1d8a))
+
+- Add fallback support/test. ([commit](https://github.com/Polymer/polymer/commit/037abdd))
+
+- A little more dry. ([commit](https://github.com/Polymer/polymer/commit/6fd0e1f))
+
+- Use name. ([commit](https://github.com/Polymer/polymer/commit/4aa8da2))
+
+- Support default slot semantics. ([commit](https://github.com/Polymer/polymer/commit/d458dd3))
+
+- Remove opt-in. Exclude content from copy. ([commit](https://github.com/Polymer/polymer/commit/41e5dc0))
+
+- Make sure click events can always trigger tap, even on touch only devices ([commit](https://github.com/Polymer/polymer/commit/02441ca))
+
+- Add support for slot->content transformation. Need to bikeshed opt-in attribute (currently "auto-content") ([commit](https://github.com/Polymer/polymer/commit/ebf31ca))
+
+- Support more expressive `:root` and `html` selectors ([commit](https://github.com/Polymer/polymer/commit/2a8f21a))
+
+- Fix typo ([commit](https://github.com/Polymer/polymer/commit/192eb56))
+
+- test for mixins in custom-style ordering ([commit](https://github.com/Polymer/polymer/commit/37646f7))
+
+- Do not insert semicolon when fixing var() syntax ([commit](https://github.com/Polymer/polymer/commit/0a338a7))
+
+- Make sure mixins are applied no matter the ordering of definition ([commit](https://github.com/Polymer/polymer/commit/9daea3d))
+
+- Update gulp-eslint to 3.x ([commit](https://github.com/Polymer/polymer/commit/8b89f02))
+
+- Fixes #3676: retain `<style>` in `<template preserve-content/>` ([commit](https://github.com/Polymer/polymer/commit/8a4c00c))
+
+- [ci skip] Update Changelog for v1.6.1 ([commit](https://github.com/Polymer/polymer/commit/ec04461))
+
+- Apply to _marshalArgs. ([commit](https://github.com/Polymer/polymer/commit/b2cd932))
+
+- Rename Path.head() to Path.root(). ([commit](https://github.com/Polymer/polymer/commit/77808d9))
+
+- Use head in templatizer ([commit](https://github.com/Polymer/polymer/commit/478978d))
+
+- Modify _annotationPathEffect ([commit](https://github.com/Polymer/polymer/commit/852aba0))
+
+- Use isDescendant ([commit](https://github.com/Polymer/polymer/commit/b9944fe))
+
+- Use isDeep ([commit](https://github.com/Polymer/polymer/commit/5627a55))
+
+- Replace _fixPath. ([commit](https://github.com/Polymer/polymer/commit/6d1dd88))
+
+- Replace _modelForPath. ([commit](https://github.com/Polymer/polymer/commit/b02eda0))
+
+- Replace _patchMatchesEffect. ([commit](https://github.com/Polymer/polymer/commit/6ad9295))
+
+- Add path library. ([commit](https://github.com/Polymer/polymer/commit/0320763))
+
+- Revert "Fix _patchMatchesEffect. (#3631)" ([commit](https://github.com/Polymer/polymer/commit/a64f227))
+
 ##[v1.6.1](https://github.com/Polymer/polymer/tree/v1.6.1) (2016-08-01)
 - Property Shim needs to handle build output from apply shim ([commit](https://github.com/Polymer/polymer/commit/d726a51))
 

@@ -69,7 +69,7 @@ All elements should follow the [Polymer element style guide](http://polymereleme
 
 #### Contributing Code to the Polymer library
 
-We follow the most common javascript and HTML style guidelines for how we structure our code - in general, look at the code and you'll know how to contribute! If you'd like a bit more structure, the [Google Javascript Styleguide](https://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml) is a good place to start.
+We follow the most common javascript and HTML style guidelines for how we structure our code - in general, look at the code and you'll know how to contribute! If you'd like a bit more structure, the [Google JavaScript Styleguide](https://google.github.io/styleguide/javascriptguide.xml) is a good place to start.
 
 Polymer also participates in Google's [Patch Rewards Program](http://www.google.com/about/appsecurity/patch-rewards/), where you can earn cold, hard cash for qualifying security patches to the Polymer library. Visit the [patch rewards page](http://www.google.com/about/appsecurity/patch-rewards/) to find out more.
 
