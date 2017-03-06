@@ -8,83 +8,83 @@ declare namespace Polymer {
   }
 
   interface PropertyAccessors {
-    protected _initializeProperties();
-    protected _initializeProtoProperties(props: any);
-    protected _ensureAttribute(attribute: any, value: any);
-    protected _attributeToProperty(attribute: any, value: any, type: any);
-    protected _propertyToAttribute(property: any, attribute: any, value: any);
-    protected _valueToNodeAttribute(node: any, value: any, attribute: any);
-    protected _serializeValue(value: any);
-    protected _deserializeValue(value: any, type: any);
-    protected _createPropertyAccessor(property: any, readOnly: any);
-    protected _setProperty(property: any, value: any);
-    protected _setPendingProperty(property: any, value: any);
-    protected _isPropertyPending(prop: any);
-    protected _invalidateProperties();
-    protected _flushProperties();
-    protected _propertiesChanged(currentProps: any, changedProps: any, oldProps: any);
-    protected _shouldPropertyChange(property: any, value: any, old: any);
+    _initializeProperties();
+    _initializeProtoProperties(props: any);
+    _ensureAttribute(attribute: any, value: any);
+    _attributeToProperty(attribute: any, value: any, type: any);
+    _propertyToAttribute(property: any, attribute: any, value: any);
+    _valueToNodeAttribute(node: any, value: any, attribute: any);
+    _serializeValue(value: any);
+    _deserializeValue(value: any, type: any);
+    _createPropertyAccessor(property: any, readOnly: any);
+    _setProperty(property: any, value: any);
+    _setPendingProperty(property: any, value: any);
+    _isPropertyPending(prop: any);
+    _invalidateProperties();
+    _flushProperties();
+    _propertiesChanged(currentProps: any, changedProps: any, oldProps: any);
+    _shouldPropertyChange(property: any, value: any, old: any);
   }
   const PropertyAccessors: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<PropertyAccessors>;
 
   interface TemplateStamp {
-    protected _stampTemplate(template: any);
-    protected _parseTemplateAnnotations(template: any);
-    protected _addMethodEventListenerToNode(node: any, eventName: any, methodName: any, context: any);
-    protected _addEventListenerToNode(node: any, eventName: any, handler: any);
-    protected _removeEventListenerFromNode(node: any, eventName: any, handler: any);
+    _stampTemplate(template: any);
+    _parseTemplateAnnotations(template: any);
+    _addMethodEventListenerToNode(node: any, eventName: any, methodName: any, context: any);
+    _addEventListenerToNode(node: any, eventName: any, handler: any);
+    _removeEventListenerFromNode(node: any, eventName: any, handler: any);
   }
   const TemplateStamp: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<TemplateStamp>;
 
   interface PropertyEffects extends TemplateStamp, PropertyAccessors{
-    protected _initializeProperties();
-    protected _initializeProtoProperties(props: any);
-    protected _addPropertyEffect(property: any, type: any, effect: any);
-    protected _hasPropertyEffect(property: any, type: any);
-    protected _hasReadOnlyEffect(property: any);
-    protected _hasNotifyEffect(property: any);
-    protected _hasReflectEffect(property: any);
-    protected _hasComputedEffect(property: any);
-    protected _setPendingPropertyOrPath(path: any, value: any, shouldNotify: any, isPathNotification: any);
-    protected _setUnmanagedPropertyToNode(node: any, prop: any, value: any);
-    protected _setPendingProperty(property: any, value: any, shouldNotify: any);
-    protected _setProperty(property: any, value: any);
-    protected _invalidateProperties();
-    protected _enqueueClient(client: any);
-    protected _flushClients();
+    _initializeProperties();
+    _initializeProtoProperties(props: any);
+    _addPropertyEffect(property: any, type: any, effect: any);
+    _hasPropertyEffect(property: any, type: any);
+    _hasReadOnlyEffect(property: any);
+    _hasNotifyEffect(property: any);
+    _hasReflectEffect(property: any);
+    _hasComputedEffect(property: any);
+    _setPendingPropertyOrPath(path: any, value: any, shouldNotify: any, isPathNotification: any);
+    _setUnmanagedPropertyToNode(node: any, prop: any, value: any);
+    _setPendingProperty(property: any, value: any, shouldNotify: any);
+    _setProperty(property: any, value: any);
+    _invalidateProperties();
+    _enqueueClient(client: any);
+    _flushClients();
     setProperties(props: any);
-    protected _flushProperties();
+    _flushProperties();
     ready();
-    protected _readyClients();
-    protected _stampTemplate(template: any);
-    protected _propertiesChanged(currentProps: any, changedProps: any, oldProps: any);
+    _readyClients();
+    _stampTemplate(template: any);
+    _propertiesChanged(currentProps: any, changedProps: any, oldProps: any);
     linkPaths(to: any, from: any);
     unlinkPaths(path: any);
     notifySplices(path: any, splices: any);
     get(path: any, root: any);
     set(path: any, value: any, root: any);
-    push(path: any, ...items: any);
+    push(path: any, ...items: any[]);
     pop(path: any);
-    splice(path: any, start: any, deleteCount: any, ...items: any);
+    splice(path: any, start: any, deleteCount: any, ...items: any[]);
     shift(path: any);
-    unshift(path: any, ...items: any);
+    unshift(path: any, ...items: any[]);
     notifyPath(path: any, value: any);
-    protected _createReadOnlyProperty(property: any, protectedSetter: any);
-    protected _createPropertyObserver(property: any, methodName: any, dynamicFn: any);
-    protected _createMethodObserver(expression: any, dynamicFns: any);
-    protected _createNotifyingProperty(property: any);
-    protected _createReflectedProperty(property: any);
-    protected _createComputedProperty(property: any, expression: any, dynamicFns: any);
-    protected _bindTemplate(template: any, dynamicFns: any);
+    _createReadOnlyProperty(property: any, protectedSetter: any);
+    _createPropertyObserver(property: any, methodName: any, dynamicFn: any);
+    _createMethodObserver(expression: any, dynamicFns: any);
+    _createNotifyingProperty(property: any);
+    _createReflectedProperty(property: any);
+    _createComputedProperty(property: any, expression: any, dynamicFns: any);
+    _bindTemplate(template: any, dynamicFns: any);
   }
   const PropertyEffects: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<PropertyEffects>;
 
   interface ElementMixin extends PropertyEffects{
-    protected _initializeProperties();
+    _initializeProperties();
     connectedCallback();
     disconnectedCallback();
-    protected _readyClients();
-    protected _attachDom(dom: any);
+    _readyClients();
+    _attachDom(dom: any);
     attributeChangedCallback(name: any, old: any, value: any);
     updateStyles(properties: any);
     resolveUrl(url: any, base: any);
@@ -92,8 +92,8 @@ declare namespace Polymer {
   const ElementMixin: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<ElementMixin>;
 
   interface GestureEventListeners {
-    protected _addEventListenerToNode(node: any, eventName: any, handler: any);
-    protected _removeEventListenerFromNode(node: any, eventName: any, handler: any);
+    _addEventListenerToNode(node: any, eventName: any, handler: any);
+    _removeEventListenerFromNode(node: any, eventName: any, handler: any);
   }
   const GestureEventListeners: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<GestureEventListeners>;
 
@@ -106,15 +106,15 @@ declare namespace Polymer {
   function dom(obj: (Node|Event)): (DomApi|EventApi);
 
   interface LegacyElementMixin extends ElementMixin, GestureEventListeners{
-    protected created();
-    protected attached();
-    protected detached();
-    protected attributeChanged();
-    protected _initializeProperties();
-    protected _registered();
-    protected ready();
-    protected _ensureAttributes();
-    protected _applyListeners();
+    created();
+    attached();
+    detached();
+    attributeChanged();
+    _initializeProperties();
+    _registered();
+    ready();
+    _ensureAttributes();
+    _applyListeners();
     serialize(value: any);
     deserialize(value: any, type: any);
     reflectPropertyToAttribute(property: any, attribute: any, value: any);
@@ -155,11 +155,11 @@ declare namespace Polymer {
     transform(transformText: any, node: any);
     translate3d(x: any, y: any, z: any, node: any);
     arrayDelete(arrayOrPath: any, item: any);
-    protected _logger(level: any, args: any);
-    protected _log(...args: any);
-    protected _warn(...args: any);
-    protected _error(...args: any);
-    protected _logf(...args: any);
+    _logger(level: any, args: any);
+    _log(...args: any[]);
+    _warn(...args: any[]);
+    _error(...args: any[]);
+    _logf(...args: any[]);
   }
   const LegacyElementMixin: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<LegacyElementMixin>;
 
@@ -168,17 +168,17 @@ declare namespace Polymer {
   function Class(info: Object): Polymer.LegacyElement;
 
   interface MutableData {
-    protected _shouldPropertyChange(property: any, value: any, old: any);
+    _shouldPropertyChange(property: any, value: any, old: any);
   }
   const MutableData: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<MutableData>;
 
   interface OptionalMutableData {
     mutableData: boolean;
-    protected _shouldPropertyChange(property: any, value: any, old: any);
+    _shouldPropertyChange(property: any, value: any, old: any);
   }
   const OptionalMutableData: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<OptionalMutableData>;
 
-  class DomBind extends domBindBase {
+  class DomBind extends Polymer.OptionalMutableData(Polymer.PropertyEffects(HTMLElement)) {
     attributeChangedCallback();
     render();
   }
@@ -186,7 +186,7 @@ declare namespace Polymer {
   const Element = Polymer.ElementMixin(HTMLElement);
 
   class DomRepeat extends Polymer.OptionalMutableData(Polymer.Element) {
-    items: Array;
+    items: any[];
     as: string;
     indexAs: string;
     itemsIndexAs: string;
@@ -197,9 +197,9 @@ declare namespace Polymer {
     renderedItemCount: number;
     initialCount: number;
     targetFramerate: number;
-    protected _targetFrameTime: number;
+    _targetFrameTime: number;
     render();
-    protected _showHideChildren(hidden: any);
+    _showHideChildren(hidden: any);
     itemForElement(el: any);
     indexForElement(el: any);
     modelForElement(el: any);
@@ -209,11 +209,11 @@ declare namespace Polymer {
     if: boolean;
     restamp: boolean;
     render();
-    protected _showHideChildren();
+    _showHideChildren();
   }
 
   interface ArraySelectorMixin {
-    items: Array;
+    items: any[];
     multi: boolean;
     selected: Object;
     selectedItem: Object;
