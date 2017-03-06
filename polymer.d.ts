@@ -1,7 +1,7 @@
 declare namespace Polymer {
   type Constructor<T> = new(...args: any[]) => T;
 
-  function dedupingMixin(mixin: function): function;
+  function dedupingMixin(mixin: Function): Function;
 
   class DomModule extends HTMLElement {
     register(id: any);
@@ -24,7 +24,7 @@ declare namespace Polymer {
     protected _flushProperties();
     protected _propertiesChanged(currentProps: any, changedProps: any, oldProps: any);
     protected _shouldPropertyChange(property: any, value: any, old: any);
-}
+  }
   const PropertyAccessors: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<PropertyAccessors>;
 
   interface TemplateStamp {
@@ -33,10 +33,10 @@ declare namespace Polymer {
     protected _addMethodEventListenerToNode(node: any, eventName: any, methodName: any, context: any);
     protected _addEventListenerToNode(node: any, eventName: any, handler: any);
     protected _removeEventListenerFromNode(node: any, eventName: any, handler: any);
-}
+  }
   const TemplateStamp: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<TemplateStamp>;
 
-  interface PropertyEffects {
+  interface PropertyEffects extends TemplateStamp, PropertyAccessors{
     protected _initializeProperties();
     protected _initializeProtoProperties(props: any);
     protected _addPropertyEffect(property: any, type: any, effect: any);
@@ -76,10 +76,10 @@ declare namespace Polymer {
     protected _createReflectedProperty(property: any);
     protected _createComputedProperty(property: any, expression: any, dynamicFns: any);
     protected _bindTemplate(template: any, dynamicFns: any);
-}
+  }
   const PropertyEffects: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<PropertyEffects>;
 
-  interface ElementMixin {
+  interface ElementMixin extends PropertyEffects{
     protected _initializeProperties();
     connectedCallback();
     disconnectedCallback();
@@ -88,16 +88,16 @@ declare namespace Polymer {
     attributeChangedCallback(name: any, old: any, value: any);
     updateStyles(properties: any);
     resolveUrl(url: any, base: any);
-}
+  }
   const ElementMixin: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<ElementMixin>;
 
   interface GestureEventListeners {
     protected _addEventListenerToNode(node: any, eventName: any, handler: any);
     protected _removeEventListenerFromNode(node: any, eventName: any, handler: any);
-}
+  }
   const GestureEventListeners: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<GestureEventListeners>;
 
-  function importHref(href: string, onload: Function=, onerror: Function=, optAsync: boolean=): HTMLLinkElement;
+  function importHref(href: string, onload: Function, onerror: Function, optAsync: boolean): HTMLLinkElement;
 
   function enqueueDebouncer(debouncer: Polymer.Debouncer);
 
@@ -105,7 +105,7 @@ declare namespace Polymer {
 
   function dom(obj: (Node|Event)): (DomApi|EventApi);
 
-  interface LegacyElementMixin {
+  interface LegacyElementMixin extends ElementMixin, GestureEventListeners{
     protected created();
     protected attached();
     protected detached();
@@ -160,7 +160,7 @@ declare namespace Polymer {
     protected _warn(...args: any);
     protected _error(...args: any);
     protected _logf(...args: any);
-}
+  }
   const LegacyElementMixin: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<LegacyElementMixin>;
 
   function mixinBehaviors(behaviors: (Object|Array), klass: HTMLElement);
@@ -169,69 +169,21 @@ declare namespace Polymer {
 
   interface MutableData {
     protected _shouldPropertyChange(property: any, value: any, old: any);
-}
+  }
   const MutableData: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<MutableData>;
 
   interface OptionalMutableData {
     mutableData: boolean;
     protected _shouldPropertyChange(property: any, value: any, old: any);
-}
+  }
   const OptionalMutableData: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<OptionalMutableData>;
 
   class DomBind extends domBindBase {
-    protected _initializeProperties();
-    protected _initializeProtoProperties(props: any);
-    protected _addPropertyEffect(property: any, type: any, effect: any);
-    protected _hasPropertyEffect(property: any, type: any);
-    protected _hasReadOnlyEffect(property: any);
-    protected _hasNotifyEffect(property: any);
-    protected _hasReflectEffect(property: any);
-    protected _hasComputedEffect(property: any);
-    protected _setPendingPropertyOrPath(path: any, value: any, shouldNotify: any, isPathNotification: any);
-    protected _setUnmanagedPropertyToNode(node: any, prop: any, value: any);
-    protected _setPendingProperty(property: any, value: any, shouldNotify: any);
-    protected _setProperty(property: any, value: any);
-    protected _invalidateProperties();
-    protected _enqueueClient(client: any);
-    protected _flushClients();
-    setProperties(props: any);
-    protected _flushProperties();
-    ready();
-    protected _readyClients();
-    protected _stampTemplate(template: any);
-    protected _propertiesChanged(currentProps: any, changedProps: any, oldProps: any);
-    linkPaths(to: any, from: any);
-    unlinkPaths(path: any);
-    notifySplices(path: any, splices: any);
-    get(path: any, root: any);
-    set(path: any, value: any, root: any);
-    push(path: any, ...items: any);
-    pop(path: any);
-    splice(path: any, start: any, deleteCount: any, ...items: any);
-    shift(path: any);
-    unshift(path: any, ...items: any);
-    notifyPath(path: any, value: any);
-    protected _createReadOnlyProperty(property: any, protectedSetter: any);
-    protected _createPropertyObserver(property: any, methodName: any, dynamicFn: any);
-    protected _createMethodObserver(expression: any, dynamicFns: any);
-    protected _createNotifyingProperty(property: any);
-    protected _createReflectedProperty(property: any);
-    protected _createComputedProperty(property: any, expression: any, dynamicFns: any);
-    protected _bindTemplate(template: any, dynamicFns: any);
     attributeChangedCallback();
     render();
   }
 
-const Element = Polymer.ElementMixin(HTMLElement) {
-    protected _initializeProperties();
-    connectedCallback();
-    disconnectedCallback();
-    protected _readyClients();
-    protected _attachDom(dom: any);
-    attributeChangedCallback(name: any, old: any, value: any);
-    updateStyles(properties: any);
-    resolveUrl(url: any, base: any);
-  }
+  const Element = Polymer.ElementMixin(HTMLElement);
 
   class DomRepeat extends Polymer.OptionalMutableData(Polymer.Element) {
     items: Array;
@@ -246,13 +198,6 @@ const Element = Polymer.ElementMixin(HTMLElement) {
     initialCount: number;
     targetFramerate: number;
     protected _targetFrameTime: number;
-    protected _initializeProperties();
-    protected _readyClients();
-    protected _attachDom(dom: any);
-    attributeChangedCallback(name: any, old: any, value: any);
-    updateStyles(properties: any);
-    resolveUrl(url: any, base: any);
-    protected _shouldPropertyChange(property: any, value: any, old: any);
     render();
     protected _showHideChildren(hidden: any);
     itemForElement(el: any);
@@ -263,12 +208,6 @@ const Element = Polymer.ElementMixin(HTMLElement) {
   class DomIf extends Polymer.Element {
     if: boolean;
     restamp: boolean;
-    protected _initializeProperties();
-    protected _readyClients();
-    protected _attachDom(dom: any);
-    attributeChangedCallback(name: any, old: any, value: any);
-    updateStyles(properties: any);
-    resolveUrl(url: any, base: any);
     render();
     protected _showHideChildren();
   }
@@ -286,30 +225,10 @@ const Element = Polymer.ElementMixin(HTMLElement) {
     deselectIndex(idx: any);
     select(item: any);
     selectIndex(idx: any);
-}
+  }
   const ArraySelectorMixin: <T extends Constructor<HTMLElement>>(base: T) => T & Constructor<ArraySelectorMixin>;
 
   class ArraySelector extends ArraySelectorMixin(Polymer.Element) {
-    items: Array;
-    multi: boolean;
-    selected: Object;
-    selectedItem: Object;
-    toggle: boolean;
-    protected _initializeProperties();
-    connectedCallback();
-    disconnectedCallback();
-    protected _readyClients();
-    protected _attachDom(dom: any);
-    attributeChangedCallback(name: any, old: any, value: any);
-    updateStyles(properties: any);
-    resolveUrl(url: any, base: any);
-    clearSelection();
-    isSelected(item: any);
-    isIndexSelected(idx: any);
-    deselect(item: any);
-    deselectIndex(idx: any);
-    select(item: any);
-    selectIndex(idx: any);
   }
 
   class CustomStyle extends HTMLElement {
