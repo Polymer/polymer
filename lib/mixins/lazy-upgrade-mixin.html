@@ -1,0 +1,66 @@
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../utils/boot.html">
+<link rel="import" href="../utils/mixin.html">
+<link rel="import" href="../utils/render-status.html">
+<script>
+  (function(){
+    'use strict';
+
+    Polymer.LazyUpgradeMixin = Polymer.dedupingMixin(function(base) {
+
+      const LAZY_UPGRADE = 'lazy-upgrade';
+      const DISABLE_UPGRADE = 'disable-upgrade';
+
+      function sortCandidates(a, b) {
+        let orderA = parseInt(a.getAttribute(LAZY_UPGRADE), 10) || 0;
+        let orderB = parseInt(b.getAttribute(LAZY_UPGRADE), 10) || 0;
+        return orderA - orderB;
+      }
+
+      function findCandidates(root) {
+        let candidates = Array.from(root.querySelectorAll(`[${LAZY_UPGRADE}]`));
+        candidates.sort(sortCandidates);
+        return candidates;
+      }
+
+      function upgradeNode(node) {
+        if (node.localName === 'dom-if') {
+          node.if = true;
+        }
+        node.removeAttribute(DISABLE_UPGRADE);
+        node.removeAttribute(LAZY_UPGRADE);
+      }
+
+      return class LazyUpgrade extends base {
+        ready() {
+          super.ready();
+          this.__lazyUpgradeDeadline = 16;
+          this.__lazyUpgradeQueue = findCandidates(this.shadowRoot || this);
+          this.__lazyUpgrade();
+        }
+
+        __lazyUpgrade() {
+          if (this.__lazyUpgradeQueue.length) {
+            Polymer.RenderStatus.afterNextRender(this, () => {
+              const deadline = performance.now() + this.__lazyUpgradeDeadline;
+              while (this.__lazyUpgradeQueue.length && (performance.now() < deadline)) {
+                upgradeNode(this.__lazyUpgradeQueue.shift());
+              }
+              this.__lazyUpgrade();
+            });
+          } else {
+            this.dispatchEvent(new Event('lazy-upgrade-finished'));
+          }
+        }
+      }
+    });
+  })();
+</script>
