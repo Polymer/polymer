@@ -14,10 +14,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   (function(){
     'use strict';
 
+  /**
+   * Element class mixin that provides API for lazily upgrading Polymer Elements.
+   *
+   * This mixin can be used with the `disable-upgrade` attribute to lazily upgrade elements
+   * that are descendants of this element. This is useful for elements that need to display
+   * many elements.
+   *
+   * When upgrading elements, the mixin will upgrade as many as it can within the budget
+   * set by `_lazyUpgradeBudget`, which defaults to 16ms.
+   *
+   * When finished processing lazy-upgrade elements, this mixin will set `_lazyUpgrading`
+   * to false on the instance.
+   *
+   * @polymerMixin
+   * @memberof Polymer
+   * @summary Element class mixin that provides API for lazily upgrading Polymer elements
+   */
     Polymer.LazyUpgradeMixin = Polymer.dedupingMixin(function(base) {
 
       const LAZY_UPGRADE = 'lazy-upgrade';
       const DISABLE_UPGRADE = 'disable-upgrade';
+      const LAZY_UPGRADE_QUERY = `[${LAZY_UPGRADE}]`;
+      const LAZY_UPGRADE_BUDGET = 16;
 
       function sortCandidates(a, b) {
         let orderA = parseInt(a.getAttribute(LAZY_UPGRADE), 10) || 0;
@@ -26,7 +45,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       function findCandidates(root) {
-        let candidates = Array.from(root.querySelectorAll(`[${LAZY_UPGRADE}]`));
+        let candidates = Array.from(root.querySelectorAll(LAZY_UPGRADE_QUERY));
         candidates.sort(sortCandidates);
         return candidates;
       }
@@ -39,25 +58,71 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         node.removeAttribute(LAZY_UPGRADE);
       }
 
+      function eventInCurrentScope(scope, event) {
+        return event.target === event.composedPath()[0];
+      }
+
+      /** @polymerMixinClass */
       return class LazyUpgrade extends base {
+        // add a configurable
+        static get properties() {
+          return {
+            /**
+             * Instance-level property for configuring the frame budget for lazy-upgrading elements.
+             * Defaults to 16ms
+             */
+            _lazyUpgradeBudget: {
+              type: Number,
+              value: LAZY_UPGRADE_BUDGET
+            },
+            /**
+             * Instance-level property that is shows when the element is lazy-upgrading elements
+             */
+            _lazyUpgrading: {
+              type: Boolean
+            }
+          }
+        }
+
         ready() {
           super.ready();
-          this.__lazyUpgradeDeadline = 16;
+          // check for dom-repeat and dom-if elements stamping lazy-upgrade nodes
+          this.addEventListener('dom-change', (ev) => {
+            if (!eventInCurrentScope(this, ev)) {
+              return;
+            }
+            let root = ev.composedPath()[0].parentNode;
+            let candidates = findCandidates(root);
+            for (let i = 0; i < candidates.length; i++) {
+              let c = candidates[i];
+              if (this.__lazyUpgradeQueue.indexOf(c) === -1) {
+                this.__lazyUpgradeQueue.push(c);
+              }
+            }
+            if (candidates.length && !this._lazyUpgrading) {
+              this._lazyUpgrading = true;
+              this.__lazyUpgrade();
+            }
+          });
+          this._lazyUpgrading = true;
           this.__lazyUpgradeQueue = findCandidates(this.shadowRoot || this);
           this.__lazyUpgrade();
         }
 
+        /**
+         * @private
+         */
         __lazyUpgrade() {
           if (this.__lazyUpgradeQueue.length) {
             Polymer.RenderStatus.afterNextRender(this, () => {
-              const deadline = performance.now() + this.__lazyUpgradeDeadline;
+              const deadline = performance.now() + this._lazyUpgradeBudget;
               while (this.__lazyUpgradeQueue.length && (performance.now() < deadline)) {
                 upgradeNode(this.__lazyUpgradeQueue.shift());
               }
               this.__lazyUpgrade();
             });
           } else {
-            this.dispatchEvent(new Event('lazy-upgrade-finished'));
+            this._lazyUpgrading = false;
           }
         }
       }
