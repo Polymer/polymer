@@ -68,10 +68,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   // install event listeners (from event annotations)
-  function applyEventListener(inst, node, nodeInfo, host) {
+  function applyEventListener(inst, node, nodeInfo) {
     if (nodeInfo.events && nodeInfo.events.length) {
       for (let j=0, e$=nodeInfo.events, e; (j<e$.length) && (e=e$[j]); j++) {
-        inst._addMethodEventListenerToNode(node, e.name, e.value, host);
+        inst._addMethodEventListenerToNode(node, e.name, e.value, inst);
       }
     }
   }
@@ -130,43 +130,66 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * contains an `index` (`childNodes` index in parent) and optionally
        * `parent`, which points to node info of its parent (including its index).
        *
-       * `nodeInfo` metadata captured by this library include the following:
+       * The template metadata object returned from this method has the following
+       * structure (many fields optional):
        *
-       *   nodeInfo: [
-       *     {
-       *       // `id` attribute for any nodes with id's for generating `$` map
-       *       id: '<id>',
-       *       // `on-event="handler"` metadata
-       *       events: [
-       *         {
-       *           name: '<name>'
-       *           value: '<handler name>'
-       *         }, ...
-       *       ],
-       *       // DocumentFragment containing template content for
-       *       // any nested templates found; the template content is removed
-       *       // and cached in the template metadata, as an optimization to
-       *       // avoid the cost of deeply cloning templates
-       *       content: <DocumentFragment>,
-       *       // Metadata to allow efficient retrieval of instanced node
-       *       // corresponding to this metadata
-       *       parent: <reference to parent nodeInfo>,
-       *       index: <integer index in parent's `childNodes` collection>
-       *     },
-       *     ...
-       *   ]
+       *   {
+       *     // Flattened list of node metadata (for nodes that generated metadata)
+       *     nodeInfoList: [
+       *       {
+       *         // `id` attribute for any nodes with id's for generating `$` map
+       *         id: '<id>',
+       *         // `on-event="handler"` metadata
+       *         events: [
+       *           {
+       *             name: '<name>'
+       *             value: '<handler name>'
+       *           }, ...
+       *         ],
+       *         // Notes when the template contained a `<slot>` for shady DOM
+       *         // optimization purposes
+       *         hasInsertionPoint: <boolean>,
+       *         // For nested <template> nodes, nested template metadata
+       *         templateInfo: <nested template metadata>,
+       *         // Metadata to allow efficient retrieval of instanced node
+       *         // corresponding to this metadata
+       *         parent: <reference to parent nodeInfo>,
+       *         index: <integer index in parent's `childNodes` collection>
+       *       },
+       *       ...
+       *     ],
+       *     // When true, the template had the `strip-whitespace` attribute
+       *     // or was nested in a template with that setting
+       *     stripWhitespace: <boolean>
+       *     // For nested templates, nested template content is moved into
+       *     // a document fragment stored here; this is an optimization to
+       *     // avoid the cost of nested template cloning
+       *     content: <DocumentFragment>
+       *   }
+       *
+       * This method kicks off a recursive treewalk as follows:
+       *
+       *    _parseTemplate <------------------+
+       *      _parseTemplateNode  <-----------|--+
+       *        _parseTemplateNestedContent --+  |
+       *        _parseTemplateChildNodes --------+
+       *        _parseTemplateNodeAttributes
+       *          _parseTemplateNodeAttribute
+       *
+       * These methods may be overridden to add custom metadata about templates
+       * to either `templateInfo` or `nodeInfo`.
        *
        * Note that this method may be destructive to the template, in that
        * e.g. event annotations may be removed after being noted in the
        * template metadata.
        *
        * @param {HTMLTemplateElement} template Template to parse
-       * @param {Object=} outerTemplateInfo Template info from the outer
+       * @param {Object=} outerTemplateInfo Template metadata from the outer
        *   template, for parsing nested templates
        * @return {Object} Parsed template metadata
        */
       static _parseTemplate(template, outerTemplateInfo) {
-        // since a template may be re-used, memo-ize notes.
+        // since a template may be re-used, memo-ize metadata
         if (!template._templateInfo) {
           let templateInfo = template._templateInfo || (template._templateInfo = {});
           templateInfo.nodeInfoList = [];
@@ -178,7 +201,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return template._templateInfo;
       }
 
-      // add annotations gleaned from subtree at `node` to `notes`
+      /**
+       * Parses template node and adds template and node metadata based on
+       * the current node, and its `childNodes` and `attributes`.
+       *
+       * This method may be overridden to add custom node or template specific
+       * metadata based on this node.
+       *
+       * @param {Node} node Node to parse
+       * @param {Object} templateInfo Template metadata for current template
+       * @param {Object} nodeInfo Node metadata for current template.
+       * @return {boolean} `true` if the visited node added node-specific
+       *   metadata to `nodeInfo`
+       */
       static _parseTemplateNode(node, templateInfo, nodeInfo) {
         let noted;
         if (node.localName == 'template' && !node.hasAttribute('preserve-content')) {
@@ -196,6 +231,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return noted;
       }
 
+      /**
+       * Parses template child nodes for the given root node.
+       *
+       * This method also wraps whitelisted legacy template extensions
+       * (`is="dom-if"` and `is="dom-repeat"`) with their equivalent element
+       * wrappers, collapses text nodes, and strips whitespace from the template
+       * if the `templateInfo.stripWhitespace` setting was provided.
+       *
+       * @param {Node} root Root node whose `childNodes` will be parsed
+       * @param {Object} templateInfo Template metadata for current template
+       * @param {Object} nodeInfo Node metadata for current template.
+       */
       static _parseTemplateChildNodes(root, templateInfo, nodeInfo) {
         for (let node=root.firstChild, index=0, next; node; node=next) {
           // Wrap templates
@@ -229,14 +276,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      // Recurse into nested templates
-      // 1. Parse annotations from the template and memoize them on
-      //    content._templateInfo (recurses into nested templates)
-      // 2. Remove template.content and store it in annotation list, where it
-      //    will be the responsibility of the host to set it back to the template
-      //    (this is both an optimization to avoid re-stamping nested template
-      //    children and avoids a bug in Chrome where nested template children
-      //    upgrade)
+      /**
+       * Parses template content for the given nested `<template>`.
+       *
+       * Nested template info is stored as `templateInfo` in the current node's
+       * `nodeInfo`. `template.content` is removed and stored in `templateInfo`.
+       * It will then be the responsibility of the host to set it back to the
+       * template and for users stamping nested templates to use the
+       * `_contentForTemplate` method to retrieve the content for this template
+       * (an optimization to avoid the cost of cloning nested template content).
+       *
+       * @param {Node} node Node to parse
+       * @param {Object} templateInfo Template metadata for current template
+       * @param {Object} nodeInfo Node metadata for current template.
+       * @return {boolean} `true` if the visited node added node-specific
+       *   metadata to `nodeInfo`
+       */
       static _parseTemplateNestedContent(node, outerTemplateInfo, nodeInfo) {
         let templateInfo = this._parseTemplate(node, outerTemplateInfo);
         let content = templateInfo.content =
@@ -246,7 +301,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return true;
       }
 
-      // add annotation data from attributes to the `annotation` for node `node`
+      /**
+       * Parses template node attributes and adds node metadata to `nodeInfo`
+       * for nodes of interest.
+       *
+       * @param {Node} node Node to parse
+       * @param {Object} templateInfo Template metadata for current template
+       * @param {Object} nodeInfo Node metadata for current template.
+       * @return {boolean} `true` if the visited node added node-specific
+       *   metadata to `nodeInfo`
+       */
       static _parseTemplateNodeAttributes(node, templateInfo, nodeInfo) {
         // Make copy of original attribute list, since the order may change
         // as attributes are added and removed
@@ -258,7 +322,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return noted;
       }
 
-      // construct annotation data from a generic attribute, or undefined
+      /**
+       * Parses a single template node attribute and adds node metadata to
+       * `nodeInfo` for attributes of interest.
+       *
+       * This implementation adds metadata for `on-event="handler"` attributes
+       * and `id` attributes.
+       *
+       * @param {Node} node Node to parse
+       * @param {Object} templateInfo Template metadata for current template
+       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {string} name Attribute name
+       * @param {string} name Attribute value
+       * @return {boolean} `true` if the visited node added node-specific
+       *   metadata to `nodeInfo`
+       */
       static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
         // events (on-*)
         if (name.slice(0, 3) === 'on-') {
@@ -277,6 +355,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
+      /**
+       * Returns the `content` document fragment for a given template.
+       *
+       * For nested templates, Polymer performs an optimization to cache nested
+       * template content to avoid the cost of cloning deeply nested templates.
+       * This method retrieves the cached content for a given template.
+       *
+       * @param {HTMLTemplateElement} template Template to retrieve `content` for
+       * @return {DocumentFragment} Content fragment
+       */
       static _contentForTemplate(template) {
         let templateInfo = template.__templateInfo;
         return (templateInfo && templateInfo.content) || template.content;
@@ -304,6 +392,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * not support stamping multiple templates per element instance).
        *
        * @param {HTMLTemplateElement} template Template to stamp
+       * @return {DocumentFragment} Cloned template content
        */
       _stampTemplate(template) {
         // Polyfill support: bootstrap the template if it has not already been
@@ -323,11 +412,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           node = this.__templateNodes[i] = findTemplateNode(dom, info);
           applyIdToMap(this, this.$, node, info);
           applyTemplateContent(this, node, info);
-          applyEventListener(this, node, info, this);
+          applyEventListener(this, node, info);
         }
         return dom;
       }
 
+      /**
+       * Adds an event listener by method name for the event provided.
+       *
+       * This method generates a handler function that looks up the method
+       * name at handling time.
+       *
+       * @param {Node} node Node to add listener on
+       * @param {string} eventName Name of event
+       * @param {string} methodName Name of method
+       * @return {Function} Generated handler function
+       */
       _addMethodEventListenerToNode(node, eventName, methodName, context) {
         context = context || node;
         let handler = createNodeEventHandler(context, eventName, methodName);
@@ -335,10 +435,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return handler;
       }
 
+      /**
+       * Override point for adding custom or simulated event handling.
+       *
+       * @param {Node} node Node to add event listener to
+       * @param {string} eventName Name of event
+       * @param {Function} handler Listener function to add
+       */
       _addEventListenerToNode(node, eventName, handler) {
         node.addEventListener(eventName, handler);
       }
 
+      /**
+       * Override point for adding custom or simulated event handling.
+       *
+       * @param {Node} node Node to remove event listener from
+       * @param {string} eventName Name of event
+       * @param {Function} handler Listener function to remove
+       */
       _removeEventListenerFromNode(node, eventName, handler) {
         node.removeEventListener(eventName, handler);
       }
