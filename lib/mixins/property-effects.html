@@ -683,16 +683,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function addAnnotatedListener(model, index, property, path, event, negate) {
-    let eventName = event ||
-      (CaseMap.camelToDashCase(property) + '-changed');
+    event = event || (CaseMap.camelToDashCase(property) + '-changed');
     model.__notifyListeners = model.__notifyListeners || [];
-    model.__notifyListeners.push({
-      index: index,
-      property: property,
-      path: path,
-      event: eventName,
-      negate: negate
-    });
+    model.__notifyListeners.push({ index, property, path, event, negate });
   }
 
   /**
@@ -711,7 +704,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * On the `inst` element that was previously bound, uses `inst.__templateNotes`
+   * On the `inst` element that was previously bound, uses `inst.__templateNodeInfo`
    * to setup compound binding storage structures onto the bound
    * nodes (`inst.__templateNodes`).
    * (`inst._, and 2-way binding event listeners are also added.)
@@ -720,14 +713,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function setupBindings(inst) {
-    let notes = inst.__templateNotes;
-    if (notes.length) {
-      for (let i=0; i < notes.length; i++) {
-        let note = notes[i];
+    let nodeInfo = inst.__templateNodeInfo;
+    if (nodeInfo.length) {
+      for (let i=0; i < nodeInfo.length; i++) {
+        let info = nodeInfo[i];
         let node = inst.__templateNodes[i];
         node.__dataHost = inst;
-        if (note.bindings) {
-          setupCompoundBinding(note, node);
+        let bindings = info.bindings;
+        if (bindings) {
+          setupCompoundBinding(bindings, node);
         }
       }
     }
@@ -833,7 +827,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // m[1]: '{{'          '[['
     // m[2]: ''            '!'
     // m[3]: 'prop'        'compute(foo,bar)'
-    while ((m = bindingRegex.exec(text)) !== null) {
+    while ((m = bindingRegex.exec(text))) {
       // Add literal part
       if (m.index > lastIndex) {
         parts.push({literal: text.slice(lastIndex, m.index)});
@@ -843,9 +837,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let mode = m[1][0];
       let negate = Boolean(m[2]);
       let value = m[3].trim();
-      let customEvent, notifyEvent, colon;
+      let customEvent, event, colon;
       if (mode == '{' && (colon = value.indexOf('::')) > 0) {
-        notifyEvent = value.substring(colon + 2);
+        event = value.substring(colon + 2);
         value = value.substring(0, colon);
         customEvent = true;
       }
@@ -856,14 +850,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         hostProps[rootProperty] = true;
       }
       parts.push({
-        compoundIndex: parts.length,
-        value,
-        mode,
-        negate,
-        event: notifyEvent,
-        customEvent,
-        signature,
-        rootProperty
+        value, mode, negate, event, customEvent, signature, rootProperty,
+        compoundIndex: parts.length
       });
       lastIndex = bindingRegex.lastIndex;
     }
@@ -871,9 +859,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (lastIndex && lastIndex < text.length) {
       let literal = text.substring(lastIndex);
       if (literal) {
-        parts.push({
-          literal: literal
-        });
+        parts.push({ literal });
       }
     }
     if (parts.length) {
@@ -935,8 +921,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let arg = parseArg(rawArg);
       if (!arg.literal) {
         sig.static = false;
-      } else if (hostProps) {
-        hostProps[arg.rootProperty] = true;
+        if (hostProps) {
+          hostProps[arg.rootProperty] = true;
+        }
       }
       return arg;
     }, this);
@@ -1064,12 +1051,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * storage array for that property, and then the array is joined to result in
    * the final value set to the property/attribute.
    *
-   * @param {Object} note Annotation metadata
+   * @param {Object} bindings Binding metadata
    * @param {Node} node Bound node to initialize
    * @private
    */
-  function setupCompoundBinding(note, node) {
-    let bindings = note.bindings;
+  function setupCompoundBinding(bindings, node) {
     for (let i=0; i<bindings.length; i++) {
       let binding = bindings[i];
       if (binding.isCompound) {
@@ -2168,10 +2154,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Clear any existing propagation effects inherited from superClass
         this.__propagateEffects = {};
         this.__notifyListeners = [];
-        let notes = this.constructor._prepareTemplate(template);
-        for (let i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
+        let templateInfo = this.constructor._parseTemplate(template);
+        let nodeInfo = templateInfo.nodeInfo;
+        for (let i=0, info; (i<nodeInfo.length) && (info=nodeInfo[i]); i++)  {
           // where to find the node in the concretized list
-          let b$ = note.bindings;
+          let b$ = info.bindings;
           if (b$){
             for (let j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
               if (shouldAddListener(binding)) {
@@ -2186,9 +2173,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      static _parseTemplateNode(node, note) {
-        let hostProps = note.notes.hostProps = note.notes.hostProps || {};
-        let noted = super._parseTemplateNode(node, note);
+      static _parseTemplateNode(node, templateInfo, nodeInfo) {
+        let hostProps = templateInfo.hostProps = templateInfo.hostProps || {};
+        let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
         if (node.nodeType === Node.TEXT_NODE) {
           let parts = parseBindings(node.textContent, hostProps);
           if (parts) {
@@ -2196,11 +2183,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // NOTE: default to a space here so the textNode remains; some browsers
             // (IE) evacipate an empty textNode following cloneNode/importNode.
             node.textContent = literalFromParts(parts) || ' ';
-            note.bindings = note.bindings || [];
-            note.bindings.push({
+            nodeInfo.bindings = nodeInfo.bindings || [];
+            nodeInfo.bindings.push({
               kind: 'text',
               name: 'textContent',
-              parts: parts,
+              parts,
               isCompound: parts.length !== 1
             });
             noted = true;
@@ -2209,8 +2196,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return noted;
       }
 
-      static _parseTemplateNodeAttribute(node, note, name, value) {
-        let parts = parseBindings(value, note.notes.hostProps);
+      static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
+        let parts = parseBindings(value, templateInfo.hostProps);
         if (parts) {
           // Attribute or property
           let origName = name;
@@ -2241,30 +2228,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (kind === 'property') {
             name = propertyName;
           }
-          note.bindings = note.bindings || [];
-          note.bindings.push({
-            kind: kind,
-            name: name,
-            propertyName: propertyName,
-            parts: parts,
-            literal: literal,
+          nodeInfo.bindings = nodeInfo.bindings || [];
+          nodeInfo.bindings.push({
+            kind, name, propertyName, parts, literal,
             isCompound: parts.length !== 1
           });
           return true;
         } else {
-          return super._parseTemplateNodeAttribute(node, note, name, value);
+          return super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
         }
       }
 
-      static _parseTemplate(node, note) {
-        super._parseTemplate(node, note);
+      static _parseTemplateNestedContent(node, templateInfo, nodeInfo) {
+        let noted = super._parseTemplateNestedContent(node, templateInfo, nodeInfo);
         // Merge host props into outer template and add bindings
-        let hostProps = Object.assign(note.notes.hostProps,
-          note.templateContent._notes.hostProps);
+        let hostProps = Object.assign(templateInfo.hostProps, nodeInfo.templateInfo.hostProps);
         for (let prop in hostProps) {
-          note.bindings = note.bindings || [];
-          note.bindings.push({
-            index: note.index,
+          nodeInfo.bindings = nodeInfo.bindings || [];
+          nodeInfo.bindings.push({
+            index: nodeInfo.index,
             kind: 'property',
             name: '_host_' + prop,
             parts: [{
@@ -2272,8 +2254,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               value: prop
             }]
           });
+          noted = true;
         }
-        return true;
+        return noted;
       }
 
     }

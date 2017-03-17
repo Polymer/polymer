@@ -208,17 +208,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function addPropagateEffects(template, options) {
+      let templateInfo = template._templateInfo;
       let userForwardHostProp = options.forwardHostProp;
       if (userForwardHostProp) {
         // Provide data API and property effects on memoized template class
-        let klass = template._content.__templatizeTemplateClass;
+        let klass = templateInfo.templatizeTemplateClass;
         if (!klass) {
           let base = options.mutableData ? MutableDataTemplate : DataTemplate;
-          klass = template._content.__templatizeTemplateClass =
+          klass = templateInfo.templatizeTemplateClass =
             class TemplatizedTemplate extends base {}
           // Add template - >instances effects
           // and host <- template effects
-          let hostProps = template._content._notes.hostProps;
+          let hostProps = templateInfo.hostProps;
           for (let prop in hostProps) {
             klass.prototype._addPropertyEffect('_host_' + prop,
               klass.prototype.PROPERTY_EFFECT_TYPES.PROPAGATE,
@@ -250,7 +251,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     function addNotifyEffects(klass, template, options) {
-      let hostProps = template._content._notes.hostProps || {};
+      let templateInfo = template._templateInfo;
+      let hostProps = templateInfo.hostProps || {};
       for (let iprop in options.instanceProps) {
         delete hostProps[iprop];
         let userNotifyInstanceProp = options.notifyInstanceProp;
@@ -388,14 +390,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           throw new Error('A <template> can only be templatized once');
         }
         template.__templatizeOwner = owner;
-        // Ensure template has _content
-        template._content = template._content || template.content;
+        let templateInfo = template._templateInfo;
         // Get memoized base class for the prototypical template, which
         // includes property effects for binding template & forwarding
-        let baseClass = template._content.__templatizeInstanceClass;
+        let baseClass = templateInfo && templateInfo.templatizeInstanceClass;
         if (!baseClass) {
-          baseClass = template._content.__templatizeInstanceClass =
-            createTemplatizerClass(template, options);
+          baseClass = createTemplatizerClass(template, options);
+          templateInfo = template._templateInfo;
+          templateInfo.templatizeInstanceClass = baseClass;
         }
         // Host property forwarding must be installed onto template instance
         addPropagateEffects(template, options);
@@ -404,7 +406,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         klass.prototype._methodHost = findMethodHost(template);
         klass.prototype.__dataHost = template;
         klass.prototype.__templatizeOwner = owner;
-        klass.prototype.__hostProps = template._content._notes.hostProps;
+        klass.prototype.__hostProps = templateInfo.hostProps;
         return klass;
       },
 

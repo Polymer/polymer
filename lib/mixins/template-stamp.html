@@ -43,16 +43,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return node;
   }
 
-  function findTemplateAnnotatedNode(root, note) {
+  function findTemplateNode(root, nodeInfo) {
     // recursively ascend tree until we hit root
-    let parent = note.parent && findTemplateAnnotatedNode(root,
-      note.parent);
+    let parent = nodeInfo.parent && findTemplateNode(root, nodeInfo.parent);
     // unwind the stack, returning the indexed node at each level
     if (parent) {
       // note: marginally faster than indexing via childNodes
       // (http://jsperf.com/childnodes-lookup)
       for (let n=parent.firstChild, i=0; n; n=n.nextSibling) {
-        if (note.index === i++) {
+        if (nodeInfo.index === i++) {
           return n;
         }
       }
@@ -62,25 +61,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   // construct `$` map (from id annotations)
-  function applyIdToMap(inst, map, node, note) {
-    if (note.id) {
-      map[note.id] = node;
+  function applyIdToMap(inst, map, node, nodeInfo) {
+    if (nodeInfo.id) {
+      map[nodeInfo.id] = node;
     }
   }
 
   // install event listeners (from event annotations)
-  function applyEventListener(inst, node, note, host) {
-    if (note.events && note.events.length) {
-      for (let j=0, e$=note.events, e; (j<e$.length) && (e=e$[j]); j++) {
+  function applyEventListener(inst, node, nodeInfo, host) {
+    if (nodeInfo.events && nodeInfo.events.length) {
+      for (let j=0, e$=nodeInfo.events, e; (j<e$.length) && (e=e$[j]); j++) {
         inst._addMethodEventListenerToNode(node, e.name, e.value, host);
       }
     }
   }
 
   // push configuration references at configure time
-  function applyTemplateContent(inst, node, note) {
-    if (note.templateContent) {
-      node._content = note.templateContent;
+  function applyTemplateContent(inst, node, nodeInfo) {
+    if (nodeInfo.templateInfo) {
+      node._templateInfo = nodeInfo.templateInfo;
     }
   }
 
@@ -123,32 +122,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         super();
         this.$ = null;
         this.__templateNodes = null;
-        this.__templateNotes = null;
+        this.__templateNodeInfo = null;
       }
 
       /**
-       * Scans a template to produce an annotation map that stores expression metadata
-       * and information that associates the metadata to nodes in a template instance.
+       * Scans a template to produce template metadata.
        *
-       * Supported annotations are:
-       *   * id attributes
-       *   * binding annotations in text nodes
-       *     * double-mustache expressions: {{expression}}
-       *     * double-bracket expressions: [[expression]]
-       *   * binding annotations in attributes
-       *     * attribute-bind expressions: name="{{expression}} || [[expression]]"
-       *     * property-bind expressions: name*="{{expression}} || [[expression]]"
-       *     * property-bind expressions: name:="expression"
-       *   * event annotations
-       *     * event delegation directives: on-<eventName>="expression"
+       * Template-specific metadata are stored in the object returned, and node-
+       * specific metadata are stored in objects in its flattened `nodeInfoList`
+       * array.  Only nodes in the template that were parsed as nodes of
+       * interest contain an object in `nodeInfoList`.  Each `nodeInfo` object
+       * contains an `index` (`childNodes` index in parent) and optionally
+       * `parent`, which points to node info of its parent (including its index).
        *
-       * Generated data-structure:
+       * `nodeInfo` metadata captured by this library include the following:
+       *
        *   [
        *     {
-       *       id: '<id>',
+       *       id: '<id>',  // `id`
        *       events: [
        *         {
-       *           mode: ['auto'|''],
        *           name: '<name>'
        *           value: '<expression>'
        *         }, ...
@@ -161,134 +154,116 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *           value: '<expression>'
        *         }, ...
        *       ],
-       *       parent: <reference to parent annotation>,
-       *       index: <integer index in parent's childNodes collection>
+       *       parent: <reference to parent nodeInfo>,
+       *       index: <integer index in parent's `childNodes` collection>
        *     },
        *     ...
        *   ]
        *
        * @param {HTMLTemplateElement} template
-       * @param {boolean=} stripWhiteSpace
-       * @param {Document=} ownerDocument
-       * @return {Array<Object>}
+       * @param {Object=} outerTemplateInfo
+       * @return {Object} Template metadata
        */
-      static _prepareTemplate(template, stripWhiteSpace, ownerDocument) {
-        // TODO(kschaaf): File issue and/or remove when fixed
-        // hold a reference to content as _content to prevent odd Chrome gc issue
-        // nested templates also may receive their content as _content
-        let content = (template._content = template._content || template.content);
+      static _parseTemplate(template, outerTemplateInfo) {
         // since a template may be re-used, memo-ize notes.
-        if (!content._notes) {
-          let notes = content._notes = [];
-          notes.ownerDocument = ownerDocument || template.ownerDocument;
-          notes.stripWhiteSpace = stripWhiteSpace || template.hasAttribute('strip-whitespace');
-          this._parseTemplateNode(content, {notes});
+        if (!template._templateInfo) {
+          let templateInfo = template._templateInfo || (template._templateInfo = {});
+          templateInfo.nodeInfo = [];
+          templateInfo.stripWhiteSpace =
+            (outerTemplateInfo && outerTemplateInfo.stripWhiteSpace) ||
+            template.hasAttribute('strip-whitespace');
+          this._parseTemplateNode(template.content, templateInfo, {parent: null});
         }
-        return content._notes;
+        return template._templateInfo;
       }
 
       // add annotations gleaned from subtree at `node` to `notes`
-      static _parseTemplateNode(node, note) {
+      static _parseTemplateNode(node, templateInfo, nodeInfo) {
         let noted;
-        if (node.localName == 'template' &&
-          !node.hasAttribute('preserve-content')) {
-          noted |= this._parseTemplate(node, note);
+        if (node.localName == 'template' && !node.hasAttribute('preserve-content')) {
+          noted = this._parseTemplateNestedContent(node, templateInfo, nodeInfo) || noted;
         } else if (node.localName === 'slot') {
-          node._hasInsertionPoint = true;
+          // For ShadyDom optimization, indicating there is an insertion point
+          templateInfo.hasInsertionPoint = true;
         }
         if (node.firstChild) {
-          noted |= this._parseTemplateChildNodes(node, note);
+          noted = this._parseTemplateChildNodes(node, templateInfo, nodeInfo) || noted;
         }
-        if (node.attributes) {
-          noted |= this._parseTemplateNodeAttributes(node, note);
+        if (node.hasAttributes && node.hasAttributes()) {
+          noted = this._parseTemplateNodeAttributes(node, templateInfo, nodeInfo) || noted;
         }
         return noted;
       }
 
-      // add annotations gleaned from children of `root` to `list`, `root`'s
-      // `note` is supplied as it is the note.parent of added annotations
-      static _parseTemplateChildNodes(root, note) {
-        let node = root.firstChild;
-        if (node) {
-          let i = 0;
-          while (node) {
-            // Wrap templates
-            if (node.localName == 'template') {
-              node = wrapTemplateExtension(node);
-            }
-            // collapse adjacent textNodes: fixes an IE issue that can cause
-            // text nodes to be inexplicably split =(
-            // note that root.normalize() should work but does not so we do this
-            // manually.
-            let next = node.nextSibling;
-            if (node.nodeType === Node.TEXT_NODE) {
-              let n = next;
-              while (n && (n.nodeType === Node.TEXT_NODE)) {
-                node.textContent += n.textContent;
-                next = n.nextSibling;
-                root.removeChild(n);
-                n = next;
-              }
-              // optionally strip whitespace
-              if (note.notes.stripWhiteSpace && !node.textContent.trim()) {
-                root.removeChild(node);
-                // decrement index since node is removed
-                i--;
-              }
-            }
-            // if this node didn't get evacipated, parse it.
-            if (node.parentNode) {
-              let childNote = {
-                notes: note.notes,
-                parent: note,
-                index: i
-              }
-              if (this._parseTemplateNode(node, childNote)) {
-                note.notes.push(childNote);
-              }
-            }
-            node = next;
-            i++;
+      static _parseTemplateChildNodes(root, templateInfo, nodeInfo) {
+        for (let node=root.firstChild, index=0, next; node; node=next) {
+          // Wrap templates
+          if (node.localName == 'template') {
+            node = wrapTemplateExtension(node);
           }
+          // collapse adjacent textNodes: fixes an IE issue that can cause
+          // text nodes to be inexplicably split =(
+          // note that root.normalize() should work but does not so we do this
+          // manually.
+          next = node.nextSibling;
+          if (node.nodeType === Node.TEXT_NODE) {
+            let n = next;
+            while (n && (n.nodeType === Node.TEXT_NODE)) {
+              node.textContent += n.textContent;
+              next = n.nextSibling;
+              root.removeChild(n);
+              n = next;
+            }
+            // optionally strip whitespace
+            if (templateInfo.stripWhiteSpace && !node.textContent.trim()) {
+              root.removeChild(node);
+              continue;
+            }
+          }
+          let childInfo = { index, parent: nodeInfo };
+          if (this._parseTemplateNode(node, templateInfo, childInfo)) {
+            templateInfo.nodeInfo.push(childInfo);
+          }
+          index++;
         }
       }
 
       // Recurse into nested templates
       // 1. Parse annotations from the template and memoize them on
-      //    content._notes (recurses into nested templates)
+      //    content._templateInfo (recurses into nested templates)
       // 2. Remove template.content and store it in annotation list, where it
       //    will be the responsibility of the host to set it back to the template
       //    (this is both an optimization to avoid re-stamping nested template
       //    children and avoids a bug in Chrome where nested template children
       //    upgrade)
-      static _parseTemplate(node, note) {
-        let content = node.content.ownerDocument.createDocumentFragment();
-        content._notes = this._prepareTemplate(node,
-          note.notes.stripWhiteSpace, note.notes.ownerDocument);
+      static _parseTemplateNestedContent(node, outerTemplateInfo, nodeInfo) {
+        let templateInfo = this._parseTemplate(node, outerTemplateInfo);
+        let content = templateInfo.content =
+          node.content.ownerDocument.createDocumentFragment();
         content.appendChild(node.content);
-        note.templateContent = content;
+        nodeInfo.templateInfo = templateInfo;
         return true;
       }
 
       // add annotation data from attributes to the `annotation` for node `node`
-      static _parseTemplateNodeAttributes(node, note) {
+      static _parseTemplateNodeAttributes(node, templateInfo, nodeInfo) {
         // Make copy of original attribute list, since the order may change
         // as attributes are added and removed
-        let attrs = Array.prototype.slice.call(node.attributes);
         let noted;
+        let attrs = Array.from(node.attributes);
         for (let i=attrs.length-1, a; (a=attrs[i]); i--) {
-          noted |= this._parseTemplateNodeAttribute(node, note, a.name, a.value)
+          noted = this._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, a.name, a.value) || noted;
         }
         return noted;
       }
 
       // construct annotation data from a generic attribute, or undefined
-      static _parseTemplateNodeAttribute(node, note, name, value) {
+      static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
         // events (on-*)
         if (name.slice(0, 3) === 'on-') {
           node.removeAttribute(name);
-          note.events = note.events || [];
-          note.events.push({
+          nodeInfo.events = nodeInfo.events || [];
+          nodeInfo.events.push({
             name: name.slice(3),
             value
           });
@@ -296,9 +271,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         // static id
         else if (name === 'id') {
-          note.id = value;
+          nodeInfo.id = value;
           return true;
         }
+      }
+
+      static _contentForTemplate(template) {
+        let templateInfo = template.__templateInfo;
+        return (templateInfo && templateInfo.content) || template.content;
       }
 
       /**
@@ -306,17 +286,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * containing the cloned dom.
        *
        * The template is parsed (once and memoized) using this library's
-       * template parsing features, which identify nodes with declarative
-       * event listeners (`on-...``), `id`'s, `<template>`s, and bindings
-       * (`{{...}}` and `[[...]]`).  This template metadata ("notes")
-       * are stored as `this.__templateNotes`, and any nodes identified in
-       * notes are collected for this instance into `__templateNodes` in
-       * the same order as the notes array.
-       *
-       * Finally, this method generates an "id map" for all nodes with id's
-       * under `this.$`, passes template content back to templates as `_content`
-       * (a performance optimization to avoid deep template cloning), and
-       * installs declarative event listeners.
+       * template parsing features, and provides the following value-added
+       * features:
+       * * Adds declarative event listners for `on-event="handler"` attributes
+       * * Generates an "id map" for all nodes with id's under `this.$`
+       * * Passes template info including `content` back to templates as
+       *   `_templateInfo` (a performance optimization to avoid deep template
+       *   cloning)
        *
        * Note that the memoized template parsing process is destructive to the
        * template: attributes for bindings and declarative event listeners are
@@ -334,17 +310,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             window.HTMLTemplateElement && HTMLTemplateElement.decorate) {
           HTMLTemplateElement.decorate(template);
         }
-        let notes = this.__templateNotes = this.constructor._prepareTemplate(template);
-        let dom = document.importNode(template._content || template.content, true);
+        let templateInfo = this.constructor._parseTemplate(template);
+        let nodeInfo = this.__templateNodeInfo = templateInfo.nodeInfo;
+        let content = templateInfo.content || template.content;
+        let dom = document.importNode(content, true);
         // NOTE: ShadyDom optimization indicating there is an insertion point
-        dom.__noInsertionPoint = !notes._hasInsertionPoint;
+        dom.__noInsertionPoint = !templateInfo.hasInsertionPoint;
         this.$ = {};
-        this.__templateNodes = new Array(notes.length);
-        for (let i=0, l=notes.length, note, node; (i<l) && (note=notes[i]); i++) {
-          node = this.__templateNodes[i] = findTemplateAnnotatedNode(dom, note);
-          applyIdToMap(this, this.$, node, note);
-          applyTemplateContent(this, node, note);
-          applyEventListener(this, node, note, this);
+        this.__templateNodes = new Array(nodeInfo.length);
+        for (let i=0, l=nodeInfo.length, info, node; (i<l) && (info=nodeInfo[i]); i++) {
+          node = this.__templateNodes[i] = findTemplateNode(dom, info);
+          applyIdToMap(this, this.$, node, info);
+          applyTemplateContent(this, node, info);
+          applyEventListener(this, node, info, this);
         }
         return dom;
       }
