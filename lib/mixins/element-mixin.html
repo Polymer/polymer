@@ -423,6 +423,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       proto._bindTemplate(template, propertiesForClass(proto.constructor));
     }
 
+    function flushPropertiesStub() {}
+
     /**
      * @polymerMixinClass
      * @unrestricted
@@ -547,7 +549,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _initializeProperties() {
         Polymer.telemetry.instanceCount++;
-        this.__upgradeFlush = null;
         this.constructor.finalize();
         const importPath = this.constructor.importPath;
         // note: finalize template when we have access to `localName` to
@@ -678,16 +679,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       attributeChangedCallback(name, old, value) {
-        // process `disable-upgrade` specially
-        if (name === DISABLED) {
-          const disabled = value !== null;
-          if (this.__upgradeFlush && !disabled) {
-            this._flushProperties = this.__upgradeFlush;
-            this.__upgradeFlush = null;
+        // process `disable-upgrade` specially:
+        // First we see `disable-upgrade` added and disable `_flushProperties`,
+        // then when it's removed, restore regular flushing and flush.
+        // This should only be allowed before "readying".
+        if (name === DISABLED && !this.__dataInitialized) {
+          if (value !== null) {
+            this.__flushProperties = this._flushProperties;
+            this._flushProperties = flushPropertiesStub;
+          } else {
+            this._flushProperties = this.__flushProperties;
             this._flushProperties();
-          } else if (disabled) {
-            this.__upgradeFlush = this._flushProperties;
-            this._flushProperties = function() {};
           }
         } else if (old !== value) {
           let property = caseMap.dashToCamelCase(name);
