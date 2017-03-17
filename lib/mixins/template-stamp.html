@@ -105,10 +105,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * - Map of node id's to stamped node instances (`this.$.id`)
    * - Nested template content caching/removal and re-installation (performance
    *   optimization)
-   * - Relative URL's relative to original template location
-   * - Template binding annotation parsing (note that this library only parses
-   *   template bindings and provides annotation metadata; see
-   *   `Polymer.PropertyEffects` for a full implementation of data-binding)
    *
    * @polymerMixin
    * @memberof Polymer
@@ -122,7 +118,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         super();
         this.$ = null;
         this.__templateNodes = null;
-        this.__templateNodeInfo = null;
       }
 
       /**
@@ -137,38 +132,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * `nodeInfo` metadata captured by this library include the following:
        *
-       *   [
+       *   nodeInfo: [
        *     {
-       *       id: '<id>',  // `id`
+       *       // `id` attribute for any nodes with id's for generating `$` map
+       *       id: '<id>',
+       *       // `on-event="handler"` metadata
        *       events: [
        *         {
        *           name: '<name>'
-       *           value: '<expression>'
+       *           value: '<handler name>'
        *         }, ...
        *       ],
-       *       bindings: [
-       *         {
-       *           kind: ['text'|'attribute'|'property'],
-       *           mode: ['auto'|''],
-       *           name: '<name>'
-       *           value: '<expression>'
-       *         }, ...
-       *       ],
+       *       // DocumentFragment containing template content for
+       *       // any nested templates found; the template content is removed
+       *       // and cached in the template metadata, as an optimization to
+       *       // avoid the cost of deeply cloning templates
+       *       content: <DocumentFragment>,
+       *       // Metadata to allow efficient retrieval of instanced node
+       *       // corresponding to this metadata
        *       parent: <reference to parent nodeInfo>,
        *       index: <integer index in parent's `childNodes` collection>
        *     },
        *     ...
        *   ]
        *
-       * @param {HTMLTemplateElement} template
-       * @param {Object=} outerTemplateInfo
-       * @return {Object} Template metadata
+       * Note that this method may be destructive to the template, in that
+       * e.g. event annotations may be removed after being noted in the
+       * template metadata.
+       *
+       * @param {HTMLTemplateElement} template Template to parse
+       * @param {Object=} outerTemplateInfo Template info from the outer
+       *   template, for parsing nested templates
+       * @return {Object} Parsed template metadata
        */
       static _parseTemplate(template, outerTemplateInfo) {
         // since a template may be re-used, memo-ize notes.
         if (!template._templateInfo) {
           let templateInfo = template._templateInfo || (template._templateInfo = {});
-          templateInfo.nodeInfo = [];
+          templateInfo.nodeInfoList = [];
           templateInfo.stripWhiteSpace =
             (outerTemplateInfo && outerTemplateInfo.stripWhiteSpace) ||
             template.hasAttribute('strip-whitespace');
@@ -222,7 +223,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           let childInfo = { index, parent: nodeInfo };
           if (this._parseTemplateNode(node, templateInfo, childInfo)) {
-            templateInfo.nodeInfo.push(childInfo);
+            templateInfo.nodeInfoList.push(childInfo);
           }
           index++;
         }
@@ -311,7 +312,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           HTMLTemplateElement.decorate(template);
         }
         let templateInfo = this.constructor._parseTemplate(template);
-        let nodeInfo = this.__templateNodeInfo = templateInfo.nodeInfo;
+        let nodeInfo = templateInfo.nodeInfoList;
         let content = templateInfo.content || template.content;
         let dom = document.importNode(content, true);
         // NOTE: ShadyDom optimization indicating there is an insertion point
