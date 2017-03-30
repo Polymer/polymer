@@ -102,10 +102,15 @@ gulp.task('closure', ['clean'], () => {
     joinRx = /polymer-element\.html/;
   }
 
-  element();
+  // element();
+  full();
 
   const project = new PolymerProject({
-    entrypoint: `./${entry}`
+    shell: `./${entry}`,
+    fragments: [
+      'bower_components/shadycss/apply-shim.html',
+      'bower_components/shadycss/custom-style-interface.html'
+    ]
   });
 
   const closureStream = closure({
@@ -121,7 +126,7 @@ gulp.task('closure', ['clean'], () => {
       'externs/closure-upstream-externs.js',
       'externs/webcomponents-externs.js',
       'externs/polymer-externs.js',
-      'externs/closure-types.js'
+      'externs/closure-types.js',
     ],
     extra_annotation_name: [
       'polymerMixin',
