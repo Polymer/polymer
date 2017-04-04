@@ -288,6 +288,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   });
   </script>
 
+  <dom-module id="sub-extended-template">
+    <script>
+    HTMLImports.whenReady(function() {
+      // Setting up property bind listeners in both base and sub class
+      // is required to catch regression bug
+      class ElementWithBindListeners extends window.MyElement {
+        static get is() { return 'element-with-bind-listeners'; }
+      }
+      class SubExtendedTemplate extends ElementWithBindListeners {
+        static get is() { return 'sub-extended-template'; }
+        static get template() {
+          if (!this.hasOwnProperty('_template')) {
+            const baseClass = Object.getPrototypeOf(this.prototype).constructor;
+            this._template = baseClass.template.cloneNode(true);
+            const newElement = document.createElement('div');
+            newElement.innerHTML = '<div id="subContent" imaginary-prop$="{{prop}}""></div>';
+            this._template.content.appendChild(newElement.firstChild);
+          }
+          return this._template;
+        }
+      }
+      customElements.define(ElementWithBindListeners.is, ElementWithBindListeners);
+      customElements.define(SubExtendedTemplate.is, SubExtendedTemplate);
+    })
+    </script>
+  </dom-module>
+
   <test-fixture id="my-element-attr">
     <template>
       <my-element prop="attr"></my-element>
@@ -543,6 +570,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         assert.equal(window.ShadyCSS.getComputedStyleValue(el, 'border-top-width'), '10px');
       });
     })
+  });
+
+  suite('extend sub-class template', function() {
+    var el, baseEl;
+    setup(function() {
+      el = document.createElement('sub-extended-template');
+      document.body.appendChild(el);
+      baseEl = document.createElement('element-with-bind-listeners');
+      document.body.appendChild(baseEl);
+    });
+    teardown(function() {
+      document.body.removeChild(el);
+      document.body.removeChild(baseEl);
+    });
+    test('has original template', function() {
+      assert.equal(el.prop, 'base');
+      assert.equal(el.$.content.textContent, el.prop);
+    });
+    test('has new element', function() {
+      assert.ok(el.$.subContent);
+      assert.equal(el.$.subContent.getAttribute('imaginary-prop'), 'base');
+    });
+    test('base doesnt have new element', function() {
+      assert.notOk(baseEl.$.subContent);
+    });
   });
 
   </script>
