@@ -367,9 +367,7 @@ Note that `Polymer.Element` provides a cleaner base class void of a lot of sugar
 
 See below for a visual guide on migrating Polymer 1.0's declarative syntax to the ES6 class syntax in Polymer 2.0:
 
-<a href="">
-![image](img/migration.png)
-</a>
+![Difference in Polymer 1.0 and Polymer 2.0 element definition](img/migration.png)
 
 ## Polyfills
 
