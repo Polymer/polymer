@@ -647,106 +647,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Post-processes template bindings (notes for short) provided by the
-   * Bindings library for use by the effects system:
-   * - Parses bindings for methods into method `signature` objects
-   * - Memoizes the root property for path bindings
-   * - Recurses into nested templates and processes those templates and
-   *   extracts any host properties, which are set to the template's
-   *   `_content._hostProps`
-   * - Adds bindings from the host to <template> elements for any nested
-   *   template's lexically bound "host properties"; template handling
-   *   elements can then add accessors to the template for these properties
-   *   to forward host properties into template instances accordingly.
-   *
-   * @param {Array<Object>} notes List of notes to process; the notes are
-   *   modified in place.
-   * @private
-   */
-  function processAnnotations(notes) {
-    if (!notes._processed) {
-      for (let i=0; i<notes.length; i++) {
-        let note = notes[i];
-        // Parse bindings for methods & path roots (models)
-        for (let j=0; j<note.bindings.length; j++) {
-          let b = note.bindings[j];
-          for (let k=0; k<b.parts.length; k++) {
-            let p = b.parts[k];
-            if (!p.literal) {
-              p.signature = parseMethod(p.value);
-              if (!p.signature) {
-                p.rootProperty = Polymer.Path.root(p.value);
-              }
-            }
-          }
-        }
-        // Recurse into nested templates & bind host props
-        if (note.templateContent) {
-          processAnnotations(note.templateContent._notes);
-          let hostProps = note.templateContent._hostProps =
-            discoverTemplateHostProps(note.templateContent._notes);
-          let bindings = [];
-          for (let prop in hostProps) {
-            bindings.push({
-              index: note.index,
-              kind: 'property',
-              name: '_host_' + prop,
-              parts: [{
-                mode: '{',
-                value: prop
-              }]
-            });
-          }
-          note.bindings = note.bindings.concat(bindings);
-        }
-      }
-      notes._processed = true;
-    }
-  }
-
-  /**
-   * Finds all property usage in templates (property/path bindings and function
-   * arguments) and returns the path roots as keys in a map. Each outer template
-   * merges inner _hostProps to propagate inner host property needs to outer
-   * templates.
-   *
-   * @param {Array<Object>} notes List of notes to process for a given template
-   * @return {Object<string,boolean>} Map of host properties that the template
-   *   (or any nested templates) uses
-   * @private
-   */
-  function discoverTemplateHostProps(notes) {
-    let hostProps = {};
-    for (let i=0, n; (i<notes.length) && (n=notes[i]); i++) {
-      // Find all bindings to parent.* and spread them into _parentPropChain
-      for (let j=0, b$=n.bindings, b; (j<b$.length) && (b=b$[j]); j++) {
-        for (let k=0, p$=b.parts, p; (k<p$.length) && (p=p$[k]); k++) {
-          if (p.signature) {
-            let args = p.signature.args;
-            for (let kk=0; kk<args.length; kk++) {
-              let rootProperty = args[kk].rootProperty;
-              if (rootProperty) {
-                hostProps[rootProperty] = true;
-              }
-            }
-            hostProps[p.signature.methodName] = true;
-          } else {
-            if (p.rootProperty) {
-              hostProps[p.rootProperty] = true;
-            }
-          }
-        }
-      }
-      // Merge child _hostProps into this _hostProps
-      if (n.templateContent) {
-        let templateHostProps = n.templateContent._hostProps;
-        Object.assign(hostProps, templateHostProps);
-      }
-    }
-    return hostProps;
-  }
-
-  /**
    * Returns true if a binding's metadata meets all the requirements to allow
    * 2-way binding, and therefore a <property>-changed event listener should be
    * added:
@@ -783,16 +683,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function addAnnotatedListener(model, index, property, path, event, negate) {
-    let eventName = event ||
-      (CaseMap.camelToDashCase(property) + '-changed');
+    event = event || (CaseMap.camelToDashCase(property) + '-changed');
     model.__notifyListeners = model.__notifyListeners || [];
-    model.__notifyListeners.push({
-      index: index,
-      property: property,
-      path: path,
-      event: eventName,
-      negate: negate
-    });
+    model.__notifyListeners.push({ index, property, path, event, negate });
   }
 
   /**
@@ -811,7 +704,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * On the `inst` element that was previously bound, uses `inst.__templateNotes`
+   * On the `inst` element that was previously bound, uses nodeInfo list
    * to setup compound binding storage structures onto the bound
    * nodes (`inst.__templateNodes`).
    * (`inst._, and 2-way binding event listeners are also added.)
@@ -819,15 +712,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object} inst Instance that bas been previously bound
    * @private
    */
-  function setupBindings(inst) {
-    let notes = inst.__templateNotes;
-    if (notes.length) {
-      for (let i=0; i < notes.length; i++) {
-        let note = notes[i];
+  function setupBindings(inst, nodeInfo) {
+    if (nodeInfo.length) {
+      for (let i=0; i < nodeInfo.length; i++) {
+        let info = nodeInfo[i];
         let node = inst.__templateNodes[i];
         node.__dataHost = inst;
-        if (note.bindings) {
-          setupCompoundBinding(note, node);
+        let bindings = info.bindings;
+        if (bindings) {
+          setupCompoundBinding(bindings, node);
         }
       }
     }
@@ -905,25 +798,107 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   const emptyArray = [];
 
+  // Regular expressions used for binding
+  const IDENT  = '(?:' + '[a-zA-Z_$][\\w.:$\\-*]*' + ')';
+  const NUMBER = '(?:' + '[-+]?[0-9]*\\.?[0-9]+(?:[eE][-+]?[0-9]+)?' + ')';
+  const SQUOTE_STRING = '(?:' + '\'(?:[^\'\\\\]|\\\\.)*\'' + ')';
+  const DQUOTE_STRING = '(?:' + '"(?:[^"\\\\]|\\\\.)*"' + ')';
+  const STRING = '(?:' + SQUOTE_STRING + '|' + DQUOTE_STRING + ')';
+  const ARGUMENT = '(?:' + IDENT + '|' + NUMBER + '|' +  STRING + '\\s*' + ')';
+  const ARGUMENTS = '(?:' + ARGUMENT + '(?:,\\s*' + ARGUMENT + ')*' + ')';
+  const ARGUMENT_LIST = '(?:' + '\\(\\s*' +
+                                '(?:' + ARGUMENTS + '?' + ')' +
+                              '\\)\\s*' + ')';
+  const BINDING = '(' + IDENT + '\\s*' + ARGUMENT_LIST + '?' + ')'; // Group 3
+  const OPEN_BRACKET = '(\\[\\[|{{)' + '\\s*';
+  const CLOSE_BRACKET = '(?:]]|}})';
+  const NEGATE = '(?:(!)\\s*)?'; // Group 2
+  const EXPRESSION = OPEN_BRACKET + NEGATE + BINDING + CLOSE_BRACKET;
+  const bindingRegex = new RegExp(EXPRESSION, "g");
+
+  function parseBindings(text, hostProps) {
+    let parts = [];
+    let lastIndex = 0;
+    let m;
+    // Example: "literal1{{prop}}literal2[[!compute(foo,bar)]]final"
+    // Regex matches:
+    //        Iteration 1:  Iteration 2:
+    // m[1]: '{{'          '[['
+    // m[2]: ''            '!'
+    // m[3]: 'prop'        'compute(foo,bar)'
+    while ((m = bindingRegex.exec(text))) {
+      // Add literal part
+      if (m.index > lastIndex) {
+        parts.push({literal: text.slice(lastIndex, m.index)});
+      }
+      // Add binding part
+      // Mode (one-way or two)
+      let mode = m[1][0];
+      let negate = Boolean(m[2]);
+      let value = m[3].trim();
+      let customEvent, event, colon;
+      if (mode == '{' && (colon = value.indexOf('::')) > 0) {
+        event = value.substring(colon + 2);
+        value = value.substring(0, colon);
+        customEvent = true;
+      }
+      let signature = parseMethod(value, hostProps);
+      let rootProperty;
+      if (!signature) {
+        rootProperty = Polymer.Path.root(value);
+        hostProps[rootProperty] = true;
+      }
+      parts.push({
+        value, mode, negate, event, customEvent, signature, rootProperty,
+        compoundIndex: parts.length
+      });
+      lastIndex = bindingRegex.lastIndex;
+    }
+    // Add a final literal part
+    if (lastIndex && lastIndex < text.length) {
+      let literal = text.substring(lastIndex);
+      if (literal) {
+        parts.push({ literal });
+      }
+    }
+    if (parts.length) {
+      return parts;
+    }
+  }
+
+  function literalFromParts(parts) {
+    let s = '';
+    for (let i=0; i<parts.length; i++) {
+      let literal = parts[i].literal;
+      s += literal || '';
+    }
+    return s;
+  }
+
   /**
    * Parses an expression string for a method signature, and returns a metadata
    * describing the method in terms of `methodName`, `static` (whether all the
    * arguments are literals), and an array of `args`
    *
    * @param {string} expression The expression to parse
+   * @param {Object} hostProps A map of host properties that need accessors;
+   *   any parsed arguments or method name will be added to this map.
    * @return {?Object} The method metadata object if a method expression was
    *   found, otherwise `undefined`
    * @private
    */
-  function parseMethod(expression) {
+  function parseMethod(expression, hostProps) {
     // tries to match valid javascript property names
     let m = expression.match(/([^\s]+?)\(([\s\S]*)\)/);
     if (m) {
       let sig = { methodName: m[1], static: true };
+      if (hostProps) {
+        hostProps[sig.methodName] = true;
+      }
       if (m[2].trim()) {
         // replace escaped commas with comma entity, split on un-escaped commas
         let args = m[2].replace(/\\,/g, '&comma;').split(',');
-        return parseArgs(args, sig);
+        return parseArgs(args, sig, hostProps);
       } else {
         sig.args = emptyArray;
         return sig;
@@ -942,11 +917,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @return {Object} The updated signature metadata object
    * @private
    */
-  function parseArgs(argList, sig) {
+  function parseArgs(argList, sig, hostProps) {
     sig.args = argList.map(function(rawArg) {
       let arg = parseArg(rawArg);
       if (!arg.literal) {
         sig.static = false;
+        if (hostProps) {
+          hostProps[arg.rootProperty] = true;
+        }
       }
       return arg;
     }, this);
@@ -1074,12 +1052,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * storage array for that property, and then the array is joined to result in
    * the final value set to the property/attribute.
    *
-   * @param {Object} note Annotation metadata
+   * @param {Object} bindings Binding metadata
    * @param {Node} node Bound node to initialize
    * @private
    */
-  function setupCompoundBinding(note, node) {
-    let bindings = note.bindings;
+  function setupCompoundBinding(bindings, node) {
     for (let i=0; i<bindings.length; i++) {
       let binding = bindings[i];
       if (binding.isCompound) {
@@ -1697,7 +1674,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _stampTemplate(template) {
         let dom = super._stampTemplate(template);
-        setupBindings(this);
+        setupBindings(this, template._templateInfo.nodeInfoList);
         return dom;
       }
 
@@ -2178,21 +2155,154 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Clear any existing propagation effects inherited from superClass
         this.__propagateEffects = {};
         this.__notifyListeners = [];
-        let notes = this._parseTemplateAnnotations(template);
-        processAnnotations(notes);
-        for (let i=0, note; (i<notes.length) && (note=notes[i]); i++)  {
+        let templateInfo = this.constructor._parseTemplate(template);
+        let nodeInfo = templateInfo.nodeInfoList;
+        for (let i=0, info; (i<nodeInfo.length) && (info=nodeInfo[i]); i++)  {
           // where to find the node in the concretized list
-          let b$ = note.bindings;
-          for (let j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
-            if (shouldAddListener(binding)) {
-              addAnnotatedListener(this, i, binding.name,
-                binding.parts[0].value,
-                binding.parts[0].event,
-                binding.parts[0].negate);
+          let b$ = info.bindings;
+          if (b$){
+            for (let j=0, binding; (j<b$.length) && (binding=b$[j]); j++) {
+              if (shouldAddListener(binding)) {
+                addAnnotatedListener(this, i, binding.name,
+                  binding.parts[0].value,
+                  binding.parts[0].event,
+                  binding.parts[0].negate);
+              }
+              addBindingEffect(this, binding, i, dynamicFns);
             }
-            addBindingEffect(this, binding, i, dynamicFns);
           }
         }
+      }
+
+      /**
+       * Overrides default `TemplateStamp` implementation to add support for
+       * parsing bindings from `TextNode`'s' `textContent`.  A `bindings`
+       * array is added to `nodeInfo` and populated with binding metadata
+       * with information capturing the binding target, and a `parts` array
+       * with one or more metadata objects capturing the source(s) of the
+       * binding.
+       *
+       * @override
+       * @param {Node} node Node to parse
+       * @param {Object} templateInfo Template metadata for current template
+       * @param {Object} nodeInfo Node metadata for current template.
+       * @return {boolean} `true` if the visited node added node-specific
+       *   metadata to `nodeInfo`
+       * @protected
+       */
+      static _parseTemplateNode(node, templateInfo, nodeInfo) {
+        let hostProps = templateInfo.hostProps = templateInfo.hostProps || {};
+        let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
+        if (node.nodeType === Node.TEXT_NODE) {
+          let parts = parseBindings(node.textContent, hostProps);
+          if (parts) {
+            // Initialize the textContent with any literal parts
+            // NOTE: default to a space here so the textNode remains; some browsers
+            // (IE) evacipate an empty textNode following cloneNode/importNode.
+            node.textContent = literalFromParts(parts) || ' ';
+            nodeInfo.bindings = nodeInfo.bindings || [];
+            nodeInfo.bindings.push({
+              kind: 'text',
+              name: 'textContent',
+              parts,
+              isCompound: parts.length !== 1
+            });
+            noted = true;
+          }
+        }
+        return noted;
+      }
+
+      /**
+       * Overrides default `TemplateStamp` implementation to add support for
+       * parsing bindings from attributes.  A `bindings`
+       * array is added to `nodeInfo` and populated with binding metadata
+       * with information capturing the binding target, and a `parts` array
+       * with one or more metadata objects capturing the source(s) of the
+       * binding.
+       *
+       * @override
+       * @param {Node} node Node to parse
+       * @param {Object} templateInfo Template metadata for current template
+       * @param {Object} nodeInfo Node metadata for current template.
+       * @return {boolean} `true` if the visited node added node-specific
+       *   metadata to `nodeInfo`
+       * @protected
+       */
+      static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
+        let parts = parseBindings(value, templateInfo.hostProps);
+        if (parts) {
+          // Attribute or property
+          let origName = name;
+          let kind = 'property';
+          if (name[name.length-1] == '$') {
+            name = name.slice(0, -1);
+            kind = 'attribute';
+          }
+          // Initialize attribute bindings with any literal parts
+          let literal = literalFromParts(parts);
+          if (literal && kind == 'attribute') {
+            node.setAttribute(name, literal);
+          }
+          // Clear attribute before removing, since IE won't allow removing
+          // `value` attribute if it previously had a value (can't
+          // unconditionally set '' before removing since attributes with `$`
+          // can't be set using setAttribute)
+          if (node.localName === 'input' && origName === 'value') {
+            node.setAttribute(origName, '');
+          }
+          // Remove annotation
+          node.removeAttribute(origName);
+          // Case hackery: attributes are lower-case, but bind targets
+          // (properties) are case sensitive. Gambit is to map dash-case to
+          // camel-case: `foo-bar` becomes `fooBar`.
+          // Attribute bindings are excepted.
+          let propertyName = Polymer.CaseMap.dashToCamelCase(name);
+          if (kind === 'property') {
+            name = propertyName;
+          }
+          nodeInfo.bindings = nodeInfo.bindings || [];
+          nodeInfo.bindings.push({
+            kind, name, propertyName, parts, literal,
+            isCompound: parts.length !== 1
+          });
+          return true;
+        } else {
+          return super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
+        }
+      }
+
+      /**
+       * Overrides default `TemplateStamp` implementation to add support for
+       * binding the properties that a nested template depends on to the template
+       * as `_host_<property>`.
+       *
+       * @override
+       * @param {Node} node Node to parse
+       * @param {Object} templateInfo Template metadata for current template
+       * @param {Object} nodeInfo Node metadata for current template.
+       * @return {boolean} `true` if the visited node added node-specific
+       *   metadata to `nodeInfo`
+       * @protected
+       */
+      static _parseTemplateNestedContent(node, templateInfo, nodeInfo) {
+        let noted = super._parseTemplateNestedContent(node, templateInfo, nodeInfo);
+        // Merge host props into outer template and add bindings
+        let hostProps = Object.assign(templateInfo.hostProps, nodeInfo.templateInfo.hostProps);
+        for (let prop in hostProps) {
+          nodeInfo.bindings = nodeInfo.bindings || [];
+          nodeInfo.bindings.push({
+            index: nodeInfo.index,
+            kind: 'property',
+            name: '_host_' + prop,
+            parts: [{
+              mode: '{',
+              value: prop
+            }]
+          });
+          noted = true;
+        }
+        return noted;
       }
 
     }
