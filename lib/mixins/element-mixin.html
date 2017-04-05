@@ -119,6 +119,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     let caseMap = Polymer.CaseMap;
 
+    const DISABLED = 'disable-upgrade';
+
     /**
      * Returns the `properties` object specifically on `klass`. Use for:
      * (1) super chain mixes togther to make `propertiesForClass` which is
@@ -421,6 +423,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       proto._bindTemplate(template, propertiesForClass(proto.constructor));
     }
 
+    function flushPropertiesStub() {}
+
     /**
      * @polymerMixinClass
      * @unrestricted
@@ -437,7 +441,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       static get observedAttributes() {
         if (!this.hasOwnProperty(goog.reflect.objectProperty('__observedAttributes', this))) {
-          let list = [];
+          let list = [DISABLED];
           let properties = propertiesForClass(this);
           for (let prop in properties) {
             list.push(Polymer.CaseMap.camelToDashCase(prop));
@@ -533,17 +537,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return this._importPath;
       }
 
-      constructor() {
-        super();
-        Polymer.telemetry.instanceCount++;
-        // Stamp template
-        if (this._template) {
-          this.root = this._stampTemplate(this._template);
-        } else {
-          this.root = this;
-        }
-      }
-
       /**
        * Overrides the default `Polymer.PropertyAccessors` to ensure class
        * metaprogramming related to property accessors and effects has
@@ -555,6 +548,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       _initializeProperties() {
+        Polymer.telemetry.instanceCount++;
         this.constructor.finalize();
         const importPath = this.constructor.importPath;
         // note: finalize template when we have access to `localName` to
@@ -616,6 +610,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       disconnectedCallback() {}
 
       /**
+       * Stamps the element template.
+       *
+       * @override
+       */
+      ready() {
+        if (this._template) {
+          this.root = this._stampTemplate(this._template);
+        }
+        super.ready();
+      }
+
+      /**
        * Implements `PropertyEffects`'s `_readyClients` call. Attaches
        * element dom by calling `_attachDom` with the dom stamped from the
        * element's template via `_stampTemplate`. Note that this allows
@@ -673,7 +679,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       attributeChangedCallback(name, old, value) {
-        if (old !== value) {
+        // process `disable-upgrade` specially:
+        // First we see `disable-upgrade` added and disable `_flushProperties`,
+        // then when it's removed, restore regular flushing and flush.
+        // This should only be allowed before "readying".
+        if (name === DISABLED && !this.__dataInitialized) {
+          if (value !== null) {
+            this.__flushProperties = this._flushProperties;
+            this._flushProperties = flushPropertiesStub;
+          } else {
+            this._flushProperties = this.__flushProperties;
+            this._flushProperties();
+          }
+        } else if (old !== value) {
           let property = caseMap.dashToCamelCase(name);
           let type = propertiesForClass(this.constructor)[property].type;
           if (!this._hasReadOnlyEffect(property)) {
