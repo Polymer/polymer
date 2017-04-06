@@ -447,16 +447,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // -- bindings ----------------------------------------------
 
-  function addBinding(nodeInfo, kind, target, parts, literal) {
-    nodeInfo.bindings = nodeInfo.bindings || [];
-    let binding = {
-      kind, target, parts, literal,
-      isCompound: (parts.length !== 1)
-    };
-    nodeInfo.bindings.push(binding);
-    return binding;
-  }
-
   /**
    * Adds "binding" property effects for the template annotation
    * ("note" for short) and node index specified.  These may either be normal
@@ -471,10 +461,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *   be included as a dependency to the effect.
    * @private
    */
-  function addBindingEffects(constructor, templateInfo, binding, index) {
+  function addBinding(constructor, templateInfo, nodeInfo, kind, target, parts, literal) {
+    // Create binding metadata and add to nodeInfo
+    nodeInfo.bindings = nodeInfo.bindings || [];
+    let binding = { kind, target, parts, literal, isCompound: (parts.length !== 1) };
+    let index = templateInfo.nodeInfoList.length;
+    nodeInfo.bindings.push(binding);
+    // Add 2-way binding listener metadata to templateInfo
     if (shouldAddListener(binding)) {
       addAnnotatedListener(templateInfo, index, binding);
     }
+    // Add "propagate" property effects to templateInfo
     for (let i=0; i<binding.parts.length; i++) {
       let part = binding.parts[i];
       if (!part.literal) {
@@ -2103,9 +2100,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // NOTE: default to a space here so the textNode remains; some browsers
             // (IE) evacipate an empty textNode following cloneNode/importNode.
             node.textContent = literalFromParts(parts) || ' ';
-            let binding = addBinding(nodeInfo, 'text', 'textContent', parts);
-            let idx = templateInfo.nodeInfoList.length;
-            addBindingEffects(this, templateInfo, binding, idx);
+            addBinding(this, templateInfo, nodeInfo, 'text', 'textContent', parts);
             noted = true;
           }
         }
@@ -2159,8 +2154,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (kind === 'property') {
             name = Polymer.CaseMap.dashToCamelCase(name);
           }
-          let binding = addBinding(nodeInfo, kind, name, parts, literal);
-          addBindingEffects(this, templateInfo, binding, templateInfo.nodeInfoList.length);
+          addBinding(this, templateInfo, nodeInfo, kind, name, parts, literal);
           return true;
         } else {
           return super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
@@ -2187,8 +2181,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let mode = '{';
         for (let source in hostProps) {
           let parts = [{ mode, source, dependencies: [source] }];
-          let binding = addBinding(nodeInfo, 'property', '_host_' + source, parts);
-          addBindingEffects(this, templateInfo, binding, templateInfo.nodeInfoList.length);
+          addBinding(this, templateInfo, nodeInfo, 'property', '_host_' + source, parts);
         }
         return noted;
       }
