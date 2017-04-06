@@ -193,7 +193,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return templateHost && templateHost._methodHost || templateHost;
     }
 
-    function createTemplatizerClass(template, options) {
+    function createTemplatizerClass(template, templateInfo, options) {
       // Anonymous class created by the templatize
       /**
        * @unrestricted
@@ -203,12 +203,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let klass = class extends base { }
       klass.prototype.__templatizeOptions = options;
       klass.prototype._bindTemplate(template);
-      addNotifyEffects(klass, template, options);
+      addNotifyEffects(klass, template, templateInfo, options);
       return klass;
     }
 
-    function addPropagateEffects(template, options) {
-      let templateInfo = template._templateInfo;
+    function addPropagateEffects(template, templateInfo, options) {
       let userForwardHostProp = options.forwardHostProp;
       if (userForwardHostProp) {
         // Provide data API and property effects on memoized template class
@@ -250,8 +249,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    function addNotifyEffects(klass, template, options) {
-      let templateInfo = template._templateInfo;
+    function addNotifyEffects(klass, template, templateInfo, options) {
       let hostProps = templateInfo.hostProps || {};
       for (let iprop in options.instanceProps) {
         delete hostProps[iprop];
@@ -381,26 +379,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {HTMLTemplateElement} template Template to templatize
        * @param {*} owner Owner of the template instances; any optional callbacks
        *   will be bound to this owner.
-       * @param {*} options Options dictionary (see summary for details)
+       * @param {*=} options Options dictionary (see summary for details)
        * @return {TemplateInstanceBase} Generated class bound to the template
        *   provided
        */
       templatize(template, owner, options) {
+        options = options || {};
         if (template.__templatizeOwner) {
           throw new Error('A <template> can only be templatized once');
         }
         template.__templatizeOwner = owner;
-        let templateInfo = template._templateInfo;
+        let templateInfo = owner.constructor._parseTemplate(template);
         // Get memoized base class for the prototypical template, which
         // includes property effects for binding template & forwarding
-        let baseClass = templateInfo && templateInfo.templatizeInstanceClass;
+        let baseClass = templateInfo.templatizeInstanceClass;
         if (!baseClass) {
-          baseClass = createTemplatizerClass(template, options);
-          templateInfo = template._templateInfo;
+          baseClass = createTemplatizerClass(template, templateInfo, options);
           templateInfo.templatizeInstanceClass = baseClass;
         }
         // Host property forwarding must be installed onto template instance
-        addPropagateEffects(template, options);
+        addPropagateEffects(template, templateInfo, options);
         // Subclass base class and add reference for this specific template
         let klass = class TemplateInstance extends baseClass {};
         klass.prototype._methodHost = findMethodHost(template);
