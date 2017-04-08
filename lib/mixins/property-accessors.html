@@ -79,7 +79,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * the standard `static get observedAttributes()`, implement `_propertiesChanged`
    * on the class, and then call `MyClass.createPropertiesForAttributes()` once
    * on the class to generate property accessors for each observed attribute
-   * prior to instancing.  Any `observedAttributes` will automatically be
+   * prior to instancing.  Last, call `this._flushProperties()` once to enable
+   * the accessors.
+   *
+   * Any `observedAttributes` will automatically be
    * deserialized via `attributeChangedCallback` and set to the associated
    * property using `dash-case`-to-`camelCase` convention.
    *
@@ -137,6 +140,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataOld = null;
         if (this.__dataProto) {
           this._initializeProtoProperties(this.__dataProto);
+          this.__dataProto = null;
         }
         // Capture instance properties; these will be set into accessors
         // during first flush. Don't set them here, since we want
@@ -166,6 +170,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         for (let p in props) {
           this._setProperty(p, props[p]);
         }
+      }
+
+      /**
+       * Called at ready time with bag of instance properties that overwrote
+       * accessors when the element upgraded.
+       *
+       * The default implementation sets these properties back into the
+       * setter at ready time.  This method is provided as an override
+       * point for customizing or providing more efficient initialization.
+       *
+       * @param {Object} props Bag of property values that were overwritten
+       *   when creating property accessors.
+       * @protected
+       */
+      _initializeInstanceProperties(props) {
+        Object.assign(this, props);
       }
 
       /**
@@ -444,7 +464,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _invalidateProperties() {
-        if (!this.__dataInvalid) {
+        if (!this.__dataInvalid && this.__dataInitialized) {
           this.__dataInvalid = true;
           microtask.run(() => {
             if (this.__dataInvalid) {
@@ -460,17 +480,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * pending changes (and old values recorded when pending changes were
        * set), and resets the pending set of changes.
        *
+       * Note that this method must be called once to enable the property
+       * accessors system.  For elements, generally `connectedCallback`
+       * is a normal spot to do so.
+       *
        * @protected
        */
       _flushProperties() {
         if (!this.__dataInitialized) {
           this.ready()
         } else if (this.__dataPending) {
-          let oldProps = this.__dataOld;
           let changedProps = this.__dataPending;
           this.__dataPending = null;
           this.__dataCounter++;
-          this._propertiesChanged(this.__data, changedProps, oldProps);
+          this._propertiesChanged(this.__data, changedProps, this.__dataOld);
           this.__dataCounter--;
         }
       }
@@ -493,7 +516,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Update instance properties that shadowed proto accessors; these take
         // priority over any defaults set in constructor or attributeChangedCallback
         if (this.__dataInstanceProps) {
-          Object.assign(this, this.__dataInstanceProps);
+          this._initializeInstanceProperties(this.__dataInstanceProps);
+          this.__dataInstanceProps = null;
         }
         this.__dataInitialized = true;
         // Run normal flush

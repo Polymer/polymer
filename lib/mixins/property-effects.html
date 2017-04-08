@@ -293,20 +293,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Adds a 2-way binding notification event listener to the node specified
-   *
-   * @param {Object} node Child element to add listener to
-   * @param {Object} inst Host element instance to handle notification event
-   * @param {Object} info Listener metadata stored via addAnnotatedListener
-   * @private
-   */
-  function addNotifyListener(node, inst, info) {
-    node.addEventListener(info.event, function(e) {
-      handleNotification(e, inst, info.target, info.source, info.negate);
-    });
-  }
-
-  /**
    * Handler function for 2-way notification events. Receives context
    * information captured in the `addNotifyListener` closure from the
    * `__notifyListeners` metadata.
@@ -448,51 +434,70 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   // -- bindings ----------------------------------------------
 
   /**
-   * Adds "binding" property effects for the template annotation
-   * ("note" for short) and node index specified.  These may either be normal
-   * "binding" effects (property/path bindings) or "method binding"
-   * effects, aka inline computing functions, depending on the type of binding
-   * detailed in the note.
+   * Adds binding metadata to the current `nodeInfo`, and binding effects
+   * for all part dependencies to `templateInfo`.
    *
-   * @param {Object} model Prototype or instance
-   * @param {Object} note Annotation note returned from Annotator
-   * @param {number} index Index into `nodeList` that the binding applies to
-   * @param {Object=} dynamicFns Map indicating whether method names should
-   *   be included as a dependency to the effect.
+   * @param {Function} constructor Class that `_parseTemplate` is currently
+   *   running on
+   * @param {Object} templateInfo Template metadata for current template
+   * @param {Object} nodeInfo Node metadata for current template node
+   * @param {string} kind Binding kind, either 'property', 'attribute', or 'text'
+   * @param {string} target Target property name
+   * @param {Array<Object>} parts Array of binding part metadata
+   * @param {string} literal Literal text surrounding binding parts (specified
+   *   only for 'property' bindings, since these must be initialized as part
+   *   of boot-up)
    * @private
    */
   function addBinding(constructor, templateInfo, nodeInfo, kind, target, parts, literal) {
     // Create binding metadata and add to nodeInfo
     nodeInfo.bindings = nodeInfo.bindings || [];
     let binding = { kind, target, parts, literal, isCompound: (parts.length !== 1) };
-    let index = templateInfo.nodeInfoList.length;
     nodeInfo.bindings.push(binding);
-    // Add 2-way binding listener metadata to templateInfo
+    // Add listener info to binding metadata
     if (shouldAddListener(binding)) {
-      addAnnotatedListener(templateInfo, index, binding);
+      let {event, negate} = binding.parts[0];
+      binding.listenerEvent = event || (CaseMap.camelToDashCase(target) + '-changed');
+      binding.listenerNegate = negate;
     }
     // Add "propagate" property effects to templateInfo
+    let index = templateInfo.nodeInfoList.length;
     for (let i=0; i<binding.parts.length; i++) {
       let part = binding.parts[i];
-      if (!part.literal) {
-        if (binding.kind === 'attribute' && binding.target[0] === '-') {
-          console.warn('Cannot set attribute ' + binding.target +
-            ' because "-" is not a valid attribute starting character');
-        } else {
-          let dependencies = part.dependencies;
-          let info = { index, binding, part, evaluator: constructor };
-          part.compoundIndex = i;
-          for (let j=0; j<dependencies.length; j++) {
-            let trigger = dependencies[j];
-            if (typeof trigger == 'string') {
-              trigger = parseArg(trigger);
-              trigger.wildcard = true;
-            }
-            constructor._addTemplatePropertyEffect(templateInfo, trigger.rootProperty, {
-              fn: runBindingEffect,
-              info, trigger
-            });
+      part.compoundIndex = i;
+      addEffectForBindingPart(constructor, templateInfo, binding, part, index);
+    }
+  }
+
+  /**
+   * Adds property effects to the given `templateInfo` for the given binding
+   * part.
+   *
+   * @param {Function} constructor Class that `_parseTemplate` is currently
+   *   running on
+   * @param {Object} templateInfo Template metadata for current template
+   * @param {Object} binding Binding metadata
+   * @param {Object} part Binding part metadata
+   * @param {Number} index Index into `nodeInfoList` for this node
+   */
+  function addEffectForBindingPart(constructor, templateInfo, binding, part, index) {
+    if (!part.literal) {
+      if (binding.kind === 'attribute' && binding.target[0] === '-') {
+        console.warn('Cannot set attribute ' + binding.target +
+          ' because "-" is not a valid attribute starting character');
+      } else {
+        let dependencies = part.dependencies;
+        let info = { index, binding, part, evaluator: constructor };
+        for (let j=0; j<dependencies.length; j++) {
+          let trigger = dependencies[j];
+          if (typeof trigger == 'string') {
+            trigger = parseArg(trigger);
+            trigger.wildcard = true;
           }
+          constructor._addTemplatePropertyEffect(templateInfo, trigger.rootProperty, {
+            fn: runBindingEffect,
+            info, trigger
+          });
         }
       }
     }
@@ -500,6 +505,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /**
    * Implements the "binding" (property/path binding) effect.
+   *
+   * Note that binding syntax is overridable via `_parseBindings` and
+   * `_evaluateBindings`.  This method will call `_evaluateBinding` for any
+   * non-literal parts returned from `_parseBindings`.  However,
+   * there is no support for _path_ bindings via custom binding parts,
+   * as this is specific to Polymer's path binding syntax.
    *
    * @param {Element} inst The instance the effect will be run on
    * @param {string} path Name of property
@@ -612,23 +623,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Sets up a prototypical `__notifyListeners` metadata array to be used at
-   * instance time to add event listeners for 2-way bindings.
-   *
-   * @param {Object} model Prototype (instances not currently supported)
-   * @param {number} index Index into `nodeList` that the event should be added to
-   * @param {Object} binding Binding metadata
-   * @private
-   */
-  function addAnnotatedListener(templateInfo, index, binding) {
-    let target = binding.target;
-    let {source, negate} = binding.parts[0];
-    let event = binding.parts[0].event || (CaseMap.camelToDashCase(target) + '-changed');
-    let notifyListeners = templateInfo.notifyListeners || (templateInfo.notifyListeners = []);
-    notifyListeners.push({ index, source, target, event, negate });
-  }
-
-  /**
    * Setup compound binding storage structures, notify listeners, and dataHost
    * references onto the bound nodeList.
    *
@@ -637,7 +631,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function setupBindings(inst, templateInfo) {
-    // Setup compound storage && dataHost
+    // Setup compound storage, dataHost, and notify listeners
     let {nodeList, nodeInfoList} = templateInfo;
     if (nodeInfoList.length) {
       for (let i=0; i < nodeInfoList.length; i++) {
@@ -645,19 +639,64 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let node = nodeList[i];
         let bindings = info.bindings;
         if (bindings) {
-          setupCompoundBinding(node, bindings);
+          for (let i=0; i<bindings.length; i++) {
+            let binding = bindings[i];
+            setupCompoundStorage(node, binding);
+            addNotifyListener(node, inst, binding);
+          }
         }
+        addNotifyListener
         node.__dataHost = inst;
       }
     }
-    // Setup 2-way binding event listeners
-    let listeners = templateInfo.notifyListeners;
-    if (listeners) {
-      for (let i=0, l=listeners.length, info; (i<l) && (info=listeners[i]); i++) {
-        let node = nodeList[info.index];
-        addNotifyListener(node, inst, info);
+  }
+
+  /**
+   * Initializes `__dataCompoundStorage` local storage on a bound node with
+   * initial literal data for compound bindings, and sets the joined
+   * literal parts to the bound property.
+   *
+   * When changes to compound parts occur, they are first set into the compound
+   * storage array for that property, and then the array is joined to result in
+   * the final value set to the property/attribute.
+   *
+   * @param {Node} node Bound node to initialize
+   * @param {Object} bindings Binding metadata
+   * @private
+   */
+  function setupCompoundStorage(node, binding) {
+    if (binding.isCompound) {
+      // Create compound storage map
+      let storage = node.__dataCompoundStorage ||
+        (node.__dataCompoundStorage = {});
+      let parts = binding.parts;
+      // Copy literals from parts into storage for this binding
+      let literals = new Array(parts.length);
+      for (let j=0; j<parts.length; j++) {
+        literals[j] = parts[j].literal;
+      }
+      let target = binding.target;
+      storage[target] = literals;
+      // Configure properties with their literal parts
+      if (binding.literal && binding.kind == 'property') {
+        node[target] = binding.literal;
       }
     }
+  }
+
+  /**
+   * Adds a 2-way binding notification event listener to the node specified
+   *
+   * @param {Object} node Child element to add listener to
+   * @param {Object} inst Host element instance to handle notification event
+   * @param {Object} info Listener metadata stored via addAnnotatedListener
+   * @private
+   */
+  function addNotifyListener(node, inst, binding) {
+    let part = binding.parts[0];
+    node.addEventListener(binding.listenerEvent, function(e) {
+      handleNotification(e, inst, binding.target, part.source, part.negate);
+    });
   }
 
   // -- for method-based effects (complexObserver & computed) --------------
@@ -917,42 +956,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return values;
   }
 
-  /**
-   * Initializes `__dataCompoundStorage` local storage on a bound node with
-   * initial literal data for compound bindings, and sets the joined
-   * literal parts to the bound property.
-   *
-   * When changes to compound parts occur, they are first set into the compound
-   * storage array for that property, and then the array is joined to result in
-   * the final value set to the property/attribute.
-   *
-   * @param {Node} node Bound node to initialize
-   * @param {Object} bindings Binding metadata
-   * @private
-   */
-  function setupCompoundBinding(node, bindings) {
-    for (let i=0; i<bindings.length; i++) {
-      let binding = bindings[i];
-      if (binding.isCompound) {
-        // Create compound storage map
-        let storage = node.__dataCompoundStorage ||
-          (node.__dataCompoundStorage = {});
-        let parts = binding.parts;
-        // Copy literals from parts into storage for this binding
-        let literals = new Array(parts.length);
-        for (let j=0; j<parts.length; j++) {
-          literals[j] = parts[j].literal;
-        }
-        let target = binding.target;
-        storage[target] = literals;
-        // Configure properties with their literal parts
-        if (binding.literal && binding.kind == 'property') {
-          node[target] = binding.literal;
-        }
-      }
-    }
-  }
-
   // data api
 
   /**
@@ -1029,9 +1032,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * but are designed to be called on element prototypes such that the work to
    * set up accessors and effect metadata are done once per element class.
    *
-   * Additionally, it provides "bound template" stamping facilities:
-   * - `_stampBoundTemplate`
-   *
    * Note that this mixin overrides several `PropertyAccessors` methods, in
    * many cases to maintain guarantees provided by the Polymer 1.x features;
    * notably it changes property accessors to be synchronous by default
@@ -1089,6 +1089,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__data = Object.create(props);
         this.__dataPending = Object.create(props);
         this.__dataOld = {};
+      }
+
+      /**
+       * Overrides `Polymer.PropertyAccessors` implementation to avoid setting
+       * `_setProperty`'s `shouldNotify: true`.
+       *
+       * @override
+       */
+      _initializeInstanceProperties(props) {
+        let readOnly = this.__readOnly;
+        for (let prop in props) {
+          if (!readOnly || !readOnly[prop]) {
+            this.__dataPending = this.__dataPending || {};
+            this.__dataOld = this.__dataOld || {};
+            this.__data[prop] = this.__dataPending[prop] = props[prop];
+          }
+        }
       }
 
       // Prototype setup ----------------------------------------
@@ -1986,31 +2003,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * prototypically bound template and/or one or more templates to stamp
        * bound to the instance.
        *
+       * Note that a template may only be stamped by one element; stamping
+       * the same template by multiple element types is not currently supported.
+       *
        * @param {HTMLTemplateElement} template Template containing binding
        *   bindings
        * @param {DocumentFragment=} dom Stamped DOM for this template to be
        *   bound to the instance (leave undefined for prototypical template
        *   binding)
-       * @return {Object} Template metadata object
+       * @return {Object} Instanced template metadata object
        * @protected
        */
-      _bindTemplate(template, dom) {
+      _bindTemplate(template) {
         let templateInfo = this.constructor._parseTemplate(template);
-        let templateWasPrebound = this.__templateInfo == templateInfo;
-        if (!templateWasPrebound) {
+        if (!templateInfo.hasCreatedAccessors) {
           // Create accessors for any template effects
           for (let prop in templateInfo.propertyEffects) {
             this._createPropertyAccessor(prop);
           }
+          templateInfo.hasCreatedAccessors = true;
         }
-        if (dom) {
-          templateInfo = dom.templateInfo = Object.create(templateInfo);
-          templateInfo.nodeList = dom.nodeList;
-          if (!templateWasPrebound && this.__templateInfo) {
-            templateInfo.nextTemplateInfo = this.__templateInfo;
-            this.__templateInfo.previousTemplateInfo = templateInfo;
-            templateInfo.childNodes = Array.from(dom.childNodes);
-          }
+        // Create instance of template metadata and link into list of templates
+        templateInfo = Object.create(templateInfo);
+        if (this.hasOwnProperty('__templateInfo')) {
+          templateInfo.nextTemplateInfo = this.__templateInfo;
+          this.__templateInfo.previousTemplateInfo = templateInfo;
         }
         return this.__templateInfo = templateInfo;
       }
@@ -2053,11 +2070,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {DocumentFragment} Cloned template content
        * @protected
        */
-      _stampBoundTemplate(template) {
+      _stampTemplate(template) {
         let dom = super._stampTemplate(template);
         // Link template info & create accessors
         let templateInfo = this._bindTemplate(template, dom);
-        // Setup compound storage, 2-way listeners, and dataHost
+        // Add template-instance-specific data to instanced templateInfo
+        templateInfo.nodeList = dom.nodeList;
+        templateInfo.childNodes = Array.from(dom.childNodes);
+        dom.templateInfo = templateInfo;
+        // Setup compound storage, 2-way listeners, and dataHost for bindings
         setupBindings(this, templateInfo);
         // Flush properties into template nodes if already booted
         if (this.__dataInitialized) {
@@ -2069,13 +2090,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       /**
        * Removes and unbinds the nodes previously contained in the provided
-       * DocumentFragment returned from `_stampBoundTemplate`.
+       * DocumentFragment returned from `_stampTemplate`.
        *
        * @param {DocumentFragment} dom DocumentFragment previously returned
-       *   from `_stampBoundTemplate` associated with the nodes to be removed
+       *   from `_stampTemplate` associated with the nodes to be removed
        * @protected
        */
-      _unstampBoundTemplate(dom) {
+      _unstampTemplate(dom) {
         // Unlink template info
         let templateInfo = dom.templateInfo;
         if (templateInfo.previousTemplateInfo) {
@@ -2105,7 +2126,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        * @param {Node} node Node to parse
        * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {Object} nodeInfo Node metadata for current template node
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        * @protected
@@ -2137,7 +2158,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        * @param {Node} node Node to parse
        * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {Object} nodeInfo Node metadata for current template node
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        * @protected
@@ -2188,7 +2209,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        * @param {Node} node Node to parse
        * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {Object} nodeInfo Node metadata for current template node
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        * @protected
