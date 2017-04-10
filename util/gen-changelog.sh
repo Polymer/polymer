@@ -17,7 +17,7 @@ fi
 cat > CHANGELOG.md <<EOD
 # Change Log
 
-##[${end}](https://github.com/Polymer/polymer/tree/${end}) (${enddate})
+## [${end}](https://github.com/Polymer/polymer/tree/${end}) (${enddate})
 `git log --no-merges "${startrev}".."${endrev}^1" --pretty="${PRETTY}"`
 
 ${old}
