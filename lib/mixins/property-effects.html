@@ -1442,6 +1442,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
+       * TODO(wahson):
+       * 1、if property is not an object
+       * 2、support for array
+       * @param {object or Array} property
+       * @param {string} path
+       */
+      _initProxy(property, path) {
+        let handler = (path) => {
+          return {
+            set: (obj, prop, value) => {
+              let _path = `${path}.${prop}`;
+              if (value instanceof Object) {
+                value = new Proxy(value, handler(_path));
+              }
+              obj[prop] = value;
+              this.notifyPath(_path);
+              //under strict mode , if you don't return true, proxy will throw a TypeError exception
+              return true;
+            }
+          }
+        };
+
+        return new Proxy(property, handler(path));
+      }
+
+      /**
        * Overrides the `PropertyAccessors` implementation to introduce special
        * dirty check logic depending on the property & value being set:
        *
@@ -1475,6 +1501,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let isPath = this.__dataHasPaths && Polymer.Path.isPath(property);
         let prevProps = isPath ? this.__dataTemp : this.__data;
         if (this._shouldPropertyChange(property, value, prevProps[property])) {
+          /**
+           * replace value with a proxy instance by @wahsonLeung
+           */
+          let _prop = this.constructor.__ownProperties[property];
+          if (_prop && _prop.nestedObserve) {
+            value = this._initProxy(value, property);
+          }
+
           if (!this.__dataPending) {
             this.__dataPending = {};
             this.__dataOld = {};
