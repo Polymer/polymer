@@ -1,0 +1,398 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer-element.html">
+  <link rel="import" href="../../lib/mixins/gesture-event-listeners.html">
+  <link rel="import" href="../../lib/elements/dom-if.html">
+<body>
+
+<script>
+  HTMLImports.whenReady(() => {
+    class XElementChild extends Polymer.Element {
+      ready() {
+        super.ready();
+        Polymer.lifecycleOrder.log(this, 'ready');
+      }
+    }
+    customElements.define('x-element-child', XElementChild);
+  });
+</script>
+
+<dom-module id="x-element">
+  <template>
+    <x-element-child id="noBinding" log></x-element>
+    <x-element-child id="hasBinding" prop="{{prop}}" log></x-element>
+    <x-element-child id="events" on-click="handleClick" on-tap="handleTap"></x-element-child>
+  </template>
+  <script>
+  HTMLImports.whenReady(() => {
+    class XElement extends Polymer.Element {
+      static get is() { return 'x-element'; }
+      static get observers() { return ['propChanged(prop)', 'pathChanged(path)']; }
+      constructor() {
+        super();
+        this.propChanged = sinon.spy();
+        this.pathChanged = sinon.spy();
+      }
+      ready() {
+        super.ready();
+        Polymer.lifecycleOrder.log(this, 'ready');
+      }
+    }
+    customElements.define('x-element', XElement);
+  });
+  </script>
+</dom-module>
+
+<dom-module id="x-runtime">
+  <template>
+    <!-- Main template content -->
+    <style>
+      x-element {
+        display: block;
+        border-bottom: 10px solid orange;
+      }
+    </style>
+    <x-element id="first"></x-element>
+    <x-element id="textBinding">[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]</x-element>
+    <x-element id="propBinding" prop="{{prop}}" log="proto"></x-element>
+    <x-element id="pathBinding" path="{{obj.path}}"></x-element>
+    <x-element id="compoundPropBinding" compound="[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]"></x-element>
+    <x-element id="events" on-click="handleClick" on-tap="handleTap"></x-element>
+    <template id="domIf" is="dom-if" if="[[prop]]">
+      <x-element id="ifElement" prop="{{prop}}" path="{{obj.path}}"></x-element>
+    </template>
+    <!-- Nested template in Shadow DOM for runtime stamping -->
+    <template id="templateFromShadowDom">
+      <x-element id="first"></x-element>
+      <x-element id="events" on-click="handleClick" on-tap="handleTap"></x-element>
+      <template id="domIf" is="dom-if" if="[[prop]]">
+        <x-element id="ifElementSD" prop="{{prop}}" path="{{obj.path}}"></x-element>
+      </template>
+      <span></span><span></span><span></span><span></span>
+      <x-element id="compoundPropBinding" compound="[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]"></x-element>
+      <x-element id="pathBinding" path="{{obj.path}}"></x-element>
+      <x-element id="propBinding" prop="{{prop}}" log="shadow"></x-element>
+      <x-element id="textBinding">[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]</x-element>
+    </template>
+  </template>
+  <!-- Template in light DOM for runtime stamping -->
+  <template id="templateFromLightDom">
+    <x-element id="first"></x-element>
+    <span></span><span></span><span></span><span></span>
+    <x-element id="compoundPropBinding" compound="[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]"></x-element>
+    <x-element id="pathBinding" path="{{obj.path}}"></x-element>
+    <x-element id="propBinding" prop="{{prop}}" log="light"></x-element>
+    <x-element id="textBinding">[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]</x-element>
+    <x-element id="events" on-click="handleClick" on-tap="handleTap"></x-element>
+    <template id="domIf" is="dom-if" if="[[prop]]">
+      <x-element id="ifElementLD" prop="{{prop}}" path="{{obj.path}}"></x-element>
+    </template>
+  </template>
+  <script>
+  HTMLImports.whenReady(() => {
+    class XRuntime extends Polymer.GestureEventListeners(Polymer.Element) {
+      static get is() { return 'x-runtime'; }
+      static get observers() { return ['propChanged(prop)', 'pathChanged(obj.path)']; }
+      constructor() {
+        super();
+        this.propChanged = sinon.spy();
+        this.pathChanged = sinon.spy();
+        this.prop = 'prop';
+        this.obj = {path: 'obj.path'};
+        this.shadowTemplates = [];
+      }
+      ready() {
+        super.setAttribute('log', '');
+        super.ready();
+        Polymer.lifecycleOrder.log(this, 'ready');
+      }
+      compute(a, b) {
+        return `[${a} - ${b}]`;
+      }
+      stampTemplateFromShadow() {
+        let dom = this._stampTemplate(this.$.templateFromShadowDom);
+        this.shadowRoot.appendChild(dom);
+        return dom;
+      }
+      stampTemplateFromLight() {
+        let dom = this._stampTemplate(Polymer.DomModule.import(this.localName, '#templateFromLightDom'));
+        this.shadowRoot.appendChild(dom);
+        return dom;
+      }
+    }
+    customElements.define('x-runtime', XRuntime);
+  });
+  </script>
+</dom-module>
+
+<script>
+
+suite('runtime template stamping', function() {
+
+  let el;
+
+  setup(function() {
+    Polymer.lifecycleOrder = {
+      log(el, lifecycle) {
+        if (this.shouldLog(el)) {
+          let list = this[lifecycle] = this[lifecycle] || [];
+          list.push(this.idFor(el));
+        }
+      },
+      shouldLog(el) {
+        let host = el.getRootNode().host;
+        return (!host || this.shouldLog(host)) && el.hasAttribute('log');
+      },
+      idFor(el) {
+        let host = el.getRootNode().host;
+        let id = el.getAttribute('log') || el.id;
+        return (host ? this.idFor(host) + '|' : '') + el.localName + (id ? '#' + id : '');
+      }
+    };
+    el = document.createElement('x-runtime');
+    document.body.appendChild(el);
+  });
+
+  teardown(function() {
+    document.body.removeChild(el);
+  });
+
+  function assertStampingCorrect(el, $, type) {
+    // Text binding
+    assert.equal($.textBinding.textContent, 'prop - obj.path - [prop - obj.path]');
+    // Property binding
+    assert.equal($.propBinding.prop, 'prop');
+    assert.equal($.propBinding.propChanged.callCount, 1);
+    assert.equal($.propBinding.propChanged.firstCall.args[0], 'prop');
+    // Path binding
+    assert.equal($.pathBinding.path, 'obj.path');
+    assert.equal($.pathBinding.pathChanged.callCount, 1);
+    assert.equal($.pathBinding.pathChanged.firstCall.args[0], 'obj.path');
+    // Compound property binding
+    assert.equal($.compoundPropBinding.compound, 'prop - obj.path - [prop - obj.path]');
+    // Observers
+    assert.equal(el.propChanged.callCount, 1);
+    assert.equal(el.propChanged.firstCall.args[0], 'prop');
+    assert.equal(el.pathChanged.callCount, 1);
+    assert.equal(el.pathChanged.firstCall.args[0], 'obj.path');
+    // Event handlers
+    el.handleClick = sinon.spy();
+    el.handleTap = sinon.spy();
+    $.events.click();
+    assert.equal(el.handleClick.callCount, 1);
+    assert.equal(el.handleTap.callCount, 1);
+    // Nested dom-* template
+    $.domIf.render();
+    let ifElement = el.shadowRoot.querySelector(`#ifElement${type||''}`);
+    assert.equal(ifElement.prop, 'prop');
+    assert.equal(ifElement.path, 'obj.path');
+    // Styling correct
+    assert.equal(getComputedStyle($.textBinding).borderBottomWidth, '10px');
+  }
+
+  test('prototypical stamping', ()=> {
+    assertStampingCorrect(el, el.$);
+    let stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 1);
+    assert.equal(stamped[0], el.$.first);
+    // Lifecycle order correct
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime'
+    ]);
+  });
+
+  test('runtime stamp template (from shadow dom)', ()=> {
+    let dom = el.stampTemplateFromShadow();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom.$, 'SD');
+    let stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom.$.first);
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime',
+      'x-runtime|x-element#shadow|x-element-child#noBinding',
+      'x-runtime|x-element#shadow|x-element-child#hasBinding',
+      'x-runtime|x-element#shadow'
+    ]);
+  });
+
+  test('runtime stamp and remove multiple templates (from shadow dom)', ()=> {
+    let stamped;
+    // Stamp template
+    let dom1 = el.stampTemplateFromShadow();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom1.$, 'SD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom1.$.first);
+    // Unstamp
+    el._unstampTemplate(dom1);
+    for (let n in dom1.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    // Stamp again
+    let dom2 = el.stampTemplateFromShadow();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom2.$, 'SD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom2.$.first);
+    // Stamp again
+    let dom3 = el.stampTemplateFromShadow();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom2.$, 'SD');
+    assertStampingCorrect(el, dom3.$, 'SD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 3);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom2.$.first);
+    assert.equal(stamped[2], dom3.$.first);
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime',
+      'x-runtime|x-element#shadow|x-element-child#noBinding',
+      'x-runtime|x-element#shadow|x-element-child#hasBinding',
+      'x-runtime|x-element#shadow',
+      'x-runtime|x-element#shadow|x-element-child#noBinding',
+      'x-runtime|x-element#shadow|x-element-child#hasBinding',
+      'x-runtime|x-element#shadow',
+      'x-runtime|x-element#shadow|x-element-child#noBinding',
+      'x-runtime|x-element#shadow|x-element-child#hasBinding',
+      'x-runtime|x-element#shadow'
+    ]);
+    // Unstamp
+    el._unstampTemplate(dom2);
+    el._unstampTemplate(dom3);
+    for (let n in dom2.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    for (let n in dom3.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 1);
+    assert.equal(stamped[0], el.$.first);
+  });
+
+  test('runtime stamp template (from light dom)', ()=> {
+    let dom = el.stampTemplateFromLight();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom.$, 'LD');
+    let stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom.$.first);
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime',
+      'x-runtime|x-element#light|x-element-child#noBinding',
+      'x-runtime|x-element#light|x-element-child#hasBinding',
+      'x-runtime|x-element#light'
+    ]);
+  });
+
+  test('runtime stamp and remove multiple templates (from light dom)', ()=> {
+    let stamped;
+    // Stamp template
+    let dom1 = el.stampTemplateFromLight();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom1.$, 'LD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom1.$.first);
+    // Unstamp
+    el._unstampTemplate(dom1);
+    for (let n in dom1.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    // Stamp again
+    let dom2 = el.stampTemplateFromLight();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom2.$, 'LD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom2.$.first);
+    // Stamp again
+    let dom3 = el.stampTemplateFromLight();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom2.$, 'LD');
+    assertStampingCorrect(el, dom3.$, 'LD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 3);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom2.$.first);
+    assert.equal(stamped[2], dom3.$.first);
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime',
+      'x-runtime|x-element#light|x-element-child#noBinding',
+      'x-runtime|x-element#light|x-element-child#hasBinding',
+      'x-runtime|x-element#light',
+      'x-runtime|x-element#light|x-element-child#noBinding',
+      'x-runtime|x-element#light|x-element-child#hasBinding',
+      'x-runtime|x-element#light',
+      'x-runtime|x-element#light|x-element-child#noBinding',
+      'x-runtime|x-element#light|x-element-child#hasBinding',
+      'x-runtime|x-element#light'
+    ]);
+    // Unstamp
+    el._unstampTemplate(dom2);
+    el._unstampTemplate(dom3);
+    for (let n in dom2.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    for (let n in dom3.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 1);
+    assert.equal(stamped[0], el.$.first);
+  });
+
+  test('runtime stamp and remove multiple templates (from light dom)', ()=> {
+    let sd = el.stampTemplateFromShadow();
+    let ld = el.stampTemplateFromLight();
+    assert.equal(el.$.propBinding.prop, 'prop');
+    assert.equal(sd.$.propBinding.prop, 'prop');
+    assert.equal(ld.$.propBinding.prop, 'prop');
+    assert.equal(el.$.pathBinding.path, 'obj.path');
+    assert.equal(sd.$.pathBinding.path, 'obj.path');
+    assert.equal(ld.$.pathBinding.path, 'obj.path');
+  });
+
+});
+
+</script>
+
+</body>
+</html>
