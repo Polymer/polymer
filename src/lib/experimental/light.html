@@ -46,6 +46,29 @@
       // so it is okay to do this before mapping ID nodes:
       this._initializeProperties();
 
+      // Properties with function values need to have their values computed
+      // now, at instance time:
+      for (var property in this.__dataInstance) {
+        this._setProperty(property, this.__dataInstance[property].call(this));
+      }
+
+      // Collect properties from any relevant attribute values. The type
+      // configured for associated properties will be used to deserialize any
+      // present attribute values:
+      if (this.hasAttributes()) {
+        for (var property in this.properties) {
+          var attribute = Polymer.CaseMap.camelToDashCase(property);
+
+          if (this.hasAttribute(attribute)) {
+            var config = this.properties[property];
+            var value = this._deserializeValue(
+                this.getAttribute(attribute), config.type);
+
+            this._setProperty(property, value);
+          }
+        }
+      }
+
       if (this.__root != null) {
         // Queries for nodes with ID and marshal them to the $ property:
         this.$ = mapIdNodes(this.__root);
@@ -112,21 +135,42 @@
   Polymer.Light = function(implementation) {
     var proto = Object.create(light);
     var is = implementation.is;
-    // Properties are slightly different from standard Polymer properties.
-    // Only key name and default value are supported, so it should be of the
-    // form `properties: { foo: 123, bar: 'bar', baz: true }`
+    // Property config only observes the type and value keys
+    // for any given property, e.g.
+    // { propName: { type: String, value: 'propValue' } }
     var properties = implementation.properties;
     var module = Polymer.DomModule.import(is);
+
+    // A map of all properties with functions as their configured value. This
+    // will be used at instance time to compute default values for
+    // properties that require unique and / or complex initial values:
+    var dataInstance = null;
 
     Polymer.Base.extend(proto, implementation);
 
     // Properties are copied from the initial configuration directly onto the
-    // prototype so that PropertyAccessors sets up protoProps correctly:
+    // prototype so that PropertyAccessors sets up protoProps correctly.
+    // Properties with a function value are stashed for later:
     for (var property in properties) {
-      var value = properties[property];
-      proto[property] = value;
+      var config = properties[property];
+      var value = config.value;
+
+      if (value instanceof Function) {
+        dataInstance = dataInstance || {};
+        dataInstance[property] = value;
+      } else {
+        proto[property] = value;
+      }
+
       proto._createPropertyAccessor(property);
     }
+
+    // Stash the property config on the prototype for later reference in the
+    // createdCallback:
+    proto.properties = properties;
+
+    // To be used later in createdCallback:
+    proto.__dataInstance = dataInstance;
 
     if (module != null) {
       var template = module.querySelector('template');
