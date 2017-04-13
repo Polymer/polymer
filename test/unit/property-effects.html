@@ -1400,6 +1400,74 @@ suite('data (im)mutability', function() {
 
 });
 
+suite('runtime effects', function() {
+
+  var el, el2;
+
+  setup(function() {
+    el = document.createElement('x-basic');
+    document.body.appendChild(el);
+  });
+
+  teardown(function() {
+    document.body.removeChild(el);
+    document.body.removeChild(el2);
+  });
+
+  test('add/remove runtime property effect', function() {
+    assert.equal(el.observerCounts.valueChanged, 1);
+    let info = {};
+    let fn = sinon.spy();
+    let effect = { info, fn };
+    el._addPropertyEffect('value', el.PROPERTY_EFFECT_TYPES.OBSERVE, effect);
+    el.value = 'value++';
+    assert.equal(el.observerCounts.valueChanged, 2);
+    assert.equal(fn.callCount, 1);
+    assert.equal(fn.firstCall.args[0], el);
+    assert.equal(fn.firstCall.args[1], 'value');
+    assert.equal(fn.firstCall.args[2].value, 'value++');
+    assert.equal(fn.firstCall.args[4], info);
+    el._removePropertyEffect('value', el.PROPERTY_EFFECT_TYPES.OBSERVE, effect);
+    el.value = 'value+++';
+    assert.equal(fn.callCount, 1);
+    // Ensure prototype wasn't affected
+    el2 = document.createElement('x-basic');
+    document.body.appendChild(el2);
+    assert.equal(fn.callCount, 1);
+  });
+
+  test('add/remove runtime path effect', function() {
+    assert.equal(el.observerCounts.valueChanged, 1);
+    let info = {};
+    let fn = sinon.spy();
+    let trigger = {name: 'value.path', structured: true};
+    let effect = { info, fn, trigger };
+    el._addPropertyEffect('value', el.PROPERTY_EFFECT_TYPES.OBSERVE, effect);
+    el.value = {path: 'value.path'};
+    assert.equal(el.observerCounts.valueChanged, 2);
+    assert.equal(fn.callCount, 1);
+    assert.equal(fn.getCall(0).args[0], el);
+    assert.equal(fn.getCall(0).args[1], 'value');
+    assert.equal(fn.getCall(0).args[2].value, el.value);
+    assert.equal(fn.getCall(0).args[4], info);
+    el.set('value.path', 'value.path++');
+    assert.equal(el.observerCounts.valueChanged, 2);
+    assert.equal(fn.callCount, 2);
+    assert.equal(fn.getCall(1).args[0], el);
+    assert.equal(fn.getCall(1).args[1], 'value.path');
+    assert.equal(fn.getCall(1).args[2]['value.path'], 'value.path++');
+    assert.equal(fn.getCall(1).args[4], info);
+    el._removePropertyEffect('value', el.PROPERTY_EFFECT_TYPES.OBSERVE, effect);
+    el.set('value.path', 'value.path+++');
+    assert.equal(fn.callCount, 2);
+    // Ensure prototype wasn't affected
+    el2 = document.createElement('x-basic');
+    document.body.appendChild(el2);
+    assert.equal(fn.callCount, 2);
+  });
+
+});
+
 </script>
 
 </body>

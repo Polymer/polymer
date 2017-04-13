@@ -420,7 +420,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (window.ShadyCSS) {
         window.ShadyCSS.prepareTemplate(template, is, ext);
       }
-      proto._bindTemplate(template, propertiesForClass(proto.constructor));
+      proto._bindTemplate(template);
     }
 
     function flushPropertiesStub() {}
@@ -576,7 +576,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             let value = typeof info.value == 'function' ?
               info.value.call(this) :
               info.value;
-            if (this._hasPropertyEffect(p)) {
+            // Set via `_setProperty` if there is an accessor, to enable
+            // initializing readOnly property defaults
+            if (this._hasAccessor(p)) {
               this._setProperty(p, value)
             } else {
               this[p] = value;
@@ -622,6 +624,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           hostStack.beginHosting(this);
           this.root = this._stampTemplate(this._template);
           hostStack.endHosting(this);
+          this.$ = this.root.$;
         }
         super.ready();
       }
@@ -743,6 +746,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           base = Polymer.ResolveUrl.resolveUrl(this.importPath);
         }
         return Polymer.ResolveUrl.resolveUrl(url, base);
+      }
+
+      /**
+       * Overrides `PropertyAccessors` to add map of dynamic functions on
+       * template info, for consumption by `PropertyEffects` template binding
+       * code. This map determines which method templates should have accessors
+       * created for them.
+       *
+       * @override
+       */
+      static _parseTemplateContent(template, templateInfo, nodeInfo) {
+        templateInfo.dynamicFns = templateInfo.dynamicFns || propertiesForClass(this);
+        return super._parseTemplateContent(template, templateInfo, nodeInfo);
       }
 
     }
