@@ -692,10 +692,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function addNotifyListener(node, inst, binding) {
-    let part = binding.parts[0];
-    node.addEventListener(binding.listenerEvent, function(e) {
-      handleNotification(e, inst, binding.target, part.source, part.negate);
-    });
+    if (binding.listenerEvent) {
+      let part = binding.parts[0];
+      node.addEventListener(binding.listenerEvent, function(e) {
+        handleNotification(e, inst, binding.target, part.source, part.negate);
+      });
+    }
   }
 
   // -- for method-based effects (complexObserver & computed) --------------
@@ -2028,6 +2030,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // For instance-time binding, create instance of template metadata
           // and link into list of templates if necessary
           templateInfo = Object.create(templateInfo);
+          templateInfo.wasPreBound = wasPreBound;
           if (!wasPreBound && this.__templateInfo) {
             templateInfo.nextTemplateInfo = this.__templateInfo;
             this.__templateInfo.previousTemplateInfo = templateInfo;
@@ -2079,7 +2082,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let templateInfo = this._bindTemplate(template, true);
         // Add template-instance-specific data to instanced templateInfo
         templateInfo.nodeList = dom.nodeList;
-        templateInfo.childNodes = Array.from(dom.childNodes);
+        // Capture child nodes to allow unstamping of non-prototypical templates
+        if (!templateInfo.wasPreBound) {
+          let nodes = templateInfo.childNodes = [];
+          for (let n=dom.firstChild; n; n=n.nextSibling) {
+            nodes.push(n);
+          }
+        }
         dom.templateInfo = templateInfo;
         // Setup compound storage, 2-way listeners, and dataHost for bindings
         setupBindings(this, templateInfo);
