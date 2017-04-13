@@ -645,7 +645,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             addNotifyListener(node, inst, binding);
           }
         }
-        addNotifyListener
         node.__dataHost = inst;
       }
     }
@@ -1999,35 +1998,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * templates can be efficiently stamped and unstamped.
        *
        * This method may be called on the prototype (for prototypical template
-       * binding) once per prototype, or on the instance for either the
-       * prototypically bound template and/or one or more templates to stamp
-       * bound to the instance.
-       *
-       * Note that a template may only be stamped by one element; stamping
-       * the same template by multiple element types is not currently supported.
+       * binding, to avoid creating accessors every instance) once per prototype,
+       * and will be called with `runtimeBinding: true` by `_stampTemplate` to
+       * create and link an instance of the template metadata associated with a
+       * particular stamping.
        *
        * @param {HTMLTemplateElement} template Template containing binding
        *   bindings
-       * @param {DocumentFragment=} dom Stamped DOM for this template to be
-       *   bound to the instance (leave undefined for prototypical template
-       *   binding)
-       * @return {Object} Instanced template metadata object
+       * @param {boolean=} runtimeBinding When false (default), performs
+       *   "prototypical" binding of the template and overwrites any previously
+       *   bound template for the class. When true (as passed from
+       *   `_stampTemplate`), the template info is instanced and linked into
+       *   the list of bound templates.
+       * @return {Object} Template metadata object; for `runtimeBinding`,
+       *   this is an instance of the prototypical template info
        * @protected
        */
-      _bindTemplate(template) {
+      _bindTemplate(template, instanceBinding) {
         let templateInfo = this.constructor._parseTemplate(template);
-        if (!templateInfo.hasCreatedAccessors) {
-          // Create accessors for any template effects
+        let wasPreBound = this.__templateInfo == templateInfo;
+        // Optimization: since this is called twice for proto-bound templates,
+        // don't attempt to recreate accessors if this template was pre-bound
+        if (!wasPreBound) {
           for (let prop in templateInfo.propertyEffects) {
             this._createPropertyAccessor(prop);
           }
-          templateInfo.hasCreatedAccessors = true;
         }
-        // Create instance of template metadata and link into list of templates
-        templateInfo = Object.create(templateInfo);
-        if (this.hasOwnProperty('__templateInfo')) {
-          templateInfo.nextTemplateInfo = this.__templateInfo;
-          this.__templateInfo.previousTemplateInfo = templateInfo;
+        if (instanceBinding) {
+          // For instance-time binding, create instance of template metadata
+          // and link into list of templates if necessary
+          templateInfo = Object.create(templateInfo);
+          if (!wasPreBound && this.__templateInfo) {
+            templateInfo.nextTemplateInfo = this.__templateInfo;
+            this.__templateInfo.previousTemplateInfo = templateInfo;
+          }
         }
         return this.__templateInfo = templateInfo;
       }
@@ -2072,8 +2076,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _stampTemplate(template) {
         let dom = super._stampTemplate(template);
-        // Link template info & create accessors
-        let templateInfo = this._bindTemplate(template, dom);
+        let templateInfo = this._bindTemplate(template, true);
         // Add template-instance-specific data to instanced templateInfo
         templateInfo.nodeList = dom.nodeList;
         templateInfo.childNodes = Array.from(dom.childNodes);
@@ -2096,7 +2099,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   from `_stampTemplate` associated with the nodes to be removed
        * @protected
        */
-      _unstampTemplate(dom) {
+      _removeBoundDom(dom) {
         // Unlink template info
         let templateInfo = dom.templateInfo;
         if (templateInfo.previousTemplateInfo) {
