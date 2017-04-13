@@ -164,57 +164,59 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <x-special name="el7" special="attr5"><x-special name="el8" special="attr6"></x-special></x-special>
 </template>
 <script>
-class XParsing extends Polymer.Element {
-  static get template() { return document.getElementById('custom-template'); }
-  static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
-    if (name == 'special') {
-      nodeInfo.specialAttr = value;
-      node.removeAttribute('special');
-      node.setAttribute('had-special', '');
-      return true;
-    } else {
-      return super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
+HTMLImports.whenReady(() => {
+  class XParsing extends Polymer.Element {
+    static get template() { return document.getElementById('custom-template'); }
+    static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
+      if (name == 'special') {
+        nodeInfo.specialAttr = value;
+        node.removeAttribute('special');
+        node.setAttribute('had-special', '');
+        return true;
+      } else {
+        return super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
+      }
+    }
+    static _parseTemplateNode(node, templateInfo, nodeInfo) {
+      let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
+      if (node.localName == 'x-special') {
+        noted = nodeInfo.specialNode = true;
+      }
+      return noted;
+    }
+    _bindTemplate(template) {
+      return this.templateInfoForTesting = super._bindTemplate(template);
     }
   }
-  static _parseTemplateNode(node, templateInfo, nodeInfo) {
-    let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
-    if (node.localName == 'x-special') {
-      noted = nodeInfo.specialNode = true;
-    }
-    return noted;
-  }
-  _bindTemplate(template) {
-    return this.templateInfoForTesting = super._bindTemplate(template);
-  }
-}
-customElements.define('x-parsing', XParsing);
+  customElements.define('x-parsing', XParsing);
 
-class XEffects extends XParsing {
-  static get template() { return document.getElementById('custom-template'); }
-  static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
-    let noted = super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
-    if (nodeInfo.specialAttr) {
-      this._addTemplatePropertyEffect(templateInfo, 'attr', {
-        fn(inst, property, props, oldProps, info, hasPaths, nodeList) {
-          nodeList[nodeInfo.infoIndex].specialAttr = props[property];
-        }
-      });
+  class XEffects extends XParsing {
+    static get template() { return document.getElementById('custom-template'); }
+    static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
+      let noted = super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
+      if (nodeInfo.specialAttr) {
+        this._addTemplatePropertyEffect(templateInfo, 'attr', {
+          fn(inst, property, props, oldProps, info, hasPaths, nodeList) {
+            nodeList[nodeInfo.infoIndex].specialAttr = props[property];
+          }
+        });
+      }
+      return noted;
     }
-    return noted;
-  }
-  static _parseTemplateNode(node, templateInfo, nodeInfo) {
-    let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
-    if (nodeInfo.specialNode) {
-      this._addTemplatePropertyEffect(templateInfo, 'node', {
-        fn(inst, property, props, oldProps, info, hasPaths, nodeList) {
-          nodeList[nodeInfo.infoIndex].specialNode = props[property];
-        }
-      });
+    static _parseTemplateNode(node, templateInfo, nodeInfo) {
+      let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
+      if (nodeInfo.specialNode) {
+        this._addTemplatePropertyEffect(templateInfo, 'node', {
+          fn(inst, property, props, oldProps, info, hasPaths, nodeList) {
+            nodeList[nodeInfo.infoIndex].specialNode = props[property];
+          }
+        });
+      }
+      return noted;
     }
-    return noted;
   }
-}
-customElements.define('x-effects', XEffects);
+  customElements.define('x-effects', XEffects);
+});
 </script>
 
 <dom-module id="x-binding">
@@ -231,35 +233,37 @@ customElements.define('x-effects', XEffects);
     </template>
   </template>
   <script>
-  class XBinding extends Polymer.Element {
-    static get is() { return 'x-binding'; }
-    constructor() {
-      super();
-      this.prop = true;
-      this.obj = {path: 'obj.path'};
-      this.prop2 = true;
-    }
-    static _parseBindings(text, templateInfo) {
-      if (text.slice(0,2) == '[{' && text.slice(-2) == '}]') {
-        let bindingData = JSON.parse(text.slice(1,-1));
-        let dependencies = Object.keys(bindingData).map(n=>bindingData[n]);
-        return [{dependencies, bindingData}]
-      } else {
-        return super._parseBindings(text, templateInfo);
+  HTMLImports.whenReady(() => {
+    class XBinding extends Polymer.Element {
+      static get is() { return 'x-binding'; }
+      constructor() {
+        super();
+        this.prop = true;
+        this.obj = {path: 'obj.path'};
+        this.prop2 = true;
+      }
+      static _parseBindings(text, templateInfo) {
+        if (text.slice(0,2) == '[{' && text.slice(-2) == '}]') {
+          let bindingData = JSON.parse(text.slice(1,-1));
+          let dependencies = Object.keys(bindingData).map(n=>bindingData[n]);
+          return [{dependencies, bindingData}]
+        } else {
+          return super._parseBindings(text, templateInfo);
+        }
+      }
+      static _evaluateBinding(scope, part, path, props, oldProps, hasPaths) {
+        if (part.bindingData) {
+          return Object.keys(part.bindingData)
+            .map(n => scope[part.bindingData[n]] ? n : '')
+            .filter(c => Boolean(c))
+            .join(' ');
+        } else {
+          return super._evaluateBinding(scope, part, path, props, oldProps, hasPaths);
+        }
       }
     }
-    static _evaluateBinding(scope, part, path, props, oldProps, hasPaths) {
-      if (part.bindingData) {
-        return Object.keys(part.bindingData)
-          .map(n => scope[part.bindingData[n]] ? n : '')
-          .filter(c => Boolean(c))
-          .join(' ');
-      } else {
-        return super._evaluateBinding(scope, part, path, props, oldProps, hasPaths);
-      }
-    }
-  }
-  customElements.define(XBinding.is, XBinding);
+    customElements.define(XBinding.is, XBinding);
+  });
   </script>
 </dom-module>
 
