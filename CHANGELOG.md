@@ -1,5 +1,20 @@
 # Change Log
 
+## [v1.9.0-dev](https://github.com/Polymer/polymer/tree/v1.9.0-dev) (2017-04-13)
+- [ci skip] skip looking in build log, again ([commit](https://github.com/Polymer/polymer/commit/1d282c7f))
+
+- [ci skip] backport changelog fixes ([commit](https://github.com/Polymer/polymer/commit/d6a7ac71))
+
+- * allow setting `rootPath` * disallow setting `importPath` (this is supported in 2.x but not 1.x) ([commit](https://github.com/Polymer/polymer/commit/ac067652))
+
+- Add `importPath` and `rootPath` to support 2.x hybrid compatible elements. ([commit](https://github.com/Polymer/polymer/commit/daaf460a))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/80c899f4))
+
+- Add missing semicolon after variable assignment ([commit](https://github.com/Polymer/polymer/commit/afb21c8f))
+
+- Update PRIMER.md ([commit](https://github.com/Polymer/polymer/commit/4d66a353))
+
 ## [v1.8.1-dev](https://github.com/Polymer/polymer/tree/v1.8.1-dev) (2017-02-27)
 - Exclude SD polyfill tests for Edge due to lack of workarounds for Edge DocFrag bugs. ([commit](https://github.com/Polymer/polymer/commit/de45ba02))
 
