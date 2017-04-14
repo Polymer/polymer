@@ -126,7 +126,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * (1) super chain mixes togther to make `propertiesForClass` which is
      * then used to make `observedAttributes`.
      * (2) properties effects and observers are created from it at `finalize` time.
-     * @param {HTMLElement} klass
+     *
+     * @param {HTMLElement} klass Element class
+     * @return {Object} Object containing own properties for this class
      * @private
      */
     function ownPropertiesForClass(klass) {
@@ -142,7 +144,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Returns the `observers` array specifically on `klass`. Use for
      * setting up observers.
-     * @param {HTMLElement} klass
+     *
+     * @param {HTMLElement} klass Element class
+     * @return {Array} Array containing own observers for this class
      * @private
      */
     function ownObserversForClass(klass) {
@@ -158,8 +162,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Mixes `props` into `flattenedProps` but upgrades shorthand type
      * syntax to { type: Type}.
-     * @param {Object} flattenedProps
-     * @param {Object} props
+     *
+     * @param {Object} flattenedProps Bag to collect flattened properties into
+     * @param {Object} props Bag of properties to add to `flattenedProps`
+     * @return {Objecg} The input `flattenedProps` bag
      * @private
      */
     function flattenProperties(flattenedProps, props) {
@@ -178,8 +184,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * constructor's `config.properties`. This list is used to create
      * (1) observedAttributes,
      * (2) class property default values
-     * @param {HTMLElement} klass
-     * @return {PolymerElementProperties}
+     *
+     * @param {HTMLElement} klass Element class
+     * @return {PolymerElementProperties} Flattened properties for this class
      * @private
      */
     function propertiesForClass(klass) {
@@ -202,8 +209,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * This list is created as an optimization since it is a subset of
      * the list returned from `propertiesForClass`.
      * This list is used in `_initializeProperties` to set property defaults.
-     * @param {HTMLElement} klass
-     * @return {PolymerElementProperties}
+     *
+     * @param {HTMLElement} klass Element class
+     * @return {PolymerElementProperties} Flattened properties for this class
+     *   that have default values
      * @private
      */
     function propertyDefaultsForClass(klass) {
@@ -224,7 +233,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * Returns true if a `klass` has finalized. Called in `ElementClass.finalize()`
-     * @param {HTMLElement} klass
+     * @param {HTMLElement} klass Element class
+     * @return {boolean} True if all metaprogramming for this class has been
+     *   completed
      * @private
      */
     function hasClassFinalized(klass) {
@@ -235,7 +246,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Called by `ElementClass.finalize()`. Ensures this `klass` and
      * *all superclasses* are finalized by traversing the prototype chain
      * and calling `klass.finalize()`.
-     * @param {HTMLElement} klass
+     *
+     * @param {HTMLElement} klass Element class
      * @private
      */
     function finalizeClassAndSuper(klass) {
@@ -252,6 +264,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * a `template`. This includes creating accessors and effects
      * for properties in `config` and the `template` as well as preparing the
      * `template` for stamping.
+     *
+     * @param {HTMLElement} klass Element class
+     * @private
      */
     function finalizeClass(klass) {
       klass.__finalized = true;
@@ -287,8 +302,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Leverages `PropertyEffects` to create property accessors and effects
      * supporting, observers, reflecting to attributes, change notification,
      * computed properties, and read only properties.
-     * @param {HTMLElement} proto
-     * @param {Object} properties
+     * @param {HTMLElement} proto Element class prototype to add accessors
+     *    and effects to
+     * @param {Object} properties Flattened bag of property descriptors for
+     *    this class
      * @private
      */
     function finalizeProperties(proto, properties) {
@@ -300,13 +317,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Configures a `proto` based on a `observers` array.
      * Leverages `PropertyEffects` to create observers.
-     * @param {HTMLElement} proto
-     * @param {Array} observers
+     * @param {HTMLElement} proto Element class prototype to add accessors
+     *   and effects to
+     * @param {Object} observers Flattened array of observer descriptors for
+     *   this class
+     * @param {Object} dynamicFns Object containing keys for any properties
+     *   that are functions and should trigger the effect when the function
+     *   reference is changed
      * @private
      */
-    function finalizeObservers(proto, observers, dynamicProperties) {
+    function finalizeObservers(proto, observers, dynamicFns) {
       for (let i=0; i < observers.length; i++) {
-        proto._createMethodObserver(observers[i], dynamicProperties);
+        proto._createMethodObserver(observers[i], dynamicFns);
       }
     }
 
@@ -359,7 +381,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * and/or provide an advanced api for manipulating them.
      * Also consider adding warnings when an effect cannot be changed.
      *
-     * @param {HTMLElement} proto
+     * @param {HTMLElement} proto Element class prototype to add accessors
+     *   and effects to
      * @param {string} name Name of the property.
      * @param {object} info Info object from which to create property effects.
      * Supported keys:
@@ -399,12 +422,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Configures an element `proto` to function with a given `template`.
      * The element name `is` and extends `ext` must be specified for ShadyCSS
      * style scoping.
-     * @param {HTMLElement} proto
-     * @param {HTMLTemplateElement} template
+     *
+     * @param {HTMLElement} proto Element class prototype to add accessors
+     *   and effects to
+     * @param {HTMLTemplateElement} template Template to process and bind
      * @param {string} baseURI URL against which to resolve urls in
-     * style element cssText.
-     * @param {string} is
-     * @param {string} ext
+     *   style element cssText
+     * @param {string} is Tag name (or type extension name) for this element
+     * @param {string=} ext For type extensions, the tag name that was extended
      * @private
      */
     function finalizeTemplate(proto, template, baseURI, is, ext) {
@@ -470,7 +495,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Returns the template stamped into this element's shadow root.
+       * Returns the template that will be stamped into this element's shadow root.
        *
        * If a `static get is()` getter is defined, the default implementation
        * will return the first `<template>` in a `dom-module` whose `id`
@@ -504,7 +529,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *     }
        *   }
        *
-       * @returns {HTMLTemplateElement|string}
+       * @returns {HTMLTemplateElement|string} Template to be stamped
        */
       static get template() {
         if (!this.hasOwnProperty(goog.reflect.objectProperty('_template', this))) {
@@ -526,7 +551,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * matching this element's static `is` property.
        * Note, this path should contain a trailing `/`.
        *
-       * @returns {string}
+       * @returns {string} The import path for this element class
        */
       static get importPath() {
         if (!this.hasOwnProperty(goog.reflect.objectProperty('_importPath', this))) {
@@ -833,6 +858,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     registrations: [],
     /**
+     * @param {HTMLElement} prototype Element prototype to log
      * @private
      */
     _regLog: function(prototype) {
@@ -840,6 +866,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
     /**
      * Registers a class prototype for telemetry purposes.
+     * @param {HTMLElement} prototype Element prototype to register
      * @protected
      */
     register: function(prototype) {
@@ -868,7 +895,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * These properties are retained unless a value of `null` is set.
    *
-   * @param {Object=} properties Bag of custom property key/values to
+   * @param {Object=} props Bag of custom property key/values to
    *   apply to the document.
    */
   Polymer.updateStyles = function(props) {
