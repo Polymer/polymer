@@ -82,10 +82,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     detached: function() {
-      if (!this.parentNode ||
-          (this.parentNode.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
+      var parentNode = this.parentNode;
+      if (parentNode && parentNode.localName == this.is) {
+        parentNode = Polymer.dom(parentNode).parentNode;
+      }
+      if (!parentNode ||
+          (parentNode.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
            (!Polymer.Settings.hasShadow ||
-            !(this.parentNode instanceof ShadowRoot)))) {
+            !(parentNode instanceof ShadowRoot)))) {
         this._teardownInstance();
       }
     },
@@ -131,22 +135,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     _ensureInstance: function() {
+      var refNode;
       var parentNode = Polymer.dom(this).parentNode;
+      // Affordance for 2.x hybrid mode
+      if (parentNode && parentNode.localName == this.is) {
+        refNode = parentNode;
+        parentNode = Polymer.dom(parentNode).parentNode;
+      } else {
+        refNode = this;
+      }
       // Guard against element being detached while render was queued
       if (parentNode) {
-        var parent = Polymer.dom(parentNode);
         if (!this._instance) {
           this._instance = this.stamp();
           var root = this._instance.root;
-          parent.insertBefore(root, this);
+          Polymer.dom(parentNode).insertBefore(root, refNode);
         } else {
           var c$ = this._instance._children;
           if (c$ && c$.length) {
             // Detect case where dom-if was re-attached in new position
-            var lastChild = Polymer.dom(this).previousSibling;
+            var lastChild = Polymer.dom(refNode).previousSibling;
             if (lastChild !== c$[c$.length-1]) {
               for (var i=0, n; (i<c$.length) && (n=c$[i]); i++) {
-                parent.insertBefore(n, this);
+                Polymer.dom(parentNode).insertBefore(n, refNode);
               }
             }
           }
