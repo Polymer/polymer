@@ -1,5 +1,32 @@
 # Change Log
 
+## [v1.9.1-dev](https://github.com/Polymer/polymer/tree/v1.9.1-dev) (2017-04-17)
+- Remove use of ES6 API. ([commit](https://github.com/Polymer/polymer/commit/96010657))
+
+- Remove use of ES6 API. ([commit](https://github.com/Polymer/polymer/commit/646dce69))
+
+- Ensure optimization uses hybrid parentNode ([commit](https://github.com/Polymer/polymer/commit/b7f00992))
+
+- Use local `parentNode` ([commit](https://github.com/Polymer/polymer/commit/2e4290f8))
+
+- Capture hybridDomRepeat. ([commit](https://github.com/Polymer/polymer/commit/ee3b9a69))
+
+- Fix dom-if detachment ([commit](https://github.com/Polymer/polymer/commit/2722532b))
+
+- Add dom-if test for add/remove. ([commit](https://github.com/Polymer/polymer/commit/a2825650))
+
+- Add test for add & remove ([commit](https://github.com/Polymer/polymer/commit/4c87e1d9))
+
+- Add 2.x hybrid affordances for stamping template content. Fixes #4536 ([commit](https://github.com/Polymer/polymer/commit/53053eb4))
+
+- Fix lint ([commit](https://github.com/Polymer/polymer/commit/f29104f2))
+
+- Make tests more strict. ([commit](https://github.com/Polymer/polymer/commit/ea65a6d0))
+
+- Use `_importPath` in `resolveUrl` so it available early. Fixes #4532 ([commit](https://github.com/Polymer/polymer/commit/1a7d3b11))
+
+- [ci skip] update Changelog ([commit](https://github.com/Polymer/polymer/commit/3ce4e176))
+
 ## [v1.9.0-dev](https://github.com/Polymer/polymer/tree/v1.9.0-dev) (2017-04-13)
 - [ci skip] skip looking in build log, again ([commit](https://github.com/Polymer/polymer/commit/1d282c7f))
 
