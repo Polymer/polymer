@@ -106,11 +106,7 @@ gulp.task('closure', ['clean'], () => {
   full();
 
   const project = new PolymerProject({
-    shell: `./${entry}`,
-    fragments: [
-      'bower_components/shadycss/apply-shim.html',
-      'bower_components/shadycss/custom-style-interface.html'
-    ]
+    shell: `./${entry}`
   });
 
   const closureStream = closure({
@@ -123,7 +119,7 @@ gulp.task('closure', ['clean'], () => {
     rewrite_polyfills: false,
     new_type_inf: true,
     externs: [
-      'externs/closure-upstream-externs.js',
+      // 'externs/closure-upstream-externs.js',
       'externs/webcomponents-externs.js',
       'externs/polymer-externs.js',
       'externs/closure-types.js',
@@ -140,21 +136,53 @@ gulp.task('closure', ['clean'], () => {
     .pipe(() => new OldNameStream(closureStream.fileList_))
 
   // process source files in the project
-  const sources = project.sources()
+  const sources = project.sources();
 
   // process dependencies
-  const dependencies = project.dependencies()
+  const dependencies = project.dependencies();
+
+  class Uniq extends Transform {
+    constructor() {
+      super({ objectMode: true });
+      this.map = {};
+    }
+    _transform(file, enc, cb) {
+      this.map[file.path] = file;
+      cb();
+    }
+    _flush(done) {
+      for (let filePath in this.map) {
+        let file = this.map[filePath];
+        this.push(file);
+      }
+      done();
+    }
+  }
+
+  class NoDeps extends Transform {
+    constructor() {
+      super({objectMode: true});
+    }
+    _transform(file, enc, cb) {
+      if (file.path.match(/shadycss/)) {
+        file.contents = new Buffer('');
+      }
+      cb(null, file);
+    }
+  }
 
   // merge the source and dependencies streams to we can analyze the project
   const mergedFiles = mergeStream(sources, dependencies);
 
   const splitter = new polymer.HtmlSplitter();
   return mergedFiles
-    .pipe(project.bundler)
+    .pipe(new NoDeps())
+    .pipe(project.bundler())
+    .pipe(new Uniq())
     .pipe(splitter.split())
+    .pipe(new Log('saw:'))
     .pipe(gulpif(splitRx, closurePipeline()))
     .pipe(splitter.rejoin())
-    // .pipe(htmlmin({removeComments: true}))
     .pipe(gulpif(joinRx, minimalDocument()))
     .pipe(gulpif(joinRx, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
     .pipe(gulp.dest(COMPILED_DIR))
