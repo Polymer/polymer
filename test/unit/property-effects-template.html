@@ -1,0 +1,724 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer-element.html">
+  <link rel="import" href="../../lib/mixins/gesture-event-listeners.html">
+  <link rel="import" href="../../lib/elements/dom-if.html">
+<body>
+
+<script>
+  HTMLImports.whenReady(() => {
+    class XElementChild extends Polymer.Element {
+      ready() {
+        super.ready();
+        Polymer.lifecycleOrder.log(this, 'ready');
+      }
+    }
+    customElements.define('x-element-child', XElementChild);
+  });
+</script>
+
+<dom-module id="x-element">
+  <template>
+    [[prop]] - [[path]]
+    <x-element-child id="noBinding" log></x-element>
+    <x-element-child id="hasBinding" prop="{{prop}}" path="{{path}}" log></x-element>
+    <x-element-child id="events" on-click="handleClick" on-tap="handleTap"></x-element-child>
+  </template>
+  <script>
+  HTMLImports.whenReady(() => {
+    class XElement extends Polymer.Element {
+      static get is() { return 'x-element'; }
+      static get observers() { return ['propChanged(prop)', 'pathChanged(path)']; }
+      static get properties() { return { prop: { notify: true }, path: { notify: true } }; }
+      constructor() {
+        super();
+        this.propChanged = sinon.spy();
+        this.pathChanged = sinon.spy();
+      }
+      ready() {
+        super.ready();
+        Polymer.lifecycleOrder.log(this, 'ready');
+      }
+    }
+    customElements.define('x-element', XElement);
+  });
+  </script>
+</dom-module>
+
+<dom-module id="x-runtime">
+  <template>
+    <!-- Main template content -->
+    <style>
+      x-element {
+        display: block;
+        border-bottom: 10px solid orange;
+      }
+    </style>
+    <x-element id="first"></x-element>
+    <x-element id="textBinding">[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]</x-element>
+    <x-element id="propBinding" prop="{{prop}}" log="proto"></x-element>
+    <x-element id="pathBinding" path="{{obj.path}}"></x-element>
+    <x-element id="compoundPropBinding" compound="[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]"></x-element>
+    <x-element id="events" on-click="handleClick" on-tap="handleTap"></x-element>
+    <template id="domIf" is="dom-if" if="[[prop]]">
+      <x-element id="ifElement" prop="{{prop}}" path="{{obj.path}}"></x-element>
+    </template>
+    <!-- Nested template in Shadow DOM for runtime stamping -->
+    <template id="templateFromShadowDom">
+      <x-element id="first"></x-element>
+      <x-element id="events" on-click="handleClick" on-tap="handleTap"></x-element>
+      <template id="domIf" is="dom-if" if="[[prop]]">
+        <x-element id="ifElementSD" prop="{{prop}}" path="{{obj.path}}"></x-element>
+      </template>
+      <span></span><span></span><span></span><span></span>
+      <x-element id="compoundPropBinding" compound="[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]"></x-element>
+      <x-element id="pathBinding" path="{{obj.path}}"></x-element>
+      <x-element id="propBinding" prop="{{prop}}" log="shadow"></x-element>
+      <x-element id="textBinding">[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]</x-element>
+    </template>
+  </template>
+  <!-- Template in light DOM for runtime stamping -->
+  <template id="templateFromLightDom">
+    <x-element id="first"></x-element>
+    <span></span><span></span><span></span><span></span>
+    <x-element id="compoundPropBinding" compound="[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]"></x-element>
+    <x-element id="pathBinding" path="{{obj.path}}"></x-element>
+    <x-element id="propBinding" prop="{{prop}}" log="light"></x-element>
+    <x-element id="textBinding">[[prop]] - [[obj.path]] - [[compute(prop, obj.path)]]</x-element>
+    <x-element id="events" on-click="handleClick" on-tap="handleTap"></x-element>
+    <template id="domIf" is="dom-if" if="[[prop]]">
+      <x-element id="ifElementLD" prop="{{prop}}" path="{{obj.path}}"></x-element>
+    </template>
+  </template>
+  <template id="templateWithDifferentProps">
+    <div id="bound">[[otherProp]]</div>
+  </template>
+  <script>
+  HTMLImports.whenReady(() => {
+    class XRuntime extends Polymer.GestureEventListeners(Polymer.Element) {
+      static get is() { return 'x-runtime'; }
+      static get observers() { return ['propChanged(prop)', 'pathChanged(obj.path)']; }
+      constructor() {
+        super();
+        this.propChanged = sinon.spy();
+        this.pathChanged = sinon.spy();
+        this.prop = 'prop';
+        this.obj = {path: 'obj.path'};
+      }
+      ready() {
+        super.setAttribute('log', '');
+        super.ready();
+        Polymer.lifecycleOrder.log(this, 'ready');
+      }
+      compute(a, b) {
+        return `[${a} - ${b}]`;
+      }
+      stampTemplateFromShadow() {
+        let dom = this._stampTemplate(this.$.templateFromShadowDom);
+        this.shadowRoot.appendChild(dom);
+        return dom;
+      }
+      stampTemplateFromLight() {
+        let dom = this._stampTemplate(Polymer.DomModule.import(this.localName, '#templateFromLightDom'));
+        this.shadowRoot.appendChild(dom);
+        return dom;
+      }
+      stampTemplateWithDifferentProps() {
+        let dom = this._stampTemplate(Polymer.DomModule.import(this.localName, '#templateWithDifferentProps'));
+        this.shadowRoot.appendChild(dom);
+        return dom;
+      }
+    }
+    customElements.define('x-runtime', XRuntime);
+  });
+  </script>
+</dom-module>
+
+<template id="custom-template">
+  <x-special name="el1" special="attr1" binding="[[prop]]" on-event="handler"></x-special>
+  <div name="el2" special="attr2">
+    <div name="el3" special="attr3">
+      <x-special name="el4" special="attr4"></x-special>
+    </div>
+    <div></div><div></div><div></div>
+    <div name="el5" binding="[[prop]]" on-event="handler"></div>
+    <template name="el6">
+      <div>
+        <x-special name="t-el" special="t-attr" binding="[[prop]]" on-event="handler"></x-special>
+      </div>
+    </template>
+  </div>
+  <x-special name="el7" special="attr5"><x-special name="el8" special="attr6"></x-special></x-special>
+</template>
+<script>
+HTMLImports.whenReady(() => {
+  class XParsing extends Polymer.Element {
+    static get template() { return document.getElementById('custom-template'); }
+    static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
+      if (name == 'special') {
+        nodeInfo.specialAttr = value;
+        node.removeAttribute('special');
+        node.setAttribute('had-special', '');
+        return true;
+      } else {
+        return super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
+      }
+    }
+    static _parseTemplateNode(node, templateInfo, nodeInfo) {
+      let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
+      if (node.localName == 'x-special') {
+        noted = nodeInfo.specialNode = true;
+      }
+      return noted;
+    }
+    _bindTemplate(template) {
+      return this.templateInfoForTesting = super._bindTemplate(template);
+    }
+  }
+  customElements.define('x-parsing', XParsing);
+
+  class XEffects extends XParsing {
+    static get template() { return document.getElementById('custom-template'); }
+    static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
+      let noted = super._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value);
+      if (nodeInfo.specialAttr) {
+        this._addTemplatePropertyEffect(templateInfo, 'attr', {
+          fn(inst, property, props, oldProps, info, hasPaths, nodeList) {
+            nodeList[nodeInfo.infoIndex].specialAttr = props[property];
+          }
+        });
+      }
+      return noted;
+    }
+    static _parseTemplateNode(node, templateInfo, nodeInfo) {
+      let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
+      if (nodeInfo.specialNode) {
+        this._addTemplatePropertyEffect(templateInfo, 'node', {
+          fn(inst, property, props, oldProps, info, hasPaths, nodeList) {
+            nodeList[nodeInfo.infoIndex].specialNode = props[property];
+          }
+        });
+      }
+      return noted;
+    }
+  }
+  customElements.define('x-effects', XEffects);
+});
+</script>
+
+<dom-module id="x-binding">
+  <template>
+    <x-element id="standard1" prop="[[prop]]" path="[[obj.path]]"></x-element>
+    <x-element id="custom1" prop='[{"a": "prop", "b": "prop2"}]'></x-element>
+    <div>
+      <x-element id="standard2" prop="[[prop]]" path="[[obj.path]]"></x-element>
+      <x-element id="custom2" prop='[{"a": "prop", "b": "prop2"}]'></x-element>
+    </div>
+    <template id="domIf" is="dom-if" if="[[prop2]]" restamp>
+      <x-element id="standard3" prop="[[prop]]" path="[[obj.path]]"></x-element>
+      <x-element id="custom3" prop='[{"a": "prop", "b": "prop2"}]'></x-element>
+    </template>
+  </template>
+  <script>
+  HTMLImports.whenReady(() => {
+    class XBinding extends Polymer.Element {
+      static get is() { return 'x-binding'; }
+      constructor() {
+        super();
+        this.prop = true;
+        this.obj = {path: 'obj.path'};
+        this.prop2 = true;
+      }
+      static _parseBindings(text, templateInfo) {
+        if (text.slice(0,2) == '[{' && text.slice(-2) == '}]') {
+          let bindingData = JSON.parse(text.slice(1,-1));
+          let dependencies = Object.keys(bindingData).map(n=>bindingData[n]);
+          return [{dependencies, bindingData}]
+        } else {
+          return super._parseBindings(text, templateInfo);
+        }
+      }
+      static _evaluateBinding(scope, part, path, props, oldProps, hasPaths) {
+        if (part.bindingData) {
+          return Object.keys(part.bindingData)
+            .map(n => scope[part.bindingData[n]] ? n : '')
+            .filter(c => Boolean(c))
+            .join(' ');
+        } else {
+          return super._evaluateBinding(scope, part, path, props, oldProps, hasPaths);
+        }
+      }
+    }
+    customElements.define(XBinding.is, XBinding);
+  });
+  </script>
+</dom-module>
+
+<script>
+
+suite('runtime template stamping', function() {
+
+  let el;
+
+  setup(function() {
+    Polymer.lifecycleOrder = {
+      log(el, lifecycle) {
+        if (this.shouldLog(el)) {
+          let list = this[lifecycle] = this[lifecycle] || [];
+          list.push(this.idFor(el));
+        }
+      },
+      shouldLog(el) {
+        let host = el.getRootNode().host;
+        return (!host || this.shouldLog(host)) && el.hasAttribute('log');
+      },
+      idFor(el) {
+        let host = el.getRootNode().host;
+        let id = el.getAttribute('log') || el.id;
+        return (host ? this.idFor(host) + '|' : '') + el.localName + (id ? '#' + id : '');
+      }
+    };
+    el = document.createElement('x-runtime');
+    document.body.appendChild(el);
+  });
+
+  teardown(function() {
+    document.body.removeChild(el);
+  });
+
+  function assertStampingCorrect(el, $, type) {
+    // Text binding
+    assert.equal($.textBinding.textContent, 'prop - obj.path - [prop - obj.path]');
+    // Property binding
+    assert.equal($.propBinding.prop, 'prop');
+    assert.equal($.propBinding.propChanged.callCount, 1);
+    assert.equal($.propBinding.propChanged.firstCall.args[0], 'prop');
+    // Path binding
+    assert.equal($.pathBinding.path, 'obj.path');
+    assert.equal($.pathBinding.pathChanged.callCount, 1);
+    assert.equal($.pathBinding.pathChanged.firstCall.args[0], 'obj.path');
+    // Compound property binding
+    assert.equal($.compoundPropBinding.compound, 'prop - obj.path - [prop - obj.path]');
+    // Observers
+    assert.equal(el.propChanged.callCount, 1);
+    assert.equal(el.propChanged.firstCall.args[0], 'prop');
+    assert.equal(el.pathChanged.callCount, 1);
+    assert.equal(el.pathChanged.firstCall.args[0], 'obj.path');
+    // Event handlers
+    el.handleClick = sinon.spy();
+    el.handleTap = sinon.spy();
+    $.events.click();
+    assert.equal(el.handleClick.callCount, 1);
+    assert.equal(el.handleTap.callCount, 1);
+    // Nested dom-* template
+    $.domIf.render();
+    let ifElement = el.shadowRoot.querySelector(`#ifElement${type||''}`);
+    assert.equal(ifElement.prop, 'prop');
+    assert.equal(ifElement.path, 'obj.path');
+    // Styling correct
+    assert.equal(getComputedStyle($.textBinding).borderBottomWidth, '10px');
+  }
+
+  test('prototypical stamping', () => {
+    assertStampingCorrect(el, el.$);
+    let stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 1);
+    assert.equal(stamped[0], el.$.first);
+    // Lifecycle order correct
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime'
+    ]);
+  });
+
+  test('runtime stamp template (from shadow dom)', () => {
+    let dom = el.stampTemplateFromShadow();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom.$, 'SD');
+    let stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom.$.first);
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime',
+      'x-runtime|x-element#shadow|x-element-child#noBinding',
+      'x-runtime|x-element#shadow|x-element-child#hasBinding',
+      'x-runtime|x-element#shadow'
+    ]);
+  });
+
+  test('runtime stamp and remove multiple templates (from shadow dom)', () => {
+    let stamped;
+    // Stamp template
+    let dom1 = el.stampTemplateFromShadow();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom1.$, 'SD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom1.$.first);
+    // Unstamp
+    el._removeBoundDom(dom1);
+    for (let n in dom1.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 1);
+    assert.equal(stamped[0], el.$.first);
+    // Stamp again
+    let dom2 = el.stampTemplateFromShadow();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom2.$, 'SD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom2.$.first);
+    // Stamp again
+    let dom3 = el.stampTemplateFromShadow();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom2.$, 'SD');
+    assertStampingCorrect(el, dom3.$, 'SD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 3);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom2.$.first);
+    assert.equal(stamped[2], dom3.$.first);
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime',
+      'x-runtime|x-element#shadow|x-element-child#noBinding',
+      'x-runtime|x-element#shadow|x-element-child#hasBinding',
+      'x-runtime|x-element#shadow',
+      'x-runtime|x-element#shadow|x-element-child#noBinding',
+      'x-runtime|x-element#shadow|x-element-child#hasBinding',
+      'x-runtime|x-element#shadow',
+      'x-runtime|x-element#shadow|x-element-child#noBinding',
+      'x-runtime|x-element#shadow|x-element-child#hasBinding',
+      'x-runtime|x-element#shadow'
+    ]);
+    // Unstamp
+    el._removeBoundDom(dom2);
+    el._removeBoundDom(dom3);
+    for (let n in dom2.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    for (let n in dom3.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 1);
+    assert.equal(stamped[0], el.$.first);
+  });
+
+  test('runtime stamp template (from light dom)', () => {
+    let dom = el.stampTemplateFromLight();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom.$, 'LD');
+    let stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom.$.first);
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime',
+      'x-runtime|x-element#light|x-element-child#noBinding',
+      'x-runtime|x-element#light|x-element-child#hasBinding',
+      'x-runtime|x-element#light'
+    ]);
+  });
+
+  test('runtime stamp and remove multiple templates (from light dom)', () => {
+    let stamped;
+    // Stamp template
+    let dom1 = el.stampTemplateFromLight();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom1.$, 'LD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom1.$.first);
+    // Unstamp
+    el._removeBoundDom(dom1);
+    for (let n in dom1.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    // Stamp again
+    let dom2 = el.stampTemplateFromLight();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom2.$, 'LD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 2);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom2.$.first);
+    // Stamp again
+    let dom3 = el.stampTemplateFromLight();
+    assertStampingCorrect(el, el.$);
+    assertStampingCorrect(el, dom2.$, 'LD');
+    assertStampingCorrect(el, dom3.$, 'LD');
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 3);
+    assert.equal(stamped[0], el.$.first);
+    assert.equal(stamped[1], dom2.$.first);
+    assert.equal(stamped[2], dom3.$.first);
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime',
+      'x-runtime|x-element#light|x-element-child#noBinding',
+      'x-runtime|x-element#light|x-element-child#hasBinding',
+      'x-runtime|x-element#light',
+      'x-runtime|x-element#light|x-element-child#noBinding',
+      'x-runtime|x-element#light|x-element-child#hasBinding',
+      'x-runtime|x-element#light',
+      'x-runtime|x-element#light|x-element-child#noBinding',
+      'x-runtime|x-element#light|x-element-child#hasBinding',
+      'x-runtime|x-element#light'
+    ]);
+    // Unstamp
+    el._removeBoundDom(dom2);
+    el._removeBoundDom(dom3);
+    for (let n in dom2.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    for (let n in dom3.$) {
+      assert.notOk(dom1.$[n].parentNode, null);
+    }
+    stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 1);
+    assert.equal(stamped[0], el.$.first);
+  });
+
+  function assertPropValues(el, prop, value, count) {
+    let e = el.$[prop + 'Binding'];
+    assert.equal(e[prop], value);
+    assert.equal(e[prop + 'Changed'].callCount, count);
+    assert.equal(e[prop + 'Changed'].getCall(count-1).args[0], value);
+    assert.equal(e.$.hasBinding[prop], value);
+  }
+
+  function assertAllPropValues(el, ld, sd, prop, value, count) {
+    assertPropValues(el, prop, value, count);
+    assertPropValues(ld, prop, value, count);
+    assertPropValues(sd, prop, value, count);
+  }
+
+  test('downward runtime binding', () => {
+    let sd = el.stampTemplateFromShadow();
+    let ld = el.stampTemplateFromLight();
+    assertAllPropValues(el, sd, ld, 'prop', 'prop', 1);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path', 1);
+    el.prop = 'prop+';
+    assertAllPropValues(el, sd, ld, 'prop', 'prop+', 2);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path', 1);
+    el.obj = {path: 'obj.path+'};
+    assertAllPropValues(el, sd, ld, 'prop', 'prop+', 2);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path+', 2);
+    el.set('obj.path', 'obj.path++');
+    assertAllPropValues(el, sd, ld, 'prop', 'prop+', 2);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path++', 3);
+  });
+
+  test('two-way runtime binding', () => {
+    let sd = el.stampTemplateFromShadow();
+    let ld = el.stampTemplateFromLight();
+    assertAllPropValues(el, sd, ld, 'prop', 'prop', 1);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path', 1);
+    el.$.propBinding.prop = 'prop+';
+    assertAllPropValues(el, sd, ld, 'prop', 'prop+', 2);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path', 1);
+    sd.$.propBinding.prop = 'prop++';
+    assertAllPropValues(el, sd, ld, 'prop', 'prop++', 3);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path', 1);
+    ld.$.propBinding.prop = 'prop+++';
+    assertAllPropValues(el, sd, ld, 'prop', 'prop+++', 4);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path', 1);
+    el.$.pathBinding.path = 'obj.path+';
+    assertAllPropValues(el, sd, ld, 'prop', 'prop+++', 4);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path+', 2);
+    sd.$.pathBinding.path = 'obj.path++';
+    assertAllPropValues(el, sd, ld, 'prop', 'prop+++', 4);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path++', 3);
+    ld.$.pathBinding.path = 'obj.path+++';
+    assertAllPropValues(el, sd, ld, 'prop', 'prop+++', 4);
+    assertAllPropValues(el, sd, ld, 'path', 'obj.path+++', 4);
+  });
+
+  test('accessors for non-prototypically bound properties created', () => {
+    // First element
+    let dom = el.stampTemplateWithDifferentProps();
+    el.otherProp = 'otherProp';
+    assert.equal(dom.$.bound.textContent, 'otherProp');
+    // Second element
+    let el2 = document.createElement('x-runtime');
+    document.body.appendChild(el2);
+    let dom2 = el2.stampTemplateWithDifferentProps();
+    el2.otherProp = 'otherProp';
+    assert.equal(dom2.$.bound.textContent, 'otherProp');
+    document.body.removeChild(el2);
+  });
+
+  test('prototypical stamping not affected by runtime stamping', () => {
+    assertStampingCorrect(el, el.$);
+    let stamped = el.shadowRoot.querySelectorAll('x-element#first');
+    assert.equal(stamped.length, 1);
+    assert.equal(stamped[0], el.$.first);
+    // Lifecycle order correct
+    assert.deepEqual(Polymer.lifecycleOrder.ready, [
+      'x-runtime|x-element#proto|x-element-child#noBinding',
+      'x-runtime|x-element#proto|x-element-child#hasBinding',
+      'x-runtime|x-element#proto',
+      'x-runtime'
+    ]);
+  });
+
+});
+
+suite('template parsing hooks', () => {
+
+  test('custom parsing', () => {
+    let el = document.createElement('x-parsing');
+    document.body.appendChild(el);
+    let templateInfo = el.templateInfoForTesting;
+    let nodeInfoList = templateInfo.nodeInfoList;
+    let nodeList = templateInfo.nodeList;
+    // The node order is depth-first bottom up but not a guarantee or generally
+    // important; as such, just ensure all expected nodes are there, then
+    // loop to
+    assert.sameMembers(nodeList.map(e=>e.getAttribute('name')),
+      ['el1', 'el2', 'el3', 'el4', 'el5', 'el6', 'el7', 'el8']);
+    for (let i=0; i<nodeList.length; i++) {
+      let node = nodeList[i];
+      let nodeInfo = nodeInfoList[i];
+      let templateNodeInfo;
+      switch (node.getAttribute('name')) {
+        case 'el1':
+          assert.equal(nodeInfo.specialNode, true);
+          assert.equal(nodeInfo.specialAttr, 'attr1');
+          assert.equal(nodeInfo.bindings.length, 1);
+          assert.equal(nodeInfo.events.length, 1);
+          break;
+        case 'el2':
+          assert.equal(nodeInfo.specialAttr, 'attr2');
+          break;
+        case 'el3':
+          assert.equal(nodeInfo.specialAttr, 'attr3');
+          break;
+        case 'el4':
+          assert.equal(nodeInfo.specialNode, true);
+          assert.equal(nodeInfo.specialAttr, 'attr4');
+          break;
+        case 'el5':
+          assert.equal(nodeInfo.bindings.length, 1);
+          assert.equal(nodeInfo.events.length, 1);
+          break;
+        case 'el6':
+          assert.isOk(nodeInfo.templateInfo);
+          assert.equal(nodeInfo.templateInfo.nodeInfoList.length, 1)
+          templateNodeInfo = nodeInfo.templateInfo.nodeInfoList[0];
+          assert.equal(templateNodeInfo.bindings.length, 1);
+          assert.equal(templateNodeInfo.events.length, 1);
+          assert.equal(templateNodeInfo.specialAttr, 't-attr');
+          assert.equal(templateNodeInfo.specialNode, true);
+          break;
+        case 'el7':
+          assert.equal(nodeInfo.specialNode, true);
+          assert.equal(nodeInfo.specialAttr, 'attr5');
+          break;
+        case 'el8':
+          assert.equal(nodeInfo.specialNode, true);
+          assert.equal(nodeInfo.specialAttr, 'attr6');
+          break;
+        default:
+          throw new Error('unexpected node was recorded');
+      }
+    }
+  });
+
+  test('custom template effects', () => {
+    let el = document.createElement('x-effects');
+    document.body.appendChild(el);
+
+    assert.equal(Array.from(el.shadowRoot.querySelectorAll('x-special')).length, 4);
+    Array.from(el.shadowRoot.querySelectorAll('x-special')).forEach(e => {
+      assert.notOk(e.isSpecialNode);
+    });
+    el.node = 'node!';
+    Array.from(el.shadowRoot.querySelectorAll('x-special')).forEach(e => {
+      assert.equal(e.specialNode, 'node!');
+    });
+
+    assert.equal(Array.from(el.shadowRoot.querySelectorAll('[had-special]')).length, 6);
+    Array.from(el.shadowRoot.querySelectorAll('[had-special]')).forEach(e => {
+      assert.notOk(e.hasSpecialAttr);
+    });
+    el.attr = 'attr!';
+    Array.from(el.shadowRoot.querySelectorAll('[had-special]')).forEach(e => {
+      assert.equal(e.specialAttr, 'attr!');
+    });
+    document.body.removeChild(el);
+  });
+
+  test('custom template binding', () => {
+    let el = document.createElement('x-binding');
+    document.body.appendChild(el);
+    el.$.domIf.render();
+    assert.equal(el.$.standard1.prop, true);
+    assert.equal(el.$.standard2.prop, true);
+    assert.equal(el.shadowRoot.querySelector('#standard3').prop, true);
+    assert.equal(el.$.standard1.path, 'obj.path');
+    assert.equal(el.$.standard2.path, 'obj.path');
+    assert.equal(el.shadowRoot.querySelector('#standard3').path, 'obj.path');
+    assert.equal(el.$.custom1.prop, 'a b');
+    assert.equal(el.$.custom2.prop, 'a b');
+    assert.equal(el.shadowRoot.querySelector('#custom3').prop, 'a b');
+    el.prop = false;
+    assert.equal(el.$.standard1.prop, false);
+    assert.equal(el.$.standard2.prop, false);
+    assert.equal(el.shadowRoot.querySelector('#standard3').prop, false);
+    assert.equal(el.$.standard1.path, 'obj.path');
+    assert.equal(el.$.standard2.path, 'obj.path');
+    assert.equal(el.shadowRoot.querySelector('#standard3').path, 'obj.path');
+    assert.equal(el.$.custom1.prop, 'b');
+    assert.equal(el.$.custom2.prop, 'b');
+    assert.equal(el.shadowRoot.querySelector('#custom3').prop, 'b');
+    el.prop = true;
+    assert.equal(el.$.standard1.prop, true);
+    assert.equal(el.$.standard2.prop, true);
+    assert.equal(el.shadowRoot.querySelector('#standard3').prop, true);
+    assert.equal(el.$.standard1.path, 'obj.path');
+    assert.equal(el.$.standard2.path, 'obj.path');
+    assert.equal(el.shadowRoot.querySelector('#standard3').path, 'obj.path');
+    assert.equal(el.$.custom1.prop, 'a b');
+    assert.equal(el.$.custom2.prop, 'a b');
+    assert.equal(el.shadowRoot.querySelector('#custom3').prop, 'a b');
+    document.body.removeChild(el);
+  });
+});
+
+</script>
+
+</body>
+</html>
