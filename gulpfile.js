@@ -119,7 +119,6 @@ gulp.task('closure', ['clean'], () => {
     rewrite_polyfills: false,
     new_type_inf: true,
     externs: [
-      // 'externs/closure-upstream-externs.js',
       'externs/webcomponents-externs.js',
       'externs/polymer-externs.js',
       'externs/closure-types.js',
@@ -180,7 +179,6 @@ gulp.task('closure', ['clean'], () => {
     .pipe(project.bundler())
     .pipe(new Uniq())
     .pipe(splitter.split())
-    .pipe(new Log('saw:'))
     .pipe(gulpif(splitRx, closurePipeline()))
     .pipe(splitter.rejoin())
     .pipe(gulpif(joinRx, minimalDocument()))

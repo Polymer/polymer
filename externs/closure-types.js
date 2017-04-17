@@ -5,7 +5,7 @@
  *
  * This file is generated, do not edit manually
  */
-/* eslint-disable no-unused-vars */
+/* eslint-disable no-unused-vars, strict */
 
 /**
 * @record
@@ -18,6 +18,10 @@ Polymer_PropertyAccessors.prototype._initializeProperties = function(){};
 * @param {Object} props
 */
 Polymer_PropertyAccessors.prototype._initializeProtoProperties = function(props){};
+/**
+* @param {Object} props
+*/
+Polymer_PropertyAccessors.prototype._initializeInstanceProperties = function(props){};
 /**
 * @param {string} attribute
 * @param {string} value
@@ -59,12 +63,18 @@ Polymer_PropertyAccessors.prototype._deserializeValue = function(value, type){};
 Polymer_PropertyAccessors.prototype._createPropertyAccessor = function(property, readOnly){};
 /**
 * @param {string} property
+* @return {boolean}
+*/
+Polymer_PropertyAccessors.prototype._hasAccessor = function(property){};
+/**
+* @param {string} property
 * @param {*} value
 */
 Polymer_PropertyAccessors.prototype._setProperty = function(property, value){};
 /**
 * @param {string} property
 * @param {*} value
+* @return {boolean}
 */
 Polymer_PropertyAccessors.prototype._setPendingProperty = function(property, value){};
 /**
@@ -78,6 +88,9 @@ Polymer_PropertyAccessors.prototype._invalidateProperties = function(){};
 /**
 */
 Polymer_PropertyAccessors.prototype._flushProperties = function(){};
+/**
+*/
+Polymer_PropertyAccessors.prototype.ready = function(){};
 /**
 * @param {Object} currentProps
 * @param {Object} changedProps
@@ -96,30 +109,31 @@ Polymer_PropertyAccessors.prototype._shouldPropertyChange = function(property, v
 */
 function Polymer_TemplateStamp(){}
 /**
+*/
+Polymer_TemplateStamp.prototype._initializeProperties = function(){};
+/**
 * @param {HTMLTemplateElement} template
+* @return {DocumentFragment}
 */
 Polymer_TemplateStamp.prototype._stampTemplate = function(template){};
 /**
-* @param {*} template
-*/
-Polymer_TemplateStamp.prototype._parseTemplateAnnotations = function(template){};
-/**
-* @param {*} node
-* @param {*} eventName
-* @param {*} methodName
-* @param {*} context
+* @param {Node} node
+* @param {string} eventName
+* @param {string} methodName
+* @param {*=} context
+* @return {Function}
 */
 Polymer_TemplateStamp.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {Node} node
+* @param {string} eventName
+* @param {Function} handler
 */
 Polymer_TemplateStamp.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {Node} node
+* @param {string} eventName
+* @param {Function} handler
 */
 Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
@@ -129,18 +143,31 @@ Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, ev
 */
 function Polymer_PropertyEffects(){}
 /**
+* @override
 */
 Polymer_PropertyEffects.prototype._initializeProperties = function(){};
 /**
+* @override
 * @param {*} props
 */
 Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){};
 /**
-* @param {*} property
+* @override
+* @param {*} props
+*/
+Polymer_PropertyEffects.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} property
 * @param {string} type
 * @param {Object=} effect
 */
 Polymer_PropertyEffects.prototype._addPropertyEffect = function(property, type, effect){};
+/**
+* @param {string} property
+* @param {string} type
+* @param {Object=} effect
+*/
+Polymer_PropertyEffects.prototype._removePropertyEffect = function(property, type, effect){};
 /**
 * @param {string} property
 * @param {string=} type
@@ -170,7 +197,7 @@ Polymer_PropertyEffects.prototype._hasComputedEffect = function(property){};
 /**
 * @param {(string|!Array.<(number|string)>)} path
 * @param {*} value
-* @param {*} shouldNotify
+* @param {boolean=} shouldNotify
 * @param {boolean=} isPathNotification
 * @return {boolean}
 */
@@ -182,17 +209,20 @@ Polymer_PropertyEffects.prototype._setPendingPropertyOrPath = function(path, val
 */
 Polymer_PropertyEffects.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
 /**
+* @override
 * @param {*} property
 * @param {*} value
 * @param {*} shouldNotify
 */
 Polymer_PropertyEffects.prototype._setPendingProperty = function(property, value, shouldNotify){};
 /**
+* @override
 * @param {*} property
 * @param {*} value
 */
 Polymer_PropertyEffects.prototype._setProperty = function(property, value){};
 /**
+* @override
 */
 Polymer_PropertyEffects.prototype._invalidateProperties = function(){};
 /**
@@ -204,28 +234,29 @@ Polymer_PropertyEffects.prototype._enqueueClient = function(client){};
 Polymer_PropertyEffects.prototype._flushClients = function(){};
 /**
 * @param {Object} props
+* @param {boolean=} setReadOnly
 */
-Polymer_PropertyEffects.prototype.setProperties = function(props){};
+Polymer_PropertyEffects.prototype.setProperties = function(props, setReadOnly){};
 /**
-*/
-Polymer_PropertyEffects.prototype._flushProperties = function(){};
-/**
+* @override
 */
 Polymer_PropertyEffects.prototype.ready = function(){};
 /**
 */
 Polymer_PropertyEffects.prototype._readyClients = function(){};
 /**
-* @param {HTMLTemplateElement} template
-* @return {DocumentFragment}
-*/
-Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
-/**
+* @override
 * @param {*} currentProps
 * @param {*} changedProps
 * @param {*} oldProps
 */
 Polymer_PropertyEffects.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {Object} changedProps
+* @param {Object} oldProps
+* @param {boolean} hasPaths
+*/
+Polymer_PropertyEffects.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
 /**
 * @param {(string|!Array.<(string|number)>)} to
 * @param {(string|!Array.<(string|number)>)} from
@@ -319,24 +350,42 @@ Polymer_PropertyEffects.prototype._createReflectedProperty = function(property){
 Polymer_PropertyEffects.prototype._createComputedProperty = function(property, expression, dynamicFns){};
 /**
 * @param {HTMLTemplateElement} template
-* @param {Object=} dynamicFns
+* @param {boolean=} instanceBinding
+* @return {Object}
 */
-Polymer_PropertyEffects.prototype._bindTemplate = function(template, dynamicFns){};
+Polymer_PropertyEffects.prototype._bindTemplate = function(template, instanceBinding){};
+/**
+* @param {HTMLTemplateElement} template
+* @return {DocumentFragment}
+*/
+Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
+/**
+* @param {DocumentFragment} dom
+*/
+Polymer_PropertyEffects.prototype._removeBoundDom = function(dom){};
 /**
 * @record
 * @extends {Polymer_PropertyEffects}
 */
 function Polymer_ElementMixin(){}
 /**
+* @override
 */
 Polymer_ElementMixin.prototype._initializeProperties = function(){};
 /**
+* @override
 */
 Polymer_ElementMixin.prototype.connectedCallback = function(){};
 /**
+* @override
 */
 Polymer_ElementMixin.prototype.disconnectedCallback = function(){};
 /**
+* @override
+*/
+Polymer_ElementMixin.prototype.ready = function(){};
+/**
+* @override
 */
 Polymer_ElementMixin.prototype._readyClients = function(){};
 /**
@@ -345,6 +394,7 @@ Polymer_ElementMixin.prototype._readyClients = function(){};
 */
 Polymer_ElementMixin.prototype._attachDom = function(dom){};
 /**
+* @override
 * @param {*} name
 * @param {*} old
 * @param {*} value
@@ -395,12 +445,14 @@ Polymer_LegacyElementMixin.prototype.detached = function(){};
 */
 Polymer_LegacyElementMixin.prototype.attributeChanged = function(){};
 /**
+* @override
 */
 Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
 /**
 */
 Polymer_LegacyElementMixin.prototype._registered = function(){};
 /**
+* @override
 */
 Polymer_LegacyElementMixin.prototype.ready = function(){};
 /**
@@ -417,6 +469,7 @@ Polymer_LegacyElementMixin.prototype.serialize = function(value){};
 /**
 * @param {string} value
 * @param {*} type
+* @return {*}
 */
 Polymer_LegacyElementMixin.prototype.deserialize = function(value, type){};
 /**
@@ -444,10 +497,11 @@ Polymer_LegacyElementMixin.prototype.extend = function(prototype, api){};
 */
 Polymer_LegacyElementMixin.prototype.mixin = function(target, source){};
 /**
-* @param {*} object
-* @param {*} inherited
+* @param {Object} object
+* @param {Object} prototype
+* @return {Object}
 */
-Polymer_LegacyElementMixin.prototype.chainObject = function(object, inherited){};
+Polymer_LegacyElementMixin.prototype.chainObject = function(object, prototype){};
 /**
 * @param {HTMLTemplateElement} template
 * @return {DocumentFragment}
@@ -473,7 +527,7 @@ Polymer_LegacyElementMixin.prototype.listen = function(node, eventName, methodNa
 */
 Polymer_LegacyElementMixin.prototype.unlisten = function(node, eventName, methodName){};
 /**
-* @param {String=} direction
+* @param {string=} direction
 * @param {HTMLElement=} node
 */
 Polymer_LegacyElementMixin.prototype.setScrollDirection = function(direction, node){};
@@ -513,18 +567,18 @@ Polymer_LegacyElementMixin.prototype.queryEffectiveChildren = function(selector)
 */
 Polymer_LegacyElementMixin.prototype.queryAllEffectiveChildren = function(selector){};
 /**
-* @param {String=} slctr
+* @param {string=} slctr
 * @return {Array.<Node>}
 */
 Polymer_LegacyElementMixin.prototype.getContentChildNodes = function(slctr){};
 /**
-* @param {String=} slctr
+* @param {string=} slctr
 * @return {Array.<HTMLElement>}
 */
 Polymer_LegacyElementMixin.prototype.getContentChildren = function(slctr){};
 /**
 * @param {?Node} node
-* @return {Boolean}
+* @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype.isLightDescendant = function(node){};
 /**
@@ -538,27 +592,28 @@ Polymer_LegacyElementMixin.prototype.isLocalDescendant = function(node){};
 */
 Polymer_LegacyElementMixin.prototype.scopeSubtree = function(container, shouldObserve){};
 /**
-* @param {String} property
-* @return {String}
+* @param {string} property
+* @return {string}
 */
 Polymer_LegacyElementMixin.prototype.getComputedStyleValue = function(property){};
 /**
-* @param {String} jobName
+* @param {string} jobName
 * @param {function ()} callback
 * @param {number} wait
+* @return {Object}
 */
 Polymer_LegacyElementMixin.prototype.debounce = function(jobName, callback, wait){};
 /**
-* @param {String} jobName
+* @param {string} jobName
 * @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype.isDebouncerActive = function(jobName){};
 /**
-* @param {String} jobName
+* @param {string} jobName
 */
 Polymer_LegacyElementMixin.prototype.flushDebouncer = function(jobName){};
 /**
-* @param {String} jobName
+* @param {string} jobName
 */
 Polymer_LegacyElementMixin.prototype.cancelDebouncer = function(jobName){};
 /**
@@ -592,13 +647,13 @@ Polymer_LegacyElementMixin.prototype.importHref = function(href, onload, onerror
 */
 Polymer_LegacyElementMixin.prototype.elementMatches = function(selector, node){};
 /**
-* @param {String} name
+* @param {string} name
 * @param {boolean=} bool
 * @param {HTMLElement=} node
 */
 Polymer_LegacyElementMixin.prototype.toggleAttribute = function(name, bool, node){};
 /**
-* @param {String} name
+* @param {string} name
 * @param {boolean=} bool
 * @param {HTMLElement=} node
 */

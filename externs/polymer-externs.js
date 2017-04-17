@@ -5,7 +5,7 @@
 
 /**
  * @param {!{is: string}} init
- * @return {!CustomElement}
+ * @return {!HTMLElement}
  */
 function Polymer(init){}
 
