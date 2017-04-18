@@ -40,7 +40,7 @@ const ENTRY_POINTS = [POLYMER_LEGACY, POLYMER_ELEMENT];
 
 const polymer = require('polymer-build');
 const PolymerProject = polymer.PolymerProject;
-const project = new PolymerProject({ shell: DEFAULT_BUILD_TARGET });
+const project = new PolymerProject({ entrypoint: DEFAULT_BUILD_TARGET });
 const fork = polymer.forkStream;
 
 gulp.task('clean', function() {
@@ -75,11 +75,38 @@ class OldNameStream extends Transform {
   }
 }
 
+class Log extends Transform {
+  constructor(prefix = '') {
+    super({objectMode: true});
+    this.prefix = prefix;
+  }
+  _transform(file, enc, cb) {
+    console.log(this.prefix, file.path);
+    cb(null, file);
+  }
+}
+
 gulp.task('closure', ['clean'], () => {
 
+  let entry, splitRx, joinRx;
+
+  function full() {
+    entry = 'polymer.html';
+    splitRx = /polymer\.html_script_\d+\.js$/;
+    joinRx = /polymer\.html/;
+  }
+
+  function element() {
+    entry = 'polymer-element.html';
+    splitRx = /polymer-element\.html_script_\d+\.js$/;
+    joinRx = /polymer-element\.html/;
+  }
+
+  // element();
+  full();
+
   const project = new PolymerProject({
-    sources: ['./polymer.html'],
-    shell: './polymer.html'
+    shell: `./${entry}`
   });
 
   const closureStream = closure({
@@ -87,9 +114,20 @@ gulp.task('closure', ['clean'], () => {
     language_in: 'ES6_STRICT',
     language_out: 'ES5_STRICT',
     warning_level: 'VERBOSE',
-    output_wrapper: '(function(){\n%output%\n}).call(self)',
+    output_wrapper: '(function(){\n%output%\n}).call(self);',
+    assume_function_wrapper: true,
     rewrite_polyfills: false,
-    externs: ['externs/closure-upstream-externs.js', 'externs/webcomponents-externs.js', 'externs/polymer-externs.js']
+    new_type_inf: true,
+    externs: [
+      'externs/webcomponents-externs.js',
+      'externs/polymer-externs.js',
+      'externs/closure-types.js',
+    ],
+    extra_annotation_name: [
+      'polymerMixin',
+      'polymerMixinClass',
+      'polymerElement'
+    ]
   });
 
   const closurePipeline = lazypipe()
@@ -97,22 +135,54 @@ gulp.task('closure', ['clean'], () => {
     .pipe(() => new OldNameStream(closureStream.fileList_))
 
   // process source files in the project
-  const sources = project.sources()
+  const sources = project.sources();
 
   // process dependencies
-  const dependencies = project.dependencies()
+  const dependencies = project.dependencies();
+
+  class Uniq extends Transform {
+    constructor() {
+      super({ objectMode: true });
+      this.map = {};
+    }
+    _transform(file, enc, cb) {
+      this.map[file.path] = file;
+      cb();
+    }
+    _flush(done) {
+      for (let filePath in this.map) {
+        let file = this.map[filePath];
+        this.push(file);
+      }
+      done();
+    }
+  }
+
+  class NoDeps extends Transform {
+    constructor() {
+      super({objectMode: true});
+    }
+    _transform(file, enc, cb) {
+      if (file.path.match(/shadycss/)) {
+        file.contents = new Buffer('');
+      }
+      cb(null, file);
+    }
+  }
 
   // merge the source and dependencies streams to we can analyze the project
   const mergedFiles = mergeStream(sources, dependencies);
 
+  const splitter = new polymer.HtmlSplitter();
   return mergedFiles
-    .pipe(project.bundler)
-    .pipe(project.splitHtml())
-    .pipe(gulpif(/polymer\.html_script_\d+\.js$/, closurePipeline()))
-    .pipe(project.rejoinHtml())
-    .pipe(htmlmin({removeComments: true}))
-    .pipe(gulpif(/polymer\.html/, minimalDocument()))
-    .pipe(gulpif(/polymer\.html/, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
+    .pipe(new NoDeps())
+    .pipe(project.bundler())
+    .pipe(new Uniq())
+    .pipe(splitter.split())
+    .pipe(gulpif(splitRx, closurePipeline()))
+    .pipe(splitter.rejoin())
+    .pipe(gulpif(joinRx, minimalDocument()))
+    .pipe(gulpif(joinRx, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
     .pipe(gulp.dest(COMPILED_DIR))
 });
 
