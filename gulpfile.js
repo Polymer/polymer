@@ -87,7 +87,7 @@ class Log extends Transform {
 }
 
 let CLOSURE_LINT_ONLY = false;
-let EXPECTED_WARNING_COUNT = 503;
+let EXPECTED_WARNING_COUNT = 498;
 
 gulp.task('closure', ['clean'], () => {
 
@@ -142,6 +142,7 @@ gulp.task('closure', ['clean'], () => {
     new_type_inf: true,
     checks_only: CLOSURE_LINT_ONLY,
     externs: [
+      'bower_components/shadycss/externs/shadycss-externs.js',
       'externs/webcomponents-externs.js',
       'externs/polymer-externs.js',
       'externs/closure-types.js',
