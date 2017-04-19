@@ -113,11 +113,12 @@ gulp.task('closure', ['clean'], () => {
   });
 
   function closureLintLogger(log) {
+    let chalk = require('chalk');
     let result = log.split(/\n/).slice(-2)[0];
     let warnings = result.match(/(\d+) warning/);
-    let chalk = require('chalk');
+    // write out log to use with diffing tools later
+    fs.writeFileSync('closure.log', chalk.stripColor(log));
     if (warnings && Number(warnings[1]) > EXPECTED_WARNING_COUNT) {
-      console.log(log);
       console.error(chalk.red(`closure linting: actual warning count ${warnings[1]} greater than expected warning count ${EXPECTED_WARNING_COUNT}`));
       process.exit(1);
     }
