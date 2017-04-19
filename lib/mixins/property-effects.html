@@ -371,13 +371,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function runComputedEffects(inst, changedProps, oldProps, hasPaths) {
     let computeEffects = inst.__computeEffects;
-    let inputProps = changedProps;
-    while (inputProps) {
-      computeEffects && runEffects(inst, computeEffects, inputProps, oldProps, hasPaths);
-      computeLinkedPaths(inst, inputProps, hasPaths);
-      if ((inputProps = inst.__dataPending)) {
+    if (computeEffects) {
+      let inputProps = changedProps;
+      while (runEffects(inst, computeEffects, inputProps, oldProps, hasPaths)) {
         Object.assign(oldProps, inst.__dataOld);
         Object.assign(changedProps, inst.__dataPending);
+        inputProps = inst.__dataPending;
         inst.__dataPending = null;
       }
     }
@@ -410,24 +409,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * API.
    *
    * @param {Element} inst The instance whose props are changing
-   * @param {Object} changedProps Bag of changed properties
-   * @param {boolean} hasPaths True with `props` contains one or more paths
+   * @param {string} path Path that has changed
+   * @param {*} value Value of changed path
    * @private
    */
-  function computeLinkedPaths(inst, changedProps, hasPaths) {
-    let links;
-    if (hasPaths && (links = inst.__dataLinkedPaths)) {
+  function computeLinkedPaths(inst, path, value) {
+    let links = inst.__dataLinkedPaths;
+    if (links) {
       let link;
       for (let a in links) {
         let b = links[a];
-        for (let path in changedProps) {
-          if (Polymer.Path.isDescendant(a, path)) {
-            link = Polymer.Path.translate(a, b, path);
-            inst._setPendingPropertyOrPath(link, changedProps[path], true, true);
-          } else if (Polymer.Path.isDescendant(b, path)) {
-            link = Polymer.Path.translate(b, a, path);
-            inst._setPendingPropertyOrPath(link, changedProps[path], true, true);
-          }
+        if (Polymer.Path.isDescendant(a, path)) {
+          link = Polymer.Path.translate(a, b, path);
+          inst._setPendingPropertyOrPath(link, value, true, true);
+        } else if (Polymer.Path.isDescendant(b, path)) {
+          link = Polymer.Path.translate(b, a, path);
+          inst._setPendingPropertyOrPath(link, value, true, true);
         }
       }
     }
@@ -1306,7 +1303,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
           this.__dataHasPaths = true;
-          return this._setPendingProperty(path, value, shouldNotify);
+          if (this._setPendingProperty(path, value, shouldNotify)) {
+            computeLinkedPaths(this, path, value);
+            return true;
+          }
         } else {
           if (this.__dataHasAccessor && this.__dataHasAccessor[rootProperty]) {
             return this._setPendingProperty(path, value, shouldNotify);
