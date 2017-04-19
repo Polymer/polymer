@@ -227,6 +227,13 @@ gulp.task('copy-bower-json', function() {
   return gulp.src('bower.json').pipe(gulp.dest(DEFAULT_BUILD_DIR));
 });
 
+// copy bower.json and rename to package.json in dist folder
+gulp.task('create-package-json', function() {
+  return gulp.src('bower.json')
+    .pipe(rename('package.json'))
+    .pipe(gulp.dest(DEFAULT_BUILD_DIR));
+});
+
 // Build
 gulp.task('build-steps', function(cb) {
   runseq('restore-src', 'build', 'print-size', cb);
@@ -285,7 +292,7 @@ gulp.task('audit', function() {
 });
 
 gulp.task('release', function(cb) {
-  runseq('default', ['copy-bower-json', 'audit'], cb);
+  runseq('default', ['copy-bower-json', 'create-package-json', 'audit'], cb);
 });
 
 gulp.task('lint', function() {
