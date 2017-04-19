@@ -409,29 +409,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * API.
    *
    * @param {Element} inst The instance whose props are changing
-   * @param {Object} changedProps Bag of changed properties
-   * @param {boolean} hasPaths True with `props` contains one or more paths
+   * @param {string} path Path that has changed
+   * @param {*} value Value of changed path
    * @private
    */
-  function computeLinkedPaths(inst, changedProps, hasPaths) {
-    let links;
-    if (hasPaths && (links = inst.__dataLinkedPaths)) {
-      const cache = inst.__dataTemp;
+  function computeLinkedPaths(inst, path, value) {
+    let links = inst.__dataLinkedPaths;
+    if (links) {
       let link;
       for (let a in links) {
         let b = links[a];
-        for (let path in changedProps) {
-          if (Polymer.Path.isDescendant(a, path)) {
-            link = Polymer.Path.translate(a, b, path);
-            cache[link] = changedProps[link] = changedProps[path];
-            let notifyProps = inst.__dataToNotify || (inst.__dataToNotify = {});
-            notifyProps[link] = true;
-          } else if (Polymer.Path.isDescendant(b, path)) {
-            link = Polymer.Path.translate(b, a, path);
-            cache[link] = changedProps[link] = changedProps[path];
-            let notifyProps = inst.__dataToNotify || (inst.__dataToNotify = {});
-            notifyProps[link] = true;
-          }
+        if (Polymer.Path.isDescendant(a, path)) {
+          link = Polymer.Path.translate(a, b, path);
+          inst._setPendingPropertyOrPath(link, value, true, true);
+        } else if (Polymer.Path.isDescendant(b, path)) {
+          link = Polymer.Path.translate(b, a, path);
+          inst._setPendingPropertyOrPath(link, value, true, true);
         }
       }
     }
@@ -1291,33 +1284,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _setPendingPropertyOrPath(path, value, shouldNotify, isPathNotification) {
-        let rootProperty = Polymer.Path.root(Array.isArray(path) ? path[0] : path);
-        let hasAccessor = this.__dataHasAccessor && this.__dataHasAccessor[rootProperty];
-        let isPath = (rootProperty !== path);
-        if (hasAccessor) {
-          if (isPath) {
-            if (!isPathNotification) {
-              // Dirty check changes being set to a path against the actual object,
-              // since this is the entry point for paths into the system; from here
-              // the only dirty checks are against the `__dataTemp` cache to prevent
-              // duplicate work in the same turn only. Note, if this was a notification
-              // of a change already set to a path (isPathNotification: true),
-              // we always let the change through and skip the `set` since it was
-              // already dirty checked at the point of entry and the underlying
-              // object has already been updated
-              let old = Polymer.Path.get(this, path);
-              path = /** @type {string} */ (Polymer.Path.set(this, path, value));
-              // Use property-accessor's simpler dirty check
-              if (!path || !super._shouldPropertyChange(path, value, old)) {
-                return false;
-              }
+        if (isPathNotification ||
+            Polymer.Path.root(Array.isArray(path) ? path[0] : path) !== path) {
+          // Dirty check changes being set to a path against the actual object,
+          // since this is the entry point for paths into the system; from here
+          // the only dirty checks are against the `__dataTemp` cache to prevent
+          // duplicate work in the same turn only. Note, if this was a notification
+          // of a change already set to a path (isPathNotification: true),
+          // we always let the change through and skip the `set` since it was
+          // already dirty checked at the point of entry and the underlying
+          // object has already been updated
+          if (!isPathNotification) {
+            let old = Polymer.Path.get(this, path);
+            path = /** @type {string} */ (Polymer.Path.set(this, path, value));
+            // Use property-accessor's simpler dirty check
+            if (!path || !super._shouldPropertyChange(path, value, old)) {
+              return false;
             }
-            this.__dataHasPaths = true;
           }
-          return this._setPendingProperty(path, value, shouldNotify);
+          this.__dataHasPaths = true;
+          if (this._setPendingProperty(path, value, shouldNotify)) {
+            computeLinkedPaths(this, path, value);
+            return true;
+          }
         } else {
-          if (isPath) {
-            Polymer.Path.set(this, path, value);
+          if (this.__dataHasAccessor && this.__dataHasAccessor[path]) {
+            return this._setPendingProperty(path, value, shouldNotify);
           } else {
             this[path] = value;
           }
@@ -1548,8 +1540,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataHasPaths = false;
         // Compute properties
         runComputedEffects(this, changedProps, oldProps, hasPaths);
-        // Compute linked paths
-        computeLinkedPaths(this, changedProps, hasPaths);
         // Clear notify properties prior to possible reentry (propagate, observe),
         // but after computing effects have a chance to add to them
         let notifyProps = this.__dataToNotify;
