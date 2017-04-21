@@ -86,6 +86,9 @@ class Log extends Transform {
   }
 }
 
+let CLOSURE_LINT_ONLY = false;
+let EXPECTED_WARNING_COUNT = 498;
+
 gulp.task('closure', ['clean'], () => {
 
   let entry, splitRx, joinRx;
@@ -109,6 +112,26 @@ gulp.task('closure', ['clean'], () => {
     shell: `./${entry}`
   });
 
+  function closureLintLogger(log) {
+    let chalk = require('chalk');
+    let result = log.split(/\n/).slice(-2)[0];
+    let warnings = result.match(/(\d+) warning/);
+    // write out log to use with diffing tools later
+    fs.writeFileSync('closure.log', chalk.stripColor(log));
+    if (warnings && Number(warnings[1]) > EXPECTED_WARNING_COUNT) {
+      console.error(chalk.red(`closure linting: actual warning count ${warnings[1]} greater than expected warning count ${EXPECTED_WARNING_COUNT}`));
+      process.exit(1);
+    }
+  }
+
+  let closurePluginOptions;
+
+  if (CLOSURE_LINT_ONLY) {
+    closurePluginOptions = {
+      logger: closureLintLogger
+    }
+  }
+
   const closureStream = closure({
     compilation_level: 'ADVANCED',
     language_in: 'ES6_STRICT',
@@ -118,7 +141,9 @@ gulp.task('closure', ['clean'], () => {
     assume_function_wrapper: true,
     rewrite_polyfills: false,
     new_type_inf: true,
+    checks_only: CLOSURE_LINT_ONLY,
     externs: [
+      'bower_components/shadycss/externs/shadycss-externs.js',
       'externs/webcomponents-externs.js',
       'externs/polymer-externs.js',
       'externs/closure-types.js',
@@ -128,7 +153,7 @@ gulp.task('closure', ['clean'], () => {
       'polymerMixinClass',
       'polymerElement'
     ]
-  });
+  }, closurePluginOptions);
 
   const closurePipeline = lazypipe()
     .pipe(() => closureStream)
@@ -185,6 +210,11 @@ gulp.task('closure', ['clean'], () => {
     .pipe(gulpif(joinRx, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
     .pipe(gulp.dest(COMPILED_DIR))
 });
+
+gulp.task('lint-closure', (done) => {
+  CLOSURE_LINT_ONLY = true;
+  runseq('closure', done);
+})
 
 gulp.task('build', ['clean'], () => {
  // process source files in the project
