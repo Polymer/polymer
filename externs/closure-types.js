@@ -144,10 +144,6 @@ Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, ev
 function Polymer_PropertyEffects(){}
 /**
 * @override
-*/
-Polymer_PropertyEffects.prototype._initializeProperties = function(){};
-/**
-* @override
 * @param {*} props
 */
 Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){};
