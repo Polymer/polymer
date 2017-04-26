@@ -396,9 +396,9 @@ Polymer_ElementMixin.prototype._readyClients = function(){};
 Polymer_ElementMixin.prototype._attachDom = function(dom){};
 /**
 * @override
-* @param {*} name
-* @param {*} old
-* @param {*} value
+* @param {string} name
+* @param {string} old
+* @param {string} value
 */
 Polymer_ElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
@@ -437,14 +437,32 @@ function Polymer_LegacyElementMixin(){}
 */
 Polymer_LegacyElementMixin.prototype.created = function(){};
 /**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype.connectedCallback = function(){};
+/**
 */
 Polymer_LegacyElementMixin.prototype.attached = function(){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype.disconnectedCallback = function(){};
 /**
 */
 Polymer_LegacyElementMixin.prototype.detached = function(){};
 /**
+* @override
+* @param {string} name
+* @param {string} old
+* @param {string} value
 */
-Polymer_LegacyElementMixin.prototype.attributeChanged = function(){};
+Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
+/**
+* @param {string} name
+* @param {string} old
+* @param {string} value
+*/
+Polymer_LegacyElementMixin.prototype.attributeChanged = function(name, old, value){};
 /**
 * @override
 */
