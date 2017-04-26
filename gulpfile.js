@@ -96,7 +96,7 @@ let EXPECTED_WARNING_COUNT = 498;
 
 gulp.task('clean', () => del(DIST_DIR));
 
-gulp.task('closure', ['clean'], () => {
+gulp.task('closure', ['clean', 'generate-closure-externs'], () => {
 
   let entry, splitRx, joinRx;
 
@@ -241,4 +241,11 @@ gulp.task('lint', function() {
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
+});
+
+gulp.task('generate-closure-externs', ['clean'], () => {
+  let genClosure = require('@polymer/gen-closure-declarations').generateDeclarations;
+  return genClosure().then((declarations) => {
+    fs.writeFileSync('externs/closure-types.js', declarations);
+  });
 });

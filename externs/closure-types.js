@@ -210,9 +210,10 @@ Polymer_PropertyEffects.prototype._setPendingPropertyOrPath = function(path, val
 Polymer_PropertyEffects.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
 /**
 * @override
-* @param {*} property
+* @param {string} property
 * @param {*} value
-* @param {*} shouldNotify
+* @param {boolean=} shouldNotify
+* @return {boolean}
 */
 Polymer_PropertyEffects.prototype._setPendingProperty = function(property, value, shouldNotify){};
 /**
