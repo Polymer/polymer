@@ -529,7 +529,7 @@ Polymer_LegacyElementMixin.prototype.instanceTemplate = function(template){};
 /**
 * @param {string} type
 * @param {*=} detail
-* @param {Object=} options
+* @param {fireOptions=} options
 * @return {Event}
 */
 Polymer_LegacyElementMixin.prototype.fire = function(type, detail, options){};
@@ -547,7 +547,7 @@ Polymer_LegacyElementMixin.prototype.listen = function(node, eventName, methodNa
 Polymer_LegacyElementMixin.prototype.unlisten = function(node, eventName, methodName){};
 /**
 * @param {string=} direction
-* @param {HTMLElement=} node
+* @param {Element=} node
 */
 Polymer_LegacyElementMixin.prototype.setScrollDirection = function(direction, node){};
 /**
@@ -601,7 +601,7 @@ Polymer_LegacyElementMixin.prototype.getContentChildren = function(slctr){};
 */
 Polymer_LegacyElementMixin.prototype.isLightDescendant = function(node){};
 /**
-* @param {HTMLElement=} node
+* @param {Element=} node
 * @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype.isLocalDescendant = function(node){};
@@ -668,25 +668,25 @@ Polymer_LegacyElementMixin.prototype.elementMatches = function(selector, node){}
 /**
 * @param {string} name
 * @param {boolean=} bool
-* @param {HTMLElement=} node
+* @param {Element=} node
 */
 Polymer_LegacyElementMixin.prototype.toggleAttribute = function(name, bool, node){};
 /**
 * @param {string} name
 * @param {boolean=} bool
-* @param {HTMLElement=} node
+* @param {Element=} node
 */
 Polymer_LegacyElementMixin.prototype.toggleClass = function(name, bool, node){};
 /**
 * @param {string} transformText
-* @param {HTMLElement=} node
+* @param {Element=} node
 */
 Polymer_LegacyElementMixin.prototype.transform = function(transformText, node){};
 /**
 * @param {number} x
 * @param {number} y
 * @param {number} z
-* @param {HTMLElement=} node
+* @param {Element=} node
 */
 Polymer_LegacyElementMixin.prototype.translate3d = function(x, y, z, node){};
 /**
@@ -713,10 +713,11 @@ Polymer_LegacyElementMixin.prototype._warn = function(args){};
 */
 Polymer_LegacyElementMixin.prototype._error = function(args){};
 /**
+* @param {string} methodName
 * @param {*} args
-* @return {string}
+* @return {Array}
 */
-Polymer_LegacyElementMixin.prototype._logf = function(args){};
+Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
 /**
 * @record
 */
