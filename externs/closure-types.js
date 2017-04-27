@@ -525,7 +525,7 @@ Polymer_LegacyElementMixin.prototype.instanceTemplate = function(template){};
 /**
 * @param {string} type
 * @param {*=} detail
-* @param {fireOptions=} options
+* @param {{bubbles: (boolean|undefined), cancelable: (boolean|undefined), composed: (boolean|undefined)}=} options
 * @return {Event}
 */
 Polymer_LegacyElementMixin.prototype.fire = function(type, detail, options){};
