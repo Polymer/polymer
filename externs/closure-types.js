@@ -109,9 +109,6 @@ Polymer_PropertyAccessors.prototype._shouldPropertyChange = function(property, v
 */
 function Polymer_TemplateStamp(){}
 /**
-*/
-Polymer_TemplateStamp.prototype._initializeProperties = function(){};
-/**
 * @param {HTMLTemplateElement} template
 * @return {DocumentFragment}
 */
