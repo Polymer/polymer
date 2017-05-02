@@ -148,7 +148,7 @@ gulp.task('closure', ['clean', 'generate-closure-externs'], () => {
     language_in: 'ES6_STRICT',
     language_out: 'ES5_STRICT',
     warning_level: 'VERBOSE',
-    output_wrapper: '(function(){\n%output%\n}).call(self);',
+    isolation_mode: 'IIFE',
     assume_function_wrapper: true,
     rewrite_polyfills: false,
     new_type_inf: true,
@@ -199,7 +199,7 @@ gulp.task('lint-closure', (done) => {
 gulp.task('estimate-size', ['clean'], () => {
 
   const babelPresets = {
-    presets: [['babili', {regexpConstructors: false}]]
+    presets: [['babili', {regexpConstructors: false, simplifyComparisons: false}]]
   };
 
   const project = new PolymerProject({

@@ -42,4 +42,9 @@ HTMLElement.prototype._activeElement;
 /**
  * @param {HTMLTemplateElement} template
  */
-HTMLTemplateElement.prototype.decorate = function(template){};
+HTMLTemplateElement.decorate = function(template){};
+
+/**
+ * @param {function(function())} cb callback
+ */
+CustomElementRegistry.prototype.polyfillWrapFlushCallback = function(cb){};
