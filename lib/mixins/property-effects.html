@@ -230,9 +230,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // And the host has already initialized clients; this prevents
     // an issue with a host observing data changes before clients are ready.
     let host;
-    if (notified && (host = inst.__dataHost) && host._flushProperties
-      && host.__dataClientsInitialized) {
-      host._flushProperties();
+    if (notified && (host = inst.__dataHost) && host._invalidateProperties) {
+      host._invalidateProperties();
     }
   }
 
@@ -1396,7 +1395,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Overrides `PropertyAccessor`'s default async queuing of
        * `_propertiesChanged`: if `__dataInitialized` is false (has not yet been
-       * manually flushed), the function no-ops; otherwise flushes
+       * enabled), the function no-ops; otherwise flushes
        * `_propertiesChanged` synchronously.
        *
        * @override
@@ -1430,6 +1429,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _flushClients() {
         if (!this.__dataClientsInitialized) {
+          this.__dataClientsInitialized = true;
           this._readyClients();
         }
         // Flush all clients
@@ -1438,8 +1438,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.__dataPendingClients = null;
           for (let i=0; i < clients.length; i++) {
             let client = clients[i];
-            if (!client.__dataInitialized || client.__dataPending) {
-              client._flushProperties();
+            if (client.__dataPending) {
+              client._invalidateProperties();
             }
           }
         }
@@ -1479,10 +1479,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       ready() {
-        super.ready();
         if (!this.__dataClientsInitialized) {
+          this.__dataClientsInitialized = true;
           this._readyClients();
         }
+        super.ready();
         // Before ready, client notifications do not trigger _flushProperties.
         // Therefore a flush is necessary here if data has been set.
         if (this.__dataPending) {
@@ -1498,7 +1499,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _readyClients() {
-        this.__dataClientsInitialized = true;
       }
 
       /**
