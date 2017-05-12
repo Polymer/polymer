@@ -1461,7 +1461,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.__dataPendingClients = null;
           for (let i=0; i < clients.length; i++) {
             let client = clients[i];
-            if (!client.__dataPropertiesEnabled) {
+            if (!client.__dataEnabled) {
               client._enableProperties();
             }
           }
@@ -1496,13 +1496,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides `PropertyAccessors` to call `_readyClients` callback
-       * if it was not called as a result of flushing properties.
+       * Overrides `PropertyAccessors` so that property accessor
+       * side effects are not enabled until after client dom is fully ready.
+       * Also calls `_flushClients` callback to ensure client dom is enabled
+       * that was not enabled as a result of flushing properties.
        *
        * @override
        */
       ready() {
+        // It is important that `super.ready()` is not called here as it
+        // immediately turns on accessors. Instead, we wait until `readyClients`
+        // to enable accessors to provide a guarantee that clients are ready
+        // before processing any accessors side effects.
         this._flushProperties();
+        // If no data was pending, `_flushProperties` will not `flushClients`
+        // so ensure this is done.
         if (!this.__dataClientsInitialized) {
           this._flushClients();
         }
@@ -2215,6 +2223,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _stampTemplate(template) {
+        // Ensures that created dom is `_enqueueClient`'d to this element so
+        // that it can be flushed on next call to `_flushProperties`
         hostStack.beginHosting(this);
         let dom = super._stampTemplate(template);
         hostStack.endHosting(this);
