@@ -40,7 +40,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     // Base class for TemplateInstance's
-    class TemplateInstanceBase extends Polymer.PropertyEffects(class{}) {
+    /**
+     * @constructor
+     * @implements {Polymer_PropertyEffects}
+     */
+    const base = Polymer.PropertyEffects(class {});
+    class TemplateInstanceBase extends base {
       constructor(props) {
         super();
         this._configureProperties(props);
@@ -62,7 +67,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       /**
+       * Configure the given `props` by calling `_setPendingProperty`. Also
+       * sets any properties stored in `__hostProps`.
        * @private
+       * @param {Object} props Object of property name-value pairs to set.
        */
       _configureProperties(props) {
         let options = this.__templatizeOptions;
@@ -113,6 +121,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       /**
+       * Shows or hides the template instance top level child elements. For
+       * text nodes, `textContent` is removed while "hidden" and replaced when
+       * "shown."
+       * @param {boolean} hide Set to true to hide the children;
+       * set to false to show them.
        * @protected
        */
       _showHideChildren(hide) {
@@ -193,7 +206,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return templateHost && templateHost._methodHost || templateHost;
     }
 
-    function createTemplatizerClass(template, options) {
+    function createTemplatizerClass(template, templateInfo, options) {
       // Anonymous class created by the templatize
       /**
        * @unrestricted
@@ -203,22 +216,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let klass = class extends base { }
       klass.prototype.__templatizeOptions = options;
       klass.prototype._bindTemplate(template);
-      addNotifyEffects(klass, template, options);
+      addNotifyEffects(klass, template, templateInfo, options);
       return klass;
     }
 
-    function addPropagateEffects(template, options) {
+    function addPropagateEffects(template, templateInfo, options) {
       let userForwardHostProp = options.forwardHostProp;
       if (userForwardHostProp) {
         // Provide data API and property effects on memoized template class
-        let klass = template._content.__templatizeTemplateClass;
+        let klass = templateInfo.templatizeTemplateClass;
         if (!klass) {
           let base = options.mutableData ? MutableDataTemplate : DataTemplate;
-          klass = template._content.__templatizeTemplateClass =
+          klass = templateInfo.templatizeTemplateClass =
             class TemplatizedTemplate extends base {}
           // Add template - >instances effects
           // and host <- template effects
-          let hostProps = template._content._hostProps;
+          let hostProps = templateInfo.hostProps;
           for (let prop in hostProps) {
             klass.prototype._addPropertyEffect('_host_' + prop,
               klass.prototype.PROPERTY_EFFECT_TYPES.PROPAGATE,
@@ -249,8 +262,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    function addNotifyEffects(klass, template, options) {
-      let hostProps = template._content._hostProps || {};
+    function addNotifyEffects(klass, template, templateInfo, options) {
+      let hostProps = templateInfo.hostProps || {};
       for (let iprop in options.instanceProps) {
         delete hostProps[iprop];
         let userNotifyInstanceProp = options.notifyInstanceProp;
@@ -291,7 +304,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      *     // Get a template from somewhere, e.g. light DOM
      *     let template = this.querySelector('template');
      *     // Prepare the template
-     *     let TemplateClass = Polymer.Tempaltize.templatize(template);
+     *     let TemplateClass = Polymer.Templatize.templatize(template);
      *     // Instance the template with an initial data model
      *     let instance = new TemplateClass({myProp: 'initial'});
      *     // Insert the instance's DOM somewhere, e.g. element's shadow DOM
@@ -353,11 +366,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * - `instanceProps`: Dictionary of property names that will be added
        *   to the instance by the templatize owner.  These properties shadow any
        *   host properties, and changes within the template to these properties
-       *   will result in `notifyInstanceProperties` to be called.
+       *   will result in `notifyInstanceProp` being called.
        * - `mutableData`: When `true`, the generated class will skip strict
        *   dirty-checking for objects and arrays (always consider them to be
        *   "dirty").
-       * - `notifyInstanceProperties(instance, property, value)`: Called when
+       * - `notifyInstanceProp(instance, property, value)`: Called when
        *   an instance property changes.  Users may choose to call `notifyPath`
        *   on e.g. the owner to notify the change.
        * - `parentModel`: When `true`, events handled by declarative event listeners
@@ -379,40 +392,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {HTMLTemplateElement} template Template to templatize
        * @param {*} owner Owner of the template instances; any optional callbacks
        *   will be bound to this owner.
-       * @param {*} options Options dictionary (see summary for details)
+       * @param {*=} options Options dictionary (see summary for details)
        * @return {TemplateInstanceBase} Generated class bound to the template
        *   provided
        */
       templatize(template, owner, options) {
+        options = options || {};
         if (template.__templatizeOwner) {
           throw new Error('A <template> can only be templatized once');
         }
         template.__templatizeOwner = owner;
-        // Ensure template has _content
-        template._content = template._content || template.content;
+        let templateInfo = owner.constructor._parseTemplate(template);
         // Get memoized base class for the prototypical template, which
         // includes property effects for binding template & forwarding
-        let baseClass = template._content.__templatizeInstanceClass;
+        let baseClass = templateInfo.templatizeInstanceClass;
         if (!baseClass) {
-          baseClass = template._content.__templatizeInstanceClass =
-            createTemplatizerClass(template, options);
+          baseClass = createTemplatizerClass(template, templateInfo, options);
+          templateInfo.templatizeInstanceClass = baseClass;
         }
         // Host property forwarding must be installed onto template instance
-        addPropagateEffects(template, options);
+        addPropagateEffects(template, templateInfo, options);
         // Subclass base class and add reference for this specific template
         let klass = class TemplateInstance extends baseClass {};
         klass.prototype._methodHost = findMethodHost(template);
         klass.prototype.__dataHost = template;
         klass.prototype.__templatizeOwner = owner;
-        klass.prototype.__hostProps = template._content._hostProps;
+        klass.prototype.__hostProps = templateInfo.hostProps;
         return klass;
       },
 
       /**
        * Returns the template "model" associated with a given element, which
        * serves as the binding scope for the template instance the element is
-       * contained in. A template model is an instance of `Polymer.Base`, and
-       * should be used to manipulate data associated with this template instance.
+       * contained in. A template model is an instance of
+       * `TemplateInstanceBase`, and should be used to manipulate data
+       * associated with this template instance.
        *
        * Example:
        *
@@ -422,12 +436,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   }
        *
        * @memberof Polymer.Templatize
-       * @method modelForElement
+       * @param {HTMLTemplateElement} template The model will be returned for
+       *   elements stamped from this template
        * @param {HTMLElement} el Element for which to return a template model.
        * @return {TemplateInstanceBase} Template instance representing the
        *   binding scope for the element
        */
-      modelForElement(host, el) {
+      modelForElement(template, el) {
         let model;
         while (el) {
           // An element with a __templatizeInstance marks the top boundary
@@ -436,7 +451,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if ((model = el.__templatizeInstance)) {
             // Found an element stamped by another template; keep walking up
             // from its __dataHost
-            if (model.__dataHost != host) {
+            if (model.__dataHost != template) {
               el = model.__dataHost;
             } else {
               return model;

@@ -26,30 +26,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   window.clearTestLists();
 
-  window.readyBehavior = {
-    properties: {
-      prop: {
-        value: true,
-        observer: '_propChanged'
-      },
-    },
-    _propChanged: function() {
-      this.observerShadowRoot = Boolean(this.shadowRoot);
-    },
-    ready: function() {
-      this._readied = true;
-      this.readyList = window.actualReadyList.slice();
-      this.readyShadowRoot = Boolean(this.shadowRoot);
-      window.actualReadyList.push(this);
-    },
+  window.readyMixin = function(base) {
+    return class readyMixin extends base {
+      static get properties() {
+        return {
+          prop: {
+            value: true,
+            observer: '_propChanged'
+          }
+        }
+      }
 
-    attached: function() {
-      this.attachedShadowRoot = Boolean(this.shadowRoot);
-      this.attachedTime$Keys = Object.keys(this.$);
-      this.attachedList = window.actualAttachedList.slice();
-      window.actualAttachedList.push(this);
-      if (!this._readied) {
-        window.actualReadyBeforeAtachedList.push(this);
+      _propChanged() {
+        this.observerShadowRoot = Boolean(this.shadowRoot);
+      }
+      ready() {
+        super.ready();
+        this._readied = true;
+        this.readyList = window.actualReadyList.slice();
+        this.readyShadowRoot = Boolean(this.shadowRoot);
+        window.actualReadyList.push(this);
+      }
+
+      connectedCallback() {
+        this._eventList = [];
+        this.addEventListener('e', (e) => {
+          this._eventList.push(e.composedPath()[0]);
+        });
+        super.connectedCallback();
+        this.dispatchEvent(new Event('e', {composed: true, bubbles: true}))
+        this.attachedShadowRoot = Boolean(this.shadowRoot);
+        this.attachedTime$Keys = Object.keys(this.$);
+        this.attachedList = window.actualAttachedList.slice();
+        window.actualAttachedList.push(this);
+        if (!this._readied) {
+          window.actualReadyBeforeAtachedList.push(this);
+        }
       }
     }
   };
@@ -61,10 +73,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </template>
   <script>
   HTMLImports.whenReady(function() {
-    Polymer({
-      is: 'x-zot',
-      behaviors: [window.readyBehavior]
-    });
+    class El extends window.readyMixin(Polymer.Element) {
+      static get is() { return 'x-zot' }
+    }
+    customElements.define(El.is, El);
   });
   </script>
 </dom-module>
@@ -75,10 +87,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </template>
   <script>
   HTMLImports.whenReady(function() {
-    Polymer({
-      is: 'x-bar',
-      behaviors: [window.readyBehavior]
-    });
+    class El extends window.readyMixin(Polymer.Element) {
+      static get is() { return 'x-bar' }
+    }
+    customElements.define(El.is, El);
   });
   </script>
 </dom-module>
@@ -90,10 +102,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </template>
   <script>
   HTMLImports.whenReady(function() {
-    Polymer({
-      is: 'x-foo',
-      behaviors: [window.readyBehavior]
-    });
+    class El extends window.readyMixin(Polymer.Element) {
+      static get is() { return 'x-foo' }
+    }
+    customElements.define(El.is, El);
   });
   </script>
 </dom-module>
@@ -110,16 +122,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </template>
   <script>
   HTMLImports.whenReady(function() {
-    Polymer({
-      is: 'x-ready',
-      properties: {
-        foo: {
-          observer: '_fooChanged'
+    class El extends window.readyMixin(Polymer.Element) {
+      static get is() { return 'x-ready' }
+      static get properties() {
+        return {
+          foo: {
+            observer: '_fooChanged'
+          }
         }
-      },
-      behaviors: [window.readyBehavior],
-      _fooChanged: function() {}
-    });
+      }
+      _fooChanged() {}
+    }
+    customElements.define(El.is, El);
+
   });
   </script>
 </dom-module>
@@ -132,14 +147,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </template>
   <script>
   HTMLImports.whenReady(function() {
-    Polymer({
-      is: 'x-templatized',
-      properties: {
-        foo: {
-          value: 'foo'
+    class El extends Polymer.Element {
+      static get is() { return 'x-templatized' }
+      static get properties() {
+        return {
+          foo: {
+            value: 'foo'
+          }
         }
       }
-    });
+    }
+    customElements.define(El.is, El);
   });
   </script>
 </dom-module>
@@ -169,14 +187,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       assert.includeMembers(b2.readyList, [b2.$.zot]);
     });
 
-    // test('element dom connected before element', function() {
-    //   assert.includeMembers(el.attachedList, [el.$.a, el.$.b, el.$.c, el.$.d, el.$.foo]);
-    //   var foo = el.$.foo;
-    //   assert.includeMembers(foo.attachedList, [foo.$.bar1, foo.$.bar2]);
-    //   var b1 = foo.$.bar1, b2 = foo.$.bar2;
-    //   assert.includeMembers(b1.attachedList, [b1.$.zot]);
-    //   assert.includeMembers(b2.attachedList, [b2.$.zot]);
-    // });
+    test('can listen to events fired by element dom in connected', function() {
+      assert.includeMembers(el._eventList, [el.$.a, el.$.b, el.$.c, el.$.d, el.$.foo]);
+      var foo = el.$.foo;
+      assert.includeMembers(foo._eventList, [foo.$.bar1, foo.$.bar2]);
+      var b1 = foo.$.bar1, b2 = foo.$.bar2;
+      assert.includeMembers(b1._eventList, [b1.$.zot]);
+      assert.includeMembers(b2._eventList, [b2.$.zot]);
+    });
 
     test('shadowRoot available in ready, connected, observer', function() {
       [el, el.$.a, el.$.b, el.$.c, el.$.d, el.$.foo,
@@ -222,6 +240,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var b1 = foo.$.bar1, b2 = foo.$.bar2;
       assert.includeMembers(b1.readyList, [b1.$.zot]);
       assert.includeMembers(b2.readyList, [b2.$.zot]);
+    });
+
+    test('can listen to events fired by element dom in connected', function() {
+      assert.includeMembers(el._eventList, [el.$.a, el.$.b, el.$.c, el.$.d, el.$.foo]);
+      var foo = el.$.foo;
+      assert.includeMembers(foo._eventList, [foo.$.bar1, foo.$.bar2]);
+      var b1 = foo.$.bar1, b2 = foo.$.bar2;
+      assert.includeMembers(b1._eventList, [b1.$.zot]);
+      assert.includeMembers(b2._eventList, [b2.$.zot]);
     });
 
     test('shadowRoot available in ready, connected, observer', function() {

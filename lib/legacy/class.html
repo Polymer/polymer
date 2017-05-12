@@ -35,8 +35,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * to ensure that any legacy behaviors can rely on legacy Polymer API on
      * the underlying element.
      *
-     * @param {Object|Array} behaviors Behavior object or array of behaviors
-     * @param {HTMLElement} klass Element class
+     * @param {Object|Array} behaviors Behavior object or array of behaviors.
+     * @param {HTMLElement} klass Element class.
+     * @return {HTMLElement} Returns a new Element class extended by the
+     * passed in `behaviors` and also by `Polymer.LegacyElementMixin`.
      * @memberof Polymer
      */
     function mixinBehaviors(behaviors, klass) {
@@ -105,9 +107,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * @param {Array} behaviors
-     * @param {Array=} list
-     * @param {Array=} exclude
+     * @param {Array} behaviors List of behaviors to flatten.
+     * @param {Array=} list Target list to flatten behaviors into.
+     * @param {Array=} exclude List of behaviors to exclude from the list.
+     * @return {Array} Returns the list of flattened behaviors.
      */
     function flattenBehaviors(behaviors, list, exclude) {
       list = list || [];
@@ -162,6 +165,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         _registered() {
           super._registered();
+          /* NOTE: `beforeRegister` is called here for bc, but the behavior
+           is different than in 1.x. In 1.0, the method was called *after*
+           mixing prototypes together but *before* processing of meta-objects.
+           However, dynamic effects can still be set here and can be done either
+           in `beforeRegister` or `registered`. It is no longer possible to set
+           `is` in `beforeRegister` as you could in 1.x.
+          */
+          if (info.beforeRegister) {
+            info.beforeRegister.call(Object.getPrototypeOf(this));
+          }
           if (info.registered) {
             info.registered.call(Object.getPrototypeOf(this));
           }
@@ -311,13 +324,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         LegacyElementMixin(HTMLElement));
       // decorate klass with registration info
       klass.is = info.is;
-      // NOTE: while we could call `beforeRegister` here to maintain
-      // some BC, the state of the element at this point is not as it was in 1.0
-      // In 1.0, the method was called *after* mixing prototypes together
-      // but before processing of meta-objects. Since this is now done
-      // in 1 step via `GenerateClassFromInfo`, this is no longer possible.
-      // However, *most* work (not setting `is`) that was previously done in
-      // `beforeRegister` should be possible in `registered`.
       return klass;
     }
 

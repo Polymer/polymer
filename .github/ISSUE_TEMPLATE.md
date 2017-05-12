@@ -10,7 +10,7 @@ If you are asking a question rather than filing a bug, try one of these instead:
 
 #### Live Demo
 <!-- Fork this JSBin, or provide your own URL -->
-https://jsbin.com/xukike/edit?html,output
+http://jsbin.com/luhaxab/1/edit
 
 #### Steps to Reproduce
 <!--

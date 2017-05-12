@@ -40,6 +40,20 @@ function replaceWithChildren(node) {
   parent.childNodes = parent.childNodes.slice(0, idx).concat(children, parent.childNodes.slice(til));
 }
 
+function onlyOneLicense(doc) {
+  let comments = dom5.nodeWalkAll(doc, dom5.isCommentNode);
+  let hasLicense = false;
+  for (let i = 0; i < comments.length; i++) {
+    let c = comments[i];
+    let text = dom5.getTextContent(c);
+    if (text.indexOf('@license') === -1 || hasLicense) {
+      dom5.remove(c);
+    } else {
+      hasLicense = true;
+    }
+  }
+}
+
 class MinimalDocTransform extends Transform {
   constructor() {
     super({objectMode: true});
@@ -48,7 +62,7 @@ class MinimalDocTransform extends Transform {
     let doc = dom5.parse(String(file.contents));
     let head = dom5.query(doc, p.hasTagName('head'));
     let body = dom5.query(doc, p.hasTagName('body'));
-    let vulc = dom5.query(body, p.AND(p.hasTagName('div'), p.hasAttr('by-vulcanize'), p.hasAttr('hidden')));
+    let vulc = dom5.query(body, p.AND(p.hasTagName('div'), p.hasAttr('by-polymer-bundler'), p.hasAttr('hidden')));
     let charset = dom5.query(doc, p.AND(p.hasTagName('meta'), p.hasAttrValue('charset', 'UTF-8')));
 
     if (charset) {
@@ -71,6 +85,8 @@ class MinimalDocTransform extends Transform {
 
     let html = dom5.query(doc, p.hasTagName('html'));
     replaceWithChildren(html);
+
+    onlyOneLicense(doc);
 
     file.contents = new Buffer(dom5.serialize(doc));
 
