@@ -21,18 +21,47 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     class XFoo extends Polymer.LegacyElementMixin(HTMLElement) {
       ready() {
         super.ready();
+        sinon.spy(this, 'beforeNextRender');
+        sinon.spy(this, 'stillBeforeNextRender');
         Polymer.RenderStatus.beforeNextRender(this, this.beforeNextRender,
           ['before']);
+      }
+
+      beforeNextRender() {
+        Polymer.RenderStatus.beforeNextRender(this, this.stillBeforeNextRender,
+          ['still-before']);
+      }
+      stillBeforeNextRender() {
+        if (this.beforeDone) {
+          this.beforeDone();
+        }
+      }
+    }
+    customElements.define('x-foo', XFoo);
+
+    class XBar extends Polymer.LegacyElementMixin(HTMLElement) {
+      ready() {
+        super.ready();
+        sinon.spy(this, 'afterNextRender');
+        sinon.spy(this, 'afterAfterNextRender');
         Polymer.RenderStatus.afterNextRender(this, (a) => {
           this.afterNextRender(a);
         }, ['after']);
       }
 
-      beforeNextRender() {}
-      afterNextRender() {}
+      afterNextRender() {
+        Polymer.RenderStatus.afterNextRender(this, (a) => {
+          this.afterAfterNextRender(a);
+        }, ['after-after']);
+      }
+      afterAfterNextRender() {
+        if (this.afterDone) {
+          this.afterDone();
+        }
+      }
 
     }
-    customElements.define('x-foo', XFoo);
+    customElements.define('x-bar', XBar);
   });
 </script>
 
@@ -42,51 +71,46 @@ suite('render-status', function() {
 
   test('beforeNextRender', function(done) {
     let el = document.createElement('x-foo');
-    let beforeCalled;
-    el.beforeNextRender = function(a) {
-      assert.equal(a, 'before', 'before render argument incorrect');
-      beforeCalled = true;
-    }
     document.body.appendChild(el);
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        assert.isTrue(beforeCalled);
-        done();
-      });
-    });
+    el.beforeDone = function() {
+      assert.ok(el.beforeNextRender.withArgs('before').calledOnce);
+      assert.ok(el.stillBeforeNextRender.withArgs('still-before').calledOnce);
+      // break out of this raf so next test is not tainted.
+      requestAnimationFrame(() => { done() });
+    };
   });
 
   test('afterNextRender', function(done) {
-    let el = document.createElement('x-foo');
-    let afterCalled;
-    let raf;
+    let el = document.createElement('x-bar');
+    let raf1 = sinon.spy();
+    let raf2 = sinon.spy();
     requestAnimationFrame(() => {
-      assert.notOk(afterCalled);
-      raf = true;
-    })
-    el.afterNextRender = function(a) {
-      assert.equal(a, 'after', 'after render argument incorrect');
-      afterCalled = true;
-      assert.ok(raf);
-      done();
+      raf1();
+      requestAnimationFrame(() => {
+        raf2();
+      });
+    });
+    el.afterDone = function() {
+      assert.ok(el.afterNextRender.withArgs('after').calledOnce);
+      assert.ok(el.afterNextRender.calledAfter(raf1));
+      assert.ok(el.afterAfterNextRender.withArgs('after-after').calledOnce);
+      assert.ok(el.afterAfterNextRender.calledAfter(raf2));
+      // break out of this raf so next test is not tainted.
+      requestAnimationFrame(() => { done() });
     }
     document.body.appendChild(el);
   });
 
   test('flush', function() {
-    let el = document.createElement('x-foo');
-    let beforeCalled;
-    el.beforeNextRender = function() {
-      beforeCalled = true;
-    }
-    let afterCalled;
-    el.afterNextRender = function() {
-      afterCalled = true;
-    }
-    document.body.appendChild(el);
+    let el1 = document.createElement('x-foo');
+    let el2 = document.createElement('x-bar');
+    document.body.appendChild(el1);
+    document.body.appendChild(el2);
     Polymer.RenderStatus.flush();
-    assert.isTrue(beforeCalled);
-    assert.isTrue(afterCalled);
+    assert.ok(el1.beforeNextRender.withArgs('before').calledOnce);
+    assert.ok(el1.stillBeforeNextRender.withArgs('still-before').calledOnce);
+    assert.ok(el2.afterNextRender.withArgs('after').calledOnce);
+    assert.ok(el2.afterAfterNextRender.withArgs('after-after').calledOnce);
   });
 
 });

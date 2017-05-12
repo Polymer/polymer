@@ -86,7 +86,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   };
 
   /**
-   * @param {boolean=} setup
+   * @param {boolean=} setup True to add, false to remove.
    */
   function setupTeardownMouseCanceller(setup) {
     let events = IS_TOUCH_ONLY ? ['click'] : MOUSE_EVENTS;
@@ -150,6 +150,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // the bounding box of the target of the event
       // Thanks IE 10 >:(
       let t = Gestures._findOriginalTarget(ev);
+      // make sure the target of the event is an element so we can use getBoundingClientRect,
+      // if not, just assume it is a synthetic click
+      if (t.nodeType !== Node.ELEMENT_NODE) {
+        return true;
+      }
       let bcr = t.getBoundingClientRect();
       // use page x/y to account for scrolling
       let x = ev.pageX, y = ev.pageY;
@@ -230,6 +235,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @memberof Polymer.Gestures
      * @param {number} x Horizontal pixel coordinate
      * @param {number} y Vertical pixel coordinate
+     * @return {HTMLElement} Returns the deepest shadowRoot inclusive element
+     * found at the screen position given.
      */
     deepTargetFind: function(x, y) {
       let node = document.elementFromPoint(x, y);
@@ -239,7 +246,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // if there is not a shadowroot, exit the loop
       while (next && next.shadowRoot && !window.ShadyDOM) {
         // if there is a node at x/y in the shadowroot, look deeper
+        let oldNext = next;
         next = next.shadowRoot.elementFromPoint(x, y);
+        // on Safari, elementFromPoint may return the shadowRoot host
+        if (oldNext === next) {
+          break;
+        }
         if (next) {
           node = next;
         }
@@ -250,6 +262,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * a cheaper check than ev.composedPath()[0];
      *
      * @private
+     * @param {Event} ev Event.
+     * @return {HTMLElement} Returns the event target.
      */
     _findOriginalTarget: function(ev) {
       // shadowdom
@@ -262,6 +276,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * @private
+     * @param {Event} ev Event.
      */
     _handleNative: function(ev) {
       let handled;
@@ -322,6 +337,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * @private
+     * @param {Event} ev Event.
      */
     _handleTouchAction: function(ev) {
       let t = ev.changedTouches[0];
@@ -363,6 +379,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {Node} node Node to add listener on
      * @param {string} evType Gesture type: `down`, `up`, `track`, or `tap`
      * @param {Function} handler Event listener function to call
+     * @return {boolean} Returns true if a gesture event listener was added.
      */
     addListener: function(node, evType, handler) {
       if (this.gestures[evType]) {
@@ -379,6 +396,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {string} evType Gesture type: `down`, `up`, `track`, or `tap`
      * @param {Function} handler Event listener function previously passed to
      *  `addListener`.
+     * @return {boolean} Returns true if a gesture event listener was removed.
      */
     removeListener: function(node, evType, handler) {
       if (this.gestures[evType]) {
@@ -391,6 +409,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * automate the event listeners for the native events
      *
      * @private
+     * @param {HTMLElement} node Node on which to add the event.
+     * @param {string} evType Event type to add.
+     * @param {function} handler Event handler function.
      */
     _add: function(node, evType, handler) {
       let recognizer = this.gestures[evType];
@@ -426,6 +447,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * automate event listener removal for native events
      *
      * @private
+     * @param {HTMLElement} node Node on which to remove the event.
+     * @param {string} evType Event type to remove.
+     * @param {function} handler Event handler function.
      */
     _remove: function(node, evType, handler) {
       let recognizer = this.gestures[evType];
@@ -464,6 +488,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * @private
+     * @param {string} evName Event name.
+     * @return {Object} Returns the gesture for the given event name.
      */
     _findRecognizerByEvent: function(evName) {
       for (let i = 0, r; i < this.recognizers.length; i++) {
@@ -496,7 +522,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     /**
+     * Dispatches an event on the `target` element of `type` with the given
+     * `detail`.
      * @private
+     * @param {HTMLElement} target The element on which to fire an event.
+     * @param {string} type The type of event to fire.
+     * @param {Object=} detail The detail object to populate on the event.
      */
     _fire: function(target, type, detail) {
       let ev = new Event(type, { bubbles: true, cancelable: true, composed: true });
@@ -515,6 +546,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Prevents the dispatch and default action of the given event name.
      *
      * @memberof Polymer.Gestures
+     * @param {string} evName Event name.
      */
     prevent: function(evName) {
       let recognizer = this._findRecognizerByEvent(evName);
@@ -530,7 +562,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * This method should only be called during testing with simulated touch inputs.
      * Calling this method in production may cause duplicate taps or other Gestures.
      *
-     * @method resetMouseCanceller
      * @memberof Polymer.Gestures
      */
     resetMouseCanceller: function() {
