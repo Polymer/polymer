@@ -38,8 +38,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @memberof Polymer
    * @summary Element class mixin that provides Polymer's "legacy" API
    */
-  Polymer.LegacyElementMixin = Polymer.dedupingMixin(function(base) {
+  Polymer.LegacyElementMixin = Polymer.dedupingMixin(base => {
 
+    /**
+     * @constructor
+     * @extends {base}
+     * @implements {Polymer_ElementMixin}
+     * @implements {Polymer_GestureEventListeners}
+     */
     const legacyElementBase = Polymer.GestureEventListeners(Polymer.ElementMixin(base));
 
     /**
@@ -53,10 +59,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       'all': 'auto'
     };
 
-    return class LegacyElement extends legacyElementBase {
+    /**
+     * @polymerMixinClass
+     * @implements {Polymer_LegacyElement}
+     */
+    class LegacyElement extends legacyElementBase {
 
       constructor() {
         super();
+        this.root = this;
         this.created();
       }
 
@@ -105,12 +116,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       /**
        * Overrides the default `Polymer.PropertyEffects` implementation to
-       * add support for one-time `registration` callback.
+       * add support for class initialization via the `_registered` callback.
+       * This is called only when the first instance of the element is created.
        *
        * @override
        */
       _initializeProperties() {
-        this._registered();
+        let proto = Object.getPrototypeOf(this);
+        if (!proto.hasOwnProperty('__hasRegisterFinished')) {
+          proto.__hasRegisterFinished = true;
+          this._registered();
+        }
         super._initializeProperties();
       }
 
@@ -186,6 +202,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string} value String to deserialize
        * @param {*} type Type to deserialize the string to
+       * @return {*} Returns the deserialized value in the `type` given.
        */
       deserialize(value, type) {
         return this._deserializeValue(value, type);
@@ -223,7 +240,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Copies own properties (including accessor descriptors) from a source
        * object to a target object.
        *
-       * @method extend
        * @param {Object} prototype Target object to copy properties to.
        * @param {Object} api Source object to copy properties from.
        * @return {Object} prototype object that was passed as first argument.
@@ -249,7 +265,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * properties.  To ensure only `ownProperties` are copied from source
        * to target and that accessor implementations are copied, use `extend`.
        *
-       * @method mixin
        * @param {Object} target Target object to copy properties to.
        * @param {Object} source Source object to copy properties from.
        * @return {Object} Target object that was passed as first argument.
@@ -266,10 +281,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * Note this method is provided as backward-compatible legacy API
        * only.  It is not directly called by any Polymer features.
+       * @param {Object} object The object on which to set the prototype.
+       * @param {Object} prototype The prototype that will be set on the given
+       * `object`.
+       * @return {Object} Returns the given `object` with its prototype set
+       * to the given `prototype` object.
        */
-      chainObject(object, inherited) {
-        if (object && inherited && object !== inherited) {
-          object.__proto__ = inherited;
+      chainObject(object, prototype) {
+        if (object && prototype && object !== prototype) {
+          object.__proto__ = prototype;
         }
         return object;
       }
@@ -280,14 +300,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Calls `importNode` on the `content` of the `template` specified and
        * returns a document fragment containing the imported content.
        *
-       * @method instanceTemplate
        * @param {HTMLTemplateElement} template HTML template element to instance.
        * @return {DocumentFragment} Document fragment containing the imported
        *   template content.
       */
       instanceTemplate(template) {
+        let content = this.constructor._contentForTemplate(template);
         let dom = /** @type {DocumentFragment} */
-          (document.importNode(template._content || template.content, true));
+          (document.importNode(content, true));
         return dom;
       }
 
@@ -296,7 +316,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Dispatches a custom event with an optional detail value.
        *
-       * @method fire
        * @param {string} type Name of event type.
        * @param {*=} detail Detail value containing event-specific
        *   payload.
@@ -324,7 +343,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Convenience method to add an event listener on a given element,
        * late bound to a named method on this element.
        *
-       * @method listen
        * @param {Element} node Element to add event listener to.
        * @param {string} eventName Name of event to listen for.
        * @param {string} methodName Name of handler method on `this` to call.
@@ -349,7 +367,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Convenience method to remove an event listener from a given element,
        * late bound to a named method on this element.
        *
-       * @method unlisten
        * @param {Element} node Element to remove event listener from.
        * @param {string} eventName Name of event to stop listening to.
        * @param {string} methodName Name of handler method on `this` to not call
@@ -375,8 +392,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   - 'y': scroll only in the 'y' direction
        *   - 'none': disable scrolling for this node
        *
-       * @method setScrollDirection
-       * @param {String=} direction Direction to allow scrolling
+       * @param {string=} direction Direction to allow scrolling
        * Defaults to `all`.
        * @param {HTMLElement=} node Element to apply scroll direction setting.
        * Defaults to `this`.
@@ -391,7 +407,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * This function calls `Polymer.dom(this.root).querySelector(slctr)`.
        *
-       * @method $$
        * @param {string} slctr Selector to run on this local DOM scope
        * @return {Element} Element found by the selector, or null if not found.
        */
@@ -415,8 +430,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * are not automatically handled. For example,
        * a user should call `distributeContent` if distribution has been
        * invalidated due to an element being added or removed from the shadowRoot
-       * that contains an insertion point (<slot>) inside its subtree.
-       * @method distributeContent
+       * that contains an insertion point (`<slot>`) inside its subtree.
        */
       distributeContent() {
         if (window.ShadyDOM && this.shadowRoot) {
@@ -430,7 +444,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * any `<content>` elements are replaced with the list of nodes distributed
        * to the `<content>`, the result of its `getDistributedNodes` method.
        *
-       * @method getEffectiveChildNodes
        * @return {Array<Node>} List of effctive child nodes.
        */
       getEffectiveChildNodes() {
@@ -441,7 +454,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Returns a list of nodes distributed within this element that match
        * `selector`. These can be dom children or elements distributed to
        * children that are insertion points.
-       * @method queryDistributedElements
        * @param {string} selector Selector to run.
        * @return {Array<Node>} List of distributed elements that match selector.
        */
@@ -455,7 +467,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * any `<content>` elements are replaced with the list of elements
        * distributed to the `<content>`.
        *
-       * @method getEffectiveChildren
        * @return {Array<Node>} List of effctive children.
        */
       getEffectiveChildren() {
@@ -470,7 +481,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * text content's of the element's effective childNodes (the elements
        * returned by <a href="#getEffectiveChildNodes>getEffectiveChildNodes</a>.
        *
-       * @method getEffectiveTextContent
        * @return {string} List of effctive children.
        */
       getEffectiveTextContent() {
@@ -488,7 +498,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Returns the first effective childNode within this element that
        * match `selector`. These can be dom child nodes or elements distributed
        * to children that are insertion points.
-       * @method queryEffectiveChildren
        * @param {string} selector Selector to run.
        * @return {Object<Node>} First effective child node that matches selector.
        */
@@ -501,7 +510,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Returns a list of effective childNodes within this element that
        * match `selector`. These can be dom child nodes or elements distributed
        * to children that are insertion points.
-       * @method queryEffectiveChildren
        * @param {string} selector Selector to run.
        * @return {Array<Node>} List of effective child nodes that match selector.
        */
@@ -515,8 +523,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * If this element contains more than one `<slot>` in its local DOM,
        * an optional selector may be passed to choose the desired content.
        *
-       * @method getContentChildNodes
-       * @param {String=} slctr CSS selector to choose the desired
+       * @param {string=} slctr CSS selector to choose the desired
        *   `<slot>`.  Defaults to `content`.
        * @return {Array<Node>} List of distributed nodes for the `<slot>`.
        */
@@ -534,8 +541,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * content.  This method differs from `getContentChildNodes` in that only
        * elements are returned.
        *
-       * @method getContentChildNodes
-       * @param {String=} slctr CSS selector to choose the desired
+       * @param {string=} slctr CSS selector to choose the desired
        *   `<content>`.  Defaults to `content`.
        * @return {Array<HTMLElement>} List of distributed nodes for the
        *   `<slot>`.
@@ -549,9 +555,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Checks whether an element is in this element's light DOM tree.
        *
-       * @method isLightDescendant
        * @param {?Node} node The element to be checked.
-       * @return {Boolean} true if node is in this element's light DOM tree.
+       * @return {boolean} true if node is in this element's light DOM tree.
        */
       isLightDescendant(node) {
         return this !== node && this.contains(node) &&
@@ -561,7 +566,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Checks whether an element is in this element's local DOM tree.
        *
-       * @method isLocalDescendant
        * @param {HTMLElement=} node The element to be checked.
        * @return {boolean} true if node is in this element's local DOM tree.
        */
@@ -575,8 +579,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       /**
        * Returns the computed style value for the given property.
-       * @param {String} property
-       * @return {String} the computed value
+       * @param {string} property The css property name.
+       * @return {string} Returns the computed css property value for the given
+       * `property`.
        */
       getComputedStyleValue(property) {
         return styleInterface.getComputedStyleValue(this, property);
@@ -597,12 +602,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *       } 100);
        *     }
        *
-       * @method debounce
-       * @param {String} jobName String to indentify the debounce job.
+       * @param {string} jobName String to indentify the debounce job.
        * @param {function()} callback Function that is called (with `this`
        *   context) when the wait time elapses.
        * @param {number} wait Optional wait time in milliseconds (ms) after the
        *   last signal that must elapse before invoking `callback`
+       * @return {Object} Returns a debouncer object on which exists the
+       * following methods: `isActive()` returns true if the debouncer is
+       * active; `cancel()` cancels the debouncer if it is active;
+       * `flush()` immediately invokes the debounced callback if the debouncer
+       * is active.
        */
       debounce(jobName, callback, wait) {
         this._debouncers = this._debouncers || {};
@@ -615,8 +624,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Returns whether a named debouncer is active.
        *
-       * @method isDebouncerActive
-       * @param {String} jobName The name of the debouncer started with `debounce`
+       * @param {string} jobName The name of the debouncer started with `debounce`
        * @return {boolean} Whether the debouncer is active (has not yet fired).
        */
       isDebouncerActive(jobName) {
@@ -628,8 +636,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Immediately calls the debouncer `callback` and inactivates it.
        *
-       * @method flushDebouncer
-       * @param {String} jobName The name of the debouncer started with `debounce`
+       * @param {string} jobName The name of the debouncer started with `debounce`
        */
       flushDebouncer(jobName) {
         this._debouncers = this._debouncers || {};
@@ -642,8 +649,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Cancels an active debouncer.  The `callback` will not be called.
        *
-       * @method cancelDebouncer
-       * @param {String} jobName The name of the debouncer started with `debounce`
+       * @param {string} jobName The name of the debouncer started with `debounce`
        */
       cancelDebouncer(jobName) {
         this._debouncers = this._debouncers || {}
@@ -659,7 +665,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * By default (if no waitTime is specified), async callbacks are run at
        * microtask timing, which will occur before paint.
        *
-       * @method async
        * @param {Function} callback The callback function to run, bound to `this`.
        * @param {number=} waitTime Time to wait before calling the
        *   `callback`.  If unspecified or 0, the callback will be run at microtask
@@ -674,7 +679,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Cancels an async operation started with `async`.
        *
-       * @method cancelAsync
        * @param {number} handle Handle returned from original `async` call to
        *   cancel.
        */
@@ -688,7 +692,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Convenience method for creating an element and configuring it.
        *
-       * @method create
        * @param {string} tag HTML element tag to create.
        * @param {Object} props Object of properties to configure on the
        *    instance.
@@ -716,7 +719,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * In the `onload` callback, the `import` property of the `link`
        * element will contain the imported document contents.
        *
-       * @method importHref
        * @param {string} href URL to document to load.
        * @param {Function} onload Callback to notify when an import successfully
        *   loaded.
@@ -736,7 +738,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Polyfill for Element.prototype.matches, which is sometimes still
        * prefixed.
        *
-       * @method elementMatches
        * @param {string} selector Selector to test.
        * @param {Element=} node Element to test the selector against.
        * @return {boolean} Whether the element matches the selector.
@@ -748,8 +749,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Toggles an HTML attribute on or off.
        *
-       * @method toggleAttribute
-       * @param {String} name HTML attribute name
+       * @param {string} name HTML attribute name
        * @param {boolean=} bool Boolean to force the attribute on or off.
        *    When unspecified, the state of the attribute will be reversed.
        * @param {HTMLElement=} node Node to target.  Defaults to `this`.
@@ -770,8 +770,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Toggles a CSS class on or off.
        *
-       * @method toggleClass
-       * @param {String} name CSS class name
+       * @param {string} name CSS class name
        * @param {boolean=} bool Boolean to force the class on or off.
        *    When unspecified, the state of the class will be reversed.
        * @param {HTMLElement=} node Node to target.  Defaults to `this`.
@@ -805,7 +804,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Cross-platform helper for setting an element's CSS `translate3d`
        * property.
        *
-       * @method translate3d
        * @param {number} x X offset.
        * @param {number} y Y offset.
        * @param {number} z Z offset.
@@ -827,7 +825,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * If the array is passed directly, **no change
        * notification is generated**.
        *
-       * @method arrayDelete
        * @param {string | !Array<number|string>} arrayOrPath Path to array from which to remove the item
        *   (or the array itself).
        * @param {*} item Item to remove.
@@ -911,6 +908,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     }
+
+    return LegacyElement;
 
   });
 

@@ -367,9 +367,7 @@ Note that `Polymer.Element` provides a cleaner base class void of a lot of sugar
 
 See below for a visual guide on migrating Polymer 1.0's declarative syntax to the ES6 class syntax in Polymer 2.0:
 
-<a href="">
-![image](img/migration.png)
-</a>
+![Difference in Polymer 1.0 and Polymer 2.0 element definition](img/migration.png)
 
 ## Polyfills
 
@@ -488,7 +486,7 @@ configure the module name. The only supported declarative way set the module
 id is to use `id`.
 * <a name="breaking-getPropertyInfo"></a>`element.getPropertyInfo`: This api returned unexpected information some of the time and was rarely used.
 * <a name="breaking-getNativePrototype"></a>`element.getNativePrototype`: Removed because it is no longer needed for internal code and was unused by users.
-* <a name="breaking-beforeRegister"></a>`element.beforeRegister`: This was originally added for metadata compatibility with ES6 classes. We now prefer users create ES6 classes by extending `Polymer.Element`, specifying metadata in the static `config` property. For legacy use via `Polymer({...})`, dynamic effects may now be added using the `registered` lifecycle method.
+* <a name="breaking-beforeRegister"></a>`element.beforeRegister`: This was originally added for metadata compatibility with ES6 classes. We now prefer users create ES6 classes by extending `Polymer.Element`, specifying metadata in the static `properties`, `observers`, and `is` properties. For legacy use via `Polymer({...})`, dynamic effects may still be added by using `beforeRegister` but it is now equivalent to the `registered` lifecycle method. An element's `is` property cannot be set in `beforeRegister` as it could in Polymer 1.x.
 * <a name="breaking-attributeFollows"></a>`element.attributeFollows`: Removed due to disuse.
 * <a name="breaking-classFollows"></a>`element.classFollows`: Removed due to disuse.
 * <a name="breaking-copyOwnProperty"></a>`element.copyOwnProperty`: Removed due to disuse.

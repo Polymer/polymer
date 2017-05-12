@@ -61,7 +61,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // Adding accessor to proto; save proto's value for instance-time use
           if (!model.__dataProto) {
             model.__dataProto = {};
-          } else if (!model.hasOwnProperty(goog.reflect.objectProperty('__dataProto', model))) {
+          } else if (!model.hasOwnProperty(JSCompiler_renameProperty('__dataProto', model))) {
             model.__dataProto = Object.create(model.__dataProto);
           }
           model.__dataProto[property] = value;
@@ -79,7 +79,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * the standard `static get observedAttributes()`, implement `_propertiesChanged`
    * on the class, and then call `MyClass.createPropertiesForAttributes()` once
    * on the class to generate property accessors for each observed attribute
-   * prior to instancing.  Any `observedAttributes` will automatically be
+   * prior to instancing.  Last, call `this._flushProperties()` once to enable
+   * the accessors.
+   *
+   * Any `observedAttributes` will automatically be
    * deserialized via `attributeChangedCallback` and set to the associated
    * property using `dash-case`-to-`camelCase` convention.
    *
@@ -88,9 +91,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @summary Element class mixin for reacting to property changes from
    *   generated property accessors.
    */
-  Polymer.PropertyAccessors = Polymer.dedupingMixin(function(superClass) {
+  Polymer.PropertyAccessors = Polymer.dedupingMixin(superClass => {
 
-    return class PropertyAccessors extends superClass {
+    /**
+     * @polymerMixinClass
+     * @implements {Polymer_PropertyAccessors}
+     * @unrestricted
+     */
+    class PropertyAccessors extends superClass {
 
       /**
        * Generates property accessors for all attributes in the standard
@@ -129,6 +137,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _initializeProperties() {
         this.__serializing = false;
         this.__dataCounter = 0;
+        this.__dataInitialized = false;
         this.__dataInvalid = false;
         // initialize data with prototype values saved when creating accessors
         this.__data = {};
@@ -136,6 +145,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataOld = null;
         if (this.__dataProto) {
           this._initializeProtoProperties(this.__dataProto);
+          this.__dataProto = null;
+        }
+        // Capture instance properties; these will be set into accessors
+        // during first flush. Don't set them here, since we want
+        // these to overwrite defaults/constructor assignments
+        for (let p in this.__dataHasAccessor) {
+          if (this.hasOwnProperty(p)) {
+            this.__dataInstanceProps = this.__dataInstanceProps || {};
+            this.__dataInstanceProps[p] = this[p];
+            delete this[p];
+          }
         }
       }
 
@@ -158,11 +178,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
+       * Called at ready time with bag of instance properties that overwrote
+       * accessors when the element upgraded.
+       *
+       * The default implementation sets these properties back into the
+       * setter at ready time.  This method is provided as an override
+       * point for customizing or providing more efficient initialization.
+       *
+       * @param {Object} props Bag of property values that were overwritten
+       *   when creating property accessors.
+       * @protected
+       */
+      _initializeInstanceProperties(props) {
+        Object.assign(this, props);
+      }
+
+      /**
        * Ensures the element has the given attribute. If it does not,
        * assigns the given value to the attribute.
        *
        *
-       * @method _ensureAttribute
        * @param {string} attribute Name of attribute to ensure is set.
        * @param {string} value of the attribute.
        */
@@ -178,7 +213,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * This method calls the `_deserializeValue` method to convert the string to
        * a typed value.
        *
-       * @method _attributeToProperty
        * @param {string} attribute Name of attribute to deserialize.
        * @param {string} value of the attribute.
        * @param {*} type type to deserialize to.
@@ -194,7 +228,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Serializes a property to its associated attribute.
        *
-       * @method _propertyToAttribute
        * @param {string} property Property name to reflect.
        * @param {string=} attribute Attribute name to reflect.
        * @param {*=} value Property value to refect.
@@ -215,7 +248,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * the attribute will be removed (this is the default for boolean
        * type `false`).
        *
-       * @method _valueToNodeAttribute
        * @param {Element} node Element to set attribute to.
        * @param {*} value Value to serialize.
        * @param {string} attribute Attribute name to serialize to.
@@ -236,7 +268,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * HTML attributes.  Users may override this method on Polymer element
        * prototypes to provide serialization for custom types.
        *
-       * @method _serializeValue
        * @param {*} value Property value to serialize.
        * @return {string | undefined} String serialized from the provided property value.
        */
@@ -275,7 +306,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Note: The return value of `undefined` is used as a sentinel value to
        * indicate the attribute should be removed.
        *
-       * @method _deserializeValue
        * @param {string} value Attribute value to deserialize.
        * @param {*} type Type to deserialize the string to.
        * @return {*} Typed value deserialized from the provided string.
@@ -307,7 +337,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               outValue = JSON.parse(value);
             } catch(x) {
               outValue = null;
-              console.warn('Polymer::Attributes: couldn`t decode Array as JSON');
+              console.warn(`Polymer::Attributes: couldn't decode Array as JSON: ${value}`);
             }
             break;
 
@@ -347,15 +377,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _createPropertyAccessor(property, readOnly) {
-        saveAccessorValue(this, property);
-        Object.defineProperty(this, property, {
-          get: function() {
-            return this.__data[property];
-          },
-          set: readOnly ? function() { } : function(value) {
-            this._setProperty(property, value);
-          }
-        });
+        if (!this.hasOwnProperty('__dataHasAccessor')) {
+          this.__dataHasAccessor = Object.assign({}, this.__dataHasAccessor);
+        }
+        if (!this.__dataHasAccessor[property]) {
+          this.__dataHasAccessor[property] = true;
+          saveAccessorValue(this, property);
+          Object.defineProperty(this, property, {
+            get: function() {
+              return this.__data[property];
+            },
+            set: readOnly ? function() { } : function(value) {
+              this._setProperty(property, value);
+            }
+          });
+        }
+      }
+
+      /**
+       * Returns true if this library created an accessor for the given property.
+       *
+       * @param {string} property Property name
+       * @return {boolean} True if an accessor was created
+       */
+      _hasAccessor(property) {
+        return this.__dataHasAccessor && this.__dataHasAccessor[property];
       }
 
       /**
@@ -380,6 +426,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string} property Name of the property
        * @param {*} value Value to set
+       * @return {boolean} Returns true if the property changed
        * @protected
        */
       _setPendingProperty(property, value) {
@@ -417,7 +464,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _invalidateProperties() {
-        if (!this.__dataInvalid) {
+        if (!this.__dataInvalid && this.__dataInitialized) {
           this.__dataInvalid = true;
           microtask.run(() => {
             if (this.__dataInvalid) {
@@ -433,15 +480,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * pending changes (and old values recorded when pending changes were
        * set), and resets the pending set of changes.
        *
+       * Note that this method must be called once to enable the property
+       * accessors system.  For elements, generally `connectedCallback`
+       * is a normal spot to do so.
+       *
        * @protected
        */
       _flushProperties() {
-        let oldProps = this.__dataOld;
-        let changedProps = this.__dataPending;
-        this.__dataPending = null;
-        this.__dataCounter++;
-        this._propertiesChanged(this.__data, changedProps, oldProps);
-        this.__dataCounter--;
+        if (!this.__dataInitialized) {
+          this.ready()
+        } else if (this.__dataPending) {
+          let changedProps = this.__dataPending;
+          this.__dataPending = null;
+          this.__dataCounter++;
+          this._propertiesChanged(this.__data, changedProps, this.__dataOld);
+          this.__dataCounter--;
+        }
+      }
+
+      /**
+       * Lifecycle callback called the first time properties are being flushed.
+       * Prior to `ready`, all property sets through accessors are queued and
+       * their effects are flushed after this method returns.
+       *
+       * Users may override this function to implement behavior that is
+       * dependent on the element having its properties initialized, e.g.
+       * from defaults (initialized from `constructor`, `_initializeProperties`),
+       * `attributeChangedCallback`, or values propagated from host e.g. via
+       * bindings.  `super.ready()` must be called to ensure the data system
+       * becomes enabled.
+       *
+       * @public
+       */
+      ready() {
+        // Update instance properties that shadowed proto accessors; these take
+        // priority over any defaults set in constructor or attributeChangedCallback
+        if (this.__dataInstanceProps) {
+          this._initializeInstanceProperties(this.__dataInstanceProps);
+          this.__dataInstanceProps = null;
+        }
+        this.__dataInitialized = true;
+        // Run normal flush
+        this._flushProperties();
       }
 
       /**
@@ -487,6 +567,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
     }
+
+    return PropertyAccessors;
 
   });
 
