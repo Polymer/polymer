@@ -718,13 +718,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Function} effectFn Function to run when arguments change
    * @param {*=} methodInfo Effect-specific information to be included in
    *   method effect metadata
-   * @param {Object=} dynamicFns Map indicating whether method names should
-   *   be included as a dependency to the effect. Note, defaults to true
-   *   if the signature is statci (sig.static is true).
+   * @param {boolean|Object=} dynamicFn Boolean or object map indicating whether
+   *   method names should be included as a dependency to the effect. Note,
+   *   defaults to true if the signature is static (sig.static is true).
    * @private
    */
-  function createMethodEffect(model, sig, type, effectFn, methodInfo, dynamicFns) {
-    let dynamicFn = sig.static || dynamicFns && dynamicFns[sig.methodName];
+  function createMethodEffect(model, sig, type, effectFn, methodInfo, dynamicFn) {
+    dynamicFn = sig.static || (dynamicFn &&
+      (typeof dynamicFn !== 'object' || dynamicFn[sig.methodName]));
     let info = {
       methodName: sig.methodName,
       args: sig.args,
@@ -1026,21 +1027,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Element class mixin that provides meta-programming for Polymer's template
    * binding and data observation (collectively, "property effects") system.
    *
-   * This mixin uses provides the following key methods for adding property effects
-   * to this element:
-   * - `_createPropertyObserver`
-   * - `_createMethodObserver`
-   * - `_createNotifyingProperty`
-   * - `_createReadOnlyProperty`
-   * - `_createReflectedProperty`
-   * - `_createComputedProperty`
-   * - `_bindTemplate`
+   * This mixin uses provides the following key static methods for adding
+   * property effects to an element class:
+   * - `createPropertyEffect`
+   * - `createPropertyObserver`
+   * - `createMethodObserver`
+   * - `createNotifyingProperty`
+   * - `createReadOnlyProperty`
+   * - `createReflectedProperty`
+   * - `createComputedProperty`
+   * - `bindTemplate`
    *
    * Each method creates one or more property accessors, along with metadata
    * used by this mixin's implementation of `_propertiesChanged` to perform
-   * the property effects.  These methods may be called on element instances,
-   * but are designed to be called on element prototypes such that the work to
-   * set up accessors and effect metadata are done once per element class.
+   * the property effects.
+   *
+   * Underscored versions of the above methods also exist on the element
+   * prototype for adding property effects on instances at runtime.
    *
    * Note that this mixin overrides several `PropertyAccessors` methods, in
    * many cases to maintain guarantees provided by the Polymer 1.x features;
@@ -1128,41 +1131,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Prototype setup ----------------------------------------
 
       /**
-       * Ensures an accessor exists for the specified property, and adds
-       * to a list of "property effects" that will run when the accessor for
-       * the specified property is set.  Effects are grouped by "type", which
-       * roughly corresponds to a phase in effect processing.  The effect
-       * metadata should be in the following form:
-       *
-       *   {
-       *     fn: effectFunction, // Reference to function to call to perform effect
-       *     info: { ... }       // Effect metadata passed to function
-       *     trigger: {          // Optional triggering metadata; if not provided
-       *       name: string      // the property is treated as a wildcard
-       *       structured: boolean
-       *       wildcard: boolean
-       *     }
-       *   }
-       *
-       * Effects are called from `_propertiesChanged` in the following order by
-       * type:
-       *
-       * 1. COMPUTE
-       * 2. PROPAGATE
-       * 3. REFLECT
-       * 4. OBSERVE
-       * 5. NOTIFY
-       *
-       * Effect functions are called with the following signature:
-       *
-       *   effectFunction(inst, path, props, oldProps, info, hasPaths)
-       *
-       * This method may be called either on the prototype of a class
-       * using the PropertyEffects mixin (for best performance), or on
-       * an instance to add dynamic effects.  When called on an instance or
-       * subclass of a class that has already had property effects added to
-       * its prototype, the property effect lists will be cloned and added as
-       * own properties of the caller.
+       * Equivalent to static `addPropertyEffect` API but can be called on
+       * an instance to add effects at runtime.  See that method for
+       * full API docs.
        *
        * @param {string} property Property that should trigger the effect
        * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
@@ -1880,14 +1851,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Creates a read-only accessor for the given property.
-       *
-       * To set the property, use the protected `_setProperty` API.
-       * To create a custom protected setter (e.g. `_setMyProp()` for
-       * property `myProp`), pass `true` for `protectedSetter`.
-       *
-       * Note, if the property will have other property effects, this method
-       * should be called first, before adding other effects.
+       * Equivalent to static `createReadOnlyProperty` API but can be called on
+       * an instance to add effects at runtime.  See that method for
+       * full API docs.
        *
        * @param {string} property Property name
        * @param {boolean=} protectedSetter Creates a custom protected setter
@@ -1904,7 +1870,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Creates a single-property observer for the given property.
+       * Equivalent to static `createPropertyObserver` API but can be called on
+       * an instance to add effects at runtime.  See that method for
+       * full API docs.
        *
        * @param {string} property Property name
        * @param {string} methodName Name of observer method to call
@@ -1925,28 +1893,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Creates a multi-property "method observer" based on the provided
-       * expression, which should be a string in the form of a normal Javascript
-       * function signature: `'methodName(arg1, [..., argn])'`.  Each argument
-       * should correspond to a property or path in the context of this
-       * prototype (or instance), or may be a literal string or number.
+       * Equivalent to static `createMethodObserver` API but can be called on
+       * an instance to add effects at runtime.  See that method for
+       * full API docs.
        *
        * @param {string} expression Method expression
-       * @param {Object=} dynamicFns Map indicating whether method names should
-       *   be included as a dependency to the effect.
+       * @param {boolean|Object=} dynamicFn Boolean or object map indicating
+       *   whether method names should be included as a dependency to the effect.
        * @protected
        */
-      _createMethodObserver(expression, dynamicFns) {
+      _createMethodObserver(expression, dynamicFn) {
         let sig = parseMethod(expression);
         if (!sig) {
           throw new Error("Malformed observer expression '" + expression + "'");
         }
-        createMethodEffect(this, sig, TYPES.OBSERVE, runMethodEffect, null, dynamicFns);
+        createMethodEffect(this, sig, TYPES.OBSERVE, runMethodEffect, null, dynamicFn);
       }
 
       /**
-       * Causes the setter for the given property to dispatch `<property>-changed`
-       * events to notify of changes to the property.
+       * Equivalent to static `createNotifyingProperty` API but can be called on
+       * an instance to add effects at runtime.  See that method for
+       * full API docs.
        *
        * @param {string} property Property name
        * @protected
@@ -1962,8 +1929,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Causes the setter for the given property to reflect the property value
-       * to a (dash-cased) attribute of the same name.
+       * Equivalent to static `createReflectedProperty` API but can be called on
+       * an instance to add effects at runtime.  See that method for
+       * full API docs.
        *
        * @param {string} property Property name
        * @protected
@@ -1984,6 +1952,136 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
+       * Equivalent to static `createComputedProperty` API but can be called on
+       * an instance to add effects at runtime.  See that method for
+       * full API docs.
+       *
+       * @param {string} property Name of computed property to set
+       * @param {string} expression Method expression
+       * @param {boolean|Object=} dynamicFn Boolean or object map indicating
+       *   whether method names should be included as a dependency to the effect.
+       * @protected
+       */
+      _createComputedProperty(property, expression, dynamicFn) {
+        let sig = parseMethod(expression);
+        if (!sig) {
+          throw new Error("Malformed computed expression '" + expression + "'");
+        }
+        createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property, dynamicFn);
+      }
+
+      // -- static class methods ------------
+
+      /**
+       * Ensures an accessor exists for the specified property, and adds
+       * to a list of "property effects" that will run when the accessor for
+       * the specified property is set.  Effects are grouped by "type", which
+       * roughly corresponds to a phase in effect processing.  The effect
+       * metadata should be in the following form:
+       *
+       *   {
+       *     fn: effectFunction, // Reference to function to call to perform effect
+       *     info: { ... }       // Effect metadata passed to function
+       *     trigger: {          // Optional triggering metadata; if not provided
+       *       name: string      // the property is treated as a wildcard
+       *       structured: boolean
+       *       wildcard: boolean
+       *     }
+       *   }
+       *
+       * Effects are called from `_propertiesChanged` in the following order by
+       * type:
+       *
+       * 1. COMPUTE
+       * 2. PROPAGATE
+       * 3. REFLECT
+       * 4. OBSERVE
+       * 5. NOTIFY
+       *
+       * Effect functions are called with the following signature:
+       *
+       *   effectFunction(inst, path, props, oldProps, info, hasPaths)
+       *
+       * @param {string} property Property that should trigger the effect
+       * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
+       * @param {Object=} effect Effect metadata object
+       * @protected
+       */
+      static addPropertyEffect(property, type, effect) {
+        this.prototype._addPropertyEffect(property, type, effect);
+      }
+
+      /**
+       * Creates a single-property observer for the given property.
+       *
+       * @param {string} property Property name
+       * @param {string} methodName Name of observer method to call
+       * @param {boolean=} dynamicFn Whether the method name should be included as
+       *   a dependency to the effect.
+       * @protected
+       */
+      static createPropertyObserver(property, methodName, dynamicFn) {
+        this.prototype._createPropertyObserver(property, methodName, dynamicFn);
+      }
+
+      /**
+       * Creates a multi-property "method observer" based on the provided
+       * expression, which should be a string in the form of a normal Javascript
+       * function signature: `'methodName(arg1, [..., argn])'`.  Each argument
+       * should correspond to a property or path in the context of this
+       * prototype (or instance), or may be a literal string or number.
+       *
+       * @param {string} expression Method expression
+       * @param {boolean|Object=} dynamicFn Boolean or object map indicating
+       *   whether method names should be included as a dependency to the effect.
+       * @protected
+       */
+      static createMethodObserver(expression, dynamicFn) {
+        this.prototype._createMethodObserver(expression, dynamicFn);
+      }
+
+      /**
+       * Causes the setter for the given property to dispatch `<property>-changed`
+       * events to notify of changes to the property.
+       *
+       * @param {string} property Property name
+       * @protected
+       */
+      static createNotifyingProperty(property) {
+        this.prototype._createNotifyingProperty(property);
+      }
+
+      /**
+       * Creates a read-only accessor for the given property.
+       *
+       * To set the property, use the protected `_setProperty` API.
+       * To create a custom protected setter (e.g. `_setMyProp()` for
+       * property `myProp`), pass `true` for `protectedSetter`.
+       *
+       * Note, if the property will have other property effects, this method
+       * should be called first, before adding other effects.
+       *
+       * @param {string} property Property name
+       * @param {boolean=} protectedSetter Creates a custom protected setter
+       *   when `true`.
+       * @protected
+       */
+      static createReadOnlyProperty(property, protectedSetter) {
+        this.prototype._createReadOnlyProperty(property, protectedSetter);
+      }
+
+      /**
+       * Causes the setter for the given property to reflect the property value
+       * to a (dash-cased) attribute of the same name.
+       *
+       * @param {string} property Property name
+       * @protected
+       */
+      static createReflectedProperty(property) {
+        this.prototype._createReflectedProperty(property);
+      }
+
+      /**
        * Creates a computed property whose value is set to the result of the
        * method described by the given `expression` each time one or more
        * arguments to the method changes.  The expression should be a string
@@ -1992,19 +2090,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string} property Name of computed property to set
        * @param {string} expression Method expression
-       * @param {Object=} dynamicFns Map indicating whether method names should
-       *   be included as a dependency to the effect.
+       * @param {boolean|Object=} dynamicFn Boolean or object map indicating whether
+       *   method names should be included as a dependency to the effect.
        * @protected
        */
-      _createComputedProperty(property, expression, dynamicFns) {
-        let sig = parseMethod(expression);
-        if (!sig) {
-          throw new Error("Malformed computed expression '" + expression + "'");
-        }
-        createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property, dynamicFns);
+      static createComputedProperty(property, expression, dynamicFn) {
+        this.prototype._createComputedProperty(property, expression, dynamicFn);
       }
-
-      // -- binding ----------------------------------------------
 
       /**
        * Parses the provided template to ensure binding effects are created
@@ -2012,6 +2104,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * dependent properties in the template.  Binding effects for bound
        * templates are stored in a linked list on the instance so that
        * templates can be efficiently stamped and unstamped.
+       *
+       * @param {HTMLTemplateElement} template Template containing binding
+       *   bindings
+       * @return {Object} Template metadata object
+       * @protected
+       */
+      static bindTemplate(template) {
+        return this.prototype._bindTemplate(template);
+      }
+
+      // -- binding ----------------------------------------------
+
+      /**
+       * Equivalent to static `bindTemplate` API but can be called on
+       * an instance to add effects at runtime.  See that method for
+       * full API docs.
        *
        * This method may be called on the prototype (for prototypical template
        * binding, to avoid creating accessors every instance) once per prototype,
@@ -2046,8 +2154,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           templateInfo = Object.create(templateInfo);
           templateInfo.wasPreBound = wasPreBound;
           if (!wasPreBound && this.__templateInfo) {
-            templateInfo.nextTemplateInfo = this.__templateInfo;
-            this.__templateInfo.previousTemplateInfo = templateInfo;
+            let last = this.__templateInfoLast || this.__templateInfo;
+            this.__templateInfoLast = last.nextTemplateInfo = templateInfo;
+            templateInfo.previousTemplateInfo = last;
+            return templateInfo;
           }
         }
         return this.__templateInfo = templateInfo;
@@ -2134,6 +2244,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           templateInfo.nextTemplateInfo.previousTemplateInfo =
             templateInfo.previousTemplateInfo;
         }
+        if (this.__templateInfoLast == templateInfo) {
+          this.__templateInfoLast = templateInfo.previousTemplateInfo;
+        }
+        templateInfo.previousTemplateInfo = templateInfo.nextTemplateInfo = null;
         // Remove stamped nodes
         let nodes = templateInfo.childNodes;
         for (let i=0; i<nodes.length; i++) {
