@@ -230,9 +230,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // And the host has already initialized clients; this prevents
     // an issue with a host observing data changes before clients are ready.
     let host;
-    if (notified && (host = inst.__dataHost) && host._flushProperties
-      && host.__dataClientsInitialized) {
-      host._flushProperties();
+    if (notified && (host = inst.__dataHost) && host._invalidateProperties) {
+      host._invalidateProperties();
     }
   }
 
@@ -1430,6 +1429,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _flushClients() {
         if (!this.__dataClientsInitialized) {
+          this.__dataClientsInitialized = true;
           this._readyClients();
         }
         // Flush all clients
@@ -1438,7 +1438,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.__dataPendingClients = null;
           for (let i=0; i < clients.length; i++) {
             let client = clients[i];
-            if (!client.__dataInitialized || client.__dataPending) {
+            // boot up client if necessary, otherwise flush properties
+            if (!client.__dataPropertiesEnabled) {
+              client._enableProperties();
+            } else if (client.__dataPending) {
               client._flushProperties();
             }
           }
@@ -1479,9 +1482,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       ready() {
-        super.ready();
+        this._flushProperties();
         if (!this.__dataClientsInitialized) {
-          this._readyClients();
+          this._flushClients();
         }
         // Before ready, client notifications do not trigger _flushProperties.
         // Therefore a flush is necessary here if data has been set.
@@ -1498,7 +1501,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _readyClients() {
-        this.__dataClientsInitialized = true;
+        this.__dataInitialized = true;
       }
 
       /**
