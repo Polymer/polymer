@@ -230,9 +230,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // And the host has already initialized clients; this prevents
     // an issue with a host observing data changes before clients are ready.
     let host;
-    if (notified && (host = inst.__dataHost) && host._flushProperties
-      && host.__dataClientsInitialized) {
-      host._flushProperties();
+    if (notified && (host = inst.__dataHost) && host._invalidateProperties) {
+      host._invalidateProperties();
     }
   }
 
@@ -1087,6 +1086,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _initializeProperties() {
         super._initializeProperties();
+        hostStack.registerHost(this);
         this.__dataClientsInitialized = false;
         this.__dataPendingClients = null;
         this.__dataToNotify = null;
@@ -1430,16 +1430,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _flushClients() {
         if (!this.__dataClientsInitialized) {
+          this.__dataClientsInitialized = true;
           this._readyClients();
+          // Override point where accessors are turned on; importantly,
+          // this is after clients have fully readied, providing a guarantee
+          // that any property effects occur only after all clients are ready.
+          this.__dataInitialized = true;
+        } else {
+          // Flush all clients
+          let clients = this.__dataPendingClients;
+          if (clients) {
+            this.__dataPendingClients = null;
+            for (let i=0; i < clients.length; i++) {
+              let client = clients[i];
+              if (client.__dataPending) {
+                client._flushProperties();
+              }
+            }
+          }
         }
-        // Flush all clients
+      }
+
+      /**
+       * Perform any initial setup on client dom. Called before the first
+       * `_flushProperties` call on client dom and before any element
+       * observers are called.
+       *
+       * @protected
+       */
+      _readyClients() {
         let clients = this.__dataPendingClients;
         if (clients) {
           this.__dataPendingClients = null;
           for (let i=0; i < clients.length; i++) {
             let client = clients[i];
-            if (!client.__dataInitialized || client.__dataPending) {
-              client._flushProperties();
+            if (!client.__dataEnabled) {
+              client._enableProperties();
             }
           }
         }
@@ -1473,32 +1499,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides `PropertyAccessors` to call `_readyClients` callback
-       * if it was not called as a result of flushing properties.
+       * Overrides `PropertyAccessors` so that property accessor
+       * side effects are not enabled until after client dom is fully ready.
+       * Also calls `_flushClients` callback to ensure client dom is enabled
+       * that was not enabled as a result of flushing properties.
        *
        * @override
        */
       ready() {
-        super.ready();
+        // It is important that `super.ready()` is not called here as it
+        // immediately turns on accessors. Instead, we wait until `readyClients`
+        // to enable accessors to provide a guarantee that clients are ready
+        // before processing any accessors side effects.
+        this._flushProperties();
+        // If no data was pending, `_flushProperties` will not `flushClients`
+        // so ensure this is done.
         if (!this.__dataClientsInitialized) {
-          this._readyClients();
+          this._flushClients();
         }
         // Before ready, client notifications do not trigger _flushProperties.
         // Therefore a flush is necessary here if data has been set.
         if (this.__dataPending) {
           this._flushProperties();
         }
-      }
-
-      /**
-       * Perform any initial setup on client dom. Called before the first
-       * `_flushProperties` call on client dom and before any element
-       * observers are called.
-       *
-       * @protected
-       */
-      _readyClients() {
-        this.__dataClientsInitialized = true;
       }
 
       /**
@@ -2203,7 +2226,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _stampTemplate(template) {
+        // Ensures that created dom is `_enqueueClient`'d to this element so
+        // that it can be flushed on next call to `_flushProperties`
+        hostStack.beginHosting(this);
         let dom = super._stampTemplate(template);
+        hostStack.endHosting(this);
         let templateInfo = this._bindTemplate(template, true);
         // Add template-instance-specific data to instanced templateInfo
         templateInfo.nodeList = dom.nodeList;
@@ -2502,6 +2529,53 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return PropertyEffects;
   });
+
+  /**
+   * Helper api for enqueing client dom created by a host element.
+   *
+   * By default elements are flushed via `_flushProperties` when
+   * `connectedCallback` is called. Elements attach their client dom to
+   * themselves at `ready` time which results from this first flush.
+   * This provides an ordering guarantee that the client dom an element
+   * creates is flushed before the element itself (i.e. client `ready`
+   * fires before host `ready`).
+   *
+   * However, if `_flushProperties` is called *before* an element is connected,
+   * as for example `Templatize` does, this ordering guarantee cannot be
+   * satisfied because no elements are connected. (Note: Bound elements that
+   * receive data do become enqueued clients and are properly ordered but
+   * unbound elements are not.)
+   *
+   * To maintain the desired "client before host" ordering guarantee for this
+   * case we rely on the "host stack. Client nodes registers themselves with
+   * the creating host element when created. This ensures that all client dom
+   * is readied in the proper order, maintaining the desired guarantee.
+   *
+   * @private
+   */
+  let hostStack = {
+
+    stack: [],
+
+    registerHost(inst) {
+      if (this.stack.length) {
+        let host = this.stack[this.stack.length-1];
+        host._enqueueClient(inst);
+      }
+    },
+
+    beginHosting(inst) {
+      this.stack.push(inst);
+    },
+
+    endHosting(inst) {
+      let stackLen = this.stack.length;
+      if (stackLen && this.stack[stackLen-1] == inst) {
+        this.stack.pop();
+      }
+    }
+
+  }
 
 })();
 </script>
