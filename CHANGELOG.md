@@ -1,5 +1,24 @@
 # Change Log
 
+## [v2.0.0-rc.9](https://github.com/Polymer/polymer/tree/v2.0.0-rc.9) (2017-05-12)
+- [ci skip] Add alacarte usage smoke tests. ([commit](https://github.com/Polymer/polymer/commit/e54bc5f8))
+
+- [skip ci] doc fixes ([commit](https://github.com/Polymer/polymer/commit/b943aa0d))
+
+- Docs and slight renaming. ([commit](https://github.com/Polymer/polymer/commit/4eb252fe))
+
+- Add tests. ([commit](https://github.com/Polymer/polymer/commit/1f83fd7c))
+
+- Move hostStack to property-effects and make readyClients explicit ([commit](https://github.com/Polymer/polymer/commit/c7a81ea8))
+
+- Turn on accessors (via __dataInitialized) only after clients have completely flushed. ([commit](https://github.com/Polymer/polymer/commit/2f1e964c))
+
+- Adds `_enableProperties` as a new entry point that must be called to turn on properties. Prevents a bug where `_readyClients` can be called twice. ([commit](https://github.com/Polymer/polymer/commit/c6f9b315))
+
+- [ci skip] Fix doc createPropertyEffect -> addPropertyEffect ([commit](https://github.com/Polymer/polymer/commit/90e8cd95))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/448149d2))
+
 ## [v2.0.0-rc.8](https://github.com/Polymer/polymer/tree/v2.0.0-rc.8) (2017-05-11)
 - Add test for boolean dynamicFn ([commit](https://github.com/Polymer/polymer/commit/03d21ce8))
 
