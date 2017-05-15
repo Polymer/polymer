@@ -1,5 +1,10 @@
 # Change Log
 
+## [v2.0.0](https://github.com/Polymer/polymer/tree/v2.0.0) (2017-05-15)
+- [ci skip] bump version to 2.0.0 ([commit](https://github.com/Polymer/polymer/commit/712230fc))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/21ee3b4d))
+
 ## [v2.0.0-rc.9](https://github.com/Polymer/polymer/tree/v2.0.0-rc.9) (2017-05-12)
 - [ci skip] Add alacarte usage smoke tests. ([commit](https://github.com/Polymer/polymer/commit/e54bc5f8))
 
