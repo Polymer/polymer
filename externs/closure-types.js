@@ -12,6 +12,12 @@
 */
 function Polymer_PropertyAccessors(){}
 /**
+* @param {*} name
+* @param {*} old
+* @param {*} value
+*/
+Polymer_PropertyAccessors.prototype.attributeChangedCallback = function(name, old, value){};
+/**
 */
 Polymer_PropertyAccessors.prototype._initializeProperties = function(){};
 /**
@@ -87,6 +93,9 @@ Polymer_PropertyAccessors.prototype._isPropertyPending = function(prop){};
 Polymer_PropertyAccessors.prototype._invalidateProperties = function(){};
 /**
 */
+Polymer_PropertyAccessors.prototype._enableProperties = function(){};
+/**
+*/
 Polymer_PropertyAccessors.prototype._flushProperties = function(){};
 /**
 */
@@ -140,6 +149,37 @@ Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, ev
 */
 function Polymer_PropertyEffects(){}
 /**
+* @param {HTMLTemplateElement} template
+* @return {DocumentFragment}
+*/
+Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
+/**
+* @param {Node} node
+* @param {string} eventName
+* @param {string} methodName
+* @param {*=} context
+* @return {Function}
+*/
+Polymer_PropertyEffects.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
+/**
+* @param {Node} node
+* @param {string} eventName
+* @param {Function} handler
+*/
+Polymer_PropertyEffects.prototype._addEventListenerToNode = function(node, eventName, handler){};
+/**
+* @param {Node} node
+* @param {string} eventName
+* @param {Function} handler
+*/
+Polymer_PropertyEffects.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
+/**
+* @param {*} name
+* @param {*} old
+* @param {*} value
+*/
+Polymer_PropertyEffects.prototype.attributeChangedCallback = function(name, old, value){};
+/**
 */
 Polymer_PropertyEffects.prototype._initializeProperties = function(){};
 /**
@@ -152,6 +192,97 @@ Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){}
 * @param {*} props
 */
 Polymer_PropertyEffects.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} attribute
+* @param {string} value
+*/
+Polymer_PropertyEffects.prototype._ensureAttribute = function(attribute, value){};
+/**
+* @param {string} attribute
+* @param {string} value
+* @param {*} type
+*/
+Polymer_PropertyEffects.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {string} property
+* @param {string=} attribute
+* @param {*=} value
+*/
+Polymer_PropertyEffects.prototype._propertyToAttribute = function(property, attribute, value){};
+/**
+* @param {Element} node
+* @param {*} value
+* @param {string} attribute
+*/
+Polymer_PropertyEffects.prototype._valueToNodeAttribute = function(node, value, attribute){};
+/**
+* @param {*} value
+* @return {(string|undefined)}
+*/
+Polymer_PropertyEffects.prototype._serializeValue = function(value){};
+/**
+* @param {string} value
+* @param {*} type
+* @return {*}
+*/
+Polymer_PropertyEffects.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} property
+* @param {boolean=} readOnly
+*/
+Polymer_PropertyEffects.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_PropertyEffects.prototype._hasAccessor = function(property){};
+/**
+* @override
+* @param {*} property
+* @param {*} value
+*/
+Polymer_PropertyEffects.prototype._setProperty = function(property, value){};
+/**
+* @override
+* @param {string} property
+* @param {*} value
+* @param {boolean=} shouldNotify
+* @return {boolean}
+*/
+Polymer_PropertyEffects.prototype._setPendingProperty = function(property, value, shouldNotify){};
+/**
+* @param {string} prop
+* @return {boolean}
+*/
+Polymer_PropertyEffects.prototype._isPropertyPending = function(prop){};
+/**
+* @override
+*/
+Polymer_PropertyEffects.prototype._invalidateProperties = function(){};
+/**
+*/
+Polymer_PropertyEffects.prototype._enableProperties = function(){};
+/**
+*/
+Polymer_PropertyEffects.prototype._flushProperties = function(){};
+/**
+* @override
+*/
+Polymer_PropertyEffects.prototype.ready = function(){};
+/**
+* @override
+* @param {*} currentProps
+* @param {*} changedProps
+* @param {*} oldProps
+*/
+Polymer_PropertyEffects.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property
+* @param {*} value
+* @param {*} old
+* @return {boolean}
+*/
+Polymer_PropertyEffects.prototype._shouldPropertyChange = function(property, value, old){};
 /**
 * @param {string} property
 * @param {string} type
@@ -205,24 +336,6 @@ Polymer_PropertyEffects.prototype._setPendingPropertyOrPath = function(path, val
 */
 Polymer_PropertyEffects.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
 /**
-* @override
-* @param {string} property
-* @param {*} value
-* @param {boolean=} shouldNotify
-* @return {boolean}
-*/
-Polymer_PropertyEffects.prototype._setPendingProperty = function(property, value, shouldNotify){};
-/**
-* @override
-* @param {*} property
-* @param {*} value
-*/
-Polymer_PropertyEffects.prototype._setProperty = function(property, value){};
-/**
-* @override
-*/
-Polymer_PropertyEffects.prototype._invalidateProperties = function(){};
-/**
 * @param {Object} client
 */
 Polymer_PropertyEffects.prototype._enqueueClient = function(client){};
@@ -230,24 +343,13 @@ Polymer_PropertyEffects.prototype._enqueueClient = function(client){};
 */
 Polymer_PropertyEffects.prototype._flushClients = function(){};
 /**
+*/
+Polymer_PropertyEffects.prototype._readyClients = function(){};
+/**
 * @param {Object} props
 * @param {boolean=} setReadOnly
 */
 Polymer_PropertyEffects.prototype.setProperties = function(props, setReadOnly){};
-/**
-* @override
-*/
-Polymer_PropertyEffects.prototype.ready = function(){};
-/**
-*/
-Polymer_PropertyEffects.prototype._readyClients = function(){};
-/**
-* @override
-* @param {*} currentProps
-* @param {*} changedProps
-* @param {*} oldProps
-*/
-Polymer_PropertyEffects.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
 /**
 * @param {Object} changedProps
 * @param {Object} oldProps
@@ -328,9 +430,9 @@ Polymer_PropertyEffects.prototype._createReadOnlyProperty = function(property, p
 Polymer_PropertyEffects.prototype._createPropertyObserver = function(property, methodName, dynamicFn){};
 /**
 * @param {string} expression
-* @param {Object=} dynamicFns
+* @param {(boolean|Object)=} dynamicFn
 */
-Polymer_PropertyEffects.prototype._createMethodObserver = function(expression, dynamicFns){};
+Polymer_PropertyEffects.prototype._createMethodObserver = function(expression, dynamicFn){};
 /**
 * @param {string} property
 */
@@ -342,20 +444,15 @@ Polymer_PropertyEffects.prototype._createReflectedProperty = function(property){
 /**
 * @param {string} property
 * @param {string} expression
-* @param {Object=} dynamicFns
+* @param {(boolean|Object)=} dynamicFn
 */
-Polymer_PropertyEffects.prototype._createComputedProperty = function(property, expression, dynamicFns){};
+Polymer_PropertyEffects.prototype._createComputedProperty = function(property, expression, dynamicFn){};
 /**
 * @param {HTMLTemplateElement} template
 * @param {boolean=} instanceBinding
 * @return {Object}
 */
 Polymer_PropertyEffects.prototype._bindTemplate = function(template, instanceBinding){};
-/**
-* @param {HTMLTemplateElement} template
-* @return {DocumentFragment}
-*/
-Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
 /**
 * @param {DocumentFragment} dom
 */
@@ -366,9 +463,317 @@ Polymer_PropertyEffects.prototype._removeBoundDom = function(dom){};
 */
 function Polymer_ElementMixin(){}
 /**
+* @param {HTMLTemplateElement} template
+* @return {DocumentFragment}
+*/
+Polymer_ElementMixin.prototype._stampTemplate = function(template){};
+/**
+* @param {Node} node
+* @param {string} eventName
+* @param {string} methodName
+* @param {*=} context
+* @return {Function}
+*/
+Polymer_ElementMixin.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
+/**
+* @param {Node} node
+* @param {string} eventName
+* @param {Function} handler
+*/
+Polymer_ElementMixin.prototype._addEventListenerToNode = function(node, eventName, handler){};
+/**
+* @param {Node} node
+* @param {string} eventName
+* @param {Function} handler
+*/
+Polymer_ElementMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
+/**
+* @override
+* @param {string} name
+* @param {string} old
+* @param {string} value
+*/
+Polymer_ElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
+/**
 * @override
 */
 Polymer_ElementMixin.prototype._initializeProperties = function(){};
+/**
+* @override
+* @param {*} props
+*/
+Polymer_ElementMixin.prototype._initializeProtoProperties = function(props){};
+/**
+* @override
+* @param {*} props
+*/
+Polymer_ElementMixin.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} attribute
+* @param {string} value
+*/
+Polymer_ElementMixin.prototype._ensureAttribute = function(attribute, value){};
+/**
+* @param {string} attribute
+* @param {string} value
+* @param {*} type
+*/
+Polymer_ElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {string} property
+* @param {string=} attribute
+* @param {*=} value
+*/
+Polymer_ElementMixin.prototype._propertyToAttribute = function(property, attribute, value){};
+/**
+* @param {Element} node
+* @param {*} value
+* @param {string} attribute
+*/
+Polymer_ElementMixin.prototype._valueToNodeAttribute = function(node, value, attribute){};
+/**
+* @param {*} value
+* @return {(string|undefined)}
+*/
+Polymer_ElementMixin.prototype._serializeValue = function(value){};
+/**
+* @param {string} value
+* @param {*} type
+* @return {*}
+*/
+Polymer_ElementMixin.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} property
+* @param {boolean=} readOnly
+*/
+Polymer_ElementMixin.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._hasAccessor = function(property){};
+/**
+* @override
+* @param {*} property
+* @param {*} value
+*/
+Polymer_ElementMixin.prototype._setProperty = function(property, value){};
+/**
+* @override
+* @param {string} property
+* @param {*} value
+* @param {boolean=} shouldNotify
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
+/**
+* @param {string} prop
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._isPropertyPending = function(prop){};
+/**
+* @override
+*/
+Polymer_ElementMixin.prototype._invalidateProperties = function(){};
+/**
+*/
+Polymer_ElementMixin.prototype._enableProperties = function(){};
+/**
+*/
+Polymer_ElementMixin.prototype._flushProperties = function(){};
+/**
+* @override
+*/
+Polymer_ElementMixin.prototype.ready = function(){};
+/**
+* @override
+* @param {*} currentProps
+* @param {*} changedProps
+* @param {*} oldProps
+*/
+Polymer_ElementMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property
+* @param {*} value
+* @param {*} old
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._shouldPropertyChange = function(property, value, old){};
+/**
+* @param {string} property
+* @param {string} type
+* @param {Object=} effect
+*/
+Polymer_ElementMixin.prototype._addPropertyEffect = function(property, type, effect){};
+/**
+* @param {string} property
+* @param {string} type
+* @param {Object=} effect
+*/
+Polymer_ElementMixin.prototype._removePropertyEffect = function(property, type, effect){};
+/**
+* @param {string} property
+* @param {string=} type
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._hasPropertyEffect = function(property, type){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._hasReadOnlyEffect = function(property){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._hasNotifyEffect = function(property){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._hasReflectEffect = function(property){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._hasComputedEffect = function(property){};
+/**
+* @param {(string|!Array.<(number|string)>)} path
+* @param {*} value
+* @param {boolean=} shouldNotify
+* @param {boolean=} isPathNotification
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
+/**
+* @param {Node} node
+* @param {string} prop
+* @param {*} value
+*/
+Polymer_ElementMixin.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
+/**
+* @param {Object} client
+*/
+Polymer_ElementMixin.prototype._enqueueClient = function(client){};
+/**
+*/
+Polymer_ElementMixin.prototype._flushClients = function(){};
+/**
+* @override
+*/
+Polymer_ElementMixin.prototype._readyClients = function(){};
+/**
+* @param {Object} props
+* @param {boolean=} setReadOnly
+*/
+Polymer_ElementMixin.prototype.setProperties = function(props, setReadOnly){};
+/**
+* @param {Object} changedProps
+* @param {Object} oldProps
+* @param {boolean} hasPaths
+*/
+Polymer_ElementMixin.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
+/**
+* @param {(string|!Array.<(string|number)>)} to
+* @param {(string|!Array.<(string|number)>)} from
+*/
+Polymer_ElementMixin.prototype.linkPaths = function(to, from){};
+/**
+* @param {(string|!Array.<(string|number)>)} path
+*/
+Polymer_ElementMixin.prototype.unlinkPaths = function(path){};
+/**
+* @param {string} path
+* @param {Array} splices
+*/
+Polymer_ElementMixin.prototype.notifySplices = function(path, splices){};
+/**
+* @param {(string|!Array.<(string|number)>)} path
+* @param {Object=} root
+* @return {*}
+*/
+Polymer_ElementMixin.prototype.get = function(path, root){};
+/**
+* @param {(string|!Array.<(string|number)>)} path
+* @param {*} value
+* @param {Object=} root
+*/
+Polymer_ElementMixin.prototype.set = function(path, value, root){};
+/**
+* @param {string} path
+* @param {*} items
+* @return {number}
+*/
+Polymer_ElementMixin.prototype.push = function(path, items){};
+/**
+* @param {string} path
+* @return {*}
+*/
+Polymer_ElementMixin.prototype.pop = function(path){};
+/**
+* @param {string} path
+* @param {number} start
+* @param {number} deleteCount
+* @param {*} items
+* @return {Array}
+*/
+Polymer_ElementMixin.prototype.splice = function(path, start, deleteCount, items){};
+/**
+* @param {string} path
+* @return {*}
+*/
+Polymer_ElementMixin.prototype.shift = function(path){};
+/**
+* @param {string} path
+* @param {*} items
+* @return {number}
+*/
+Polymer_ElementMixin.prototype.unshift = function(path, items){};
+/**
+* @param {string} path
+* @param {*=} value
+*/
+Polymer_ElementMixin.prototype.notifyPath = function(path, value){};
+/**
+* @param {string} property
+* @param {boolean=} protectedSetter
+*/
+Polymer_ElementMixin.prototype._createReadOnlyProperty = function(property, protectedSetter){};
+/**
+* @param {string} property
+* @param {string} methodName
+* @param {boolean=} dynamicFn
+*/
+Polymer_ElementMixin.prototype._createPropertyObserver = function(property, methodName, dynamicFn){};
+/**
+* @param {string} expression
+* @param {(boolean|Object)=} dynamicFn
+*/
+Polymer_ElementMixin.prototype._createMethodObserver = function(expression, dynamicFn){};
+/**
+* @param {string} property
+*/
+Polymer_ElementMixin.prototype._createNotifyingProperty = function(property){};
+/**
+* @param {string} property
+*/
+Polymer_ElementMixin.prototype._createReflectedProperty = function(property){};
+/**
+* @param {string} property
+* @param {string} expression
+* @param {(boolean|Object)=} dynamicFn
+*/
+Polymer_ElementMixin.prototype._createComputedProperty = function(property, expression, dynamicFn){};
+/**
+* @param {HTMLTemplateElement} template
+* @param {boolean=} instanceBinding
+* @return {Object}
+*/
+Polymer_ElementMixin.prototype._bindTemplate = function(template, instanceBinding){};
+/**
+* @param {DocumentFragment} dom
+*/
+Polymer_ElementMixin.prototype._removeBoundDom = function(dom){};
 /**
 * @override
 */
@@ -378,25 +783,10 @@ Polymer_ElementMixin.prototype.connectedCallback = function(){};
 */
 Polymer_ElementMixin.prototype.disconnectedCallback = function(){};
 /**
-* @override
-*/
-Polymer_ElementMixin.prototype.ready = function(){};
-/**
-* @override
-*/
-Polymer_ElementMixin.prototype._readyClients = function(){};
-/**
 * @param {NodeList} dom
 * @return {Node}
 */
 Polymer_ElementMixin.prototype._attachDom = function(dom){};
-/**
-* @override
-* @param {string} name
-* @param {string} old
-* @param {string} value
-*/
-Polymer_ElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
 * @param {Object=} properties
 */
@@ -430,22 +820,30 @@ Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(
 */
 function Polymer_LegacyElementMixin(){}
 /**
+* @param {HTMLTemplateElement} template
+* @return {DocumentFragment}
 */
-Polymer_LegacyElementMixin.prototype.created = function(){};
+Polymer_LegacyElementMixin.prototype._stampTemplate = function(template){};
 /**
-* @override
+* @param {Node} node
+* @param {string} eventName
+* @param {string} methodName
+* @param {*=} context
+* @return {Function}
 */
-Polymer_LegacyElementMixin.prototype.connectedCallback = function(){};
+Polymer_LegacyElementMixin.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
 /**
+* @param {*} node
+* @param {*} eventName
+* @param {*} handler
 */
-Polymer_LegacyElementMixin.prototype.attached = function(){};
+Polymer_LegacyElementMixin.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
-* @override
+* @param {*} node
+* @param {*} eventName
+* @param {*} handler
 */
-Polymer_LegacyElementMixin.prototype.disconnectedCallback = function(){};
-/**
-*/
-Polymer_LegacyElementMixin.prototype.detached = function(){};
+Polymer_LegacyElementMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
 * @override
 * @param {string} name
@@ -454,22 +852,326 @@ Polymer_LegacyElementMixin.prototype.detached = function(){};
 */
 Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
+/**
+* @override
+* @param {*} props
+*/
+Polymer_LegacyElementMixin.prototype._initializeProtoProperties = function(props){};
+/**
+* @override
+* @param {*} props
+*/
+Polymer_LegacyElementMixin.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} attribute
+* @param {string} value
+*/
+Polymer_LegacyElementMixin.prototype._ensureAttribute = function(attribute, value){};
+/**
+* @param {string} attribute
+* @param {string} value
+* @param {*} type
+*/
+Polymer_LegacyElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {string} property
+* @param {string=} attribute
+* @param {*=} value
+*/
+Polymer_LegacyElementMixin.prototype._propertyToAttribute = function(property, attribute, value){};
+/**
+* @param {Element} node
+* @param {*} value
+* @param {string} attribute
+*/
+Polymer_LegacyElementMixin.prototype._valueToNodeAttribute = function(node, value, attribute){};
+/**
+* @param {*} value
+* @return {(string|undefined)}
+*/
+Polymer_LegacyElementMixin.prototype._serializeValue = function(value){};
+/**
+* @param {string} value
+* @param {*} type
+* @return {*}
+*/
+Polymer_LegacyElementMixin.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} property
+* @param {boolean=} readOnly
+*/
+Polymer_LegacyElementMixin.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._hasAccessor = function(property){};
+/**
+* @override
+* @param {*} property
+* @param {*} value
+*/
+Polymer_LegacyElementMixin.prototype._setProperty = function(property, value){};
+/**
+* @override
+* @param {string} property
+* @param {*} value
+* @param {boolean=} shouldNotify
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
+/**
+* @param {string} prop
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._isPropertyPending = function(prop){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype._invalidateProperties = function(){};
+/**
+*/
+Polymer_LegacyElementMixin.prototype._enableProperties = function(){};
+/**
+*/
+Polymer_LegacyElementMixin.prototype._flushProperties = function(){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype.ready = function(){};
+/**
+* @override
+* @param {*} currentProps
+* @param {*} changedProps
+* @param {*} oldProps
+*/
+Polymer_LegacyElementMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property
+* @param {*} value
+* @param {*} old
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._shouldPropertyChange = function(property, value, old){};
+/**
+* @param {string} property
+* @param {string} type
+* @param {Object=} effect
+*/
+Polymer_LegacyElementMixin.prototype._addPropertyEffect = function(property, type, effect){};
+/**
+* @param {string} property
+* @param {string} type
+* @param {Object=} effect
+*/
+Polymer_LegacyElementMixin.prototype._removePropertyEffect = function(property, type, effect){};
+/**
+* @param {string} property
+* @param {string=} type
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._hasPropertyEffect = function(property, type){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._hasReadOnlyEffect = function(property){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._hasNotifyEffect = function(property){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._hasReflectEffect = function(property){};
+/**
+* @param {string} property
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._hasComputedEffect = function(property){};
+/**
+* @param {(string|!Array.<(number|string)>)} path
+* @param {*} value
+* @param {boolean=} shouldNotify
+* @param {boolean=} isPathNotification
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
+/**
+* @param {Node} node
+* @param {string} prop
+* @param {*} value
+*/
+Polymer_LegacyElementMixin.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
+/**
+* @param {Object} client
+*/
+Polymer_LegacyElementMixin.prototype._enqueueClient = function(client){};
+/**
+*/
+Polymer_LegacyElementMixin.prototype._flushClients = function(){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype._readyClients = function(){};
+/**
+* @param {Object} props
+* @param {boolean=} setReadOnly
+*/
+Polymer_LegacyElementMixin.prototype.setProperties = function(props, setReadOnly){};
+/**
+* @param {Object} changedProps
+* @param {Object} oldProps
+* @param {boolean} hasPaths
+*/
+Polymer_LegacyElementMixin.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
+/**
+* @param {(string|!Array.<(string|number)>)} to
+* @param {(string|!Array.<(string|number)>)} from
+*/
+Polymer_LegacyElementMixin.prototype.linkPaths = function(to, from){};
+/**
+* @param {(string|!Array.<(string|number)>)} path
+*/
+Polymer_LegacyElementMixin.prototype.unlinkPaths = function(path){};
+/**
+* @param {string} path
+* @param {Array} splices
+*/
+Polymer_LegacyElementMixin.prototype.notifySplices = function(path, splices){};
+/**
+* @param {(string|!Array.<(string|number)>)} path
+* @param {Object=} root
+* @return {*}
+*/
+Polymer_LegacyElementMixin.prototype.get = function(path, root){};
+/**
+* @param {(string|!Array.<(string|number)>)} path
+* @param {*} value
+* @param {Object=} root
+*/
+Polymer_LegacyElementMixin.prototype.set = function(path, value, root){};
+/**
+* @param {string} path
+* @param {*} items
+* @return {number}
+*/
+Polymer_LegacyElementMixin.prototype.push = function(path, items){};
+/**
+* @param {string} path
+* @return {*}
+*/
+Polymer_LegacyElementMixin.prototype.pop = function(path){};
+/**
+* @param {string} path
+* @param {number} start
+* @param {number} deleteCount
+* @param {*} items
+* @return {Array}
+*/
+Polymer_LegacyElementMixin.prototype.splice = function(path, start, deleteCount, items){};
+/**
+* @param {string} path
+* @return {*}
+*/
+Polymer_LegacyElementMixin.prototype.shift = function(path){};
+/**
+* @param {string} path
+* @param {*} items
+* @return {number}
+*/
+Polymer_LegacyElementMixin.prototype.unshift = function(path, items){};
+/**
+* @param {string} path
+* @param {*=} value
+*/
+Polymer_LegacyElementMixin.prototype.notifyPath = function(path, value){};
+/**
+* @param {string} property
+* @param {boolean=} protectedSetter
+*/
+Polymer_LegacyElementMixin.prototype._createReadOnlyProperty = function(property, protectedSetter){};
+/**
+* @param {string} property
+* @param {string} methodName
+* @param {boolean=} dynamicFn
+*/
+Polymer_LegacyElementMixin.prototype._createPropertyObserver = function(property, methodName, dynamicFn){};
+/**
+* @param {string} expression
+* @param {(boolean|Object)=} dynamicFn
+*/
+Polymer_LegacyElementMixin.prototype._createMethodObserver = function(expression, dynamicFn){};
+/**
+* @param {string} property
+*/
+Polymer_LegacyElementMixin.prototype._createNotifyingProperty = function(property){};
+/**
+* @param {string} property
+*/
+Polymer_LegacyElementMixin.prototype._createReflectedProperty = function(property){};
+/**
+* @param {string} property
+* @param {string} expression
+* @param {(boolean|Object)=} dynamicFn
+*/
+Polymer_LegacyElementMixin.prototype._createComputedProperty = function(property, expression, dynamicFn){};
+/**
+* @param {HTMLTemplateElement} template
+* @param {boolean=} instanceBinding
+* @return {Object}
+*/
+Polymer_LegacyElementMixin.prototype._bindTemplate = function(template, instanceBinding){};
+/**
+* @param {DocumentFragment} dom
+*/
+Polymer_LegacyElementMixin.prototype._removeBoundDom = function(dom){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype.connectedCallback = function(){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype.disconnectedCallback = function(){};
+/**
+* @param {NodeList} dom
+* @return {Node}
+*/
+Polymer_LegacyElementMixin.prototype._attachDom = function(dom){};
+/**
+* @param {Object=} properties
+*/
+Polymer_LegacyElementMixin.prototype.updateStyles = function(properties){};
+/**
+* @param {string} url
+* @param {string=} base
+* @return {string}
+*/
+Polymer_LegacyElementMixin.prototype.resolveUrl = function(url, base){};
+/**
+*/
+Polymer_LegacyElementMixin.prototype.created = function(){};
+/**
+*/
+Polymer_LegacyElementMixin.prototype.attached = function(){};
+/**
+*/
+Polymer_LegacyElementMixin.prototype.detached = function(){};
+/**
 * @param {string} name
 * @param {string} old
 * @param {string} value
 */
 Polymer_LegacyElementMixin.prototype.attributeChanged = function(name, old, value){};
 /**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
-/**
 */
 Polymer_LegacyElementMixin.prototype._registered = function(){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype.ready = function(){};
 /**
 */
 Polymer_LegacyElementMixin.prototype._ensureAttributes = function(){};
