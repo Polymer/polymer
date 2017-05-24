@@ -96,7 +96,7 @@ let EXPECTED_WARNING_COUNT = 498;
 
 gulp.task('clean', () => del(DIST_DIR));
 
-gulp.task('closure', ['clean', 'generate-closure-externs'], () => {
+gulp.task('closure', ['clean'], () => {
 
   let entry, splitRx, joinRx;
 
