@@ -100,20 +100,13 @@ gulp.task('closure', ['clean'], () => {
 
   let entry, splitRx, joinRx;
 
-  function full() {
-    entry = 'polymer.html';
-    splitRx = /polymer\.html_script_\d+\.js$/;
-    joinRx = /polymer\.html/;
+  function config(path) {
+    entry = path;
+    joinRx = new RegExp(path.split('/').join('\\/'));
+    splitRx = new RegExp(joinRx.source + '_script_\\d+\\.js$');
   }
 
-  function element() {
-    entry = 'polymer-element.html';
-    splitRx = /polymer-element\.html_script_\d+\.js$/;
-    joinRx = /polymer-element\.html/;
-  }
-
-  // element();
-  full();
+  config('polymer.html');
 
   const project = new PolymerProject({
     shell: `./${entry}`,
