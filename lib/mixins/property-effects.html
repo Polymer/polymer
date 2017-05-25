@@ -1087,7 +1087,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _initializeProperties() {
         super._initializeProperties();
         hostStack.registerHost(this);
-        this.__dataClientsInitialized = false;
+        this.__dataClientsReady = false;
         this.__dataPendingClients = null;
         this.__dataToNotify = null;
         this.__dataLinkedPaths = null;
@@ -1395,14 +1395,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       /**
        * Overrides `PropertyAccessor`'s default async queuing of
-       * `_propertiesChanged`: if `__dataInitialized` is false (has not yet been
+       * `_propertiesChanged`: if `__dataReady` is false (has not yet been
        * manually flushed), the function no-ops; otherwise flushes
        * `_propertiesChanged` synchronously.
        *
        * @override
        */
       _invalidateProperties() {
-        if (this.__dataInitialized) {
+        if (this.__dataReady) {
           this._flushProperties();
         }
       }
@@ -1429,23 +1429,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _flushClients() {
-        if (!this.__dataClientsInitialized) {
-          this.__dataClientsInitialized = true;
+        if (!this.__dataClientsReady) {
+          this.__dataClientsReady = true;
           this._readyClients();
           // Override point where accessors are turned on; importantly,
           // this is after clients have fully readied, providing a guarantee
           // that any property effects occur only after all clients are ready.
-          this.__dataInitialized = true;
+          this.__dataReady = true;
         } else {
-          // Flush all clients
-          let clients = this.__dataPendingClients;
-          if (clients) {
-            this.__dataPendingClients = null;
-            for (let i=0; i < clients.length; i++) {
-              let client = clients[i];
-              if (client.__dataPending) {
-                client._flushProperties();
-              }
+          this.__enableOrFlushClients();
+        }
+      }
+
+      // NOTE: We ensure clients either enable or flush as appropriate. This
+      // handles two corner cases:
+      // (1) clients flush properly when connected/enabled before the host
+      // enables; e.g.
+      //   (a) Templatize stamps with no properties and does not flush and
+      //   (b) the instance is inserted into dom and
+      //   (c) then the instance flushes.
+      // (2) clients enable properly when not connected/enabled when the host
+      // flushes; e.g.
+      //   (a) a template is runtime stamped and not yet connected/enabled
+      //   (b) a host sets a property, causing stamped dom to flush
+      //   (c) the stamped dom enables.
+      __enableOrFlushClients() {
+        let clients = this.__dataPendingClients;
+        if (clients) {
+          this.__dataPendingClients = null;
+          for (let i=0; i < clients.length; i++) {
+            let client = clients[i];
+            if (!client.__dataEnabled) {
+              client._enableProperties();
+            } else if (client.__dataPending) {
+              client._flushProperties();
             }
           }
         }
@@ -1459,16 +1476,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _readyClients() {
-        let clients = this.__dataPendingClients;
-        if (clients) {
-          this.__dataPendingClients = null;
-          for (let i=0; i < clients.length; i++) {
-            let client = clients[i];
-            if (!client.__dataEnabled) {
-              client._enableProperties();
-            }
-          }
-        }
+        this.__enableOrFlushClients();
       }
 
       /**
@@ -1514,7 +1522,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._flushProperties();
         // If no data was pending, `_flushProperties` will not `flushClients`
         // so ensure this is done.
-        if (!this.__dataClientsInitialized) {
+        if (!this.__dataClientsReady) {
           this._flushClients();
         }
         // Before ready, client notifications do not trigger _flushProperties.
@@ -2245,7 +2253,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Setup compound storage, 2-way listeners, and dataHost for bindings
         setupBindings(this, templateInfo);
         // Flush properties into template nodes if already booted
-        if (this.__dataInitialized) {
+        if (this.__dataReady) {
           runEffects(this, templateInfo.propertyEffects, this.__data, null,
             false, templateInfo.nodeList);
         }
