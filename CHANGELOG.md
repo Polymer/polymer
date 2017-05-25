@@ -1,5 +1,22 @@
 # Change Log
 
+## [v2.0.1](https://github.com/Polymer/polymer/tree/v2.0.1) (2017-05-25)
+- [ci skip] Prepare 2.0.1 ([commit](https://github.com/Polymer/polymer/commit/061b1048))
+
+- Improve comment more ([commit](https://github.com/Polymer/polymer/commit/39877086))
+
+- Improve comment ([commit](https://github.com/Polymer/polymer/commit/fa1469a9))
+
+- Add comment. ([commit](https://github.com/Polymer/polymer/commit/250067b3))
+
+- * Improve clarity: change `__dataInitialized` to `__dataReady` * When `_flushClients` is called, ensure that clients are always enabled or flushed as appropriate. This ensures that (1) clients that are enabled before the host is enabled flush properly, and (2) clients that are stamped but not enabled properly enable when the host flushes. ([commit](https://github.com/Polymer/polymer/commit/8e8692f7))
+
+- Fix typo in  runBindingEffect documentation ([commit](https://github.com/Polymer/polymer/commit/6bd8dcfa))
+
+- Fixes #4601. Client elements can be readied that have already enabled properties. This can happen when templatize is used to create instances with no properties. In this case, in order for properties to flush properly to clients, clients must be flushed. ([commit](https://github.com/Polymer/polymer/commit/06df53d9))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/c4e516f6))
+
 ## [v2.0.0](https://github.com/Polymer/polymer/tree/v2.0.0) (2017-05-15)
 - [ci skip] bump version to 2.0.0 ([commit](https://github.com/Polymer/polymer/commit/712230fc))
 
