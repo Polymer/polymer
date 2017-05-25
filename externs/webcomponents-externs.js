@@ -7,7 +7,12 @@ let HTMLImports = {
   /**
    * @param {function()} callback
    */
-  whenReady(callback){}
+  whenReady(callback){},
+  /**
+   * @param {Element} element
+   * @returns {Document} document
+   */
+  importForElement(element){}
 };
 
 window.HTMLImports = HTMLImports;
