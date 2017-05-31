@@ -12,9 +12,9 @@
 */
 function Polymer_PropertyAccessors(){}
 /**
-* @param {*} name
-* @param {*} old
-* @param {*} value
+* @param {string} name
+* @param {?string} old
+* @param {?string} value
 */
 Polymer_PropertyAccessors.prototype.attributeChangedCallback = function(name, old, value){};
 /**
@@ -35,8 +35,8 @@ Polymer_PropertyAccessors.prototype._initializeInstanceProperties = function(pro
 Polymer_PropertyAccessors.prototype._ensureAttribute = function(attribute, value){};
 /**
 * @param {string} attribute
-* @param {string} value
-* @param {*} type
+* @param {?string} value
+* @param {*=} type
 */
 Polymer_PropertyAccessors.prototype._attributeToProperty = function(attribute, value, type){};
 /**
@@ -57,8 +57,8 @@ Polymer_PropertyAccessors.prototype._valueToNodeAttribute = function(node, value
 */
 Polymer_PropertyAccessors.prototype._serializeValue = function(value){};
 /**
-* @param {string} value
-* @param {*} type
+* @param {?string} value
+* @param {*=} type
 * @return {*}
 */
 Polymer_PropertyAccessors.prototype._deserializeValue = function(value, type){};
@@ -174,9 +174,9 @@ Polymer_PropertyEffects.prototype._addEventListenerToNode = function(node, event
 */
 Polymer_PropertyEffects.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
-* @param {*} name
-* @param {*} old
-* @param {*} value
+* @param {string} name
+* @param {?string} old
+* @param {?string} value
 */
 Polymer_PropertyEffects.prototype.attributeChangedCallback = function(name, old, value){};
 /**
@@ -184,12 +184,12 @@ Polymer_PropertyEffects.prototype.attributeChangedCallback = function(name, old,
 Polymer_PropertyEffects.prototype._initializeProperties = function(){};
 /**
 * @override
-* @param {*} props
+* @param {Object} props
 */
 Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){};
 /**
 * @override
-* @param {*} props
+* @param {Object} props
 */
 Polymer_PropertyEffects.prototype._initializeInstanceProperties = function(props){};
 /**
@@ -199,8 +199,8 @@ Polymer_PropertyEffects.prototype._initializeInstanceProperties = function(props
 Polymer_PropertyEffects.prototype._ensureAttribute = function(attribute, value){};
 /**
 * @param {string} attribute
-* @param {string} value
-* @param {*} type
+* @param {?string} value
+* @param {*=} type
 */
 Polymer_PropertyEffects.prototype._attributeToProperty = function(attribute, value, type){};
 /**
@@ -221,8 +221,8 @@ Polymer_PropertyEffects.prototype._valueToNodeAttribute = function(node, value, 
 */
 Polymer_PropertyEffects.prototype._serializeValue = function(value){};
 /**
-* @param {string} value
-* @param {*} type
+* @param {?string} value
+* @param {*=} type
 * @return {*}
 */
 Polymer_PropertyEffects.prototype._deserializeValue = function(value, type){};
@@ -490,8 +490,8 @@ Polymer_ElementMixin.prototype._removeEventListenerFromNode = function(node, eve
 /**
 * @override
 * @param {string} name
-* @param {string} old
-* @param {string} value
+* @param {?string} old
+* @param {?string} value
 */
 Polymer_ElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
@@ -500,12 +500,12 @@ Polymer_ElementMixin.prototype.attributeChangedCallback = function(name, old, va
 Polymer_ElementMixin.prototype._initializeProperties = function(){};
 /**
 * @override
-* @param {*} props
+* @param {Object} props
 */
 Polymer_ElementMixin.prototype._initializeProtoProperties = function(props){};
 /**
 * @override
-* @param {*} props
+* @param {Object} props
 */
 Polymer_ElementMixin.prototype._initializeInstanceProperties = function(props){};
 /**
@@ -515,8 +515,8 @@ Polymer_ElementMixin.prototype._initializeInstanceProperties = function(props){}
 Polymer_ElementMixin.prototype._ensureAttribute = function(attribute, value){};
 /**
 * @param {string} attribute
-* @param {string} value
-* @param {*} type
+* @param {?string} value
+* @param {*=} type
 */
 Polymer_ElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
 /**
@@ -537,8 +537,8 @@ Polymer_ElementMixin.prototype._valueToNodeAttribute = function(node, value, att
 */
 Polymer_ElementMixin.prototype._serializeValue = function(value){};
 /**
-* @param {string} value
-* @param {*} type
+* @param {?string} value
+* @param {*=} type
 * @return {*}
 */
 Polymer_ElementMixin.prototype._deserializeValue = function(value, type){};
@@ -847,8 +847,8 @@ Polymer_LegacyElementMixin.prototype._removeEventListenerFromNode = function(nod
 /**
 * @override
 * @param {string} name
-* @param {string} old
-* @param {string} value
+* @param {?string} old
+* @param {?string} value
 */
 Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
@@ -857,12 +857,12 @@ Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, o
 Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
 /**
 * @override
-* @param {*} props
+* @param {Object} props
 */
 Polymer_LegacyElementMixin.prototype._initializeProtoProperties = function(props){};
 /**
 * @override
-* @param {*} props
+* @param {Object} props
 */
 Polymer_LegacyElementMixin.prototype._initializeInstanceProperties = function(props){};
 /**
@@ -872,8 +872,8 @@ Polymer_LegacyElementMixin.prototype._initializeInstanceProperties = function(pr
 Polymer_LegacyElementMixin.prototype._ensureAttribute = function(attribute, value){};
 /**
 * @param {string} attribute
-* @param {string} value
-* @param {*} type
+* @param {?string} value
+* @param {*=} type
 */
 Polymer_LegacyElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
 /**
@@ -894,8 +894,8 @@ Polymer_LegacyElementMixin.prototype._valueToNodeAttribute = function(node, valu
 */
 Polymer_LegacyElementMixin.prototype._serializeValue = function(value){};
 /**
-* @param {string} value
-* @param {*} type
+* @param {?string} value
+* @param {*=} type
 * @return {*}
 */
 Polymer_LegacyElementMixin.prototype._deserializeValue = function(value, type){};
@@ -1165,8 +1165,8 @@ Polymer_LegacyElementMixin.prototype.attached = function(){};
 Polymer_LegacyElementMixin.prototype.detached = function(){};
 /**
 * @param {string} name
-* @param {string} old
-* @param {string} value
+* @param {?string} old
+* @param {?string} value
 */
 Polymer_LegacyElementMixin.prototype.attributeChanged = function(name, old, value){};
 /**
