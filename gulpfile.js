@@ -146,13 +146,11 @@ gulp.task('closure', ['clean'], () => {
     rewrite_polyfills: false,
     new_type_inf: true,
     checks_only: CLOSURE_LINT_ONLY,
-    jscomp_warning: 'newCheckTypes',
-    jscomp_off: 'newCheckTypesExtraChecks',
     externs: [
       'bower_components/shadycss/externs/shadycss-externs.js',
       'externs/webcomponents-externs.js',
-      'externs/polymer-externs.js',
       'externs/closure-types.js',
+      'externs/polymer-externs.js',
     ],
     extra_annotation_name: [
       'polymerMixin',
