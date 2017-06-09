@@ -29,20 +29,24 @@ Polymer 2.0 is released, and will be the future focus of Polymer development goi
 
 ## Overview
 
-Polymer is a lightweight library built on top of the web standards-based [Web Components](http://webcomponents.org/) API's, and makes it easier to build your very own custom HTML elements. Creating reusable custom elements - and using elements built by others - can make building complex web applications easier and more efficient. By being based on the Web Components API's built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), Polymer elements are interoperable at the browser level, and can be used with other frameworks or libraries that work with modern browsers.
+Polymer is a lightweight library built on top of the web standards-based [Web Components](http://webcomponents.org/) API's - reusable user interface widgets that are part of the browser and do not need external libraries like jQuery or Dojo. Combined with Web Components, Polymer makes it easier to build your very own custom HTML elements. 
 
-Among many ways to leverage custom elements, they can be particularly useful for building reusable UI components. Instead of continually re-building a specific navigation bar or button in different frameworks and for different projects, you can define this element once using Polymer, and then reuse it throughout your project or in any future project.
+Creating reusable custom elements - and using elements built by others - can make building complex web applications easier and more efficient. By being based on the Web Components API's built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), Polymer elements are exchangable at the browser level, and can be used with other frameworks or libraries that work with modern browsers.
 
-Polymer provides a declarative syntax to easily create your own custom elements, using all standard web technologies - define the structure of the element with HTML, style it with CSS, and add interactions to the element with JavaScript.
+Among many ways to leverage custom elements, they can be particularly useful for building reusable user interface components. Instead of continually re-building a specific navigation bar or button in different frameworks and for different projects, you can define this element once using Polymer, and then reuse it throughout your project or in any future project.
+
+Polymer provides a declarative syntax to easily create your own custom elements. Using all standard web technologies, you can define the structure of the element with HTML, style it with CSS, and then add interactions to the element with JavaScript.
 
 Polymer also provides optional two-way data-binding, meaning:
 
 1. When properties in the model for an element get updated, the element can update itself in response.
 2. When the element is updated internally, the changes can be propagated back to the model.
 
-Polymer is designed to be flexible, lightweight, and close to the web platform - the library doesn't invent complex new abstractions and magic, but uses the best features of the web platform in straightforward ways to simply sugar the creation of custom elements.
+Polymer is designed to be flexible, lightweight, and close to the web platform - the library doesn't invent complex new abstractions and magic, but uses the best features of the web platform in straightforward ways to enhance the creation of custom elements.
 
 In addition to the Polymer library for building your own custom elements, the Polymer project includes a collection of [pre-built elements](https://elements.polymer-project.org) that you can  drop on a page and use immediately, or use as starting points for your own custom elements.
+
+
 
 ## Polymer in 1 Minute
 
