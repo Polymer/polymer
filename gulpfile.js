@@ -43,7 +43,7 @@ var cleanupPipe = lazypipe()
   // remove html wrapper
   .pipe(minimalDocument)
   // Add real version number
-  .pipe(replace, /(Polymer.version = )'master'/, '$1"' + pkg.version + '"')
+  .pipe(replace, /(Polymer.version = )'1.x'/, '$1"' + pkg.version + '"')
 ;
 
 function vulcanizeWithExcludes(target, excludes) {
