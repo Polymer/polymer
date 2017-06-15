@@ -282,7 +282,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.__itemsIdxToInstIdx = {};
       this.__chunkCount = null;
       this.__lastChunkTime = null;
-      this.__needFullRefresh = false;
       this.__sortFn = null;
       this.__filterFn = null;
       this.__observePaths = null;
@@ -389,7 +388,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let methodHost = this.__getMethodHost();
       this.__sortFn = sort && (typeof sort == 'function' ? sort :
         function() { return methodHost[sort].apply(methodHost, arguments); });
-      this.__needFullRefresh = true;
       if (this.items) {
         this.__debounceRender(this.__render);
       }
@@ -399,7 +397,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let methodHost = this.__getMethodHost();
       this.__filterFn = filter && (typeof filter == 'function' ? filter :
         function() { return methodHost[filter].apply(methodHost, arguments); });
-      this.__needFullRefresh = true;
       if (this.items) {
         this.__debounceRender(this.__render);
       }
@@ -455,7 +452,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!this.__handleItemPath(change.path, change.value)) {
         // Otherwise, the array was reset ('items') or spliced ('items.splices'),
         // so queue a full refresh
-        this.__needFullRefresh = true;
         this.__initializeChunking();
         this.__debounceRender(this.__render);
       }
@@ -467,7 +463,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let paths = this.__observePaths;
         for (let i=0; i<paths.length; i++) {
           if (path.indexOf(paths[i]) === 0) {
-            this.__needFullRefresh = true;
             this.__debounceRender(this.__render, this.delay);
             return true;
           }
@@ -496,7 +491,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     render() {
       // Queue this repeater, then flush all in order
-      this.__needFullRefresh = true;
       this.__debounceRender(this.__render);
       Polymer.flush();
     }
@@ -629,18 +623,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // If path was index into array...
       if (itemsIdx == parseInt(itemsIdx, 10)) {
         let itemSubPath = dot < 0 ? '' : itemsPath.substring(dot+1);
-        // See if the item subpath should trigger a full refresh...
-        if (!this.__handleObservedPaths(itemSubPath)) {
-          // If not, forward to the instance for that index
-          let instIdx = this.__itemsIdxToInstIdx[itemsIdx];
-          let inst = this.__instances[instIdx];
-          if (inst) {
-            let itemPath = this.as + (itemSubPath ? '.' + itemSubPath : '');
-            // This is effectively `notifyPath`, but avoids some of the overhead
-            // of the public API
-            inst._setPendingPropertyOrPath(itemPath, value, false, true);
-            inst._flushProperties();
-          }
+        // If the path is observed, it will trigger a full refresh
+        this.__handleObservedPaths(itemSubPath);
+        // Note, even if a rull refresh is triggered, always do the path
+        // notification because unless mutableData is used for dom-repeat
+        // and all elements in the instance subtree, a full refresh may
+        // not trigger the proper update.
+        let instIdx = this.__itemsIdxToInstIdx[itemsIdx];
+        let inst = this.__instances[instIdx];
+        if (inst) {
+          let itemPath = this.as + (itemSubPath ? '.' + itemSubPath : '');
+          // This is effectively `notifyPath`, but avoids some of the overhead
+          // of the public API
+          inst._setPendingPropertyOrPath(itemPath, value, false, true);
+          inst._flushProperties();
         }
         return true;
       }
