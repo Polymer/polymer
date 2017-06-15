@@ -1,5 +1,18 @@
 # Change Log
 
+## [v1.9.2-dev](https://github.com/Polymer/polymer/tree/v1.9.2-dev) (2017-06-15)
+- Update custom-style.html ([commit](https://github.com/Polymer/polymer/commit/cf105c4b))
+
+- Add more tests. ([commit](https://github.com/Polymer/polymer/commit/633ce4f7))
+
+- Avoid calling `detached` before an element is readied. When an element is readied, if attachment is pending only call `attached` if the element is actually attached. ([commit](https://github.com/Polymer/polymer/commit/4e0abe44))
+
+- Fixes #4550. Ensure that `detached` cannot run before an element is “readied.” This fixes an issue that allowed an element with `disable-upgrade` to process the `detached` callback. ([commit](https://github.com/Polymer/polymer/commit/b967c5ee))
+
+- Change dev version to `1.x` ([commit](https://github.com/Polymer/polymer/commit/e6c94ccb))
+
+- [ci skip] Update CHANGELOG ([commit](https://github.com/Polymer/polymer/commit/afb233ce))
+
 ## [v1.9.1-dev](https://github.com/Polymer/polymer/tree/v1.9.1-dev) (2017-04-17)
 - Remove use of ES6 API. ([commit](https://github.com/Polymer/polymer/commit/96010657))
 
