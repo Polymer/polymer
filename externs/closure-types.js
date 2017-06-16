@@ -680,7 +680,7 @@ Polymer_PropertyEffects._addTemplatePropertyEffect = function(templateInfo, prop
 */
 Polymer_PropertyEffects._parseBindings = function(text, templateInfo){};
 /**
-* @param {(PropertyEffectsInstance|Polymer_PropertyEffects)} inst Element that should be used as scope for
+* @param {this} inst Element that should be used as scope for
   binding dependencies
 * @param {Object} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
@@ -1189,7 +1189,7 @@ Polymer_ElementMixin._addTemplatePropertyEffect = function(templateInfo, prop, e
 */
 Polymer_ElementMixin._parseBindings = function(text, templateInfo){};
 /**
-* @param {(PropertyEffectsInstance|Polymer_PropertyEffects)} inst Element that should be used as scope for
+* @param {this} inst Element that should be used as scope for
   binding dependencies
 * @param {Object} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
@@ -1627,7 +1627,7 @@ Polymer_LegacyElementMixin.prototype._ensureAttributes = function(){};
 Polymer_LegacyElementMixin.prototype._applyListeners = function(){};
 /**
 * @param {*} value Value to deserialize
-* @return {string}
+* @return {(string|undefined)}
 */
 Polymer_LegacyElementMixin.prototype.serialize = function(value){};
 /**
@@ -2004,7 +2004,7 @@ Polymer_LegacyElementMixin._addTemplatePropertyEffect = function(templateInfo, p
 */
 Polymer_LegacyElementMixin._parseBindings = function(text, templateInfo){};
 /**
-* @param {(PropertyEffectsInstance|Polymer_PropertyEffects)} inst Element that should be used as scope for
+* @param {this} inst Element that should be used as scope for
   binding dependencies
 * @param {Object} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
@@ -2044,7 +2044,7 @@ Polymer_OptionalMutableData.prototype.mutableData;
 Polymer_OptionalMutableData.prototype._shouldPropertyChange = function(property, value, old){};
 /**
 * @record
-* @extends {Polymer_PropertyEffects}
+* @extends {Polymer_ElementMixin}
 */
 function Polymer_ArraySelectorMixin(){}
 /** @type {Array} */
@@ -2089,12 +2089,14 @@ Polymer_ArraySelectorMixin.prototype._addEventListenerToNode = function(node, ev
 */
 Polymer_ArraySelectorMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
-* @param {string} name Name of attribute that changed
-* @param {?string} old Old attribute value
-* @param {?string} value New attribute value
+* @override
+* @param {string} name Name of attribute.
+* @param {?string} old Old value of attribute.
+* @param {?string} value Current value of attribute.
 */
 Polymer_ArraySelectorMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
+* @override
 */
 Polymer_ArraySelectorMixin.prototype._initializeProperties = function(){};
 /**
@@ -2260,6 +2262,7 @@ Polymer_ArraySelectorMixin.prototype._enqueueClient = function(client){};
 */
 Polymer_ArraySelectorMixin.prototype._flushClients = function(){};
 /**
+* @override
 */
 Polymer_ArraySelectorMixin.prototype._readyClients = function(){};
 /**
@@ -2412,6 +2415,31 @@ Polymer_ArraySelectorMixin.prototype._bindTemplate = function(template, instance
 */
 Polymer_ArraySelectorMixin.prototype._removeBoundDom = function(dom){};
 /**
+* @override
+*/
+Polymer_ArraySelectorMixin.prototype.connectedCallback = function(){};
+/**
+* @override
+*/
+Polymer_ArraySelectorMixin.prototype.disconnectedCallback = function(){};
+/**
+* @param {NodeList} dom to attach to the element.
+* @return {Node}
+*/
+Polymer_ArraySelectorMixin.prototype._attachDom = function(dom){};
+/**
+* @param {Object=} properties Bag of custom property key/values to
+  apply to this element.
+*/
+Polymer_ArraySelectorMixin.prototype.updateStyles = function(properties){};
+/**
+* @param {string} url URL to resolve.
+* @param {string=} base Optional base URL to resolve against, defaults
+to the element's `importPath`
+* @return {string}
+*/
+Polymer_ArraySelectorMixin.prototype.resolveUrl = function(url, base){};
+/**
 */
 Polymer_ArraySelectorMixin.prototype.clearSelection = function(){};
 /**
@@ -2448,9 +2476,7 @@ Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
 */
 Polymer_ArraySelectorMixin._parseTemplate = function(template, outerTemplateInfo){};
 /**
-* @param {*} template 
-* @param {*} templateInfo 
-* @param {*} nodeInfo 
+* @override
 */
 Polymer_ArraySelectorMixin._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
@@ -2559,7 +2585,7 @@ Polymer_ArraySelectorMixin._addTemplatePropertyEffect = function(templateInfo, p
 */
 Polymer_ArraySelectorMixin._parseBindings = function(text, templateInfo){};
 /**
-* @param {(PropertyEffectsInstance|Polymer_PropertyEffects)} inst Element that should be used as scope for
+* @param {this} inst Element that should be used as scope for
   binding dependencies
 * @param {Object} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
@@ -2569,3 +2595,6 @@ Polymer_ArraySelectorMixin._parseBindings = function(text, templateInfo){};
 * @return {*}
 */
 Polymer_ArraySelectorMixin._evaluateBinding = function(inst, part, path, props, oldProps, hasPaths){};
+/**
+*/
+Polymer_ArraySelectorMixin.finalize = function(){};
