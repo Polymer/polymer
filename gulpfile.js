@@ -107,6 +107,7 @@ gulp.task('closure', ['clean'], () => {
   }
 
   config('polymer.html');
+  // config('lib/mixins/property-effects.html');
 
   const project = new PolymerProject({
     shell: `./${entry}`,
@@ -146,6 +147,7 @@ gulp.task('closure', ['clean'], () => {
     rewrite_polyfills: false,
     new_type_inf: true,
     checks_only: CLOSURE_LINT_ONLY,
+    polymer_version: 2,
     externs: [
       'bower_components/shadycss/externs/shadycss-externs.js',
       'externs/webcomponents-externs.js',
@@ -153,9 +155,11 @@ gulp.task('closure', ['clean'], () => {
       'externs/polymer-externs.js',
     ],
     extra_annotation_name: [
-      'polymerMixin',
-      'polymerMixinClass',
-      'polymerElement'
+      'appliesMixin',
+      'mixinClass',
+      'mixinFunction',
+      'polymer',
+      'customElement'
     ]
   }, closurePluginOptions);
 

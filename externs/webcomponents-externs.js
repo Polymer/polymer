@@ -2,6 +2,7 @@
  * @fileoverview Externs for webcomponents polyfills
  * @externs
  */
+/* eslint-disable */
 
 let HTMLImports = {
   /**
