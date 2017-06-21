@@ -26,10 +26,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       constructor: {
         value: HTMLTemplateElementExtension,
         writable: true
+      },
+      mutableData: {
+        get() {
+          let mutableData = this.__templatizeOptions.mutableData;
+          if (typeof mutableData == 'function') {
+            mutableData = mutableData.call(this.__templatizeOwner);
+          }
+          return mutableData;
+        }
       }
     });
-    const DataTemplate = Polymer.PropertyEffects(HTMLTemplateElementExtension);
-    const MutableDataTemplate = Polymer.MutableData(DataTemplate);
+    const DataTemplate =
+      Polymer.OptionalMutableData(
+        Polymer.PropertyEffects(HTMLTemplateElementExtension));
 
     // Applies a DataTemplate subclass to a <template> instance
     function upgradeTemplate(template, constructor) {
@@ -43,8 +53,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * @constructor
      * @implements {Polymer_PropertyEffects}
+     * @implements {Polymer_OptimalMutableData}
      */
-    const base = Polymer.PropertyEffects(class {});
+    const base = Polymer.OptionalMutableData(Polymer.PropertyEffects(class {}));
     class TemplateInstanceBase extends base {
       constructor(props) {
         super();
@@ -65,6 +76,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if ((props && options.instanceProps) || !options.instanceProps) {
           this._enableProperties();
         }
+      }
+      get mutableData() {
+        let mutableData = this.__templatizeOptions.mutableData;
+        if (typeof mutableData == 'function') {
+          mutableData = mutableData.call(this.__templatizeOwner);
+        }
+        return mutableData;
       }
       /**
        * Configure the given `props` by calling `_setPendingProperty`. Also
@@ -194,8 +212,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
-    const MutableTemplateInstanceBase = Polymer.MutableData(TemplateInstanceBase);
-
     function findMethodHost(template) {
       // Technically this should be the owner of the outermost template.
       // In shadow dom, this is always getRootNode().host, but we can
@@ -211,9 +227,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * @unrestricted
        */
-      let base = options.mutableData ?
-        MutableTemplateInstanceBase : TemplateInstanceBase;
-      let klass = class extends base { }
+      let klass = class extends TemplateInstanceBase { }
       klass.prototype.__templatizeOptions = options;
       klass.prototype._bindTemplate(template);
       addNotifyEffects(klass, template, templateInfo, options);
@@ -226,9 +240,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Provide data API and property effects on memoized template class
         let klass = templateInfo.templatizeTemplateClass;
         if (!klass) {
-          let base = options.mutableData ? MutableDataTemplate : DataTemplate;
           klass = templateInfo.templatizeTemplateClass =
-            class TemplatizedTemplate extends base {}
+            class TemplatizedTemplate extends DataTemplate {}
           // Add template - >instances effects
           // and host <- template effects
           let hostProps = templateInfo.hostProps;
@@ -239,6 +252,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             klass.prototype._createNotifyingProperty('_host_' + prop);
           }
         }
+        template.__templatizeOptions = options;
         upgradeTemplate(template, klass);
         // Mix any pre-bound data into __data; no need to flush this to
         // instances since they pull from the template at instance-time
