@@ -788,7 +788,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                                 '(?:' + ARGUMENTS + '?' + ')' +
                               '\\)\\s*' + ')';
   const BINDING = '(' + IDENT + '\\s*' + ARGUMENT_LIST + '?' + ')'; // Group 3
-  const OPEN_BRACKET = '(\\[\\[|{{)' + '\\s*';
+  const OPEN_BRACKET = '(\\[\\[\\\\*|{{\\\\*)' + '\\s*';
   const CLOSE_BRACKET = '(?:]]|}})';
   const NEGATE = '(?:(!)\\s*)?'; // Group 2
   const EXPRESSION = OPEN_BRACKET + NEGATE + BINDING + CLOSE_BRACKET;
@@ -2440,51 +2440,63 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let parts = [];
         let lastIndex = 0;
         let m;
-        // Example: "literal1{{prop}}literal2[[!compute(foo,bar)]]final"
-        // Regex matches:
-        //        Iteration 1:  Iteration 2:
-        // m[1]: '{{'          '[['
-        // m[2]: ''            '!'
-        // m[3]: 'prop'        'compute(foo,bar)'
+      // Example: "literal1{{prop}}literal2[[!compute(foo,bar)]]literal3{{\!prop}}final"
+      // Regex matches:
+      //        Iteration 1:  Iteration 2:      Iteration 3:
+      // m[1]: '{{'          '[['               '{{\'
+      // m[2]: ''            '!'                '!'
+      // m[3]: 'prop'        'compute(foo,bar)' 'prop'
         while ((m = bindingRegex.exec(text)) !== null) {
           // Add literal part
           if (m.index > lastIndex) {
             parts.push({literal: text.slice(lastIndex, m.index)});
           }
-          // Add binding part
-          let mode = m[1][0];
-          let negate = Boolean(m[2]);
-          let source = m[3].trim();
-          let customEvent, notifyEvent, colon;
-          if (mode == '{' && (colon = source.indexOf('::')) > 0) {
-            notifyEvent = source.substring(colon + 2);
-            source = source.substring(0, colon);
-            customEvent = true;
-          }
-          let signature = parseMethod(source);
-          let dependencies = [];
-          if (signature) {
-            // Inline computed function
-            let {args, methodName} = signature;
-            for (let i=0; i<args.length; i++) {
-              let arg = args[i];
-              if (!arg.literal) {
-                dependencies.push(arg);
+
+          // Check if the expression inside brackets must be treated as literal
+          const treatAsLiteral = m[1][2] === '\\';
+
+          if (!treatAsLiteral) {
+            // Add binding part
+            let mode = m[1][0];
+            let negate = Boolean(m[2]);
+            let source = m[3].trim();
+            let customEvent, notifyEvent, colon;
+            if (mode == '{' && (colon = source.indexOf('::')) > 0) {
+              notifyEvent = source.substring(colon + 2);
+              source = source.substring(0, colon);
+              customEvent = true;
+            }
+            let signature = parseMethod(source);
+            let dependencies = [];
+            if (signature) {
+              // Inline computed function
+              let {args, methodName} = signature;
+              for (let i=0; i<args.length; i++) {
+                let arg = args[i];
+                if (!arg.literal) {
+                  dependencies.push(arg);
+                }
               }
+              let dynamicFns = templateInfo.dynamicFns;
+              if (dynamicFns && dynamicFns[methodName] || signature.static) {
+                dependencies.push(methodName);
+                signature.dynamicFn = true;
+              }
+            } else {
+              // Property or path
+              dependencies.push(source);
             }
-            let dynamicFns = templateInfo.dynamicFns;
-            if (dynamicFns && dynamicFns[methodName] || signature.static) {
-              dependencies.push(methodName);
-              signature.dynamicFn = true;
-            }
+            parts.push({
+              source, mode, negate, customEvent, signature, dependencies,
+              event: notifyEvent
+            });
           } else {
-            // Property or path
-            dependencies.push(source);
+            // Add expression as literal
+            let literalExpression = text.slice(m.index, bindingRegex.lastIndex);
+            // Remove a slash
+            literalExpression = literalExpression.slice(0, 2) + literalExpression.slice(3);
+            parts.push({literal: literalExpression});
           }
-          parts.push({
-            source, mode, negate, customEvent, signature, dependencies,
-            event: notifyEvent
-          });
           lastIndex = bindingRegex.lastIndex;
         }
         // Add a final literal part
