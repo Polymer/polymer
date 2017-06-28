@@ -465,11 +465,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Function} constructor Class that `_parseTemplate` is currently
    *   running on
-   * @param {Object} templateInfo Template metadata for current template
-   * @param {Object} nodeInfo Node metadata for current template node
+   * @param {TemplateInfo} templateInfo Template metadata for current template
+   * @param {NodeInfo} nodeInfo Node metadata for current template node
    * @param {string} kind Binding kind, either 'property', 'attribute', or 'text'
    * @param {string} target Target property name
-   * @param {Array<Object>} parts Array of binding part metadata
+   * @param {!Array<!BindingPart>} parts Array of binding part metadata
    * @param {string=} literal Literal text surrounding binding parts (specified
    *   only for 'property' bindings, since these must be initialized as part
    *   of boot-up)
@@ -478,7 +478,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function addBinding(constructor, templateInfo, nodeInfo, kind, target, parts, literal) {
     // Create binding metadata and add to nodeInfo
     nodeInfo.bindings = nodeInfo.bindings || [];
-    let binding = { kind, target, parts, literal, isCompound: (parts.length !== 1) };
+    let /** Binding */ binding = { kind, target, parts, literal, isCompound: (parts.length !== 1) };
     nodeInfo.bindings.push(binding);
     // Add listener info to binding metadata
     if (shouldAddListener(binding)) {
@@ -501,9 +501,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Function} constructor Class that `_parseTemplate` is currently
    *   running on
-   * @param {Object} templateInfo Template metadata for current template
-   * @param {Object} binding Binding metadata
-   * @param {Object} part Binding part metadata
+   * @param {TemplateInfo} templateInfo Template metadata for current template
+   * @param {!Binding} binding Binding metadata
+   * @param {!BindingPart} part Binding part metadata
    * @param {number} index Index into `nodeInfoList` for this node
    */
   function addEffectForBindingPart(constructor, templateInfo, binding, part, index) {
@@ -575,8 +575,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {!PropertyEffectsType} inst The instance owning the binding effect
    * @param {Node} node Target node for binding
-   * @param {Object} binding Binding metadata
-   * @param {Object} part Binding part metadata
+   * @param {!Binding} binding Binding metadata
+   * @param {!BindingPart} part Binding part metadata
    * @param {*} value Value to set
    * @private
    */
@@ -609,8 +609,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Node} node Node the value will be set to
    * @param {*} value Value to set
-   * @param {Object} binding Binding metadata
-   * @param {Object} part Binding part metadata
+   * @param {!Binding} binding Binding metadata
+   * @param {!BindingPart} part Binding part metadata
    * @return {*} Transformed value to set
    * @private
    */
@@ -639,12 +639,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * - is not a textContent binding
    * - is not compound
    *
-   * @param {Object} binding Binding metadata
+   * @param {!Binding} binding Binding metadata
    * @return {boolean} True if 2-way listener should be added
    * @private
    */
   function shouldAddListener(binding) {
-    return binding.target &&
+    return Boolean(binding.target) &&
            binding.kind != 'attribute' &&
            binding.kind != 'text' &&
            !binding.isCompound &&
@@ -656,7 +656,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * references onto the bound nodeList.
    *
    * @param {!PropertyEffectsType} inst Instance that bas been previously bound
-   * @param {Object} templateInfo Template metadata
+   * @param {TemplateInfo} templateInfo Template metadata
    * @private
    */
   function setupBindings(inst, templateInfo) {
@@ -689,7 +689,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * the final value set to the property/attribute.
    *
    * @param {Node} node Bound node to initialize
-   * @param {Object} binding Binding metadata
+   * @param {Binding} binding Binding metadata
    * @private
    */
   function setupCompoundStorage(node, binding) {
@@ -717,7 +717,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Object} node Child element to add listener to
    * @param {!PropertyEffectsType} inst Host element instance to handle notification event
-   * @param {Object} binding Binding metadata
+   * @param {Binding} binding Binding metadata
    * @private
    */
   function addNotifyListener(node, inst, binding) {
@@ -737,7 +737,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * provided effect function.
    *
    * @param {Element | Object} model Prototype or instance
-   * @param {Object} sig Method signature metadata
+   * @param {!MethodSignature} sig Method signature metadata
    * @param {string} type Type of property effect to add
    * @param {Function} effectFn Function to run when arguments change
    * @param {*=} methodInfo Effect-specific information to be included in
@@ -819,6 +819,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   const EXPRESSION = OPEN_BRACKET + NEGATE + BINDING + CLOSE_BRACKET;
   const bindingRegex = new RegExp(EXPRESSION, "g");
 
+  /**
+   * Create a string from binding parts of all the literal parts
+   *
+   * @param {!Array<BindingPart>} parts All parts to stringify
+   * @return {string} String made from the literal parts
+   */
   function literalFromParts(parts) {
     let s = '';
     for (let i=0; i<parts.length; i++) {
@@ -834,7 +840,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * arguments are literals), and an array of `args`
    *
    * @param {string} expression The expression to parse
-   * @return {Object} The method metadata object if a method expression was
+   * @return {?MethodSignature} The method metadata object if a method expression was
    *   found, otherwise `undefined`
    * @private
    */
@@ -843,13 +849,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let m = expression.match(/([^\s]+?)\(([\s\S]*)\)/);
     if (m) {
       let methodName = m[1];
-      let sig = { methodName, static: true };
+      let sig = { methodName, static: true, args: emptyArray };
       if (m[2].trim()) {
         // replace escaped commas with comma entity, split on un-escaped commas
         let args = m[2].replace(/\\,/g, '&comma;').split(',');
         return parseArgs(args, sig);
       } else {
-        sig.args = emptyArray;
         return sig;
       }
     }
@@ -861,9 +866,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * signature metadata object. Sets the `static` property to false if any
    * argument is a non-literal.
    *
-   * @param {Array<string>} argList Array of argument names
-   * @param {Object} sig Method signature metadata object
-   * @return {Object} The updated signature metadata object
+   * @param {!Array<string>} argList Array of argument names
+   * @param {!MethodSignature} sig Method signature metadata object
+   * @return {!MethodSignature} The updated signature metadata object
    * @private
    */
   function parseArgs(argList, sig) {
@@ -890,7 +895,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *   }
    *
    * @param {string} rawArg The string value of the argument
-   * @return {Object} Argument metadata object
+   * @return {!MethodArg} Argument metadata object
    * @private
    */
   function parseArg(rawArg) {
@@ -905,7 +910,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       ;
     // basic argument descriptor
     let a = {
-      name: arg
+      name: arg,
+      value: '',
+      literal: false
     };
     // detect literal value (must be String or Number)
     let fc = arg[0];
@@ -949,7 +956,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * when the method is being called as a result of a path notification.
    *
    * @param {Object} data Instance data storage object to read properties from
-   * @param {Array<Object>} args Array of argument metadata
+   * @param {!Array<!MethodArg>} args Array of argument metadata
    * @param {string} path Property/path name that triggered the method effect
    * @param {Object} props Bag of current property changes
    * @return {Array<*>} Array of argument values
@@ -1095,6 +1102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     const propertyEffectsBase = Polymer.TemplateStamp(Polymer.PropertyAccessors(superClass));
 
     /**
+     * @polymer
      * @mixinClass
      * @implements {Polymer_PropertyEffects}
      * @extends {propertyEffectsBase}
@@ -1116,7 +1124,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataHasPaths;
         /** @type {Object} */
         this.__dataCompoundStorage;
-        /** @type {Object} */
+        /** @type {Polymer_PropertyEffects} */
         this.__dataHost;
         /** @type {!Object} */
         this.__dataTemp;
@@ -1140,6 +1148,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__observeEffects;
         /** @type {Object} */
         this.__readOnly;
+        /** @type {number} */
+        this.__dataCounter;
+        /** @type {!TemplateInfo} */
+        this.__templateInfo;
       }
 
       get PROPERTY_EFFECT_TYPES() {
@@ -1659,7 +1671,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (this.__propagateEffects) {
           runEffects(this, this.__propagateEffects, changedProps, oldProps, hasPaths);
         }
-        let templateInfo = this.__templateInfo;
+        let templateInfo = /** @type {TemplateInfo} */(this.__templateInfo);
         while (templateInfo) {
           runEffects(this, templateInfo.propertyEffects, changedProps, oldProps,
             hasPaths, templateInfo.nodeList);
@@ -1728,7 +1740,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
       */
       notifySplices(path, splices) {
-        let info = {};
+        let /** PathInfo */ info = {path: ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         notifySplices(this, array, info.path, splices);
       }
@@ -1803,7 +1815,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       push(path, ...items) {
-        let info = {};
+        let /** PathInfo */ info = {path: ''};
         let array = /** @type {Array}*/(Polymer.Path.get(this, path, info));
         let len = array.length;
         let ret = array.push(...items);
@@ -1827,7 +1839,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       pop(path) {
-        let info = {};
+        let /** PathInfo */ info = {path: ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let hadLength = Boolean(array.length);
         let ret = array.pop();
@@ -1855,7 +1867,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       splice(path, start, deleteCount, ...items) {
-        let info = {};
+        let /** PathInfo */ info = {path : ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         // Normalize fancy native splice handling of crazy start values
         if (start < 0) {
@@ -1887,7 +1899,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       shift(path) {
-        let info = {};
+        let /** PathInfo */ info = {path: ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let hadLength = Boolean(array.length);
         let ret = array.shift();
@@ -1912,7 +1924,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       unshift(path, ...items) {
-        let info = {};
+        let /** PathInfo */ info = {path: ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let ret = array.unshift(...items);
         if (items.length) {
@@ -1938,7 +1950,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let propPath;
         if (arguments.length == 1) {
           // Get value if not supplied
-          let info = {};
+          let /** PathInfo */ info = {path: ''};
           value = Polymer.Path.get(this, path, info);
           propPath = info.path;
         } else if (Array.isArray(path)) {
@@ -2236,7 +2248,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   bound template for the class. When true (as passed from
        *   `_stampTemplate`), the template info is instanced and linked into
        *   the list of bound templates.
-       * @return {Object} Template metadata object; for `runtimeBinding`,
+       * @return {!TemplateInfo} Template metadata object; for `runtimeBinding`,
        *   this is an instance of the prototypical template info
        * @protected
        */
@@ -2253,7 +2265,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (instanceBinding) {
           // For instance-time binding, create instance of template metadata
           // and link into list of templates if necessary
-          templateInfo = Object.create(templateInfo);
+          templateInfo = /** @type {!TemplateInfo} */(Object.create(templateInfo));
           templateInfo.wasPreBound = wasPreBound;
           if (!wasPreBound && this.__templateInfo) {
             let last = this.__templateInfoLast || this.__templateInfo;
@@ -2300,8 +2312,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * any styles required by in runtime-stamped templates must be included
        * in the main element template.
        *
-       * @param {HTMLTemplateElement} template Template to stamp
-       * @return {DocumentFragment} Cloned template content
+       * @param {!HTMLTemplateElement} template Template to stamp
+       * @return {!StampedTemplate} Cloned template content
+       * @override
        * @protected
        */
       _stampTemplate(template) {
@@ -2310,7 +2323,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         hostStack.beginHosting(this);
         let dom = super._stampTemplate(template);
         hostStack.endHosting(this);
-        let templateInfo = this._bindTemplate(template, true);
+        let templateInfo = /** @type {!TemplateInfo} */(this._bindTemplate(template, true));
         // Add template-instance-specific data to instanced templateInfo
         templateInfo.nodeList = dom.nodeList;
         // Capture child nodes to allow unstamping of non-prototypical templates
@@ -2335,7 +2348,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Removes and unbinds the nodes previously contained in the provided
        * DocumentFragment returned from `_stampTemplate`.
        *
-       * @param {DocumentFragment} dom DocumentFragment previously returned
+       * @param {!StampedTemplate} dom DocumentFragment previously returned
        *   from `_stampTemplate` associated with the nodes to be removed
        * @protected
        */
@@ -2372,11 +2385,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @override
        * @param {Node} node Node to parse
-       * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template node
+       * @param {TemplateInfo} templateInfo Template metadata for current template
+       * @param {NodeInfo} nodeInfo Node metadata for current template node
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        * @protected
+       * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
       static _parseTemplateNode(node, templateInfo, nodeInfo) {
         let noted = super._parseTemplateNode(node, templateInfo, nodeInfo);
@@ -2404,11 +2418,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @override
        * @param {Element} node Node to parse
-       * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template node
+       * @param {TemplateInfo} templateInfo Template metadata for current template
+       * @param {NodeInfo} nodeInfo Node metadata for current template node
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        * @protected
+       * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
       static _parseTemplateNodeAttribute(node, templateInfo, nodeInfo, name, value) {
         let parts = this._parseBindings(value, templateInfo);
@@ -2455,11 +2470,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @override
        * @param {Node} node Node to parse
-       * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template node
+       * @param {TemplateInfo} templateInfo Template metadata for current template
+       * @param {NodeInfo} nodeInfo Node metadata for current template node
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        * @protected
+       * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
       static _parseTemplateNestedTemplate(node, templateInfo, nodeInfo) {
         let noted = super._parseTemplateNestedTemplate(node, templateInfo, nodeInfo);
@@ -2503,7 +2519,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string} text Text to parse from attribute or textContent
        * @param {Object} templateInfo Current template metadata
-       * @return {Array<Object>} Array of binding part metadata
+       * @return {Array<!BindingPart>} Array of binding part metadata
        * @protected
        */
       static _parseBindings(text, templateInfo) {
@@ -2525,7 +2541,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           let mode = m[1][0];
           let negate = Boolean(m[2]);
           let source = m[3].trim();
-          let customEvent, notifyEvent, colon;
+          let customEvent = false, notifyEvent = '', colon = -1;
           if (mode == '{' && (colon = source.indexOf('::')) > 0) {
             notifyEvent = source.substring(colon + 2);
             source = source.substring(0, colon);
@@ -2579,7 +2595,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {this} inst Element that should be used as scope for
        *   binding dependencies
-       * @param {Object} part Binding part metadata
+       * @param {BindingPart} part Binding part metadata
        * @param {string} path Property/path that triggered this effect
        * @param {Object} props Bag of current property changes
        * @param {Object} oldProps Bag of previous values for changed properties
@@ -2608,6 +2624,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     }
 
+    // make a typing for closure :P
     PropertyEffectsType = PropertyEffects;
 
     return PropertyEffects;

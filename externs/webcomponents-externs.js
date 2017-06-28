@@ -39,6 +39,9 @@ let ShadyDOM = {
 
 window.ShadyDOM = ShadyDOM;
 
+/** @type {function(this:ShadowRoot)} */
+ShadowRoot.prototype.forceRender;
+
 let WebComponents = {};
 window.WebComponents = WebComponents;
 

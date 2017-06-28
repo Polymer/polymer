@@ -24,6 +24,7 @@ const size = require('gulp-size');
 const lazypipe = require('lazypipe');
 const closure = require('google-closure-compiler').gulp();
 const minimalDocument = require('./util/minimalDocument.js')
+const dom5 = require('dom5');
 
 const DIST_DIR = 'dist';
 const BUNDLED_DIR = path.join(DIST_DIR, 'bundled');
@@ -94,16 +95,43 @@ class Uniq extends Transform {
 let CLOSURE_LINT_ONLY = false;
 let EXPECTED_WARNING_COUNT = 498;
 
-gulp.task('clean', () => del(DIST_DIR));
+let firstImportFinder = dom5.predicates.AND(dom5.predicates.hasTagName('link'), dom5.predicates.hasAttrValue('rel', 'import'));
+
+class AddClosureOnlyImport extends Transform {
+  constructor(fileName, dependency) {
+    super({objectMode: true});
+    this.target = path.resolve(fileName);
+    this.importPath = path.resolve(dependency);
+  }
+  _transform(file, enc, cb) {
+    if (file.path === this.target) {
+      let contents = file.contents.toString();
+      let html = dom5.parse(contents, {locationInfo: true});
+      let firstImport = dom5.query(html, firstImportFinder);
+      if (firstImport) {
+        let importPath = path.relative(path.dirname(this.target), this.importPath);
+        let importLink = dom5.constructors.element('link');
+        dom5.setAttribute(importLink, 'rel', 'import');
+        dom5.setAttribute(importLink, 'href', importPath);
+        dom5.insertBefore(firstImport.parentNode, firstImport, importLink);
+        file.contents = Buffer(dom5.serialize(html));
+      }
+    }
+    cb(null, file);
+  }
+}
+
+gulp.task('clean', () => del([DIST_DIR, 'closure.log']));
 
 gulp.task('closure', ['clean'], () => {
 
-  let entry, splitRx, joinRx;
+  let entry, splitRx, joinRx, closureImportAdder;
 
   function config(path) {
     entry = path;
     joinRx = new RegExp(path.split('/').join('\\/'));
     splitRx = new RegExp(joinRx.source + '_script_\\d+\\.js$');
+    closureImportAdder = new AddClosureOnlyImport(entry, 'externs/polymer-closure-types.html');
   }
 
   config('polymer.html');
@@ -114,6 +142,9 @@ gulp.task('closure', ['clean'], () => {
     fragments: [
       'bower_components/shadycss/apply-shim.html',
       'bower_components/shadycss/custom-style-interface.html'
+    ],
+    extraDependencies: [
+      closureImportAdder.importPath
     ]
   });
 
@@ -148,6 +179,7 @@ gulp.task('closure', ['clean'], () => {
     new_type_inf: true,
     checks_only: CLOSURE_LINT_ONLY,
     polymer_version: 2,
+    // tracer_mode: 'TIMING_ONLY',
     externs: [
       'bower_components/shadycss/externs/shadycss-externs.js',
       'externs/webcomponents-externs.js',
@@ -178,6 +210,7 @@ gulp.task('closure', ['clean'], () => {
 
   const splitter = new polymer.HtmlSplitter();
   return mergedFiles
+    .pipe(closureImportAdder)
     .pipe(project.bundler())
     .pipe(new Uniq())
     .pipe(splitter.split())

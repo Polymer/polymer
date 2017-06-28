@@ -6,7 +6,7 @@
 /* eslint-disable */
 
 /**
- * @typedef Object<string, {
+ * @typedef {Object<string, {
  *   value: *,
  *   type: (Function | undefined),
  *   readOnly: (boolean | undefined),
@@ -14,7 +14,7 @@
  *   reflectToAttribute: (boolean | undefined),
  *   notify: (boolean | undefined),
  *   observer: (string | undefined)
- * }>)
+ * }>}
  */
 let PolymerElementProperties;
 
@@ -31,7 +31,7 @@ let PolymerElementProperties;
  */
 let PolymerInit;
 
-let PolymerElementConstructor = function () { };
+let PolymerElementConstructor = function (){};
 /** @type {(string | undefined)} */
 PolymerElementConstructor.is;
 /** @type {(string | undefined)} */
@@ -48,6 +48,9 @@ PolymerElementConstructor.template;
  * @return {!HTMLElement}
  */
 function Polymer(init){}
+
+/** @type {PolymerElementProperties} */
+Polymer.ElementProperties;
 
 /**
  * @type {(function(*,string,string,Node):*)|undefined}
@@ -76,3 +79,5 @@ Polymer_PropertyEffects.prototype.__propagateEffects;
 Polymer_PropertyEffects.prototype.__observeEffects;
 /** @type {Object} */
 Polymer_PropertyEffects.prototype.__readOnly;
+/** @type {Polymer_PropertyEffects} */
+Polymer_PropertyEffects.prototype.__dataHost;

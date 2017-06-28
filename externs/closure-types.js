@@ -126,8 +126,8 @@ Polymer_PropertyAccessors.createPropertiesForAttributes = function(){};
 */
 function Polymer_TemplateStamp(){}
 /**
-* @param {HTMLTemplateElement} template Template to stamp
-* @return {DocumentFragment}
+* @param {!HTMLTemplateElement} template Template to stamp
+* @return {!StampedTemplate}
 */
 Polymer_TemplateStamp.prototype._stampTemplate = function(template){};
 /**
@@ -152,10 +152,10 @@ Polymer_TemplateStamp.prototype._addEventListenerToNode = function(node, eventNa
 */
 Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
-* @param {HTMLTemplateElement} template Template to parse
-* @param {Object=} outerTemplateInfo Template metadata from the outer
+* @param {!HTMLTemplateElement} template Template to parse
+* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
   template, for parsing nested templates
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_TemplateStamp._parseTemplate = function(template, outerTemplateInfo){};
 /**
@@ -166,36 +166,36 @@ Polymer_TemplateStamp._parseTemplate = function(template, outerTemplateInfo){};
 Polymer_TemplateStamp._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
 * @return {boolean}
 */
 Polymer_TemplateStamp._parseTemplateNode = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Node} root Root node whose `childNodes` will be parsed
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
 */
 Polymer_TemplateStamp._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
 /**
 * @param {HTMLTemplateElement} node Node to parse (a <template>)
-* @param {Object} outerTemplateInfo Template metadata for current template
+* @param {TemplateInfo} outerTemplateInfo Template metadata for current template
   that includes the template `node`
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
 * @return {boolean}
 */
 Polymer_TemplateStamp._parseTemplateNestedTemplate = function(node, outerTemplateInfo, nodeInfo){};
 /**
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template.
 * @return {boolean}
 */
 Polymer_TemplateStamp._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
 * @param {string} name Attribute name
 * @param {*} value Attribute value
 * @return {boolean}
@@ -213,8 +213,9 @@ Polymer_TemplateStamp._contentForTemplate = function(template){};
 */
 function Polymer_PropertyEffects(){}
 /**
-* @param {HTMLTemplateElement} template Template to stamp
-* @return {DocumentFragment}
+* @override
+* @param {!HTMLTemplateElement} template Template to stamp
+* @return {!StampedTemplate}
 */
 Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
 /**
@@ -553,19 +554,19 @@ Polymer_PropertyEffects.prototype._createComputedProperty = function(property, e
   bound template for the class. When true (as passed from
   `_stampTemplate`), the template info is instanced and linked into
   the list of bound templates.
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_PropertyEffects.prototype._bindTemplate = function(template, instanceBinding){};
 /**
-* @param {DocumentFragment} dom DocumentFragment previously returned
+* @param {!StampedTemplate} dom DocumentFragment previously returned
   from `_stampTemplate` associated with the nodes to be removed
 */
 Polymer_PropertyEffects.prototype._removeBoundDom = function(dom){};
 /**
-* @param {HTMLTemplateElement} template Template to parse
-* @param {Object=} outerTemplateInfo Template metadata from the outer
+* @param {!HTMLTemplateElement} template Template to parse
+* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
   template, for parsing nested templates
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_PropertyEffects._parseTemplate = function(template, outerTemplateInfo){};
 /**
@@ -577,37 +578,37 @@ Polymer_PropertyEffects._parseTemplateContent = function(template, templateInfo,
 /**
 * @override
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @return {boolean}
 */
 Polymer_PropertyEffects._parseTemplateNode = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Node} root Root node whose `childNodes` will be parsed
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
 */
 Polymer_PropertyEffects._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @return {boolean}
 */
 Polymer_PropertyEffects._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template.
 * @return {boolean}
 */
 Polymer_PropertyEffects._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @param {*} name 
 * @param {*} value 
 * @return {boolean}
@@ -676,13 +677,13 @@ Polymer_PropertyEffects._addTemplatePropertyEffect = function(templateInfo, prop
 /**
 * @param {string} text Text to parse from attribute or textContent
 * @param {Object} templateInfo Current template metadata
-* @return {Array.<Object>}
+* @return {Array.<!BindingPart>}
 */
 Polymer_PropertyEffects._parseBindings = function(text, templateInfo){};
 /**
 * @param {this} inst Element that should be used as scope for
   binding dependencies
-* @param {Object} part Binding part metadata
+* @param {BindingPart} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
 * @param {Object} props Bag of current property changes
 * @param {Object} oldProps Bag of previous values for changed properties
@@ -696,8 +697,9 @@ Polymer_PropertyEffects._evaluateBinding = function(inst, part, path, props, old
 */
 function Polymer_ElementMixin(){}
 /**
-* @param {HTMLTemplateElement} template Template to stamp
-* @return {DocumentFragment}
+* @override
+* @param {!HTMLTemplateElement} template Template to stamp
+* @return {!StampedTemplate}
 */
 Polymer_ElementMixin.prototype._stampTemplate = function(template){};
 /**
@@ -1039,20 +1041,18 @@ Polymer_ElementMixin.prototype._createComputedProperty = function(property, expr
   bound template for the class. When true (as passed from
   `_stampTemplate`), the template info is instanced and linked into
   the list of bound templates.
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_ElementMixin.prototype._bindTemplate = function(template, instanceBinding){};
 /**
-* @param {DocumentFragment} dom DocumentFragment previously returned
+* @param {!StampedTemplate} dom DocumentFragment previously returned
   from `_stampTemplate` associated with the nodes to be removed
 */
 Polymer_ElementMixin.prototype._removeBoundDom = function(dom){};
 /**
-* @override
 */
 Polymer_ElementMixin.prototype.connectedCallback = function(){};
 /**
-* @override
 */
 Polymer_ElementMixin.prototype.disconnectedCallback = function(){};
 /**
@@ -1073,10 +1073,10 @@ to the element's `importPath`
 */
 Polymer_ElementMixin.prototype.resolveUrl = function(url, base){};
 /**
-* @param {HTMLTemplateElement} template Template to parse
-* @param {Object=} outerTemplateInfo Template metadata from the outer
+* @param {!HTMLTemplateElement} template Template to parse
+* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
   template, for parsing nested templates
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_ElementMixin._parseTemplate = function(template, outerTemplateInfo){};
 /**
@@ -1086,37 +1086,37 @@ Polymer_ElementMixin._parseTemplateContent = function(template, templateInfo, no
 /**
 * @override
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @return {boolean}
 */
 Polymer_ElementMixin._parseTemplateNode = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Node} root Root node whose `childNodes` will be parsed
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
 */
 Polymer_ElementMixin._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @return {boolean}
 */
 Polymer_ElementMixin._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template.
 * @return {boolean}
 */
 Polymer_ElementMixin._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @param {*} name 
 * @param {*} value 
 * @return {boolean}
@@ -1185,13 +1185,13 @@ Polymer_ElementMixin._addTemplatePropertyEffect = function(templateInfo, prop, e
 /**
 * @param {string} text Text to parse from attribute or textContent
 * @param {Object} templateInfo Current template metadata
-* @return {Array.<Object>}
+* @return {Array.<!BindingPart>}
 */
 Polymer_ElementMixin._parseBindings = function(text, templateInfo){};
 /**
 * @param {this} inst Element that should be used as scope for
   binding dependencies
-* @param {Object} part Binding part metadata
+* @param {BindingPart} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
 * @param {Object} props Bag of current property changes
 * @param {Object} oldProps Bag of previous values for changed properties
@@ -1225,8 +1225,9 @@ Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(
 */
 function Polymer_LegacyElementMixin(){}
 /**
-* @param {HTMLTemplateElement} template Template to stamp
-* @return {DocumentFragment}
+* @override
+* @param {!HTMLTemplateElement} template Template to stamp
+* @return {!StampedTemplate}
 */
 Polymer_LegacyElementMixin.prototype._stampTemplate = function(template){};
 /**
@@ -1568,11 +1569,11 @@ Polymer_LegacyElementMixin.prototype._createComputedProperty = function(property
   bound template for the class. When true (as passed from
   `_stampTemplate`), the template info is instanced and linked into
   the list of bound templates.
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_LegacyElementMixin.prototype._bindTemplate = function(template, instanceBinding){};
 /**
-* @param {DocumentFragment} dom DocumentFragment previously returned
+* @param {!StampedTemplate} dom DocumentFragment previously returned
   from `_stampTemplate` associated with the nodes to be removed
 */
 Polymer_LegacyElementMixin.prototype._removeBoundDom = function(dom){};
@@ -1888,10 +1889,10 @@ Polymer_LegacyElementMixin.prototype._error = function(args){};
 */
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
 /**
-* @param {HTMLTemplateElement} template Template to parse
-* @param {Object=} outerTemplateInfo Template metadata from the outer
+* @param {!HTMLTemplateElement} template Template to parse
+* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
   template, for parsing nested templates
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_LegacyElementMixin._parseTemplate = function(template, outerTemplateInfo){};
 /**
@@ -1901,37 +1902,37 @@ Polymer_LegacyElementMixin._parseTemplateContent = function(template, templateIn
 /**
 * @override
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @return {boolean}
 */
 Polymer_LegacyElementMixin._parseTemplateNode = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Node} root Root node whose `childNodes` will be parsed
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
 */
 Polymer_LegacyElementMixin._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @return {boolean}
 */
 Polymer_LegacyElementMixin._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template.
 * @return {boolean}
 */
 Polymer_LegacyElementMixin._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @param {*} name 
 * @param {*} value 
 * @return {boolean}
@@ -2000,13 +2001,13 @@ Polymer_LegacyElementMixin._addTemplatePropertyEffect = function(templateInfo, p
 /**
 * @param {string} text Text to parse from attribute or textContent
 * @param {Object} templateInfo Current template metadata
-* @return {Array.<Object>}
+* @return {Array.<!BindingPart>}
 */
 Polymer_LegacyElementMixin._parseBindings = function(text, templateInfo){};
 /**
 * @param {this} inst Element that should be used as scope for
   binding dependencies
-* @param {Object} part Binding part metadata
+* @param {BindingPart} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
 * @param {Object} props Bag of current property changes
 * @param {Object} oldProps Bag of previous values for changed properties
@@ -2053,18 +2054,19 @@ Polymer_ArraySelectorMixin.prototype.items;
 /** @type {boolean} */
 Polymer_ArraySelectorMixin.prototype.multi;
 
-/** @type {Object} */
+/** @type {?(Object|Array.<!Object>)} */
 Polymer_ArraySelectorMixin.prototype.selected;
 
-/** @type {Object} */
+/** @type {?Object} */
 Polymer_ArraySelectorMixin.prototype.selectedItem;
 
 /** @type {boolean} */
 Polymer_ArraySelectorMixin.prototype.toggle;
 
 /**
-* @param {HTMLTemplateElement} template Template to stamp
-* @return {DocumentFragment}
+* @override
+* @param {!HTMLTemplateElement} template Template to stamp
+* @return {!StampedTemplate}
 */
 Polymer_ArraySelectorMixin.prototype._stampTemplate = function(template){};
 /**
@@ -2406,20 +2408,18 @@ Polymer_ArraySelectorMixin.prototype._createComputedProperty = function(property
   bound template for the class. When true (as passed from
   `_stampTemplate`), the template info is instanced and linked into
   the list of bound templates.
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_ArraySelectorMixin.prototype._bindTemplate = function(template, instanceBinding){};
 /**
-* @param {DocumentFragment} dom DocumentFragment previously returned
+* @param {!StampedTemplate} dom DocumentFragment previously returned
   from `_stampTemplate` associated with the nodes to be removed
 */
 Polymer_ArraySelectorMixin.prototype._removeBoundDom = function(dom){};
 /**
-* @override
 */
 Polymer_ArraySelectorMixin.prototype.connectedCallback = function(){};
 /**
-* @override
 */
 Polymer_ArraySelectorMixin.prototype.disconnectedCallback = function(){};
 /**
@@ -2448,7 +2448,7 @@ Polymer_ArraySelectorMixin.prototype.clearSelection = function(){};
 */
 Polymer_ArraySelectorMixin.prototype.isSelected = function(item){};
 /**
-* @param {*} idx Index from `items` array to test
+* @param {number} idx Index from `items` array to test
 * @return {boolean}
 */
 Polymer_ArraySelectorMixin.prototype.isIndexSelected = function(idx){};
@@ -2469,10 +2469,10 @@ Polymer_ArraySelectorMixin.prototype.select = function(item){};
 */
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
 /**
-* @param {HTMLTemplateElement} template Template to parse
-* @param {Object=} outerTemplateInfo Template metadata from the outer
+* @param {!HTMLTemplateElement} template Template to parse
+* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
   template, for parsing nested templates
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_ArraySelectorMixin._parseTemplate = function(template, outerTemplateInfo){};
 /**
@@ -2482,37 +2482,37 @@ Polymer_ArraySelectorMixin._parseTemplateContent = function(template, templateIn
 /**
 * @override
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @return {boolean}
 */
 Polymer_ArraySelectorMixin._parseTemplateNode = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Node} root Root node whose `childNodes` will be parsed
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
 */
 Polymer_ArraySelectorMixin._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Node} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @return {boolean}
 */
 Polymer_ArraySelectorMixin._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
 /**
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template.
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template.
 * @return {boolean}
 */
 Polymer_ArraySelectorMixin._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Element} node Node to parse
-* @param {Object} templateInfo Template metadata for current template
-* @param {Object} nodeInfo Node metadata for current template node
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
 * @param {*} name 
 * @param {*} value 
 * @return {boolean}
@@ -2581,13 +2581,13 @@ Polymer_ArraySelectorMixin._addTemplatePropertyEffect = function(templateInfo, p
 /**
 * @param {string} text Text to parse from attribute or textContent
 * @param {Object} templateInfo Current template metadata
-* @return {Array.<Object>}
+* @return {Array.<!BindingPart>}
 */
 Polymer_ArraySelectorMixin._parseBindings = function(text, templateInfo){};
 /**
 * @param {this} inst Element that should be used as scope for
   binding dependencies
-* @param {Object} part Binding part metadata
+* @param {BindingPart} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
 * @param {Object} props Bag of current property changes
 * @param {Object} oldProps Bag of previous values for changed properties
