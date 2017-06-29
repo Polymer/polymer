@@ -64,20 +64,18 @@ Polymer.sanitizeDOMValue;
  */
 function JSCompiler_renameProperty(string, obj) {}
 
-/** @type {Object} */
-Polymer.telemetry;
+/** @record */
+function PolymerTelemetry(){}
+/** @type {number} */
+PolymerTelemetry.instanceCount;
+/** @type {Array<HTMLElement>} */
+PolymerTelemetry.registrations;
+/** @type {function(HTMLElement)} */
+PolymerTelemetry._regLog;
+/** @type {function(HTMLElement)} */
+PolymerTelemetry.register;
+/** @type {function(HTMLElement)} */
+PolymerTelemetry.dumpRegistrations;;
 
-/** @type {Object} */
-Polymer_PropertyEffects.prototype.__computeEffects;
-/** @type {Object} */
-Polymer_PropertyEffects.prototype.__reflectEffects;
-/** @type {Object} */
-Polymer_PropertyEffects.prototype.__notifyEffects;
-/** @type {Object} */
-Polymer_PropertyEffects.prototype.__propagateEffects;
-/** @type {Object} */
-Polymer_PropertyEffects.prototype.__observeEffects;
-/** @type {Object} */
-Polymer_PropertyEffects.prototype.__readOnly;
-/** @type {Polymer_PropertyEffects} */
-Polymer_PropertyEffects.prototype.__dataHost;
+/** @type {PolymerTelemetry} */
+Polymer.telemetry;

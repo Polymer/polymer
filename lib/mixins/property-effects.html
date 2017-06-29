@@ -236,7 +236,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   function runNotifyEffects(inst, notifyProps, props, oldProps, hasPaths) {
     // Notify
-    let fxs = inst.__notifyEffects;
+    let fxs = inst[TYPES.NOTIFY];
     let notified;
     let id = dedupeId++;
     // Try normal notify effects; if none, fall back to try path notification
@@ -352,7 +352,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       value = event.target[fromProp];
     }
     value = negate ? !value : value;
-    if (!inst.__readOnly || !inst.__readOnly[toPath]) {
+    if (!inst[TYPES.READ_ONLY] || !inst[TYPES.READ_ONLY][toPath]) {
       if (inst._setPendingPropertyOrPath(toPath, value, true, Boolean(fromPath))
         && (!detail || !detail.queueProperty)) {
         inst._invalidateProperties();
@@ -397,7 +397,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @private
    */
   function runComputedEffects(inst, changedProps, oldProps, hasPaths) {
-    let computeEffects = inst.__computeEffects;
+    let computeEffects = inst[TYPES.COMPUTE];
     if (computeEffects) {
       let inputProps = changedProps;
       while (runEffects(inst, computeEffects, inputProps, oldProps, hasPaths)) {
@@ -592,7 +592,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // Property binding
       let prop = binding.target;
       if (node.__dataHasAccessor && node.__dataHasAccessor[prop]) {
-        if (!node.__readOnly || !node.__readOnly[prop]) {
+        if (!node[TYPES.READ_ONLY] || !node[TYPES.READ_ONLY][prop]) {
           if (node._setPendingProperty(prop, value)) {
             inst._enqueueClient(node);
           }
@@ -1195,7 +1195,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {Object} props Properties to initialize on the instance
        */
       _initializeInstanceProperties(props) {
-        let readOnly = this.__readOnly;
+        let readOnly = this[TYPES.READ_ONLY];
         for (let prop in props) {
           if (!readOnly || !readOnly[prop]) {
             this.__dataPending = this.__dataPending || {};
@@ -1455,7 +1455,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // All changes go into pending property bag, passed to _propertiesChanged
           this.__dataPending[property] = value;
           // Track properties that should notify separately
-          if (isPath || (this.__notifyEffects && this.__notifyEffects[property])) {
+          if (isPath || (this[TYPES.NOTIFY] && this[TYPES.NOTIFY][property])) {
             this.__dataToNotify = this.__dataToNotify || {};
             this.__dataToNotify[property] = shouldNotify;
           }
@@ -1578,7 +1578,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       setProperties(props, setReadOnly) {
         for (let path in props) {
-          if (setReadOnly || !this.__readOnly || !this.__readOnly[path]) {
+          if (setReadOnly || !this[TYPES.READ_ONLY] || !this[TYPES.READ_ONLY][path]) {
             //TODO(kschaaf): explicitly disallow paths in setProperty?
             // wildcard observers currently only pass the first changed path
             // in the `info` object, and you could do some odd things batching
@@ -1642,9 +1642,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Flush clients
         this._flushClients();
         // Reflect properties
-        runEffects(this, this.__reflectEffects, changedProps, oldProps, hasPaths);
+        runEffects(this, this[TYPES.REFLECT], changedProps, oldProps, hasPaths);
         // Observe properties
-        runEffects(this, this.__observeEffects, changedProps, oldProps, hasPaths);
+        runEffects(this, this[TYPES.OBSERVE], changedProps, oldProps, hasPaths);
         // Notify properties to host
         if (notifyProps) {
           runNotifyEffects(this, notifyProps, changedProps, oldProps, hasPaths);
@@ -1668,10 +1668,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _propagatePropertyChanges(changedProps, oldProps, hasPaths) {
-        if (this.__propagateEffects) {
-          runEffects(this, this.__propagateEffects, changedProps, oldProps, hasPaths);
+        if (this[TYPES.PROPAGATE]) {
+          runEffects(this, this[TYPES.PROPAGATE], changedProps, oldProps, hasPaths);
         }
-        let templateInfo = /** @type {TemplateInfo} */(this.__templateInfo);
+        let templateInfo = this.__templateInfo;
         while (templateInfo) {
           runEffects(this, templateInfo.propertyEffects, changedProps, oldProps,
             hasPaths, templateInfo.nodeList);
@@ -1740,7 +1740,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
       */
       notifySplices(path, splices) {
-        let /** PathInfo */ info = {path: ''};
+        let info = {path: ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         notifySplices(this, array, info.path, splices);
       }
@@ -1792,7 +1792,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (root) {
           Polymer.Path.set(root, path, value);
         } else {
-          if (!this.__readOnly || !this.__readOnly[/** @type {string} */(path)]) {
+          if (!this[TYPES.READ_ONLY] || !this[TYPES.READ_ONLY][/** @type {string} */(path)]) {
             if (this._setPendingPropertyOrPath(path, value, true)) {
               this._invalidateProperties();
             }
@@ -1815,7 +1815,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       push(path, ...items) {
-        let /** PathInfo */ info = {path: ''};
+        let info = {path: ''};
         let array = /** @type {Array}*/(Polymer.Path.get(this, path, info));
         let len = array.length;
         let ret = array.push(...items);
@@ -1839,7 +1839,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       pop(path) {
-        let /** PathInfo */ info = {path: ''};
+        let info = {path: ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let hadLength = Boolean(array.length);
         let ret = array.pop();
@@ -1867,7 +1867,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       splice(path, start, deleteCount, ...items) {
-        let /** PathInfo */ info = {path : ''};
+        let info = {path : ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         // Normalize fancy native splice handling of crazy start values
         if (start < 0) {
@@ -1899,7 +1899,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       shift(path) {
-        let /** PathInfo */ info = {path: ''};
+        let info = {path: ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let hadLength = Boolean(array.length);
         let ret = array.shift();
@@ -1924,7 +1924,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       unshift(path, ...items) {
-        let /** PathInfo */ info = {path: ''};
+        let info = {path: ''};
         let array = /** @type {Array} */(Polymer.Path.get(this, path, info));
         let ret = array.unshift(...items);
         if (items.length) {
@@ -1950,7 +1950,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let propPath;
         if (arguments.length == 1) {
           // Get value if not supplied
-          let /** PathInfo */ info = {path: ''};
+          let info = {path: ''};
           value = Polymer.Path.get(this, path, info);
           propPath = info.path;
         } else if (Array.isArray(path)) {

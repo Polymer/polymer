@@ -37,7 +37,7 @@ const PolymerProject = polymer.PolymerProject;
 
 const {Transform} = require('stream');
 
-class OldNameStream extends Transform {
+class BackfillStream extends Transform {
   constructor(fileList) {
     super({objectMode: true});
     this.fileList = fileList;
@@ -63,45 +63,15 @@ class OldNameStream extends Transform {
   }
 }
 
-class Log extends Transform {
-  constructor(prefix = '') {
-    super({objectMode: true});
-    this.prefix = prefix;
-  }
-  _transform(file, enc, cb) {
-    console.log(this.prefix, file.path);
-    cb(null, file);
-  }
-}
-
-class Uniq extends Transform {
-  constructor() {
-    super({ objectMode: true });
-    this.map = {};
-  }
-  _transform(file, enc, cb) {
-    this.map[file.path] = file;
-    cb();
-  }
-  _flush(done) {
-    for (let filePath in this.map) {
-      let file = this.map[filePath];
-      this.push(file);
-    }
-    done();
-  }
-}
-
 let CLOSURE_LINT_ONLY = false;
-let EXPECTED_WARNING_COUNT = 498;
 
 let firstImportFinder = dom5.predicates.AND(dom5.predicates.hasTagName('link'), dom5.predicates.hasAttrValue('rel', 'import'));
 
-class AddClosureOnlyImport extends Transform {
-  constructor(fileName, dependency) {
+class AddClosureTypeImport extends Transform {
+  constructor(entryFileName, typeFileName) {
     super({objectMode: true});
-    this.target = path.resolve(fileName);
-    this.importPath = path.resolve(dependency);
+    this.target = path.resolve(entryFileName);
+    this.importPath = path.resolve(typeFileName);
   }
   _transform(file, enc, cb) {
     if (file.path === this.target) {
@@ -125,13 +95,13 @@ gulp.task('clean', () => del([DIST_DIR, 'closure.log']));
 
 gulp.task('closure', ['clean'], () => {
 
-  let entry, splitRx, joinRx, closureImportAdder;
+  let entry, splitRx, joinRx, addClosureTypes;
 
   function config(path) {
     entry = path;
     joinRx = new RegExp(path.split('/').join('\\/'));
     splitRx = new RegExp(joinRx.source + '_script_\\d+\\.js$');
-    closureImportAdder = new AddClosureOnlyImport(entry, 'externs/polymer-closure-types.html');
+    addClosureTypes = new AddClosureTypeImport(entry, 'externs/polymer-closure-types.html');
   }
 
   config('polymer.html');
@@ -144,20 +114,17 @@ gulp.task('closure', ['clean'], () => {
       'bower_components/shadycss/custom-style-interface.html'
     ],
     extraDependencies: [
-      closureImportAdder.importPath
+      addClosureTypes.importPath,
+      'externs/closure-types.js'
     ]
   });
 
   function closureLintLogger(log) {
     let chalk = require('chalk');
-    let result = log.split(/\n/).slice(-2)[0];
-    let warnings = result.match(/(\d+) warning/);
     // write out log to use with diffing tools later
     fs.writeFileSync('closure.log', chalk.stripColor(log));
-    if (warnings && Number(warnings[1]) > EXPECTED_WARNING_COUNT) {
-      console.error(chalk.red(`closure linting: actual warning count ${warnings[1]} greater than expected warning count ${EXPECTED_WARNING_COUNT}`));
-      process.exit(1);
-    }
+    console.error(log);
+    process.exit(-1);
   }
 
   let closurePluginOptions;
@@ -197,7 +164,7 @@ gulp.task('closure', ['clean'], () => {
 
   const closurePipeline = lazypipe()
     .pipe(() => closureStream)
-    .pipe(() => new OldNameStream(closureStream.fileList_))
+    .pipe(() => new BackfillStream(closureStream.fileList_))
 
   // process source files in the project
   const sources = project.sources();
@@ -210,9 +177,8 @@ gulp.task('closure', ['clean'], () => {
 
   const splitter = new polymer.HtmlSplitter();
   return mergedFiles
-    .pipe(closureImportAdder)
+    .pipe(addClosureTypes)
     .pipe(project.bundler())
-    .pipe(new Uniq())
     .pipe(splitter.split())
     .pipe(gulpif(splitRx, closurePipeline()))
     .pipe(splitter.rejoin())
@@ -260,7 +226,6 @@ gulp.task('estimate-size', ['clean'], () => {
   return mergedFiles
     .pipe(project.bundler())
     .pipe(gulpif(/polymer\.html$/, bundlePipe()))
-    .pipe(new Uniq())
     .pipe(gulpif(/polymer\.html$/, size({ title: 'bundled size', gzip: true, showTotal: false, showFiles: true })))
     // write to the bundled folder
     .pipe(gulp.dest(BUNDLED_DIR))
