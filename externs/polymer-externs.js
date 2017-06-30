@@ -6,15 +6,20 @@
 /* eslint-disable */
 
 /**
- * @typedef {Object<string, {
- *   value: *,
- *   type: (Function | undefined),
- *   readOnly: (boolean | undefined),
- *   computed: (string | undefined),
- *   reflectToAttribute: (boolean | undefined),
- *   notify: (boolean | undefined),
- *   observer: (string | undefined)
- * }>}
+ * @typedef {{
+ * value: *,
+ * type: (!Function | undefined),
+ * readOnly: (boolean | undefined),
+ * computed: (string | undefined),
+ * reflectToAttribute: (boolean | undefined),
+ * notify: (boolean | undefined),
+ * observer: (string | undefined)
+ * }}
+ */
+let PolymerElementPropertiesMeta;
+
+/**
+ * @typedef {Object<string, !PolymerElementPropertiesMeta>}
  */
 let PolymerElementProperties;
 

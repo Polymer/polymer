@@ -197,7 +197,7 @@ Polymer_TemplateStamp._parseTemplateNodeAttributes = function(node, templateInfo
 * @param {!TemplateInfo} templateInfo Template metadata for current template
 * @param {!NodeInfo} nodeInfo Node metadata for current template.
 * @param {string} name Attribute name
-* @param {*} value Attribute value
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_TemplateStamp._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
