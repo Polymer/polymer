@@ -145,7 +145,7 @@ gulp.task('closure', ['clean'], () => {
     rewrite_polyfills: false,
     new_type_inf: true,
     checks_only: CLOSURE_LINT_ONLY,
-    polymer_version: 2,
+    // polymer_version: 2,
     // tracer_mode: 'TIMING_ONLY',
     externs: [
       'bower_components/shadycss/externs/shadycss-externs.js',
