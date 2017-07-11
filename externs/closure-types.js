@@ -1,14 +1,13 @@
 
 /**
  * @fileoverview Closure types for Polymer mixins
- * @externs
  *
  * This file is generated, do not edit manually
  */
 /* eslint-disable no-unused-vars, strict */
 
 /**
-* @record
+* @interface
 */
 function Polymer_PropertyAccessors(){}
 /**
@@ -18,6 +17,7 @@ function Polymer_PropertyAccessors(){}
 */
 Polymer_PropertyAccessors.prototype.attributeChangedCallback = function(name, old, value){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyAccessors.prototype._initializeProperties = function(){};
 /**
@@ -92,15 +92,19 @@ Polymer_PropertyAccessors.prototype._setPendingProperty = function(property, val
 */
 Polymer_PropertyAccessors.prototype._isPropertyPending = function(prop){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyAccessors.prototype._invalidateProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyAccessors.prototype._enableProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyAccessors.prototype._flushProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyAccessors.prototype.ready = function(){};
 /**
@@ -122,7 +126,7 @@ Polymer_PropertyAccessors.prototype._shouldPropertyChange = function(property, v
 */
 Polymer_PropertyAccessors.createPropertiesForAttributes = function(){};
 /**
-* @record
+* @interface
 */
 function Polymer_TemplateStamp(){}
 /**
@@ -207,7 +211,7 @@ Polymer_TemplateStamp._parseTemplateNodeAttribute = function(node, templateInfo,
 */
 Polymer_TemplateStamp._contentForTemplate = function(template){};
 /**
-* @record
+* @interface
 * @extends {Polymer_TemplateStamp}
 * @extends {Polymer_PropertyAccessors}
 */
@@ -246,6 +250,7 @@ Polymer_PropertyEffects.prototype._removeEventListenerFromNode = function(node, 
 */
 Polymer_PropertyEffects.prototype.attributeChangedCallback = function(name, old, value){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyEffects.prototype._initializeProperties = function(){};
 /**
@@ -326,9 +331,11 @@ Polymer_PropertyEffects.prototype._isPropertyPending = function(prop){};
 */
 Polymer_PropertyEffects.prototype._invalidateProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyEffects.prototype._enableProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyEffects.prototype._flushProperties = function(){};
 /**
@@ -408,9 +415,11 @@ Polymer_PropertyEffects.prototype._setUnmanagedPropertyToNode = function(node, p
 */
 Polymer_PropertyEffects.prototype._enqueueClient = function(client){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyEffects.prototype._flushClients = function(){};
 /**
+* @return {undefined}
 */
 Polymer_PropertyEffects.prototype._readyClients = function(){};
 /**
@@ -692,7 +701,7 @@ Polymer_PropertyEffects._parseBindings = function(text, templateInfo){};
 */
 Polymer_PropertyEffects._evaluateBinding = function(inst, part, path, props, oldProps, hasPaths){};
 /**
-* @record
+* @interface
 * @extends {Polymer_PropertyEffects}
 */
 function Polymer_ElementMixin(){}
@@ -812,9 +821,11 @@ Polymer_ElementMixin.prototype._isPropertyPending = function(prop){};
 */
 Polymer_ElementMixin.prototype._invalidateProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_ElementMixin.prototype._enableProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_ElementMixin.prototype._flushProperties = function(){};
 /**
@@ -894,6 +905,7 @@ Polymer_ElementMixin.prototype._setUnmanagedPropertyToNode = function(node, prop
 */
 Polymer_ElementMixin.prototype._enqueueClient = function(client){};
 /**
+* @return {undefined}
 */
 Polymer_ElementMixin.prototype._flushClients = function(){};
 /**
@@ -1050,9 +1062,11 @@ Polymer_ElementMixin.prototype._bindTemplate = function(template, instanceBindin
 */
 Polymer_ElementMixin.prototype._removeBoundDom = function(dom){};
 /**
+* @return {undefined}
 */
 Polymer_ElementMixin.prototype.connectedCallback = function(){};
 /**
+* @return {undefined}
 */
 Polymer_ElementMixin.prototype.disconnectedCallback = function(){};
 /**
@@ -1203,7 +1217,7 @@ Polymer_ElementMixin._evaluateBinding = function(inst, part, path, props, oldPro
 */
 Polymer_ElementMixin.finalize = function(){};
 /**
-* @record
+* @interface
 */
 function Polymer_GestureEventListeners(){}
 /**
@@ -1219,7 +1233,7 @@ Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node,
 */
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
-* @record
+* @interface
 * @extends {Polymer_ElementMixin}
 * @extends {Polymer_GestureEventListeners}
 */
@@ -1340,9 +1354,11 @@ Polymer_LegacyElementMixin.prototype._isPropertyPending = function(prop){};
 */
 Polymer_LegacyElementMixin.prototype._invalidateProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype._enableProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype._flushProperties = function(){};
 /**
@@ -1422,6 +1438,7 @@ Polymer_LegacyElementMixin.prototype._setUnmanagedPropertyToNode = function(node
 */
 Polymer_LegacyElementMixin.prototype._enqueueClient = function(client){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype._flushClients = function(){};
 /**
@@ -1603,12 +1620,15 @@ to the element's `importPath`
 */
 Polymer_LegacyElementMixin.prototype.resolveUrl = function(url, base){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype.created = function(){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype.attached = function(){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype.detached = function(){};
 /**
@@ -1618,12 +1638,15 @@ Polymer_LegacyElementMixin.prototype.detached = function(){};
 */
 Polymer_LegacyElementMixin.prototype.attributeChanged = function(name, old, value){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype._registered = function(){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype._ensureAttributes = function(){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype._applyListeners = function(){};
 /**
@@ -1710,6 +1733,7 @@ Polymer_LegacyElementMixin.prototype.setScrollDirection = function(direction, no
 */
 Polymer_LegacyElementMixin.prototype.$$ = function(slctr){};
 /**
+* @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype.distributeContent = function(){};
 /**
@@ -2019,7 +2043,7 @@ Polymer_LegacyElementMixin._evaluateBinding = function(inst, part, path, props, 
 */
 Polymer_LegacyElementMixin.finalize = function(){};
 /**
-* @record
+* @interface
 */
 function Polymer_MutableData(){}
 /**
@@ -2030,7 +2054,7 @@ function Polymer_MutableData(){}
 */
 Polymer_MutableData.prototype._shouldPropertyChange = function(property, value, old){};
 /**
-* @record
+* @interface
 */
 function Polymer_OptionalMutableData(){}
 /** @type {boolean} */
@@ -2044,7 +2068,7 @@ Polymer_OptionalMutableData.prototype.mutableData;
 */
 Polymer_OptionalMutableData.prototype._shouldPropertyChange = function(property, value, old){};
 /**
-* @record
+* @interface
 * @extends {Polymer_ElementMixin}
 */
 function Polymer_ArraySelectorMixin(){}
@@ -2179,9 +2203,11 @@ Polymer_ArraySelectorMixin.prototype._isPropertyPending = function(prop){};
 */
 Polymer_ArraySelectorMixin.prototype._invalidateProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_ArraySelectorMixin.prototype._enableProperties = function(){};
 /**
+* @return {undefined}
 */
 Polymer_ArraySelectorMixin.prototype._flushProperties = function(){};
 /**
@@ -2261,6 +2287,7 @@ Polymer_ArraySelectorMixin.prototype._setUnmanagedPropertyToNode = function(node
 */
 Polymer_ArraySelectorMixin.prototype._enqueueClient = function(client){};
 /**
+* @return {undefined}
 */
 Polymer_ArraySelectorMixin.prototype._flushClients = function(){};
 /**
@@ -2417,9 +2444,11 @@ Polymer_ArraySelectorMixin.prototype._bindTemplate = function(template, instance
 */
 Polymer_ArraySelectorMixin.prototype._removeBoundDom = function(dom){};
 /**
+* @return {undefined}
 */
 Polymer_ArraySelectorMixin.prototype.connectedCallback = function(){};
 /**
+* @return {undefined}
 */
 Polymer_ArraySelectorMixin.prototype.disconnectedCallback = function(){};
 /**
@@ -2440,6 +2469,7 @@ to the element's `importPath`
 */
 Polymer_ArraySelectorMixin.prototype.resolveUrl = function(url, base){};
 /**
+* @return {undefined}
 */
 Polymer_ArraySelectorMixin.prototype.clearSelection = function(){};
 /**
