@@ -25,6 +25,7 @@ const lazypipe = require('lazypipe');
 const closure = require('google-closure-compiler').gulp();
 const minimalDocument = require('./util/minimalDocument.js')
 const dom5 = require('dom5');
+const parse5 = require('parse5');
 
 const DIST_DIR = 'dist';
 const BUNDLED_DIR = path.join(DIST_DIR, 'bundled');
@@ -76,7 +77,7 @@ class AddClosureTypeImport extends Transform {
   _transform(file, enc, cb) {
     if (file.path === this.target) {
       let contents = file.contents.toString();
-      let html = dom5.parse(contents, {locationInfo: true});
+      let html = parse5.parse(contents, {locationInfo: true});
       let firstImport = dom5.query(html, firstImportFinder);
       if (firstImport) {
         let importPath = path.relative(path.dirname(this.target), this.importPath);
@@ -84,7 +85,8 @@ class AddClosureTypeImport extends Transform {
         dom5.setAttribute(importLink, 'rel', 'import');
         dom5.setAttribute(importLink, 'href', importPath);
         dom5.insertBefore(firstImport.parentNode, firstImport, importLink);
-        file.contents = Buffer(dom5.serialize(html));
+        dom5.removeFakeRootElements(html);
+        file.contents = Buffer(parse5.serialize(html));
       }
     }
     cb(null, file);
@@ -105,7 +107,6 @@ gulp.task('closure', ['clean'], () => {
   }
 
   config('polymer.html');
-  // config('lib/mixins/property-effects.html');
 
   const project = new PolymerProject({
     shell: `./${entry}`,
@@ -146,7 +147,6 @@ gulp.task('closure', ['clean'], () => {
     new_type_inf: true,
     checks_only: CLOSURE_LINT_ONLY,
     polymer_version: 2,
-    // tracer_mode: 'TIMING_ONLY',
     externs: [
       'bower_components/shadycss/externs/shadycss-externs.js',
       'externs/webcomponents-externs.js',
