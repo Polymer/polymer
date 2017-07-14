@@ -39,7 +39,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @memberof Polymer
    * @summary Element class mixin that provides Polymer's "legacy" API
    */
-  Polymer.LegacyElementMixin = Polymer.dedupingMixin(base => {
+  Polymer.LegacyElementMixin = Polymer.dedupingMixin((base) => {
 
     /**
      * @constructor
@@ -61,8 +61,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     };
 
     /**
+     * @polymer
      * @mixinClass
-     * @implements {Polymer_LegacyElement}
+     * @extends {legacyElementBase}
+     * @implements {Polymer_LegacyElementMixin}
+     * @unrestricted
      */
     class LegacyElement extends legacyElementBase {
 
@@ -78,6 +81,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       created() {}
 
+      /**
+       * Provides an implementation of `connectedCallback`
+       * which adds Polymer legacy API's `attached` method.
+       * @override
+       */
       connectedCallback() {
         super.connectedCallback();
         this.isAttached = true;
@@ -90,6 +98,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       attached() {}
 
+      /**
+       * Provides an implementation of `disconnectedCallback`
+       * which adds Polymer legacy API's `detached` method.
+       * @override
+       */
       disconnectedCallback() {
         super.disconnectedCallback();
         this.isAttached = false;
@@ -102,6 +115,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       detached() {}
 
+      /**
+       * Provides an override implementation of `attributeChangedCallback`
+       * which adds the Polymer legacy API's `attributeChanged` method.
+       * @param {string} name Name of attribute.
+       * @param {?string} old Old value of attribute.
+       * @param {?string} value Current value of attribute.
+       * @override
+       */
       attributeChangedCallback(name, old, value) {
         if (old !== value) {
           super.attributeChangedCallback(name, old, value);
@@ -112,8 +133,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Legacy callback called during `attributeChangedChallback`, for overriding
        * by the user.
+       * @param {string} name Name of attribute.
+       * @param {?string} old Old value of attribute.
+       * @param {?string} value Current value of attribute.
        */
-      attributeChanged() {}
+      attributeChanged(name, old, value) {} // eslint-disable-line no-unused-vars
 
       /**
        * Overrides the default `Polymer.PropertyEffects` implementation to
@@ -186,7 +210,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * the `_serializeValue` method provided by `Polymer.PropertyAccessors`.
        *
        * @param {*} value Value to deserialize
-       * @return {string} Serialized value
+       * @return {string | undefined} Serialized value
        */
       serialize(value) {
         return this._serializeValue(value);
@@ -234,7 +258,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {Element} node Element to set attribute to.
        */
       serializeValueToAttribute(value, attribute, node) {
-        this._valueToNodeAttribute(node || this, value, attribute);
+        this._valueToNodeAttribute(/** @type {Element} */ (node || this), value, attribute);
       }
 
       /**
@@ -314,13 +338,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       /* **** Begin Events **** */
 
+
+
       /**
        * Dispatches a custom event with an optional detail value.
        *
        * @param {string} type Name of event type.
        * @param {*=} detail Detail value containing event-specific
        *   payload.
-       * @param {Object=} options Object specifying options.  These may include:
+       * @param {{ bubbles: (boolean|undefined), cancelable: (boolean|undefined), composed: (boolean|undefined) }=}
+       *  options Object specifying options.  These may include:
        *  `bubbles` (boolean, defaults to `true`),
        *  `cancelable` (boolean, defaults to false), and
        *  `node` on which to fire the event (HTMLElement, defaults to `this`).
@@ -349,7 +376,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} methodName Name of handler method on `this` to call.
        */
       listen(node, eventName, methodName) {
-        node = node || this;
+        node = /** @type {Element} */ (node || this);
         let hbl = this.__boundListeners ||
           (this.__boundListeners = new WeakMap());
         let bl = hbl.get(node);
@@ -374,7 +401,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        anymore.
        */
       unlisten(node, eventName, methodName) {
-        node = node || this;
+        node = /** @type {Element} */ (node || this);
         let bl = this.__boundListeners && this.__boundListeners.get(node);
         let key = eventName + methodName;
         let handler = bl && bl[key];
@@ -395,11 +422,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {string=} direction Direction to allow scrolling
        * Defaults to `all`.
-       * @param {HTMLElement=} node Element to apply scroll direction setting.
+       * @param {Element=} node Element to apply scroll direction setting.
        * Defaults to `this`.
        */
       setScrollDirection(direction, node) {
-        Polymer.Gestures.setTouchAction(node || this, DIRECTION_MAP[direction] || 'auto');
+        Polymer.Gestures.setTouchAction(/** @type {Element} */ (node || this), DIRECTION_MAP[direction] || 'auto');
       }
       /* **** End Events **** */
 
@@ -419,10 +446,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Return the element whose local dom within which this element
        * is contained. This is a shorthand for
        * `this.getRootNode().host`.
+       * @this {Element}
        */
       get domHost() {
         let root = this.getRootNode();
-        return (root instanceof DocumentFragment) ? root.host : root;
+        return (root instanceof DocumentFragment) ? /** @type {ShadowRoot} */ (root).host : root;
       }
 
       /**
@@ -444,11 +472,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * childNodes list is the same as the element's childNodes except that
        * any `<content>` elements are replaced with the list of nodes distributed
        * to the `<content>`, the result of its `getDistributedNodes` method.
-       *
+       * @this {Element}
        * @return {Array<Node>} List of effctive child nodes.
        */
       getEffectiveChildNodes() {
-        return Polymer.dom(this).getEffectiveChildNodes();
+        return /** @type {Polymer.DomApi} */ (Polymer.dom(this)).getEffectiveChildNodes();
       }
 
       /**
@@ -456,10 +484,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * `selector`. These can be dom children or elements distributed to
        * children that are insertion points.
        * @param {string} selector Selector to run.
+       * @this {Element}
        * @return {Array<Node>} List of distributed elements that match selector.
        */
       queryDistributedElements(selector) {
-        return Polymer.dom(this).queryDistributedElements(selector);
+        return /** @type {Polymer.DomApi} */ (Polymer.dom(this)).queryDistributedElements(selector);
       }
 
       /**
@@ -472,7 +501,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       getEffectiveChildren() {
         let list = this.getEffectiveChildNodes();
-        return list.filter(function(n) {
+        return list.filter(function(/** @type {Node} */ n) {
           return (n.nodeType === Node.ELEMENT_NODE);
         });
       }
@@ -530,7 +559,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       getContentChildNodes(slctr) {
         let content = this.root.querySelector(slctr || 'slot');
-        return content ? Polymer.dom(content).getDistributedNodes() : [];
+        return content ? /** @type {Polymer.DomApi} */(Polymer.dom(content)).getDistributedNodes() : [];
       }
 
       /**
@@ -546,17 +575,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   `<content>`.  Defaults to `content`.
        * @return {Array<HTMLElement>} List of distributed nodes for the
        *   `<slot>`.
+       * @suppress {invalidCasts}
        */
       getContentChildren(slctr) {
-        return this.getContentChildNodes(slctr).filter(function(n) {
+        return /** @type {Array<HTMLElement>} */(this.getContentChildNodes(slctr).filter(function(n) {
           return (n.nodeType === Node.ELEMENT_NODE);
-        });
+        }));
       }
 
       /**
        * Checks whether an element is in this element's light DOM tree.
        *
        * @param {?Node} node The element to be checked.
+       * @this {Element}
        * @return {boolean} true if node is in this element's light DOM tree.
        */
       isLightDescendant(node) {
@@ -567,7 +598,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Checks whether an element is in this element's local DOM tree.
        *
-       * @param {HTMLElement=} node The element to be checked.
+       * @param {Element=} node The element to be checked.
        * @return {boolean} true if node is in this element's local DOM tree.
        */
       isLocalDescendant(node) {
@@ -744,7 +775,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {boolean} Whether the element matches the selector.
        */
       elementMatches(selector, node) {
-        return Polymer.dom.matchesSelector(node || this, selector);
+        return Polymer.dom.matchesSelector(/** @type {!Element} */ (node || this), selector);
       }
 
       /**
@@ -753,10 +784,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} name HTML attribute name
        * @param {boolean=} bool Boolean to force the attribute on or off.
        *    When unspecified, the state of the attribute will be reversed.
-       * @param {HTMLElement=} node Node to target.  Defaults to `this`.
+       * @param {Element=} node Node to target.  Defaults to `this`.
        */
       toggleAttribute(name, bool, node) {
-        node = node || this;
+        node = /** @type {Element} */ (node || this);
         if (arguments.length == 1) {
           bool = !node.hasAttribute(name);
         }
@@ -774,10 +805,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} name CSS class name
        * @param {boolean=} bool Boolean to force the class on or off.
        *    When unspecified, the state of the class will be reversed.
-       * @param {HTMLElement=} node Node to target.  Defaults to `this`.
+       * @param {Element=} node Node to target.  Defaults to `this`.
        */
       toggleClass(name, bool, node) {
-        node = node || this;
+        node = /** @type {Element} */ (node || this);
         if (arguments.length == 1) {
           bool = !node.classList.contains(name);
         }
@@ -792,11 +823,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Cross-platform helper for setting an element's CSS `transform` property.
        *
        * @param {string} transformText Transform setting.
-       * @param {HTMLElement=} node Element to apply the transform to.
+       * @param {Element=} node Element to apply the transform to.
        * Defaults to `this`
        */
       transform(transformText, node) {
-        node = node || this;
+        node = /** @type {Element} */ (node || this);
         node.style.webkitTransform = transformText;
         node.style.transform = transformText;
       }
@@ -808,11 +839,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {number} x X offset.
        * @param {number} y Y offset.
        * @param {number} z Z offset.
-       * @param {HTMLElement=} node Element to apply the transform to.
+       * @param {Element=} node Element to apply the transform to.
        * Defaults to `this`.
        */
       translate3d(x, y, z, node) {
-        node = node || this;
+        node = /** @type {Element} */ (node || this);
         this.transform('translate3d(' + x + ',' + y + ',' + z + ')', node);
       }
 
@@ -872,7 +903,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Facades `console.log` as an override point.
        *
-       * @param {...*} var_args Array of strings or objects to log
+       * @param {...*} args Array of strings or objects to log
        */
       _log(...args) {
         this._logger('log', args);
@@ -881,7 +912,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Facades `console.warn` as an override point.
        *
-       * @param {...*} var_args Array of strings or objects to log
+       * @param {...*} args Array of strings or objects to log
        */
       _warn(...args) {
         this._logger('warn', args);
@@ -890,7 +921,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Facades `console.error` as an override point.
        *
-       * @param {...*} var_args Array of strings or objects to log
+       * @param {...*} args Array of strings or objects to log
        */
       _error(...args) {
         this._logger('error', args)
@@ -900,15 +931,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Formats a message using the element type an a method name.
        *
        * @param {string} methodName Method name to associate with message
-       * @param {...*} var_args Array of strings or objects to log
-       * @return {string} String with formatting information for `console`
+       * @param {...*} args Array of strings or objects to log
+       * @return {Array} Array with formatting information for `console`
        *   logging.
        */
-      _logf(...args) {
-        return ['[%s::%s]', this.is, ...args];
+      _logf(methodName, ...args) {
+        return ['[%s::%s]', this.is, methodName, ...args];
       }
 
     }
+
+    LegacyElement.prototype.is = '';
 
     return LegacyElement;
 

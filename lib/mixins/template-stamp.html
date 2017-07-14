@@ -114,6 +114,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.TemplateStamp = Polymer.dedupingMixin(superClass => {
 
     /**
+     * @polymer
      * @mixinClass
      * @implements {Polymer_TemplateStamp}
      */
@@ -189,10 +190,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * e.g. event annotations may be removed after being noted in the
        * template metadata.
        *
-       * @param {HTMLTemplateElement} template Template to parse
-       * @param {Object=} outerTemplateInfo Template metadata from the outer
+       * @param {!HTMLTemplateElement} template Template to parse
+       * @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
        *   template, for parsing nested templates
-       * @return {Object} Parsed template metadata
+       * @return {!TemplateInfo} Parsed template metadata
        */
       static _parseTemplate(template, outerTemplateInfo) {
         // since a template may be re-used, memo-ize metadata
@@ -219,24 +220,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * metadata based on this node.
        *
        * @param {Node} node Node to parse
-       * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {!TemplateInfo} templateInfo Template metadata for current template
+       * @param {!NodeInfo} nodeInfo Node metadata for current template.
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        */
       static _parseTemplateNode(node, templateInfo, nodeInfo) {
         let noted;
-        if (node.localName == 'template' && !node.hasAttribute('preserve-content')) {
-          noted = this._parseTemplateNestedTemplate(node, templateInfo, nodeInfo) || noted;
-        } else if (node.localName === 'slot') {
+        let element = /** @type Element */(node);
+        if (element.localName == 'template' && !element.hasAttribute('preserve-content')) {
+          noted = this._parseTemplateNestedTemplate(element, templateInfo, nodeInfo) || noted;
+        } else if (element.localName === 'slot') {
           // For ShadyDom optimization, indicating there is an insertion point
           templateInfo.hasInsertionPoint = true;
         }
-        if (node.firstChild) {
-          noted = this._parseTemplateChildNodes(node, templateInfo, nodeInfo) || noted;
+        if (element.firstChild) {
+          noted = this._parseTemplateChildNodes(element, templateInfo, nodeInfo) || noted;
         }
-        if (node.hasAttributes && node.hasAttributes()) {
-          noted = this._parseTemplateNodeAttributes(node, templateInfo, nodeInfo) || noted;
+        if (element.hasAttributes && element.hasAttributes()) {
+          noted = this._parseTemplateNodeAttributes(element, templateInfo, nodeInfo) || noted;
         }
         return noted;
       }
@@ -250,8 +252,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * if the `templateInfo.stripWhitespace` setting was provided.
        *
        * @param {Node} root Root node whose `childNodes` will be parsed
-       * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {!TemplateInfo} templateInfo Template metadata for current template
+       * @param {!NodeInfo} nodeInfo Node metadata for current template.
        */
       static _parseTemplateChildNodes(root, templateInfo, nodeInfo) {
         for (let node=root.firstChild, parentIndex=0, next; node; node=next) {
@@ -265,7 +267,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // manually.
           next = node.nextSibling;
           if (node.nodeType === Node.TEXT_NODE) {
-            let n = next;
+            let /** Node */ n = next;
             while (n && (n.nodeType === Node.TEXT_NODE)) {
               node.textContent += n.textContent;
               next = n.nextSibling;
@@ -280,7 +282,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           let childInfo = { parentIndex, parentInfo: nodeInfo };
           if (this._parseTemplateNode(node, templateInfo, childInfo)) {
-            childInfo.infoIndex = templateInfo.nodeInfoList.push(childInfo) - 1;
+            childInfo.infoIndex = templateInfo.nodeInfoList.push(/** @type {!NodeInfo} */(childInfo)) - 1;
           }
           // Increment if not removed
           if (node.parentNode) {
@@ -300,9 +302,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * (an optimization to avoid the cost of cloning nested template content).
        *
        * @param {HTMLTemplateElement} node Node to parse (a <template>)
-       * @param {Object} outerTemplateInfo Template metadata for current template
+       * @param {TemplateInfo} outerTemplateInfo Template metadata for current template
        *   that includes the template `node`
-       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {!NodeInfo} nodeInfo Node metadata for current template.
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        */
@@ -319,16 +321,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Parses template node attributes and adds node metadata to `nodeInfo`
        * for nodes of interest.
        *
-       * @param {Node} node Node to parse
-       * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {Element} node Node to parse
+       * @param {TemplateInfo} templateInfo Template metadata for current template
+       * @param {NodeInfo} nodeInfo Node metadata for current template.
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        */
       static _parseTemplateNodeAttributes(node, templateInfo, nodeInfo) {
         // Make copy of original attribute list, since the order may change
         // as attributes are added and removed
-        let noted;
+        let noted = false;
         let attrs = Array.from(node.attributes);
         for (let i=attrs.length-1, a; (a=attrs[i]); i--) {
           noted = this._parseTemplateNodeAttribute(node, templateInfo, nodeInfo, a.name, a.value) || noted;
@@ -343,11 +345,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * This implementation adds metadata for `on-event="handler"` attributes
        * and `id` attributes.
        *
-       * @param {Node} node Node to parse
-       * @param {Object} templateInfo Template metadata for current template
-       * @param {Object} nodeInfo Node metadata for current template.
+       * @param {Element} node Node to parse
+       * @param {!TemplateInfo} templateInfo Template metadata for current template
+       * @param {!NodeInfo} nodeInfo Node metadata for current template.
        * @param {string} name Attribute name
-       * @param {*} value Attribute value
+       * @param {string} value Attribute value
        * @return {boolean} `true` if the visited node added node-specific
        *   metadata to `nodeInfo`
        */
@@ -367,6 +369,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           nodeInfo.id = value;
           return true;
         }
+        return false;
       }
 
       /**
@@ -380,7 +383,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {DocumentFragment} Content fragment
        */
       static _contentForTemplate(template) {
-        let templateInfo = template._templateInfo;
+        let templateInfo = /** @type {HTMLTemplateElementWithInfo} */ (template)._templateInfo;
         return (templateInfo && templateInfo.content) || template.content;
       }
 
@@ -403,8 +406,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * removed after being noted in notes, and any nested `<template>.content`
        * is removed and stored in notes as well.
        *
-       * @param {HTMLTemplateElement} template Template to stamp
-       * @return {DocumentFragment} Cloned template content
+       * @param {!HTMLTemplateElement} template Template to stamp
+       * @return {!StampedTemplate} Cloned template content
        */
       _stampTemplate(template) {
         // Polyfill support: bootstrap the template if it has not already been
@@ -415,7 +418,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let templateInfo = this.constructor._parseTemplate(template);
         let nodeInfo = templateInfo.nodeInfoList;
         let content = templateInfo.content || template.content;
-        let dom = document.importNode(content, true);
+        let dom = /** @type DocumentFragment */ (document.importNode(content, true));
         // NOTE: ShadyDom optimization indicating there is an insertion point
         dom.__noInsertionPoint = !templateInfo.hasInsertionPoint;
         let nodes = dom.nodeList = new Array(nodeInfo.length);
@@ -426,7 +429,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           applyTemplateContent(this, node, info);
           applyEventListener(this, node, info);
         }
-        return dom;
+        return /** @type {!StampedTemplate} */(dom);
       }
 
       /**

@@ -2,12 +2,18 @@
  * @fileoverview Externs for webcomponents polyfills
  * @externs
  */
+/* eslint-disable */
 
 let HTMLImports = {
   /**
    * @param {function()} callback
    */
-  whenReady(callback){}
+  whenReady(callback){},
+  /**
+   * @param {Element} element
+   * @returns {Document} document
+   */
+  importForElement(element){}
 };
 
 window.HTMLImports = HTMLImports;
@@ -33,6 +39,9 @@ let ShadyDOM = {
 
 window.ShadyDOM = ShadyDOM;
 
+/** @type {function(this:ShadowRoot)} */
+ShadowRoot.prototype.forceRender;
+
 let WebComponents = {};
 window.WebComponents = WebComponents;
 
@@ -42,4 +51,9 @@ HTMLElement.prototype._activeElement;
 /**
  * @param {HTMLTemplateElement} template
  */
-HTMLTemplateElement.prototype.decorate = function(template){};
+HTMLTemplateElement.decorate = function(template){};
+
+/**
+ * @param {function(function())} cb callback
+ */
+CustomElementRegistry.prototype.polyfillWrapFlushCallback = function(cb){};
