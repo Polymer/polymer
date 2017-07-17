@@ -16,6 +16,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   'use strict';
 
   const p = Element.prototype;
+  /**
+   * @const {function(this:Element, string): boolean}
+   */
   const normalizedMatchesSelector = p.matches || p.matchesSelector ||
     p.mozMatchesSelector || p.msMatchesSelector ||
     p.oMatchesSelector || p.webkitMatchesSelector;
@@ -25,7 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @function matchesSelector
    * @memberof Polymer.dom
-   * @param {Node} node Node to check selector against
+   * @param {!Element} node Node to check selector against
    * @param {string} selector Selector to match
    * @return {boolean} True if node matched selector
    */
@@ -39,6 +42,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    */
   class DomApi {
 
+    /**
+     * @param {Node} node Node for which to create a Polymer.dom helper object.
+     */
     constructor(node) {
       this.node = node;
     }
@@ -147,10 +153,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * Returns a flattened list of all child nodes and nodes distributed
+     * @return {Array} Returns a flattened list of all child nodes and nodes assigned
      * to child slots.
-     *
-     * @return {type} Description
      */
     getEffectiveChildNodes() {
       return Polymer.FlattenedNodesObserver.getFlattenedNodes(this.node);
@@ -190,7 +194,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function forwardMethods(proto, methods) {
     for (let i=0; i < methods.length; i++) {
       let method = methods[i];
-      proto[method] = function() {
+      proto[method] = /** @this {DomApi} */ function() {
         return this.node[method].apply(this.node, arguments);
       }
     }
@@ -201,7 +205,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let name = properties[i];
       Object.defineProperty(proto, name, {
         get: function() {
-          return this.node[name];
+          return /** @type {DomApi} */ (this).node[name];
         },
         configurable: true
       });
@@ -213,10 +217,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let name = properties[i];
       Object.defineProperty(proto, name, {
         get: function() {
-          return this.node[name];
+          return /** @type {DomApi} */ (this).node[name];
         },
         set: function(value) {
-          this.node[name] = value;
+          /** @type {DomApi} */ (this).node[name] = value;
         },
         configurable: true
       });
@@ -276,6 +280,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
+  Polymer.DomApi = DomApi;
+
   /**
    * Legacy DOM and Event manipulation API wrapper factory used to abstract
    * differences between native Shadow DOM and "Shady DOM" when polyfilling on
@@ -289,14 +295,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @summary Legacy DOM and Event manipulation API wrapper factory used to
    * abstract differences between native Shadow DOM and "Shady DOM."
    * @memberof Polymer
-   * @param {Node|Event} obj Node or event to operate on
+   * @param {!Node|Event} obj Node or event to operate on
    * @return {DomApi|EventApi} Wrapper providing either node API or event API
    */
   Polymer.dom = function(obj) {
     obj = obj || document;
-    let ctor = obj instanceof Event ? EventApi : DomApi;
     if (!obj.__domApi) {
-      obj.__domApi = new ctor(obj);
+      let helper;
+      if (obj instanceof Event) {
+        helper = new EventApi(obj);
+      } else {
+        helper = new DomApi(obj);
+      }
+      obj.__domApi = helper;
     }
     return obj.__domApi;
   };

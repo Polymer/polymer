@@ -20,31 +20,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script>
 (function() {
   'use strict';
-  /**
-   * @typedef Object<string, {
-   *   value: *,
-   *   type: (Function | undefined),
-   *   readOnly: (boolean | undefined),
-   *   computed: (string | undefined),
-   *   reflectToAttribute: (boolean | undefined),
-   *   notify: (boolean | undefined),
-   *   observer: (string | undefined)
-   * }>)
-   */
-  let PolymerElementProperties; // eslint-disable-line no-unused-vars
-
-  /** @record */
-  let PolymerElementConstructor = function(){}; // eslint-disable-line no-unused-vars
-  /** @type {(string | undefined)} */
-  PolymerElementConstructor.is;
-  /** @type {(string | undefined)} */
-  PolymerElementConstructor.extends;
-  /** @type {(!PolymerElementProperties | undefined)} */
-  PolymerElementConstructor.properties;
-  /** @type {(!Array<string> | undefined)} */
-  PolymerElementConstructor.observers;
-  /** @type {(!HTMLTemplateElement | string | undefined)} */
-  PolymerElementConstructor.template;
 
   /**
    * Element class mixin that provides the core API for Polymer's meta-programming
@@ -141,7 +116,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         JSCompiler_renameProperty('__ownProperties', klass))) {
         klass.__ownProperties =
           klass.hasOwnProperty(JSCompiler_renameProperty('properties', klass)) ?
-          klass.properties : {};
+          /** @type PolymerElementConstructor */ (klass).properties : {};
       }
       return klass.__ownProperties;
     }
@@ -159,7 +134,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         JSCompiler_renameProperty('__ownObservers', klass))) {
         klass.__ownObservers =
           klass.hasOwnProperty(JSCompiler_renameProperty('observers', klass)) ?
-          klass.observers : [];
+          /** @type PolymerElementConstructor */ (klass).observers : [];
       }
       return klass.__ownObservers;
     }
@@ -170,7 +145,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      *
      * @param {Object} flattenedProps Bag to collect flattened properties into
      * @param {Object} props Bag of properties to add to `flattenedProps`
-     * @return {Objecg} The input `flattenedProps` bag
+     * @return {Object} The input `flattenedProps` bag
      * @private
      */
     function flattenProperties(flattenedProps, props) {
@@ -190,8 +165,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * (1) observedAttributes,
      * (2) class property default values
      *
-     * @param {HTMLElement} klass Element class
+     * @param {PolymerElementConstructor} klass Element class
      * @return {PolymerElementProperties} Flattened properties for this class
+     * @suppress {missingProperties} class.prototype is not a property for some reason?
      * @private
      */
     function propertiesForClass(klass) {
@@ -202,7 +178,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let superCtor = Object.getPrototypeOf(klass.prototype).constructor;
         if (superCtor.prototype instanceof PolymerElement) {
           klass.__classProperties = Object.assign(
-            Object.create(propertiesForClass(superCtor)),
+            Object.create(propertiesForClass(/** @type PolymerElementConstructor */(superCtor))),
             klass.__classProperties);
         }
       }
@@ -215,7 +191,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * the list returned from `propertiesForClass`.
      * This list is used in `_initializeProperties` to set property defaults.
      *
-     * @param {HTMLElement} klass Element class
+     * @param {PolymerElementConstructor} klass Element class
      * @return {PolymerElementProperties} Flattened properties for this class
      *   that have default values
      * @private
@@ -238,7 +214,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * Returns true if a `klass` has finalized. Called in `ElementClass.finalize()`
-     * @param {HTMLElement} klass Element class
+     * @param {PolymerElementConstructor} klass Element class
      * @return {boolean} True if all metaprogramming for this class has been
      *   completed
      * @private
@@ -252,11 +228,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * *all superclasses* are finalized by traversing the prototype chain
      * and calling `klass.finalize()`.
      *
-     * @param {HTMLElement} klass Element class
+     * @param {PolymerElementConstructor} klass Element class
      * @private
      */
     function finalizeClassAndSuper(klass) {
-      let proto = klass.prototype;
+      let proto = /** @type PolymerElementConstructor */ (klass).prototype;
       let superCtor = Object.getPrototypeOf(proto).constructor;
       if (superCtor.prototype instanceof PolymerElement) {
         superCtor.finalize();
@@ -270,12 +246,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * for properties in `config` and the `template` as well as preparing the
      * `template` for stamping.
      *
-     * @param {HTMLElement} klass Element class
+     * @param {PolymerElementConstructor} klass Element class
      * @private
      */
     function finalizeClass(klass) {
       klass.__finalized = true;
-      let proto = klass.prototype;
+      let proto = /** @type PolymerElementConstructor */ (klass).prototype;
       if (klass.hasOwnProperty(
         JSCompiler_renameProperty('is', klass)) && klass.is) {
         Polymer.telemetry.register(proto);
@@ -289,7 +265,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         finalizeObservers(proto, observers, props);
       }
       // note: create "working" template that is finalized at instance time
-      let template = klass.template;
+      let template = /** @type PolymerElementConstructor */ (klass).template;
       if (template) {
         if (typeof template === 'string') {
           let t = document.createElement('template');
@@ -307,7 +283,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Leverages `PropertyEffects` to create property accessors and effects
      * supporting, observers, reflecting to attributes, change notification,
      * computed properties, and read only properties.
-     * @param {HTMLElement} proto Element class prototype to add accessors
+     * @param {PolymerElement} proto Element class prototype to add accessors
      *    and effects to
      * @param {Object} properties Flattened bag of property descriptors for
      *    this class
@@ -322,7 +298,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Configures a `proto` based on a `observers` array.
      * Leverages `PropertyEffects` to create observers.
-     * @param {HTMLElement} proto Element class prototype to add accessors
+     * @param {PolymerElement} proto Element class prototype to add accessors
      *   and effects to
      * @param {Object} observers Flattened array of observer descriptors for
      *   this class
@@ -386,7 +362,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * and/or provide an advanced api for manipulating them.
      * Also consider adding warnings when an effect cannot be changed.
      *
-     * @param {HTMLElement} proto Element class prototype to add accessors
+     * @param {PolymerElement} proto Element class prototype to add accessors
      *   and effects to
      * @param {string} name Name of the property.
      * @param {Object} info Info object from which to create property effects.
@@ -428,9 +404,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * The element name `is` and extends `ext` must be specified for ShadyCSS
      * style scoping.
      *
-     * @param {HTMLElement} proto Element class prototype to add accessors
+     * @param {PolymerElement} proto Element class prototype to add accessors
      *   and effects to
-     * @param {HTMLTemplateElement} template Template to process and bind
+     * @param {!HTMLTemplateElement} template Template to process and bind
      * @param {string} baseURI URL against which to resolve urls in
      *   style element cssText
      * @param {string} is Tag name (or type extension name) for this element
@@ -454,6 +430,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
+     * @polymer
      * @mixinClass
      * @unrestricted
      * @implements {Polymer_ElementMixin}
@@ -537,11 +514,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       static get template() {
         if (!this.hasOwnProperty(JSCompiler_renameProperty('_template', this))) {
-          this._template = Polymer.DomModule && Polymer.DomModule.import(this.is, 'template') ||
+          this._template = Polymer.DomModule && Polymer.DomModule.import(
+            /** @type PolymerElementConstructor*/ (this).is, 'template') ||
             // note: implemented so a subclass can retrieve the super
             // template; call the super impl this way so that `this` points
             // to the superclass.
-            Object.getPrototypeOf(this.prototype).constructor.template;
+            Object.getPrototypeOf(/** @type PolymerElementConstructor*/ (this).prototype).constructor.template;
         }
         return this._template;
       }
@@ -559,9 +537,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       static get importPath() {
         if (!this.hasOwnProperty(JSCompiler_renameProperty('_importPath', this))) {
-            const module = Polymer.DomModule && Polymer.DomModule.import(this.is);
+            const module = Polymer.DomModule && Polymer.DomModule.import(/** @type PolymerElementConstructor */ (this).is);
             this._importPath = module ? module.assetpath : '' ||
-            Object.getPrototypeOf(this.prototype).constructor.importPath;
+            Object.getPrototypeOf(/** @type PolymerElementConstructor*/ (this).prototype).constructor.importPath;
         }
         return this._importPath;
       }
@@ -575,6 +553,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * `properties` metadata.
        *
        * @override
+       * @suppress {invalidCasts}
        */
       _initializeProperties() {
         Polymer.telemetry.instanceCount++;
@@ -586,8 +565,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._template.__polymerFinalized = true;
           const baseURI =
             importPath ? Polymer.ResolveUrl.resolveUrl(importPath) : '';
-          finalizeTemplate(this.__proto__, this._template, baseURI,
-            this.localName);
+          finalizeTemplate(/** @type {!PolymerElement} */(this.__proto__), this._template, baseURI,
+            /**@type {!HTMLElement}*/(this).localName);
         }
         super._initializeProperties();
         // set path defaults
@@ -626,11 +605,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * flushes any pending properties, and updates shimmed CSS properties
        * when using the ShadyCSS scoping/custom properties polyfill.
        *
-       * @override
+       * @suppress {invalidCasts}
        */
       connectedCallback() {
         if (window.ShadyCSS && this._template) {
-          window.ShadyCSS.styleElement(this);
+          window.ShadyCSS.styleElement(/** @type {!HTMLElement} */(this));
         }
         this._enableProperties();
       }
@@ -638,8 +617,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Provides a default implementation of the standard Custom Elements
        * `disconnectedCallback`.
-       *
-       * @override
        */
       disconnectedCallback() {}
 
@@ -697,6 +674,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this.shadowRoot.appendChild(dom);
             return this.shadowRoot;
           }
+          return null;
         } else {
           throw new Error('ShadowDOM not available. ' +
             // TODO(sorvell): move to compile-time conditional when supported
@@ -714,6 +692,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * same name.  "Dash-cased" attributes are deserialzed to "camelCase"
        * properties.
        *
+       * @param {string} name Name of attribute.
+       * @param {?string} old Old value of attribute.
+       * @param {?string} value Current value of attribute.
        * @override
        */
       attributeChangedCallback(name, old, value) {
@@ -741,10 +722,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {Object=} properties Bag of custom property key/values to
        *   apply to this element.
+       * @suppress {invalidCasts}
        */
       updateStyles(properties) {
         if (window.ShadyCSS) {
-          window.ShadyCSS.styleSubtree(this, properties);
+          window.ShadyCSS.styleSubtree(/** @type {!HTMLElement} */(this), properties);
         }
       }
 
@@ -773,6 +755,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * created for them.
        *
        * @override
+       * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
       static _parseTemplateContent(template, templateInfo, nodeInfo) {
         templateInfo.dynamicFns = templateInfo.dynamicFns || propertiesForClass(this);
@@ -804,7 +787,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     registrations: [],
     /**
-     * @param {HTMLElement} prototype Element prototype to log
+     * @param {!PolymerElementConstructor} prototype Element prototype to log
+     * @this {this}
      * @private
      */
     _regLog: function(prototype) {
@@ -813,6 +797,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Registers a class prototype for telemetry purposes.
      * @param {HTMLElement} prototype Element prototype to register
+     * @this {this}
      * @protected
      */
     register: function(prototype) {
@@ -822,6 +807,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Logs all elements registered with an `is` to the console.
      * @public
+     * @this {this}
      */
     dumpRegistrations: function() {
       this.registrations.forEach(this._regLog);
