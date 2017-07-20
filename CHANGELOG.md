@@ -1,5 +1,14 @@
 # Change Log
 
+## [v1.9.3-dev](https://github.com/Polymer/polymer/tree/v1.9.3-dev) (2017-07-20)
+- Support `:host > *` as well ([commit](https://github.com/Polymer/polymer/commit/f3116fde))
+
+- Support Polymer 2.x shared styles ([commit](https://github.com/Polymer/polymer/commit/1d83b74e))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/8ce02609))
+
+- [ci skip] fix "gulp release" for master -> 1.x in dev branch ([commit](https://github.com/Polymer/polymer/commit/69b7bf0f))
+
 ## [v1.9.2-dev](https://github.com/Polymer/polymer/tree/v1.9.2-dev) (2017-06-15)
 - Update custom-style.html ([commit](https://github.com/Polymer/polymer/commit/cf105c4b))
 
