@@ -234,8 +234,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     function finalizeClassAndSuper(klass) {
       let proto = /** @type PolymerElementConstructor */ (klass).prototype;
       let superCtor = Object.getPrototypeOf(proto).constructor;
-      if (superCtor.prototype instanceof PolymerElement) {
-        superCtor.finalize();
+      if (!(Polymer.preBuiltEffects && Polymer.preBuiltEffects[klass.is])) {
+        if (superCtor.prototype instanceof PolymerElement) {
+          superCtor.finalize();
+        }
       }
       finalizeClass(klass);
     }
@@ -257,12 +259,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Polymer.telemetry.register(proto);
       }
       let props = ownPropertiesForClass(klass);
-      if (props) {
+      if (Polymer.preBuiltEffects && Polymer.preBuiltEffects[proto.constructor.is]) {
+        window.preBuiltCount++
+        const effectTypes = Polymer.preBuiltEffects[proto.constructor.is];
+        for (const effectType in effectTypes) {
+          proto[effectType] = effectTypes[effectType];
+          for (const property in effectTypes[effectType]) {
+            const effects = effectTypes[effectType][property];
+            for (const effect of effects) {
+              proto._createPropertyAccessor(property, effectType === proto.PROPERTY_EFFECT_TYPES.READ_ONLY);
+            }
+          }
+        }
+      } else if (props) {
+        window.propCount++
         finalizeProperties(proto, props);
-      }
-      let observers = ownObserversForClass(klass);
-      if (observers) {
-        finalizeObservers(proto, observers, props);
+        let observers = ownObserversForClass(klass);
+        if (observers) {
+          finalizeObservers(proto, observers, props);
+        }
       }
       // note: create "working" template that is finalized at instance time
       let template = /** @type PolymerElementConstructor */ (klass).template;
