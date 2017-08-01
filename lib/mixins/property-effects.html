@@ -27,6 +27,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /** @const {Object} */
   const CaseMap = Polymer.CaseMap;
+  const EFFECT_FUNCTIONS = Polymer.EFFECT_FUNCTIONS;
 
   // Monotonically increasing unique ID used for de-duping effects triggered
   // from multiple properties in the same turn
@@ -119,12 +120,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @return {boolean} True if an effect ran for this property
    * @private
    */
-  function runEffects(inst, effects, props, oldProps, hasPaths, extraArgs) {
+  function runEffects(inst, effects, props, oldProps, hasPaths, extraArgs, func) {
     if (effects) {
       let ran = false;
       let id = dedupeId++;
       for (let prop in props) {
-        if (runEffectsForProperty(inst, effects, id, prop, props, oldProps, hasPaths, extraArgs)) {
+        if (runEffectsForProperty(inst, effects, id, prop, props, oldProps, hasPaths, extraArgs, func)) {
           ran = true;
         }
       }
@@ -147,16 +148,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @return {boolean} True if an effect ran for this property
    * @private
    */
-  function runEffectsForProperty(inst, effects, dedupeId, prop, props, oldProps, hasPaths, extraArgs) {
+  function runEffectsForProperty(inst, effects, dedupeId, prop, props, oldProps, hasPaths, extraArgs, func) {
     let ran = false;
     let rootProperty = hasPaths ? Polymer.Path.root(prop) : prop;
     let fxs = effects[rootProperty];
     if (fxs) {
       for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
         if ((!fx.info || fx.info.lastRun !== dedupeId) &&
-            (!hasPaths || pathMatchesTrigger(prop, fx.trigger))) {
-          if (fx.info) {
-            fx.info.lastRun = dedupeId;
+            (!hasPaths || pathMatchesTrigger(prop, fx.trigger, rootProperty))) {
+          if (!fx.info) {
+            fx.info = {};
+          }
+          fx.info.lastRun = dedupeId;
+          if (!fx.fn) {
+            fx.fn = func;
           }
           fx.fn(inst, prop, props, oldProps, fx.info, hasPaths, extraArgs);
           ran = true;
@@ -182,11 +187,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {string} path Path or property that changed
    * @param {DataTrigger} trigger Descriptor
+   * @param {string} rootProperty Root of the property that changed
    * @return {boolean} Whether the path matched the trigger
    */
-  function pathMatchesTrigger(path, trigger) {
+  function pathMatchesTrigger(path, trigger, rootProperty) {
     if (trigger) {
-      let triggerPath = trigger.name;
+      let triggerPath = trigger.name || (trigger.name = rootProperty);
       return (triggerPath == path) ||
         (trigger.structured && Polymer.Path.isAncestor(triggerPath, path)) ||
         (trigger.wildcard && Polymer.Path.isDescendant(triggerPath, path));
@@ -221,7 +227,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // Try normal notify effects; if none, fall back to try path notification
     for (let prop in notifyProps) {
       if (notifyProps[prop]) {
-        if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, hasPaths)) {
+        if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, hasPaths, undefined, EFFECT_FUNCTIONS.runNotifyEffect)) {
           notified = true;
         } else if (hasPaths && notifyPath(inst, prop, props)) {
           notified = true;
@@ -312,7 +318,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let computeEffects = inst[TYPES.COMPUTE];
     if (computeEffects) {
       let inputProps = changedProps;
-      while (runEffects(inst, computeEffects, inputProps, oldProps, hasPaths)) {
+      while (runEffects(inst, computeEffects, inputProps, oldProps, hasPaths, undefined, EFFECT_FUNCTIONS.runComputedEffect)) {
         Object.assign(oldProps, inst.__dataOld);
         Object.assign(changedProps, inst.__dataPending);
         inputProps = inst.__dataPending;
@@ -410,7 +416,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             trigger = parseArg(trigger);
             trigger.wildcard = true;
           }
-          constructor._addTemplatePropertyEffect(templateInfo, trigger.rootProperty, {
+          const rootProperty = trigger.rootProperty || (trigger.rootProperty = trigger.name.split('.')[0])
+          constructor._addTemplatePropertyEffect(templateInfo, rootProperty, {
             fn: Polymer.EFFECT_FUNCTIONS.runBindingEffect,
             info, trigger
           });
@@ -541,10 +548,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       (typeof dynamicFn !== 'object' || dynamicFn[sig.methodName]));
     let info = {
       methodName: sig.methodName,
-      args: sig.args,
       methodInfo,
       dynamicFn
     };
+    if (sig.cacheName) {
+      model.__observerArgCache = model.__observerArgCache || {};
+      model.__observerArgCache[sig.cacheName] = sig.args;
+      info.cacheName = sig.cacheName;
+    } else {
+      info.args = sig.args;
+    }
     for (let i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
       if (!arg.literal) {
         model._addPropertyEffect(arg.rootProperty, type, {
@@ -609,7 +622,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let m = expression.match(/([^\s]+?)\(([\s\S]*)\)/);
     if (m) {
       let methodName = m[1];
-      let sig = { methodName, static: true, args: emptyArray };
+      let sig = { methodName, static: true, args: emptyArray, cacheName: methodName };
       if (m[2].trim()) {
         // replace escaped commas with comma entity, split on un-escaped commas
         let args = m[2].replace(/\\,/g, '&comma;').split(',');
@@ -637,8 +650,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!arg.literal) {
         sig.static = false;
       }
+      sig.cacheName += arg.name;
       return arg;
     }, this);
+    if (sig.args.length <= 1) {
+      delete sig.cacheName;
+    }
     return sig;
   }
 
@@ -934,7 +951,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!effects) {
           effects = this[type][property] = [];
         }
-        effects.push(effect);
+        if (effect) {
+          effects.push(effect);
+        }
       }
 
       /**
@@ -1352,9 +1371,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Flush clients
         this._flushClients();
         // Reflect properties
-        runEffects(this, this[TYPES.REFLECT], changedProps, oldProps, hasPaths);
+        runEffects(this, this[TYPES.REFLECT], changedProps, oldProps, hasPaths, undefined, EFFECT_FUNCTIONS.runReflectEffect);
         // Observe properties
         runEffects(this, this[TYPES.OBSERVE], changedProps, oldProps, hasPaths);
+        runEffects(this, this[TYPES.METHOD], changedProps, oldProps, hasPaths);
         // Notify properties to host
         if (notifyProps) {
           runNotifyEffects(this, notifyProps, changedProps, oldProps, hasPaths);
@@ -1705,7 +1725,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _createPropertyObserver(property, methodName, dynamicFn) {
-        let info = { property, methodName, dynamicFn: Boolean(dynamicFn) };
+        let info = { methodName, dynamicFn: Boolean(dynamicFn) };
         this._addPropertyEffect(property, TYPES.OBSERVE, {
           fn: Polymer.EFFECT_FUNCTIONS.runObserverEffect, info, trigger: {name: property}
         });
@@ -1746,8 +1766,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this._addPropertyEffect(property, TYPES.NOTIFY, {
           fn: Polymer.EFFECT_FUNCTIONS.runNotifyEffect,
           info: {
-            eventName: CaseMap.camelToDashCase(property) + '-changed',
-            property: property
+            // eventName: CaseMap.camelToDashCase(property) + '-changed'
           }
         });
       }
@@ -1769,7 +1788,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._addPropertyEffect(property, TYPES.REFLECT, {
             fn: Polymer.EFFECT_FUNCTIONS.runReflectEffect,
             info: {
-              attrName: attr
+              // attrName: attr
             }
           });
         }

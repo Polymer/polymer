@@ -243,6 +243,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
+     * Returns an upper-cased version of the string.
+     *
+     * @param {string} name String to uppercase
+     * @return {string} Uppercased string
+     * @private
+     */
+    function upper(name) {
+      return name[0].toUpperCase() + name.substring(1);
+    }
+
+    /**
      * Configures a `klass` based on a staic `klass.config` object and
      * a `template`. This includes creating accessors and effects
      * for properties in `config` and the `template` as well as preparing the
@@ -263,19 +274,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         const effectTypes = Polymer.preBuiltEffects[proto.constructor.is];
         for (const effectType in effectTypes) {
           proto[effectType] = effectTypes[effectType];
+          if (effectType === '__observerArgCache') continue;
           for (const property in effectTypes[effectType]) {
             const effects = effectTypes[effectType][property];
-            for (const effect of effects) {
-              proto._createPropertyAccessor(property, effectType === proto.PROPERTY_EFFECT_TYPES.READ_ONLY);
+            proto._createPropertyAccessor(property, effectType === proto.PROPERTY_EFFECT_TYPES.READ_ONLY);
+            if (effectType === proto.PROPERTY_EFFECT_TYPES.READ_ONLY) {
+              proto['_set' + upper(property)] = /** @this {PropertyEffects} */function(value) {
+                this._setProperty(property, value);
+              }
             }
           }
         }
-      } else if (props) {
-        finalizeProperties(proto, props);
-      }
-      let observers = ownObserversForClass(klass);
-      if (observers) {
-        finalizeObservers(proto, observers, props);
+        delete Polymer.preBuiltEffects[proto.constructor.is];
+      } else {
+        if (props) {
+          finalizeProperties(proto, props);
+        }
+        let observers = ownObserversForClass(klass);
+        if (observers) {
+          finalizeObservers(proto, observers, props);
+        }
       }
       // note: create "working" template that is finalized at instance time
       let template = /** @type PolymerElementConstructor */ (klass).template;

@@ -1,6 +1,11 @@
+<link rel="import" href="../utils/case-map.html">
 <script>
 (function () {
 'use strict'
+
+    /** @const {Object} */
+    const CaseMap = Polymer.CaseMap;
+
     const effectFunctions = {};
 
     const TYPES = {
@@ -128,9 +133,8 @@
      */
     function runObserverEffect(inst, property, props, oldProps, info) {
         let fn = inst[info.methodName];
-        let changedProp = info.property;
         if (fn) {
-            fn.call(inst, inst.__data[changedProp], oldProps[changedProp]);
+            fn.call(inst, inst.__data[property], oldProps[property]);
         } else if (!info.dynamicFn) {
             console.warn('observer method `' + info.methodName + '` not defined');
         }
@@ -181,7 +185,8 @@
         if (path && value === undefined) {
             value = props[property];  // specifically for .splices
         }
-        Polymer.dispatchNotifyEvent(inst, info.eventName, value, path);
+        const eventName = info.eventName || (info.eventName = CaseMap.camelToDashCase(rootProperty) + '-changed');
+        Polymer.dispatchNotifyEvent(inst, eventName, value, path);
     }
     effectFunctions.runNotifyEffect = runNotifyEffect;
 
@@ -199,10 +204,11 @@
      */
     function runReflectEffect(inst, property, props, oldProps, info) {
         let value = inst.__data[property];
+        const attrName = info.attrName || (info.attrName = CaseMap.camelToDashCase(property))
         if (Polymer.sanitizeDOMValue) {
-            value = Polymer.sanitizeDOMValue(value, info.attrName, 'attribute', /** @type {Node} */(inst));
+            value = Polymer.sanitizeDOMValue(value, attrName, 'attribute', /** @type {Node} */(inst));
         }
-        inst._propertyToAttribute(property, info.attrName, value);
+        inst._propertyToAttribute(property, attrName, value);
     }
     effectFunctions.runReflectEffect = runReflectEffect;
 
@@ -224,7 +230,7 @@
         let values = [];
         for (let i = 0, l = args.length; i < l; i++) {
             let arg = args[i];
-            let name = arg.name;
+            let name = arg.name || arg.rootProperty;
             let v;
             if (arg.literal) {
                 v = arg.value;
@@ -277,6 +283,9 @@
         // to find methods. Currently used by `templatize`.
         let context = inst._methodHost || inst;
         let fn = context[info.methodName];
+        if (!info.args && info.cacheName) {
+            info.args = inst.__observerArgCache[info.cacheName];
+        }
         if (fn) {
             let args = marshalArgs(inst.__data, info.args, property, props);
             return fn.apply(context, args);
