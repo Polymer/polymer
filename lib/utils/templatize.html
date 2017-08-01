@@ -21,6 +21,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // class only because Babel (incorrectly) requires super() in the class
     // constructor even though no `this` is used and it returns an instance.
     let newInstance = null;
+    /**
+     * @constructor
+     * @extends {HTMLTemplateElement}
+     */
     function HTMLTemplateElementExtension() { return newInstance; }
     HTMLTemplateElementExtension.prototype = Object.create(HTMLTemplateElement.prototype, {
       constructor: {
@@ -28,7 +32,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         writable: true
       }
     });
+    /**
+     * @constructor
+     * @implements {Polymer_PropertyEffects}
+     * @extends {HTMLTemplateElementExtension}
+     */
     const DataTemplate = Polymer.PropertyEffects(HTMLTemplateElementExtension);
+    /**
+     * @constructor
+     * @implements {Polymer_MutableData}
+     * @extends {DataTemplate}
+     */
     const MutableDataTemplate = Polymer.MutableData(DataTemplate);
 
     // Applies a DataTemplate subclass to a <template> instance
@@ -45,6 +59,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @implements {Polymer_PropertyEffects}
      */
     const base = Polymer.PropertyEffects(class {});
+
+    /**
+     * @polymer
+     * @customElement
+     * @appliesMixin Polymer.PropertyEffects
+     * @unrestricted
+     */
     class TemplateInstanceBase extends base {
       constructor(props) {
         super();
@@ -63,7 +84,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // or when there isn't instance props.
         let options = this.__templatizeOptions;
         if ((props && options.instanceProps) || !options.instanceProps) {
-          this._flushProperties();
+          this._enableProperties();
         }
       }
       /**
@@ -176,7 +197,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * is either another templatize instance that had option `parentModel: true`,
        * or else the host element.
        *
-       * @return {Polymer.PropertyEffectsInterface} The parent model of this instance
+       * @return {Polymer_PropertyEffects} The parent model of this instance
        */
       get parentModel() {
         let model = this.__parentModel;
@@ -194,6 +215,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    /** @type {!DataTemplate} */
+    TemplateInstanceBase.prototype.__dataHost;
+    /** @type {!TemplatizeOptions} */
+    TemplateInstanceBase.prototype.__templatizeOptions;
+    /** @type {!Polymer_PropertyEffects} */
+    TemplateInstanceBase.prototype._methodHost;
+    /** @type {!Object} */
+    TemplateInstanceBase.prototype.__templatizeOwner;
+    /** @type {!Object} */
+    TemplateInstanceBase.prototype.__hostProps;
+
+    /**
+     * @constructor
+     * @extends {TemplateInstanceBase}
+     * @implements {Polymer_MutableData}
+     */
     const MutableTemplateInstanceBase = Polymer.MutableData(TemplateInstanceBase);
 
     function findMethodHost(template) {
@@ -206,13 +243,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return templateHost && templateHost._methodHost || templateHost;
     }
 
+    /* eslint-disable valid-jsdoc */
+    /**
+     * @suppress {missingProperties} class.prototype is not defined for some reason
+     */
     function createTemplatizerClass(template, templateInfo, options) {
       // Anonymous class created by the templatize
-      /**
-       * @unrestricted
-       */
       let base = options.mutableData ?
         MutableTemplateInstanceBase : TemplateInstanceBase;
+      /**
+       * @constructor
+       * @extends {base}
+       */
       let klass = class extends base { }
       klass.prototype.__templatizeOptions = options;
       klass.prototype._bindTemplate(template);
@@ -220,6 +262,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return klass;
     }
 
+    /**
+     * @suppress {missingProperties} class.prototype is not defined for some reason
+     */
     function addPropagateEffects(template, templateInfo, options) {
       let userForwardHostProp = options.forwardHostProp;
       if (userForwardHostProp) {
@@ -251,9 +296,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         template.__dataTemp = {};
         template.__dataPending = null;
         template.__dataOld = null;
-        template._flushProperties();
+        template._enableProperties();
       }
     }
+    /* eslint-enable valid-jsdoc */
 
     function createForwardHostPropEffect(hostProp, userForwardHostProp) {
       return function forwardHostProp(template, prop, props) {
@@ -321,7 +367,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * of any event handlers.
      *
      *     // Customze property forwarding and event model decoration
-     *     let TemplateClass = Polymer.Tempaltize.templatize(template, this, {
+     *     let TemplateClass = Polymer.Templatize.templatize(template, this, {
      *       parentModel: true,
      *       instanceProps: {...},
      *       forwardHostProp(property, value) {...},
@@ -334,6 +380,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @summary Module for preparing and stamping instances of templates
      *   utilizing Polymer templating features.
      */
+
     const Templatize = {
 
       /**
@@ -389,15 +436,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * should be stored on the `owner` such that they can be retrieved via `this`.
        *
        * @memberof Polymer.Templatize
-       * @param {HTMLTemplateElement} template Template to templatize
-       * @param {*} owner Owner of the template instances; any optional callbacks
-       *   will be bound to this owner.
-       * @param {*=} options Options dictionary (see summary for details)
-       * @return {TemplateInstanceBase} Generated class bound to the template
+       * @param {!HTMLTemplateElement} template Template to templatize
+       * @param {!Polymer_PropertyEffects} owner Owner of the template instances;
+       *   any optional callbacks will be bound to this owner.
+       * @param {Object=} options Options dictionary (see summary for details)
+       * @return {function(new:TemplateInstanceBase)} Generated class bound to the template
        *   provided
+       * @suppress {invalidCasts}
        */
       templatize(template, owner, options) {
-        options = options || {};
+        options = /** @type {!TemplatizeOptions} */(options || {});
         if (template.__templatizeOwner) {
           throw new Error('A <template> can only be templatized once');
         }
@@ -418,7 +466,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         klass.prototype.__dataHost = template;
         klass.prototype.__templatizeOwner = owner;
         klass.prototype.__hostProps = templateInfo.hostProps;
-        return klass;
+        return /** @type {function(new:TemplateInstanceBase)} */(klass);
       },
 
       /**
@@ -438,28 +486,28 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @memberof Polymer.Templatize
        * @param {HTMLTemplateElement} template The model will be returned for
        *   elements stamped from this template
-       * @param {HTMLElement} el Element for which to return a template model.
+       * @param {Node} node Node for which to return a template model.
        * @return {TemplateInstanceBase} Template instance representing the
        *   binding scope for the element
        */
-      modelForElement(template, el) {
+      modelForElement(template, node) {
         let model;
-        while (el) {
+        while (node) {
           // An element with a __templatizeInstance marks the top boundary
           // of a scope; walk up until we find one, and then ensure that
           // its __dataHost matches `this`, meaning this dom-repeat stamped it
-          if ((model = el.__templatizeInstance)) {
+          if ((model = node.__templatizeInstance)) {
             // Found an element stamped by another template; keep walking up
             // from its __dataHost
             if (model.__dataHost != template) {
-              el = model.__dataHost;
+              node = model.__dataHost;
             } else {
               return model;
             }
           } else {
             // Still in a template scope, keep going up until
             // a __templatizeInstance is found
-            el = el.parentNode;
+            node = node.parentNode;
           }
         }
         return null;
@@ -467,6 +515,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     Polymer.Templatize = Templatize;
+    Polymer.TemplateInstanceBase = TemplateInstanceBase;
 
   })();
 

@@ -392,8 +392,13 @@ suite('computed bindings with dynamic functions', function() {
 
   var el;
 
+  setup(function() {
+    sinon.spy(console, 'warn');
+  });
+
   teardown(function() {
     document.body.removeChild(el);
+    console.warn.restore();
   });
 
   test('annotated computation with dynamic function', function() {
@@ -407,6 +412,7 @@ suite('computed bindings with dynamic functions', function() {
     };
 
     assert.equal(el.$.check.textContent, 'changed: Hello World.');
+    assert.equal(console.warn.callCount, 0);
   });
 
   test('annotated computation / late resolved dynamic function', function() {
@@ -420,6 +426,7 @@ suite('computed bindings with dynamic functions', function() {
     };
 
     assert.equal(el.$.check.textContent, 'translated: Hello');
+    assert.equal(console.warn.callCount, 0);
   });
 
   test('method observer with dynamic function', function() {
@@ -444,7 +451,7 @@ suite('computed bindings with dynamic functions', function() {
 
     el.translateMessage = sinon.spy();
     assert.equal(el.translateMessage.callCount, 1);
-
+    assert.equal(console.warn.callCount, 0);
   });
 
   test('observer with dynamic function', function() {
@@ -468,7 +475,7 @@ suite('computed bindings with dynamic functions', function() {
 
     el.messageChanged = sinon.spy();
     assert.equal(el.messageChanged.callCount, 1);
-
+    assert.equal(console.warn.callCount, 0);
   });
 
   test('computed property with dynamic function', function() {
@@ -497,7 +504,7 @@ suite('computed bindings with dynamic functions', function() {
 
     assert.equal(called, 1);
     assert.equal(el.computedValue, 'translated: Hello');
-
+    assert.equal(console.warn.callCount, 0);
   });
 
   test('ensure annotator can pass dynamic fn to parent props', function(done) {
@@ -507,6 +514,7 @@ suite('computed bindings with dynamic functions', function() {
     setTimeout(function() {
       var check = el.root.querySelector('p');
       assert.equal(check.textContent, 'text');
+      assert.equal(console.warn.callCount, 0);
       done();
     });
 
@@ -621,6 +629,37 @@ suite('2-way binding effects between elements', function() {
     el.$.basic1.fireCustomNotifyingEvent();
     assert.equal(el.boundCustomNotifyingValue, 'changed!');
     assert.equal(el.observerCounts.boundCustomNotifyingValueChanged, 1);
+  });
+
+});
+
+suite('handling notifying evevnts', function() {
+
+  test('handle notifcation event and set property with observer when connected', function() {
+    var el = document.createElement('x-handle-notify-event');
+    document.body.appendChild(el);
+    assert.ok(el.shadowRoot.querySelector('#before'), 'element not found before default notifying elmeent');
+    assert.ok(el.shadowRoot.querySelector('#later'), 'element not found after default notifying elmeent');
+    assert.isTrue(el.readySpy.calledOnce, 'ready called more than once');
+    assert.isTrue(el.handleNotify.calledOnce, 'listener called more than once');
+    assert.isTrue(el.propChanged.calledOnce, 'observer called more than once');
+    assert.isTrue(el.handleNotify.calledBefore(el.propChanged), 'observer called before event');
+    assert.isTrue(el.afterSettingProp.calledBefore(el.propChanged), 'accessor side effect processed during notifying event (before clients ready)');
+    assert.isTrue(el.propChanged.calledBefore(el.readySpy), 'observer called before ready');
+    document.body.removeChild(el);
+  });
+
+  test('handle notifcation event and set property with observer when *not* connected and _enableProperties called', function() {
+    var el = document.createElement('x-handle-notify-event');
+    el._enableProperties();
+    assert.ok(el.shadowRoot.querySelector('#before'), 'element not found before default notifying elmeent');
+    assert.ok(el.shadowRoot.querySelector('#later'), 'element not found after default notifying elmeent');
+    assert.isTrue(el.readySpy.calledOnce, 'ready called more than once');
+    assert.isTrue(el.handleNotify.calledOnce, 'listener called more than once');
+    assert.isTrue(el.propChanged.calledOnce, 'observer called more than once');
+    assert.isTrue(el.handleNotify.calledBefore(el.propChanged), 'observer called before event');
+    assert.isTrue(el.afterSettingProp.calledBefore(el.propChanged), 'accessor side effect processed during notifying event (before clients ready)');
+    assert.isTrue(el.propChanged.calledBefore(el.readySpy), 'observer called before ready');
   });
 
 });
@@ -1494,6 +1533,229 @@ suite('runtime effects', function() {
     el2 = document.createElement('x-basic');
     document.body.appendChild(el2);
     assert.equal(fn.callCount, 2);
+  });
+
+});
+
+suite('a la carte usage of API', function() {
+
+  let BaseClass;
+
+  suiteSetup(function() {
+    BaseClass = class extends Polymer.PropertyEffects(HTMLElement) {
+      connectedCallback() {
+        this.pcSpy = sinon.spy();
+        this._enableProperties();
+      }
+      _propertiesChanged(props, changedProps, oldProps) {
+        this.pcSpy(props, changedProps, oldProps);
+        super._propertiesChanged(props, changedProps, oldProps);
+      }
+    }
+  });
+
+  test('generic property effect', function() {
+    class TestClass extends BaseClass {
+      constructor() {
+        super();
+        this.observer = sinon.spy();
+      }
+    }
+    let observer = sinon.spy();
+    TestClass.addPropertyEffect('prop', TestClass.prototype.PROPERTY_EFFECT_TYPES.OBSERVE, {
+      fn: observer
+    });
+    customElements.define('pe-pe', TestClass);
+    let el = document.createElement('pe-pe');
+    document.body.appendChild(el);
+    assert.equal(observer.callCount, 0);
+    assert.equal(el.pcSpy.callCount, 0);
+    el.prop = true;
+    assert.equal(observer.callCount, 1);
+    assert.equal(el.pcSpy.callCount, 1);
+    el.prop = 'hithere';
+    assert.equal(observer.callCount, 2);
+    assert.equal(el.pcSpy.callCount, 2);
+    el.prop = false;
+    assert.equal(observer.callCount, 3);
+    assert.equal(el.pcSpy.callCount, 3);
+    document.body.removeChild(el);
+  });
+
+  test('read only property', function() {
+    class TestClass extends BaseClass {}
+    TestClass.createReadOnlyProperty('prop', true);
+    customElements.define('pe-read-only', TestClass);
+    let el = document.createElement('pe-read-only');
+    document.body.appendChild(el);
+    el.prop = true;
+    assert.equal(el.prop, undefined);
+    assert.equal(el.pcSpy.callCount, 0);
+    el._setProp(true);
+    assert.equal(el.prop, true);
+    assert.equal(el.pcSpy.callCount, 1);
+    el.prop = false;
+    assert.equal(el.prop, true);
+    assert.equal(el.pcSpy.callCount, 1);
+    document.body.removeChild(el);
+  });
+
+  test('reflected property', function() {
+    class TestClass extends BaseClass {}
+    TestClass.createReflectedProperty('prop', true);
+    customElements.define('pe-reflected', TestClass);
+    let el = document.createElement('pe-reflected');
+    document.body.appendChild(el);
+    assert.equal(el.hasAttribute('prop'), false);
+    assert.equal(el.pcSpy.callCount, 0);
+    el.prop = true;
+    assert.equal(el.getAttribute('prop'), '');
+    assert.equal(el.pcSpy.callCount, 1);
+    el.prop = 'hithere';
+    assert.equal(el.getAttribute('prop'), 'hithere');
+    assert.equal(el.pcSpy.callCount, 2);
+    el.prop = false;
+    assert.equal(el.hasAttribute('prop'), false);
+    assert.equal(el.pcSpy.callCount, 3);
+    document.body.removeChild(el);
+  });
+
+  test('property observer', function() {
+    class TestClass extends BaseClass {
+      constructor() {
+        super();
+        this.observer = sinon.spy();
+      }
+    }
+    TestClass.createPropertyObserver('prop', 'observer');
+    customElements.define('pe-observer', TestClass);
+    let el = document.createElement('pe-observer');
+    document.body.appendChild(el);
+    assert.equal(el.observer.callCount, 0);
+    assert.equal(el.pcSpy.callCount, 0);
+    el.prop = true;
+    assert.equal(el.observer.callCount, 1);
+    assert.equal(el.pcSpy.callCount, 1);
+    el.prop = 'hithere';
+    assert.equal(el.observer.callCount, 2);
+    assert.equal(el.pcSpy.callCount, 2);
+    el.prop = false;
+    assert.equal(el.observer.callCount, 3);
+    assert.equal(el.pcSpy.callCount, 3);
+    document.body.removeChild(el);
+  });
+
+  test('method observer', function() {
+    class TestClass extends BaseClass {
+      constructor() {
+        super();
+        this.observer = sinon.spy();
+      }
+    }
+    TestClass.createMethodObserver('observer(a, b.c)', true);
+    customElements.define('pe-method-observer', TestClass);
+    let el = document.createElement('pe-method-observer');
+    document.body.appendChild(el);
+    assert.equal(el.observer.callCount, 1);
+    assert.deepEqual(el.observer.getCall(0).args, [undefined, undefined]);
+    assert.equal(el.pcSpy.callCount, 1);
+    el.a = 'a';
+    assert.equal(el.observer.callCount, 2);
+    assert.deepEqual(el.observer.getCall(1).args, ['a', undefined]);
+    assert.equal(el.pcSpy.callCount, 2);
+    el.b = {c: 'c'};
+    assert.equal(el.observer.callCount, 3);
+    assert.deepEqual(el.observer.getCall(2).args, ['a', 'c']);
+    assert.equal(el.pcSpy.callCount, 3);
+    el.setProperties({
+      a: 'A',
+      b: {c: 'C'}
+    })
+    assert.equal(el.observer.callCount, 4);
+    assert.deepEqual(el.observer.getCall(3).args, ['A', 'C']);
+    assert.equal(el.pcSpy.callCount, 4);
+
+    el.observer = sinon.spy();
+    assert.equal(el.observer.callCount, 1);
+    assert.deepEqual(el.observer.getCall(0).args, ['A', 'C']);
+    assert.equal(el.pcSpy.callCount, 5);
+    document.body.removeChild(el);
+  });
+
+  test('computed property', function() {
+    class TestClass extends BaseClass {
+      constructor() {
+        super();
+        this.compute = sinon.spy(function(a, c) { return a + c; });
+      }
+    }
+    TestClass.createComputedProperty('prop', 'compute(a, b.c)');
+    customElements.define('pe-computed', TestClass);
+    let el = document.createElement('pe-computed');
+    document.body.appendChild(el);
+    assert.equal(el.compute.callCount, 0);
+    assert.equal(el.pcSpy.callCount, 0);
+    el.a = 'a';
+    assert.equal(el.compute.callCount, 1);
+    assert.deepEqual(el.compute.getCall(0).args, ['a', undefined]);
+    assert.equal(el.prop, 'aundefined');
+    assert.equal(el.pcSpy.callCount, 1);
+    el.b = {c: 'c'};
+    assert.equal(el.compute.callCount, 2);
+    assert.deepEqual(el.compute.getCall(1).args, ['a', 'c']);
+    assert.equal(el.prop, 'ac');
+    assert.equal(el.pcSpy.callCount, 2);
+    el.setProperties({
+      a: 'A',
+      b: {c: 'C'}
+    })
+    assert.equal(el.compute.callCount, 3);
+    assert.deepEqual(el.compute.getCall(2).args, ['A', 'C']);
+    assert.equal(el.prop, 'AC');
+    assert.equal(el.pcSpy.callCount, 3);
+    document.body.removeChild(el);
+  });
+
+  test('notifying property', function() {
+    class TestClass extends BaseClass { }
+    TestClass.createNotifyingProperty('prop');
+    customElements.define('pe-notify', TestClass);
+    let el = document.createElement('pe-notify');
+    let handler = sinon.spy();
+    el.addEventListener('prop-changed', handler);
+    document.body.appendChild(el);
+    assert.equal(handler.callCount, 0);
+    assert.equal(el.pcSpy.callCount, 0);
+    el.prop = 'prop';
+    assert.equal(handler.callCount, 1);
+    assert.equal(handler.getCall(0).args[0].detail.value, 'prop');
+    assert.equal(el.pcSpy.callCount, 1);
+    el.prop += '+';
+    assert.equal(handler.callCount, 2);
+    assert.equal(handler.getCall(1).args[0].detail.value, 'prop+');
+    document.body.removeChild(el);
+  });
+
+  test('bound template', function() {
+    let template = document.createElement('template');
+    template.innerHTML = '<div>[[prop]]</div><button on-click="handler"></button>';
+    class TestClass extends BaseClass {
+      connectedCallback() {
+        this.handler = sinon.spy();
+        this.attachShadow({mode:'open'}).appendChild(this._stampTemplate(template));
+        super.connectedCallback();
+      }
+    }
+    TestClass.bindTemplate(template);
+    customElements.define('pe-template', TestClass);
+    let el = document.createElement('pe-template');
+    document.body.appendChild(el);
+    assert.equal(el.handler.callCount, 0);
+    el.prop = 'prop';
+    assert.equal(el.shadowRoot.querySelector('div').textContent, 'prop');
+    el.shadowRoot.querySelector('button').click();
+    assert.equal(el.handler.callCount, 1);
+    document.body.removeChild(el);
   });
 
 });

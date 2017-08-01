@@ -18,6 +18,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
   'use strict';
 
+  let TemplateInstanceBase = Polymer.TemplateInstanceBase; // eslint-disable-line
+
   /**
    * @constructor
    * @implements {Polymer_OptionalMutableData}
@@ -67,7 +69,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Notifications for changes to items sub-properties will be forwarded to template
    * instances, which will update via the normal structured data notification system.
    *
-   * Mutations to the `items` array itself should me made using the Array
+   * Mutations to the `items` array itself should be made using the Array
    * mutation API's on `Polymer.Base` (`push`, `pop`, `splice`, `shift`,
    * `unshift`), and template instances will be kept in sync with the data in the
    * array.
@@ -112,10 +114,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *           filter="isEngineer" observe="type manager.type">
    * ```
    *
-   * @polymerElement
+   * @customElement
+   * @polymer
    * @memberof Polymer
-   * @extends Polymer.Element
-   * @mixes Polymer.MutableData
+   * @extends {domRepeatBase}
+   * @appliesMixin Polymer.OptionalMutableData
    * @summary Custom element for stamping instance of a template bound to
    *   items in an array.
    */
@@ -306,11 +309,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.__itemsIdxToInstIdx = {};
       this.__chunkCount = null;
       this.__lastChunkTime = null;
-      this.__needFullRefresh = false;
       this.__sortFn = null;
       this.__filterFn = null;
       this.__observePaths = null;
       this.__ctor = null;
+      this.__isDetached = true;
+      this.template = null;
     }
 
     disconnectedCallback() {
@@ -362,12 +366,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           mutableData: this.mutableData,
           parentModel: true,
           instanceProps: instanceProps,
+          /**
+           * @this {this}
+           * @param {string} prop Property to set
+           * @param {*} value Value to set property to
+           */
           forwardHostProp: function(prop, value) {
             let i$ = this.__instances;
             for (let i=0, inst; (i<i$.length) && (inst=i$[i]); i++) {
               inst.forwardHostProp(prop, value);
             }
           },
+          /**
+           * @this {this}
+           * @param {Object} inst Instance to notify
+           * @param {string} prop Property to notify
+           * @param {*} value Value to notify
+           */
           notifyInstanceProp: function(inst, prop, value) {
             if (Polymer.Path.matches(this.as, prop)) {
               let idx = inst[this.itemsIndexAs];
@@ -396,7 +411,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let methodHost = this.__getMethodHost();
       this.__sortFn = sort && (typeof sort == 'function' ? sort :
         function() { return methodHost[sort].apply(methodHost, arguments); });
-      this.__needFullRefresh = true;
       if (this.items) {
         this.__debounceRender(this.__render);
       }
@@ -406,7 +420,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let methodHost = this.__getMethodHost();
       this.__filterFn = filter && (typeof filter == 'function' ? filter :
         function() { return methodHost[filter].apply(methodHost, arguments); });
-      this.__needFullRefresh = true;
       if (this.items) {
         this.__debounceRender(this.__render);
       }
@@ -462,7 +475,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!this.__handleItemPath(change.path, change.value)) {
         // Otherwise, the array was reset ('items') or spliced ('items.splices'),
         // so queue a full refresh
-        this.__needFullRefresh = true;
         this.__initializeChunking();
         this.__debounceRender(this.__render);
       }
@@ -474,7 +486,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let paths = this.__observePaths;
         for (let i=0; i<paths.length; i++) {
           if (path.indexOf(paths[i]) === 0) {
-            this.__needFullRefresh = true;
             this.__debounceRender(this.__render, this.delay);
             return true;
           }
@@ -483,10 +494,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * @param {function()} fn Function to debounce.
+     * @param {function(this:DomRepeat)} fn Function to debounce.
      * @param {number=} delay Delay in ms to debounce by.
      */
-    __debounceRender(fn, delay) {
+    __debounceRender(fn, delay = 0) {
       this.__renderDebouncer = Polymer.Debouncer.debounce(
             this.__renderDebouncer
           , delay > 0 ? Polymer.Async.timeOut.after(delay) : Polymer.Async.microTask
@@ -503,7 +514,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     render() {
       // Queue this repeater, then flush all in order
-      this.__needFullRefresh = true;
       this.__debounceRender(this.__render);
       Polymer.flush();
     }
@@ -513,20 +523,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // No template found yet
         return;
       }
-      const items = this.items || [];
+      let items = this.items || [];
       let inst2items = new Array(items.length);
       for (let i=0; i<items.length; i++) {
         inst2items[i] = i;
       }
       // Apply user filter
       if (this.__filterFn) {
-        inst2items = inst2items.filter((i, idx) =>
-          this.__filterFn(items[i], idx, items));
+        inst2items = inst2items.filter((i, idx, array) =>
+          this.__filterFn(items[i], idx, array));
       }
       // Apply user sort
       if (this.__sortFn) {
         inst2items.sort((a, b) => this.__sortFn(items[a], items[b]));
       }
+
       // items->inst map kept for item path forwarding
       const items2inst = this.__itemsIdxToInstIdx = {};
       const instances = this.__instances;
@@ -672,18 +683,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // If path was index into array...
       if (itemsIdx == parseInt(itemsIdx, 10)) {
         let itemSubPath = dot < 0 ? '' : itemsPath.substring(dot+1);
-        // See if the item subpath should trigger a full refresh...
-        if (!this.__handleObservedPaths(itemSubPath)) {
-          // If not, forward to the instance for that index
-          let instIdx = this.__itemsIdxToInstIdx[itemsIdx];
-          let inst = this.__instances[instIdx];
-          if (inst) {
-            let itemPath = this.as + (itemSubPath ? '.' + itemSubPath : '');
-            // This is effectively `notifyPath`, but avoids some of the overhead
-            // of the public API
-            inst._setPendingPropertyOrPath(itemPath, value, false, true);
-            inst._flushProperties();
-          }
+        // If the path is observed, it will trigger a full refresh
+        this.__handleObservedPaths(itemSubPath);
+        // Note, even if a rull refresh is triggered, always do the path
+        // notification because unless mutableData is used for dom-repeat
+        // and all elements in the instance subtree, a full refresh may
+        // not trigger the proper update.
+        let instIdx = this.__itemsIdxToInstIdx[itemsIdx];
+        let inst = this.__instances[instIdx];
+        if (inst) {
+          let itemPath = this.as + (itemSubPath ? '.' + itemSubPath : '');
+          // This is effectively `notifyPath`, but avoids some of the overhead
+          // of the public API
+          inst._setPendingPropertyOrPath(itemPath, value, false, true);
+          inst._flushProperties();
         }
         return true;
       }

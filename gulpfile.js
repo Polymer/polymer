@@ -13,8 +13,6 @@
 
 const gulp = require('gulp');
 const gulpif = require('gulp-if');
-const audit = require('gulp-audit');
-const rename = require('gulp-rename');
 const runseq = require('run-sequence');
 const del = require('del');
 const eslint = require('gulp-eslint');
@@ -22,34 +20,25 @@ const fs = require('fs');
 const path = require('path');
 const mergeStream = require('merge-stream');
 const babel = require('gulp-babel');
-const htmlmin = require('gulp-htmlmin');
 const size = require('gulp-size');
 const lazypipe = require('lazypipe');
 const closure = require('google-closure-compiler').gulp();
 const minimalDocument = require('./util/minimalDocument.js')
+const dom5 = require('dom5');
+const parse5 = require('parse5');
 
 const DIST_DIR = 'dist';
 const BUNDLED_DIR = path.join(DIST_DIR, 'bundled');
-const UNBUNDLED_DIR = path.join(DIST_DIR, 'unbundled');
 const COMPILED_DIR = path.join(DIST_DIR, 'compiled');
-const DEFAULT_BUILD_DIR = BUNDLED_DIR;
 const POLYMER_LEGACY = 'polymer.html';
 const POLYMER_ELEMENT = 'polymer-element.html';
-const DEFAULT_BUILD_TARGET = POLYMER_LEGACY;
-const ENTRY_POINTS = [POLYMER_LEGACY, POLYMER_ELEMENT];
 
 const polymer = require('polymer-build');
 const PolymerProject = polymer.PolymerProject;
-const project = new PolymerProject({ entrypoint: DEFAULT_BUILD_TARGET });
-const fork = polymer.forkStream;
-
-gulp.task('clean', function() {
-  return del(DIST_DIR);
-});
 
 const {Transform} = require('stream');
 
-class OldNameStream extends Transform {
+class BackfillStream extends Transform {
   constructor(fileList) {
     super({objectMode: true});
     this.fileList = fileList;
@@ -75,53 +64,68 @@ class OldNameStream extends Transform {
   }
 }
 
-class Log extends Transform {
-  constructor(prefix = '') {
+let CLOSURE_LINT_ONLY = false;
+
+let firstImportFinder = dom5.predicates.AND(dom5.predicates.hasTagName('link'), dom5.predicates.hasAttrValue('rel', 'import'));
+
+class AddClosureTypeImport extends Transform {
+  constructor(entryFileName, typeFileName) {
     super({objectMode: true});
-    this.prefix = prefix;
+    this.target = path.resolve(entryFileName);
+    this.importPath = path.resolve(typeFileName);
   }
   _transform(file, enc, cb) {
-    console.log(this.prefix, file.path);
+    if (file.path === this.target) {
+      let contents = file.contents.toString();
+      let html = parse5.parse(contents, {locationInfo: true});
+      let firstImport = dom5.query(html, firstImportFinder);
+      if (firstImport) {
+        let importPath = path.relative(path.dirname(this.target), this.importPath);
+        let importLink = dom5.constructors.element('link');
+        dom5.setAttribute(importLink, 'rel', 'import');
+        dom5.setAttribute(importLink, 'href', importPath);
+        dom5.insertBefore(firstImport.parentNode, firstImport, importLink);
+        dom5.removeFakeRootElements(html);
+        file.contents = Buffer(parse5.serialize(html));
+      }
+    }
     cb(null, file);
   }
 }
 
-let CLOSURE_LINT_ONLY = false;
-let EXPECTED_WARNING_COUNT = 498;
+gulp.task('clean', () => del([DIST_DIR, 'closure.log']));
 
 gulp.task('closure', ['clean'], () => {
 
-  let entry, splitRx, joinRx;
+  let entry, splitRx, joinRx, addClosureTypes;
 
-  function full() {
-    entry = 'polymer.html';
-    splitRx = /polymer\.html_script_\d+\.js$/;
-    joinRx = /polymer\.html/;
+  function config(path) {
+    entry = path;
+    joinRx = new RegExp(path.split('/').join('\\/'));
+    splitRx = new RegExp(joinRx.source + '_script_\\d+\\.js$');
+    addClosureTypes = new AddClosureTypeImport(entry, 'externs/polymer-closure-types.html');
   }
 
-  function element() {
-    entry = 'polymer-element.html';
-    splitRx = /polymer-element\.html_script_\d+\.js$/;
-    joinRx = /polymer-element\.html/;
-  }
-
-  // element();
-  full();
+  config('polymer.html');
 
   const project = new PolymerProject({
-    shell: `./${entry}`
+    shell: `./${entry}`,
+    fragments: [
+      'bower_components/shadycss/apply-shim.html',
+      'bower_components/shadycss/custom-style-interface.html'
+    ],
+    extraDependencies: [
+      addClosureTypes.importPath,
+      'externs/closure-types.js'
+    ]
   });
 
   function closureLintLogger(log) {
     let chalk = require('chalk');
-    let result = log.split(/\n/).slice(-2)[0];
-    let warnings = result.match(/(\d+) warning/);
     // write out log to use with diffing tools later
     fs.writeFileSync('closure.log', chalk.stripColor(log));
-    if (warnings && Number(warnings[1]) > EXPECTED_WARNING_COUNT) {
-      console.error(chalk.red(`closure linting: actual warning count ${warnings[1]} greater than expected warning count ${EXPECTED_WARNING_COUNT}`));
-      process.exit(1);
-    }
+    console.error(log);
+    process.exit(-1);
   }
 
   let closurePluginOptions;
@@ -137,27 +141,30 @@ gulp.task('closure', ['clean'], () => {
     language_in: 'ES6_STRICT',
     language_out: 'ES5_STRICT',
     warning_level: 'VERBOSE',
-    output_wrapper: '(function(){\n%output%\n}).call(self);',
+    isolation_mode: 'IIFE',
     assume_function_wrapper: true,
     rewrite_polyfills: false,
     new_type_inf: true,
     checks_only: CLOSURE_LINT_ONLY,
+    polymer_version: 2,
     externs: [
       'bower_components/shadycss/externs/shadycss-externs.js',
       'externs/webcomponents-externs.js',
-      'externs/polymer-externs.js',
       'externs/closure-types.js',
+      'externs/polymer-externs.js',
     ],
     extra_annotation_name: [
-      'polymerMixin',
-      'polymerMixinClass',
-      'polymerElement'
+      'appliesMixin',
+      'mixinClass',
+      'mixinFunction',
+      'polymer',
+      'customElement'
     ]
   }, closurePluginOptions);
 
   const closurePipeline = lazypipe()
     .pipe(() => closureStream)
-    .pipe(() => new OldNameStream(closureStream.fileList_))
+    .pipe(() => new BackfillStream(closureStream.fileList_))
 
   // process source files in the project
   const sources = project.sources();
@@ -165,44 +172,13 @@ gulp.task('closure', ['clean'], () => {
   // process dependencies
   const dependencies = project.dependencies();
 
-  class Uniq extends Transform {
-    constructor() {
-      super({ objectMode: true });
-      this.map = {};
-    }
-    _transform(file, enc, cb) {
-      this.map[file.path] = file;
-      cb();
-    }
-    _flush(done) {
-      for (let filePath in this.map) {
-        let file = this.map[filePath];
-        this.push(file);
-      }
-      done();
-    }
-  }
-
-  class NoDeps extends Transform {
-    constructor() {
-      super({objectMode: true});
-    }
-    _transform(file, enc, cb) {
-      if (file.path.match(/shadycss/)) {
-        file.contents = new Buffer('');
-      }
-      cb(null, file);
-    }
-  }
-
   // merge the source and dependencies streams to we can analyze the project
   const mergedFiles = mergeStream(sources, dependencies);
 
   const splitter = new polymer.HtmlSplitter();
   return mergedFiles
-    .pipe(new NoDeps())
+    .pipe(addClosureTypes)
     .pipe(project.bundler())
-    .pipe(new Uniq())
     .pipe(splitter.split())
     .pipe(gulpif(splitRx, closurePipeline()))
     .pipe(splitter.rejoin())
@@ -216,106 +192,43 @@ gulp.task('lint-closure', (done) => {
   runseq('closure', done);
 })
 
-gulp.task('build', ['clean'], () => {
- // process source files in the project
- const sources = project.sources();
+gulp.task('estimate-size', ['clean'], () => {
 
- // process dependencies
- const dependencies = project.dependencies();
+  const babelPresets = {
+    presets: [['babili', {regexpConstructors: false, simplifyComparisons: false}]]
+  };
 
- // merge the source and dependencies streams to we can analyze the project
- const mergedFiles = mergeStream(sources, dependencies);
+  const project = new PolymerProject({
+    shell: POLYMER_LEGACY,
+    fragments: [
+      'bower_components/shadycss/apply-shim.html',
+      'bower_components/shadycss/custom-style-interface.html'
+    ]
+  });
 
- const bundlePipe = lazypipe()
-  .pipe(() => project.splitHtml())
-  .pipe(() => gulpif(/\.js$/, babel({presets: ['babili']})))
-  .pipe(() => project.rejoinHtml())
-  .pipe(htmlmin, {removeComments: true})
+  // process source files in the project
+  const sources = project.sources();
+
+  // process dependencies
+  const dependencies = project.dependencies();
+
+  // merge the source and dependencies streams to we can analyze the project
+  const mergedFiles = mergeStream(sources, dependencies);
+
+  const bundledSplitter = new polymer.HtmlSplitter();
+
+  const bundlePipe = lazypipe()
+  .pipe(() => bundledSplitter.split())
+  .pipe(() => gulpif(/\.js$/, babel(babelPresets)))
+  .pipe(() => bundledSplitter.rejoin())
   .pipe(minimalDocument)
-  .pipe(size, {title: 'bundled size', gzip: true, showTotal: false, showFiles: true})
 
- return mergeStream(
-   fork(mergedFiles)
-    .pipe(project.bundler)
-    .pipe(gulpif(/polymer\.html/, bundlePipe()))
+  return mergedFiles
+    .pipe(project.bundler())
+    .pipe(gulpif(/polymer\.html$/, bundlePipe()))
+    .pipe(gulpif(/polymer\.html$/, size({ title: 'bundled size', gzip: true, showTotal: false, showFiles: true })))
     // write to the bundled folder
-    .pipe(gulp.dest(BUNDLED_DIR)),
-
-   fork(mergedFiles)
-    .pipe(project.splitHtml())
-    // add compilers or optimizers here!
-    .pipe(gulpif(/\.js$/, babel({presets: ['babili']})))
-    .pipe(project.rejoinHtml())
-    .pipe(htmlmin({removeComments: true}))
-    // write to the unbundled folder
-    .pipe(gulp.dest(UNBUNDLED_DIR))
- );
-});
-
-// copy bower.json into dist folder
-gulp.task('copy-bower-json', function() {
-  return gulp.src('bower.json').pipe(gulp.dest(DEFAULT_BUILD_DIR));
-});
-
-// Build
-gulp.task('build-steps', function(cb) {
-  runseq('restore-src', 'build', 'print-size', cb);
-});
-
-// Bundled build
-gulp.task('build-bundled', function(cb) {
-  runseq('build-steps', 'save-src', 'link-bundled', cb);
-});
-
-// Unbundled build
-gulp.task('build-unbundled', function(cb) {
-  runseq('build-steps', 'save-src', 'link-unbundled', cb);
-});
-
-// Default Task
-gulp.task('default', ['build-bundled']);
-
-// switch src and build for testing
-gulp.task('save-src', function() {
-  return gulp.src(ENTRY_POINTS)
-    .pipe(rename(function(p) {
-      p.extname += '.src';
-    }))
-    .pipe(gulp.dest('.'));
-});
-
-gulp.task('restore-src', function(cb) {
-  const files = ENTRY_POINTS.map(f => `${f}.src`);
-  gulp.src(files)
-    .pipe(rename(function(p) {
-      p.extname = '';
-    }))
-    .pipe(gulp.dest('.'))
-    .on('end', () => Promise.all(files.map(f => del(f))).then(() => cb()));
-});
-
-gulp.task('link-bundled', function(cb) {
-  ENTRY_POINTS.forEach(f => {
-    fs.writeFileSync(f, `<link rel="import" href="${DEFAULT_BUILD_DIR}/${DEFAULT_BUILD_TARGET}">`);
-  });
-  cb();
-});
-
-gulp.task('link-unbundled', function(cb) {
-  ENTRY_POINTS.forEach(f => {
-    fs.writeFileSync(f, `<link rel="import" href="${DEFAULT_BUILD_DIR}/${f}">`);
-  });
-  cb();
-});
-
-gulp.task('audit', function() {
-  return gulp.src(ENTRY_POINTS.map(f => path.join(DEFAULT_BUILD_DIR, f)))
-    .pipe(audit('build.log', { repos: ['.'] }))
-    .pipe(gulp.dest(DEFAULT_BUILD_DIR));
-});
-
-gulp.task('release', function(cb) {
-  runseq('default', ['copy-bower-json', 'audit'], cb);
+    .pipe(gulp.dest(BUNDLED_DIR))
 });
 
 gulp.task('lint', function() {
@@ -323,4 +236,11 @@ gulp.task('lint', function() {
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
+});
+
+gulp.task('generate-closure-externs', ['clean'], () => {
+  let genClosure = require('@polymer/gen-closure-declarations').generateDeclarations;
+  return genClosure().then((declarations) => {
+    fs.writeFileSync('externs/closure-types.js', declarations);
+  });
 });
