@@ -205,6 +205,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         },
 
         /**
+         * Define the total number of items to render after filtering and sorting.
+         * Setting limit to zero or negative equates to no limit.
+         */
+        limit: {
+          type: Number,
+          value: 0,
+          observer: '__limitChanged'
+        },
+
+        /**
          * When using a `filter` or `sort` function, the `observe` property
          * should be set to a space-separated list of the names of item
          * sub-fields that should trigger a re-sort or re-filter when changed.
@@ -228,8 +238,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         /**
          * Count of currently rendered items after `filter` (if any) has been applied.
          * If "chunking mode" is enabled, `renderedItemCount` is updated each time a
-         * set of template instances is rendered.
-         *
+         * set of template instances is rendered. This will be no larger than limit.
          */
         renderedItemCount: {
           type: Number,
@@ -278,7 +287,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     constructor() {
       super();
       this.__instances = [];
-      this.__limit = Infinity;
+      this.__chunkLimit = Infinity;
       this.__pool = [];
       this.__renderDebouncer = null;
       this.__itemsIdxToInstIdx = {};
@@ -399,13 +408,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    __limitChanged() {
+      if (this.items) {
+        this.__debounceRender(this.__render);
+      }
+    }
+
     __computeFrameTime(rate) {
       return Math.ceil(1000/rate);
     }
 
     __initializeChunking() {
       if (this.initialCount) {
-        this.__limit = this.initialCount;
+        this.__chunkLimit = this.initialCount;
         this.__chunkCount = this.initialCount;
         this.__lastChunkTime = performance.now();
       }
@@ -414,7 +429,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     __tryRenderChunk() {
       // Debounced so that multiple calls through `_render` between animation
       // frames only queue one new rAF (e.g. array mutation & chunked render)
-      if (this.items && this.__limit < this.items.length) {
+      if (this.items && this.__chunkLimit < this.items.length) {
         this.__debounceRender(this.__requestRenderChunk);
       }
     }
@@ -430,7 +445,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let currChunkTime = performance.now();
       let ratio = this._targetFrameTime / (currChunkTime - this.__lastChunkTime);
       this.__chunkCount = Math.round(this.__chunkCount * ratio) || 1;
-      this.__limit += this.__chunkCount;
+      this.__chunkLimit += this.__chunkCount;
       this.__lastChunkTime = currChunkTime;
       this.__debounceRender(this.__render);
     }
@@ -530,17 +545,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (this.__sortFn) {
         isntIdxToItemsIdx.sort((a, b) => this.__sortFn(items[a], items[b]));
       }
+
       // items->inst map kept for item path forwarding
       const itemsIdxToInstIdx = this.__itemsIdxToInstIdx = {};
       let instIdx = 0;
       // Generate instances and assign items
-      const limit = Math.min(isntIdxToItemsIdx.length, this.__limit);
+      let limit = Math.min(isntIdxToItemsIdx.length, this.__chunkLimit);
+      if (this.limit > 0 && this.limit < limit) {
+        limit = this.limit;
+      }
       for (; instIdx<limit; instIdx++) {
         let inst = this.__instances[instIdx];
         let itemIdx = isntIdxToItemsIdx[instIdx];
         let item = items[itemIdx];
         itemsIdxToInstIdx[itemIdx] = instIdx;
-        if (inst && instIdx < this.__limit) {
+        if (inst && instIdx < this.__chunkLimit) {
           inst._setPendingProperty(this.as, item);
           inst._setPendingProperty(this.indexAs, instIdx);
           inst._setPendingProperty(this.itemsIndexAs, itemIdx);
