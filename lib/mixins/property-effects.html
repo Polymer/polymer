@@ -14,6 +14,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/path.html">
 <!-- for notify, reflect -->
 <link rel="import" href="../utils/case-map.html">
+<link rel="import" href="../utils/binding-parser.html">
 <link rel="import" href="property-accessors.html">
 <!-- for annotated effects -->
 <link rel="import" href="template-stamp.html">
@@ -2526,67 +2527,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       static _parseBindings(text, templateInfo) {
-        let parts = [];
-        let lastIndex = 0;
-        let m;
-        // Example: "literal1{{prop}}literal2[[!compute(foo,bar)]]final"
-        // Regex matches:
-        //        Iteration 1:  Iteration 2:
-        // m[1]: '{{'          '[['
-        // m[2]: ''            '!'
-        // m[3]: 'prop'        'compute(foo,bar)'
-        while ((m = bindingRegex.exec(text)) !== null) {
-          // Add literal part
-          if (m.index > lastIndex) {
-            parts.push({literal: text.slice(lastIndex, m.index)});
-          }
-          // Add binding part
-          let mode = m[1][0];
-          let negate = Boolean(m[2]);
-          let source = m[3].trim();
-          let customEvent = false, notifyEvent = '', colon = -1;
-          if (mode == '{' && (colon = source.indexOf('::')) > 0) {
-            notifyEvent = source.substring(colon + 2);
-            source = source.substring(0, colon);
-            customEvent = true;
-          }
-          let signature = parseMethod(source);
-          let dependencies = [];
-          if (signature) {
-            // Inline computed function
-            let {args, methodName} = signature;
-            for (let i=0; i<args.length; i++) {
-              let arg = args[i];
-              if (!arg.literal) {
-                dependencies.push(arg);
-              }
-            }
-            let dynamicFns = templateInfo.dynamicFns;
-            if (dynamicFns && dynamicFns[methodName] || signature.static) {
-              dependencies.push(methodName);
-              signature.dynamicFn = true;
-            }
-          } else {
-            // Property or path
-            dependencies.push(source);
-          }
-          parts.push({
-            source, mode, negate, customEvent, signature, dependencies,
-            event: notifyEvent
-          });
-          lastIndex = bindingRegex.lastIndex;
-        }
-        // Add a final literal part
-        if (lastIndex && lastIndex < text.length) {
-          let literal = text.substring(lastIndex);
-          if (literal) {
-            parts.push({
-              literal: literal
-            });
-          }
-        }
-        if (parts.length) {
-          return parts;
+        const parserParts = new Polymer.BindingParser().parse(text, templateInfo);
+        if (parserParts.length) {
+          return parserParts;
         } else {
           return null;
         }

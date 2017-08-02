@@ -1,0 +1,397 @@
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="boot.html">
+<script>
+(function() {
+    'use strict';
+
+    const BINDINGS = {
+        '{': '}',
+        '[': ']'
+    };
+
+  /**
+   * Module with utilities for converting between "dash-case" and "camelCase"
+   * identifiers.
+   *
+   * @namespace
+   * @memberof Polymer
+   * @summary Module that provides utilities for converting between "dash-case"
+   *   and "camelCase".
+   */
+  class BindingParser {
+
+    constructor() {
+        this._parts = [];
+    }
+
+    parse(text, templateInfo) {
+        this.text = text;
+        this.bindingData = {
+            dependencies: []
+        };
+
+        const STATE = {
+            INITIAL: (char, i) => {
+                //console.log('INITIAL')
+                switch (char) {
+                    case '{':
+                    case '[': {
+                        this._pushLiteral(i);
+                        this._startChar = i;
+                        return STATE.FIRSTOPENINGBINDING(char);
+                    }
+                }
+            },
+            FIRSTOPENINGBINDING: binding => (char, i) => {
+                //console.log('FIRSTOPENINGBINDING')
+                switch (char) {
+                    case binding: {
+                        this._startChar = i + 1;
+                        return STATE.FIRSTCHARACTERBINDING(binding);
+                    }
+                    default: {
+                        return STATE.INITIAL;
+                    }
+                }
+            },
+            FIRSTCHARACTERBINDING: (binding) => char => {
+                //console.log('FIRSTCHARACTERBINDING')
+                switch (char) {
+                    case '!': {
+                        this.bindingData.negate = true;
+                        this._startChar = i + 1;
+                    }
+                    default: {
+                        return STATE.BINDING(binding)
+                    }
+                }
+            },
+            BINDING: binding => (char, i) => {
+                //console.log('BINDING')
+                switch (char) {
+                    case BINDINGS[binding]: {
+                        return STATE.FIRSTCLOSINGBINDING(binding);
+                    }
+                    case '\'':
+                    case '"': {
+                        return STATE.STRING(binding, char);
+                    }
+                    case '(': {
+                        this.bindingData.signature = {
+                            methodName: text.substring(this._startChar, i).trim(),
+                            args: [],
+                            static: true
+                        };
+                        this._startChar = i + 1;
+                        return STATE.METHOD(binding)
+                    }
+                    case ':': {
+                        return STATE.FIRSTCOLON(binding)
+                    }
+                }
+            },
+            FIRSTCOLON: binding => (char, i) => {
+                switch (char) {
+                    case ':': {
+                        this.bindingData.customEvent = true;
+                        this._startCharAfterColon = i + 1;
+                        return STATE.COLONNOTIFYEVENT(binding)
+                    }
+                    default: {
+                        return STATE.BINDING(binding)
+                    }
+                }
+            },
+            COLONNOTIFYEVENT: binding => char => {
+                switch (char) {
+                    case BINDINGS[binding]: {
+                        return STATE.COLONNOTIFYEVENTFIRSTCLOSINGBINDING(binding);
+                    }
+                }
+            },
+            COLONNOTIFYEVENTFIRSTCLOSINGBINDING: binding => char => {
+                switch (char) {
+                    case BINDINGS[binding]: {
+                        this.bindingData.event = text.substring(this._startCharAfterColon, i - 1).trim();
+                        this.bindingData.mode = binding;
+                        const prop = text.substring(this._startChar, this._startCharAfterColon - 2).trim();
+                        this.bindingData.source = prop;
+                        this.bindingData.dependencies.push(prop);
+                        this._storeBindingData();
+                        this._startChar = i + 1;
+                        return STATE.INITIAL;
+                    }
+                    default: {
+                        return STATE.BINDING(binding);
+                    }
+                }
+            },
+            FIRSTCLOSINGBINDING: binding => (char, i) => {
+                //console.log('FIRSTCLOSINGBINDING')
+                switch (char) {
+                    case BINDINGS[binding]: {
+                        this.bindingData.mode = binding;
+                        const prop = text.substring(this._startChar, i - 1).trim();
+                        this.bindingData.source = prop;
+                        this.bindingData.dependencies.push(prop);
+                        this._storeBindingData();
+                        this._startChar = i + 1;
+                        return STATE.INITIAL;
+                    }
+                    default: {
+                        return STATE.BINDING(binding);
+                    }
+                }
+            },
+            STRING: (binding, quote) => {
+                let escaped = false;
+                return char => {
+                    //console.log('STRING')
+                    switch (char) {
+                        case '\\': {
+                            escaped = true;
+                            break;
+                        }
+                        case quote: {
+                            if (!escaped) {
+                                return STATE.BINDING(binding)
+                            }
+                        }
+                        default: {
+                            escaped = false;
+                        }
+                        
+                    }
+                }
+            },
+            METHOD: (binding) => {
+                let escaped = false;
+                return (char, i) => {
+                    //console.log('METHOD')
+                    switch (char) {
+                        case ')': {
+                            const methodName = this.bindingData.signature.methodName;
+                            const dynamicFns = templateInfo.dynamicFns;
+                            if (dynamicFns && dynamicFns[methodName] || this.bindingData.signature.static) {
+                                this.bindingData.dependencies.push(methodName);
+                                this.bindingData.signature.dynamicFn = true;
+                            }
+                            const name = text.substring(this._startChar, i).trim();
+                            this.bindingData.mode = binding;
+                            if (name) {
+                                this.bindingData.signature.args.push({
+                                    name 
+                                });
+                                this.bindingData.dependencies.push(name)
+                            }
+                            this._storeBindingData();
+                            return STATE.METHODCLOSED(binding)
+                        }
+                        case ',': {
+                            const name = text.substring(this._startChar, i).trim();
+                            if (name) {
+                                this.bindingData.signature.args.push({
+                                    name
+                                });
+                                this.bindingData.dependencies.push(name)
+                            }
+                            this._startChar = i + 1;
+                            break;
+                        }
+                        case '\'':
+                        case '"': {
+                            return STATE.STRINGARG(binding, char);
+                        }
+                        default: {
+                            if (char >= '0' && char <= '9' || char === '-') {
+                                return STATE.NUMBERARG(binding)
+                            }
+
+                            if (char != ' ' && char != '\n') {
+                                return STATE.VARIABLEARG(binding)
+                            }
+                        }
+                    }
+                }
+            },
+            STRINGARG: (binding, quote) => {
+                let escaped = false;
+                return char => {
+                    //console.log('STRINGARG')
+                    switch (char) {
+                        case '\\': {
+                            escaped = true;
+                            break;
+                        }
+                        case quote: {
+                            if (!escaped) {
+                                const value = text.substring(this._startChar, i)
+                                        .replace(/^\s+/, '')
+                                        .substring(1)
+                                        // replace comma entity with comma
+                                        .replace(/&comma;/g, ',')
+                                        // repair extra escape sequences; note only commas strictly need
+                                        // escaping, but we allow any other char to be escaped since its
+                                        // likely users will do this
+                                        .replace(/\\(.)/g, '\$1');
+                                this.bindingData.signature.args.push({
+                                    value,
+                                    name: value,
+                                    literal: true
+                                });
+                                this._startChar = i + 1;
+                                return STATE.METHOD(binding)
+                            }
+                        }
+                        default: {
+                            escaped = false;
+                        }
+                    }
+                }
+            },
+            NUMBERARG: binding => char => {
+                //console.log('NUMBERARG')
+                switch (char) {
+                    case ',': {
+                        const value = text.substring(this._startChar, i).trim();
+                        this.bindingData.signature.args.push({
+                            name: value,
+                            value: Number(value),
+                            literal: true
+                        });
+                        this._startChar = i + 1;
+                        return STATE.METHOD(binding)
+                    }
+                    case ')': {
+                        const methodName = this.bindingData.signature.methodName;
+                        const dynamicFns = templateInfo.dynamicFns;
+                        if (dynamicFns && dynamicFns[methodName] || this.bindingData.signature.static) {
+                            this.bindingData.dependencies.push(methodName);
+                            this.bindingData.signature.dynamicFn = true;
+                        }
+                        const value = text.substring(this._startChar, i).trim();
+                        this.bindingData.signature.args.push({
+                            name: value,
+                            value: Number(value),
+                            literal: true
+                        });
+                        this._storeBindingData();
+                        return STATE.METHODCLOSED(binding)
+                    }
+                    default: {
+                        if (char < '0' || char > '9') {
+                            return STATE.VARIABLEARG(binding)
+                        }
+                    }
+                }
+            },
+            VARIABLEARG: binding => char => {
+                //console.log('VARIABLEARG')
+                switch (char) {
+                    case ',': {
+                        const name = text.substring(this._startChar, i).trim();
+                        const arg = {
+                            name
+                        }
+                        arg.structured = Polymer.Path.isPath(name);
+                        if (arg.structured) {
+                            arg.wildcard = (name.slice(-2) == '.*');
+                            if (arg.wildcard) {
+                                arg.name = name.slice(0, -2);
+                            }
+                        }
+                        this.bindingData.signature.args.push(arg);
+                        this.bindingData.signature.static = false;
+                        this.bindingData.dependencies.push(name)
+                        this._startChar = i + 1;
+                        return STATE.METHOD(binding)
+                    }
+                    case ')': {
+                        const methodName = this.bindingData.signature.methodName;
+                        const dynamicFns = templateInfo.dynamicFns;
+                        this.bindingData.signature.static = false;
+                        if (dynamicFns && dynamicFns[methodName] || this.bindingData.signature.static) {
+                            this.bindingData.dependencies.push(methodName);
+                            this.bindingData.signature.dynamicFn = true;
+                        }
+                        const name = text.substring(this._startChar, i).trim();
+                        const arg = {
+                            name
+                        }
+                        arg.structured = Polymer.Path.isPath(name);
+                        if (arg.structured) {
+                            arg.wildcard = (name.slice(-2) == '.*');
+                            if (arg.wildcard) {
+                                arg.name = name.slice(0, -2);
+                            }
+                        }
+                        this.bindingData.signature.args.push(arg);
+                        this.bindingData.dependencies.push(name)
+                        this._storeBindingData();
+                        return STATE.METHODCLOSED(binding)
+                    }
+                }
+            },
+            METHODCLOSED: binding => char => {
+                //console.log('METHODCLOSED')
+                switch (char) {
+                    case BINDINGS[binding]: {
+                        return STATE.METHODCLOSEDBINDING(binding);
+                    }
+                }
+            },
+            METHODCLOSEDBINDING: binding => char => {
+                //console.log('METHODCLOSED')
+                switch (char) {
+                    case BINDINGS[binding]: {
+                        this._startChar = i + 1;
+                        return STATE.INITIAL();
+                    }
+                }
+            }
+        }
+
+        let state = STATE.INITIAL;
+        let i,l;
+
+        for (i=0,l=text.length; i<l; i++) {
+            state = state(text.charAt(i), i) || state;
+        }
+
+        // console.log(this._startChar, i)
+        if (this._parts.length) {
+            this._pushLiteral(i);
+        }
+
+        return this._parts;
+    }
+
+    _pushLiteral(i) {
+        const literal = this.text.substring(this._startChar || 0, i);
+        if (literal) {
+            this._parts.push({
+                literal
+            });
+        }
+    }
+
+    _storeBindingData() {
+        this._parts.push(this.bindingData);
+        this.bindingData = {
+            dependencies: []
+        };
+    }
+
+  };
+
+  Polymer.BindingParser = BindingParser;
+})();
+</script>
