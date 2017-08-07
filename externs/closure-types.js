@@ -580,7 +580,7 @@ Polymer_PropertyEffects.prototype.get = function(path, root){};
 */
 Polymer_PropertyEffects.prototype.set = function(path, value, root){};
 /**
-* @param {string} path Path to array.
+* @param {string | !Array<string|number>} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
