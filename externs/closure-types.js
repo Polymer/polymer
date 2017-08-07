@@ -580,7 +580,7 @@ Polymer_PropertyEffects.prototype.get = function(path, root){};
 */
 Polymer_PropertyEffects.prototype.set = function(path, value, root){};
 /**
-* @param {string | !Array<string|number>} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -1070,7 +1070,7 @@ Polymer_ElementMixin.prototype.get = function(path, root){};
 */
 Polymer_ElementMixin.prototype.set = function(path, value, root){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -1603,7 +1603,7 @@ Polymer_LegacyElementMixin.prototype.get = function(path, root){};
 */
 Polymer_LegacyElementMixin.prototype.set = function(path, value, root){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -2452,7 +2452,7 @@ Polymer_ArraySelectorMixin.prototype.get = function(path, root){};
 */
 Polymer_ArraySelectorMixin.prototype.set = function(path, value, root){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
