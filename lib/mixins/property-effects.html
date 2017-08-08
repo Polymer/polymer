@@ -162,10 +162,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             fx.info = {};
           }
           fx.info.lastRun = dedupeId;
-          if (!fx.fn) {
-            fx.fn = func;
-          }
-          fx.fn(inst, prop, props, oldProps, fx.info, hasPaths, extraArgs);
+          const fn = fx.fn || func;
+          fn(inst, prop, props, oldProps, fx.info, hasPaths, extraArgs);
           ran = true;
         }
       }
@@ -410,8 +408,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         console.warn('Cannot set attribute ' + binding.target +
           ' because "-" is not a valid attribute starting character');
       } else {
-        let dependencies = part.dependencies;
-        let info = { index, binding, part, evaluator: constructor };
+        let dependencies = part.dependencies || [part.source];
+        let info = { index, binding, part };
         for (let j=0; j<dependencies.length; j++) {
           let trigger = dependencies[j];
           if (typeof trigger == 'string') {
@@ -420,7 +418,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           const rootProperty = trigger.rootProperty || (trigger.rootProperty = Polymer.Path.root(trigger.name));
           constructor._addTemplatePropertyEffect(templateInfo, rootProperty, {
-            fn: EFFECT_FUNCTIONS.runBindingEffect,
             info, trigger
           });
         }
@@ -563,13 +560,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     for (let i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
       if (!arg.literal) {
         model._addPropertyEffect(arg.rootProperty, type, {
-          fn: effectFn, info: info, trigger: arg
+          fn: effectFn, info, trigger: arg
         });
       }
     }
     if (dynamicFn) {
       model._addPropertyEffect(sig.methodName, type, {
-        fn: effectFn, info: info
+        fn: effectFn, info
       });
     }
   }
@@ -650,7 +647,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     sig.args = argList.map(function(rawArg) {
       let arg = parseArg(rawArg);
       if (!arg.literal) {
-        sig.static = false;
+        delete sig.static;
       }
       sig.cacheName += arg.name;
       return arg;
@@ -689,9 +686,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       ;
     // basic argument descriptor
     let a = {
-      name: arg,
-      value: '',
-      literal: false
+      name: arg
     };
     // detect literal value (must be String or Number)
     let fc = arg[0];
@@ -715,6 +710,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // if not literal, look for structured path
     if (!a.literal) {
       a.rootProperty = Polymer.Path.root(arg);
+      if (a.rootProperty === a.name) {
+        delete a.name;
+      }
       // detect structured path (has dots)
       a.structured = Polymer.Path.isPath(arg);
       if (a.structured) {
@@ -1764,9 +1762,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _createNotifyingProperty(property) {
-        this._addPropertyEffect(property, TYPES.NOTIFY, {
-          fn: EFFECT_FUNCTIONS.runNotifyEffect
-        });
+        this._addPropertyEffect(property, TYPES.NOTIFY, {});
       }
 
       /**
@@ -1783,9 +1779,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           console.warn('Property ' + property + ' cannot be reflected to attribute ' +
             attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property thisead.');
         } else {
-          this._addPropertyEffect(property, TYPES.REFLECT, {
-            fn: EFFECT_FUNCTIONS.runReflectEffect
-          });
+          this._addPropertyEffect(property, TYPES.REFLECT, {});
         }
       }
 
@@ -1805,7 +1799,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!sig) {
           throw new Error("Malformed computed expression '" + expression + "'");
         }
-        createMethodEffect(this, sig, TYPES.COMPUTE, EFFECT_FUNCTIONS.runComputedEffect, property, dynamicFn);
+        createMethodEffect(this, sig, TYPES.COMPUTE, undefined, property, dynamicFn);
       }
 
       // -- static class methods ------------
@@ -2063,7 +2057,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Flush properties into template nodes if already booted
         if (this.__dataReady) {
           runEffects(this, templateInfo.propertyEffects, this.__data, null,
-            false, templateInfo.nodeList);
+            false, templateInfo.nodeList, EFFECT_FUNCTIONS.runBindingEffect);
         }
         return dom;
       }
@@ -2299,10 +2293,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // Property or path
             dependencies.push(source);
           }
-          parts.push({
-            source, mode, negate, customEvent, signature, dependencies,
+          const part = {
+            source, negate, customEvent, signature,
             event: notifyEvent
-          });
+          };
+          if (dependencies.length > 1 || part.source !== dependencies[0]) {
+            part.dependencies = dependencies;
+          }
+          if (mode === '{') {
+            part.mode = mode;
+          }
+          parts.push(part);
           lastIndex = bindingRegex.lastIndex;
         }
         // Add a final literal part
