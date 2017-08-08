@@ -18,6 +18,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         '[': ']'
     };
 
+    const STATE = {
+        INITIAL: 1,
+        FIRSTOPENINGBINDING: 2,
+        FIRSTCHARACTERBINDING: 3,
+        BINDING: 4,
+        FIRSTCOLON: 5,
+        COLONNOTIFYEVENT: 6,
+        COLONNOTIFYEVENTFIRSTCLOSINGBINDING: 7,
+        FIRSTCLOSINGBINDING: 8,
+        STRING: 9,
+        METHOD: 10,
+        STRINGARG: 11,
+        NUMBERARG: 12,
+        VARIABLEARG: 13,
+        METHODCLOSED: 14,
+        METHODCLOSEDBINDING: 15
+    }
+
     function pushLiteral(text, i, parts, startChar) {
         const literal = text.substring(startChar || 0, i);
         if (literal) {
@@ -92,108 +110,132 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     parse(text, templateInfo) {
         const parts = [];
-        /* eslint-disable no-fallthrough */
+        let bindingData = {};
+        let escaped = false;
+        let quote;
 
-        const STATE = {
-            INITIAL: bindingData => char => {
-                if ((char === '{' || char === '[')) {
-                    return STATE.FIRSTOPENINGBINDING({
-                        mode: char,
-                        dependencies: [],
-                        startChar: bindingData.startChar
-                    });
-                }
-            },
-            FIRSTOPENINGBINDING: bindingData => (char, i) => {
-                if (char === bindingData.mode) {
-                    pushLiteral(text, i - 1, parts, bindingData.startChar);
-                    bindingData.startChar = i + 1;
-                    return STATE.FIRSTCHARACTERBINDING(bindingData);
-                }
-                return STATE.INITIAL({});
-            },
-            FIRSTCHARACTERBINDING: (bindingData) => char => {
-                if (char !== ' ' && char !== '\t' && char !== '\n') {
-                    if (char === '!') {
-                        bindingData.negate = true;
-                        bindingData.startChar = i + 1;
-                    }
-                    return STATE.BINDING(bindingData)
-                }
-            },
-            BINDING: bindingData => (char, i) => {
-                switch (char) {
-                    case BINDINGS[bindingData.mode]: {
-                        return STATE.FIRSTCLOSINGBINDING(bindingData);
-                    }
-                    case '\'':
-                    case '"': {
-                        return STATE.STRING(bindingData, char);
-                    }
-                    case '(': {
-                        bindingData.signature = {
-                            methodName: text.substring(bindingData.startChar, i).trim(),
-                            args: [],
-                            static: true
+        let state = STATE.INITIAL;
+        let i,l;
+
+        for (i=0,l=text.length; i<l; i++) {
+            const char = text.charAt(i);
+            switch (state) {
+                case STATE.INITIAL: {
+                    if ((char === '{' || char === '[')) {
+                        bindingData = {
+                            mode: char,
+                            dependencies: [],
+                            startChar: bindingData.startChar
                         };
-                        return STATE.METHOD(bindingData)
+                        state = STATE.FIRSTOPENINGBINDING;
                     }
-                    case ':': {
-                        return STATE.FIRSTCOLON(bindingData)
+                    break;
+                }
+                case STATE.FIRSTOPENINGBINDING: {
+                    if (char === bindingData.mode) {
+                        pushLiteral(text, i - 1, parts, bindingData.startChar);
+                        bindingData.startChar = i + 1;
+                        state = STATE.FIRSTCHARACTERBINDING;
+                    } else {
+                        bindingData = {};
+                        state = STATE.INITIAL;
                     }
+                    break;
                 }
-            },
-            FIRSTCOLON: bindingData => (char, i) => {
-                if (char === ':') {
-                    bindingData.customEvent = true;
-                    bindingData.startCharAfterColon = i + 1;
-                    return STATE.COLONNOTIFYEVENT(bindingData)
+                case STATE.FIRSTCHARACTERBINDING: {
+                    if (char !== ' ' && char !== '\t' && char !== '\n') {
+                        if (char === '!') {
+                            bindingData.negate = true;
+                            bindingData.startChar = i + 1;
+                        }
+                        state = STATE.BINDING;
+                    }
+                    break;
                 }
-                return STATE.BINDING(bindingData)
-            },
-            COLONNOTIFYEVENT: bindingData => char => {
-                if (char === BINDINGS[bindingData.mode]) {
-                    return STATE.COLONNOTIFYEVENTFIRSTCLOSINGBINDING(bindingData);
+                case STATE.BINDING: {
+                    switch (char) {
+                        case BINDINGS[bindingData.mode]: {
+                            state = STATE.FIRSTCLOSINGBINDING;
+                            break;
+                        }
+                        case '\'':
+                        case '"': {
+                            quote = char;
+                            state = STATE.STRING;
+                            break;
+                        }
+                        case '(': {
+                            bindingData.signature = {
+                                methodName: text.substring(bindingData.startChar, i).trim(),
+                                args: [],
+                                static: true
+                            };
+                            bindingData.startChar = i + 1;
+                            state = STATE.METHOD;
+                            break;
+                        }
+                        case ':': {
+                            state = STATE.FIRSTCOLON;
+                        }
+                    }
+                    break;
                 }
-            },
-            COLONNOTIFYEVENTFIRSTCLOSINGBINDING: bindingData => char => {
-                if (char === BINDINGS[bindingData.mode]) {
-                    bindingData.event = text.substring(bindingData.startCharAfterColon, i - 1).trim();
-                    const prop = text.substring(bindingData.startChar, bindingData.startCharAfterColon - 2).trim();
-                    storeVariableBinding(parts, bindingData, prop, i);
-                    return STATE.INITIAL(bindingData);
+                case STATE.FIRSTCOLON: {
+                    if (char === ':') {
+                        bindingData.customEvent = true;
+                        bindingData.startCharAfterColon = i + 1;
+                        state = STATE.COLONNOTIFYEVENT;
+                    } else {
+                        state = STATE.BINDING;
+                    }
+                    break;
                 }
-                return STATE.BINDING(bindingData);
-            },
-            FIRSTCLOSINGBINDING: bindingData => (char, i) => {
-                if (char === BINDINGS[bindingData.mode]) {
-                    const prop = text.substring(bindingData.startChar, i - 1).trim();
-                    storeVariableBinding(parts, bindingData, prop, i);
-                    return STATE.INITIAL(bindingData);
+                case STATE.COLONNOTIFYEVENT: {
+                    if (char === BINDINGS[bindingData.mode]) {
+                        state = STATE.COLONNOTIFYEVENTFIRSTCLOSINGBINDING;
+                    }
+                    break;
                 }
-                return STATE.BINDING(bindingData);
-            },
-            STRING: (bindingData, quote) => {
-                let escaped = false;
-                return char => {
+                case STATE.COLONNOTIFYEVENTFIRSTCLOSINGBINDING: {
+                    if (char === BINDINGS[bindingData.mode]) {
+                        bindingData.event = text.substring(bindingData.startCharAfterColon, i - 1).trim();
+                        const prop = text.substring(bindingData.startChar, bindingData.startCharAfterColon - 2).trim();
+                        storeVariableBinding(parts, bindingData, prop, i);
+                        state = STATE.INITIAL;
+                    } else {
+                        state = STATE.BINDING;
+                    }
+                    break;
+                }
+                case STATE.FIRSTCLOSINGBINDING: {
+                    if (char === BINDINGS[bindingData.mode]) {
+                        const prop = text.substring(bindingData.startChar, i - 1).trim();
+                        storeVariableBinding(parts, bindingData, prop, i);
+                        state = STATE.INITIAL;
+                    } else {
+                        state = STATE.BINDING;
+                    }
+                    break;
+                }
+                case STATE.STRING: {
                     if (char === '\\') {
                         escaped = true;
                     } else if (char === quote && !escaped) {
-                        return STATE.BINDING(bindingData)
+                        state = STATE.BINDING;
                     } else {
                         escaped = false;
                     }
+                    break;
                 }
-            },
-            METHOD: (bindingData) => {
-                bindingData.startChar = i + 1;
-                return (char, i) => {
+                case STATE.METHOD: {
                     switch (char) {
                         case ')': {
                             storeMethodVariable(bindingData, text, i);
                             storeMethod(bindingData, templateInfo);
                             bindingData.startChar = i + 1;
-                            return STATE.METHODCLOSED(bindingData);
+                            storeMethod(bindingData, templateInfo);
+                            state = STATE.METHODCLOSED;
+                            break;
                         }
                         case ',': {
                             storeMethodVariable(bindingData, text, i)
@@ -202,23 +244,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                         }
                         case '\'':
                         case '"': {
-                            return STATE.STRINGARG(bindingData, char);
+                            quote = char;
+                            state = STATE.STRINGARG;
+                            break;
                         }
                         default: {
                             if (char >= '0' && char <= '9' || char === '-') {
-                                return STATE.NUMBERARG(bindingData)
-                            }
-
-                            if (char != ' ' && char != '\n') {
-                                return STATE.VARIABLEARG(bindingData)
+                                state = STATE.NUMBERARG;
+                            } else if (char != ' ' && char != '\n') {
+                                state = STATE.VARIABLEARG;
                             }
                         }
                     }
+                    break;
                 }
-            },
-            STRINGARG: (bindingData, quote) => {
-                let escaped = false;
-                return char => {
+                case STATE.STRINGARG: {
                     if (char === '\\') {
                         escaped = true;
                     } else if (char === quote && !escaped) {
@@ -236,70 +276,71 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
                             name: value,
                             literal: true
                         });
-                        return STATE.METHOD(bindingData)
+                        bindingData.startChar = i + 1;
+                        state = STATE.METHOD;
                     } else {
                         escaped = false;
                     }
+                    break;
                 }
-            },
-            NUMBERARG: bindingData => char => {
-                switch (char) {
-                    case ',': {
-                        storeMethodNumber(bindingData, text, i);
-                        return STATE.METHOD(bindingData);
-                    }
-                    case ')': {
-                        storeMethodNumber(bindingData, text, i);
-                        return STATE.METHODCLOSED(bindingData);
-                    }
-                    default: {
-                        if (char < '0' || char > '9') {
-                            return STATE.VARIABLEARG(bindingData);
+                case STATE.NUMBERARG: {
+                    switch (char) {
+                        case ',': {
+                            storeMethodNumber(bindingData, text, i);
+                            bindingData.startChar = i + 1;
+                            state = STATE.METHOD;
+                            break;
+                        }
+                        case ')': {
+                            storeMethodNumber(bindingData, text, i);
+                            storeMethod(bindingData, templateInfo);
+                            state = STATE.METHODCLOSED;
+                            break;
+                        }
+                        default: {
+                            if (char < '0' || char > '9') {
+                                state = STATE.VARIABLEARG;
+                            }
                         }
                     }
+                    break;
                 }
-            },
-            VARIABLEARG: bindingData => char => {
-                switch (char) {
-                    case ',': {
-                        storeMethodVariable(bindingData, text, i);
-                        return STATE.METHOD(bindingData)
+                case STATE.VARIABLEARG: {
+                    switch (char) {
+                        case ',': {
+                            storeMethodVariable(bindingData, text, i);
+                            bindingData.startChar = i + 1;
+                            state = STATE.METHOD;
+                            break;
+                        }
+                        case ')': {
+                            storeMethodVariable(bindingData, text, i);
+                            storeMethod(bindingData, templateInfo);
+                            state = STATE.METHODCLOSED;
+                            break;
+                        }
                     }
-                    case ')': {
-                        storeMethodVariable(bindingData, text, i);
-                        return STATE.METHODCLOSED(bindingData)
-                    }
+                    break;
                 }
-            },
-            METHODCLOSED: bindingData => {
-                storeMethod(bindingData, templateInfo);
-                return char => {
+                case STATE.METHODCLOSED: {
                     if (char === BINDINGS[bindingData.mode]) {
-                        return STATE.METHODCLOSEDBINDING(bindingData);
+                        state = STATE.METHODCLOSEDBINDING;
+                    } else if (char !== ' ' && char !== '\t' && char !== '\n') {
+                        // console.warn(`Invalid binding: "${text}"`);
                     }
-                    if (char !== ' ' && char !== '\t' && char !== '\n') {
-                        console.warn(`Invalid binding: "${text}"`);
+                    break;
+                }
+                case STATE.METHODCLOSEDBINDING: {
+                    if (char === BINDINGS[bindingData.mode]) {
+                        bindingData.startChar = i + 1;
+                        parts.push(bindingData);
+                        state = STATE.INITIAL;
+                    } else if (char !== ' ' && char !== '\t' && char !== '\n') {
+                        // console.warn(`Invalid binding: "${text}"`);
                     }
-                }
-            },
-            METHODCLOSEDBINDING: bindingData => (char, i) => {
-                if (char === BINDINGS[bindingData.mode]) {
-                    bindingData.startChar = i + 1;
-                    parts.push(bindingData);
-                    return STATE.INITIAL(bindingData);
-                }
-                if (char !== ' ' && char !== '\t' && char !== '\n') {
-                    console.warn(`Invalid binding: "${text}"`);
+                    break;
                 }
             }
-        }
-        /* eslint-enable no-fallthrough */
-
-        let state = STATE.INITIAL({});
-        let i,l;
-
-        for (i=0,l=text.length; i<l; i++) {
-            state = state(text.charAt(i), i) || state;
         }
 
         if (parts.length) {
