@@ -50,7 +50,7 @@ PolymerElementConstructor.template;
 
 /**
  * @param {!PolymerInit} init
- * @return {!HTMLElement}
+ * @return {!function(new:HTMLElement)}
  */
 function Polymer(init){}
 
@@ -84,3 +84,10 @@ PolymerTelemetry.dumpRegistrations;;
 
 /** @type {PolymerTelemetry} */
 Polymer.telemetry;
+
+/**
+ * @constructor
+ * @extends {HTMLElement}
+ * @implements {Polymer_LegacyElementMixin}
+ */
+var PolymerElement = Polymer.LegacyElementMixin();

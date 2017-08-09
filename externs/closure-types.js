@@ -798,6 +798,24 @@ Polymer_PropertyEffects._evaluateBinding = function(inst, part, path, props, old
 * @extends {Polymer_PropertyEffects}
 */
 function Polymer_ElementMixin(){}
+/** @type {HTMLTemplateElement} */
+Polymer_ElementMixin.prototype._template;
+
+/** @type {string} */
+Polymer_ElementMixin.prototype._importPath;
+
+/** @type {string} */
+Polymer_ElementMixin.prototype.rootPath;
+
+/** @type {string} */
+Polymer_ElementMixin.prototype.importPath;
+
+/** @type {(StampedTemplate|HTMLElement|ShadowRoot)} */
+Polymer_ElementMixin.prototype.root;
+
+/** @type {!Object.<string, !Node>} */
+Polymer_ElementMixin.prototype.$;
+
 /**
 * @override
 * @param {!HTMLTemplateElement} template Template to stamp
@@ -1163,8 +1181,8 @@ Polymer_ElementMixin.prototype.connectedCallback = function(){};
 */
 Polymer_ElementMixin.prototype.disconnectedCallback = function(){};
 /**
-* @param {NodeList} dom to attach to the element.
-* @return {Node}
+* @param {StampedTemplate} dom to attach to the element.
+* @return {ShadowRoot}
 */
 Polymer_ElementMixin.prototype._attachDom = function(dom){};
 /**
@@ -1331,6 +1349,15 @@ Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(
 * @extends {Polymer_GestureEventListeners}
 */
 function Polymer_LegacyElementMixin(){}
+/** @type {boolean} */
+Polymer_LegacyElementMixin.prototype.isAttached;
+
+/** @type {WeakMap.<!Element, !Object.<string, !Function>>} */
+Polymer_LegacyElementMixin.prototype.__boundListeners;
+
+/** @type {Object.<string, Function>} */
+Polymer_LegacyElementMixin.prototype._debouncers;
+
 /**
 * @override
 * @param {!HTMLTemplateElement} template Template to stamp
@@ -1696,8 +1723,8 @@ Polymer_LegacyElementMixin.prototype.connectedCallback = function(){};
 */
 Polymer_LegacyElementMixin.prototype.disconnectedCallback = function(){};
 /**
-* @param {NodeList} dom to attach to the element.
-* @return {Node}
+* @param {StampedTemplate} dom to attach to the element.
+* @return {ShadowRoot}
 */
 Polymer_LegacyElementMixin.prototype._attachDom = function(dom){};
 /**
@@ -2545,8 +2572,8 @@ Polymer_ArraySelectorMixin.prototype.connectedCallback = function(){};
 */
 Polymer_ArraySelectorMixin.prototype.disconnectedCallback = function(){};
 /**
-* @param {NodeList} dom to attach to the element.
-* @return {Node}
+* @param {StampedTemplate} dom to attach to the element.
+* @return {ShadowRoot}
 */
 Polymer_ArraySelectorMixin.prototype._attachDom = function(dom){};
 /**
