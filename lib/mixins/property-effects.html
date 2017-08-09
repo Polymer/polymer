@@ -409,7 +409,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           ' because "-" is not a valid attribute starting character');
       } else {
         let dependencies = part.dependencies || [part.source];
-        let info = { index, binding, part };
+        let info = { index, binding, part, evaluator: constructor };
         for (let j=0; j<dependencies.length; j++) {
           let trigger = dependencies[j];
           if (typeof trigger == 'string') {
@@ -501,7 +501,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let target = binding.target;
       storage[target] = literals;
       // Configure properties with their literal parts
-      if (binding.literal && binding.kind === '') {
+      if (binding.literal && (!binding.kind || binding.kind === 'property')) {
         node[target] = binding.literal;
       }
     }
@@ -1762,7 +1762,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _createNotifyingProperty(property) {
-        this._addPropertyEffect(property, TYPES.NOTIFY, {});
+        this._addPropertyEffect(property, TYPES.NOTIFY, {
+          fn: EFFECT_FUNCTIONS.runNotifyEffect,
+          info: {
+            eventName: CaseMap.camelToDashCase(property) + '-changed',
+            property
+          }
+        });
       }
 
       /**
@@ -1774,12 +1780,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _createReflectedProperty(property) {
-        let attr = CaseMap.camelToDashCase(property);
-        if (attr[0] === '-') {
+        let attrName = CaseMap.camelToDashCase(property);
+        if (attrName[0] === '-') {
           console.warn('Property ' + property + ' cannot be reflected to attribute ' +
-            attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property thisead.');
+            attrName + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property thisead.');
         } else {
-          this._addPropertyEffect(property, TYPES.REFLECT, {});
+          this._addPropertyEffect(property, TYPES.REFLECT, {
+            fn: EFFECT_FUNCTIONS.runReflectEffect,
+            info: {
+              attrName
+            }
+          });
         }
       }
 
@@ -2093,14 +2104,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      static _parseTemplate(template, outerTemplateInfo) {
-        if (Polymer.PreBuiltBindings && Polymer.PreBuiltBindings[this.is]) {
-          template._templateInfo = Polymer.PreBuiltBindings[this.is];
-        }
-
-        return super._parseTemplate(template, outerTemplateInfo);
-      }
-
       /**
        * Overrides default `TemplateStamp` implementation to add support for
        * parsing bindings from `TextNode`'s' `textContent`.  A `bindings`
@@ -2156,8 +2159,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (parts) {
           // Attribute or property
           let origName = name;
-          // kind is by default property
-          let kind = '';
+          let kind = 'property';
           if (name[name.length-1] == '$') {
             name = name.slice(0, -1);
             kind = 'attribute';
@@ -2180,7 +2182,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // (properties) are case sensitive. Gambit is to map dash-case to
           // camel-case: `foo-bar` becomes `fooBar`.
           // Attribute bindings are excepted.
-          if (kind === '') {
+          if (kind === 'property') {
             name = Polymer.CaseMap.dashToCamelCase(name);
           }
           addBinding(this, templateInfo, nodeInfo, kind, name, parts, literal);
@@ -2211,7 +2213,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let mode = '{';
         for (let source in hostProps) {
           let parts = [{ mode, source, dependencies: [source] }];
-          addBinding(this, templateInfo, nodeInfo, '', '_host_' + source, parts);
+          addBinding(this, templateInfo, nodeInfo, 'property', '_host_' + source, parts);
         }
         return noted;
       }
@@ -2294,17 +2296,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // Property or path
             dependencies.push(source);
           }
-          const part = {
-            source, negate, customEvent, signature,
+          parts.push({
+            source, mode, negate, customEvent, signature, dependencies,
             event: notifyEvent
-          };
-          if (dependencies.length > 1 || part.source !== dependencies[0]) {
-            part.dependencies = dependencies;
-          }
-          if (mode === '{') {
-            part.mode = mode;
-          }
-          parts.push(part);
+          });
           lastIndex = bindingRegex.lastIndex;
         }
         // Add a final literal part
