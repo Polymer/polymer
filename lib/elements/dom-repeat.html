@@ -265,32 +265,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         _targetFrameTime: {
           type: Number,
           computed: '__computeFrameTime(targetFramerate)'
-        },
-
-        /**
-         * When `restamp` is true, template instances are never reused with
-         * different items.  Instances mapping to current items are moved
-         * to their new location, new instances are created for any new
-         * items, and instances for removed items are discarded.  This mode is
-         * generally more expensive than `restamp: false` as it results in
-         * more instances to be created and discarded during updates and
-         * disconnection/reconnection churn.  By default, object identity is
-         * used for mapping instances to items.  Set `restampKey` to provide
-         * key based identity.
-         */
-        restamp: {
-          type: Boolean
-        },
-
-        /**
-         * When `restamp: true` is used, `restampKey` can be used to provide
-         * a path into the item object that serves as a unique key for the
-         * item, for purposes of mapping instances to items.  Instances for
-         * items with the same key will be reused, while all others will be
-         * either restamped or discarded.
-         */
-        restampKey: {
-          type: String
         }
 
       }
@@ -305,6 +279,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       super();
       this.__instances = [];
       this.__limit = Infinity;
+      this.__pool = [];
       this.__renderDebouncer = null;
       this.__itemsIdxToInstIdx = {};
       this.__chunkCount = null;
@@ -320,9 +295,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     disconnectedCallback() {
       super.disconnectedCallback();
       this.__isDetached = true;
-      let instances = this.__instances;
-      for (let i=0; i<instances.length; i++) {
-        this.__detachInstance(instances[i]);
+      for (let i=0; i<this.__instances.length; i++) {
+        this.__detachInstance(i);
       }
     }
 
@@ -331,9 +305,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // only perform attachment if the element was previously detached.
       if (this.__isDetached) {
         this.__isDetached = false;
-        let instances = this.__instances;
-        for (let i=0; i<instances.length; i++) {
-          this.__attachInstance(instances[i]);
+        let parent = this.parentNode;
+        for (let i=0; i<this.__instances.length; i++) {
+          this.__attachInstance(i, parent);
         }
       }
     }
@@ -523,35 +497,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // No template found yet
         return;
       }
-      let items = this.items || [];
-      let inst2items = new Array(items.length);
-      for (let i=0; i<items.length; i++) {
-        inst2items[i] = i;
-      }
-      // Apply user filter
-      if (this.__filterFn) {
-        inst2items = inst2items.filter((i, idx, array) =>
-          this.__filterFn(items[i], idx, array));
-      }
-      // Apply user sort
-      if (this.__sortFn) {
-        inst2items.sort((a, b) => this.__sortFn(items[a], items[b]));
-      }
-
-      // items->inst map kept for item path forwarding
-      const items2inst = this.__itemsIdxToInstIdx = {};
-      const instances = this.__instances;
-      const limit = Math.max(Math.min(inst2items.length, this.__limit), 0);
-      // Generate instances and assign items
-      if (this.restamp) {
-        this.__renderRestamp(items, instances, limit, inst2items, items2inst);
-      } else {
-        this.__renderRefresh(items, instances, limit, inst2items, items2inst);
-      }
-      // Remove any extra instances from previous state
-      while (this.__instances.length > limit) {
-        this.__detachAndRemoveInstanceAt(limit);
-      }
+      this.__applyFullRefresh();
+      // Reset the pool
+      // TODO(kschaaf): Reuse pool across turns and nested templates
+      // Now that objects/arrays are re-evaluated when set, we can safely
+      // reuse pooled instances across turns, however we still need to decide
+      // semantics regarding how long to hold, how many to hold, etc.
+      this.__pool.length = 0;
       // Set rendered item count
       this._setRenderedItemCount(this.__instances.length);
       // Notify users
@@ -563,90 +515,65 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this.__tryRenderChunk();
     }
 
-    __renderRestamp(items, instances, limit, inst2items, items2inst) {
-      let keyPath = this.restampKey;
-      const instCache = new Map();
-      nextItem: for (let i=0; i<limit; i++) {
-        let itemIdx = inst2items[i];
-        let item = items[itemIdx];
-        let key = keyPath && Polymer.Path.get(item, keyPath) || item;
-        let inst, instItem;
-        while ((inst = instances[i])) {
-          instItem = inst[this.as];
-          let instKey = keyPath && Polymer.Path.get(instItem, keyPath) || instItem;
-          if (key === instKey) {
-            inst._setPendingProperty(this.as, item);
-            inst._setPendingProperty(this.indexAs, i);
-            inst._setPendingProperty(this.itemsIndexAs, itemIdx);
-            inst._flushProperties();
-            items2inst[itemIdx] = i;
-            continue nextItem;
-          }
-          let cache = instCache.get(instKey);
-          if (cache) {
-            cache.push(inst);
-          } else {
-            instCache.set(instKey, [inst]);
-          }
-          instances.splice(i, 1);
-        }
-        let cache = instCache.get(key);
-        if (cache && (inst = cache.shift())) {
-          this.__reuseInstance(inst, item, i, itemIdx);
-          if (!cache.length) {
-            instCache.delete(key);
-          }
-        } else {
-          this.__insertInstance(item, i, itemIdx);
-        }
-        items2inst[itemIdx] = i;
+    __applyFullRefresh() {
+      let items = this.items || [];
+      let isntIdxToItemsIdx = new Array(items.length);
+      for (let i=0; i<items.length; i++) {
+        isntIdxToItemsIdx[i] = i;
       }
-      instCache.forEach(cache => cache.forEach(inst => this.__detachInstance(inst)));
-    }
-
-    __renderRefresh(items, instances, limit, inst2items, items2inst) {
-      for (let i=0; i<limit; i++) {
-        let inst = instances[i];
-        let itemIdx = inst2items[i];
+      // Apply user filter
+      if (this.__filterFn) {
+        isntIdxToItemsIdx = isntIdxToItemsIdx.filter((i, idx, array) =>
+          this.__filterFn(items[i], idx, array));
+      }
+      // Apply user sort
+      if (this.__sortFn) {
+        isntIdxToItemsIdx.sort((a, b) => this.__sortFn(items[a], items[b]));
+      }
+      // items->inst map kept for item path forwarding
+      const itemsIdxToInstIdx = this.__itemsIdxToInstIdx = {};
+      let instIdx = 0;
+      // Generate instances and assign items
+      const limit = Math.min(isntIdxToItemsIdx.length, this.__limit);
+      for (; instIdx<limit; instIdx++) {
+        let inst = this.__instances[instIdx];
+        let itemIdx = isntIdxToItemsIdx[instIdx];
         let item = items[itemIdx];
-        if (inst) {
+        itemsIdxToInstIdx[itemIdx] = instIdx;
+        if (inst && instIdx < this.__limit) {
           inst._setPendingProperty(this.as, item);
-          inst._setPendingProperty(this.indexAs, i);
+          inst._setPendingProperty(this.indexAs, instIdx);
           inst._setPendingProperty(this.itemsIndexAs, itemIdx);
           inst._flushProperties();
         } else {
-          this.__insertInstance(item, i, itemIdx);
+          this.__insertInstance(item, instIdx, itemIdx);
         }
-        items2inst[itemIdx] = i;
+      }
+      // Remove any extra instances from previous state
+      for (let i=this.__instances.length-1; i>=instIdx; i--) {
+        this.__detachAndRemoveInstance(i);
       }
     }
 
-    __detachInstance(inst) {
+    __detachInstance(idx) {
+      let inst = this.__instances[idx];
       for (let i=0; i<inst.children.length; i++) {
         let el = inst.children[i];
         inst.root.appendChild(el);
       }
+      return inst;
     }
 
-    __reuseInstance(inst, item, idx, itemIdx) {
-      let beforeInst = this.__instances[idx];
-      let beforeNode = beforeInst ? beforeInst.children[0] : this;
-      for (let i=0; i<inst.children.length; i++) {
-        this.parentNode.insertBefore(inst.children[i], beforeNode);
+    __attachInstance(idx, parent) {
+      let inst = this.__instances[idx];
+      parent.insertBefore(inst.root, this);
+    }
+
+    __detachAndRemoveInstance(idx) {
+      let inst = this.__detachInstance(idx);
+      if (inst) {
+        this.__pool.push(inst);
       }
-      this.__instances.splice(idx, 0, inst);
-      inst._setPendingProperty(this.as, item);
-      inst._setPendingProperty(this.indexAs, idx);
-      inst._setPendingProperty(this.itemsIndexAs, itemIdx);
-      inst._flushProperties();
-    }
-
-    __attachInstance(inst) {
-      this.parentNode.insertBefore(inst.root, this);
-    }
-
-    __detachAndRemoveInstanceAt(idx) {
-      this.__detachInstance(this.__instances[idx]);
       this.__instances.splice(idx, 1);
     }
 
@@ -659,11 +586,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     __insertInstance(item, instIdx, itemIdx) {
-      let inst = this.__stampInstance(item, instIdx, itemIdx);
-      let beforeRow = this.__instances[instIdx];
+      let inst = this.__pool.pop();
+      if (inst) {
+        // TODO(kschaaf): If the pool is shared across turns, hostProps
+        // need to be re-set to reused instances in addition to item
+        inst._setPendingProperty(this.as, item);
+        inst._setPendingProperty(this.indexAs, instIdx);
+        inst._setPendingProperty(this.itemsIndexAs, itemIdx);
+        inst._flushProperties();
+      } else {
+        inst = this.__stampInstance(item, instIdx, itemIdx);
+      }
+      let beforeRow = this.__instances[instIdx + 1];
       let beforeNode = beforeRow ? beforeRow.children[0] : this;
       this.parentNode.insertBefore(inst.root, beforeNode);
-      this.__instances.splice(instIdx, 0, inst);
+      this.__instances[instIdx] = inst;
       return inst;
     }
 
