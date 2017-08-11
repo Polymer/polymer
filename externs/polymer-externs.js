@@ -7,8 +7,8 @@
 
 /**
  * @typedef {{
+ * type: !Function,
  * value: *,
- * type: (!Function | undefined),
  * readOnly: (boolean | undefined),
  * computed: (string | undefined),
  * reflectToAttribute: (boolean | undefined),
@@ -23,18 +23,21 @@ let PolymerElementPropertiesMeta;
  */
 let PolymerElementProperties;
 
-/**
- * @typedef {{
- *   is: string,
- *   extends: (string | undefined),
- *   properties: (!PolymerElementProperties | undefined),
- *   observers: (!Array<string> | undefined),
- *   template: (!HTMLTemplateElement | string | undefined),
- *   hostAttributes: (!Object<string, *> | undefined),
- *   listeners: (!Object<string, string> | undefined)
- * }}
- */
-let PolymerInit;
+let PolymerInit = function(){};
+/** @type {string} */
+PolymerInit.prototype.is;
+/** @type {(string | undefined)} */
+PolymerInit.prototype.extends;
+/** @type {(!PolymerElementProperties | undefined)} */
+PolymerInit.prototype.properties;
+/** @type {(!Array<string> | undefined)} */
+PolymerInit.prototype.observers;
+/** @type {(!HTMLTemplateElement | string | undefined)} */
+PolymerInit.prototype.template;
+/** @type {(!Object<string, *> | undefined)} */
+PolymerInit.prototype.hostAttributes;
+/** @type {(!Object<string, string> | undefined)} */
+PolymerInit.prototype.listeners;
 
 let PolymerElementConstructor = function (){};
 /** @type {(string | undefined)} */
