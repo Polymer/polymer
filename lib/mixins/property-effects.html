@@ -17,6 +17,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="property-accessors.html">
 <!-- for annotated effects -->
 <link rel="import" href="template-stamp.html">
+<link rel="import" href="effect-functions.html">
 
 
 <script>
@@ -26,23 +27,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /** @const {Object} */
   const CaseMap = Polymer.CaseMap;
+  const EFFECT_FUNCTIONS = Polymer.EFFECT_FUNCTIONS;
+  const TYPES = EFFECT_FUNCTIONS.TYPES;
 
   // Monotonically increasing unique ID used for de-duping effects triggered
   // from multiple properties in the same turn
   let dedupeId = 0;
-
-  /**
-   * Property effect types; effects are stored on the prototype using these keys
-   * @enum {string}
-   */
-  const TYPES = {
-    COMPUTE: '__computeEffects',
-    REFLECT: '__reflectEffects',
-    NOTIFY: '__notifyEffects',
-    PROPAGATE: '__propagateEffects',
-    OBSERVE: '__observeEffects',
-    READ_ONLY: '__readOnly'
-  }
 
   /**
    * @typedef {{
@@ -115,15 +105,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {Object=} oldProps Bag of previous values for changed properties
    * @param {boolean=} hasPaths True with `props` contains one or more paths
    * @param {*=} extraArgs Additional metadata to pass to effect function
+   * @param {Function} func Default function if an effect has no function
    * @return {boolean} True if an effect ran for this property
    * @private
    */
-  function runEffects(inst, effects, props, oldProps, hasPaths, extraArgs) {
+  function runEffects(inst, effects, props, oldProps, hasPaths, extraArgs, func) {
     if (effects) {
       let ran = false;
       let id = dedupeId++;
       for (let prop in props) {
-        if (runEffectsForProperty(inst, effects, id, prop, props, oldProps, hasPaths, extraArgs)) {
+        if (runEffectsForProperty(inst, effects, id, prop, props, oldProps, hasPaths, extraArgs, func)) {
           ran = true;
         }
       }
@@ -143,21 +134,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {*} oldProps Old properties
    * @param {boolean=} hasPaths True with `props` contains one or more paths
    * @param {*=} extraArgs Additional metadata to pass to effect function
+   * @param {Function} func Default function if an effect has no function
    * @return {boolean} True if an effect ran for this property
    * @private
    */
-  function runEffectsForProperty(inst, effects, dedupeId, prop, props, oldProps, hasPaths, extraArgs) {
+  function runEffectsForProperty(inst, effects, dedupeId, prop, props, oldProps, hasPaths, extraArgs, func) {
     let ran = false;
     let rootProperty = hasPaths ? Polymer.Path.root(prop) : prop;
     let fxs = effects[rootProperty];
     if (fxs) {
       for (let i=0, l=fxs.length, fx; (i<l) && (fx=fxs[i]); i++) {
         if ((!fx.info || fx.info.lastRun !== dedupeId) &&
-            (!hasPaths || pathMatchesTrigger(prop, fx.trigger))) {
-          if (fx.info) {
-            fx.info.lastRun = dedupeId;
+            (!hasPaths || pathMatchesTrigger(prop, fx.trigger, rootProperty))) {
+          if (!fx.info) {
+            fx.info = {};
           }
-          fx.fn(inst, prop, props, oldProps, fx.info, hasPaths, extraArgs);
+          fx.info.lastRun = dedupeId;
+          const fn = fx.fn || func;
+          fn(inst, prop, props, oldProps, fx.info, hasPaths, extraArgs);
           ran = true;
         }
       }
@@ -181,11 +175,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {string} path Path or property that changed
    * @param {DataTrigger} trigger Descriptor
+   * @param {string} rootProperty Root of the property that changed
    * @return {boolean} Whether the path matched the trigger
    */
-  function pathMatchesTrigger(path, trigger) {
+  function pathMatchesTrigger(path, trigger, rootProperty) {
     if (trigger) {
-      let triggerPath = trigger.name;
+      let triggerPath = trigger.name || (trigger.name = rootProperty);
       return (triggerPath == path) ||
         (trigger.structured && Polymer.Path.isAncestor(triggerPath, path)) ||
         (trigger.wildcard && Polymer.Path.isDescendant(triggerPath, path));
@@ -194,28 +189,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  /**
-   * Implements the "observer" effect.
-   *
-   * Calls the method with `info.methodName` on the instance, passing the
-   * new and old values.
-   *
-   * @param {!PropertyEffectsType} inst The instance the effect will be run on
-   * @param {string} property Name of property
-   * @param {Object} props Bag of current property changes
-   * @param {Object} oldProps Bag of previous values for changed properties
-   * @param {?} info Effect metadata
-   * @private
-   */
-  function runObserverEffect(inst, property, props, oldProps, info) {
-    let fn = inst[info.methodName];
-    let changedProp = info.property;
-    if (fn) {
-      fn.call(inst, inst.__data[changedProp], oldProps[changedProp]);
-    } else if (!info.dynamicFn) {
-      console.warn('observer method `' + info.methodName + '` not defined');
-    }
-  }
 
   /**
    * Runs "notify" effects for a set of changed properties.
@@ -242,7 +215,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // Try normal notify effects; if none, fall back to try path notification
     for (let prop in notifyProps) {
       if (notifyProps[prop]) {
-        if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, hasPaths)) {
+        if (fxs && runEffectsForProperty(inst, fxs, id, prop, props, oldProps, hasPaths, undefined, EFFECT_FUNCTIONS.runNotifyEffect)) {
           notified = true;
         } else if (hasPaths && notifyPath(inst, prop, props)) {
           notified = true;
@@ -272,57 +245,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let rootProperty = Polymer.Path.root(path);
     if (rootProperty !== path) {
       let eventName = Polymer.CaseMap.camelToDashCase(rootProperty) + '-changed';
-      dispatchNotifyEvent(inst, eventName, props[path], path);
+      Polymer.dispatchNotifyEvent(inst, eventName, props[path], path);
       return true;
     }
     return false;
-  }
-
-  /**
-   * Dispatches {property}-changed events to indicate a property (or path)
-   * changed.
-   *
-   * @param {!PropertyEffectsType} inst The element from which to fire the event
-   * @param {string} eventName The name of the event to send ('{property}-changed')
-   * @param {*} value The value of the changed property
-   * @param {string | null | undefined} path If a sub-path of this property changed, the path
-   *   that changed (optional).
-   * @private
-   * @suppress {invalidCasts}
-   */
-  function dispatchNotifyEvent(inst, eventName, value, path) {
-    let detail = {
-      value: value,
-      queueProperty: true
-    };
-    if (path) {
-      detail.path = path;
-    }
-    /** @type {!HTMLElement} */(inst).dispatchEvent(new CustomEvent(eventName, { detail }));
-  }
-
-  /**
-   * Implements the "notify" effect.
-   *
-   * Dispatches a non-bubbling event named `info.eventName` on the instance
-   * with a detail object containing the new `value`.
-   *
-   * @param {!PropertyEffectsType} inst The instance the effect will be run on
-   * @param {string} property Name of property
-   * @param {Object} props Bag of current property changes
-   * @param {Object} oldProps Bag of previous values for changed properties
-   * @param {?} info Effect metadata
-   * @param {boolean} hasPaths True with `props` contains one or more paths
-   * @private
-   */
-  function runNotifyEffect(inst, property, props, oldProps, info, hasPaths) {
-    let rootProperty = hasPaths ? Polymer.Path.root(property) : property;
-    let path = rootProperty != property ? property : null;
-    let value = path ? Polymer.Path.get(inst, path) : inst.__data[property];
-    if (path && value === undefined) {
-      value = props[property];  // specifically for .splices
-    }
-    dispatchNotifyEvent(inst, info.eventName, value, path);
   }
 
   /**
@@ -361,26 +287,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   /**
-   * Implements the "reflect" effect.
-   *
-   * Sets the attribute named `info.attrName` to the given property value.
-   *
-   * @param {!PropertyEffectsType} inst The instance the effect will be run on
-   * @param {string} property Name of property
-   * @param {Object} props Bag of current property changes
-   * @param {Object} oldProps Bag of previous values for changed properties
-   * @param {?} info Effect metadata
-   * @private
-   */
-  function runReflectEffect(inst, property, props, oldProps, info) {
-    let value = inst.__data[property];
-    if (Polymer.sanitizeDOMValue) {
-      value = Polymer.sanitizeDOMValue(value, info.attrName, 'attribute', /** @type {Node} */(inst));
-    }
-    inst._propertyToAttribute(property, info.attrName, value);
-  }
-
-  /**
    * Runs "computed" effects for a set of changed properties.
    *
    * This method differs from the generic `runEffects` method in that it
@@ -400,34 +306,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let computeEffects = inst[TYPES.COMPUTE];
     if (computeEffects) {
       let inputProps = changedProps;
-      while (runEffects(inst, computeEffects, inputProps, oldProps, hasPaths)) {
+      while (runEffects(inst, computeEffects, inputProps, oldProps, hasPaths, undefined, EFFECT_FUNCTIONS.runComputedEffect)) {
         Object.assign(oldProps, inst.__dataOld);
         Object.assign(changedProps, inst.__dataPending);
         inputProps = inst.__dataPending;
         inst.__dataPending = null;
       }
-    }
-  }
-
-  /**
-   * Implements the "computed property" effect by running the method with the
-   * values of the arguments specified in the `info` object and setting the
-   * return value to the computed property specified.
-   *
-   * @param {!PropertyEffectsType} inst The instance the effect will be run on
-   * @param {string} property Name of property
-   * @param {Object} props Bag of current property changes
-   * @param {Object} oldProps Bag of previous values for changed properties
-   * @param {?} info Effect metadata
-   * @private
-   */
-  function runComputedEffect(inst, property, props, oldProps, info) {
-    let result = runMethodEffect(inst, property, props, oldProps, info);
-    let computedProp = info.methodInfo;
-    if (inst.__dataHasAccessor && inst.__dataHasAccessor[computedProp]) {
-      inst._setPendingProperty(computedProp, result, true);
-    } else {
-      inst[computedProp] = result;
     }
   }
 
@@ -512,7 +396,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         console.warn('Cannot set attribute ' + binding.target +
           ' because "-" is not a valid attribute starting character');
       } else {
-        let dependencies = part.dependencies;
+        let dependencies = part.dependencies || [part.source];
         let info = { index, binding, part, evaluator: constructor };
         for (let j=0; j<dependencies.length; j++) {
           let trigger = dependencies[j];
@@ -520,114 +404,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             trigger = parseArg(trigger);
             trigger.wildcard = true;
           }
-          constructor._addTemplatePropertyEffect(templateInfo, trigger.rootProperty, {
-            fn: runBindingEffect,
+          const rootProperty = trigger.rootProperty || (trigger.rootProperty = Polymer.Path.root(trigger.name));
+          constructor._addTemplatePropertyEffect(templateInfo, rootProperty, {
             info, trigger
           });
         }
       }
     }
-  }
-
-  /**
-   * Implements the "binding" (property/path binding) effect.
-   *
-   * Note that binding syntax is overridable via `_parseBindings` and
-   * `_evaluateBinding`.  This method will call `_evaluateBinding` for any
-   * non-literal parts returned from `_parseBindings`.  However,
-   * there is no support for _path_ bindings via custom binding parts,
-   * as this is specific to Polymer's path binding syntax.
-   *
-   * @param {!PropertyEffectsType} inst The instance the effect will be run on
-   * @param {string} path Name of property
-   * @param {Object} props Bag of current property changes
-   * @param {Object} oldProps Bag of previous values for changed properties
-   * @param {?} info Effect metadata
-   * @param {boolean} hasPaths True with `props` contains one or more paths
-   * @param {Array} nodeList List of nodes associated with `nodeInfoList` template
-   *   metadata
-   * @private
-   */
-  function runBindingEffect(inst, path, props, oldProps, info, hasPaths, nodeList) {
-    let node = nodeList[info.index];
-    let binding = info.binding;
-    let part = info.part;
-    // Subpath notification: transform path and set to client
-    // e.g.: foo="{{obj.sub}}", path: 'obj.sub.prop', set 'foo.prop'=obj.sub.prop
-    if (hasPaths && part.source && (path.length > part.source.length) &&
-        (binding.kind == 'property') && !binding.isCompound &&
-        node.__dataHasAccessor && node.__dataHasAccessor[binding.target]) {
-      let value = props[path];
-      path = Polymer.Path.translate(part.source, binding.target, path);
-      if (node._setPendingPropertyOrPath(path, value, false, true)) {
-        inst._enqueueClient(node);
-      }
-    } else {
-      let value = info.evaluator._evaluateBinding(inst, part, path, props, oldProps, hasPaths);
-      // Propagate value to child
-      applyBindingValue(inst, node, binding, part, value);
-    }
-  }
-
-  /**
-   * Sets the value for an "binding" (binding) effect to a node,
-   * either as a property or attribute.
-   *
-   * @param {!PropertyEffectsType} inst The instance owning the binding effect
-   * @param {Node} node Target node for binding
-   * @param {!Binding} binding Binding metadata
-   * @param {!BindingPart} part Binding part metadata
-   * @param {*} value Value to set
-   * @private
-   */
-  function applyBindingValue(inst, node, binding, part, value) {
-    value = computeBindingValue(node, value, binding, part);
-    if (Polymer.sanitizeDOMValue) {
-      value = Polymer.sanitizeDOMValue(value, binding.target, binding.kind, node);
-    }
-    if (binding.kind == 'attribute') {
-      // Attribute binding
-      inst._valueToNodeAttribute(/** @type {Element} */(node), value, binding.target);
-    } else {
-      // Property binding
-      let prop = binding.target;
-      if (node.__dataHasAccessor && node.__dataHasAccessor[prop]) {
-        if (!node[TYPES.READ_ONLY] || !node[TYPES.READ_ONLY][prop]) {
-          if (node._setPendingProperty(prop, value)) {
-            inst._enqueueClient(node);
-          }
-        }
-      } else  {
-        inst._setUnmanagedPropertyToNode(node, prop, value);
-      }
-    }
-  }
-
-  /**
-   * Transforms an "binding" effect value based on compound & negation
-   * effect metadata, as well as handling for special-case properties
-   *
-   * @param {Node} node Node the value will be set to
-   * @param {*} value Value to set
-   * @param {!Binding} binding Binding metadata
-   * @param {!BindingPart} part Binding part metadata
-   * @return {*} Transformed value to set
-   * @private
-   */
-  function computeBindingValue(node, value, binding, part) {
-    if (binding.isCompound) {
-      let storage = node.__dataCompoundStorage[binding.target];
-      storage[part.compoundIndex] = value;
-      value = storage.join('');
-    }
-    if (binding.kind !== 'attribute') {
-      // Some browsers serialize `undefined` to `"undefined"`
-      if (binding.target === 'textContent' ||
-          (node.localName == 'input' && binding.target == 'value')) {
-        value = value == undefined ? '' : value;
-      }
-    }
-    return value;
   }
 
   /**
@@ -706,7 +489,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let target = binding.target;
       storage[target] = literals;
       // Configure properties with their literal parts
-      if (binding.literal && binding.kind == 'property') {
+      if (binding.literal && (!binding.kind || binding.kind === 'property')) {
         node[target] = binding.literal;
       }
     }
@@ -752,50 +535,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       (typeof dynamicFn !== 'object' || dynamicFn[sig.methodName]));
     let info = {
       methodName: sig.methodName,
-      args: sig.args,
       methodInfo,
       dynamicFn
     };
+    if (sig.cacheName) {
+      model.__observerArgCache = model.__observerArgCache || {};
+      model.__observerArgCache[sig.cacheName] = sig.args;
+      info.cacheName = sig.cacheName;
+    } else {
+      info.args = sig.args;
+    }
     for (let i=0, arg; (i<sig.args.length) && (arg=sig.args[i]); i++) {
       if (!arg.literal) {
         model._addPropertyEffect(arg.rootProperty, type, {
-          fn: effectFn, info: info, trigger: arg
+          fn: effectFn, info, trigger: arg
         });
       }
     }
     if (dynamicFn) {
       model._addPropertyEffect(sig.methodName, type, {
-        fn: effectFn, info: info
+        fn: effectFn, info
       });
-    }
-  }
-
-  /**
-   * Calls a method with arguments marshaled from properties on the instance
-   * based on the method signature contained in the effect metadata.
-   *
-   * Multi-property observers, computed properties, and inline computing
-   * functions call this function to invoke the method, then use the return
-   * value accordingly.
-   *
-   * @param {!PropertyEffectsType} inst The instance the effect will be run on
-   * @param {string} property Name of property
-   * @param {Object} props Bag of current property changes
-   * @param {Object} oldProps Bag of previous values for changed properties
-   * @param {?} info Effect metadata
-   * @return {*} Returns the return value from the method invocation
-   * @private
-   */
-  function runMethodEffect(inst, property, props, oldProps, info) {
-    // Instances can optionally have a _methodHost which allows redirecting where
-    // to find methods. Currently used by `templatize`.
-    let context = inst._methodHost || inst;
-    let fn = context[info.methodName];
-    if (fn) {
-      let args = marshalArgs(inst.__data, info.args, property, props);
-      return fn.apply(context, args);
-    } else if (!info.dynamicFn) {
-      console.warn('method `' + info.methodName + '` not defined');
     }
   }
 
@@ -849,7 +609,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let m = expression.match(/([^\s]+?)\(([\s\S]*)\)/);
     if (m) {
       let methodName = m[1];
-      let sig = { methodName, static: true, args: emptyArray };
+      let sig = { methodName, static: true, args: emptyArray, cacheName: methodName };
       if (m[2].trim()) {
         // replace escaped commas with comma entity, split on un-escaped commas
         let args = m[2].replace(/\\,/g, '&comma;').split(',');
@@ -875,10 +635,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     sig.args = argList.map(function(rawArg) {
       let arg = parseArg(rawArg);
       if (!arg.literal) {
-        sig.static = false;
+        delete sig.static;
       }
+      sig.cacheName += arg.name || arg.rootProperty;
       return arg;
     }, this);
+    if (sig.args.length <= 1) {
+      delete sig.cacheName;
+    }
     return sig;
   }
 
@@ -910,9 +674,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       ;
     // basic argument descriptor
     let a = {
-      name: arg,
-      value: '',
-      literal: false
+      name: arg
     };
     // detect literal value (must be String or Number)
     let fc = arg[0];
@@ -936,6 +698,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // if not literal, look for structured path
     if (!a.literal) {
       a.rootProperty = Polymer.Path.root(arg);
+      if (a.rootProperty === a.name) {
+        delete a.name;
+      }
       // detect structured path (has dots)
       a.structured = Polymer.Path.isPath(arg);
       if (a.structured) {
@@ -946,56 +711,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
     return a;
-  }
-
-  /**
-   * Gather the argument values for a method specified in the provided array
-   * of argument metadata.
-   *
-   * The `path` and `value` arguments are used to fill in wildcard descriptor
-   * when the method is being called as a result of a path notification.
-   *
-   * @param {Object} data Instance data storage object to read properties from
-   * @param {!Array<!MethodArg>} args Array of argument metadata
-   * @param {string} path Property/path name that triggered the method effect
-   * @param {Object} props Bag of current property changes
-   * @return {Array<*>} Array of argument values
-   * @private
-   */
-  function marshalArgs(data, args, path, props) {
-    let values = [];
-    for (let i=0, l=args.length; i<l; i++) {
-      let arg = args[i];
-      let name = arg.name;
-      let v;
-      if (arg.literal) {
-        v = arg.value;
-      } else {
-        if (arg.structured) {
-          v = Polymer.Path.get(data, name);
-          // when data is not stored e.g. `splices`
-          if (v === undefined) {
-            v = props[name];
-          }
-        } else {
-          v = data[name];
-        }
-      }
-      if (arg.wildcard) {
-        // Only send the actual path changed info if the change that
-        // caused the observer to run matched the wildcard
-        let baseChanged = (name.indexOf(path + '.') === 0);
-        let matches = (path.indexOf(name) === 0 && !baseChanged);
-        values[i] = {
-          path: matches ? path : name,
-          value: matches ? props[path] : v,
-          base: v
-        };
-      } else {
-        values[i] = v;
-      }
-    }
-    return values;
   }
 
   // data api
@@ -1224,7 +939,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!effects) {
           effects = this[type][property] = [];
         }
-        effects.push(effect);
+        if (effect) {
+          effects.push(effect);
+        }
       }
 
       /**
@@ -1642,7 +1359,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Flush clients
         this._flushClients();
         // Reflect properties
-        runEffects(this, this[TYPES.REFLECT], changedProps, oldProps, hasPaths);
+        runEffects(this, this[TYPES.REFLECT], changedProps, oldProps, hasPaths, undefined, EFFECT_FUNCTIONS.runReflectEffect);
         // Observe properties
         runEffects(this, this[TYPES.OBSERVE], changedProps, oldProps, hasPaths);
         // Notify properties to host
@@ -1674,7 +1391,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let templateInfo = this.__templateInfo;
         while (templateInfo) {
           runEffects(this, templateInfo.propertyEffects, changedProps, oldProps,
-            hasPaths, templateInfo.nodeList);
+            hasPaths, templateInfo.nodeList, EFFECT_FUNCTIONS.runBindingEffect);
           templateInfo = templateInfo.nextTemplateInfo;
         }
       }
@@ -1995,13 +1712,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _createPropertyObserver(property, methodName, dynamicFn) {
-        let info = { property, methodName, dynamicFn: Boolean(dynamicFn) };
+        let info = { methodName, dynamicFn: Boolean(dynamicFn) };
         this._addPropertyEffect(property, TYPES.OBSERVE, {
-          fn: runObserverEffect, info, trigger: {name: property}
+          fn: EFFECT_FUNCTIONS.runObserverEffect, info, trigger: {name: property}
         });
         if (dynamicFn) {
           this._addPropertyEffect(methodName, TYPES.OBSERVE, {
-            fn: runObserverEffect, info, trigger: {name: methodName}
+            fn: EFFECT_FUNCTIONS.runObserverEffect, info, trigger: {name: methodName}
           });
         }
       }
@@ -2021,7 +1738,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!sig) {
           throw new Error("Malformed observer expression '" + expression + "'");
         }
-        createMethodEffect(this, sig, TYPES.OBSERVE, runMethodEffect, null, dynamicFn);
+        createMethodEffect(this, sig, TYPES.OBSERVE, EFFECT_FUNCTIONS.runMethodEffect, null, dynamicFn);
       }
 
       /**
@@ -2034,10 +1751,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _createNotifyingProperty(property) {
         this._addPropertyEffect(property, TYPES.NOTIFY, {
-          fn: runNotifyEffect,
+          fn: EFFECT_FUNCTIONS.runNotifyEffect,
           info: {
             eventName: CaseMap.camelToDashCase(property) + '-changed',
-            property: property
+            property
           }
         });
       }
@@ -2051,15 +1768,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _createReflectedProperty(property) {
-        let attr = CaseMap.camelToDashCase(property);
-        if (attr[0] === '-') {
+        let attrName = CaseMap.camelToDashCase(property);
+        if (attrName[0] === '-') {
           console.warn('Property ' + property + ' cannot be reflected to attribute ' +
-            attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property thisead.');
+            attrName + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property thisead.');
         } else {
           this._addPropertyEffect(property, TYPES.REFLECT, {
-            fn: runReflectEffect,
+            fn: EFFECT_FUNCTIONS.runReflectEffect,
             info: {
-              attrName: attr
+              attrName
             }
           });
         }
@@ -2081,7 +1798,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!sig) {
           throw new Error("Malformed computed expression '" + expression + "'");
         }
-        createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property, dynamicFn);
+        createMethodEffect(this, sig, TYPES.COMPUTE, undefined, property, dynamicFn);
       }
 
       // -- static class methods ------------
@@ -2339,7 +2056,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Flush properties into template nodes if already booted
         if (this.__dataReady) {
           runEffects(this, templateInfo.propertyEffects, this.__data, null,
-            false, templateInfo.nodeList);
+            false, templateInfo.nodeList, EFFECT_FUNCTIONS.runBindingEffect);
         }
         return dom;
       }
@@ -2606,7 +2323,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static _evaluateBinding(inst, part, path, props, oldProps, hasPaths) {
         let value;
         if (part.signature) {
-          value = runMethodEffect(inst, path, props, oldProps, part.signature);
+          value = EFFECT_FUNCTIONS.runMethodEffect(inst, path, props, oldProps, part.signature);
         } else if (path != part.source) {
           value = Polymer.Path.get(inst, part.source);
         } else {
