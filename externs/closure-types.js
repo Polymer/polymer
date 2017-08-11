@@ -594,12 +594,12 @@ Polymer_PropertyEffects.prototype.set = function(path, value, root){};
 */
 Polymer_PropertyEffects.prototype.push = function(path, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_PropertyEffects.prototype.pop = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
 * @param {...*} items 
@@ -607,12 +607,12 @@ Polymer_PropertyEffects.prototype.pop = function(path){};
 */
 Polymer_PropertyEffects.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_PropertyEffects.prototype.shift = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -1102,12 +1102,12 @@ Polymer_ElementMixin.prototype.set = function(path, value, root){};
 */
 Polymer_ElementMixin.prototype.push = function(path, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_ElementMixin.prototype.pop = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
 * @param {...*} items 
@@ -1115,12 +1115,12 @@ Polymer_ElementMixin.prototype.pop = function(path){};
 */
 Polymer_ElementMixin.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_ElementMixin.prototype.shift = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -1644,12 +1644,12 @@ Polymer_LegacyElementMixin.prototype.set = function(path, value, root){};
 */
 Polymer_LegacyElementMixin.prototype.push = function(path, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_LegacyElementMixin.prototype.pop = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
 * @param {...*} items 
@@ -1657,12 +1657,12 @@ Polymer_LegacyElementMixin.prototype.pop = function(path){};
 */
 Polymer_LegacyElementMixin.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_LegacyElementMixin.prototype.shift = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -2493,12 +2493,12 @@ Polymer_ArraySelectorMixin.prototype.set = function(path, value, root){};
 */
 Polymer_ArraySelectorMixin.prototype.push = function(path, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_ArraySelectorMixin.prototype.pop = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
 * @param {...*} items 
@@ -2506,12 +2506,12 @@ Polymer_ArraySelectorMixin.prototype.pop = function(path){};
 */
 Polymer_ArraySelectorMixin.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_ArraySelectorMixin.prototype.shift = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
