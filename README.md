@@ -4,16 +4,45 @@
 
 Polymer lets you build encapsulated, reusable elements that work just like standard HTML elements, to use in building web applications.
 
-```html
-<!-- Polyfill Web Components for older browsers -->
-<script src="webcomponentsjs/webcomponents-lite.js"></script>
+## Polymer 3.0 is an Early Preview!
 
-<!-- Import element -->
-<link rel="import" href="google-map.html">
+This is a preview branch of Polymer 3.0, a very early version of Polymer that uses JavaScript modules instead of HTML Imports. It will only work in browsers with module support, like Safari 10.1 and Chrome 61, or via a compiler like Babel, TypeScript or Closure.
 
-<!-- Use element -->
-<google-map latitude="37.790" longitude="-122.390"></google-map>
+The API is mostly the same as Polymer 2.0, but the documentation has not been updated.
+
+To try Polymer 3.0-preview, use `yarn` to install from `npm:
+
+```sh
+> yarn add @polymer/polymer@next --flat
 ```
+
+Launch the Polymer devserver in npm mode:
+
+```sh
+> polymer serve --npm
+```
+
+Then load Polymer into your element:
+
+```js
+import { Element as PolymerElement } from '../@polymer/polymer/polymer-element.js';
+export class MyElement extends PolymerElement {
+    static get template() {
+      return `
+      <h1>Hello World!</h1>
+    `;
+  }
+}
+customElements.define('my-element', MyElement);
+```
+
+And use it in a page:
+```html
+<script type="module" src="./my-element.js"></script>
+<my-element></my-element>
+ ```
+
+# Everything below here has not been updated for 3.0-preview
 
 Check out [polymer-project.org](https://www.polymer-project.org) for all of the library documentation, including getting started guides, tutorials, developer reference, and more.
 
