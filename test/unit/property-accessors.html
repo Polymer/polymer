@@ -16,14 +16,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <link rel="import" href="../../polymer.html">
 <body>
 
-<x-foo prop1="a" prop2="b"></x-foo>
+<x-foo prop1="a" prop2="b" prop3="c"></x-foo>
 
 <script>
   HTMLImports.whenReady(function() {
     class XFoo extends Polymer.PropertyAccessors(HTMLElement) {
       static get observedAttributes() {
-        return ['prop1', 'prop2'];
+        return ['prop1', 'prop2', 'prop3'];
       }
+      get prop3() { return this.prop3_; }
+      set prop3(value) { this.prop3_ = value; }
+      get prop4() { return 'prop4' + (new Date()).getTime(); }
       constructor() {
         super();
         this._propertiesChanged = sinon.spy();
@@ -34,6 +37,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
     XFoo.createPropertiesForAttributes();
     window.XFoo = XFoo;
+    window.XFooProp3Descriptor = Object.getOwnPropertyDescriptor(XFoo.prototype, 'prop3');
+    window.XFooProp4Descriptor = Object.getOwnPropertyDescriptor(XFoo.prototype, 'prop4');
     customElements.define('x-foo', XFoo);
   });
 </script>
@@ -47,10 +52,25 @@ suite('property-accessors', function() {
     assert.ok(Object.getOwnPropertyDescriptor(window.XFoo.prototype, 'prop2'));
   });
 
+  test('createPropertiesForAttributes preserves existing getters', function() {
+    assert.ok(Object.getOwnPropertyDescriptor(window.XFoo.prototype, 'prop3')
+        .get.toString().indexOf('() { return this.prop3_; }') > 0);
+    assert.ok(Object.getOwnPropertyDescriptor(window.XFoo.prototype, 'prop4')
+        .get.toString().indexOf("() { return 'prop4' + (new Date()).getTime(); }") > 0);
+  });
+
+  test('createPropertiesForAttributes properly handles class setters', function() {
+    assert.ok(Object.getOwnPropertyDescriptor(window.XFoo.prototype, 'prop3').set);
+    assert.ok(Object.getOwnPropertyDescriptor(window.XFoo.prototype, 'prop3')
+        .set.toString().indexOf('(value) { this.prop3_ = value; }') < 0);
+    assert.equal(Object.getOwnPropertyDescriptor(window.XFoo.prototype, 'prop4').set, undefined);
+  });
+
   test('attributes reflected to properties via upgrade', function() {
     var el = document.querySelector('x-foo');
     assert.equal(el.prop1, 'a');
     assert.equal(el.prop2, 'b');
+    assert.equal(el.prop3, 'c');
   });
 
   test('setting properties results in _propertiesChanged', function(done) {
@@ -58,22 +78,28 @@ suite('property-accessors', function() {
     document.body.appendChild(el);
     el.prop1 = 'a';
     el.prop2 = 'b';
+    el.prop3 = 'c';
     assert.equal(el._propertiesChanged.callCount, 0, '_propertiesChanged is not async');
     setTimeout(function() {
       assert.isTrue(el._propertiesChanged.calledOnce);
       assert.equal(el._propertiesChanged.getCall(0).args[0].prop1, 'a');
       assert.equal(el._propertiesChanged.getCall(0).args[0].prop2, 'b');
+      assert.equal(el._propertiesChanged.getCall(0).args[0].prop3, 'c');
       assert.equal(el._propertiesChanged.getCall(0).args[1].prop1, 'a');
       assert.equal(el._propertiesChanged.getCall(0).args[1].prop2, 'b');
+      assert.equal(el._propertiesChanged.getCall(0).args[1].prop3, 'c');
       assert.equal(el._propertiesChanged.getCall(0).args[2].prop1, undefined);
       assert.equal(el._propertiesChanged.getCall(0).args[2].prop2, undefined);
+      assert.equal(el._propertiesChanged.getCall(0).args[2].prop3, undefined);
       assert.equal(el.prop1, 'a');
       assert.equal(el.prop2, 'b');
+      assert.equal(el.prop3, 'c');
       el.prop1 = 'aa';
       setTimeout(function() {
         assert.isTrue(el._propertiesChanged.calledTwice);
         assert.equal(el._propertiesChanged.getCall(1).args[0].prop1, 'aa');
         assert.equal(el._propertiesChanged.getCall(1).args[0].prop2, 'b');
+        assert.equal(el._propertiesChanged.getCall(1).args[0].prop3, 'c');
         assert.equal(el._propertiesChanged.getCall(1).args[1].prop1, 'aa');
         assert.equal(el._propertiesChanged.getCall(1).args[2].prop1, 'a');
         assert.isFalse('prop2' in el._propertiesChanged.getCall(1).args[1]);
@@ -88,25 +114,33 @@ suite('property-accessors', function() {
     document.body.appendChild(el);
     el.setAttribute('prop1', 'a');
     el.setAttribute('prop2', 'b');
+    el.setAttribute('prop3', 'c');
     setTimeout(function() {
       assert.isTrue(el._propertiesChanged.calledOnce);
       assert.equal(el._propertiesChanged.getCall(0).args[0].prop1, 'a');
       assert.equal(el._propertiesChanged.getCall(0).args[0].prop2, 'b');
+      assert.equal(el._propertiesChanged.getCall(0).args[0].prop3, 'c');
       assert.equal(el._propertiesChanged.getCall(0).args[1].prop1, 'a');
       assert.equal(el._propertiesChanged.getCall(0).args[1].prop2, 'b');
+      assert.equal(el._propertiesChanged.getCall(0).args[1].prop3, 'c');
       assert.equal(el._propertiesChanged.getCall(0).args[2].prop1, undefined);
       assert.equal(el._propertiesChanged.getCall(0).args[2].prop2, undefined);
+      assert.equal(el._propertiesChanged.getCall(0).args[2].prop3, undefined);
       assert.equal(el.prop1, 'a');
       assert.equal(el.prop2, 'b');
+      assert.equal(el.prop3, 'c');
       el.setAttribute('prop1', 'aa');
       setTimeout(function() {
         assert.isTrue(el._propertiesChanged.calledTwice);
         assert.equal(el._propertiesChanged.getCall(1).args[0].prop1, 'aa');
         assert.equal(el._propertiesChanged.getCall(1).args[0].prop2, 'b');
+        assert.equal(el._propertiesChanged.getCall(1).args[0].prop3, 'c');
         assert.equal(el._propertiesChanged.getCall(1).args[1].prop1, 'aa');
         assert.equal(el._propertiesChanged.getCall(1).args[2].prop1, 'a');
         assert.isFalse('prop2' in el._propertiesChanged.getCall(1).args[1]);
         assert.isFalse('prop2' in el._propertiesChanged.getCall(1).args[2]);
+        assert.isFalse('prop3' in el._propertiesChanged.getCall(1).args[1]);
+        assert.isFalse('prop3' in el._propertiesChanged.getCall(1).args[2]);
         done();
       });
 

@@ -70,6 +70,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
+  /** @enum */
+  const AccessorType = {
+    NONE: 0,
+    SYNTHETIC: 1,
+    PRE_DEFINED: 2
+  };
+
   /**
    * Element class mixin that provides basic meta-programming for creating one
    * or more property accessors (getter/setter pair) that enqueue an async
@@ -138,11 +145,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataOld;
         /** @type {Object} */
         this.__dataProto;
-        /** @type {Object} */
+        /** @type {Object<string, number>} */
         this.__dataHasAccessor;
         /** @type {Object} */
         this.__dataInstanceProps;
         this._initializeProperties();
+      }
+
+      get ACCESSOR_TYPE() {
+        return AccessorType;
       }
 
       /**
@@ -414,20 +425,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this.__dataHasAccessor = Object.assign({}, this.__dataHasAccessor);
         }
         if (!this.__dataHasAccessor[property]) {
-          this.__dataHasAccessor[property] = true;
+          this.__dataHasAccessor[property] = AccessorType.SYNTHETIC;
           saveAccessorValue(this, property);
-          Object.defineProperty(this, property, {
-            /* eslint-disable valid-jsdoc */
+
+          const existingDescriptor = Object.getOwnPropertyDescriptor(this, property) || {};
+          const propertyDefinition = {
+            enumerable: !!existingDescriptor.enumerable 
+          };
+
+          // If the property was pre-defined with an es6 getter,
+          // we just use that and don't need to define our own getter
+          if (existingDescriptor.get) {
+            propertyDefinition.get = existingDescriptor.get;
+            this.__dataHasAccessor[property] = AccessorType.PRE_DEFINED;
+          } else {
+            // eslint-disable-next-line valid-jsdoc
             /** @this {PropertyAccessors} */
-            get: function() {
+            propertyDefinition.get = function() {
               return this.__data[property];
-            },
+            };
+          }
+
+          // If the property was pre-defined with an es6 setter,
+          // use that, but also call our own _setProperty function
+          // so that change notifications are propagated
+          if (existingDescriptor.set) {
+            const existingSetter = /** @type {{set: function(*)}} */ (existingDescriptor).set.bind(this);
+            // eslint-disable-next-line valid-jsdoc
             /** @this {PropertyAccessors} */
-            set: readOnly ? function() {} : function(value) {
+            propertyDefinition.set = function(value) {
+              // Invalidate properties if changed - includes dirty checking
               this._setProperty(property, value);
-            }
-            /* eslint-enable */
-          });
+              // Call the predefined setter
+              existingSetter(value);
+            };
+          } else if (this.__dataHasAccessor[property] !== AccessorType.PRE_DEFINED) {
+            // eslint-disable-next-line valid-jsdoc
+            propertyDefinition.set = readOnly ? function() {} : /** @this {PropertyAccessors} */ function(value) {
+              this._setProperty(property, value);
+            };
+          }
+
+          Object.defineProperty(this, property, propertyDefinition);
         }
       }
 
@@ -438,7 +477,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {boolean} True if an accessor was created
        */
       _hasAccessor(property) {
-        return this.__dataHasAccessor && this.__dataHasAccessor[property];
+        return this.__dataHasAccessor !== undefined &&
+            (this.__dataHasAccessor[property] || AccessorType.NONE) !== AccessorType.NONE;
       }
 
       /**
@@ -543,6 +583,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _flushProperties() {
         if (this.__dataPending && this.__dataOld) {
+          // Make sure to use the latest data from any predefined getters
+          if (this.__dataHasAccessor) {
+            for (let p in this.__dataHasAccessor) {
+              if (this.hasOwnProperty(p) && this.__dataHasAccessor[p] === AccessorType.PRE_DEFINED) {
+                this.__data[p] = this[p];
+              }
+            }
+          }
+
           let changedProps = this.__dataPending;
           this.__dataPending = null;
           this.__dataCounter++;
