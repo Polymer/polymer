@@ -51,6 +51,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     } catch(e) {}
   })();
 
+  let PASSIVE = SUPPORTS_PASSIVE ? {'passive': true} : false;
+
   // Check for touch-only devices
   let IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
 
@@ -216,20 +218,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function trackDocument(stateObj, movefn, upfn) {
     stateObj.movefn = movefn;
     stateObj.upfn = upfn;
-    document.addEventListener('mousemove', movefn);
-    document.addEventListener('mouseup', upfn);
+    document.addEventListener('mousemove', movefn, PASSIVE);
+    document.addEventListener('mouseup', upfn, PASSIVE);
   }
 
   function untrackDocument(stateObj) {
-    document.removeEventListener('mousemove', stateObj.movefn);
-    document.removeEventListener('mouseup', stateObj.upfn);
+    document.removeEventListener('mousemove', stateObj.movefn, PASSIVE);
+    document.removeEventListener('mouseup', stateObj.upfn, PASSIVE);
     stateObj.movefn = null;
     stateObj.upfn = null;
   }
 
   // use a document-wide touchend listener to start the ghost-click prevention mechanism
   // Use passive event listeners, if supported, to not affect scrolling performance
-  document.addEventListener('touchend', ignoreMouse, SUPPORTS_PASSIVE ? {passive: true} : false);
+  document.addEventListener('touchend', ignoreMouse, PASSIVE);
 
   /**
    * Module for adding listeners to a node for the following normalized
@@ -246,6 +248,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   const Gestures = {
     gestures: {},
     recognizers: [],
+    SUPPORTS_PASSIVE,
 
     /**
      * Finds the element rendered on the screen at the provided coordinates.
@@ -400,12 +403,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {Node} node Node to add listener on
      * @param {string} evType Gesture type: `down`, `up`, `track`, or `tap`
      * @param {Function} handler Event listener function to call
+     * @param {Object=} options Event Listener options
      * @return {boolean} Returns true if a gesture event listener was added.
      * @this {Gestures}
      */
-    addListener: function(node, evType, handler) {
+    addListener: function(node, evType, handler, options) {
       if (this.gestures[evType]) {
-        this._add(node, evType, handler);
+        this._add(node, evType, handler, options);
         return true;
       }
       return false;
@@ -419,12 +423,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {string} evType Gesture type: `down`, `up`, `track`, or `tap`
      * @param {Function} handler Event listener function previously passed to
      *  `addListener`.
+     * @param {Object=} options Event Listener options
      * @return {boolean} Returns true if a gesture event listener was removed.
      * @this {Gestures}
      */
-    removeListener: function(node, evType, handler) {
+    removeListener: function(node, evType, handler, options) {
       if (this.gestures[evType]) {
-        this._remove(node, evType, handler);
+        this._remove(node, evType, handler, options);
         return true;
       }
       return false;
@@ -437,9 +442,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {HTMLElement} node Node on which to add the event.
      * @param {string} evType Event type to add.
      * @param {function(Event?)} handler Event handler function.
+     * @param {Object=} options Event Listener options
      * @this {Gestures}
      */
-    _add: function(node, evType, handler) {
+    _add: function(node, evType, handler, options) {
       let recognizer = this.gestures[evType];
       let deps = recognizer.deps;
       let name = recognizer.name;
@@ -458,12 +464,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           gobj[dep] = gd = {_count: 0};
         }
         if (gd._count === 0) {
-          node.addEventListener(dep, this._handleNative);
+          node.addEventListener(dep, this._handleNative, options);
         }
         gd[name] = (gd[name] || 0) + 1;
         gd._count = (gd._count || 0) + 1;
       }
-      node.addEventListener(evType, handler);
+      node.addEventListener(evType, handler, options);
       if (recognizer.touchAction) {
         this.setTouchAction(node, recognizer.touchAction);
       }
@@ -476,9 +482,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {HTMLElement} node Node on which to remove the event.
      * @param {string} evType Event type to remove.
      * @param {function(Event?)} handler Event handler function.
+     * @param {Object=} options Event Listener options
      * @this {Gestures}
      */
-    _remove: function(node, evType, handler) {
+    _remove: function(node, evType, handler, options) {
       let recognizer = this.gestures[evType];
       let deps = recognizer.deps;
       let name = recognizer.name;
@@ -491,12 +498,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             gd[name] = (gd[name] || 1) - 1;
             gd._count = (gd._count || 1) - 1;
             if (gd._count === 0) {
-              node.removeEventListener(dep, this._handleNative);
+              node.removeEventListener(dep, this._handleNative, options);
             }
           }
         }
       }
-      node.removeEventListener(evType, handler);
+      node.removeEventListener(evType, handler, options);
     },
 
     /**
