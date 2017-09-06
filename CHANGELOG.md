@@ -4618,7 +4618,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Attribute-based styles not always updated [\#132](https://github.com/Polymer/polymer/issues/132)
 
-- attrubuteChanged event on "sub-component" not fired in Canary but works in Chrome [\#131](https://github.com/Polymer/polymer/issues/131)
+- attributeChanged event on "sub-component" not fired in Canary but works in Chrome [\#131](https://github.com/Polymer/polymer/issues/131)
 
 - Stylesheets throw exception if toolkit-scope is defined and the element definition is inline [\#127](https://github.com/Polymer/polymer/issues/127)
 
