@@ -4344,7 +4344,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - how to get inner element [\#280](https://github.com/Polymer/polymer/issues/280)
 
-- how to bind tap event on chilren node [\#278](https://github.com/Polymer/polymer/issues/278)
+- how to bind tap event on children node [\#278](https://github.com/Polymer/polymer/issues/278)
 
 - Provide finer control over unresolved element styling [\#276](https://github.com/Polymer/polymer/issues/276)
 
