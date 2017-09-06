@@ -624,7 +624,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 - Close backtick in ISSUE_TEMPLATE.md ([commit](https://github.com/Polymer/polymer/commit/b0dea8bc))
 
 ## [v1.7.1-dev](https://github.com/Polymer/polymer/tree/v1.7.1-dev) (2016-12-14)
-- Remove dependency on WebComponets for IE detection ([commit](https://github.com/Polymer/polymer/commit/650c16a9))
+- Remove dependency on WebComponents for IE detection ([commit](https://github.com/Polymer/polymer/commit/650c16a9))
 
 - Make sure text nodes are distributed when translating slot to content ([commit](https://github.com/Polymer/polymer/commit/87e312f1))
 
