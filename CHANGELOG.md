@@ -3704,7 +3704,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Ensure {{}} are removed after binding [\#304](https://github.com/Polymer/polymer/issues/304)
 
-- Gettting started instructions incomplete: no polymer.min.js  [\#300](https://github.com/Polymer/polymer/issues/300)
+- Getting started instructions incomplete: no polymer.min.js  [\#300](https://github.com/Polymer/polymer/issues/300)
 
 - Site is not showing properly in IE11 [\#299](https://github.com/Polymer/polymer/issues/299)
 
