@@ -4386,7 +4386,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 **Merged pull requests:**
 
-- Removes unneccessary px declarations in coordinate attributes. [\#289](https://github.com/Polymer/polymer/pull/289) ([mrmrs](https://github.com/mrmrs))
+- Removes unnecessary px declarations in coordinate attributes. [\#289](https://github.com/Polymer/polymer/pull/289) ([mrmrs](https://github.com/mrmrs))
 
 - remove extra argument to unbindProperty that was ignored [\#286](https://github.com/Polymer/polymer/pull/286) ([jmesserly](https://github.com/jmesserly))
 
