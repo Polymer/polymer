@@ -91,7 +91,7 @@
 
 - reduce closure warnings in TemplateStamp ([commit](https://github.com/Polymer/polymer/commit/c34ef0b2))
 
-- [ci skip] paramaterize entries for closure task ([commit](https://github.com/Polymer/polymer/commit/3a80ad8f))
+- [ci skip] parameterize entries for closure task ([commit](https://github.com/Polymer/polymer/commit/3a80ad8f))
 
 - [ci skip] generating externs should be explicit ([commit](https://github.com/Polymer/polymer/commit/a8a57bf5))
 
