@@ -3422,7 +3422,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Google Drive Element Error in IE [\#771](https://github.com/Polymer/polymer/issues/771)
 
-- dosent work in a zip file [\#766](https://github.com/Polymer/polymer/issues/766)
+- doesn't work in a zip file [\#766](https://github.com/Polymer/polymer/issues/766)
 
 - Paper-Dialog on page load doesnt work in firefox. [\#761](https://github.com/Polymer/polymer/issues/761)
 
@@ -3988,7 +3988,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 **Closed issues:**
 
-- Since 0.3.0 binding array elements doesen't work [\#526](https://github.com/Polymer/polymer/issues/526)
+- Since 0.3.0 binding array elements doesn't work [\#526](https://github.com/Polymer/polymer/issues/526)
 
 - minor documentation content issue [\#522](https://github.com/Polymer/polymer/issues/522)
 
