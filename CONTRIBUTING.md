@@ -6,7 +6,7 @@ There are many ways to contribute to the Polymer project! We welcome and truly a
 
 ### Communicating with the Polymer team
 
-Beyond Github, we try to have a variety of different lines of communication open:
+Beyond GitHub, we try to have a variety of different lines of communication open:
 
 * [Blog](https://blog.polymer-project.org/)
 * [Twitter](https://twitter.com/polymer)
@@ -36,7 +36,7 @@ If you've already signed a CLA but are still getting bothered by the awfully ins
 
 ### Filing bugs
 
-The Polymer team heavily uses (and loves!) Github for all of our software management. We use Github issues to track all bugs and features.
+The Polymer team heavily uses (and loves!) GitHub for all of our software management. We use GitHub issues to track all bugs and features.
 
 If you find an issue, please do file it on the repository. The [Polymer/polymer issues](https://github.com/polymer/polymer/issues) should be used only for issues on the Polymer library itself - bugs somewhere in the core codebase.
 
@@ -52,7 +52,7 @@ PR's are even better than issues. We gladly accept community pull requests. In g
 
 - Open an issue describing the problem that you are looking to solve in your PR (if one is not already open), and your approach to solving it. This makes it easier to have a conversation around the best general approach for solving your problem, outside of the code itself.
 - Sign the [CLA](https://cla.developers.google.com/clas), as described above.
-- Fork the repo you're making the fix on to your own Github account.
+- Fork the repo you're making the fix on to your own GitHub account.
 - Code!
 - Ideally, squash your commits into a single commit with a clear message of what the PR does. If it absolutely makes sense to keep multiple commits, that's OK - or perhaps consider making two separate PR's.
 - **Include tests that test the range of behavior that changes with your PR.** If you PR fixes a bug, make sure your tests capture that bug. If your PR adds new behavior, make sure that behavior is fully tested. Every PR *must* include associated tests. (See [Unit tests](#unit-tests) for more.)
