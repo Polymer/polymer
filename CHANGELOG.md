@@ -2664,7 +2664,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - \[0.9\] auto-binding, x-repeat template not working [\#1502](https://github.com/Polymer/polymer/issues/1502)
 
-- \[0.9\] if="{{ 1 \< 2 }}" not supporded?! [\#1499](https://github.com/Polymer/polymer/issues/1499)
+- \[0.9\] if="{{ 1 \< 2 }}" not supported?! [\#1499](https://github.com/Polymer/polymer/issues/1499)
 
 - \[0.9\] touch track fails on iPhone, .touchIdentifier vs .identifier [\#1496](https://github.com/Polymer/polymer/issues/1496)
 
