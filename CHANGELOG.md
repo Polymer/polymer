@@ -3520,7 +3520,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Polymer site appears broken on Safari 8 [\#719](https://github.com/Polymer/polymer/issues/719)
 
-- Non ASCII strings set in Javascript show up as ? in Firefox [\#717](https://github.com/Polymer/polymer/issues/717)
+- Non ASCII strings set in JavaScript show up as ? in Firefox [\#717](https://github.com/Polymer/polymer/issues/717)
 
 - Materials page in Polymer is not rendering correctly [\#716](https://github.com/Polymer/polymer/issues/716)
 
