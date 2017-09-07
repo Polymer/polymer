@@ -4278,7 +4278,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Clarification on use of template repeat for \<tr\> & \<select\> [\#318](https://github.com/Polymer/polymer/issues/318)
 
-- Autofocus doesn't work with polymer-veilng. [\#317](https://github.com/Polymer/polymer/issues/317)
+- Autofocus doesn't work with polymer-veiling. [\#317](https://github.com/Polymer/polymer/issues/317)
 
 - Polyfill: @polyfill @host rules are broken in an extended element [\#315](https://github.com/Polymer/polymer/issues/315)
 
