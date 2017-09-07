@@ -4442,7 +4442,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Changing a DOM attribute doesn't change the model [\#246](https://github.com/Polymer/polymer/issues/246)
 
-- Latest build broken w/ Jquery \(chrome 28\) [\#243](https://github.com/Polymer/polymer/issues/243)
+- Latest build broken w/ jQuery \(chrome 28\) [\#243](https://github.com/Polymer/polymer/issues/243)
 
 - window.Loader name colliding with ES6 window.Loader \(modules\) [\#237](https://github.com/Polymer/polymer/issues/237)
 
