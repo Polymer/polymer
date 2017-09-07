@@ -3794,7 +3794,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - TypeError and NetworkError when starting the designer tool from the url [\#665](https://github.com/Polymer/polymer/issues/665)
 
-- Scroll desappearing on Polymer Website [\#661](https://github.com/Polymer/polymer/issues/661)
+- Scroll disappearing on Polymer Website [\#661](https://github.com/Polymer/polymer/issues/661)
 
 - paper-menu-button is not responsivness [\#660](https://github.com/Polymer/polymer/issues/660)
 
