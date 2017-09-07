@@ -3542,7 +3542,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - div with tool attribute does not allow flex for div within  [\#695](https://github.com/Polymer/polymer/issues/695)
 
-- it keeps reseting [\#694](https://github.com/Polymer/polymer/issues/694)
+- it keeps resetting [\#694](https://github.com/Polymer/polymer/issues/694)
 
 - Handlers disappearing when you hide the template [\#690](https://github.com/Polymer/polymer/issues/690)
 
