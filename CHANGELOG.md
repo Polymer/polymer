@@ -748,7 +748,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 ## [v1.6.1](https://github.com/Polymer/polymer/tree/v1.6.1) (2016-08-01)
 - Property Shim needs to handle build output from apply shim ([commit](https://github.com/Polymer/polymer/commit/d726a51))
 
-- Do not resolve urls with leading slash and other prototcols ([commit](https://github.com/Polymer/polymer/commit/94f95ec))
+- Do not resolve urls with leading slash and other protocols ([commit](https://github.com/Polymer/polymer/commit/94f95ec))
 
 - Mark that non-inheritable properties being set to `inherit` is not supported ([commit](https://github.com/Polymer/polymer/commit/0a2b31e))
 
