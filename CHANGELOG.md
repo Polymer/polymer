@@ -1984,7 +1984,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Typo in Polymer.mixin API documentation [\#2001](https://github.com/Polymer/polymer/issues/2001)
 
-- Low-level changes for `iron-list` integration (`fire` & `modelForElemennt`) [\#2003](https://github.com/Polymer/polymer/issues/2003)
+- Low-level changes for `iron-list` integration (`fire` & `modelForElement`) [\#2003](https://github.com/Polymer/polymer/issues/2003)
 
 - Normalized event difference with ShadowDOM and Shady [\#1921](https://github.com/Polymer/polymer/issues/1921)
 
