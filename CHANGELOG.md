@@ -1178,7 +1178,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Simplify fix for fragment children management. ([commit](https://github.com/Polymer/polymer/commit/713377e))
 
-- Fix test under polypill. ([commit](https://github.com/Polymer/polymer/commit/25da63d))
+- Fix test under polyfill. ([commit](https://github.com/Polymer/polymer/commit/25da63d))
 
 - Ensure fragments added via Polymer.dom always have elements removed, even when distribution does not select those elements. ([commit](https://github.com/Polymer/polymer/commit/101eb3d))
 
@@ -1404,7 +1404,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Avoid stomping on property objects when mixing behaviors. ([commit](https://github.com/Polymer/polymer/commit/ec4d313))
 
-- Update test to avoid template polypill issues. ([commit](https://github.com/Polymer/polymer/commit/fa96ff3))
+- Update test to avoid template polyfill issues. ([commit](https://github.com/Polymer/polymer/commit/fa96ff3))
 
 - Ensure parent node exists when stamping. Fixes #2685. ([commit](https://github.com/Polymer/polymer/commit/62f2d2a))
 
