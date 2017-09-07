@@ -1,4 +1,12 @@
-
+/**
+ * @license
+ * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+ * This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+ * The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+ * The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+ * Code distributed by Google as part of the polymer project is also
+ * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+ */
 /**
  * @fileoverview Closure types for Polymer mixins
  *
@@ -586,12 +594,12 @@ Polymer_PropertyEffects.prototype.set = function(path, value, root){};
 */
 Polymer_PropertyEffects.prototype.push = function(path, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_PropertyEffects.prototype.pop = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
 * @param {...*} items 
@@ -599,12 +607,12 @@ Polymer_PropertyEffects.prototype.pop = function(path){};
 */
 Polymer_PropertyEffects.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_PropertyEffects.prototype.shift = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -798,6 +806,24 @@ Polymer_PropertyEffects._evaluateBinding = function(inst, part, path, props, old
 * @extends {Polymer_PropertyEffects}
 */
 function Polymer_ElementMixin(){}
+/** @type {HTMLTemplateElement} */
+Polymer_ElementMixin.prototype._template;
+
+/** @type {string} */
+Polymer_ElementMixin.prototype._importPath;
+
+/** @type {string} */
+Polymer_ElementMixin.prototype.rootPath;
+
+/** @type {string} */
+Polymer_ElementMixin.prototype.importPath;
+
+/** @type {(StampedTemplate|HTMLElement|ShadowRoot)} */
+Polymer_ElementMixin.prototype.root;
+
+/** @type {!Object.<string, !Node>} */
+Polymer_ElementMixin.prototype.$;
+
 /**
 * @override
 * @param {!HTMLTemplateElement} template Template to stamp
@@ -1076,12 +1102,12 @@ Polymer_ElementMixin.prototype.set = function(path, value, root){};
 */
 Polymer_ElementMixin.prototype.push = function(path, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_ElementMixin.prototype.pop = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
 * @param {...*} items 
@@ -1089,12 +1115,12 @@ Polymer_ElementMixin.prototype.pop = function(path){};
 */
 Polymer_ElementMixin.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_ElementMixin.prototype.shift = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -1163,8 +1189,8 @@ Polymer_ElementMixin.prototype.connectedCallback = function(){};
 */
 Polymer_ElementMixin.prototype.disconnectedCallback = function(){};
 /**
-* @param {NodeList} dom to attach to the element.
-* @return {Node}
+* @param {StampedTemplate} dom to attach to the element.
+* @return {ShadowRoot}
 */
 Polymer_ElementMixin.prototype._attachDom = function(dom){};
 /**
@@ -1331,6 +1357,15 @@ Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(
 * @extends {Polymer_GestureEventListeners}
 */
 function Polymer_LegacyElementMixin(){}
+/** @type {boolean} */
+Polymer_LegacyElementMixin.prototype.isAttached;
+
+/** @type {WeakMap.<!Element, !Object.<string, !Function>>} */
+Polymer_LegacyElementMixin.prototype.__boundListeners;
+
+/** @type {Object.<string, Function>} */
+Polymer_LegacyElementMixin.prototype._debouncers;
+
 /**
 * @override
 * @param {!HTMLTemplateElement} template Template to stamp
@@ -1609,12 +1644,12 @@ Polymer_LegacyElementMixin.prototype.set = function(path, value, root){};
 */
 Polymer_LegacyElementMixin.prototype.push = function(path, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_LegacyElementMixin.prototype.pop = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
 * @param {...*} items 
@@ -1622,12 +1657,12 @@ Polymer_LegacyElementMixin.prototype.pop = function(path){};
 */
 Polymer_LegacyElementMixin.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_LegacyElementMixin.prototype.shift = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -1696,8 +1731,8 @@ Polymer_LegacyElementMixin.prototype.connectedCallback = function(){};
 */
 Polymer_LegacyElementMixin.prototype.disconnectedCallback = function(){};
 /**
-* @param {NodeList} dom to attach to the element.
-* @return {Node}
+* @param {StampedTemplate} dom to attach to the element.
+* @return {ShadowRoot}
 */
 Polymer_LegacyElementMixin.prototype._attachDom = function(dom){};
 /**
@@ -2458,12 +2493,12 @@ Polymer_ArraySelectorMixin.prototype.set = function(path, value, root){};
 */
 Polymer_ArraySelectorMixin.prototype.push = function(path, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_ArraySelectorMixin.prototype.pop = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
 * @param {...*} items 
@@ -2471,12 +2506,12 @@ Polymer_ArraySelectorMixin.prototype.pop = function(path){};
 */
 Polymer_ArraySelectorMixin.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @return {*}
 */
 Polymer_ArraySelectorMixin.prototype.shift = function(path){};
 /**
-* @param {string} path Path to array.
+* @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {...*} items 
 * @return {number}
 */
@@ -2545,8 +2580,8 @@ Polymer_ArraySelectorMixin.prototype.connectedCallback = function(){};
 */
 Polymer_ArraySelectorMixin.prototype.disconnectedCallback = function(){};
 /**
-* @param {NodeList} dom to attach to the element.
-* @return {Node}
+* @param {StampedTemplate} dom to attach to the element.
+* @return {ShadowRoot}
 */
 Polymer_ArraySelectorMixin.prototype._attachDom = function(dom){};
 /**

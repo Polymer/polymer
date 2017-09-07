@@ -1,4 +1,12 @@
 /**
+ * @license
+ * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+ * This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+ * The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+ * The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+ * Code distributed by Google as part of the polymer project is also
+ * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+ *
  * @fileoverview Externs for Polymer
  * @externs
  */
@@ -7,8 +15,8 @@
 
 /**
  * @typedef {{
+ * type: !Function,
  * value: *,
- * type: (!Function | undefined),
  * readOnly: (boolean | undefined),
  * computed: (string | undefined),
  * reflectToAttribute: (boolean | undefined),
@@ -23,18 +31,21 @@ let PolymerElementPropertiesMeta;
  */
 let PolymerElementProperties;
 
-/**
- * @typedef {{
- *   is: string,
- *   extends: (string | undefined),
- *   properties: (!PolymerElementProperties | undefined),
- *   observers: (!Array<string> | undefined),
- *   template: (!HTMLTemplateElement | string | undefined),
- *   hostAttributes: (!Object<string, *> | undefined),
- *   listeners: (!Object<string, string> | undefined)
- * }}
- */
-let PolymerInit;
+let PolymerInit = function(){};
+/** @type {string} */
+PolymerInit.prototype.is;
+/** @type {(string | undefined)} */
+PolymerInit.prototype.extends;
+/** @type {(!PolymerElementProperties | undefined)} */
+PolymerInit.prototype.properties;
+/** @type {(!Array<string> | undefined)} */
+PolymerInit.prototype.observers;
+/** @type {(!HTMLTemplateElement | string | undefined)} */
+PolymerInit.prototype.template;
+/** @type {(!Object<string, *> | undefined)} */
+PolymerInit.prototype.hostAttributes;
+/** @type {(!Object<string, string> | undefined)} */
+PolymerInit.prototype.listeners;
 
 let PolymerElementConstructor = function (){};
 /** @type {(string | undefined)} */
@@ -50,7 +61,7 @@ PolymerElementConstructor.template;
 
 /**
  * @param {!PolymerInit} init
- * @return {!HTMLElement}
+ * @return {!function(new:HTMLElement)}
  */
 function Polymer(init){}
 
@@ -84,3 +95,10 @@ PolymerTelemetry.dumpRegistrations;;
 
 /** @type {PolymerTelemetry} */
 Polymer.telemetry;
+
+/**
+ * @constructor
+ * @extends {HTMLElement}
+ * @implements {Polymer_LegacyElementMixin}
+ */
+var PolymerElement = Polymer.LegacyElementMixin();
