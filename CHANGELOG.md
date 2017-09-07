@@ -139,7 +139,7 @@
 
 - Fix more closure warnings. ([commit](https://github.com/Polymer/polymer/commit/2627e63a))
 
-- slighly better typing for mixin funcion ([commit](https://github.com/Polymer/polymer/commit/b3dfd38e))
+- slighly better typing for mixin function ([commit](https://github.com/Polymer/polymer/commit/b3dfd38e))
 
 - gesture fixes ([commit](https://github.com/Polymer/polymer/commit/346e2d57))
 
@@ -3512,7 +3512,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - paper-input element doesn't show keyboard on Firefox OS 2.0 [\#727](https://github.com/Polymer/polymer/issues/727)
 
-- designerr on polymer page lacks demo'd functoniality from youtube quickstart. [\#726](https://github.com/Polymer/polymer/issues/726)
+- designerr on polymer page lacks demo'd functioniality from youtube quickstart. [\#726](https://github.com/Polymer/polymer/issues/726)
 
 - PhantomJS Support [\#724](https://github.com/Polymer/polymer/issues/724)
 
