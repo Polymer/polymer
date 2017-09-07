@@ -3354,7 +3354,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - paper-input documentation suggests html /deep/ selectors, inconsistent with other elements [\#886](https://github.com/Polymer/polymer/issues/886)
 
-- paper-input cursor doesn't seem to support themeing [\#885](https://github.com/Polymer/polymer/issues/885)
+- paper-input cursor doesn't seem to support theming [\#885](https://github.com/Polymer/polymer/issues/885)
 
 - paper-input styling instructions lack the ::shadow pseudo-element [\#884](https://github.com/Polymer/polymer/issues/884)
 
