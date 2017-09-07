@@ -4810,6 +4810,6 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - fix path [\#3](https://github.com/Polymer/polymer/pull/3) ([sjmiles](https://github.com/sjmiles))
 
-- make workBench live with toollkit [\#2](https://github.com/Polymer/polymer/pull/2) ([sjmiles](https://github.com/sjmiles))
+- make workBench live with toolkit [\#2](https://github.com/Polymer/polymer/pull/2) ([sjmiles](https://github.com/sjmiles))
 
 - Initial Components [\#1](https://github.com/Polymer/polymer/pull/1) ([sjmiles](https://github.com/sjmiles))
