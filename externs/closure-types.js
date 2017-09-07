@@ -1924,7 +1924,7 @@ Polymer_LegacyElementMixin.prototype.scopeSubtree = function(container, shouldOb
 */
 Polymer_LegacyElementMixin.prototype.getComputedStyleValue = function(property){};
 /**
-* @param {string} jobName String to indentify the debounce job.
+* @param {string} jobName String to identify the debounce job.
 * @param {function ()} callback Function that is called (with `this`
   context) when the wait time elapses.
 * @param {number} wait Optional wait time in milliseconds (ms) after the
