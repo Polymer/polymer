@@ -387,7 +387,7 @@
 
 - Doc fix (correct callback name) ([commit](https://github.com/Polymer/polymer/commit/57d22f4c))
 
-- Fixed tempaltize -> templatize typo ([commit](https://github.com/Polymer/polymer/commit/b6b43f36))
+- Fixed templatize typo ([commit](https://github.com/Polymer/polymer/commit/b6b43f36))
 
 - Work around IE/Edge bug with :not([attr]) selectors ([commit](https://github.com/Polymer/polymer/commit/c3036232))
 
