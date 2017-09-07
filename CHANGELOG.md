@@ -4272,7 +4272,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 **Closed issues:**
 
-- binding style attribute in IE doen't work [\#327](https://github.com/Polymer/polymer/issues/327)
+- binding style attribute in IE doesn't work [\#327](https://github.com/Polymer/polymer/issues/327)
 
 - CSS: only add \[is=..\] selector if element is type-extension [\#320](https://github.com/Polymer/polymer/issues/320)
 
