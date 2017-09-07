@@ -3670,7 +3670,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Sorting an array can result in an \*Changed method firing [\#350](https://github.com/Polymer/polymer/issues/350)
 
-- Re-entrancy question: reflectPropertyToAttribute can trigger unwanted attributedChanged effects [\#349](https://github.com/Polymer/polymer/issues/349)
+- Reentrancy question: reflectPropertyToAttribute can trigger unwanted attributedChanged effects [\#349](https://github.com/Polymer/polymer/issues/349)
 
 - ShadowDOMPolyfill is way, way too intrusive!  [\#346](https://github.com/Polymer/polymer/issues/346)
 
