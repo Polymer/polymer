@@ -3318,7 +3318,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - No release notes for 0.5.0 [\#908](https://github.com/Polymer/polymer/issues/908)
 
-- Back button navigation somtimes broken on polymer-project website [\#907](https://github.com/Polymer/polymer/issues/907)
+- Back button navigation sometimes broken on polymer-project website [\#907](https://github.com/Polymer/polymer/issues/907)
 
 - Designer Tool page appears blank [\#906](https://github.com/Polymer/polymer/issues/906)
 
