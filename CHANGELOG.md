@@ -445,7 +445,7 @@
 
 - fix behavior warn test. ([commit](https://github.com/Polymer/polymer/commit/4439436f))
 
-- update to latest webcompnents rc. ([commit](https://github.com/Polymer/polymer/commit/46219a39))
+- update to latest webcomponents rc. ([commit](https://github.com/Polymer/polymer/commit/46219a39))
 
 - move mutable data mixin to be loaded by polymer.html ([commit](https://github.com/Polymer/polymer/commit/7cebe120))
 
