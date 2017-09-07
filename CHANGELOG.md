@@ -2626,7 +2626,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - serializeValueToAttribute always provokes distribute if necessary [\#1580](https://github.com/Polymer/polymer/pull/1580) ([sorvell](https://github.com/sorvell))
 
-- Use more resiliant shadowroot checking [\#1579](https://github.com/Polymer/polymer/pull/1579) ([azakus](https://github.com/azakus))
+- Use more resilient shadowroot checking [\#1579](https://github.com/Polymer/polymer/pull/1579) ([azakus](https://github.com/azakus))
 
 - Literal args comma fix [\#1577](https://github.com/Polymer/polymer/pull/1577) ([sjmiles](https://github.com/sjmiles))
 
