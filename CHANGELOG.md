@@ -3796,7 +3796,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Scroll disappearing on Polymer Website [\#661](https://github.com/Polymer/polymer/issues/661)
 
-- paper-menu-button is not responsivness [\#660](https://github.com/Polymer/polymer/issues/660)
+- paper-menu-button is not responsive [\#660](https://github.com/Polymer/polymer/issues/660)
 
 - Core-drawer-panel hardcoded drawer width [\#659](https://github.com/Polymer/polymer/issues/659)
 
