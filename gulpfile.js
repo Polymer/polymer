@@ -242,11 +242,15 @@ gulp.task('estimate-size', ['clean'], () => {
     .pipe(gulp.dest(BUNDLED_DIR))
 });
 
-gulp.task('lint', function() {
+gulp.task('lint-eslint', function() {
   return gulp.src(['lib/**/*.html', 'test/unit/*.html', 'util/*.js'])
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
+});
+
+gulp.task('lint', (done) => {
+  runseq('lint-eslint', 'lint-closure', done);
 });
 
 gulp.task('generate-closure-externs', ['clean'], () => {
