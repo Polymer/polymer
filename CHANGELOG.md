@@ -3580,7 +3580,7 @@ The following notable changes have been made since the 2.0 Preview announcement.
 
 - Unable to extend iframe [\#580](https://github.com/Polymer/polymer/issues/580)
 
-- Custom element that performs dynamic HTML Import gets corrupted offesetWidth when used inside \<template\> [\#554](https://github.com/Polymer/polymer/issues/554)
+- Custom element that performs dynamic HTML Import gets corrupted offsetWidth when used inside \<template\> [\#554](https://github.com/Polymer/polymer/issues/554)
 
 - Wrap as UMD - Do not force window global [\#534](https://github.com/Polymer/polymer/issues/534)
 
