@@ -40,22 +40,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   })();
 
+  /**
+   * @param {string} name Possible mouse event name
+   * @return {boolean} true if mouse event, false if not
+   */
+  function isMouseEvent(name) {
+    return MOUSE_EVENTS.indexOf(name) > -1;
+  }
+
   /* eslint no-empty: ["error", { "allowEmptyCatch": true }] */
   // check for passive event listeners
   let SUPPORTS_PASSIVE = false;
   (function() {
     try {
-      let opts = Object.defineProperty({}, 'passive', {get: function() {SUPPORTS_PASSIVE = true;}});
+      let opts = Object.defineProperty({}, 'passive', {get() {SUPPORTS_PASSIVE = true;}});
       window.addEventListener('test', null, opts);
       window.removeEventListener('test', null, opts);
     } catch(e) {}
   })();
 
+  /**
+   * Generate settings for event listeners, dependant on `Polymer.passiveTouchGestures`
+   *
+   * @return {{passive: boolean} | undefined} Options to use for addEventListener and removeEventListener
+   */
+  function PASSIVE_TOUCH() {
+    if (HAS_NATIVE_TA && SUPPORTS_PASSIVE && Polymer.passiveTouchGestures) {
+      return {passive: true};
+    } else {
+      return;
+    }
+  }
+
   // Check for touch-only devices
   let IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
 
   let GestureRecognizer = function(){}; // eslint-disable-line no-unused-vars
-  GestureRecognizer.prototype.reset = function(){};
+  /** @type {function()} */
+  GestureRecognizer.prototype.reset;
   /** @type {function(MouseEvent) | undefined} */
   GestureRecognizer.prototype.mousedown;
   /** @type {(function(MouseEvent) | undefined)} */
@@ -140,7 +162,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function hasLeftMouseButton(ev) {
     let type = ev.type;
     // exit early if the event is not a mouse event
-    if (MOUSE_EVENTS.indexOf(type) === -1) {
+    if (!isMouseEvent(type)) {
       return false;
     }
     // ev.button is not reliable for mousemove (0 is overloaded as both left button and no buttons)
@@ -450,7 +472,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (let i = 0, dep, gd; i < deps.length; i++) {
         dep = deps[i];
         // don't add mouse handlers on iOS because they cause gray selection overlays
-        if (IS_TOUCH_ONLY && MOUSE_EVENTS.indexOf(dep) > -1 && dep !== 'click') {
+        if (IS_TOUCH_ONLY && isMouseEvent(dep) && dep !== 'click') {
           continue;
         }
         gd = gobj[dep];
@@ -458,7 +480,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           gobj[dep] = gd = {_count: 0};
         }
         if (gd._count === 0) {
-          node.addEventListener(dep, this._handleNative);
+          let options = !isMouseEvent(dep) && PASSIVE_TOUCH();
+          node.addEventListener(dep, this._handleNative, options);
         }
         gd[name] = (gd[name] || 0) + 1;
         gd._count = (gd._count || 0) + 1;
@@ -491,7 +514,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             gd[name] = (gd[name] || 1) - 1;
             gd._count = (gd._count || 1) - 1;
             if (gd._count === 0) {
-              node.removeEventListener(dep, this._handleNative);
+              let options = !isMouseEvent(dep) && PASSIVE_TOUCH();
+              node.removeEventListener(dep, this._handleNative, options);
             }
           }
         }
