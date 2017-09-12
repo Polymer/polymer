@@ -38,6 +38,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   })();
 
+  /**
+   * @param {string} name Possible mouse event name
+   * @return {boolean} true if mouse event, false if not
+   */
+   function isMouseEvent(name) {
+    return MOUSE_EVENTS.indexOf(name) > -1;
+  }
+
   /* eslint no-empty: ["error", { "allowEmptyCatch": true }] */
   // check for passive event listeners
   var SUPPORTS_PASSIVE = false;
@@ -48,6 +56,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       window.removeEventListener('test', null, opts);
     } catch(e) {}
   })();
+
+  // decide whether to use {passive: true} for gestures listening for touch events
+  function PASSIVE_TOUCH() {
+    if (HAS_NATIVE_TA && SUPPORTS_PASSIVE && Polymer.Settings.passiveTouchGestures) {
+      return {passive: true};
+    }
+  }
 
   // Check for touch-only devices
   var IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
@@ -110,7 +125,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function hasLeftMouseButton(ev) {
     var type = ev.type;
     // exit early if the event is not a mouse event
-    if (MOUSE_EVENTS.indexOf(type) === -1) {
+    if (!isMouseEvent(type)) {
       return false;
     }
     // ev.button is not reliable for mousemove (0 is overloaded as both left button and no buttons)
@@ -326,7 +341,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       for (var i = 0, dep, gd; i < deps.length; i++) {
         dep = deps[i];
         // don't add mouse handlers on iOS because they cause gray selection overlays
-        if (IS_TOUCH_ONLY && MOUSE_EVENTS.indexOf(dep) > -1 && dep !== 'click') {
+        if (IS_TOUCH_ONLY && isMouseEvent(dep) && dep !== 'click') {
           continue;
         }
         gd = gobj[dep];
@@ -334,7 +349,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           gobj[dep] = gd = {_count: 0};
         }
         if (gd._count === 0) {
-          node.addEventListener(dep, this.handleNative);
+          var options = !isMouseEvent(dep) && PASSIVE_TOUCH();
+          node.addEventListener(dep, this.handleNative, options);
         }
         gd[name] = (gd[name] || 0) + 1;
         gd._count = (gd._count || 0) + 1;
@@ -361,7 +377,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             gd[name] = (gd[name] || 1) - 1;
             gd._count = (gd._count || 1) - 1;
             if (gd._count === 0) {
-              node.removeEventListener(dep, this.handleNative);
+              var options = !isMouseEvent(dep) && PASSIVE_TOUCH();
+              node.removeEventListener(dep, this.handleNative, options);
             }
           }
         }
