@@ -11,7 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/mixin.html">
 <link rel="import" href="../utils/case-map.html">
-<link rel="import" href="../utils/async.html">
+<link rel="import" href="properties-changed.html">
 
 <script>
 (function() {
@@ -19,8 +19,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   'use strict';
 
   let caseMap = Polymer.CaseMap;
-
-  let microtask = Polymer.Async.microTask;
 
   // Save map of native properties; this forms a blacklist or properties
   // that won't have their values "saved" by `saveAccessorValue`, since
@@ -95,13 +93,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.PropertyAccessors = Polymer.dedupingMixin(superClass => {
 
     /**
+     * @constructor
+     * @extends {superClass}
+     * @implements {Polymer_PropertiesChanged}
+     * @unrestricted
+     */
+     const base = Polymer.PropertiesChanged(superClass);
+
+    /**
      * @polymer
      * @mixinClass
      * @implements {Polymer_PropertyAccessors}
      * @extends HTMLElement
      * @unrestricted
      */
-    class PropertyAccessors extends superClass {
+    class PropertyAccessors extends base {
 
       /**
        * Generates property accessors for all attributes in the standard
@@ -118,31 +124,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
+      /**
+       * Creates property accessors for the properties listed in the
+       * `observedProperties` array.
+       * @param {string} props Name of the element
+       */
+      static createProperties(props) {
+        for (let i=0; i < props.length; i++) {
+          this.prototype._createPropertyAccessor(props[i]);
+        }
+      }
+
       constructor() {
         super();
         /** @type {boolean} */
         this.__serializing;
         /** @type {number} */
         this.__dataCounter;
-        /** @type {boolean} */
-        this.__dataEnabled;
-        /** @type {boolean} */
-        this.__dataReady;
-        /** @type {boolean} */
-        this.__dataInvalid;
-        /** @type {!Object} */
-        this.__data;
-        /** @type {Object} */
-        this.__dataPending;
-        /** @type {Object} */
-        this.__dataOld;
-        /** @type {Object} */
-        this.__dataProto;
-        /** @type {Object} */
-        this.__dataHasAccessor;
-        /** @type {Object} */
-        this.__dataInstanceProps;
-        this._initializeProperties();
       }
 
       /**
@@ -170,12 +168,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _initializeProperties() {
         this.__serializing = false;
         this.__dataCounter = 0;
-        this.__dataEnabled = false;
-        this.__dataReady = false;
-        this.__dataInvalid = false;
-        this.__data = {};
-        this.__dataPending = null;
-        this.__dataOld = null;
         if (this.__dataProto) {
           this._initializeProtoProperties(this.__dataProto);
           this.__dataProto = null;
@@ -442,49 +434,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Updates the local storage for a property (via `_setPendingProperty`)
-       * and enqueues a `_propertiesChanged` callback.
-       *
-       * @param {string} property Name of the property
-       * @param {*} value Value to set
-       * @protected
-       */
-      _setProperty(property, value) {
-        if (this._setPendingProperty(property, value)) {
-          this._invalidateProperties();
-        }
-      }
-
-      /**
-       * Updates the local storage for a property, records the previous value,
-       * and adds it to the set of "pending changes" that will be passed to the
-       * `_propertiesChanged` callback.  This method does not enqueue the
-       * `_propertiesChanged` callback.
-       *
-       * @param {string} property Name of the property
-       * @param {*} value Value to set
-       * @return {boolean} Returns true if the property changed
-       * @protected
-       */
-      _setPendingProperty(property, value) {
-        let old = this.__data[property];
-        let changed = this._shouldPropertyChange(property, value, old);
-        if (changed) {
-          if (!this.__dataPending) {
-            this.__dataPending = {};
-            this.__dataOld = {};
-          }
-          // Ensure old is captured from the last turn
-          if (this.__dataOld && !(property in this.__dataOld)) {
-            this.__dataOld[property] = old;
-          }
-          this.__data[property] = value;
-          this.__dataPending[property] = value;
-        }
-        return changed;
-      }
-
-      /**
        * Returns true if the specified property has a pending change.
        *
        * @param {string} prop Property name
@@ -493,43 +442,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _isPropertyPending(prop) {
         return Boolean(this.__dataPending && (prop in this.__dataPending));
-      }
-
-      /**
-       * Marks the properties as invalid, and enqueues an async
-       * `_propertiesChanged` callback.
-       *
-       * @protected
-       */
-      _invalidateProperties() {
-        if (!this.__dataInvalid && this.__dataReady) {
-          this.__dataInvalid = true;
-          microtask.run(() => {
-            if (this.__dataInvalid) {
-              this.__dataInvalid = false;
-              this._flushProperties();
-            }
-          });
-        }
-      }
-
-      /**
-       * Call to enable property accessor processing. Before this method is
-       * called accessor values will be set but side effects are
-       * queued. When called, any pending side effects occur immediately.
-       * For elements, generally `connectedCallback` is a normal spot to do so.
-       * It is safe to call this method multiple times as it only turns on
-       * property accessors once.
-       */
-      _enableProperties() {
-        if (!this.__dataEnabled) {
-          this.__dataEnabled = true;
-          if (this.__dataInstanceProps) {
-            this._initializeInstanceProperties(this.__dataInstanceProps);
-            this.__dataInstanceProps = null;
-          }
-          this.ready();
-        }
       }
 
       /**
@@ -543,10 +455,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _flushProperties() {
         if (this.__dataPending && this.__dataOld) {
-          let changedProps = this.__dataPending;
-          this.__dataPending = null;
           this.__dataCounter++;
-          this._propertiesChanged(this.__data, changedProps, this.__dataOld);
+          super._flushProperties();
           this.__dataCounter--;
         }
       }
@@ -566,47 +476,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @public
        */
       ready() {
-        this.__dataReady = true;
+        super.ready();
         // Run normal flush
         this._flushProperties();
-      }
-
-      /**
-       * Callback called when any properties with accessors created via
-       * `_createPropertyAccessor` have been set.
-       *
-       * @param {!Object} currentProps Bag of all current accessor values
-       * @param {!Object} changedProps Bag of properties changed since the last
-       *   call to `_propertiesChanged`
-       * @param {!Object} oldProps Bag of previous values for each property
-       *   in `changedProps`
-       * @protected
-       */
-      _propertiesChanged(currentProps, changedProps, oldProps) { // eslint-disable-line no-unused-vars
-      }
-
-      /**
-       * Method called to determine whether a property value should be
-       * considered as a change and cause the `_propertiesChanged` callback
-       * to be enqueued.
-       *
-       * The default implementation returns `true` for primitive types if a
-       * strict equality check fails, and returns `true` for all Object/Arrays.
-       * The method always returns false for `NaN`.
-       *
-       * Override this method to e.g. provide stricter checking for
-       * Objects/Arrays when using immutable patterns.
-       *
-       * @param {string} property Property name
-       * @param {*} value New property value
-       * @param {*} old Previous property value
-       * @return {boolean} Whether the property should be considered a change
-       *   and enqueue a `_propertiesChanged` callback
-       * @protected
-       */
-      _shouldPropertyChange(property, value, old) {
-        // check equality, and ensure (old == NaN, value == NaN) always returns false
-        return old !== value && (old === old || value === value);
       }
 
     }
