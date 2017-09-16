@@ -10,7 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/mixin.html">
-<link rel="import" href="../mixins/property-accessors.html">
+<link rel="import" href="../mixins/properties-changed.html">
 
 <script>
 (function() {
@@ -24,13 +24,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @polymer
    * @memberof Polymer
    * @constructor
-   * @implements {Polymer_PropertyAccessors}
+   * @implements {Polymer_PropertiesChanged}
    * @extends HTMLElement
-   * @appliesMixin Polymer.PropertyAccessors
+   * @appliesMixin Polymer.PropertiesChanged
    * @summary Custom element base class that provides minimal starting point
-   * using PropertyAccessors to create properties
+   * using PropertiesChanged to create properties
    */
-   class BasicElement extends Polymer.PropertyAccessors(HTMLElement) {
+   class BasicElement extends Polymer.PropertiesChanged(HTMLElement) {
+
+    /**
+     * Implements standard custom elements getter to observes the attributes
+     * listed in `properties`.
+     */
+    static get observedAttributes() {
+      const props = this.properties;
+      return props ? Object.keys(props).map(p => {
+        return this.prototype._attributeForProperty(p);
+      }) : [];
+    }
 
     static _ensureFinalized(name) {
       const proto = this.prototype;
@@ -38,17 +49,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         proto.__finalized = true;
         this.finalize(name);
       }
-    }
-
-    /**
-     * Implements standard custom elements getter to observes the attributes
-     * listed in `properties`. These are camel to dash cased.
-     */
-    static get observedAttributes() {
-      const props = this.properties;
-      return props ? Object.keys(props).map(p => {
-        return this.prototype._attributeNameForProperty(p);
-      }) : [];
     }
 
     /**
@@ -66,6 +66,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
+     * Overrides implementation in PropertiesChanged to immediately process
+     * any pending changes to properties and ensure that
+     * `_propertiesChanged` is called.
+     *
+     * @public
+     */
+    ready() {
+      super.ready();
+      this._invalidateProperties();
+      this._validateProperties();
+    }
+
+    /**
      * Overrides default behavior and adds a call to `finalize` which lazily
      * configures the element's property accessors.
      * @override
@@ -76,29 +89,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * Overrides default behavior to use `type` information stored in the
-     * static `properties` object. This allows attributes to be converted to
-     * the coressponding type given in `properties`. Atributes are dash to
-     * camel cased.
+     * Overrides PropertiesChanged method to return type specified in the
+     * static `properties` object for the given property.
+     * @param {string} name Name of property
+     * @return {*} Type to which to deserialize attribute
      *
-     * @param {string} attribute Name of attribute to deserialize.
-     * @param {?string} value of the attribute.
-     * @param {*=} type type to deserialize to.
+     * @protected
      */
-    _attributeToProperty(attribute, value, type) {
-      if (!type) {
-        const property = this._propertyNameForAttribute(attribute);
-        const props = this.__propertyInfo;
-        const info = props && props[property];
-        type = info && info.type || info;
-      }
-      super._attributeToProperty(attribute, value, type);
+    _typeForProperty(name) {
+      const props = this.__propertyInfo;
+      return props && props[name];
     }
 
     /**
      * Called when the element is added to a document.
      * Calls `_enableProperties` to turn on property system from
-     * `PropertyAccessors`.
+     * `PropertiesChanged`.
      */
     connectedCallback() {
       this._enableProperties();
@@ -112,7 +118,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    }
   /**
    * @constructor
-   * @implements {Polymer_PropertyAccessors}
+   * @implements {Polymer_PropertiesChanged}
    * @extends {HTMLElement}
    */
   Polymer.BasicElement = BasicElement;

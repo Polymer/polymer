@@ -45,6 +45,61 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return class PropertiesChanged extends superClass {
 
+      /**
+       * Creates property accessors for the given property names.
+       * @param {array} props Array of names of accessors.
+       */
+       static createProperties(props) {
+        for (let i=0; i < props.length; i++) {
+          this.prototype._createPropertyAccessor(props[i]);
+        }
+      }
+
+      /**
+       * Creates a setter/getter pair for the named property with its own
+       * local storage.  The getter returns the value in the local storage,
+       * and the setter calls `_setProperty`, which updates the local storage
+       * for the property and enqueues a `_propertiesChanged` callback.
+       *
+       * This method may be called on a prototype or an instance.  Calling
+       * this method may overwrite a property value that already exists on
+       * the prototype/instance by creating the accessor.
+       *
+       * @param {string} property Name of the property
+       * @param {boolean=} readOnly When true, no setter is created; the
+       *   protected `_setProperty` function must be used to set the property
+       * @protected
+       */
+      _createPropertyAccessor(property, readOnly) {
+        if (!this.hasOwnProperty('__dataHasAccessor')) {
+          this.__dataHasAccessor = Object.assign({}, this.__dataHasAccessor);
+        }
+        if (!this.__dataHasAccessor[property]) {
+          this.__dataHasAccessor[property] = true;
+          this._generatePropertyAccessor(property, readOnly);
+        }
+      }
+
+      /**
+       * Generates a property accessor for the given property.
+       * @param {string} property Name of the property
+       * @param {boolean=} readOnly When true, no setter is created
+       */
+      _generatePropertyAccessor(property, readOnly) {
+        Object.defineProperty(this, property, {
+          /* eslint-disable valid-jsdoc */
+          /** @this {PropertiesChanged} */
+          get: function() {
+            return this.__data[property];
+          },
+          /** @this {PropertiesChanged} */
+          set: readOnly ? function() {} : function(value) {
+            this._setProperty(property, value);
+          }
+          /* eslint-enable */
+        });
+      }
+
       constructor() {
         super();
         this.__dataEnabled = false;
@@ -75,12 +130,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
+       * Initializes the local storage for property accessors.
+       *
        * Provided as an override point for performing any setup work prior
        * to initializing the property accessor system.
        *
        * @protected
        */
-      _initializeProperties() {}
+      _initializeProperties() {
+        // Capture instance properties; these will be set into accessors
+        // during first flush. Don't set them here, since we want
+        // these to overwrite defaults/constructor assignments
+        for (let p in this.__dataHasAccessor) {
+          if (this.hasOwnProperty(p)) {
+            this.__dataInstanceProps = this.__dataInstanceProps || {};
+            this.__dataInstanceProps[p] = this[p];
+            delete this[p];
+          }
+        }
+      }
 
       /**
        * Called at ready time with bag of instance properties that overwrote
@@ -253,6 +321,85 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             (old === old || value === value))
         );
       }
+
+      /**
+       * Implements native Custom Elements `attributeChangedCallback` to
+       * set an attribute value to a property via `_attributeToProperty`.
+       *
+       * @param {string} name Name of attribute that changed
+       * @param {?string} old Old attribute value
+       * @param {?string} value New attribute value
+       */
+      attributeChangedCallback(name, old, value) {
+        if (old !== value) {
+          this._attributeToProperty(name, value);
+        }
+      }
+
+      /**
+       * Deserializes an attribute to its associated property.
+       *
+       * This method calls the `_deserializeValue` method to convert the string to
+       * a typed value.
+       *
+       * @param {string} attribute Name of attribute to deserialize.
+       * @param {?string} value of the attribute.
+       * @param {*=} type type to deserialize to, defaults to the value
+       * returned from `_typeForProperty`
+       */
+      _attributeToProperty(attribute, value, type) {
+        const property = this._propertyForAttribute(attribute);
+        this[property] = this._deserializeValue(value, type ||
+          this._typeForProperty(property));
+      }
+
+      /**
+       * Converts a string to a typed JavaScript value.
+       *
+       * This method is called when reading HTML attribute values to
+       * JS properties.  Users may override this method to provide
+       * deserialization for custom `type`s.
+       *
+       * @param {?string} value Value to deserialize.
+       * @param {*=} type Type to deserialize the string to.
+       * @return {*} Typed value deserialized from the provided string.
+       */
+      _deserializeValue(value, type) {
+        return typeof type == 'function' ? type(value) : value;
+      }
+
+      /**
+       * Returns a property name that corresponds to the given attribute.
+       * By default, converts dash to camel case, e.g. `foo-bar` to `fooBar`.
+       * @param {string} attribute Attribute to convert
+       * @return {string} Property name corresponding to the given attribute.
+       *
+       * @protected
+       */
+       _propertyForAttribute(attribute) {
+        return attribute;
+      }
+
+      /**
+       * Returns an attribute name that corresponds to the given property.
+       * By default, converts camel to dash case, e.g. `fooBar` to `foo-bar`.
+       * @param {string} property Property to convert
+       * @return {string} Attribute name corresponding to the given property.
+       *
+       * @protected
+       */
+      _attributeForProperty(property) {
+        return property;
+      }
+
+      /**
+       * Override point to provide a type to which to deserialize a value to
+       * a given property.
+       * @param {string} name Name of property
+       *
+       * @protected
+       */
+       _typeForProperty(name) {} //eslint-disable-line no-unused-vars
 
     };
 
