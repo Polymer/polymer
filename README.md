@@ -10,7 +10,7 @@ This is a preview branch of Polymer 3.0, a very early version of Polymer that us
 
 The API is mostly the same as Polymer 2.0, but the documentation has not been updated.
 
-To try Polymer 3.0-preview, use `yarn` to install from `npm:
+To try Polymer 3.0-preview, use `yarn` to install from `npm`:
 
 ```sh
 > yarn add @polymer/polymer@next --flat
