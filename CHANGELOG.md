@@ -1,5 +1,236 @@
 # Change Log
 
+## [v2.1.0](https://github.com/Polymer/polymer/tree/v2.1.0) (2017-09-19)
+- [ci skip] bump version to 2.1.0 ([commit](https://github.com/Polymer/polymer/commit/64788aad))
+
+- Port #3844 to 2.x ([commit](https://github.com/Polymer/polymer/commit/00bc76e4))
+
+- Provide a `Polymer.setPassiveTouchGestures()` function ([commit](https://github.com/Polymer/polymer/commit/3547fd37))
+
+- Make sure closure types have braces ([commit](https://github.com/Polymer/polymer/commit/fb8039e0))
+
+- a few more comments in return ([commit](https://github.com/Polymer/polymer/commit/f6f0a3b7))
+
+- Fix setting, add smoke test ([commit](https://github.com/Polymer/polymer/commit/6312da57))
+
+- Optional passive touch listeners for gestures ([commit](https://github.com/Polymer/polymer/commit/5f7597f7))
+
+- Don't have `return /** comment */` lines ([commit](https://github.com/Polymer/polymer/commit/c802b8b2))
+
+- [ci skip] disable closure lint for now (travis java errors) ([commit](https://github.com/Polymer/polymer/commit/e45e5bba))
+
+- try to avoid introducing spelling errors in changelogs ([commit](https://github.com/Polymer/polymer/commit/7616e3c9))
+
+- spelling: webcomponents ([commit](https://github.com/Polymer/polymer/commit/70504627))
+
+- spelling: veiling ([commit](https://github.com/Polymer/polymer/commit/43f6b971))
+
+- spelling: unnecessary ([commit](https://github.com/Polymer/polymer/commit/dc0573f8))
+
+- spelling: toolkit ([commit](https://github.com/Polymer/polymer/commit/42edf634))
+
+- spelling: together ([commit](https://github.com/Polymer/polymer/commit/7d6e4351))
+
+- spelling: there-when ([commit](https://github.com/Polymer/polymer/commit/240701ec))
+
+- spelling: theming ([commit](https://github.com/Polymer/polymer/commit/d991cce1))
+
+- spelling: supported ([commit](https://github.com/Polymer/polymer/commit/4a2e7750))
+
+- spelling: stylesheet ([commit](https://github.com/Polymer/polymer/commit/d138df3c))
+
+- spelling: static ([commit](https://github.com/Polymer/polymer/commit/4354e710))
+
+- spelling: sometimes ([commit](https://github.com/Polymer/polymer/commit/802817dc))
+
+- spelling: shuffling ([commit](https://github.com/Polymer/polymer/commit/93a18c58))
+
+- spelling: returns ([commit](https://github.com/Polymer/polymer/commit/3f744c3c))
+
+- spelling: restart ([commit](https://github.com/Polymer/polymer/commit/58111054))
+
+- spelling: responsive ([commit](https://github.com/Polymer/polymer/commit/d1da7314))
+
+- spelling: resilient ([commit](https://github.com/Polymer/polymer/commit/d45855d9))
+
+- spelling: resetting ([commit](https://github.com/Polymer/polymer/commit/8fb47431))
+
+- spelling: reentrancy ([commit](https://github.com/Polymer/polymer/commit/5ea03d60))
+
+- spelling: readonly ([commit](https://github.com/Polymer/polymer/commit/ff294a90))
+
+- spelling: prototype ([commit](https://github.com/Polymer/polymer/commit/bbe54cc2))
+
+- spelling: protocols ([commit](https://github.com/Polymer/polymer/commit/83df6dad))
+
+- spelling: properties ([commit](https://github.com/Polymer/polymer/commit/bb74d2da))
+
+- spelling: preferring ([commit](https://github.com/Polymer/polymer/commit/00e0567e))
+
+- spelling: polyfill ([commit](https://github.com/Polymer/polymer/commit/ce0ca630))
+
+- spelling: parameterize ([commit](https://github.com/Polymer/polymer/commit/141cefe3))
+
+- spelling: omit ([commit](https://github.com/Polymer/polymer/commit/e3b04e51))
+
+- spelling: offset ([commit](https://github.com/Polymer/polymer/commit/ea0acb0d))
+
+- spelling: notification ([commit](https://github.com/Polymer/polymer/commit/ee741143))
+
+- spelling: name ([commit](https://github.com/Polymer/polymer/commit/159803a7))
+
+- spelling: multiple ([commit](https://github.com/Polymer/polymer/commit/602ee780))
+
+- spelling: loaded ([commit](https://github.com/Polymer/polymer/commit/f4529864))
+
+- spelling: jquery ([commit](https://github.com/Polymer/polymer/commit/88ce972d))
+
+- spelling: javascript ([commit](https://github.com/Polymer/polymer/commit/f1f7f669))
+
+- spelling: instead ([commit](https://github.com/Polymer/polymer/commit/c4be7f60))
+
+- spelling: initial ([commit](https://github.com/Polymer/polymer/commit/3862ce0a))
+
+- spelling: increments ([commit](https://github.com/Polymer/polymer/commit/8bda7f93))
+
+- spelling: identify ([commit](https://github.com/Polymer/polymer/commit/17678e1a))
+
+- spelling: github ([commit](https://github.com/Polymer/polymer/commit/0781b322))
+
+- spelling: getting ([commit](https://github.com/Polymer/polymer/commit/c1d7c3e8))
+
+- spelling: function ([commit](https://github.com/Polymer/polymer/commit/b9b22854))
+
+- spelling: falsy ([commit](https://github.com/Polymer/polymer/commit/d472919a))
+
+- spelling: enqueuing ([commit](https://github.com/Polymer/polymer/commit/96c8ed81))
+
+- spelling: element ([commit](https://github.com/Polymer/polymer/commit/d4e54c72))
+
+- spelling: effective ([commit](https://github.com/Polymer/polymer/commit/139edd00))
+
+- spelling: doesn't ([commit](https://github.com/Polymer/polymer/commit/aa35d779))
+
+- spelling: does ([commit](https://github.com/Polymer/polymer/commit/01f943d9))
+
+- spelling: disappearing ([commit](https://github.com/Polymer/polymer/commit/508c005a))
+
+- spelling: deserialized ([commit](https://github.com/Polymer/polymer/commit/2acbf5df))
+
+- spelling: customize ([commit](https://github.com/Polymer/polymer/commit/0a0ac248))
+
+- spelling: containing ([commit](https://github.com/Polymer/polymer/commit/2b09e75c))
+
+- spelling: components ([commit](https://github.com/Polymer/polymer/commit/e11d4d6b))
+
+- spelling: collection ([commit](https://github.com/Polymer/polymer/commit/38645c08))
+
+- spelling: children ([commit](https://github.com/Polymer/polymer/commit/c30c5d03))
+
+- spelling: changed ([commit](https://github.com/Polymer/polymer/commit/1579bf36))
+
+- spelling: behavior ([commit](https://github.com/Polymer/polymer/commit/65f27655))
+
+- spelling: attribute ([commit](https://github.com/Polymer/polymer/commit/d8f3f57d))
+
+- spelling: attached ([commit](https://github.com/Polymer/polymer/commit/adc4f0e1))
+
+- spelling: asynchronous ([commit](https://github.com/Polymer/polymer/commit/6c59f53b))
+
+- Explicitly set display none on dom-* elements (#4821) ([commit](https://github.com/Polymer/polymer/commit/65859b1c))
+
+- Publish DomBind in Polymer. scope ([commit](https://github.com/Polymer/polymer/commit/60054350))
+
+- Fix missing semi-colons in test folder ([commit](https://github.com/Polymer/polymer/commit/72a59f77))
+
+- Enable ESLint 'semi' rule ([commit](https://github.com/Polymer/polymer/commit/75c6fff7))
+
+- [ci skip] update package-lock ([commit](https://github.com/Polymer/polymer/commit/ca1ce196))
+
+- [ci skip] Add license headers to externs ([commit](https://github.com/Polymer/polymer/commit/f4a9e06e))
+
+- Polymer.Path.get accepts both a string path or an Array path, so functions that call this should allow for either as well. Already changed for Polymer.prototype.push here: ([commit](https://github.com/Polymer/polymer/commit/42ce5a88))
+
+- lint with closure as well ([commit](https://github.com/Polymer/polymer/commit/cc649e97))
+
+- Update closure compiler to support polymer pass v2 ([commit](https://github.com/Polymer/polymer/commit/a4591abc))
+
+- Revert "Adds `restamp` mode to dom-repeat." ([commit](https://github.com/Polymer/polymer/commit/d439960a))
+
+- Add test to verify that importHref can be called twice ([commit](https://github.com/Polymer/polymer/commit/6ce904b3))
+
+- Fix compiling with Polymer({}) calls ([commit](https://github.com/Polymer/polymer/commit/d937d5fe))
+
+- Remove double space ([commit](https://github.com/Polymer/polymer/commit/bbf0e7c8))
+
+- Add development workflow-related files to gitignore (#4612) ([commit](https://github.com/Polymer/polymer/commit/d5c2629f))
+
+- Allow arbitrary whitespace in CSS imports ([commit](https://github.com/Polymer/polymer/commit/5c250d44))
+
+- Fix dom-module API docs with static `import` function ([commit](https://github.com/Polymer/polymer/commit/9f7df4cf))
+
+- [ci skip] update externs more from #4776 ([commit](https://github.com/Polymer/polymer/commit/c20b6574))
+
+- imported css modules should always be before element's styles ([commit](https://github.com/Polymer/polymer/commit/679a49e4))
+
+- Update closure annotation for Polymer.prototype.push ([commit](https://github.com/Polymer/polymer/commit/eb170cbb))
+
+- Fixed formatting. ([commit](https://github.com/Polymer/polymer/commit/48fac922))
+
+- Fix formatting of code in API docs (#4771) ([commit](https://github.com/Polymer/polymer/commit/eb406c71))
+
+- Lint clean. ([commit](https://github.com/Polymer/polymer/commit/4095e12d))
+
+- Separate scripts that modify configuration properties, as their ordering constraints are unusual. ([commit](https://github.com/Polymer/polymer/commit/49dbacb6))
+
+- test: convert XNestedRepeat to use an inlined string template. ([commit](https://github.com/Polymer/polymer/commit/c89155ba))
+
+- Don't rely on  implicitly creating a global,  does not. ([commit](https://github.com/Polymer/polymer/commit/28ed27e0))
+
+- Refer to Gestures.recognizers consistently. ([commit](https://github.com/Polymer/polymer/commit/3555b458))
+
+- Make test work in strict mode. ([commit](https://github.com/Polymer/polymer/commit/328ce594))
+
+- In tests, explicitly write to window when creating a new global for clarity. ([commit](https://github.com/Polymer/polymer/commit/674d4685))
+
+- [ci skip] remove duplicate definition for __dataHost in externs ([commit](https://github.com/Polymer/polymer/commit/5ab9032c))
+
+- [ci skip] update polymer-build and run-sequence ([commit](https://github.com/Polymer/polymer/commit/0c6aa882))
+
+- Fix tests in non-Chrome browsers ([commit](https://github.com/Polymer/polymer/commit/5a54c32b))
+
+- Better distinguish param name from namespaced name ([commit](https://github.com/Polymer/polymer/commit/a3d6e56b))
+
+- use wct 6 npm package ([commit](https://github.com/Polymer/polymer/commit/fbe8dcc4))
+
+- add mixin class instance properties to externs ([commit](https://github.com/Polymer/polymer/commit/34d22acd))
+
+- Add sanitizeDOMValue to settings.html ([commit](https://github.com/Polymer/polymer/commit/4d730e16))
+
+- Remove reference to Polymer._toOverride, it seems like an incomplete feature/part of the test. ([commit](https://github.com/Polymer/polymer/commit/981a7600))
+
+- Update custom-style API doc ([commit](https://github.com/Polymer/polymer/commit/52a7328e))
+
+- Use customElements.get rather than referring to the global for Polymer.DomModule ([commit](https://github.com/Polymer/polymer/commit/bb202378))
+
+- Add import of dom-module to file that uses it. ([commit](https://github.com/Polymer/polymer/commit/dbedcfc0))
+
+- Do not assign to a readonly property on window ([commit](https://github.com/Polymer/polymer/commit/b64e4862))
+
+- [ci skip] Fix documentation in PropertyAccessors ([commit](https://github.com/Polymer/polymer/commit/0f695d90))
+
+- [ci skip] fix closure warning ([commit](https://github.com/Polymer/polymer/commit/2e7dc00b))
+
+- Fix event path for tap event on touch ([commit](https://github.com/Polymer/polymer/commit/50bf45c3))
+
+- [ci skip] Update changelog ([commit](https://github.com/Polymer/polymer/commit/466624ae))
+
+- Update web-component-tester to stable version ([commit](https://github.com/Polymer/polymer/commit/ae78564c))
+
+- Disable closure linting until the count is driven down to a reasonable level ([commit](https://github.com/Polymer/polymer/commit/6335b24f))
+
+- Adds `restamp` mode to dom-repeat. ([commit](https://github.com/Polymer/polymer/commit/6cebeace))
+
 ## [v2.0.2](https://github.com/Polymer/polymer/tree/v2.0.2) (2017-07-14)
 - remove broken npm script ([commit](https://github.com/Polymer/polymer/commit/27c67125))
 
