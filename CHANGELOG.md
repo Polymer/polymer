@@ -1,5 +1,12 @@
 # Change Log
 
+## [v1.10.0-dev](https://github.com/Polymer/polymer/tree/v1.10.0-dev) (2017-09-19)
+- Backport passive touch gestures #4829 ([commit](https://github.com/Polymer/polymer/commit/6775a60f))
+
+- [ci skip] Update CHANGELOG ([commit](https://github.com/Polymer/polymer/commit/d491f7c6))
+
+- Be more precise about the origin of webcomponentsjs ([commit](https://github.com/Polymer/polymer/commit/f3b86ffd))
+
 ## [v1.9.3-dev](https://github.com/Polymer/polymer/tree/v1.9.3-dev) (2017-07-20)
 - Support `:host > *` as well ([commit](https://github.com/Polymer/polymer/commit/f3116fde))
 
