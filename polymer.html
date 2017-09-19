@@ -556,6 +556,9 @@ return new MouseEvent('test', { buttons: 1 }).buttons === 1;
 return false;
 }
 }();
+function isMouseEvent(name) {
+return MOUSE_EVENTS.indexOf(name) > -1;
+}
 var SUPPORTS_PASSIVE = false;
 (function () {
 try {
@@ -569,6 +572,11 @@ window.removeEventListener('test', null, opts);
 } catch (e) {
 }
 }());
+function PASSIVE_TOUCH() {
+if (HAS_NATIVE_TA && SUPPORTS_PASSIVE && Polymer.Settings.passiveTouchGestures) {
+return { passive: true };
+}
+}
 var IS_TOUCH_ONLY = navigator.userAgent.match(/iP(?:[oa]d|hone)|Android/);
 var mouseCanceller = function (mouseEvent) {
 var sc = mouseEvent.sourceCapabilities;
@@ -612,7 +620,7 @@ POINTERSTATE.mouse.mouseIgnoreJob = Polymer.Debounce(POINTERSTATE.mouse.mouseIgn
 }
 function hasLeftMouseButton(ev) {
 var type = ev.type;
-if (MOUSE_EVENTS.indexOf(type) === -1) {
+if (!isMouseEvent(type)) {
 return false;
 }
 if (type === 'mousemove') {
@@ -789,7 +797,7 @@ node[GESTURE_KEY] = gobj = {};
 }
 for (var i = 0, dep, gd; i < deps.length; i++) {
 dep = deps[i];
-if (IS_TOUCH_ONLY && MOUSE_EVENTS.indexOf(dep) > -1 && dep !== 'click') {
+if (IS_TOUCH_ONLY && isMouseEvent(dep) && dep !== 'click') {
 continue;
 }
 gd = gobj[dep];
@@ -797,7 +805,8 @@ if (!gd) {
 gobj[dep] = gd = { _count: 0 };
 }
 if (gd._count === 0) {
-node.addEventListener(dep, this.handleNative);
+var options = !isMouseEvent(dep) && PASSIVE_TOUCH();
+node.addEventListener(dep, this.handleNative, options);
 }
 gd[name] = (gd[name] || 0) + 1;
 gd._count = (gd._count || 0) + 1;
@@ -821,7 +830,8 @@ if (gd && gd[name]) {
 gd[name] = (gd[name] || 1) - 1;
 gd._count = (gd._count || 1) - 1;
 if (gd._count === 0) {
-node.removeEventListener(dep, this.handleNative);
+var options = !isMouseEvent(dep) && PASSIVE_TOUCH();
+node.removeEventListener(dep, this.handleNative, options);
 }
 }
 }
