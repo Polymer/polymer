@@ -139,6 +139,33 @@ Note, all features of `custom-style` are available when defining styles as part 
     },
 
     _tryApply: function() {
+      var createdAppliedElement = false;
+      /*
+      HTML Imports styling the main document are deprecated in Chrome
+      https://crbug.com/523952
+
+      If this element is not in the main document, then it must be in an HTML Import document.
+      In that case, copy the style into the main document and disable the current style.
+      `__appliedElement` is used by the HTML Imports polyfill for this use case, and already understood by
+      ShadyCSS's Custom Style Interface.
+
+      The ordering of `<custom-style>` should stay the same as when loaded by HTML Imports, but there may be odd
+      cases of ordering w.r.t the main document styles.
+      */
+      if (this.ownerDocument !== window.document && this.__appliedElement === this) {
+        // Can't just cloneNode this style because it will infinite loop
+        var appliedElement = document.createElement('style');
+        appliedElement.textContent = this.textContent;
+        // copy css build type
+        appliedElement.__cssBuild = this.__cssBuild;
+        // set a back pointer to this custom style for use inside of styleDefaults
+        appliedElement.__importElement = this;
+        // disable this style
+        this.setAttribute('media', 'none');
+        this.__appliedElement = appliedElement;
+        document.head.appendChild(appliedElement);
+        createdAppliedElement = true;
+      }
       if (!this._appliesToDocument) {
         // only apply variables if and only if this style is not inside
         // a dom-module
@@ -163,9 +190,12 @@ Note, all features of `custom-style` are available when defining styles as part 
             var self = this;
             var observer = new MutationObserver(function() {
               observer.disconnect();
+              if (createdAppliedElement) {
+                self.__appliedElement.textContent = self.textContent;
+              }
               self._apply(true);
             });
-            observer.observe(e, {childList: true});
+            observer.observe(createdAppliedElement ? this : e, {childList: true});
           }
         }
       }
