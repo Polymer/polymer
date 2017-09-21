@@ -21,9 +21,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
   'use strict';
 
-  Polymer.stringToFrag = function(html) {
-    return document.createRange().createContextualFragment(html);
+  Polymer.Measure = function(type) {
+    let previous = [], totalTime = 0;
+    performance.getEntries().forEach((e) => {
+      if (e.name === `${type} - before`) {
+        previous.push(e);
+      } else if (e.name === `${type} - after`) {
+        totalTime += (e.startTime - previous.pop().startTime);
+      }
+    })
+    return totalTime;
   }
+
+  Polymer.stringToFrag = function(html) {
+    performance.mark('stringfrag - before');
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    performance.mark('stringfrag - after');
+    return template.content;
+  };
 
   /**
    * Element class mixin that provides the core API for Polymer's meta-programming
@@ -273,6 +289,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       let props = ownPropertiesForClass(klass);
       if (Polymer.preBuiltEffects && Polymer.preBuiltEffects[proto.constructor.is]) {
+        performance.mark('effects-rehydrate - before');
         const effectTypes = Polymer.preBuiltEffects[proto.constructor.is];
         for (const effectType in effectTypes) {
           proto[effectType] = effectTypes[effectType];
@@ -286,7 +303,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
           }
         }
-        delete Polymer.preBuiltEffects[proto.constructor.is];
+        // delete Polymer.preBuiltEffects[proto.constructor.is];
+        performance.mark('effects-rehydrate - after');
       } else {
         if (props) {
           finalizeProperties(proto, props);
@@ -446,6 +464,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @private
      */
     function finalizeTemplate(proto, template, baseURI, is, ext) {
+      performance.mark('finalize-template - before');
       // support `include="module-name"`
       let cssText =
         Polymer.StyleGather.cssFromModuleImports(is) +
@@ -459,6 +478,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         window.ShadyCSS.prepareTemplate(template, is, ext);
       }
       proto._bindTemplate(template);
+      performance.mark('finalize-template - after');
     }
     Polymer.finalizeTemplate = finalizeTemplate;
 
@@ -606,7 +626,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _initializeProperties() {
         Polymer.telemetry.instanceCount++;
+        performance.mark('elementfinalize - before');
         this.constructor.finalize();
+        performance.mark('elementfinalize - after');
         const importPath = this.constructor.importPath;
         // note: finalize template when we have access to `localName` to
         // avoid dependence on `is` for polyfilling styling.
