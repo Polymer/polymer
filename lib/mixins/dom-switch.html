@@ -1,0 +1,169 @@
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../polymer-element.html">
+<link rel="import" href="../utils/debounce.html">
+<link rel="import" href="../utils/flush.html">
+
+<script>
+(function() {
+  'use strict';
+
+  /**
+   * @polymerMixin
+   * @memberof Polymer
+   * @summary Element class mixin that provides the template switching implementation.
+   */
+  Polymer.DomSwitch = Polymer.dedupingMixin(superClass => {
+    /**
+     * @polymerMixinClass
+     * @implements {Polymer_DomSwitch}
+     * @unrestricted
+     */
+    class DomSwitch extends superClass {
+      static get template() { return null; }
+
+      static get properties() {
+        return {
+          /**
+           * Fired whenever DOM is added or removed/hidden by this template (by
+           * default, rendering occurs lazily).  To force immediate rendering, call
+           * `render`.
+           *
+           * @event dom-change
+           */
+
+          /**
+           * Used to select which template to stamp.
+           */
+          type: {
+            type: String,
+            observer: '__debounceRender',
+          },
+        };
+      }
+
+      constructor() {
+        super();
+
+        this.__renderDebouncer = null;
+      }
+
+      connectedCallback() {
+        super.connectedCallback();
+
+        this.__debounceRender();
+      }
+
+      __debounceRender() {
+        this.__renderDebouncer = Polymer.Debouncer.debounce(
+          this.__renderDebouncer,
+          Polymer.Async.microTask,
+          () => this.__render()
+        );
+        Polymer.enqueueDebouncer(this.__renderDebouncer);
+      }
+
+      /**
+       * Forces the element to render its content. Normally rendering is
+       * asynchronous to a provoking change. This is done for efficiency so
+       * that multiple changes trigger only a single render. The render method
+       * should be called if, for example, template rendering is required to
+       * validate application state.
+       */
+      render() {
+        Polymer.flush();
+      }
+
+      __render() {
+        if (this.type !== this._lastType) {
+          this.__teardownInstance();
+        }
+
+        const template = this.__getTemplateClone(this.type);
+
+        if (!template || this.type === this._lastType) {
+          return;
+        }
+
+        this.root = this._stampTemplate(template);
+        this.$ = this.root.$;
+        this.root = this._attachDom(this.root);
+
+        this.dispatchEvent(new CustomEvent('dom-change', {
+          bubbles: true,
+          composed: true,
+        }));
+        this._lastType = this.type;
+      }
+
+      /**
+       * Returns a list of templates that can be selected to stamp.
+       *
+       * @return {HTMLCollection} A list of templates to choose from.
+       * @protected
+       */
+      get templates() {
+        const templatesParent = Polymer.DomModule.import(this.constructor.is);
+
+        if (!templatesParent) {
+          return null;
+        }
+
+        return templatesParent.children;
+      }
+
+      __getTemplateClone(type) {
+        const templates = this.templates || [];
+        let defaultTemplate = null;
+
+        for (let idx = 0; idx < templates.length; idx += 1) {
+          const template = templates[idx];
+
+          if (template.tagName.toLowerCase() !== 'template') {
+            continue;
+          }
+
+          if (template.hasAttribute('type') && template.getAttribute('type') === type) {
+            return template.cloneNode(true);
+          }
+
+          if (!defaultTemplate && template.hasAttribute('default')) {
+            defaultTemplate = template;
+          }
+        }
+
+        if (defaultTemplate) {
+          return defaultTemplate.cloneNode(true);
+        }
+
+        return null;
+      }
+
+      __teardownInstance() {
+        const {root} = this;
+
+        if (!root) {
+          return;
+        }
+
+        delete this.$;
+        delete this.root;
+
+        while (root.firstChild) {
+          root.removeChild(root.firstChild);
+        }
+      }
+    }
+
+    return DomSwitch;
+  });
+})();
+</script>
