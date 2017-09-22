@@ -44,20 +44,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   function findTemplateNode(root, nodeInfo) {
-    // recursively ascend tree until we hit root
-    let parent = nodeInfo.parentInfo && findTemplateNode(root, nodeInfo.parentInfo);
-    // unwind the stack, returning the indexed node at each level
-    if (parent) {
-      // note: marginally faster than indexing via childNodes
-      // (http://jsperf.com/childnodes-lookup)
-      for (let n=parent.firstChild, i=0; n; n=n.nextSibling) {
-        if (nodeInfo.parentIndex === i++) {
-          return n;
+    let parent = root;
+    for (let i = 0, l = nodeInfo.length; i < l; i++) {
+      for (let n = parent.firstChild, j = 0; n; n = n.nextSibling) {
+        if (nodeInfo[i] === j++) {
+          parent = n;
+          break;
         }
       }
-    } else {
-      return root;
     }
+    return parent;
   }
 
   // construct `$` map (from id annotations)
@@ -154,8 +150,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *         templateInfo: {object}, // nested template metadata
        *         // Metadata to allow efficient retrieval of instanced node
        *         // corresponding to this metadata
-       *         parentInfo: {number},   // reference to parent nodeInfo>
-       *         parentIndex: {number},  // index in parent's `childNodes` collection
+       *         parentInfo: {Array},   // indices to traverse to this node from the template root
        *         infoIndex: {number},    // index of this `nodeInfo` in `templateInfo.nodeInfoList`
        *       },
        *       ...
@@ -203,7 +198,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           templateInfo.stripWhiteSpace =
             (outerTemplateInfo && outerTemplateInfo.stripWhiteSpace) ||
             template.hasAttribute('strip-whitespace');
-          this._parseTemplateContent(template, templateInfo, {parent: null});
+          this._parseTemplateContent(template, templateInfo, {parentInfo: []});
         }
         return template._templateInfo;
       }
@@ -283,7 +278,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               continue;
             }
           }
-          let childInfo = { parentIndex, parentInfo: nodeInfo };
+          let childInfo = {
+            parentInfo: nodeInfo.parentInfo.slice().concat(parentIndex)
+          };
           if (this._parseTemplateNode(node, templateInfo, childInfo)) {
             childInfo.infoIndex = templateInfo.nodeInfoList.push(/** @type {!NodeInfo} */(childInfo)) - 1;
           }
@@ -427,7 +424,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let nodes = dom.nodeList = new Array(nodeInfo.length);
         dom.$ = {};
         for (let i=0, l=nodeInfo.length, info; (i<l) && (info=nodeInfo[i]); i++) {
-          let node = nodes[i] = findTemplateNode(dom, info);
+          let node = nodes[i] = findTemplateNode(dom, info.parentInfo);
           applyIdToMap(this, dom.$, node, info);
           applyTemplateContent(this, node, info);
           applyEventListener(this, node, info);
