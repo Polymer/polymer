@@ -17,6 +17,119 @@
 /**
 * @interface
 */
+function Polymer_PropertiesChanged(){}
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
+*/
+Polymer_PropertiesChanged.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+*/
+Polymer_PropertiesChanged.prototype._generatePropertyAccessor = function(property, readOnly){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesChanged.prototype.ready = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesChanged.prototype._initializeProperties = function(){};
+/**
+* @param {Object} props Bag of property values that were overwritten
+  when creating property accessors.
+*/
+Polymer_PropertiesChanged.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+*/
+Polymer_PropertiesChanged.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of property
+* @return {*}
+*/
+Polymer_PropertiesChanged.prototype._getProperty = function(property){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @return {boolean}
+*/
+Polymer_PropertiesChanged.prototype._setPendingProperty = function(property, value){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesChanged.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesChanged.prototype._validateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesChanged.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesChanged.prototype._flushProperties = function(){};
+/**
+* @param {!Object} currentProps Bag of all current accessor values
+* @param {!Object} changedProps Bag of properties changed since the last
+  call to `_propertiesChanged`
+* @param {!Object} oldProps Bag of previous values for each property
+  in `changedProps`
+*/
+Polymer_PropertiesChanged.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_PropertiesChanged.prototype._shouldPropertyChange = function(property, value, old){};
+/**
+* @param {string} name Name of attribute that changed
+* @param {?string} old Old attribute value
+* @param {?string} value New attribute value
+*/
+Polymer_PropertiesChanged.prototype.attributeChangedCallback = function(name, old, value){};
+/**
+* @param {string} attribute Name of attribute to deserialize.
+* @param {?string} value of the attribute.
+* @param {*=} type type to deserialize to, defaults to the value
+returned from `_typeForProperty`
+*/
+Polymer_PropertiesChanged.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {?string} value Value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_PropertiesChanged.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} attribute Attribute to convert
+* @return {string}
+*/
+Polymer_PropertiesChanged.prototype._propertyForAttribute = function(attribute){};
+/**
+* @param {string} property Property to convert
+* @return {string}
+*/
+Polymer_PropertiesChanged.prototype._attributeForProperty = function(property){};
+/**
+* @param {string} name Name of property
+*/
+Polymer_PropertiesChanged.prototype._typeForProperty = function(name){};
+/**
+* @param {Array} props Array of names of accessors.
+*/
+Polymer_PropertiesChanged.createProperties = function(props){};
+/**
+* @interface
+* @extends {Polymer_PropertiesChanged}
+*/
 function Polymer_PropertyAccessors(){}
 /** @type {boolean} */
 Polymer_PropertyAccessors.prototype.__serializing;
@@ -24,39 +137,28 @@ Polymer_PropertyAccessors.prototype.__serializing;
 /** @type {number} */
 Polymer_PropertyAccessors.prototype.__dataCounter;
 
-/** @type {boolean} */
-Polymer_PropertyAccessors.prototype.__dataEnabled;
-
-/** @type {boolean} */
-Polymer_PropertyAccessors.prototype.__dataReady;
-
-/** @type {boolean} */
-Polymer_PropertyAccessors.prototype.__dataInvalid;
-
-/** @type {!Object} */
-Polymer_PropertyAccessors.prototype.__data;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataPending;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataOld;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataProto;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataHasAccessor;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataInstanceProps;
-
 /**
-* @param {string} name Name of attribute that changed
-* @param {?string} old Old attribute value
-* @param {?string} value New attribute value
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
 */
-Polymer_PropertyAccessors.prototype.attributeChangedCallback = function(name, old, value){};
+Polymer_PropertyAccessors.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+
+When calling on a prototype, any overwritten values are saved in
+`__dataProto`, and it is up to the subclasser to decide how/when
+to set those properties back into the accessor.  When calling on an
+instance, the overwritten value is set via `_setPendingProperty`,
+and the user should call `_invalidateProperties` or `_flushProperties`
+for the values to take effect.
+*/
+Polymer_PropertyAccessors.prototype._generatePropertyAccessor = function(property, readOnly){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertyAccessors.prototype.ready = function(){};
 /**
 * @return {undefined}
 */
@@ -65,23 +167,96 @@ Polymer_PropertyAccessors.prototype._initializeProperties = function(){};
 * @param {Object} props Bag of property values that were overwritten
   when creating property accessors.
 */
-Polymer_PropertyAccessors.prototype._initializeProtoProperties = function(props){};
-/**
-* @param {Object} props Bag of property values that were overwritten
-  when creating property accessors.
-*/
 Polymer_PropertyAccessors.prototype._initializeInstanceProperties = function(props){};
 /**
-* @param {string} attribute Name of attribute to ensure is set.
-* @param {string} value of the attribute.
+* @param {string} property Name of the property
+* @param {*} value Value to set
 */
-Polymer_PropertyAccessors.prototype._ensureAttribute = function(attribute, value){};
+Polymer_PropertyAccessors.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of property
+* @return {*}
+*/
+Polymer_PropertyAccessors.prototype._getProperty = function(property){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @return {boolean}
+*/
+Polymer_PropertyAccessors.prototype._setPendingProperty = function(property, value){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertyAccessors.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertyAccessors.prototype._validateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertyAccessors.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertyAccessors.prototype._flushProperties = function(){};
+/**
+* @param {!Object} currentProps Bag of all current accessor values
+* @param {!Object} changedProps Bag of properties changed since the last
+  call to `_propertiesChanged`
+* @param {!Object} oldProps Bag of previous values for each property
+  in `changedProps`
+*/
+Polymer_PropertyAccessors.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_PropertyAccessors.prototype._shouldPropertyChange = function(property, value, old){};
+/**
+* @param {string} name Name of attribute that changed
+* @param {?string} old Old attribute value
+* @param {?string} value New attribute value
+*/
+Polymer_PropertyAccessors.prototype.attributeChangedCallback = function(name, old, value){};
 /**
 * @param {string} attribute Name of attribute to deserialize.
 * @param {?string} value of the attribute.
 * @param {*=} type type to deserialize to.
 */
 Polymer_PropertyAccessors.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {?string} value Attribute value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_PropertyAccessors.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} attribute Attribute to convert
+* @return {string}
+*/
+Polymer_PropertyAccessors.prototype._propertyForAttribute = function(attribute){};
+/**
+* @param {string} property Property to convert
+* @return {string}
+*/
+Polymer_PropertyAccessors.prototype._attributeForProperty = function(property){};
+/**
+* @param {string} name Name of property
+*/
+Polymer_PropertyAccessors.prototype._typeForProperty = function(name){};
+/**
+* @param {Object} props Bag of property values that were overwritten
+  when creating property accessors.
+*/
+Polymer_PropertyAccessors.prototype._initializeProtoProperties = function(props){};
+/**
+* @param {string} attribute Name of attribute to ensure is set.
+* @param {string} value of the attribute.
+*/
+Polymer_PropertyAccessors.prototype._ensureAttribute = function(attribute, value){};
 /**
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
@@ -100,69 +275,19 @@ Polymer_PropertyAccessors.prototype._valueToNodeAttribute = function(node, value
 */
 Polymer_PropertyAccessors.prototype._serializeValue = function(value){};
 /**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_PropertyAccessors.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_PropertyAccessors.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
 * @param {string} property Property name
 * @return {boolean}
 */
 Polymer_PropertyAccessors.prototype._hasAccessor = function(property){};
-/**
-* @param {string} property Name of the property
-* @param {*} value Value to set
-*/
-Polymer_PropertyAccessors.prototype._setProperty = function(property, value){};
-/**
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @return {boolean}
-*/
-Polymer_PropertyAccessors.prototype._setPendingProperty = function(property, value){};
 /**
 * @param {string} prop Property name
 * @return {boolean}
 */
 Polymer_PropertyAccessors.prototype._isPropertyPending = function(prop){};
 /**
-* @return {undefined}
+* @param {Array} props Array of names of accessors.
 */
-Polymer_PropertyAccessors.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype._flushProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype.ready = function(){};
-/**
-* @param {!Object} currentProps Bag of all current accessor values
-* @param {!Object} changedProps Bag of properties changed since the last
-  call to `_propertiesChanged`
-* @param {!Object} oldProps Bag of previous values for each property
-  in `changedProps`
-*/
-Polymer_PropertyAccessors.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_PropertyAccessors.prototype._shouldPropertyChange = function(property, value, old){};
+Polymer_PropertyAccessors.createProperties = function(props){};
 /**
 */
 Polymer_PropertyAccessors.createPropertiesForAttributes = function(){};
@@ -260,15 +385,6 @@ function Polymer_PropertyEffects(){}
 /** @type {number} */
 Polymer_PropertyEffects.prototype.__dataCounter;
 
-/** @type {!Object} */
-Polymer_PropertyEffects.prototype.__data;
-
-/** @type {!Object} */
-Polymer_PropertyEffects.prototype.__dataPending;
-
-/** @type {!Object} */
-Polymer_PropertyEffects.prototype.__dataOld;
-
 /** @type {boolean} */
 Polymer_PropertyEffects.prototype.__dataClientsReady;
 
@@ -295,6 +411,15 @@ Polymer_PropertyEffects.prototype.__dataTemp;
 
 /** @type {boolean} */
 Polymer_PropertyEffects.prototype.__dataClientsInitialized;
+
+/** @type {!Object} */
+Polymer_PropertyEffects.prototype.__data;
+
+/** @type {!Object} */
+Polymer_PropertyEffects.prototype.__dataPending;
+
+/** @type {!Object} */
+Polymer_PropertyEffects.prototype.__dataOld;
 
 /** @type {Object} */
 Polymer_PropertyEffects.prototype.__computeEffects;
@@ -345,36 +470,123 @@ Polymer_PropertyEffects.prototype._addEventListenerToNode = function(node, event
 */
 Polymer_PropertyEffects.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
-* @param {string} name Name of attribute that changed
-* @param {?string} old Old attribute value
-* @param {?string} value New attribute value
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
 */
-Polymer_PropertyEffects.prototype.attributeChangedCallback = function(name, old, value){};
+Polymer_PropertyEffects.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+
+When calling on a prototype, any overwritten values are saved in
+`__dataProto`, and it is up to the subclasser to decide how/when
+to set those properties back into the accessor.  When calling on an
+instance, the overwritten value is set via `_setPendingProperty`,
+and the user should call `_invalidateProperties` or `_flushProperties`
+for the values to take effect.
+*/
+Polymer_PropertyEffects.prototype._generatePropertyAccessor = function(property, readOnly){};
+/**
+* @override
+*/
+Polymer_PropertyEffects.prototype.ready = function(){};
 /**
 * @return {undefined}
 */
 Polymer_PropertyEffects.prototype._initializeProperties = function(){};
 /**
 * @override
-* @param {Object} props Properties to initialize on the prototype
-*/
-Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){};
-/**
-* @override
 * @param {Object} props Properties to initialize on the instance
 */
 Polymer_PropertyEffects.prototype._initializeInstanceProperties = function(props){};
 /**
-* @param {string} attribute Name of attribute to ensure is set.
-* @param {string} value of the attribute.
+* @override
 */
-Polymer_PropertyEffects.prototype._ensureAttribute = function(attribute, value){};
+Polymer_PropertyEffects.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of property
+* @return {*}
+*/
+Polymer_PropertyEffects.prototype._getProperty = function(property){};
+/**
+* @override
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @param {boolean=} shouldNotify True if property should fire notification
+  event (applies only for `notify: true` properties)
+* @return {boolean}
+*/
+Polymer_PropertyEffects.prototype._setPendingProperty = function(property, value, shouldNotify){};
+/**
+* @override
+*/
+Polymer_PropertyEffects.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertyEffects.prototype._validateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertyEffects.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertyEffects.prototype._flushProperties = function(){};
+/**
+* @override
+*/
+Polymer_PropertyEffects.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_PropertyEffects.prototype._shouldPropertyChange = function(property, value, old){};
+/**
+* @param {string} name Name of attribute that changed
+* @param {?string} old Old attribute value
+* @param {?string} value New attribute value
+*/
+Polymer_PropertyEffects.prototype.attributeChangedCallback = function(name, old, value){};
 /**
 * @param {string} attribute Name of attribute to deserialize.
 * @param {?string} value of the attribute.
 * @param {*=} type type to deserialize to.
 */
 Polymer_PropertyEffects.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {?string} value Attribute value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_PropertyEffects.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} attribute Attribute to convert
+* @return {string}
+*/
+Polymer_PropertyEffects.prototype._propertyForAttribute = function(attribute){};
+/**
+* @param {string} property Property to convert
+* @return {string}
+*/
+Polymer_PropertyEffects.prototype._attributeForProperty = function(property){};
+/**
+* @param {string} name Name of property
+*/
+Polymer_PropertyEffects.prototype._typeForProperty = function(name){};
+/**
+* @override
+* @param {Object} props Properties to initialize on the prototype
+*/
+Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){};
+/**
+* @param {string} attribute Name of attribute to ensure is set.
+* @param {string} value of the attribute.
+*/
+Polymer_PropertyEffects.prototype._ensureAttribute = function(attribute, value){};
 /**
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
@@ -393,67 +605,15 @@ Polymer_PropertyEffects.prototype._valueToNodeAttribute = function(node, value, 
 */
 Polymer_PropertyEffects.prototype._serializeValue = function(value){};
 /**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_PropertyEffects.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_PropertyEffects.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
 * @param {string} property Property name
 * @return {boolean}
 */
 Polymer_PropertyEffects.prototype._hasAccessor = function(property){};
 /**
-* @override
-*/
-Polymer_PropertyEffects.prototype._setProperty = function(property, value){};
-/**
-* @override
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify True if property should fire notification
-  event (applies only for `notify: true` properties)
-* @return {boolean}
-*/
-Polymer_PropertyEffects.prototype._setPendingProperty = function(property, value, shouldNotify){};
-/**
 * @param {string} prop Property name
 * @return {boolean}
 */
 Polymer_PropertyEffects.prototype._isPropertyPending = function(prop){};
-/**
-* @override
-*/
-Polymer_PropertyEffects.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyEffects.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyEffects.prototype._flushProperties = function(){};
-/**
-* @override
-*/
-Polymer_PropertyEffects.prototype.ready = function(){};
-/**
-* @override
-*/
-Polymer_PropertyEffects.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_PropertyEffects.prototype._shouldPropertyChange = function(property, value, old){};
 /**
 * @param {string} property Property that should trigger the effect
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
@@ -730,6 +890,10 @@ Polymer_PropertyEffects._parseTemplateNodeAttribute = function(node, templateInf
 */
 Polymer_PropertyEffects._contentForTemplate = function(template){};
 /**
+* @param {Array} props Array of names of accessors.
+*/
+Polymer_PropertyEffects.createProperties = function(props){};
+/**
 */
 Polymer_PropertyEffects.createPropertiesForAttributes = function(){};
 /**
@@ -852,6 +1016,82 @@ Polymer_ElementMixin.prototype._addEventListenerToNode = function(node, eventNam
 */
 Polymer_ElementMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
+*/
+Polymer_ElementMixin.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+
+When calling on a prototype, any overwritten values are saved in
+`__dataProto`, and it is up to the subclasser to decide how/when
+to set those properties back into the accessor.  When calling on an
+instance, the overwritten value is set via `_setPendingProperty`,
+and the user should call `_invalidateProperties` or `_flushProperties`
+for the values to take effect.
+*/
+Polymer_ElementMixin.prototype._generatePropertyAccessor = function(property, readOnly){};
+/**
+* @override
+*/
+Polymer_ElementMixin.prototype.ready = function(){};
+/**
+* @override
+*/
+Polymer_ElementMixin.prototype._initializeProperties = function(){};
+/**
+* @override
+* @param {Object} props Properties to initialize on the instance
+*/
+Polymer_ElementMixin.prototype._initializeInstanceProperties = function(props){};
+/**
+* @override
+*/
+Polymer_ElementMixin.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of property
+* @return {*}
+*/
+Polymer_ElementMixin.prototype._getProperty = function(property){};
+/**
+* @override
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @param {boolean=} shouldNotify True if property should fire notification
+  event (applies only for `notify: true` properties)
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
+/**
+* @override
+*/
+Polymer_ElementMixin.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_ElementMixin.prototype._validateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_ElementMixin.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_ElementMixin.prototype._flushProperties = function(){};
+/**
+* @override
+*/
+Polymer_ElementMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_ElementMixin.prototype._shouldPropertyChange = function(property, value, old){};
+/**
 * @override
 * @param {string} name Name of attribute.
 * @param {?string} old Old value of attribute.
@@ -859,30 +1099,41 @@ Polymer_ElementMixin.prototype._removeEventListenerFromNode = function(node, eve
 */
 Polymer_ElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
-* @override
+* @param {string} attribute Name of attribute to deserialize.
+* @param {?string} value of the attribute.
+* @param {*=} type type to deserialize to.
 */
-Polymer_ElementMixin.prototype._initializeProperties = function(){};
+Polymer_ElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {?string} value Attribute value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_ElementMixin.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} attribute Attribute to convert
+* @return {string}
+*/
+Polymer_ElementMixin.prototype._propertyForAttribute = function(attribute){};
+/**
+* @param {string} property Property to convert
+* @return {string}
+*/
+Polymer_ElementMixin.prototype._attributeForProperty = function(property){};
+/**
+* @param {string} name Name of property
+*/
+Polymer_ElementMixin.prototype._typeForProperty = function(name){};
 /**
 * @override
 * @param {Object} props Properties to initialize on the prototype
 */
 Polymer_ElementMixin.prototype._initializeProtoProperties = function(props){};
 /**
-* @override
-* @param {Object} props Properties to initialize on the instance
-*/
-Polymer_ElementMixin.prototype._initializeInstanceProperties = function(props){};
-/**
 * @param {string} attribute Name of attribute to ensure is set.
 * @param {string} value of the attribute.
 */
 Polymer_ElementMixin.prototype._ensureAttribute = function(attribute, value){};
-/**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
-*/
-Polymer_ElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
 /**
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
@@ -901,67 +1152,15 @@ Polymer_ElementMixin.prototype._valueToNodeAttribute = function(node, value, att
 */
 Polymer_ElementMixin.prototype._serializeValue = function(value){};
 /**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_ElementMixin.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_ElementMixin.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
 * @param {string} property Property name
 * @return {boolean}
 */
 Polymer_ElementMixin.prototype._hasAccessor = function(property){};
 /**
-* @override
-*/
-Polymer_ElementMixin.prototype._setProperty = function(property, value){};
-/**
-* @override
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify True if property should fire notification
-  event (applies only for `notify: true` properties)
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
-/**
 * @param {string} prop Property name
 * @return {boolean}
 */
 Polymer_ElementMixin.prototype._isPropertyPending = function(prop){};
-/**
-* @override
-*/
-Polymer_ElementMixin.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ElementMixin.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ElementMixin.prototype._flushProperties = function(){};
-/**
-* @override
-*/
-Polymer_ElementMixin.prototype.ready = function(){};
-/**
-* @override
-*/
-Polymer_ElementMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._shouldPropertyChange = function(property, value, old){};
 /**
 * @param {string} property Property that should trigger the effect
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
@@ -1261,6 +1460,10 @@ Polymer_ElementMixin._parseTemplateNodeAttribute = function(node, templateInfo, 
 */
 Polymer_ElementMixin._contentForTemplate = function(template){};
 /**
+* @param {Array} props Array of names of accessors.
+*/
+Polymer_ElementMixin.createProperties = function(props){};
+/**
 */
 Polymer_ElementMixin.createPropertiesForAttributes = function(){};
 /**
@@ -1394,6 +1597,82 @@ Polymer_LegacyElementMixin.prototype._addEventListenerToNode = function(node, ev
 */
 Polymer_LegacyElementMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
+*/
+Polymer_LegacyElementMixin.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+
+When calling on a prototype, any overwritten values are saved in
+`__dataProto`, and it is up to the subclasser to decide how/when
+to set those properties back into the accessor.  When calling on an
+instance, the overwritten value is set via `_setPendingProperty`,
+and the user should call `_invalidateProperties` or `_flushProperties`
+for the values to take effect.
+*/
+Polymer_LegacyElementMixin.prototype._generatePropertyAccessor = function(property, readOnly){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype.ready = function(){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
+/**
+* @override
+* @param {Object} props Properties to initialize on the instance
+*/
+Polymer_LegacyElementMixin.prototype._initializeInstanceProperties = function(props){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of property
+* @return {*}
+*/
+Polymer_LegacyElementMixin.prototype._getProperty = function(property){};
+/**
+* @override
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @param {boolean=} shouldNotify True if property should fire notification
+  event (applies only for `notify: true` properties)
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_LegacyElementMixin.prototype._validateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_LegacyElementMixin.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_LegacyElementMixin.prototype._flushProperties = function(){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_LegacyElementMixin.prototype._shouldPropertyChange = function(property, value, old){};
+/**
 * @override
 * @param {string} name Name of attribute.
 * @param {?string} old Old value of attribute.
@@ -1401,30 +1680,41 @@ Polymer_LegacyElementMixin.prototype._removeEventListenerFromNode = function(nod
 */
 Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
-* @override
+* @param {string} attribute Name of attribute to deserialize.
+* @param {?string} value of the attribute.
+* @param {*=} type type to deserialize to.
 */
-Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
+Polymer_LegacyElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {?string} value Attribute value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_LegacyElementMixin.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} attribute Attribute to convert
+* @return {string}
+*/
+Polymer_LegacyElementMixin.prototype._propertyForAttribute = function(attribute){};
+/**
+* @param {string} property Property to convert
+* @return {string}
+*/
+Polymer_LegacyElementMixin.prototype._attributeForProperty = function(property){};
+/**
+* @param {string} name Name of property
+*/
+Polymer_LegacyElementMixin.prototype._typeForProperty = function(name){};
 /**
 * @override
 * @param {Object} props Properties to initialize on the prototype
 */
 Polymer_LegacyElementMixin.prototype._initializeProtoProperties = function(props){};
 /**
-* @override
-* @param {Object} props Properties to initialize on the instance
-*/
-Polymer_LegacyElementMixin.prototype._initializeInstanceProperties = function(props){};
-/**
 * @param {string} attribute Name of attribute to ensure is set.
 * @param {string} value of the attribute.
 */
 Polymer_LegacyElementMixin.prototype._ensureAttribute = function(attribute, value){};
-/**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
-*/
-Polymer_LegacyElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
 /**
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
@@ -1443,67 +1733,15 @@ Polymer_LegacyElementMixin.prototype._valueToNodeAttribute = function(node, valu
 */
 Polymer_LegacyElementMixin.prototype._serializeValue = function(value){};
 /**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_LegacyElementMixin.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_LegacyElementMixin.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
 * @param {string} property Property name
 * @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype._hasAccessor = function(property){};
 /**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._setProperty = function(property, value){};
-/**
-* @override
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify True if property should fire notification
-  event (applies only for `notify: true` properties)
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
-/**
 * @param {string} prop Property name
 * @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype._isPropertyPending = function(prop){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_LegacyElementMixin.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_LegacyElementMixin.prototype._flushProperties = function(){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype.ready = function(){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._shouldPropertyChange = function(property, value, old){};
 /**
 * @param {string} property Property that should trigger the effect
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
@@ -2096,6 +2334,10 @@ Polymer_LegacyElementMixin._parseTemplateNodeAttribute = function(node, template
 */
 Polymer_LegacyElementMixin._contentForTemplate = function(template){};
 /**
+* @param {Array} props Array of names of accessors.
+*/
+Polymer_LegacyElementMixin.createProperties = function(props){};
+/**
 */
 Polymer_LegacyElementMixin.createPropertiesForAttributes = function(){};
 /**
@@ -2243,6 +2485,82 @@ Polymer_ArraySelectorMixin.prototype._addEventListenerToNode = function(node, ev
 */
 Polymer_ArraySelectorMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
+*/
+Polymer_ArraySelectorMixin.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+
+When calling on a prototype, any overwritten values are saved in
+`__dataProto`, and it is up to the subclasser to decide how/when
+to set those properties back into the accessor.  When calling on an
+instance, the overwritten value is set via `_setPendingProperty`,
+and the user should call `_invalidateProperties` or `_flushProperties`
+for the values to take effect.
+*/
+Polymer_ArraySelectorMixin.prototype._generatePropertyAccessor = function(property, readOnly){};
+/**
+* @override
+*/
+Polymer_ArraySelectorMixin.prototype.ready = function(){};
+/**
+* @override
+*/
+Polymer_ArraySelectorMixin.prototype._initializeProperties = function(){};
+/**
+* @override
+* @param {Object} props Properties to initialize on the instance
+*/
+Polymer_ArraySelectorMixin.prototype._initializeInstanceProperties = function(props){};
+/**
+* @override
+*/
+Polymer_ArraySelectorMixin.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of property
+* @return {*}
+*/
+Polymer_ArraySelectorMixin.prototype._getProperty = function(property){};
+/**
+* @override
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @param {boolean=} shouldNotify True if property should fire notification
+  event (applies only for `notify: true` properties)
+* @return {boolean}
+*/
+Polymer_ArraySelectorMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
+/**
+* @override
+*/
+Polymer_ArraySelectorMixin.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_ArraySelectorMixin.prototype._validateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_ArraySelectorMixin.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_ArraySelectorMixin.prototype._flushProperties = function(){};
+/**
+* @override
+*/
+Polymer_ArraySelectorMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_ArraySelectorMixin.prototype._shouldPropertyChange = function(property, value, old){};
+/**
 * @override
 * @param {string} name Name of attribute.
 * @param {?string} old Old value of attribute.
@@ -2250,30 +2568,41 @@ Polymer_ArraySelectorMixin.prototype._removeEventListenerFromNode = function(nod
 */
 Polymer_ArraySelectorMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
-* @override
+* @param {string} attribute Name of attribute to deserialize.
+* @param {?string} value of the attribute.
+* @param {*=} type type to deserialize to.
 */
-Polymer_ArraySelectorMixin.prototype._initializeProperties = function(){};
+Polymer_ArraySelectorMixin.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {?string} value Attribute value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_ArraySelectorMixin.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} attribute Attribute to convert
+* @return {string}
+*/
+Polymer_ArraySelectorMixin.prototype._propertyForAttribute = function(attribute){};
+/**
+* @param {string} property Property to convert
+* @return {string}
+*/
+Polymer_ArraySelectorMixin.prototype._attributeForProperty = function(property){};
+/**
+* @param {string} name Name of property
+*/
+Polymer_ArraySelectorMixin.prototype._typeForProperty = function(name){};
 /**
 * @override
 * @param {Object} props Properties to initialize on the prototype
 */
 Polymer_ArraySelectorMixin.prototype._initializeProtoProperties = function(props){};
 /**
-* @override
-* @param {Object} props Properties to initialize on the instance
-*/
-Polymer_ArraySelectorMixin.prototype._initializeInstanceProperties = function(props){};
-/**
 * @param {string} attribute Name of attribute to ensure is set.
 * @param {string} value of the attribute.
 */
 Polymer_ArraySelectorMixin.prototype._ensureAttribute = function(attribute, value){};
-/**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
-*/
-Polymer_ArraySelectorMixin.prototype._attributeToProperty = function(attribute, value, type){};
 /**
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
@@ -2292,67 +2621,15 @@ Polymer_ArraySelectorMixin.prototype._valueToNodeAttribute = function(node, valu
 */
 Polymer_ArraySelectorMixin.prototype._serializeValue = function(value){};
 /**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_ArraySelectorMixin.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_ArraySelectorMixin.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
 * @param {string} property Property name
 * @return {boolean}
 */
 Polymer_ArraySelectorMixin.prototype._hasAccessor = function(property){};
 /**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype._setProperty = function(property, value){};
-/**
-* @override
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify True if property should fire notification
-  event (applies only for `notify: true` properties)
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
-/**
 * @param {string} prop Property name
 * @return {boolean}
 */
 Polymer_ArraySelectorMixin.prototype._isPropertyPending = function(prop){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ArraySelectorMixin.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ArraySelectorMixin.prototype._flushProperties = function(){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype.ready = function(){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._shouldPropertyChange = function(property, value, old){};
 /**
 * @param {string} property Property that should trigger the effect
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
@@ -2682,6 +2959,10 @@ Polymer_ArraySelectorMixin._parseTemplateNodeAttribute = function(node, template
 */
 Polymer_ArraySelectorMixin._contentForTemplate = function(template){};
 /**
+* @param {Array} props Array of names of accessors.
+*/
+Polymer_ArraySelectorMixin.createProperties = function(props){};
+/**
 */
 Polymer_ArraySelectorMixin.createPropertiesForAttributes = function(){};
 /**
@@ -2756,3 +3037,133 @@ Polymer_ArraySelectorMixin._evaluateBinding = function(inst, part, path, props, 
 /**
 */
 Polymer_ArraySelectorMixin.finalize = function(){};
+/**
+* @interface
+* @extends {Polymer_PropertiesChanged}
+*/
+function Polymer_PropertiesMixin(){}
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
+*/
+Polymer_PropertiesMixin.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+*/
+Polymer_PropertiesMixin.prototype._generatePropertyAccessor = function(property, readOnly){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype.ready = function(){};
+/**
+* @override
+*/
+Polymer_PropertiesMixin.prototype._initializeProperties = function(){};
+/**
+* @param {Object} props Bag of property values that were overwritten
+  when creating property accessors.
+*/
+Polymer_PropertiesMixin.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+*/
+Polymer_PropertiesMixin.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of property
+* @return {*}
+*/
+Polymer_PropertiesMixin.prototype._getProperty = function(property){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @return {boolean}
+*/
+Polymer_PropertiesMixin.prototype._setPendingProperty = function(property, value){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype._validateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype._flushProperties = function(){};
+/**
+* @param {!Object} currentProps Bag of all current accessor values
+* @param {!Object} changedProps Bag of properties changed since the last
+  call to `_propertiesChanged`
+* @param {!Object} oldProps Bag of previous values for each property
+  in `changedProps`
+*/
+Polymer_PropertiesMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_PropertiesMixin.prototype._shouldPropertyChange = function(property, value, old){};
+/**
+* @param {string} name Name of attribute that changed
+* @param {?string} old Old attribute value
+* @param {?string} value New attribute value
+*/
+Polymer_PropertiesMixin.prototype.attributeChangedCallback = function(name, old, value){};
+/**
+* @param {string} attribute Name of attribute to deserialize.
+* @param {?string} value of the attribute.
+* @param {*=} type type to deserialize to, defaults to the value
+returned from `_typeForProperty`
+*/
+Polymer_PropertiesMixin.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {?string} value Value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_PropertiesMixin.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} attribute Attribute to convert
+* @return {string}
+*/
+Polymer_PropertiesMixin.prototype._propertyForAttribute = function(attribute){};
+/**
+* @param {string} property Property to convert
+* @return {string}
+*/
+Polymer_PropertiesMixin.prototype._attributeForProperty = function(property){};
+/**
+* @param {string} name Name of property
+* @return {*}
+*/
+Polymer_PropertiesMixin.prototype._typeForProperty = function(name){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype.connectedCallback = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype.disconnectedCallback = function(){};
+/**
+* @param {Array} props Array of names of accessors.
+*/
+Polymer_PropertiesMixin.createProperties = function(props){};
+/**
+* @param {*} name 
+*/
+Polymer_PropertiesMixin._ensureFinalized = function(name){};
+/**
+* @param {string} name Name of the element
+*/
+Polymer_PropertiesMixin.finalize = function(name){};
