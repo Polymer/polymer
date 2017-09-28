@@ -1,5 +1,14 @@
 # Change Log
 
+## [v1.10.1-dev](https://github.com/Polymer/polymer/tree/v1.10.1-dev) (2017-09-28)
+- Just move the style, don't clone ([commit](https://github.com/Polymer/polymer/commit/36e9310f))
+
+- Fix broken tests related to Edge 15 bugs with CSS Custom properties ([commit](https://github.com/Polymer/polymer/commit/4666f0be))
+
+- Copy <style is="custom-style"> to the main document ([commit](https://github.com/Polymer/polymer/commit/549de4ac))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/89bbec53))
+
 ## [v1.10.0-dev](https://github.com/Polymer/polymer/tree/v1.10.0-dev) (2017-09-19)
 - Backport passive touch gestures #4829 ([commit](https://github.com/Polymer/polymer/commit/6775a60f))
 
