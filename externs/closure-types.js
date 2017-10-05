@@ -9,6 +9,9 @@
  * The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+ */
+/**
+ * @fileoverview Closure types for Polymer mixins
  *
  * This file is generated, do not edit manually
  */
@@ -204,9 +207,9 @@ Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, ev
 */
 Polymer_TemplateStamp._parseTemplate = function(template, outerTemplateInfo){};
 /**
-* @param {*} template
-* @param {*} templateInfo
-* @param {*} nodeInfo
+* @param {*} template 
+* @param {*} templateInfo 
+* @param {*} nodeInfo 
 */
 Polymer_TemplateStamp._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
@@ -589,7 +592,7 @@ Polymer_PropertyEffects.prototype.get = function(path, root){};
 Polymer_PropertyEffects.prototype.set = function(path, value, root){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_PropertyEffects.prototype.push = function(path, items){};
@@ -602,7 +605,7 @@ Polymer_PropertyEffects.prototype.pop = function(path){};
 * @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items
+* @param {...*} items 
 * @return {Array}
 */
 Polymer_PropertyEffects.prototype.splice = function(path, start, deleteCount, items){};
@@ -613,7 +616,7 @@ Polymer_PropertyEffects.prototype.splice = function(path, start, deleteCount, it
 Polymer_PropertyEffects.prototype.shift = function(path){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_PropertyEffects.prototype.unshift = function(path, items){};
@@ -680,9 +683,9 @@ Polymer_PropertyEffects.prototype._removeBoundDom = function(dom){};
 */
 Polymer_PropertyEffects._parseTemplate = function(template, outerTemplateInfo){};
 /**
-* @param {*} template
-* @param {*} templateInfo
-* @param {*} nodeInfo
+* @param {*} template 
+* @param {*} templateInfo 
+* @param {*} nodeInfo 
 */
 Polymer_PropertyEffects._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
@@ -719,8 +722,8 @@ Polymer_PropertyEffects._parseTemplateNodeAttributes = function(node, templateIn
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name
-* @param {*} value
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_PropertyEffects._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
@@ -1097,7 +1100,7 @@ Polymer_ElementMixin.prototype.get = function(path, root){};
 Polymer_ElementMixin.prototype.set = function(path, value, root){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_ElementMixin.prototype.push = function(path, items){};
@@ -1110,7 +1113,7 @@ Polymer_ElementMixin.prototype.pop = function(path){};
 * @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items
+* @param {...*} items 
 * @return {Array}
 */
 Polymer_ElementMixin.prototype.splice = function(path, start, deleteCount, items){};
@@ -1121,7 +1124,7 @@ Polymer_ElementMixin.prototype.splice = function(path, start, deleteCount, items
 Polymer_ElementMixin.prototype.shift = function(path){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_ElementMixin.prototype.unshift = function(path, items){};
@@ -1250,8 +1253,8 @@ Polymer_ElementMixin._parseTemplateNodeAttributes = function(node, templateInfo,
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name
-* @param {*} value
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_ElementMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
@@ -1336,19 +1339,34 @@ Polymer_ElementMixin._evaluateBinding = function(inst, part, path, props, oldPro
 */
 Polymer_ElementMixin.finalize = function(){};
 /**
+* @param {string} is Tag name for this element
+* @param {!HTMLTemplateElement} template Template to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
+*/
+Polymer_ElementMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {!PolymerElement} proto Element class prototype to add accessors
+  and effects to
+* @param {!HTMLTemplateElement} template Template to process and bind
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
+*/
+Polymer_ElementMixin._finalizeTemplate = function(proto, template, is, ext){};
+/**
 * @interface
 */
 function Polymer_GestureEventListeners(){}
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {*} node 
+* @param {*} eventName 
+* @param {*} handler 
 */
 Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {*} node 
+* @param {*} eventName 
+* @param {*} handler 
 */
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
@@ -1382,15 +1400,15 @@ Polymer_LegacyElementMixin.prototype._stampTemplate = function(template){};
 */
 Polymer_LegacyElementMixin.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {*} node 
+* @param {*} eventName 
+* @param {*} handler 
 */
 Polymer_LegacyElementMixin.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {*} node 
+* @param {*} eventName 
+* @param {*} handler 
 */
 Polymer_LegacyElementMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
@@ -1639,7 +1657,7 @@ Polymer_LegacyElementMixin.prototype.get = function(path, root){};
 Polymer_LegacyElementMixin.prototype.set = function(path, value, root){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_LegacyElementMixin.prototype.push = function(path, items){};
@@ -1652,7 +1670,7 @@ Polymer_LegacyElementMixin.prototype.pop = function(path){};
 * @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items
+* @param {...*} items 
 * @return {Array}
 */
 Polymer_LegacyElementMixin.prototype.splice = function(path, start, deleteCount, items){};
@@ -1663,7 +1681,7 @@ Polymer_LegacyElementMixin.prototype.splice = function(path, start, deleteCount,
 Polymer_LegacyElementMixin.prototype.shift = function(path){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_LegacyElementMixin.prototype.unshift = function(path, items){};
@@ -1791,7 +1809,7 @@ Polymer_LegacyElementMixin.prototype.deserialize = function(value, type){};
 /**
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
-* @param {*=} value Property value to refect.
+* @param {*=} value Property value to reflect.
 */
 Polymer_LegacyElementMixin.prototype.reflectPropertyToAttribute = function(property, attribute, value){};
 /**
@@ -1914,8 +1932,8 @@ Polymer_LegacyElementMixin.prototype.isLightDescendant = function(node){};
 */
 Polymer_LegacyElementMixin.prototype.isLocalDescendant = function(node){};
 /**
-* @param {*} container
-* @param {*} shouldObserve
+* @param {*} container 
+* @param {*} shouldObserve 
 */
 Polymer_LegacyElementMixin.prototype.scopeSubtree = function(container, shouldObserve){};
 /**
@@ -2023,20 +2041,20 @@ Polymer_LegacyElementMixin.prototype.arrayDelete = function(arrayOrPath, item){}
 */
 Polymer_LegacyElementMixin.prototype._logger = function(level, args){};
 /**
-* @param {...*} args
+* @param {...*} args 
 */
 Polymer_LegacyElementMixin.prototype._log = function(args){};
 /**
-* @param {...*} args
+* @param {...*} args 
 */
 Polymer_LegacyElementMixin.prototype._warn = function(args){};
 /**
-* @param {...*} args
+* @param {...*} args 
 */
 Polymer_LegacyElementMixin.prototype._error = function(args){};
 /**
 * @param {string} methodName Method name to associate with message
-* @param {...*} args
+* @param {...*} args 
 * @return {Array}
 */
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
@@ -2085,8 +2103,8 @@ Polymer_LegacyElementMixin._parseTemplateNodeAttributes = function(node, templat
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name
-* @param {*} value
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_LegacyElementMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
@@ -2170,6 +2188,21 @@ Polymer_LegacyElementMixin._evaluateBinding = function(inst, part, path, props, 
 /**
 */
 Polymer_LegacyElementMixin.finalize = function(){};
+/**
+* @param {string} is Tag name for this element
+* @param {!HTMLTemplateElement} template Template to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
+*/
+Polymer_LegacyElementMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {!PolymerElement} proto Element class prototype to add accessors
+  and effects to
+* @param {!HTMLTemplateElement} template Template to process and bind
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
+*/
+Polymer_LegacyElementMixin._finalizeTemplate = function(proto, template, is, ext){};
 /**
 * @interface
 */
@@ -2488,7 +2521,7 @@ Polymer_ArraySelectorMixin.prototype.get = function(path, root){};
 Polymer_ArraySelectorMixin.prototype.set = function(path, value, root){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_ArraySelectorMixin.prototype.push = function(path, items){};
@@ -2501,7 +2534,7 @@ Polymer_ArraySelectorMixin.prototype.pop = function(path){};
 * @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items
+* @param {...*} items 
 * @return {Array}
 */
 Polymer_ArraySelectorMixin.prototype.splice = function(path, start, deleteCount, items){};
@@ -2512,7 +2545,7 @@ Polymer_ArraySelectorMixin.prototype.splice = function(path, start, deleteCount,
 Polymer_ArraySelectorMixin.prototype.shift = function(path){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_ArraySelectorMixin.prototype.unshift = function(path, items){};
@@ -2671,8 +2704,8 @@ Polymer_ArraySelectorMixin._parseTemplateNodeAttributes = function(node, templat
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name
-* @param {*} value
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_ArraySelectorMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
@@ -2756,3 +2789,546 @@ Polymer_ArraySelectorMixin._evaluateBinding = function(inst, part, path, props, 
 /**
 */
 Polymer_ArraySelectorMixin.finalize = function(){};
+/**
+* @param {string} is Tag name for this element
+* @param {!HTMLTemplateElement} template Template to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
+*/
+Polymer_ArraySelectorMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {!PolymerElement} proto Element class prototype to add accessors
+  and effects to
+* @param {!HTMLTemplateElement} template Template to process and bind
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
+*/
+Polymer_ArraySelectorMixin._finalizeTemplate = function(proto, template, is, ext){};
+/**
+* @interface
+* @extends {Polymer_ElementMixin}
+*/
+function Polymer_DirMixin(){}
+/**
+* @override
+* @param {!HTMLTemplateElement} template Template to stamp
+* @return {!StampedTemplate}
+*/
+Polymer_DirMixin.prototype._stampTemplate = function(template){};
+/**
+* @param {Node} node Node to add listener on
+* @param {string} eventName Name of event
+* @param {string} methodName Name of method
+* @param {*=} context Context the method will be called on (defaults
+  to `node`)
+* @return {Function}
+*/
+Polymer_DirMixin.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
+/**
+* @param {Node} node Node to add event listener to
+* @param {string} eventName Name of event
+* @param {Function} handler Listener function to add
+*/
+Polymer_DirMixin.prototype._addEventListenerToNode = function(node, eventName, handler){};
+/**
+* @param {Node} node Node to remove event listener from
+* @param {string} eventName Name of event
+* @param {Function} handler Listener function to remove
+*/
+Polymer_DirMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
+/**
+* @override
+* @param {string} name Name of attribute.
+* @param {?string} old Old value of attribute.
+* @param {?string} value Current value of attribute.
+*/
+Polymer_DirMixin.prototype.attributeChangedCallback = function(name, old, value){};
+/**
+* @override
+*/
+Polymer_DirMixin.prototype._initializeProperties = function(){};
+/**
+* @override
+* @param {Object} props Properties to initialize on the prototype
+*/
+Polymer_DirMixin.prototype._initializeProtoProperties = function(props){};
+/**
+* @override
+* @param {Object} props Properties to initialize on the instance
+*/
+Polymer_DirMixin.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} attribute Name of attribute to ensure is set.
+* @param {string} value of the attribute.
+*/
+Polymer_DirMixin.prototype._ensureAttribute = function(attribute, value){};
+/**
+* @param {string} attribute Name of attribute to deserialize.
+* @param {?string} value of the attribute.
+* @param {*=} type type to deserialize to.
+*/
+Polymer_DirMixin.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {string} property Property name to reflect.
+* @param {string=} attribute Attribute name to reflect.
+* @param {*=} value Property value to refect.
+*/
+Polymer_DirMixin.prototype._propertyToAttribute = function(property, attribute, value){};
+/**
+* @param {Element} node Element to set attribute to.
+* @param {*} value Value to serialize.
+* @param {string} attribute Attribute name to serialize to.
+*/
+Polymer_DirMixin.prototype._valueToNodeAttribute = function(node, value, attribute){};
+/**
+* @param {*} value Property value to serialize.
+* @return {(string|undefined)}
+*/
+Polymer_DirMixin.prototype._serializeValue = function(value){};
+/**
+* @param {?string} value Attribute value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_DirMixin.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
+*/
+Polymer_DirMixin.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Property name
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._hasAccessor = function(property){};
+/**
+* @override
+*/
+Polymer_DirMixin.prototype._setProperty = function(property, value){};
+/**
+* @override
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @param {boolean=} shouldNotify True if property should fire notification
+  event (applies only for `notify: true` properties)
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
+/**
+* @param {string} prop Property name
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._isPropertyPending = function(prop){};
+/**
+* @override
+*/
+Polymer_DirMixin.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype._flushProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.ready = function(){};
+/**
+* @override
+*/
+Polymer_DirMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._shouldPropertyChange = function(property, value, old){};
+/**
+* @param {string} property Property that should trigger the effect
+* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
+* @param {Object=} effect Effect metadata object
+*/
+Polymer_DirMixin.prototype._addPropertyEffect = function(property, type, effect){};
+/**
+* @param {string} property Property the effect was associated with
+* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
+* @param {Object=} effect Effect metadata object to remove
+*/
+Polymer_DirMixin.prototype._removePropertyEffect = function(property, type, effect){};
+/**
+* @param {string} property Property name
+* @param {string=} type Effect type, from this.PROPERTY_EFFECT_TYPES
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._hasPropertyEffect = function(property, type){};
+/**
+* @param {string} property Property name
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._hasReadOnlyEffect = function(property){};
+/**
+* @param {string} property Property name
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._hasNotifyEffect = function(property){};
+/**
+* @param {string} property Property name
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._hasReflectEffect = function(property){};
+/**
+* @param {string} property Property name
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._hasComputedEffect = function(property){};
+/**
+* @param {(string|!Array.<(number|string)>)} path Path to set
+* @param {*} value Value to set
+* @param {boolean=} shouldNotify Set to true if this change should
+ cause a property notification event dispatch
+* @param {boolean=} isPathNotification If the path being set is a path
+  notification of an already changed value, as opposed to a request
+  to set and notify the change.  In the latter `false` case, a dirty
+  check is performed and then the value is set to the path before
+  enqueuing the pending property change.
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
+/**
+* @param {Node} node The node to set a property on
+* @param {string} prop The property to set
+* @param {*} value The value to set
+*/
+Polymer_DirMixin.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
+/**
+* @param {Object} client PropertyEffects client to enqueue
+*/
+Polymer_DirMixin.prototype._enqueueClient = function(client){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype._flushClients = function(){};
+/**
+* @override
+*/
+Polymer_DirMixin.prototype._readyClients = function(){};
+/**
+* @param {Object} props Bag of one or more key-value pairs whose key is
+  a property and value is the new value to set for that property.
+* @param {boolean=} setReadOnly When true, any private values set in
+  `props` will be set. By default, `setProperties` will not set
+  `readOnly: true` root properties.
+*/
+Polymer_DirMixin.prototype.setProperties = function(props, setReadOnly){};
+/**
+* @param {Object} changedProps Bag of changed properties
+* @param {Object} oldProps Bag of previous values for changed properties
+* @param {boolean} hasPaths True with `props` contains one or more paths
+*/
+Polymer_DirMixin.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
+/**
+* @param {(string|!Array.<(string|number)>)} to Target path to link.
+* @param {(string|!Array.<(string|number)>)} from Source path to link.
+*/
+Polymer_DirMixin.prototype.linkPaths = function(to, from){};
+/**
+* @param {(string|!Array.<(string|number)>)} path Target path to unlink.
+*/
+Polymer_DirMixin.prototype.unlinkPaths = function(path){};
+/**
+* @param {string} path Path that should be notified.
+* @param {Array} splices Array of splice records indicating ordered
+  changes that occurred to the array. Each record should have the
+  following fields:
+   * index: index at which the change occurred
+   * removed: array of items that were removed from this index
+   * addedCount: number of new items added at this index
+   * object: a reference to the array in question
+   * type: the string literal 'splice'
+
+  Note that splice records _must_ be normalized such that they are
+  reported in index order (raw results from `Object.observe` are not
+  ordered and must be normalized/merged before notifying).
+*/
+Polymer_DirMixin.prototype.notifySplices = function(path, splices){};
+/**
+* @param {(string|!Array.<(string|number)>)} path Path to the value
+  to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
+  or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
+  bracketed expressions are not supported; string-based path parts
+  *must* be separated by dots.  Note that when dereferencing array
+  indices, the index may be used as a dotted part directly
+  (e.g. `users.12.name` or `['users', 12, 'name']`).
+* @param {Object=} root Root object from which the path is evaluated.
+* @return {*}
+*/
+Polymer_DirMixin.prototype.get = function(path, root){};
+/**
+* @param {(string|!Array.<(string|number)>)} path Path to the value
+  to write.  The path may be specified as a string (e.g. `'foo.bar.baz'`)
+  or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
+  bracketed expressions are not supported; string-based path parts
+  *must* be separated by dots.  Note that when dereferencing array
+  indices, the index may be used as a dotted part directly
+  (e.g. `'users.12.name'` or `['users', 12, 'name']`).
+* @param {*} value Value to set at the specified path.
+* @param {Object=} root Root object from which the path is evaluated.
+  When specified, no notification will occur.
+*/
+Polymer_DirMixin.prototype.set = function(path, value, root){};
+/**
+* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {...*} items 
+* @return {number}
+*/
+Polymer_DirMixin.prototype.push = function(path, items){};
+/**
+* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @return {*}
+*/
+Polymer_DirMixin.prototype.pop = function(path){};
+/**
+* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {number} start Index from which to start removing/inserting.
+* @param {number} deleteCount Number of items to remove.
+* @param {...*} items 
+* @return {Array}
+*/
+Polymer_DirMixin.prototype.splice = function(path, start, deleteCount, items){};
+/**
+* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @return {*}
+*/
+Polymer_DirMixin.prototype.shift = function(path){};
+/**
+* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {...*} items 
+* @return {number}
+*/
+Polymer_DirMixin.prototype.unshift = function(path, items){};
+/**
+* @param {string} path Path that should be notified.
+* @param {*=} value Value at the path (optional).
+*/
+Polymer_DirMixin.prototype.notifyPath = function(path, value){};
+/**
+* @param {string} property Property name
+* @param {boolean=} protectedSetter Creates a custom protected setter
+  when `true`.
+*/
+Polymer_DirMixin.prototype._createReadOnlyProperty = function(property, protectedSetter){};
+/**
+* @param {string} property Property name
+* @param {string} methodName Name of observer method to call
+* @param {boolean=} dynamicFn Whether the method name should be included as
+  a dependency to the effect.
+*/
+Polymer_DirMixin.prototype._createPropertyObserver = function(property, methodName, dynamicFn){};
+/**
+* @param {string} expression Method expression
+* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
+  whether method names should be included as a dependency to the effect.
+*/
+Polymer_DirMixin.prototype._createMethodObserver = function(expression, dynamicFn){};
+/**
+* @param {string} property Property name
+*/
+Polymer_DirMixin.prototype._createNotifyingProperty = function(property){};
+/**
+* @param {string} property Property name
+*/
+Polymer_DirMixin.prototype._createReflectedProperty = function(property){};
+/**
+* @param {string} property Name of computed property to set
+* @param {string} expression Method expression
+* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
+  whether method names should be included as a dependency to the effect.
+*/
+Polymer_DirMixin.prototype._createComputedProperty = function(property, expression, dynamicFn){};
+/**
+* @param {HTMLTemplateElement} template Template containing binding
+  bindings
+* @param {boolean=} instanceBinding When false (default), performs
+  "prototypical" binding of the template and overwrites any previously
+  bound template for the class. When true (as passed from
+  `_stampTemplate`), the template info is instanced and linked into
+  the list of bound templates.
+* @return {!TemplateInfo}
+*/
+Polymer_DirMixin.prototype._bindTemplate = function(template, instanceBinding){};
+/**
+* @param {!StampedTemplate} dom DocumentFragment previously returned
+  from `_stampTemplate` associated with the nodes to be removed
+*/
+Polymer_DirMixin.prototype._removeBoundDom = function(dom){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.connectedCallback = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.disconnectedCallback = function(){};
+/**
+* @param {StampedTemplate} dom to attach to the element.
+* @return {ShadowRoot}
+*/
+Polymer_DirMixin.prototype._attachDom = function(dom){};
+/**
+* @param {Object=} properties Bag of custom property key/values to
+  apply to this element.
+*/
+Polymer_DirMixin.prototype.updateStyles = function(properties){};
+/**
+* @param {string} url URL to resolve.
+* @param {string=} base Optional base URL to resolve against, defaults
+to the element's `importPath`
+* @return {string}
+*/
+Polymer_DirMixin.prototype.resolveUrl = function(url, base){};
+/**
+* @param {!HTMLTemplateElement} template Template to parse
+* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
+  template, for parsing nested templates
+* @return {!TemplateInfo}
+*/
+Polymer_DirMixin._parseTemplate = function(template, outerTemplateInfo){};
+/**
+* @override
+*/
+Polymer_DirMixin._parseTemplateContent = function(template, templateInfo, nodeInfo){};
+/**
+* @override
+* @param {Node} node Node to parse
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
+* @return {boolean}
+*/
+Polymer_DirMixin._parseTemplateNode = function(node, templateInfo, nodeInfo){};
+/**
+* @param {Node} root Root node whose `childNodes` will be parsed
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
+*/
+Polymer_DirMixin._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
+/**
+* @override
+* @param {Node} node Node to parse
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
+* @return {boolean}
+*/
+Polymer_DirMixin._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
+/**
+* @param {Element} node Node to parse
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template.
+* @return {boolean}
+*/
+Polymer_DirMixin._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
+/**
+* @override
+* @param {Element} node Node to parse
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
+* @param {string} name Attribute name
+* @param {string} value Attribute value
+* @return {boolean}
+*/
+Polymer_DirMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
+/**
+* @param {HTMLTemplateElement} template Template to retrieve `content` for
+* @return {DocumentFragment}
+*/
+Polymer_DirMixin._contentForTemplate = function(template){};
+/**
+*/
+Polymer_DirMixin.createPropertiesForAttributes = function(){};
+/**
+* @param {string} property Property that should trigger the effect
+* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
+* @param {Object=} effect Effect metadata object
+*/
+Polymer_DirMixin.addPropertyEffect = function(property, type, effect){};
+/**
+* @param {string} property Property name
+* @param {string} methodName Name of observer method to call
+* @param {boolean=} dynamicFn Whether the method name should be included as
+  a dependency to the effect.
+*/
+Polymer_DirMixin.createPropertyObserver = function(property, methodName, dynamicFn){};
+/**
+* @param {string} expression Method expression
+* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
+  whether method names should be included as a dependency to the effect.
+*/
+Polymer_DirMixin.createMethodObserver = function(expression, dynamicFn){};
+/**
+* @param {string} property Property name
+*/
+Polymer_DirMixin.createNotifyingProperty = function(property){};
+/**
+* @param {string} property Property name
+* @param {boolean=} protectedSetter Creates a custom protected setter
+  when `true`.
+*/
+Polymer_DirMixin.createReadOnlyProperty = function(property, protectedSetter){};
+/**
+* @param {string} property Property name
+*/
+Polymer_DirMixin.createReflectedProperty = function(property){};
+/**
+* @param {string} property Name of computed property to set
+* @param {string} expression Method expression
+* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating whether
+  method names should be included as a dependency to the effect.
+*/
+Polymer_DirMixin.createComputedProperty = function(property, expression, dynamicFn){};
+/**
+* @param {HTMLTemplateElement} template Template containing binding
+  bindings
+* @return {Object}
+*/
+Polymer_DirMixin.bindTemplate = function(template){};
+/**
+* @param {Object} templateInfo Template metadata to add effect to
+* @param {string} prop Property that should trigger the effect
+* @param {Object=} effect Effect metadata object
+*/
+Polymer_DirMixin._addTemplatePropertyEffect = function(templateInfo, prop, effect){};
+/**
+* @param {string} text Text to parse from attribute or textContent
+* @param {Object} templateInfo Current template metadata
+* @return {Array.<!BindingPart>}
+*/
+Polymer_DirMixin._parseBindings = function(text, templateInfo){};
+/**
+* @param {this} inst Element that should be used as scope for
+  binding dependencies
+* @param {BindingPart} part Binding part metadata
+* @param {string} path Property/path that triggered this effect
+* @param {Object} props Bag of current property changes
+* @param {Object} oldProps Bag of previous values for changed properties
+* @param {boolean} hasPaths True with `props` contains one or more paths
+* @return {*}
+*/
+Polymer_DirMixin._evaluateBinding = function(inst, part, path, props, oldProps, hasPaths){};
+/**
+*/
+Polymer_DirMixin.finalize = function(){};
+/**
+* @override
+*/
+Polymer_DirMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {!PolymerElement} proto Element class prototype to add accessors
+  and effects to
+* @param {!HTMLTemplateElement} template Template to process and bind
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
+*/
+Polymer_DirMixin._finalizeTemplate = function(proto, template, is, ext){};

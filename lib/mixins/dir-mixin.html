@@ -1,0 +1,119 @@
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../utils/style-gather.html">
+<link rel="import" href="../utils/resolve-url.html">
+<link rel="import" href="element-mixin.html">
+
+<script>
+  (function() {
+    'use strict';
+
+    const HOST_DIR = /:host\(:dir\(rtl\)\)/g;
+    const HOST_DIR_REPLACMENT = ':host([dir="rtl"])';
+
+    const EL_DIR = /([\s\w#\.\[\]\*]*):dir\(rtl\)/g;
+    const EL_DIR_REPLACMENT = ':host([dir="rtl"]) $1';
+
+    const NATIVE_SHADOW = !(window.ShadyDOM && window.ShadyDOM.inUse);
+
+    /**
+     * @type {!Array<!Dir>}
+     */
+    const DIR_INSTANCES = [];
+
+    if (NATIVE_SHADOW) {
+      new MutationObserver(() => {
+        DIR_INSTANCES.forEach(i => setRTL(i));
+      }).observe(document.documentElement, {attributes: true, attributeFilter: ['dir']});
+    }
+
+    /**
+     * @param {!Dir} instance Instance to set RTL status on
+     */
+    function setRTL(instance) {
+      if (NATIVE_SHADOW && !instance.__origRTLStatus) {
+        const el = /** @type {!HTMLElement} */(instance);
+        if (document.documentElement.getAttribute('dir') === 'rtl') {
+          el.setAttribute('dir', 'rtl');
+        } else {
+          el.removeAttribute('dir');
+        }
+      }
+    }
+
+    /**
+     * Some stuff about :dir
+     *
+     * @mixinFunction
+     * @polymer
+     * @appliesMixin Polymer.ElementMixin
+     * @memberof Polymer
+     */
+    Polymer.DirMixin = Polymer.dedupingMixin((base) => {
+
+      /**
+       * @constructor
+       * @extends {base}
+       * @implements {Polymer_ElementMixin}
+       */
+      const elementBase = Polymer.ElementMixin(base);
+
+      /**
+       * @polymer
+       * @mixinClass
+       * @implements {Polymer_DirMixin}
+       */
+      class Dir extends elementBase {
+
+        /**
+         * @override
+         * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
+         */
+        static _processStyleText(is, template, baseURI) {
+          let cssText = super._processStyleText(is, template, baseURI);
+          if (NATIVE_SHADOW) {
+            cssText = cssText.replace(HOST_DIR, HOST_DIR_REPLACMENT);
+            cssText = cssText.replace(EL_DIR, EL_DIR_REPLACMENT);
+          }
+          return cssText;
+        }
+
+        /**
+         * @suppress {invalidCasts} This is an element, but closure needs to be told
+         */
+        constructor() {
+          super();
+          /** @type {boolean} */;
+          this.__origRTLStatus = false;
+        }
+
+        ready() {
+          super.ready();
+          this.__origRTLStatus = /** @type {!HTMLElement} */(this).hasAttribute('dir');
+        }
+
+        connectedCallback() {
+          super.connectedCallback();
+          DIR_INSTANCES.push(this);
+          setRTL(this);
+        }
+        disconnectedCallback() {
+          super.disconnectedCallback();
+          const idx = DIR_INSTANCES.indexOf(this);
+          if (idx > -1) {
+            DIR_INSTANCES.splice(idx, 1);
+          }
+        }
+      }
+
+      return Dir;
+    });
+  })();
+</script>
