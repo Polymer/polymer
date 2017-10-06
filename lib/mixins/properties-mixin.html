@@ -42,6 +42,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     const base = Polymer.PropertiesChanged(superClass);
 
+    function BooleanAttribute(value) {
+      return value !== null;
+    }
+
     /**
      * @polymer
      * @mixinClass
@@ -51,21 +55,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     class Properties extends base {
 
+      static get BooleanAttribute() {
+        return BooleanAttribute;
+      }
+
       /**
        * Implements standard custom elements getter to observes the attributes
        * listed in `properties`.
        */
       static get observedAttributes() {
-        const props = this.properties;
+        this._ensurePropertyInfo();
+        const props = this.prototype.__propertyInfo;
         return props ? Object.keys(props).map(p => {
           return this.prototype._attributeForProperty(p);
         }) : [];
       }
 
+      _propertyForAttribute(name) {
+        return this.__attributeInfo[name] || name;
+      }
+
+      _attributeForProperty(name) {
+        const info = this.__propertyInfo[name];
+        return info && info.attribute || name.toLowerCase();
+      }
+
       static _ensureFinalized(name) {
-        const proto = this.prototype;
-        if (!proto.hasOwnProperty('__finalized')) {
-          proto.__finalized = true;
+        if (!this.prototype.hasOwnProperty('__finalized')) {
           this.finalize(name);
         }
       }
@@ -77,10 +93,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} name Name of the element
        */
       static finalize(name) { // eslint-disable-line no-unused-vars
-        const props = this.properties;
+        this.prototype.__finalized = true;
+        this._ensurePropertyInfo();
+        const props = this.prototype.__propertyInfo;
         if (props) {
-          this.prototype.__propertyInfo = props;
           this.createProperties(Object.keys(props));
+        }
+      }
+
+      static _ensurePropertyInfo() {
+        let proto = this.prototype;
+        if (!proto.hasOwnProperty('__propertyInfo')) {
+          const props = this.prototype.__propertyInfo = this.properties;
+          const attrInfo = this.prototype.__attributeInfo = {};
+          for (let prop in props) {
+            attrInfo[proto._attributeForProperty(prop)] = prop;
+          }
         }
       }
 
@@ -116,8 +144,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _typeForProperty(name) {
-        const props = this.__propertyInfo;
-        return props && props[name];
+        const info = this.__propertyInfo[name];
+        return info.type || info;
       }
 
       /**
