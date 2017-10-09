@@ -23,7 +23,7 @@ const babel = require('gulp-babel');
 const size = require('gulp-size');
 const lazypipe = require('lazypipe');
 const closure = require('google-closure-compiler').gulp();
-const minimalDocument = require('./util/minimalDocument.js')
+const minimalDocument = require('./util/minimalDocument.js');
 const dom5 = require('dom5');
 const parse5 = require('parse5');
 
@@ -33,8 +33,7 @@ const COMPILED_DIR = path.join(DIST_DIR, 'compiled');
 const POLYMER_LEGACY = 'polymer.html';
 const POLYMER_ELEMENT = 'polymer-element.html';
 
-const polymer = require('polymer-build');
-const PolymerProject = polymer.PolymerProject;
+const {PolymerProject, HtmlSplitter} = require('polymer-build');
 
 const {Transform} = require('stream');
 
@@ -66,10 +65,15 @@ class BackfillStream extends Transform {
 
 let CLOSURE_LINT_ONLY = false;
 
-let firstImportFinder = dom5.predicates.AND(dom5.predicates.hasTagName('link'), dom5.predicates.hasAttrValue('rel', 'import'));
+let firstImportFinder = dom5.predicates.AND(
+  dom5.predicates.hasTagName('link'), dom5.predicates.hasAttrValue('rel', 'import')
+);
 
-const licenseHeader =
+const header =
 `/**
+ * @fileoverview Generated typings for Polymer mixins
+ * @externs
+ *
  * @license
  * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
  * This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
@@ -77,7 +81,9 @@ const licenseHeader =
  * The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
- */`;
+ */
+/* eslint-disable */
+`;
 
 class AddClosureTypeImport extends Transform {
   constructor(entryFileName, typeFileName) {
@@ -114,7 +120,7 @@ gulp.task('closure', ['clean'], () => {
     entry = path;
     joinRx = new RegExp(path.split('/').join('\\/'));
     splitRx = new RegExp(joinRx.source + '_script_\\d+\\.js$');
-    addClosureTypes = new AddClosureTypeImport(entry, 'externs/polymer-closure-types.html');
+    addClosureTypes = new AddClosureTypeImport(entry, 'externs/polymer-internal-types.html');
   }
 
   config('polymer.html');
@@ -127,7 +133,7 @@ gulp.task('closure', ['clean'], () => {
     ],
     extraDependencies: [
       addClosureTypes.importPath,
-      'externs/closure-types.js'
+      'externs/polymer-internal-shared-types.js',
     ]
   });
 
@@ -144,7 +150,7 @@ gulp.task('closure', ['clean'], () => {
   if (CLOSURE_LINT_ONLY) {
     closurePluginOptions = {
       logger: closureLintLogger
-    }
+    };
   }
 
   const closureStream = closure({
@@ -175,7 +181,7 @@ gulp.task('closure', ['clean'], () => {
 
   const closurePipeline = lazypipe()
     .pipe(() => closureStream)
-    .pipe(() => new BackfillStream(closureStream.fileList_))
+    .pipe(() => new BackfillStream(closureStream.fileList_));
 
   // process source files in the project
   const sources = project.sources();
@@ -186,7 +192,7 @@ gulp.task('closure', ['clean'], () => {
   // merge the source and dependencies streams to we can analyze the project
   const mergedFiles = mergeStream(sources, dependencies);
 
-  const splitter = new polymer.HtmlSplitter();
+  const splitter = new HtmlSplitter();
   return mergedFiles
     .pipe(addClosureTypes)
     .pipe(project.bundler())
@@ -195,18 +201,18 @@ gulp.task('closure', ['clean'], () => {
     .pipe(splitter.rejoin())
     .pipe(gulpif(joinRx, minimalDocument()))
     .pipe(gulpif(joinRx, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
-    .pipe(gulp.dest(COMPILED_DIR))
+    .pipe(gulp.dest(COMPILED_DIR));
 });
 
 gulp.task('lint-closure', (done) => {
   CLOSURE_LINT_ONLY = true;
   runseq('closure', done);
-})
+});
 
 gulp.task('estimate-size', ['clean'], () => {
 
   const babelPresets = {
-    presets: [['babili', {regexpConstructors: false, simplifyComparisons: false}]]
+    presets: [['minify', {regexpConstructors: false, simplifyComparisons: false}]]
   };
 
   const project = new PolymerProject({
@@ -226,20 +232,20 @@ gulp.task('estimate-size', ['clean'], () => {
   // merge the source and dependencies streams to we can analyze the project
   const mergedFiles = mergeStream(sources, dependencies);
 
-  const bundledSplitter = new polymer.HtmlSplitter();
+  const bundledSplitter = new HtmlSplitter();
 
   const bundlePipe = lazypipe()
   .pipe(() => bundledSplitter.split())
   .pipe(() => gulpif(/\.js$/, babel(babelPresets)))
   .pipe(() => bundledSplitter.rejoin())
-  .pipe(minimalDocument)
+  .pipe(minimalDocument);
 
   return mergedFiles
     .pipe(project.bundler())
     .pipe(gulpif(/polymer\.html$/, bundlePipe()))
     .pipe(gulpif(/polymer\.html$/, size({ title: 'bundled size', gzip: true, showTotal: false, showFiles: true })))
     // write to the bundled folder
-    .pipe(gulp.dest(BUNDLED_DIR))
+    .pipe(gulp.dest(BUNDLED_DIR));
 });
 
 gulp.task('lint-eslint', function() {
@@ -253,9 +259,9 @@ gulp.task('lint', (done) => {
   runseq('lint-eslint', 'lint-closure', done);
 });
 
-gulp.task('generate-closure-externs', ['clean'], () => {
+gulp.task('generate-externs', ['clean'], () => {
   let genClosure = require('@polymer/gen-closure-declarations').generateDeclarations;
   return genClosure().then((declarations) => {
-    fs.writeFileSync('externs/closure-types.js', `${licenseHeader}${declarations}`);
+    fs.writeFileSync('externs/closure-types.js', `${header}${declarations}`);
   });
 });
