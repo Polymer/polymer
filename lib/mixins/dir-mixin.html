@@ -15,30 +15,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   (function() {
     'use strict';
 
-    const HOST_DIR = /:host\(:dir\(rtl\)\)/g;
-    const HOST_DIR_REPLACMENT = ':host([dir="rtl"])';
+    const HOST_DIR = /:host\(:dir\((ltr|rtl)\)\)/g;
+    const HOST_DIR_REPLACMENT = ':host([dir="$1"])';
 
-    const EL_DIR = /([\s\w#\.\[\]\*]*):dir\(rtl\)/g;
-    const EL_DIR_REPLACMENT = ':host([dir="rtl"]) $1';
-
-    const NATIVE_SHADOW = !(window.ShadyDOM && window.ShadyDOM.inUse);
+    const EL_DIR = /([\s\w#\.\[\]\*]*):dir\((ltr|rtl)\)/g;
+    const EL_DIR_REPLACMENT = ':host([dir="$2"]) $1';
 
     /**
-     * @type {!Array<!Dir>}
+     * @type {!Array<!Polymer_DirMixin>}
      */
     const DIR_INSTANCES = [];
 
-    if (NATIVE_SHADOW) {
-      new MutationObserver(() => {
-        DIR_INSTANCES.forEach(i => setRTL(i));
-      }).observe(document.documentElement, {attributes: true, attributeFilter: ['dir']});
-    }
+    let observed = false;
 
     /**
-     * @param {!Dir} instance Instance to set RTL status on
+     * @param {!Polymer_DirMixin} instance Instance to set RTL status on
      */
     function setRTL(instance) {
-      if (NATIVE_SHADOW && !instance.__origRTLStatus) {
+      if (!instance.__origRTLStatus) {
         const el = /** @type {!HTMLElement} */(instance);
         if (document.documentElement.getAttribute('dir') === 'rtl') {
           el.setAttribute('dir', 'rtl');
@@ -57,6 +51,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @memberof Polymer
      */
     Polymer.DirMixin = Polymer.dedupingMixin((base) => {
+
+      if (!observed) {
+        new MutationObserver(() => {
+          DIR_INSTANCES.forEach(i => setRTL(i));
+        }).observe(document.documentElement, {attributes: true, attributeFilter: ['dir']});
+      }
 
       /**
        * @constructor
@@ -78,22 +78,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          */
         static _processStyleText(is, template, baseURI) {
           let cssText = super._processStyleText(is, template, baseURI);
-          if (NATIVE_SHADOW) {
-            cssText = cssText.replace(HOST_DIR, HOST_DIR_REPLACMENT);
-            cssText = cssText.replace(EL_DIR, EL_DIR_REPLACMENT);
-          }
+          cssText = cssText.replace(HOST_DIR, HOST_DIR_REPLACMENT);
+          cssText = cssText.replace(EL_DIR, EL_DIR_REPLACMENT);
           return cssText;
         }
 
-        /**
-         * @suppress {invalidCasts} This is an element, but closure needs to be told
-         */
         constructor() {
           super();
           /** @type {boolean} */
           this.__origRTLStatus = false;
         }
 
+        /**
+         * @suppress {invalidCasts} Closure doesn't understand that `this` is an HTMLElement
+         */
         ready() {
           super.ready();
           this.__origRTLStatus = /** @type {!HTMLElement} */(this).hasAttribute('dir');
@@ -104,6 +102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           DIR_INSTANCES.push(this);
           setRTL(this);
         }
+
         disconnectedCallback() {
           super.disconnectedCallback();
           const idx = DIR_INSTANCES.indexOf(this);
