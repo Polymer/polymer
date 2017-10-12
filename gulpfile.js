@@ -144,7 +144,7 @@ gulp.task('closure', ['clean'], () => {
   if (CLOSURE_LINT_ONLY) {
     closurePluginOptions = {
       logger: closureLintLogger
-    }
+    };
   }
 
   const closureStream = closure({
