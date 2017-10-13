@@ -1,0 +1,175 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html dir="rtl">
+<head>
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+  <!--
+    Issues
+    1. regex will process entire string, including comments and properties, not just selectors...
+    2. complex selectors. not ok... e.g.
+    bad: .special > *:dir(rtl)
+    but ok: .special:dir(rtl) > *
+    3. multiple selectors per line? ok.
+  -->
+  <dom-module id="x-inner-dir">
+    <template>
+      <style>
+        :host {
+          display: block;
+          height: 20px;
+          color: white;
+        }
+        input, section {
+          border-top-width: 0px;
+        }
+
+        section:dir(rtl), input:dir(rtl) {
+          border: 10px solid rgb(123, 123, 123);
+        }
+
+        .special:dir(rtl) > * {
+          color: rgb(0, 128, 0);
+        }
+      </style>
+      <div>no rtl styling</div>
+      <section>rtl styling</section>
+      <input value="rtl styling">
+      <div class="special">
+        <div>at the right.</div>
+      </div>
+    </template>
+    <script>
+      addEventListener('WebComponentsReady', function() {
+        Polymer({is: 'x-inner-dir'});
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-dir">
+    <template>
+      <style>
+        :host {
+          display: block;
+          background-color: rgb(0, 0, 255);
+          min-height: 100px;
+          width: 100px;
+        }
+        :host(:dir(rtl)) {
+          background-color: rgb(0, 128, 0);
+        }
+        #foo:dir(rtl) {
+          border: 10px solid rgb(255, 0, 0);
+        }
+        .thing:dir(rtl) {
+          border: 10px solid rgb(0, 0, 255);
+        }
+      </style>
+      <div id="foo"></div>
+      <div class="thing"></div>
+      <x-inner-dir></x-inner-dir>
+    </template>
+    <script>
+      addEventListener('WebComponentsReady', function() {
+        Polymer({is: 'x-dir'});
+      });
+    </script>
+  </dom-module>
+
+  <test-fixture id="dir">
+    <template>
+      <x-dir></x-dir>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="preset">
+    <template>
+      <x-inner-dir dir="ltr"></x-inner-dir>
+    </template>
+  </test-fixture>
+
+  <script>
+    function assertComputed(node, expected, property) {
+      property = property || 'border-top-width';
+      var actual = getComputedStyle(node).getPropertyValue(property).trim();
+      assert.equal(expected, actual);
+    }
+
+    suite(':dir', function() {
+      teardown(function() {
+        document.documentElement.setAttribute('dir', 'rtl');
+      });
+
+      test(':dir(rtl) functions when html element dir attr set to rtl', function() {
+        var el = fixture('dir');
+        var elRoot = Polymer.dom(el.root);
+        assertComputed(el, 'rgb(0, 128, 0)', 'background-color');
+        assertComputed(elRoot.querySelector('#foo'), '10px');
+        assertComputed(elRoot.querySelector('.thing'), '10px');
+        var inner = elRoot.querySelector('x-inner-dir');
+        var innerRoot = Polymer.dom(inner.root);
+        assertComputed(innerRoot.querySelector('.special > div'), 'rgb(0, 128, 0)', 'color');
+        assertComputed(innerRoot.querySelector('section'), '10px');
+        assertComputed(innerRoot.querySelector('input'), '10px');
+      });
+
+      test(':dir reacts to html attribute changing', function(done) {
+        var el = fixture('dir');
+        var elRoot = Polymer.dom(el.root);
+        document.documentElement.setAttribute('dir', 'ltr');
+        requestAnimationFrame(function() {
+          assertComputed(el, 'rgb(0, 0, 255)', 'background-color');
+          assertComputed(elRoot.querySelector('#foo'), '0px');
+          assertComputed(elRoot.querySelector('.thing'), '0px');
+          var inner = elRoot.querySelector('x-inner-dir');
+          var innerRoot = Polymer.dom(inner.root);
+          assertComputed(innerRoot.querySelector('.special > div'), 'rgb(255, 255, 255)', 'color');
+          assertComputed(innerRoot.querySelector('section'), '0px');
+          assertComputed(innerRoot.querySelector('input'), '0px');
+          done();
+        });
+      });
+
+      test('elements with dir attribute explicitly set will not change', function() {
+        /*
+        Both the polyfill and native ShadowDOM transforms to the `:dir` selector do not support
+        per-instance opt-out at this time.
+        */
+        this.skip();
+        var inner = fixture('preset');
+        var innerRoot = Polymer.dom(inner.root);
+        assert.equal(document.documentElement.getAttribute('dir'), 'rtl');
+        assertComputed(innerRoot.querySelector('.special > div'), 'rgb(255, 255, 255)', 'color');
+        assertComputed(innerRoot.querySelector('section'), '0px');
+        assertComputed(innerRoot.querySelector('input'), '0px');
+      });
+
+      test('elements will adopt dir status when reconnected', function(done) {
+        var el = fixture('dir');
+        assertComputed(el, 'rgb(0, 128, 0)', 'background-color');
+        var parent = el.parentNode;
+        parent.removeChild(el);
+        document.documentElement.setAttribute('dir', 'ltr');
+        requestAnimationFrame(function() {
+          parent.appendChild(el);
+          requestAnimationFrame(function() {
+            assertComputed(el, 'rgb(0, 0, 255)', 'background-color');
+            done();
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html>
