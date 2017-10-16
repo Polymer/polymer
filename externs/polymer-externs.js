@@ -1,5 +1,5 @@
 /**
- * @fileoverview Externs for Polymer
+ * @fileoverview Externs for Polymer Pass and external Polymer API
  * @externs
  *
  * @license
@@ -101,4 +101,4 @@ Polymer.telemetry;
  * @extends {HTMLElement}
  * @implements {Polymer_LegacyElementMixin}
  */
-var PolymerElement = Polymer.LegacyElementMixin();
+let PolymerElement = Polymer.LegacyElementMixin();
