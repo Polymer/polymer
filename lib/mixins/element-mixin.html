@@ -400,36 +400,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * Configures an element `proto` to function with a given `template`.
-     * The element name `is` and extends `ext` must be specified for ShadyCSS
-     * style scoping.
-     *
-     * @param {PolymerElement} proto Element class prototype to add accessors
-     *   and effects to
-     * @param {!HTMLTemplateElement} template Template to process and bind
-     * @param {string} baseURI URL against which to resolve urls in
-     *   style element cssText
-     * @param {string} is Tag name (or type extension name) for this element
-     * @param {string=} ext For type extensions, the tag name that was extended
-     * @private
-     */
-    function finalizeTemplate(proto, template, baseURI, is, ext) {
-      // support `include="module-name"`
-      let cssText =
-        Polymer.StyleGather.cssFromModuleImports(is) +
-        Polymer.StyleGather.cssFromTemplate(template, baseURI);
-      if (cssText) {
-        let style = document.createElement('style');
-        style.textContent = cssText;
-        template.content.insertBefore(style, template.content.firstChild);
-      }
-      if (window.ShadyCSS) {
-        window.ShadyCSS.prepareTemplate(template, is, ext);
-      }
-      proto._bindTemplate(template);
-    }
-
-    /**
      * @polymer
      * @mixinClass
      * @unrestricted
@@ -577,13 +547,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         const importPath = this.constructor.importPath;
         // note: finalize template when we have access to `localName` to
         // avoid dependence on `is` for polyfilling styling.
-        if (this._template && !this._template.__polymerFinalized) {
-          this._template.__polymerFinalized = true;
-          const baseURI =
-            importPath ? Polymer.ResolveUrl.resolveUrl(importPath) : '';
-          finalizeTemplate(/** @type {!PolymerElement} */(this.__proto__), this._template, baseURI,
-            /**@type {!HTMLElement}*/(this).localName);
-        }
+        this.constructor._finalizeTemplate(/** @type {!HTMLElement} */(this).localName);
         super._initializeProperties();
         // set path defaults
         this.rootPath = Polymer.rootPath;
@@ -610,6 +574,50 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               this[p] = value;
             }
           }
+        }
+      }
+
+      /**
+       * Gather style text for the template
+       *
+       * @param {string} is Tag name for this element
+       * @param {!HTMLTemplateElement} template Template to process
+       * @param {string} baseURI Base URI to rebase CSS paths against
+       * @return {string} The combined CSS text
+       * @protected
+       */
+      static _processStyleText(is, template, baseURI) {
+        return Polymer.StyleGather.cssFromModuleImports(is) +
+          Polymer.StyleGather.cssFromTemplate(template, baseURI);
+      }
+
+      /**
+      * Configures an element `proto` to function with a given `template`.
+      * The element name `is` and extends `ext` must be specified for ShadyCSS
+      * style scoping.
+      *
+      * @param {string} is Tag name (or type extension name) for this element
+      * @param {string=} ext For type extensions, the tag name that was extended
+      * @protected
+      */
+      static _finalizeTemplate(is, ext) {
+        /** @const {HTMLTemplateElement} */
+        const template = this.prototype._template;
+        if (template && !template.__polymerFinalized) {
+          template.__polymerFinalized = true;
+          const importPath = this.importPath;
+          const baseURI = importPath ? Polymer.ResolveUrl.resolveUrl(importPath) : '';
+          // support `include="module-name"`
+          let cssText = this._processStyleText(is, template, baseURI);
+          if (cssText) {
+            let style = document.createElement('style');
+            style.textContent = cssText;
+            template.content.insertBefore(style, template.content.firstChild);
+          }
+          if (window.ShadyCSS) {
+            window.ShadyCSS.prepareTemplate(template, is, ext);
+          }
+          this.prototype._bindTemplate(template);
         }
       }
 

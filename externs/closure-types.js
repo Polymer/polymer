@@ -1,7 +1,4 @@
 /**
- * @fileoverview Closure types for Polymer mixins
- * @externs
- *
  * @license
  * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
  * This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
@@ -9,6 +6,9 @@
  * The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+ */
+/**
+ * @fileoverview Closure types for Polymer mixins
  *
  * This file is generated, do not edit manually
  */
@@ -204,9 +204,9 @@ Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, ev
 */
 Polymer_TemplateStamp._parseTemplate = function(template, outerTemplateInfo){};
 /**
-* @param {*} template
-* @param {*} templateInfo
-* @param {*} nodeInfo
+* @param {*} template 
+* @param {*} templateInfo 
+* @param {*} nodeInfo 
 */
 Polymer_TemplateStamp._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
@@ -589,7 +589,7 @@ Polymer_PropertyEffects.prototype.get = function(path, root){};
 Polymer_PropertyEffects.prototype.set = function(path, value, root){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_PropertyEffects.prototype.push = function(path, items){};
@@ -602,7 +602,7 @@ Polymer_PropertyEffects.prototype.pop = function(path){};
 * @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items
+* @param {...*} items 
 * @return {Array}
 */
 Polymer_PropertyEffects.prototype.splice = function(path, start, deleteCount, items){};
@@ -613,7 +613,7 @@ Polymer_PropertyEffects.prototype.splice = function(path, start, deleteCount, it
 Polymer_PropertyEffects.prototype.shift = function(path){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_PropertyEffects.prototype.unshift = function(path, items){};
@@ -680,9 +680,9 @@ Polymer_PropertyEffects.prototype._removeBoundDom = function(dom){};
 */
 Polymer_PropertyEffects._parseTemplate = function(template, outerTemplateInfo){};
 /**
-* @param {*} template
-* @param {*} templateInfo
-* @param {*} nodeInfo
+* @param {*} template 
+* @param {*} templateInfo 
+* @param {*} nodeInfo 
 */
 Polymer_PropertyEffects._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
@@ -719,8 +719,8 @@ Polymer_PropertyEffects._parseTemplateNodeAttributes = function(node, templateIn
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name
-* @param {*} value
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_PropertyEffects._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
@@ -1097,7 +1097,7 @@ Polymer_ElementMixin.prototype.get = function(path, root){};
 Polymer_ElementMixin.prototype.set = function(path, value, root){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_ElementMixin.prototype.push = function(path, items){};
@@ -1110,7 +1110,7 @@ Polymer_ElementMixin.prototype.pop = function(path){};
 * @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items
+* @param {...*} items 
 * @return {Array}
 */
 Polymer_ElementMixin.prototype.splice = function(path, start, deleteCount, items){};
@@ -1121,7 +1121,7 @@ Polymer_ElementMixin.prototype.splice = function(path, start, deleteCount, items
 Polymer_ElementMixin.prototype.shift = function(path){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_ElementMixin.prototype.unshift = function(path, items){};
@@ -1250,8 +1250,8 @@ Polymer_ElementMixin._parseTemplateNodeAttributes = function(node, templateInfo,
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name
-* @param {*} value
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_ElementMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
@@ -1336,21 +1336,173 @@ Polymer_ElementMixin._evaluateBinding = function(inst, part, path, props, oldPro
 */
 Polymer_ElementMixin.finalize = function(){};
 /**
+* @param {string} is Tag name for this element
+* @param {!HTMLTemplateElement} template Template to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
+*/
+Polymer_ElementMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
+*/
+Polymer_ElementMixin._finalizeTemplate = function(is, ext){};
+/**
 * @interface
 */
 function Polymer_GestureEventListeners(){}
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {*} node 
+* @param {*} eventName 
+* @param {*} handler 
 */
 Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {*} node 
+* @param {*} eventName 
+* @param {*} handler 
 */
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
+/**
+* @interface
+* @extends {Polymer_PropertyAccessors}
+*/
+function Polymer_DirMixin(){}
+/** @type {boolean} */
+Polymer_DirMixin.prototype.__autoDirOptOut;
+
+/**
+* @param {string} name Name of attribute that changed
+* @param {?string} old Old attribute value
+* @param {?string} value New attribute value
+*/
+Polymer_DirMixin.prototype.attributeChangedCallback = function(name, old, value){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype._initializeProperties = function(){};
+/**
+* @param {Object} props Bag of property values that were overwritten
+  when creating property accessors.
+*/
+Polymer_DirMixin.prototype._initializeProtoProperties = function(props){};
+/**
+* @param {Object} props Bag of property values that were overwritten
+  when creating property accessors.
+*/
+Polymer_DirMixin.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} attribute Name of attribute to ensure is set.
+* @param {string} value of the attribute.
+*/
+Polymer_DirMixin.prototype._ensureAttribute = function(attribute, value){};
+/**
+* @param {string} attribute Name of attribute to deserialize.
+* @param {?string} value of the attribute.
+* @param {*=} type type to deserialize to.
+*/
+Polymer_DirMixin.prototype._attributeToProperty = function(attribute, value, type){};
+/**
+* @param {string} property Property name to reflect.
+* @param {string=} attribute Attribute name to reflect.
+* @param {*=} value Property value to refect.
+*/
+Polymer_DirMixin.prototype._propertyToAttribute = function(property, attribute, value){};
+/**
+* @param {Element} node Element to set attribute to.
+* @param {*} value Value to serialize.
+* @param {string} attribute Attribute name to serialize to.
+*/
+Polymer_DirMixin.prototype._valueToNodeAttribute = function(node, value, attribute){};
+/**
+* @param {*} value Property value to serialize.
+* @return {(string|undefined)}
+*/
+Polymer_DirMixin.prototype._serializeValue = function(value){};
+/**
+* @param {?string} value Attribute value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_DirMixin.prototype._deserializeValue = function(value, type){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
+*/
+Polymer_DirMixin.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Property name
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._hasAccessor = function(property){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+*/
+Polymer_DirMixin.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._setPendingProperty = function(property, value){};
+/**
+* @param {string} prop Property name
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._isPropertyPending = function(prop){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype._invalidateProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype._enableProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype._flushProperties = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.ready = function(){};
+/**
+* @param {!Object} currentProps Bag of all current accessor values
+* @param {!Object} changedProps Bag of properties changed since the last
+  call to `_propertiesChanged`
+* @param {!Object} oldProps Bag of previous values for each property
+  in `changedProps`
+*/
+Polymer_DirMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_DirMixin.prototype._shouldPropertyChange = function(property, value, old){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.connectedCallback = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.disconnectedCallback = function(){};
+/**
+*/
+Polymer_DirMixin.createPropertiesForAttributes = function(){};
+/**
+* @override
+*/
+Polymer_DirMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {string} text CSS text to replace DIR
+* @return {string}
+*/
+Polymer_DirMixin._replaceDirInCssText = function(text){};
 /**
 * @interface
 * @extends {Polymer_ElementMixin}
@@ -1382,15 +1534,15 @@ Polymer_LegacyElementMixin.prototype._stampTemplate = function(template){};
 */
 Polymer_LegacyElementMixin.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {*} node 
+* @param {*} eventName 
+* @param {*} handler 
 */
 Polymer_LegacyElementMixin.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
-* @param {*} node
-* @param {*} eventName
-* @param {*} handler
+* @param {*} node 
+* @param {*} eventName 
+* @param {*} handler 
 */
 Polymer_LegacyElementMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
@@ -1639,7 +1791,7 @@ Polymer_LegacyElementMixin.prototype.get = function(path, root){};
 Polymer_LegacyElementMixin.prototype.set = function(path, value, root){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_LegacyElementMixin.prototype.push = function(path, items){};
@@ -1652,7 +1804,7 @@ Polymer_LegacyElementMixin.prototype.pop = function(path){};
 * @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items
+* @param {...*} items 
 * @return {Array}
 */
 Polymer_LegacyElementMixin.prototype.splice = function(path, start, deleteCount, items){};
@@ -1663,7 +1815,7 @@ Polymer_LegacyElementMixin.prototype.splice = function(path, start, deleteCount,
 Polymer_LegacyElementMixin.prototype.shift = function(path){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_LegacyElementMixin.prototype.unshift = function(path, items){};
@@ -1791,7 +1943,7 @@ Polymer_LegacyElementMixin.prototype.deserialize = function(value, type){};
 /**
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
-* @param {*=} value Property value to refect.
+* @param {*=} value Property value to reflect.
 */
 Polymer_LegacyElementMixin.prototype.reflectPropertyToAttribute = function(property, attribute, value){};
 /**
@@ -1914,8 +2066,8 @@ Polymer_LegacyElementMixin.prototype.isLightDescendant = function(node){};
 */
 Polymer_LegacyElementMixin.prototype.isLocalDescendant = function(node){};
 /**
-* @param {*} container
-* @param {*} shouldObserve
+* @param {*} container 
+* @param {*} shouldObserve 
 */
 Polymer_LegacyElementMixin.prototype.scopeSubtree = function(container, shouldObserve){};
 /**
@@ -2023,20 +2175,20 @@ Polymer_LegacyElementMixin.prototype.arrayDelete = function(arrayOrPath, item){}
 */
 Polymer_LegacyElementMixin.prototype._logger = function(level, args){};
 /**
-* @param {...*} args
+* @param {...*} args 
 */
 Polymer_LegacyElementMixin.prototype._log = function(args){};
 /**
-* @param {...*} args
+* @param {...*} args 
 */
 Polymer_LegacyElementMixin.prototype._warn = function(args){};
 /**
-* @param {...*} args
+* @param {...*} args 
 */
 Polymer_LegacyElementMixin.prototype._error = function(args){};
 /**
 * @param {string} methodName Method name to associate with message
-* @param {...*} args
+* @param {...*} args 
 * @return {Array}
 */
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
@@ -2085,8 +2237,8 @@ Polymer_LegacyElementMixin._parseTemplateNodeAttributes = function(node, templat
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name
-* @param {*} value
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_LegacyElementMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
@@ -2170,6 +2322,18 @@ Polymer_LegacyElementMixin._evaluateBinding = function(inst, part, path, props, 
 /**
 */
 Polymer_LegacyElementMixin.finalize = function(){};
+/**
+* @param {string} is Tag name for this element
+* @param {!HTMLTemplateElement} template Template to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
+*/
+Polymer_LegacyElementMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
+*/
+Polymer_LegacyElementMixin._finalizeTemplate = function(is, ext){};
 /**
 * @interface
 */
@@ -2488,7 +2652,7 @@ Polymer_ArraySelectorMixin.prototype.get = function(path, root){};
 Polymer_ArraySelectorMixin.prototype.set = function(path, value, root){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_ArraySelectorMixin.prototype.push = function(path, items){};
@@ -2501,7 +2665,7 @@ Polymer_ArraySelectorMixin.prototype.pop = function(path){};
 * @param {(string|!Array.<(string|number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items
+* @param {...*} items 
 * @return {Array}
 */
 Polymer_ArraySelectorMixin.prototype.splice = function(path, start, deleteCount, items){};
@@ -2512,7 +2676,7 @@ Polymer_ArraySelectorMixin.prototype.splice = function(path, start, deleteCount,
 Polymer_ArraySelectorMixin.prototype.shift = function(path){};
 /**
 * @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items
+* @param {...*} items 
 * @return {number}
 */
 Polymer_ArraySelectorMixin.prototype.unshift = function(path, items){};
@@ -2671,8 +2835,8 @@ Polymer_ArraySelectorMixin._parseTemplateNodeAttributes = function(node, templat
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name
-* @param {*} value
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_ArraySelectorMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
@@ -2756,3 +2920,15 @@ Polymer_ArraySelectorMixin._evaluateBinding = function(inst, part, path, props, 
 /**
 */
 Polymer_ArraySelectorMixin.finalize = function(){};
+/**
+* @param {string} is Tag name for this element
+* @param {!HTMLTemplateElement} template Template to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
+*/
+Polymer_ArraySelectorMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
+*/
+Polymer_ArraySelectorMixin._finalizeTemplate = function(is, ext){};
