@@ -749,6 +749,18 @@ Polymer_ElementMixin._parseTemplateContent = function(template, templateInfo, no
 */
 Polymer_ElementMixin.finalize = function(){};
 /**
+* @param {string} is Tag name for this element
+* @param {!HTMLTemplateElement} template Template to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
+*/
+Polymer_ElementMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
+*/
+Polymer_ElementMixin._finalizeTemplate = function(is, ext){};
+/**
 * @interface
 */
 function Polymer_GestureEventListeners(){}
@@ -764,6 +776,35 @@ Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node,
 * @param {*} handler 
 */
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
+/**
+* @interface
+* @extends {Polymer_PropertyAccessors}
+*/
+function Polymer_DirMixin(){}
+/** @type {boolean} */
+Polymer_DirMixin.prototype.__autoDirOptOut;
+
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.ready = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.connectedCallback = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.disconnectedCallback = function(){};
+/**
+* @override
+*/
+Polymer_DirMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {string} text CSS text to replace DIR
+* @return {string}
+*/
+Polymer_DirMixin._replaceDirInCssText = function(text){};
 /**
 * @interface
 * @extends {Polymer_ElementMixin}
