@@ -1,5 +1,18 @@
 # Change Log
 
+## [v1.11.0-dev](https://github.com/Polymer/polymer/tree/v1.11.0-dev) (2017-10-18)
+- Factor :dir replacement into a separate function for css building ([commit](https://github.com/Polymer/polymer/commit/00a64050))
+
+- Always use complexSelector transformer ([commit](https://github.com/Polymer/polymer/commit/feaf5c61))
+
+- Check that document selectors are actually simple selectors ([commit](https://github.com/Polymer/polymer/commit/ad7805e5))
+
+- explain skipped test ([commit](https://github.com/Polymer/polymer/commit/fad613ee))
+
+- Add :dir support to Polymer 1 ([commit](https://github.com/Polymer/polymer/commit/ae37f83d))
+
+- [ci skip] Update Changelog ([commit](https://github.com/Polymer/polymer/commit/db0a9326))
+
 ## [v1.10.1-dev](https://github.com/Polymer/polymer/tree/v1.10.1-dev) (2017-09-28)
 - Just move the style, don't clone ([commit](https://github.com/Polymer/polymer/commit/36e9310f))
 
