@@ -26,6 +26,7 @@ const closure = require('google-closure-compiler').gulp();
 const minimalDocument = require('./util/minimalDocument.js');
 const dom5 = require('dom5');
 const parse5 = require('parse5');
+const replace = require('gulp-replace');
 
 const DIST_DIR = 'dist';
 const BUNDLED_DIR = path.join(DIST_DIR, 'bundled');
@@ -264,4 +265,10 @@ gulp.task('generate-externs', ['clean'], () => {
   return genClosure().then((declarations) => {
     fs.writeFileSync('externs/closure-types.js', `${header}${declarations}`);
   });
+});
+
+gulp.task('update-version', () => {
+  gulp.src('lib/utils/boot.html')
+  .pipe(replace(/(window.Polymer.version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
+  .pipe(gulp.dest('lib/utils'));
 });
