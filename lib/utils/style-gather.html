@@ -14,6 +14,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   const MODULE_STYLE_LINK_SELECTOR = 'link[rel=import][type~=css]';
   const INCLUDE_ATTR = 'include';
+  const SHADY_UNSCOPED_ATTR = 'shady-unscoped';
+  const unscopedStyleImportsMap = new WeakMap();
 
   function importModule(moduleId) {
     const /** Polymer.DomModule */ PolymerDomModule = customElements.get('dom-module');
@@ -109,8 +111,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           cssText += this.cssFromModules(include);
         }
         e.parentNode.removeChild(e);
-        cssText += baseURI ?
+        const styleCss = baseURI ?
           Polymer.ResolveUrl.resolveCss(e.textContent, baseURI) : e.textContent;
+        if (window.ShadyDOM && e.hasAttribute(SHADY_UNSCOPED_ATTR)) {
+          e.textContent = styleCss;
+          document.head.insertBefore(e, document.head.firstChild);
+        } else {
+          cssText += styleCss;
+        }
       }
       return cssText;
     },
@@ -145,9 +153,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           // under the HTMLImports polyfill, there will be no 'body',
           // but the import pseudo-doc can be used directly.
           let container = importDoc.body ? importDoc.body : importDoc;
-          cssText +=
-            Polymer.ResolveUrl.resolveCss(container.textContent,
-              importDoc.baseURI);
+          const importCss = Polymer.ResolveUrl.resolveCss(container.textContent,
+            importDoc.baseURI);
+          // support the shady-unscoped promoting styles to main document
+          if (window.ShadyDOM && p.hasAttribute(SHADY_UNSCOPED_ATTR)) {
+            if (!unscopedStyleImportsMap.has(importDoc)) {
+              unscopedStyleImportsMap.set(importDoc);
+              const style = document.createElement('style');
+              style.setAttribute(SHADY_UNSCOPED_ATTR, '');
+              style.textContent = importCss;
+              document.head.insertBefore(style, document.head.firstChild);
+            }
+          } else {
+            cssText += importCss;
+          }
         }
       }
       return cssText;
