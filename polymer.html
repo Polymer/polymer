@@ -2525,7 +2525,7 @@ MIXIN_RULE: 1000
 OPEN_BRACE: '{',
 CLOSE_BRACE: '}',
 _rx: {
-comments: /\/\*[^*]*\*+([^\/*][^*]*\*+)*\//gim,
+comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
 port: /@import[^;]*;/gim,
 customProp: /(?:^[^;\-\s}]+)?--[^;{}]*?:[^{};]*?(?:[;\n]|$)/gim,
 mixinProp: /(?:^[^;\-\s}]+)?--[^;{}]*?:[^{};]*?{[^}]*?}(?:[;\n]|$)?/gim,
@@ -2839,6 +2839,7 @@ var self = this;
 cb = function (rule) {
 rule.selector = self._slottedToContent(rule.selector);
 rule.selector = rule.selector.replace(ROOT, ':host > *');
+rule.selector = self._dirShadowTransform(rule.selector);
 if (callback) {
 callback(rule);
 }
@@ -2934,6 +2935,7 @@ if (jumpIndex >= 0) {
 selector = selector.replace(SCOPE_JUMP, ' ');
 stop = true;
 }
+selector = selector.replace(DIR_PAREN, DIR_REPLACE);
 return {
 value: selector,
 combinator: combinator,
@@ -2982,10 +2984,17 @@ return !part.match(HOST_OR_HOST_GT_STAR);
 rule.selector = parts.join(COMPLEX_SELECTOR_SEP);
 },
 _transformDocumentSelector: function (selector) {
-return selector.match(SCOPE_JUMP) ? this._transformComplexSelector(selector, SCOPE_DOC_SELECTOR) : this._transformSimpleSelector(selector.trim(), SCOPE_DOC_SELECTOR);
+return this._transformComplexSelector(selector, SCOPE_DOC_SELECTOR);
 },
 _slottedToContent: function (cssText) {
 return cssText.replace(SLOTTED_PAREN, CONTENT + '> $1');
+},
+_dirShadowTransform: function (selector) {
+return selector.split(',').map(function (s) {
+s = s.replace(HOST_DIR, HOST_DIR_REPLACE);
+s = s.replace(DIR_PAREN, SHADOW_DIR_REPLACE);
+return s;
+}).join(',');
 },
 SCOPE_NAME: 'style-scope'
 };
@@ -3010,6 +3019,11 @@ var CONTENT_START = new RegExp('^(' + CONTENT + ')');
 var SELECTOR_NO_MATCH = 'should_not_match';
 var SLOTTED_PAREN = /(?:::slotted)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
 var HOST_OR_HOST_GT_STAR = /:host(?:\s*>\s*\*)?/;
+var DIR_PAREN = /(.*):dir\((ltr|rtl)\)/g;
+var DIR_REPLACE = '[dir="$2"] $1, $1[dir="$2"]';
+var SHADOW_DIR_REPLACE = ':host-context([dir="$2"]) $1';
+var HOST_DIR = /:host\(:dir\((rtl|ltr)\)\)/g;
+var HOST_DIR_REPLACE = ':host-context([dir="$1"])';
 return api;
 }();Polymer.StyleExtends = function () {
 var styleUtil = Polymer.StyleUtil;
