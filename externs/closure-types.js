@@ -756,9 +756,8 @@ Polymer_ElementMixin.finalize = function(){};
 Polymer_ElementMixin._processStyleText = function(cssText, baseURI){};
 /**
 * @param {string} is Tag name (or type extension name) for this element
-* @param {string=} ext For type extensions, the tag name that was extended
 */
-Polymer_ElementMixin._finalizeTemplate = function(is, ext){};
+Polymer_ElementMixin._finalizeTemplate = function(is){};
 /**
 * @interface
 */
