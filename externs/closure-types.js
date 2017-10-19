@@ -749,12 +749,11 @@ Polymer_ElementMixin._parseTemplateContent = function(template, templateInfo, no
 */
 Polymer_ElementMixin.finalize = function(){};
 /**
-* @param {string} is Tag name for this element
-* @param {!HTMLTemplateElement} template Template to process
+* @param {string} cssText Text containing styling to process
 * @param {string} baseURI Base URI to rebase CSS paths against
 * @return {string}
 */
-Polymer_ElementMixin._processStyleText = function(is, template, baseURI){};
+Polymer_ElementMixin._processStyleText = function(cssText, baseURI){};
 /**
 * @param {string} is Tag name (or type extension name) for this element
 * @param {string=} ext For type extensions, the tag name that was extended
@@ -799,7 +798,7 @@ Polymer_DirMixin.prototype.disconnectedCallback = function(){};
 /**
 * @override
 */
-Polymer_DirMixin._processStyleText = function(is, template, baseURI){};
+Polymer_DirMixin._processStyleText = function(cssText, baseURI){};
 /**
 * @param {string} text CSS text to replace DIR
 * @return {string}
