@@ -426,6 +426,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             rule.keyframesName, rule.transformedKeyframesName);
       },
 
+      _hasDirOrHostContext: function(parsedSelector) {
+        return /:host-context|:dir/.test(parsedSelector);
+      },
+
       // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
       // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
       // host selector: x-foo.wide -> .x-foo-42.wide
@@ -437,14 +441,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _scopeSelector: function(rule, hostRx, hostSelector, viaAttr, scopeId) {
         rule.transformedSelector = rule.transformedSelector || rule.selector;
         var selector = rule.transformedSelector;
-        var scope = viaAttr ? '[' + styleTransformer.SCOPE_NAME + '~=' +
-          scopeId + ']' :
-          '.' + scopeId;
+        var scope = styleTransformer._calcElementScope(scopeId, viaAttr);
         var parts = selector.split(',');
         for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
-          parts[i] = p.match(hostRx) ?
-            p.replace(hostSelector, scope) :
-            scope + ' ' + p;
+          // :host-context and :dir will
+          if (this._hasDirOrHostContext(rule.parsedSelector)) {
+            var hostScope = styleTransformer._calcElementScope(hostSelector, viaAttr);
+            var sub = p.split(' ');
+            for (var j = 0; j < sub.length; j++) {
+              sub[j] = sub[j].replace(hostScope, scope);
+            }
+            parts[i] = sub.join(' ');
+          } else {
+            parts[i] = p.match(hostRx) ?
+              p.replace(hostSelector, scope) :
+              scope + ' ' + p;
+          }
         }
         rule.selector = parts.join(',');
       },
