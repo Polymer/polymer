@@ -55,11 +55,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         /**
          * Creates property accessors for the given property names.
-         * @param {Array} props Array of names of accessors.
+         * @param {object} props Object whose keys are names of accessors.
          */
         static createProperties(props) {
-          for (let i = 0; i < props.length; i++) {
-            this.prototype._createPropertyAccessor(props[i]);
+          for (let prop in props) {
+            this.prototype._createPropertyAccessor(prop);
           }
         }
 
@@ -136,6 +136,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          */
         ready() {
           this.__dataReady = true;
+          this._flushProperties();
         }
 
         /**
@@ -237,19 +238,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         _invalidateProperties() {
           if (!this.__dataInvalid && this.__dataReady) {
             this.__dataInvalid = true;
-            microtask.run(() => this._validateProperties());
-          }
-        }
-
-        /**
-         * Changes are processed at microtask timing, but this method can be
-         * calleed to force any pending changes to be immediately processed.
-         * @protected
-         */
-        _validateProperties() {
-          if (this.__dataInvalid) {
-            this.__dataInvalid = false;
-            this._flushProperties();
+            microtask.run(() => {
+              if (this.__dataInvalid) {
+                this.__dataInvalid = false;
+                this._flushProperties();
+              }
+            });
           }
         }
 
@@ -284,9 +278,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @protected
          */
         _flushProperties() {
-          let changedProps = this.__dataPending;
-          this.__dataPending = null;
-          this._propertiesChanged(this.__data, changedProps, this.__dataOld);
+          if (this.__dataPending && this.__dataOld) {
+            let changedProps = this.__dataPending;
+            this.__dataPending = null;
+            this._propertiesChanged(this.__data, changedProps, this.__dataOld);
+          }
         }
 
         /**
@@ -384,17 +380,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         /**
          * Sets a typed value to an HTML attribute on a node.
          *
-         * If the value is `undefined`, the attribute will be removed.
+         * This method calls the `_serializeValue` method to convert the typed
+         * value to a string.  If the `_serializeValue` method returns `undefined`,
+         * the attribute will be removed (this is the default for boolean
+         * type `false`).
          *
          * @param {Element} node Element to set attribute to.
          * @param {*} value Value to serialize.
          * @param {string} attribute Attribute name to serialize to.
          */
         _valueToNodeAttribute(node, value, attribute) {
-          if (!value && value !== '' && value !== 0) {
+          const str = this._serializeValue(value);
+          if (str === undefined) {
             node.removeAttribute(attribute);
           } else {
-            node.setAttribute(attribute, value === true ? '' : value);
+            node.setAttribute(attribute, str);
+          }
+        }
+
+        _serializeValue(value) {
+          switch (typeof value) {
+            case 'boolean':
+              return value ? '' : undefined;
+            default:
+              return value != null ? value.toString() : undefined;
           }
         }
 
@@ -434,7 +443,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @protected
          */
         _attributeForProperty(property) {
-          return property;
+          return property.toLowerCase();
         }
 
         /**
