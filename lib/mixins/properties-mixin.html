@@ -47,13 +47,48 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
+     * Mixes `moreProps` into `props` but upgrades shorthand type
+     * syntax to { type: Type}.
+     *
+     * @param {Object} props Bag to collect flattened properties into
+     * @param {Object} moreProps Bag of properties to add to `props`
+     * @return {Object} The input `props` bag
+     * @private
+     */
+    function mixProperties(props, moreProps) {
+      for (let p in moreProps) {
+        let o = moreProps[p];
+        if (typeof o == 'function') {
+          o = { type: o };
+        }
+        props[p] = o;
+      }
+      return props;
+    }
+
+    /**
+     * Returns the super class constructor for the given class, if it is an
+     * instance of the PropertiesClass.
+     *
+     * @param {PropertiesClassConstructor} ctor PropertiesClass constructor
+     * @returns {PropertiesClassConstructor} Super class constructor
+     */
+    function superForClass(ctor) {
+      const proto = /** @type {PropertiesClassConstructor} */ (ctor).prototype;
+      const superCtor = Object.getPrototypeOf(proto).constructor;
+      if (superCtor.prototype instanceof PropertiesClass) {
+        return superCtor;
+      }
+    }
+
+    /**
      * @polymer
      * @mixinClass
      * @extends {base}
      * @implements {Polymer_PropertiesMixin}
      * @unrestricted
      */
-    class Properties extends base {
+    class PropertiesClass extends base {
 
       static get BooleanAttribute() {
         return BooleanAttribute;
@@ -64,75 +99,96 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * listed in `properties`.
        */
       static get observedAttributes() {
-        this._ensurePropertyInfo();
-        const props = this.prototype.__propertyInfo;
+        const props = this._properties;
         return props ? Object.keys(props).map(p => {
           return this.prototype._attributeForProperty(p);
         }) : [];
       }
 
-      _propertyForAttribute(name) {
-        return this.__attributeInfo[name] || name;
-      }
-
-      _attributeForProperty(name) {
-        const info = this.__propertyInfo[name];
-        return info && info.attribute || name.toLowerCase();
-      }
-
-      static _ensureFinalized(name) {
-        if (!this.prototype.hasOwnProperty('__finalized')) {
-          this.finalize(name);
+      /**
+       * Finalizes an element definition, including ensuring any super classes
+       * are also finalized. This includes ensuring property
+       * accessors exist on the element prototype. This method calls
+       * `_finalizeClass` to finalize each constructor in the prototype chain.
+       * @param {string} name Name of the element
+       */
+       static finalize() { // eslint-disable-line no-unused-vars
+        if (!this.hasOwnProperty(JSCompiler_renameProperty('__finalized', this))) {
+          const superCtor = superForClass(this);
+          if (superCtor) {
+            superCtor.finalize();
+          }
+          this.__finalized = true;
+          this._finalizeClass();
         }
       }
 
       /**
-       * Finalizes an element definition. This includes ensuring property
-       * accessors exist on the element prototype and parsing the element
-       * template.
-       * @param {string} name Name of the element
+       * Finalize an element class. This includes ensuring property
+       * accessors exist on the element prototype. This method is called by
+       * `finalize` and finalizes the class constructor.
+       *
+       * @protected
        */
-      static finalize(name) { // eslint-disable-line no-unused-vars
-        this.prototype.__finalized = true;
-        this._ensurePropertyInfo();
-        const props = this.prototype.__propertyInfo;
+      static _finalizeClass() {
+        const props = this._ownProperties;
         if (props) {
-          this.createProperties(Object.keys(props));
+          this.createProperties(props);
         }
       }
 
-      static _ensurePropertyInfo() {
-        let proto = this.prototype;
-        if (!proto.hasOwnProperty('__propertyInfo')) {
-          const props = this.prototype.__propertyInfo = this.properties;
-          const attrInfo = this.prototype.__attributeInfo = {};
+      /**
+       * Returns a memoized version of the `properties` object. Properties
+       * not in object format are converted to at lesat {type}.
+       *
+       * @return {Object} Object containing own properties for this class
+       * @protected
+       */
+      static get _ownProperties() {
+        if (!this.hasOwnProperty(JSCompiler_renameProperty('__ownProperties', this))) {
+          const props = this.properties;
+          this.__ownProperties = props ? mixProperties({}, props) : null;
+        }
+        return this.__ownProperties;
+      }
+
+      /**
+       * Returns a memoized version of all properties, including those inherited
+       * from super classes. Properties not in object format are converted to
+       * at lesat {type}.
+       *
+       * @return {Object} Object containing properties for this class
+       * @protected
+       */
+      static get _properties() {
+        if (!this.hasOwnProperty(JSCompiler_renameProperty('__properties', this))) {
+          const superCtor = superForClass(this);
+          this.__properties = Object.assign({},
+            superCtor && superCtor._properties, this._ownProperties);
+        }
+        return this.__properties;
+      }
+
+      static get _attributeInfo() {
+        if (!this.hasOwnProperty(JSCompiler_renameProperty('__attributeInfo', this))) {
+          const proto = this.prototype;
+          const attrInfo = this.__attributeInfo = {};
+          const props = this._properties;
           for (let prop in props) {
             attrInfo[proto._attributeForProperty(prop)] = prop;
           }
         }
+        return this.__attributeInfo;
       }
 
-      /**
-       * Overrides implementation in PropertiesChanged to immediately process
-       * any pending changes to properties and ensure that
-       * `_propertiesChanged` is called.
-       *
-       * @public
-       */
-      ready() {
-        super.ready();
-        this._invalidateProperties();
-        this._validateProperties();
+      _propertyForAttribute(name) {
+        return this.constructor._attributeInfo[name] ||
+          super._propertyForAttribute(name);
       }
 
-      /**
-       * Overrides default behavior and adds a call to `finalize` which lazily
-       * configures the element's property accessors.
-       * @override
-       */
-      _initializeProperties() {
-        this.constructor._ensureFinalized(this.localName);
-        super._initializeProperties();
+      _attributeForProperty(name) {
+        const info = this.constructor._properties[name];
+        return info && info.attribute || super._attributeForProperty(name);
       }
 
       /**
@@ -144,8 +200,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _typeForProperty(name) {
-        const info = this.__propertyInfo[name];
+        const info = this.constructor._properties[name];
         return info.type || info;
+      }
+
+      /**
+       * Overrides default behavior and adds a call to `finalize` which lazily
+       * configures the element's property accessors.
+       * @override
+       */
+      _initializeProperties() {
+        this.constructor.finalize(this.localName);
+        super._initializeProperties();
       }
 
       /**
@@ -164,7 +230,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     }
 
-    return Properties;
+    return PropertiesClass;
 
   });
 
