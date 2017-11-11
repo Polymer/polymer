@@ -1,4 +1,7 @@
 /**
+ * @fileoverview Generated typings for Polymer mixins
+ * @externs
+ *
  * @license
  * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
  * This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
@@ -7,13 +10,7 @@
  * Code distributed by Google as part of the polymer project is also
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
-/**
- * @fileoverview Closure types for Polymer mixins
- *
- * This file is generated, do not edit manually
- */
-/* eslint-disable no-unused-vars, strict */
-
+/* eslint-disable */
 /**
 * @interface
 */
@@ -65,10 +62,6 @@ Polymer_PropertiesChanged.prototype._invalidateProperties = function(){};
 /**
 * @return {undefined}
 */
-Polymer_PropertiesChanged.prototype._validateProperties = function(){};
-/**
-* @return {undefined}
-*/
 Polymer_PropertiesChanged.prototype._enableProperties = function(){};
 /**
 * @return {undefined}
@@ -103,6 +96,22 @@ returned from `_typeForProperty`
 */
 Polymer_PropertiesChanged.prototype._attributeToProperty = function(attribute, value, type){};
 /**
+* @param {string} property Property name to reflect.
+* @param {string=} attribute Attribute name to reflect to.
+* @param {*=} value Property value to refect.
+*/
+Polymer_PropertiesChanged.prototype._propertyToAttribute = function(property, attribute, value){};
+/**
+* @param {Element} node Element to set attribute to.
+* @param {*} value Value to serialize.
+* @param {string} attribute Attribute name to serialize to.
+*/
+Polymer_PropertiesChanged.prototype._valueToNodeAttribute = function(node, value, attribute){};
+/**
+* @param {*} value 
+*/
+Polymer_PropertiesChanged.prototype._serializeValue = function(value){};
+/**
 * @param {?string} value Value to deserialize.
 * @param {*=} type Type to deserialize the string to.
 * @return {*}
@@ -123,7 +132,7 @@ Polymer_PropertiesChanged.prototype._attributeForProperty = function(property){}
 */
 Polymer_PropertiesChanged.prototype._typeForProperty = function(name){};
 /**
-* @param {Array} props Array of names of accessors.
+* @param {Object} props Object whose keys are names of accessors.
 */
 Polymer_PropertiesChanged.createProperties = function(props){};
 /**
@@ -131,18 +140,9 @@ Polymer_PropertiesChanged.createProperties = function(props){};
 * @extends {Polymer_PropertiesChanged}
 */
 function Polymer_PropertyAccessors(){}
-/** @type {boolean} */
-Polymer_PropertyAccessors.prototype.__serializing;
-
 /** @type {number} */
 Polymer_PropertyAccessors.prototype.__dataCounter;
 
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_PropertyAccessors.prototype._createPropertyAccessor = function(property, readOnly){};
 /**
 * @param {string} property Name of the property
 * @param {boolean=} readOnly When true, no setter is created
@@ -158,75 +158,22 @@ Polymer_PropertyAccessors.prototype._generatePropertyAccessor = function(propert
 /**
 * @return {undefined}
 */
-Polymer_PropertyAccessors.prototype.ready = function(){};
-/**
-* @return {undefined}
-*/
 Polymer_PropertyAccessors.prototype._initializeProperties = function(){};
-/**
-* @param {Object} props Bag of property values that were overwritten
-  when creating property accessors.
-*/
-Polymer_PropertyAccessors.prototype._initializeInstanceProperties = function(props){};
-/**
-* @param {string} property Name of the property
-* @param {*} value Value to set
-*/
-Polymer_PropertyAccessors.prototype._setProperty = function(property, value){};
-/**
-* @param {string} property Name of property
-* @return {*}
-*/
-Polymer_PropertyAccessors.prototype._getProperty = function(property){};
-/**
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @return {boolean}
-*/
-Polymer_PropertyAccessors.prototype._setPendingProperty = function(property, value){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype._validateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype._enableProperties = function(){};
 /**
 * @return {undefined}
 */
 Polymer_PropertyAccessors.prototype._flushProperties = function(){};
 /**
-* @param {!Object} currentProps Bag of all current accessor values
-* @param {!Object} changedProps Bag of properties changed since the last
-  call to `_propertiesChanged`
-* @param {!Object} oldProps Bag of previous values for each property
-  in `changedProps`
+* @param {Element} node Element to set attribute to.
+* @param {*} value Value to serialize.
+* @param {string} attribute Attribute name to serialize to.
 */
-Polymer_PropertyAccessors.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+Polymer_PropertyAccessors.prototype._valueToNodeAttribute = function(node, value, attribute){};
 /**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
+* @param {*} value Property value to serialize.
+* @return {(string|undefined)}
 */
-Polymer_PropertyAccessors.prototype._shouldPropertyChange = function(property, value, old){};
-/**
-* @param {string} name Name of attribute that changed
-* @param {?string} old Old attribute value
-* @param {?string} value New attribute value
-*/
-Polymer_PropertyAccessors.prototype.attributeChangedCallback = function(name, old, value){};
-/**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
-*/
-Polymer_PropertyAccessors.prototype._attributeToProperty = function(attribute, value, type){};
+Polymer_PropertyAccessors.prototype._serializeValue = function(value){};
 /**
 * @param {?string} value Attribute value to deserialize.
 * @param {*=} type Type to deserialize the string to.
@@ -244,10 +191,6 @@ Polymer_PropertyAccessors.prototype._propertyForAttribute = function(attribute){
 */
 Polymer_PropertyAccessors.prototype._attributeForProperty = function(property){};
 /**
-* @param {string} name Name of property
-*/
-Polymer_PropertyAccessors.prototype._typeForProperty = function(name){};
-/**
 * @param {Object} props Bag of property values that were overwritten
   when creating property accessors.
 */
@@ -257,23 +200,6 @@ Polymer_PropertyAccessors.prototype._initializeProtoProperties = function(props)
 * @param {string} value of the attribute.
 */
 Polymer_PropertyAccessors.prototype._ensureAttribute = function(attribute, value){};
-/**
-* @param {string} property Property name to reflect.
-* @param {string=} attribute Attribute name to reflect.
-* @param {*=} value Property value to refect.
-*/
-Polymer_PropertyAccessors.prototype._propertyToAttribute = function(property, attribute, value){};
-/**
-* @param {Element} node Element to set attribute to.
-* @param {*} value Value to serialize.
-* @param {string} attribute Attribute name to serialize to.
-*/
-Polymer_PropertyAccessors.prototype._valueToNodeAttribute = function(node, value, attribute){};
-/**
-* @param {*} value Property value to serialize.
-* @return {(string|undefined)}
-*/
-Polymer_PropertyAccessors.prototype._serializeValue = function(value){};
 /**
 * @param {string} property Property name
 * @return {boolean}
@@ -285,10 +211,7 @@ Polymer_PropertyAccessors.prototype._hasAccessor = function(property){};
 */
 Polymer_PropertyAccessors.prototype._isPropertyPending = function(prop){};
 /**
-* @param {Array} props Array of names of accessors.
-*/
-Polymer_PropertyAccessors.createProperties = function(props){};
-/**
+* @return {undefined}
 */
 Polymer_PropertyAccessors.createPropertiesForAttributes = function(){};
 /**
@@ -449,45 +372,6 @@ Polymer_PropertyEffects.prototype.__templateInfo;
 */
 Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
 /**
-* @param {Node} node Node to add listener on
-* @param {string} eventName Name of event
-* @param {string} methodName Name of method
-* @param {*=} context Context the method will be called on (defaults
-  to `node`)
-* @return {Function}
-*/
-Polymer_PropertyEffects.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
-/**
-* @param {Node} node Node to add event listener to
-* @param {string} eventName Name of event
-* @param {Function} handler Listener function to add
-*/
-Polymer_PropertyEffects.prototype._addEventListenerToNode = function(node, eventName, handler){};
-/**
-* @param {Node} node Node to remove event listener from
-* @param {string} eventName Name of event
-* @param {Function} handler Listener function to remove
-*/
-Polymer_PropertyEffects.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_PropertyEffects.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created
-
-When calling on a prototype, any overwritten values are saved in
-`__dataProto`, and it is up to the subclasser to decide how/when
-to set those properties back into the accessor.  When calling on an
-instance, the overwritten value is set via `_setPendingProperty`,
-and the user should call `_invalidateProperties` or `_flushProperties`
-for the values to take effect.
-*/
-Polymer_PropertyEffects.prototype._generatePropertyAccessor = function(property, readOnly){};
-/**
 * @override
 */
 Polymer_PropertyEffects.prototype.ready = function(){};
@@ -505,11 +389,6 @@ Polymer_PropertyEffects.prototype._initializeInstanceProperties = function(props
 */
 Polymer_PropertyEffects.prototype._setProperty = function(property, value){};
 /**
-* @param {string} property Name of property
-* @return {*}
-*/
-Polymer_PropertyEffects.prototype._getProperty = function(property){};
-/**
 * @override
 * @param {string} property Name of the property
 * @param {*} value Value to set
@@ -523,97 +402,14 @@ Polymer_PropertyEffects.prototype._setPendingProperty = function(property, value
 */
 Polymer_PropertyEffects.prototype._invalidateProperties = function(){};
 /**
-* @return {undefined}
-*/
-Polymer_PropertyEffects.prototype._validateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyEffects.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyEffects.prototype._flushProperties = function(){};
-/**
 * @override
 */
 Polymer_PropertyEffects.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_PropertyEffects.prototype._shouldPropertyChange = function(property, value, old){};
-/**
-* @param {string} name Name of attribute that changed
-* @param {?string} old Old attribute value
-* @param {?string} value New attribute value
-*/
-Polymer_PropertyEffects.prototype.attributeChangedCallback = function(name, old, value){};
-/**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
-*/
-Polymer_PropertyEffects.prototype._attributeToProperty = function(attribute, value, type){};
-/**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_PropertyEffects.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} attribute Attribute to convert
-* @return {string}
-*/
-Polymer_PropertyEffects.prototype._propertyForAttribute = function(attribute){};
-/**
-* @param {string} property Property to convert
-* @return {string}
-*/
-Polymer_PropertyEffects.prototype._attributeForProperty = function(property){};
-/**
-* @param {string} name Name of property
-*/
-Polymer_PropertyEffects.prototype._typeForProperty = function(name){};
 /**
 * @override
 * @param {Object} props Properties to initialize on the prototype
 */
 Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){};
-/**
-* @param {string} attribute Name of attribute to ensure is set.
-* @param {string} value of the attribute.
-*/
-Polymer_PropertyEffects.prototype._ensureAttribute = function(attribute, value){};
-/**
-* @param {string} property Property name to reflect.
-* @param {string=} attribute Attribute name to reflect.
-* @param {*=} value Property value to refect.
-*/
-Polymer_PropertyEffects.prototype._propertyToAttribute = function(property, attribute, value){};
-/**
-* @param {Element} node Element to set attribute to.
-* @param {*} value Value to serialize.
-* @param {string} attribute Attribute name to serialize to.
-*/
-Polymer_PropertyEffects.prototype._valueToNodeAttribute = function(node, value, attribute){};
-/**
-* @param {*} value Property value to serialize.
-* @return {(string|undefined)}
-*/
-Polymer_PropertyEffects.prototype._serializeValue = function(value){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_PropertyEffects.prototype._hasAccessor = function(property){};
-/**
-* @param {string} prop Property name
-* @return {boolean}
-*/
-Polymer_PropertyEffects.prototype._isPropertyPending = function(prop){};
 /**
 * @param {string} property Property that should trigger the effect
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
@@ -833,19 +629,6 @@ Polymer_PropertyEffects.prototype._bindTemplate = function(template, instanceBin
 */
 Polymer_PropertyEffects.prototype._removeBoundDom = function(dom){};
 /**
-* @param {!HTMLTemplateElement} template Template to parse
-* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
-  template, for parsing nested templates
-* @return {!TemplateInfo}
-*/
-Polymer_PropertyEffects._parseTemplate = function(template, outerTemplateInfo){};
-/**
-* @param {*} template 
-* @param {*} templateInfo 
-* @param {*} nodeInfo 
-*/
-Polymer_PropertyEffects._parseTemplateContent = function(template, templateInfo, nodeInfo){};
-/**
 * @override
 * @param {Node} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
@@ -853,12 +636,6 @@ Polymer_PropertyEffects._parseTemplateContent = function(template, templateInfo,
 * @return {boolean}
 */
 Polymer_PropertyEffects._parseTemplateNode = function(node, templateInfo, nodeInfo){};
-/**
-* @param {Node} root Root node whose `childNodes` will be parsed
-* @param {!TemplateInfo} templateInfo Template metadata for current template
-* @param {!NodeInfo} nodeInfo Node metadata for current template.
-*/
-Polymer_PropertyEffects._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
 /**
 * @override
 * @param {Node} node Node to parse
@@ -868,34 +645,15 @@ Polymer_PropertyEffects._parseTemplateChildNodes = function(root, templateInfo, 
 */
 Polymer_PropertyEffects._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
 /**
-* @param {Element} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template.
-* @return {boolean}
-*/
-Polymer_PropertyEffects._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
-/**
 * @override
 * @param {Element} node Node to parse
 * @param {TemplateInfo} templateInfo Template metadata for current template
 * @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name 
-* @param {*} value 
+* @param {string} name Attribute name
+* @param {string} value Attribute value
 * @return {boolean}
 */
 Polymer_PropertyEffects._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
-/**
-* @param {HTMLTemplateElement} template Template to retrieve `content` for
-* @return {DocumentFragment}
-*/
-Polymer_PropertyEffects._contentForTemplate = function(template){};
-/**
-* @param {Array} props Array of names of accessors.
-*/
-Polymer_PropertyEffects.createProperties = function(props){};
-/**
-*/
-Polymer_PropertyEffects.createPropertiesForAttributes = function(){};
 /**
 * @param {string} property Property that should trigger the effect
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
@@ -967,6 +725,44 @@ Polymer_PropertyEffects._parseBindings = function(text, templateInfo){};
 Polymer_PropertyEffects._evaluateBinding = function(inst, part, path, props, oldProps, hasPaths){};
 /**
 * @interface
+* @extends {Polymer_PropertiesChanged}
+*/
+function Polymer_PropertiesMixin(){}
+/**
+* @override
+*/
+Polymer_PropertiesMixin.prototype._initializeProperties = function(){};
+/**
+* @param {*} name 
+*/
+Polymer_PropertiesMixin.prototype._propertyForAttribute = function(name){};
+/**
+* @param {*} name 
+*/
+Polymer_PropertiesMixin.prototype._attributeForProperty = function(name){};
+/**
+* @param {string} name Name of property
+* @return {*}
+*/
+Polymer_PropertiesMixin.prototype._typeForProperty = function(name){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype.connectedCallback = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.prototype.disconnectedCallback = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin.finalize = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin._finalizeClass = function(){};
+/**
+* @interface
 * @extends {Polymer_PropertyEffects}
 */
 function Polymer_ElementMixin(){}
@@ -985,54 +781,9 @@ Polymer_ElementMixin.prototype.importPath;
 /** @type {(StampedTemplate|HTMLElement|ShadowRoot)} */
 Polymer_ElementMixin.prototype.root;
 
-/** @type {!Object.<string, !Node>} */
+/** @type {!Object.<string, !Element>} */
 Polymer_ElementMixin.prototype.$;
 
-/**
-* @override
-* @param {!HTMLTemplateElement} template Template to stamp
-* @return {!StampedTemplate}
-*/
-Polymer_ElementMixin.prototype._stampTemplate = function(template){};
-/**
-* @param {Node} node Node to add listener on
-* @param {string} eventName Name of event
-* @param {string} methodName Name of method
-* @param {*=} context Context the method will be called on (defaults
-  to `node`)
-* @return {Function}
-*/
-Polymer_ElementMixin.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
-/**
-* @param {Node} node Node to add event listener to
-* @param {string} eventName Name of event
-* @param {Function} handler Listener function to add
-*/
-Polymer_ElementMixin.prototype._addEventListenerToNode = function(node, eventName, handler){};
-/**
-* @param {Node} node Node to remove event listener from
-* @param {string} eventName Name of event
-* @param {Function} handler Listener function to remove
-*/
-Polymer_ElementMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_ElementMixin.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created
-
-When calling on a prototype, any overwritten values are saved in
-`__dataProto`, and it is up to the subclasser to decide how/when
-to set those properties back into the accessor.  When calling on an
-instance, the overwritten value is set via `_setPendingProperty`,
-and the user should call `_invalidateProperties` or `_flushProperties`
-for the values to take effect.
-*/
-Polymer_ElementMixin.prototype._generatePropertyAccessor = function(property, readOnly){};
 /**
 * @override
 */
@@ -1043,350 +794,19 @@ Polymer_ElementMixin.prototype.ready = function(){};
 Polymer_ElementMixin.prototype._initializeProperties = function(){};
 /**
 * @override
-* @param {Object} props Properties to initialize on the instance
-*/
-Polymer_ElementMixin.prototype._initializeInstanceProperties = function(props){};
-/**
-* @override
-*/
-Polymer_ElementMixin.prototype._setProperty = function(property, value){};
-/**
-* @param {string} property Name of property
-* @return {*}
-*/
-Polymer_ElementMixin.prototype._getProperty = function(property){};
-/**
-* @override
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify True if property should fire notification
-  event (applies only for `notify: true` properties)
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
-/**
-* @override
-*/
-Polymer_ElementMixin.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ElementMixin.prototype._validateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ElementMixin.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ElementMixin.prototype._flushProperties = function(){};
-/**
-* @override
-*/
-Polymer_ElementMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._shouldPropertyChange = function(property, value, old){};
-/**
-* @override
 * @param {string} name Name of attribute.
 * @param {?string} old Old value of attribute.
 * @param {?string} value Current value of attribute.
 */
 Polymer_ElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
-*/
-Polymer_ElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
-/**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_ElementMixin.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} attribute Attribute to convert
-* @return {string}
-*/
-Polymer_ElementMixin.prototype._propertyForAttribute = function(attribute){};
-/**
-* @param {string} property Property to convert
-* @return {string}
-*/
-Polymer_ElementMixin.prototype._attributeForProperty = function(property){};
-/**
-* @param {string} name Name of property
-*/
-Polymer_ElementMixin.prototype._typeForProperty = function(name){};
-/**
-* @override
-* @param {Object} props Properties to initialize on the prototype
-*/
-Polymer_ElementMixin.prototype._initializeProtoProperties = function(props){};
-/**
-* @param {string} attribute Name of attribute to ensure is set.
-* @param {string} value of the attribute.
-*/
-Polymer_ElementMixin.prototype._ensureAttribute = function(attribute, value){};
-/**
-* @param {string} property Property name to reflect.
-* @param {string=} attribute Attribute name to reflect.
-* @param {*=} value Property value to refect.
-*/
-Polymer_ElementMixin.prototype._propertyToAttribute = function(property, attribute, value){};
-/**
-* @param {Element} node Element to set attribute to.
-* @param {*} value Value to serialize.
-* @param {string} attribute Attribute name to serialize to.
-*/
-Polymer_ElementMixin.prototype._valueToNodeAttribute = function(node, value, attribute){};
-/**
-* @param {*} value Property value to serialize.
-* @return {(string|undefined)}
-*/
-Polymer_ElementMixin.prototype._serializeValue = function(value){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._hasAccessor = function(property){};
-/**
-* @param {string} prop Property name
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._isPropertyPending = function(prop){};
-/**
-* @param {string} property Property that should trigger the effect
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object
-*/
-Polymer_ElementMixin.prototype._addPropertyEffect = function(property, type, effect){};
-/**
-* @param {string} property Property the effect was associated with
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object to remove
-*/
-Polymer_ElementMixin.prototype._removePropertyEffect = function(property, type, effect){};
-/**
-* @param {string} property Property name
-* @param {string=} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._hasPropertyEffect = function(property, type){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._hasReadOnlyEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._hasNotifyEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._hasReflectEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._hasComputedEffect = function(property){};
-/**
-* @param {(string|!Array.<(number|string)>)} path Path to set
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify Set to true if this change should
- cause a property notification event dispatch
-* @param {boolean=} isPathNotification If the path being set is a path
-  notification of an already changed value, as opposed to a request
-  to set and notify the change.  In the latter `false` case, a dirty
-  check is performed and then the value is set to the path before
-  enqueuing the pending property change.
-* @return {boolean}
-*/
-Polymer_ElementMixin.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
-/**
-* @param {Node} node The node to set a property on
-* @param {string} prop The property to set
-* @param {*} value The value to set
-*/
-Polymer_ElementMixin.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
-/**
-* @param {Object} client PropertyEffects client to enqueue
-*/
-Polymer_ElementMixin.prototype._enqueueClient = function(client){};
-/**
-* @return {undefined}
-*/
-Polymer_ElementMixin.prototype._flushClients = function(){};
-/**
 * @override
 */
 Polymer_ElementMixin.prototype._readyClients = function(){};
 /**
-* @param {Object} props Bag of one or more key-value pairs whose key is
-  a property and value is the new value to set for that property.
-* @param {boolean=} setReadOnly When true, any private values set in
-  `props` will be set. By default, `setProperties` will not set
-  `readOnly: true` root properties.
-*/
-Polymer_ElementMixin.prototype.setProperties = function(props, setReadOnly){};
-/**
-* @param {Object} changedProps Bag of changed properties
-* @param {Object} oldProps Bag of previous values for changed properties
-* @param {boolean} hasPaths True with `props` contains one or more paths
-*/
-Polymer_ElementMixin.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
-/**
-* @param {(string|!Array.<(string|number)>)} to Target path to link.
-* @param {(string|!Array.<(string|number)>)} from Source path to link.
-*/
-Polymer_ElementMixin.prototype.linkPaths = function(to, from){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Target path to unlink.
-*/
-Polymer_ElementMixin.prototype.unlinkPaths = function(path){};
-/**
-* @param {string} path Path that should be notified.
-* @param {Array} splices Array of splice records indicating ordered
-  changes that occurred to the array. Each record should have the
-  following fields:
-   * index: index at which the change occurred
-   * removed: array of items that were removed from this index
-   * addedCount: number of new items added at this index
-   * object: a reference to the array in question
-   * type: the string literal 'splice'
-
-  Note that splice records _must_ be normalized such that they are
-  reported in index order (raw results from `Object.observe` are not
-  ordered and must be normalized/merged before notifying).
-*/
-Polymer_ElementMixin.prototype.notifySplices = function(path, splices){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
-  to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
-  or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
-  bracketed expressions are not supported; string-based path parts
-  *must* be separated by dots.  Note that when dereferencing array
-  indices, the index may be used as a dotted part directly
-  (e.g. `users.12.name` or `['users', 12, 'name']`).
-* @param {Object=} root Root object from which the path is evaluated.
-* @return {*}
-*/
-Polymer_ElementMixin.prototype.get = function(path, root){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
-  to write.  The path may be specified as a string (e.g. `'foo.bar.baz'`)
-  or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
-  bracketed expressions are not supported; string-based path parts
-  *must* be separated by dots.  Note that when dereferencing array
-  indices, the index may be used as a dotted part directly
-  (e.g. `'users.12.name'` or `['users', 12, 'name']`).
-* @param {*} value Value to set at the specified path.
-* @param {Object=} root Root object from which the path is evaluated.
-  When specified, no notification will occur.
-*/
-Polymer_ElementMixin.prototype.set = function(path, value, root){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
-* @return {number}
-*/
-Polymer_ElementMixin.prototype.push = function(path, items){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @return {*}
-*/
-Polymer_ElementMixin.prototype.pop = function(path){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {number} start Index from which to start removing/inserting.
-* @param {number} deleteCount Number of items to remove.
-* @param {...*} items 
-* @return {Array}
-*/
-Polymer_ElementMixin.prototype.splice = function(path, start, deleteCount, items){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @return {*}
-*/
-Polymer_ElementMixin.prototype.shift = function(path){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
-* @return {number}
-*/
-Polymer_ElementMixin.prototype.unshift = function(path, items){};
-/**
-* @param {string} path Path that should be notified.
-* @param {*=} value Value at the path (optional).
-*/
-Polymer_ElementMixin.prototype.notifyPath = function(path, value){};
-/**
-* @param {string} property Property name
-* @param {boolean=} protectedSetter Creates a custom protected setter
-  when `true`.
-*/
-Polymer_ElementMixin.prototype._createReadOnlyProperty = function(property, protectedSetter){};
-/**
-* @param {string} property Property name
-* @param {string} methodName Name of observer method to call
-* @param {boolean=} dynamicFn Whether the method name should be included as
-  a dependency to the effect.
-*/
-Polymer_ElementMixin.prototype._createPropertyObserver = function(property, methodName, dynamicFn){};
-/**
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_ElementMixin.prototype._createMethodObserver = function(expression, dynamicFn){};
-/**
-* @param {string} property Property name
-*/
-Polymer_ElementMixin.prototype._createNotifyingProperty = function(property){};
-/**
-* @param {string} property Property name
-*/
-Polymer_ElementMixin.prototype._createReflectedProperty = function(property){};
-/**
-* @param {string} property Name of computed property to set
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_ElementMixin.prototype._createComputedProperty = function(property, expression, dynamicFn){};
-/**
-* @param {HTMLTemplateElement} template Template containing binding
-  bindings
-* @param {boolean=} instanceBinding When false (default), performs
-  "prototypical" binding of the template and overwrites any previously
-  bound template for the class. When true (as passed from
-  `_stampTemplate`), the template info is instanced and linked into
-  the list of bound templates.
-* @return {!TemplateInfo}
-*/
-Polymer_ElementMixin.prototype._bindTemplate = function(template, instanceBinding){};
-/**
-* @param {!StampedTemplate} dom DocumentFragment previously returned
-  from `_stampTemplate` associated with the nodes to be removed
-*/
-Polymer_ElementMixin.prototype._removeBoundDom = function(dom){};
-/**
 * @return {undefined}
 */
 Polymer_ElementMixin.prototype.connectedCallback = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ElementMixin.prototype.disconnectedCallback = function(){};
 /**
 * @param {StampedTemplate} dom to attach to the element.
 * @return {ShadowRoot}
@@ -1405,139 +825,29 @@ to the element's `importPath`
 */
 Polymer_ElementMixin.prototype.resolveUrl = function(url, base){};
 /**
-* @param {!HTMLTemplateElement} template Template to parse
-* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
-  template, for parsing nested templates
-* @return {!TemplateInfo}
-*/
-Polymer_ElementMixin._parseTemplate = function(template, outerTemplateInfo){};
-/**
 * @override
 */
 Polymer_ElementMixin._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
-* @override
-* @param {Node} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @return {boolean}
-*/
-Polymer_ElementMixin._parseTemplateNode = function(node, templateInfo, nodeInfo){};
-/**
-* @param {Node} root Root node whose `childNodes` will be parsed
-* @param {!TemplateInfo} templateInfo Template metadata for current template
-* @param {!NodeInfo} nodeInfo Node metadata for current template.
-*/
-Polymer_ElementMixin._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
-/**
-* @override
-* @param {Node} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @return {boolean}
-*/
-Polymer_ElementMixin._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
-/**
-* @param {Element} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template.
-* @return {boolean}
-*/
-Polymer_ElementMixin._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
-/**
-* @override
-* @param {Element} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name 
-* @param {*} value 
-* @return {boolean}
-*/
-Polymer_ElementMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
-/**
-* @param {HTMLTemplateElement} template Template to retrieve `content` for
-* @return {DocumentFragment}
-*/
-Polymer_ElementMixin._contentForTemplate = function(template){};
-/**
-* @param {Array} props Array of names of accessors.
+* @param {*} props 
 */
 Polymer_ElementMixin.createProperties = function(props){};
 /**
+* @return {undefined}
 */
-Polymer_ElementMixin.createPropertiesForAttributes = function(){};
+Polymer_ElementMixin._finalizeClass = function(){};
 /**
-* @param {string} property Property that should trigger the effect
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object
+* @param {string} is Tag name for this element
+* @param {!HTMLTemplateElement} template Template to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
 */
-Polymer_ElementMixin.addPropertyEffect = function(property, type, effect){};
+Polymer_ElementMixin._processStyleText = function(is, template, baseURI){};
 /**
-* @param {string} property Property name
-* @param {string} methodName Name of observer method to call
-* @param {boolean=} dynamicFn Whether the method name should be included as
-  a dependency to the effect.
+* @param {string} is Tag name (or type extension name) for this element
+* @param {string=} ext For type extensions, the tag name that was extended
 */
-Polymer_ElementMixin.createPropertyObserver = function(property, methodName, dynamicFn){};
-/**
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_ElementMixin.createMethodObserver = function(expression, dynamicFn){};
-/**
-* @param {string} property Property name
-*/
-Polymer_ElementMixin.createNotifyingProperty = function(property){};
-/**
-* @param {string} property Property name
-* @param {boolean=} protectedSetter Creates a custom protected setter
-  when `true`.
-*/
-Polymer_ElementMixin.createReadOnlyProperty = function(property, protectedSetter){};
-/**
-* @param {string} property Property name
-*/
-Polymer_ElementMixin.createReflectedProperty = function(property){};
-/**
-* @param {string} property Name of computed property to set
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating whether
-  method names should be included as a dependency to the effect.
-*/
-Polymer_ElementMixin.createComputedProperty = function(property, expression, dynamicFn){};
-/**
-* @param {HTMLTemplateElement} template Template containing binding
-  bindings
-* @return {Object}
-*/
-Polymer_ElementMixin.bindTemplate = function(template){};
-/**
-* @param {Object} templateInfo Template metadata to add effect to
-* @param {string} prop Property that should trigger the effect
-* @param {Object=} effect Effect metadata object
-*/
-Polymer_ElementMixin._addTemplatePropertyEffect = function(templateInfo, prop, effect){};
-/**
-* @param {string} text Text to parse from attribute or textContent
-* @param {Object} templateInfo Current template metadata
-* @return {Array.<!BindingPart>}
-*/
-Polymer_ElementMixin._parseBindings = function(text, templateInfo){};
-/**
-* @param {this} inst Element that should be used as scope for
-  binding dependencies
-* @param {BindingPart} part Binding part metadata
-* @param {string} path Property/path that triggered this effect
-* @param {Object} props Bag of current property changes
-* @param {Object} oldProps Bag of previous values for changed properties
-* @param {boolean} hasPaths True with `props` contains one or more paths
-* @return {*}
-*/
-Polymer_ElementMixin._evaluateBinding = function(inst, part, path, props, oldProps, hasPaths){};
-/**
-*/
-Polymer_ElementMixin.finalize = function(){};
+Polymer_ElementMixin._finalizeTemplate = function(is, ext){};
 /**
 * @interface
 */
@@ -1556,6 +866,35 @@ Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node,
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
 * @interface
+* @extends {Polymer_PropertyAccessors}
+*/
+function Polymer_DirMixin(){}
+/** @type {boolean} */
+Polymer_DirMixin.prototype.__autoDirOptOut;
+
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.ready = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.connectedCallback = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DirMixin.prototype.disconnectedCallback = function(){};
+/**
+* @override
+*/
+Polymer_DirMixin._processStyleText = function(is, template, baseURI){};
+/**
+* @param {string} text CSS text to replace DIR
+* @return {string}
+*/
+Polymer_DirMixin._replaceDirInCssText = function(text){};
+/**
+* @interface
 * @extends {Polymer_ElementMixin}
 * @extends {Polymer_GestureEventListeners}
 */
@@ -1571,51 +910,6 @@ Polymer_LegacyElementMixin.prototype._debouncers;
 
 /**
 * @override
-* @param {!HTMLTemplateElement} template Template to stamp
-* @return {!StampedTemplate}
-*/
-Polymer_LegacyElementMixin.prototype._stampTemplate = function(template){};
-/**
-* @param {Node} node Node to add listener on
-* @param {string} eventName Name of event
-* @param {string} methodName Name of method
-* @param {*=} context Context the method will be called on (defaults
-  to `node`)
-* @return {Function}
-*/
-Polymer_LegacyElementMixin.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
-/**
-* @param {*} node 
-* @param {*} eventName 
-* @param {*} handler 
-*/
-Polymer_LegacyElementMixin.prototype._addEventListenerToNode = function(node, eventName, handler){};
-/**
-* @param {*} node 
-* @param {*} eventName 
-* @param {*} handler 
-*/
-Polymer_LegacyElementMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_LegacyElementMixin.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created
-
-When calling on a prototype, any overwritten values are saved in
-`__dataProto`, and it is up to the subclasser to decide how/when
-to set those properties back into the accessor.  When calling on an
-instance, the overwritten value is set via `_setPendingProperty`,
-and the user should call `_invalidateProperties` or `_flushProperties`
-for the values to take effect.
-*/
-Polymer_LegacyElementMixin.prototype._generatePropertyAccessor = function(property, readOnly){};
-/**
-* @override
 */
 Polymer_LegacyElementMixin.prototype.ready = function(){};
 /**
@@ -1624,367 +918,15 @@ Polymer_LegacyElementMixin.prototype.ready = function(){};
 Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
 /**
 * @override
-* @param {Object} props Properties to initialize on the instance
-*/
-Polymer_LegacyElementMixin.prototype._initializeInstanceProperties = function(props){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._setProperty = function(property, value){};
-/**
-* @param {string} property Name of property
-* @return {*}
-*/
-Polymer_LegacyElementMixin.prototype._getProperty = function(property){};
-/**
-* @override
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify True if property should fire notification
-  event (applies only for `notify: true` properties)
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_LegacyElementMixin.prototype._validateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_LegacyElementMixin.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_LegacyElementMixin.prototype._flushProperties = function(){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._shouldPropertyChange = function(property, value, old){};
-/**
-* @override
 * @param {string} name Name of attribute.
 * @param {?string} old Old value of attribute.
 * @param {?string} value Current value of attribute.
 */
 Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
-*/
-Polymer_LegacyElementMixin.prototype._attributeToProperty = function(attribute, value, type){};
-/**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_LegacyElementMixin.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} attribute Attribute to convert
-* @return {string}
-*/
-Polymer_LegacyElementMixin.prototype._propertyForAttribute = function(attribute){};
-/**
-* @param {string} property Property to convert
-* @return {string}
-*/
-Polymer_LegacyElementMixin.prototype._attributeForProperty = function(property){};
-/**
-* @param {string} name Name of property
-*/
-Polymer_LegacyElementMixin.prototype._typeForProperty = function(name){};
-/**
-* @override
-* @param {Object} props Properties to initialize on the prototype
-*/
-Polymer_LegacyElementMixin.prototype._initializeProtoProperties = function(props){};
-/**
-* @param {string} attribute Name of attribute to ensure is set.
-* @param {string} value of the attribute.
-*/
-Polymer_LegacyElementMixin.prototype._ensureAttribute = function(attribute, value){};
-/**
-* @param {string} property Property name to reflect.
-* @param {string=} attribute Attribute name to reflect.
-* @param {*=} value Property value to refect.
-*/
-Polymer_LegacyElementMixin.prototype._propertyToAttribute = function(property, attribute, value){};
-/**
-* @param {Element} node Element to set attribute to.
-* @param {*} value Value to serialize.
-* @param {string} attribute Attribute name to serialize to.
-*/
-Polymer_LegacyElementMixin.prototype._valueToNodeAttribute = function(node, value, attribute){};
-/**
-* @param {*} value Property value to serialize.
-* @return {(string|undefined)}
-*/
-Polymer_LegacyElementMixin.prototype._serializeValue = function(value){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._hasAccessor = function(property){};
-/**
-* @param {string} prop Property name
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._isPropertyPending = function(prop){};
-/**
-* @param {string} property Property that should trigger the effect
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object
-*/
-Polymer_LegacyElementMixin.prototype._addPropertyEffect = function(property, type, effect){};
-/**
-* @param {string} property Property the effect was associated with
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object to remove
-*/
-Polymer_LegacyElementMixin.prototype._removePropertyEffect = function(property, type, effect){};
-/**
-* @param {string} property Property name
-* @param {string=} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._hasPropertyEffect = function(property, type){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._hasReadOnlyEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._hasNotifyEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._hasReflectEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._hasComputedEffect = function(property){};
-/**
-* @param {(string|!Array.<(number|string)>)} path Path to set
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify Set to true if this change should
- cause a property notification event dispatch
-* @param {boolean=} isPathNotification If the path being set is a path
-  notification of an already changed value, as opposed to a request
-  to set and notify the change.  In the latter `false` case, a dirty
-  check is performed and then the value is set to the path before
-  enqueuing the pending property change.
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
-/**
-* @param {Node} node The node to set a property on
-* @param {string} prop The property to set
-* @param {*} value The value to set
-*/
-Polymer_LegacyElementMixin.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
-/**
-* @param {Object} client PropertyEffects client to enqueue
-*/
-Polymer_LegacyElementMixin.prototype._enqueueClient = function(client){};
-/**
-* @return {undefined}
-*/
-Polymer_LegacyElementMixin.prototype._flushClients = function(){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._readyClients = function(){};
-/**
-* @param {Object} props Bag of one or more key-value pairs whose key is
-  a property and value is the new value to set for that property.
-* @param {boolean=} setReadOnly When true, any private values set in
-  `props` will be set. By default, `setProperties` will not set
-  `readOnly: true` root properties.
-*/
-Polymer_LegacyElementMixin.prototype.setProperties = function(props, setReadOnly){};
-/**
-* @param {Object} changedProps Bag of changed properties
-* @param {Object} oldProps Bag of previous values for changed properties
-* @param {boolean} hasPaths True with `props` contains one or more paths
-*/
-Polymer_LegacyElementMixin.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
-/**
-* @param {(string|!Array.<(string|number)>)} to Target path to link.
-* @param {(string|!Array.<(string|number)>)} from Source path to link.
-*/
-Polymer_LegacyElementMixin.prototype.linkPaths = function(to, from){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Target path to unlink.
-*/
-Polymer_LegacyElementMixin.prototype.unlinkPaths = function(path){};
-/**
-* @param {string} path Path that should be notified.
-* @param {Array} splices Array of splice records indicating ordered
-  changes that occurred to the array. Each record should have the
-  following fields:
-   * index: index at which the change occurred
-   * removed: array of items that were removed from this index
-   * addedCount: number of new items added at this index
-   * object: a reference to the array in question
-   * type: the string literal 'splice'
-
-  Note that splice records _must_ be normalized such that they are
-  reported in index order (raw results from `Object.observe` are not
-  ordered and must be normalized/merged before notifying).
-*/
-Polymer_LegacyElementMixin.prototype.notifySplices = function(path, splices){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
-  to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
-  or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
-  bracketed expressions are not supported; string-based path parts
-  *must* be separated by dots.  Note that when dereferencing array
-  indices, the index may be used as a dotted part directly
-  (e.g. `users.12.name` or `['users', 12, 'name']`).
-* @param {Object=} root Root object from which the path is evaluated.
-* @return {*}
-*/
-Polymer_LegacyElementMixin.prototype.get = function(path, root){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
-  to write.  The path may be specified as a string (e.g. `'foo.bar.baz'`)
-  or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
-  bracketed expressions are not supported; string-based path parts
-  *must* be separated by dots.  Note that when dereferencing array
-  indices, the index may be used as a dotted part directly
-  (e.g. `'users.12.name'` or `['users', 12, 'name']`).
-* @param {*} value Value to set at the specified path.
-* @param {Object=} root Root object from which the path is evaluated.
-  When specified, no notification will occur.
-*/
-Polymer_LegacyElementMixin.prototype.set = function(path, value, root){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
-* @return {number}
-*/
-Polymer_LegacyElementMixin.prototype.push = function(path, items){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @return {*}
-*/
-Polymer_LegacyElementMixin.prototype.pop = function(path){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {number} start Index from which to start removing/inserting.
-* @param {number} deleteCount Number of items to remove.
-* @param {...*} items 
-* @return {Array}
-*/
-Polymer_LegacyElementMixin.prototype.splice = function(path, start, deleteCount, items){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @return {*}
-*/
-Polymer_LegacyElementMixin.prototype.shift = function(path){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
-* @return {number}
-*/
-Polymer_LegacyElementMixin.prototype.unshift = function(path, items){};
-/**
-* @param {string} path Path that should be notified.
-* @param {*=} value Value at the path (optional).
-*/
-Polymer_LegacyElementMixin.prototype.notifyPath = function(path, value){};
-/**
-* @param {string} property Property name
-* @param {boolean=} protectedSetter Creates a custom protected setter
-  when `true`.
-*/
-Polymer_LegacyElementMixin.prototype._createReadOnlyProperty = function(property, protectedSetter){};
-/**
-* @param {string} property Property name
-* @param {string} methodName Name of observer method to call
-* @param {boolean=} dynamicFn Whether the method name should be included as
-  a dependency to the effect.
-*/
-Polymer_LegacyElementMixin.prototype._createPropertyObserver = function(property, methodName, dynamicFn){};
-/**
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_LegacyElementMixin.prototype._createMethodObserver = function(expression, dynamicFn){};
-/**
-* @param {string} property Property name
-*/
-Polymer_LegacyElementMixin.prototype._createNotifyingProperty = function(property){};
-/**
-* @param {string} property Property name
-*/
-Polymer_LegacyElementMixin.prototype._createReflectedProperty = function(property){};
-/**
-* @param {string} property Name of computed property to set
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_LegacyElementMixin.prototype._createComputedProperty = function(property, expression, dynamicFn){};
-/**
-* @param {HTMLTemplateElement} template Template containing binding
-  bindings
-* @param {boolean=} instanceBinding When false (default), performs
-  "prototypical" binding of the template and overwrites any previously
-  bound template for the class. When true (as passed from
-  `_stampTemplate`), the template info is instanced and linked into
-  the list of bound templates.
-* @return {!TemplateInfo}
-*/
-Polymer_LegacyElementMixin.prototype._bindTemplate = function(template, instanceBinding){};
-/**
-* @param {!StampedTemplate} dom DocumentFragment previously returned
-  from `_stampTemplate` associated with the nodes to be removed
-*/
-Polymer_LegacyElementMixin.prototype._removeBoundDom = function(dom){};
-/**
 * @override
 */
 Polymer_LegacyElementMixin.prototype.connectedCallback = function(){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype.disconnectedCallback = function(){};
-/**
-* @param {StampedTemplate} dom to attach to the element.
-* @return {ShadowRoot}
-*/
-Polymer_LegacyElementMixin.prototype._attachDom = function(dom){};
-/**
-* @param {Object=} properties Bag of custom property key/values to
-  apply to this element.
-*/
-Polymer_LegacyElementMixin.prototype.updateStyles = function(properties){};
-/**
-* @param {string} url URL to resolve.
-* @param {string=} base Optional base URL to resolve against, defaults
-to the element's `importPath`
-* @return {string}
-*/
-Polymer_LegacyElementMixin.prototype.resolveUrl = function(url, base){};
 /**
 * @return {undefined}
 */
@@ -1993,6 +935,10 @@ Polymer_LegacyElementMixin.prototype.created = function(){};
 * @return {undefined}
 */
 Polymer_LegacyElementMixin.prototype.attached = function(){};
+/**
+* @override
+*/
+Polymer_LegacyElementMixin.prototype.disconnectedCallback = function(){};
 /**
 * @return {undefined}
 */
@@ -2029,7 +975,7 @@ Polymer_LegacyElementMixin.prototype.deserialize = function(value, type){};
 /**
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
-* @param {*=} value Property value to refect.
+* @param {*=} value Property value to reflect.
 */
 Polymer_LegacyElementMixin.prototype.reflectPropertyToAttribute = function(property, attribute, value){};
 /**
@@ -2279,140 +1225,6 @@ Polymer_LegacyElementMixin.prototype._error = function(args){};
 */
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
 /**
-* @param {!HTMLTemplateElement} template Template to parse
-* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
-  template, for parsing nested templates
-* @return {!TemplateInfo}
-*/
-Polymer_LegacyElementMixin._parseTemplate = function(template, outerTemplateInfo){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin._parseTemplateContent = function(template, templateInfo, nodeInfo){};
-/**
-* @override
-* @param {Node} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin._parseTemplateNode = function(node, templateInfo, nodeInfo){};
-/**
-* @param {Node} root Root node whose `childNodes` will be parsed
-* @param {!TemplateInfo} templateInfo Template metadata for current template
-* @param {!NodeInfo} nodeInfo Node metadata for current template.
-*/
-Polymer_LegacyElementMixin._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
-/**
-* @override
-* @param {Node} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
-/**
-* @param {Element} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template.
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
-/**
-* @override
-* @param {Element} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name 
-* @param {*} value 
-* @return {boolean}
-*/
-Polymer_LegacyElementMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
-/**
-* @param {HTMLTemplateElement} template Template to retrieve `content` for
-* @return {DocumentFragment}
-*/
-Polymer_LegacyElementMixin._contentForTemplate = function(template){};
-/**
-* @param {Array} props Array of names of accessors.
-*/
-Polymer_LegacyElementMixin.createProperties = function(props){};
-/**
-*/
-Polymer_LegacyElementMixin.createPropertiesForAttributes = function(){};
-/**
-* @param {string} property Property that should trigger the effect
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object
-*/
-Polymer_LegacyElementMixin.addPropertyEffect = function(property, type, effect){};
-/**
-* @param {string} property Property name
-* @param {string} methodName Name of observer method to call
-* @param {boolean=} dynamicFn Whether the method name should be included as
-  a dependency to the effect.
-*/
-Polymer_LegacyElementMixin.createPropertyObserver = function(property, methodName, dynamicFn){};
-/**
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_LegacyElementMixin.createMethodObserver = function(expression, dynamicFn){};
-/**
-* @param {string} property Property name
-*/
-Polymer_LegacyElementMixin.createNotifyingProperty = function(property){};
-/**
-* @param {string} property Property name
-* @param {boolean=} protectedSetter Creates a custom protected setter
-  when `true`.
-*/
-Polymer_LegacyElementMixin.createReadOnlyProperty = function(property, protectedSetter){};
-/**
-* @param {string} property Property name
-*/
-Polymer_LegacyElementMixin.createReflectedProperty = function(property){};
-/**
-* @param {string} property Name of computed property to set
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating whether
-  method names should be included as a dependency to the effect.
-*/
-Polymer_LegacyElementMixin.createComputedProperty = function(property, expression, dynamicFn){};
-/**
-* @param {HTMLTemplateElement} template Template containing binding
-  bindings
-* @return {Object}
-*/
-Polymer_LegacyElementMixin.bindTemplate = function(template){};
-/**
-* @param {Object} templateInfo Template metadata to add effect to
-* @param {string} prop Property that should trigger the effect
-* @param {Object=} effect Effect metadata object
-*/
-Polymer_LegacyElementMixin._addTemplatePropertyEffect = function(templateInfo, prop, effect){};
-/**
-* @param {string} text Text to parse from attribute or textContent
-* @param {Object} templateInfo Current template metadata
-* @return {Array.<!BindingPart>}
-*/
-Polymer_LegacyElementMixin._parseBindings = function(text, templateInfo){};
-/**
-* @param {this} inst Element that should be used as scope for
-  binding dependencies
-* @param {BindingPart} part Binding part metadata
-* @param {string} path Property/path that triggered this effect
-* @param {Object} props Bag of current property changes
-* @param {Object} oldProps Bag of previous values for changed properties
-* @param {boolean} hasPaths True with `props` contains one or more paths
-* @return {*}
-*/
-Polymer_LegacyElementMixin._evaluateBinding = function(inst, part, path, props, oldProps, hasPaths){};
-/**
-*/
-Polymer_LegacyElementMixin.finalize = function(){};
-/**
 * @interface
 */
 function Polymer_MutableData(){}
@@ -2458,422 +1270,6 @@ Polymer_ArraySelectorMixin.prototype.selectedItem;
 Polymer_ArraySelectorMixin.prototype.toggle;
 
 /**
-* @override
-* @param {!HTMLTemplateElement} template Template to stamp
-* @return {!StampedTemplate}
-*/
-Polymer_ArraySelectorMixin.prototype._stampTemplate = function(template){};
-/**
-* @param {Node} node Node to add listener on
-* @param {string} eventName Name of event
-* @param {string} methodName Name of method
-* @param {*=} context Context the method will be called on (defaults
-  to `node`)
-* @return {Function}
-*/
-Polymer_ArraySelectorMixin.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
-/**
-* @param {Node} node Node to add event listener to
-* @param {string} eventName Name of event
-* @param {Function} handler Listener function to add
-*/
-Polymer_ArraySelectorMixin.prototype._addEventListenerToNode = function(node, eventName, handler){};
-/**
-* @param {Node} node Node to remove event listener from
-* @param {string} eventName Name of event
-* @param {Function} handler Listener function to remove
-*/
-Polymer_ArraySelectorMixin.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_ArraySelectorMixin.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created
-
-When calling on a prototype, any overwritten values are saved in
-`__dataProto`, and it is up to the subclasser to decide how/when
-to set those properties back into the accessor.  When calling on an
-instance, the overwritten value is set via `_setPendingProperty`,
-and the user should call `_invalidateProperties` or `_flushProperties`
-for the values to take effect.
-*/
-Polymer_ArraySelectorMixin.prototype._generatePropertyAccessor = function(property, readOnly){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype.ready = function(){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype._initializeProperties = function(){};
-/**
-* @override
-* @param {Object} props Properties to initialize on the instance
-*/
-Polymer_ArraySelectorMixin.prototype._initializeInstanceProperties = function(props){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype._setProperty = function(property, value){};
-/**
-* @param {string} property Name of property
-* @return {*}
-*/
-Polymer_ArraySelectorMixin.prototype._getProperty = function(property){};
-/**
-* @override
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify True if property should fire notification
-  event (applies only for `notify: true` properties)
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._setPendingProperty = function(property, value, shouldNotify){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ArraySelectorMixin.prototype._validateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ArraySelectorMixin.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ArraySelectorMixin.prototype._flushProperties = function(){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._shouldPropertyChange = function(property, value, old){};
-/**
-* @override
-* @param {string} name Name of attribute.
-* @param {?string} old Old value of attribute.
-* @param {?string} value Current value of attribute.
-*/
-Polymer_ArraySelectorMixin.prototype.attributeChangedCallback = function(name, old, value){};
-/**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
-*/
-Polymer_ArraySelectorMixin.prototype._attributeToProperty = function(attribute, value, type){};
-/**
-* @param {?string} value Attribute value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_ArraySelectorMixin.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} attribute Attribute to convert
-* @return {string}
-*/
-Polymer_ArraySelectorMixin.prototype._propertyForAttribute = function(attribute){};
-/**
-* @param {string} property Property to convert
-* @return {string}
-*/
-Polymer_ArraySelectorMixin.prototype._attributeForProperty = function(property){};
-/**
-* @param {string} name Name of property
-*/
-Polymer_ArraySelectorMixin.prototype._typeForProperty = function(name){};
-/**
-* @override
-* @param {Object} props Properties to initialize on the prototype
-*/
-Polymer_ArraySelectorMixin.prototype._initializeProtoProperties = function(props){};
-/**
-* @param {string} attribute Name of attribute to ensure is set.
-* @param {string} value of the attribute.
-*/
-Polymer_ArraySelectorMixin.prototype._ensureAttribute = function(attribute, value){};
-/**
-* @param {string} property Property name to reflect.
-* @param {string=} attribute Attribute name to reflect.
-* @param {*=} value Property value to refect.
-*/
-Polymer_ArraySelectorMixin.prototype._propertyToAttribute = function(property, attribute, value){};
-/**
-* @param {Element} node Element to set attribute to.
-* @param {*} value Value to serialize.
-* @param {string} attribute Attribute name to serialize to.
-*/
-Polymer_ArraySelectorMixin.prototype._valueToNodeAttribute = function(node, value, attribute){};
-/**
-* @param {*} value Property value to serialize.
-* @return {(string|undefined)}
-*/
-Polymer_ArraySelectorMixin.prototype._serializeValue = function(value){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._hasAccessor = function(property){};
-/**
-* @param {string} prop Property name
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._isPropertyPending = function(prop){};
-/**
-* @param {string} property Property that should trigger the effect
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object
-*/
-Polymer_ArraySelectorMixin.prototype._addPropertyEffect = function(property, type, effect){};
-/**
-* @param {string} property Property the effect was associated with
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object to remove
-*/
-Polymer_ArraySelectorMixin.prototype._removePropertyEffect = function(property, type, effect){};
-/**
-* @param {string} property Property name
-* @param {string=} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._hasPropertyEffect = function(property, type){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._hasReadOnlyEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._hasNotifyEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._hasReflectEffect = function(property){};
-/**
-* @param {string} property Property name
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._hasComputedEffect = function(property){};
-/**
-* @param {(string|!Array.<(number|string)>)} path Path to set
-* @param {*} value Value to set
-* @param {boolean=} shouldNotify Set to true if this change should
- cause a property notification event dispatch
-* @param {boolean=} isPathNotification If the path being set is a path
-  notification of an already changed value, as opposed to a request
-  to set and notify the change.  In the latter `false` case, a dirty
-  check is performed and then the value is set to the path before
-  enqueuing the pending property change.
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
-/**
-* @param {Node} node The node to set a property on
-* @param {string} prop The property to set
-* @param {*} value The value to set
-*/
-Polymer_ArraySelectorMixin.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
-/**
-* @param {Object} client PropertyEffects client to enqueue
-*/
-Polymer_ArraySelectorMixin.prototype._enqueueClient = function(client){};
-/**
-* @return {undefined}
-*/
-Polymer_ArraySelectorMixin.prototype._flushClients = function(){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin.prototype._readyClients = function(){};
-/**
-* @param {Object} props Bag of one or more key-value pairs whose key is
-  a property and value is the new value to set for that property.
-* @param {boolean=} setReadOnly When true, any private values set in
-  `props` will be set. By default, `setProperties` will not set
-  `readOnly: true` root properties.
-*/
-Polymer_ArraySelectorMixin.prototype.setProperties = function(props, setReadOnly){};
-/**
-* @param {Object} changedProps Bag of changed properties
-* @param {Object} oldProps Bag of previous values for changed properties
-* @param {boolean} hasPaths True with `props` contains one or more paths
-*/
-Polymer_ArraySelectorMixin.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
-/**
-* @param {(string|!Array.<(string|number)>)} to Target path to link.
-* @param {(string|!Array.<(string|number)>)} from Source path to link.
-*/
-Polymer_ArraySelectorMixin.prototype.linkPaths = function(to, from){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Target path to unlink.
-*/
-Polymer_ArraySelectorMixin.prototype.unlinkPaths = function(path){};
-/**
-* @param {string} path Path that should be notified.
-* @param {Array} splices Array of splice records indicating ordered
-  changes that occurred to the array. Each record should have the
-  following fields:
-   * index: index at which the change occurred
-   * removed: array of items that were removed from this index
-   * addedCount: number of new items added at this index
-   * object: a reference to the array in question
-   * type: the string literal 'splice'
-
-  Note that splice records _must_ be normalized such that they are
-  reported in index order (raw results from `Object.observe` are not
-  ordered and must be normalized/merged before notifying).
-*/
-Polymer_ArraySelectorMixin.prototype.notifySplices = function(path, splices){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
-  to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
-  or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
-  bracketed expressions are not supported; string-based path parts
-  *must* be separated by dots.  Note that when dereferencing array
-  indices, the index may be used as a dotted part directly
-  (e.g. `users.12.name` or `['users', 12, 'name']`).
-* @param {Object=} root Root object from which the path is evaluated.
-* @return {*}
-*/
-Polymer_ArraySelectorMixin.prototype.get = function(path, root){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
-  to write.  The path may be specified as a string (e.g. `'foo.bar.baz'`)
-  or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
-  bracketed expressions are not supported; string-based path parts
-  *must* be separated by dots.  Note that when dereferencing array
-  indices, the index may be used as a dotted part directly
-  (e.g. `'users.12.name'` or `['users', 12, 'name']`).
-* @param {*} value Value to set at the specified path.
-* @param {Object=} root Root object from which the path is evaluated.
-  When specified, no notification will occur.
-*/
-Polymer_ArraySelectorMixin.prototype.set = function(path, value, root){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
-* @return {number}
-*/
-Polymer_ArraySelectorMixin.prototype.push = function(path, items){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @return {*}
-*/
-Polymer_ArraySelectorMixin.prototype.pop = function(path){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {number} start Index from which to start removing/inserting.
-* @param {number} deleteCount Number of items to remove.
-* @param {...*} items 
-* @return {Array}
-*/
-Polymer_ArraySelectorMixin.prototype.splice = function(path, start, deleteCount, items){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @return {*}
-*/
-Polymer_ArraySelectorMixin.prototype.shift = function(path){};
-/**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
-* @return {number}
-*/
-Polymer_ArraySelectorMixin.prototype.unshift = function(path, items){};
-/**
-* @param {string} path Path that should be notified.
-* @param {*=} value Value at the path (optional).
-*/
-Polymer_ArraySelectorMixin.prototype.notifyPath = function(path, value){};
-/**
-* @param {string} property Property name
-* @param {boolean=} protectedSetter Creates a custom protected setter
-  when `true`.
-*/
-Polymer_ArraySelectorMixin.prototype._createReadOnlyProperty = function(property, protectedSetter){};
-/**
-* @param {string} property Property name
-* @param {string} methodName Name of observer method to call
-* @param {boolean=} dynamicFn Whether the method name should be included as
-  a dependency to the effect.
-*/
-Polymer_ArraySelectorMixin.prototype._createPropertyObserver = function(property, methodName, dynamicFn){};
-/**
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_ArraySelectorMixin.prototype._createMethodObserver = function(expression, dynamicFn){};
-/**
-* @param {string} property Property name
-*/
-Polymer_ArraySelectorMixin.prototype._createNotifyingProperty = function(property){};
-/**
-* @param {string} property Property name
-*/
-Polymer_ArraySelectorMixin.prototype._createReflectedProperty = function(property){};
-/**
-* @param {string} property Name of computed property to set
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_ArraySelectorMixin.prototype._createComputedProperty = function(property, expression, dynamicFn){};
-/**
-* @param {HTMLTemplateElement} template Template containing binding
-  bindings
-* @param {boolean=} instanceBinding When false (default), performs
-  "prototypical" binding of the template and overwrites any previously
-  bound template for the class. When true (as passed from
-  `_stampTemplate`), the template info is instanced and linked into
-  the list of bound templates.
-* @return {!TemplateInfo}
-*/
-Polymer_ArraySelectorMixin.prototype._bindTemplate = function(template, instanceBinding){};
-/**
-* @param {!StampedTemplate} dom DocumentFragment previously returned
-  from `_stampTemplate` associated with the nodes to be removed
-*/
-Polymer_ArraySelectorMixin.prototype._removeBoundDom = function(dom){};
-/**
-* @return {undefined}
-*/
-Polymer_ArraySelectorMixin.prototype.connectedCallback = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ArraySelectorMixin.prototype.disconnectedCallback = function(){};
-/**
-* @param {StampedTemplate} dom to attach to the element.
-* @return {ShadowRoot}
-*/
-Polymer_ArraySelectorMixin.prototype._attachDom = function(dom){};
-/**
-* @param {Object=} properties Bag of custom property key/values to
-  apply to this element.
-*/
-Polymer_ArraySelectorMixin.prototype.updateStyles = function(properties){};
-/**
-* @param {string} url URL to resolve.
-* @param {string=} base Optional base URL to resolve against, defaults
-to the element's `importPath`
-* @return {string}
-*/
-Polymer_ArraySelectorMixin.prototype.resolveUrl = function(url, base){};
-/**
 * @return {undefined}
 */
 Polymer_ArraySelectorMixin.prototype.clearSelection = function(){};
@@ -2903,267 +1299,3 @@ Polymer_ArraySelectorMixin.prototype.select = function(item){};
 * @param {number} idx Index from `items` array to select
 */
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
-/**
-* @param {!HTMLTemplateElement} template Template to parse
-* @param {TemplateInfo=} outerTemplateInfo Template metadata from the outer
-  template, for parsing nested templates
-* @return {!TemplateInfo}
-*/
-Polymer_ArraySelectorMixin._parseTemplate = function(template, outerTemplateInfo){};
-/**
-* @override
-*/
-Polymer_ArraySelectorMixin._parseTemplateContent = function(template, templateInfo, nodeInfo){};
-/**
-* @override
-* @param {Node} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin._parseTemplateNode = function(node, templateInfo, nodeInfo){};
-/**
-* @param {Node} root Root node whose `childNodes` will be parsed
-* @param {!TemplateInfo} templateInfo Template metadata for current template
-* @param {!NodeInfo} nodeInfo Node metadata for current template.
-*/
-Polymer_ArraySelectorMixin._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
-/**
-* @override
-* @param {Node} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin._parseTemplateNestedTemplate = function(node, templateInfo, nodeInfo){};
-/**
-* @param {Element} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template.
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin._parseTemplateNodeAttributes = function(node, templateInfo, nodeInfo){};
-/**
-* @override
-* @param {Element} node Node to parse
-* @param {TemplateInfo} templateInfo Template metadata for current template
-* @param {NodeInfo} nodeInfo Node metadata for current template node
-* @param {*} name 
-* @param {*} value 
-* @return {boolean}
-*/
-Polymer_ArraySelectorMixin._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
-/**
-* @param {HTMLTemplateElement} template Template to retrieve `content` for
-* @return {DocumentFragment}
-*/
-Polymer_ArraySelectorMixin._contentForTemplate = function(template){};
-/**
-* @param {Array} props Array of names of accessors.
-*/
-Polymer_ArraySelectorMixin.createProperties = function(props){};
-/**
-*/
-Polymer_ArraySelectorMixin.createPropertiesForAttributes = function(){};
-/**
-* @param {string} property Property that should trigger the effect
-* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
-* @param {Object=} effect Effect metadata object
-*/
-Polymer_ArraySelectorMixin.addPropertyEffect = function(property, type, effect){};
-/**
-* @param {string} property Property name
-* @param {string} methodName Name of observer method to call
-* @param {boolean=} dynamicFn Whether the method name should be included as
-  a dependency to the effect.
-*/
-Polymer_ArraySelectorMixin.createPropertyObserver = function(property, methodName, dynamicFn){};
-/**
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
-*/
-Polymer_ArraySelectorMixin.createMethodObserver = function(expression, dynamicFn){};
-/**
-* @param {string} property Property name
-*/
-Polymer_ArraySelectorMixin.createNotifyingProperty = function(property){};
-/**
-* @param {string} property Property name
-* @param {boolean=} protectedSetter Creates a custom protected setter
-  when `true`.
-*/
-Polymer_ArraySelectorMixin.createReadOnlyProperty = function(property, protectedSetter){};
-/**
-* @param {string} property Property name
-*/
-Polymer_ArraySelectorMixin.createReflectedProperty = function(property){};
-/**
-* @param {string} property Name of computed property to set
-* @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating whether
-  method names should be included as a dependency to the effect.
-*/
-Polymer_ArraySelectorMixin.createComputedProperty = function(property, expression, dynamicFn){};
-/**
-* @param {HTMLTemplateElement} template Template containing binding
-  bindings
-* @return {Object}
-*/
-Polymer_ArraySelectorMixin.bindTemplate = function(template){};
-/**
-* @param {Object} templateInfo Template metadata to add effect to
-* @param {string} prop Property that should trigger the effect
-* @param {Object=} effect Effect metadata object
-*/
-Polymer_ArraySelectorMixin._addTemplatePropertyEffect = function(templateInfo, prop, effect){};
-/**
-* @param {string} text Text to parse from attribute or textContent
-* @param {Object} templateInfo Current template metadata
-* @return {Array.<!BindingPart>}
-*/
-Polymer_ArraySelectorMixin._parseBindings = function(text, templateInfo){};
-/**
-* @param {this} inst Element that should be used as scope for
-  binding dependencies
-* @param {BindingPart} part Binding part metadata
-* @param {string} path Property/path that triggered this effect
-* @param {Object} props Bag of current property changes
-* @param {Object} oldProps Bag of previous values for changed properties
-* @param {boolean} hasPaths True with `props` contains one or more paths
-* @return {*}
-*/
-Polymer_ArraySelectorMixin._evaluateBinding = function(inst, part, path, props, oldProps, hasPaths){};
-/**
-*/
-Polymer_ArraySelectorMixin.finalize = function(){};
-/**
-* @interface
-* @extends {Polymer_PropertiesChanged}
-*/
-function Polymer_PropertiesMixin(){}
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
-*/
-Polymer_PropertiesMixin.prototype._createPropertyAccessor = function(property, readOnly){};
-/**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created
-*/
-Polymer_PropertiesMixin.prototype._generatePropertyAccessor = function(property, readOnly){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertiesMixin.prototype.ready = function(){};
-/**
-* @override
-*/
-Polymer_PropertiesMixin.prototype._initializeProperties = function(){};
-/**
-* @param {Object} props Bag of property values that were overwritten
-  when creating property accessors.
-*/
-Polymer_PropertiesMixin.prototype._initializeInstanceProperties = function(props){};
-/**
-* @param {string} property Name of the property
-* @param {*} value Value to set
-*/
-Polymer_PropertiesMixin.prototype._setProperty = function(property, value){};
-/**
-* @param {string} property Name of property
-* @return {*}
-*/
-Polymer_PropertiesMixin.prototype._getProperty = function(property){};
-/**
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @return {boolean}
-*/
-Polymer_PropertiesMixin.prototype._setPendingProperty = function(property, value){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertiesMixin.prototype._invalidateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertiesMixin.prototype._validateProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertiesMixin.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertiesMixin.prototype._flushProperties = function(){};
-/**
-* @param {!Object} currentProps Bag of all current accessor values
-* @param {!Object} changedProps Bag of properties changed since the last
-  call to `_propertiesChanged`
-* @param {!Object} oldProps Bag of previous values for each property
-  in `changedProps`
-*/
-Polymer_PropertiesMixin.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_PropertiesMixin.prototype._shouldPropertyChange = function(property, value, old){};
-/**
-* @param {string} name Name of attribute that changed
-* @param {?string} old Old attribute value
-* @param {?string} value New attribute value
-*/
-Polymer_PropertiesMixin.prototype.attributeChangedCallback = function(name, old, value){};
-/**
-* @param {string} attribute Name of attribute to deserialize.
-* @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to, defaults to the value
-returned from `_typeForProperty`
-*/
-Polymer_PropertiesMixin.prototype._attributeToProperty = function(attribute, value, type){};
-/**
-* @param {?string} value Value to deserialize.
-* @param {*=} type Type to deserialize the string to.
-* @return {*}
-*/
-Polymer_PropertiesMixin.prototype._deserializeValue = function(value, type){};
-/**
-* @param {string} attribute Attribute to convert
-* @return {string}
-*/
-Polymer_PropertiesMixin.prototype._propertyForAttribute = function(attribute){};
-/**
-* @param {string} property Property to convert
-* @return {string}
-*/
-Polymer_PropertiesMixin.prototype._attributeForProperty = function(property){};
-/**
-* @param {string} name Name of property
-* @return {*}
-*/
-Polymer_PropertiesMixin.prototype._typeForProperty = function(name){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertiesMixin.prototype.connectedCallback = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertiesMixin.prototype.disconnectedCallback = function(){};
-/**
-* @param {Array} props Array of names of accessors.
-*/
-Polymer_PropertiesMixin.createProperties = function(props){};
-/**
-* @param {*} name 
-*/
-Polymer_PropertiesMixin._ensureFinalized = function(name){};
-/**
-* @param {string} name Name of the element
-*/
-Polymer_PropertiesMixin.finalize = function(name){};

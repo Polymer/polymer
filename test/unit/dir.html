@@ -1,0 +1,201 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html dir="rtl">
+<head>
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+  <link rel="import" href="../../lib/mixins/dir-mixin.html">
+</head>
+<body>
+  <!--
+    Issues
+    1. regex will process entire string, including comments and properties, not just selectors...
+    2. complex selectors. not ok... e.g.
+    bad: .special > *:dir(rtl)
+    but ok: .special:dir(rtl) > *
+    3. multiple selectors per line? ok.
+  -->
+  <dom-module id="x-inner-dir">
+    <template>
+      <style>
+        :host {
+          display: block;
+          height: 20px;
+          color: white;
+        }
+        input, section {
+          border-top-width: 0px;
+        }
+
+        section:dir(rtl), input:dir(rtl) {
+          border: 10px solid rgb(123, 123, 123);
+        }
+
+        .special:dir(rtl) > * {
+          color: rgb(0, 128, 0);
+        }
+      </style>
+      <div>no rtl styling</div>
+      <section>rtl styling</section>
+      <input value="rtl styling">
+      <div class="special">
+        <div>at the right.</div>
+      </div>
+    </template>
+    <script>
+      addEventListener('WebComponentsReady', () => {
+        class XInnerDir extends Polymer.DirMixin(Polymer.Element) {
+          static get is() {return 'x-inner-dir';}
+        }
+        customElements.define(XInnerDir.is, XInnerDir);
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-dir">
+    <template>
+      <style>
+        :host {
+          display: block;
+          background-color: rgb(0, 0, 255);
+          min-height: 100px;
+          width: 100px;
+        }
+        :host(:dir(rtl)) {
+          background-color: rgb(0, 128, 0);
+        }
+        #foo:dir(rtl) {
+          border: 10px solid rgb(255, 0, 0);
+        }
+        .thing:dir(rtl) {
+          border: 10px solid rgb(0, 0, 255);
+        }
+      </style>
+      <div id="foo"></div>
+      <div class="thing"></div>
+      <x-inner-dir></x-inner-dir>
+    </template>
+    <script>
+      addEventListener('WebComponentsReady', () => {
+        class XDir extends Polymer.DirMixin(Polymer.Element) {
+          static get is() {return 'x-dir';}
+        }
+        customElements.define(XDir.is, XDir);
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-dir-legacy">
+    <template>
+      <style>
+        :host {
+          display: block;
+          border: 10px solid black;
+        }
+        :host(:dir(rtl)) {
+          border: 2px dotted blue;
+        }
+      </style>
+    </template>
+    <script>
+      addEventListener('WebComponentsReady', () => {
+        Polymer({is: 'x-dir-legacy'});
+      });
+    </script>
+  </dom-module>
+
+  <test-fixture id="dir">
+    <template>
+      <x-dir></x-dir>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="preset">
+    <template>
+      <x-inner-dir dir="ltr"></x-inner-dir>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="legacy">
+    <template>
+      <x-dir-legacy></x-dir-legacy>
+    </template>
+  </test-fixture>
+
+  <script>
+    function assertComputed(node, expected, property = 'border-top-width') {
+      let actual = getComputedStyle(node).getPropertyValue(property).trim();
+      assert.equal(expected, actual);
+    }
+
+    suite(':dir', function() {
+      teardown(function() {
+        document.documentElement.setAttribute('dir', 'rtl');
+      });
+
+      test(':dir(rtl) functions when html element dir attr set to rtl', function() {
+        let el = fixture('dir');
+        assertComputed(el, 'rgb(0, 128, 0)', 'background-color');
+        assertComputed(el.shadowRoot.querySelector('#foo'), '10px');
+        assertComputed(el.shadowRoot.querySelector('.thing'), '10px');
+        let inner = el.shadowRoot.querySelector('x-inner-dir');
+        assertComputed(inner.shadowRoot.querySelector('.special > div'), 'rgb(0, 128, 0)', 'color');
+        assertComputed(inner.shadowRoot.querySelector('section'), '10px');
+        assertComputed(inner.shadowRoot.querySelector('input'), '10px');
+      });
+
+      test(':dir reacts to html attribute changing', function(done) {
+        let el = fixture('dir');
+        document.documentElement.setAttribute('dir', 'ltr');
+        requestAnimationFrame(() => {
+          assertComputed(el, 'rgb(0, 0, 255)', 'background-color');
+          assertComputed(el.shadowRoot.querySelector('#foo'), '0px');
+          assertComputed(el.shadowRoot.querySelector('.thing'), '0px');
+          let inner = el.shadowRoot.querySelector('x-inner-dir');
+          assertComputed(inner.shadowRoot.querySelector('.special > div'), 'rgb(255, 255, 255)', 'color');
+          assertComputed(inner.shadowRoot.querySelector('section'), '0px');
+          assertComputed(inner.shadowRoot.querySelector('input'), '0px');
+          done();
+        });
+      });
+
+      test('elements with dir attribute explicitly set will not change', function() {
+        let inner = fixture('preset');
+        assert.equal(document.documentElement.getAttribute('dir'), 'rtl');
+        assertComputed(inner.shadowRoot.querySelector('.special > div'), 'rgb(255, 255, 255)', 'color');
+        assertComputed(inner.shadowRoot.querySelector('section'), '0px');
+        assertComputed(inner.shadowRoot.querySelector('input'), '0px');
+      });
+
+      test('elements will adopt dir status when reconnected', function(done) {
+        let el = fixture('dir');
+        assertComputed(el, 'rgb(0, 128, 0)', 'background-color');
+        let parent = el.parentNode;
+        parent.removeChild(el);
+        document.documentElement.setAttribute('dir', 'ltr');
+        requestAnimationFrame(() => {
+          parent.appendChild(el);
+          requestAnimationFrame(() => {
+            assertComputed(el, 'rgb(0, 0, 255)', 'background-color');
+            done();
+          });
+        });
+      });
+
+      test('legacy elements worth with DirMixin', function() {
+        let el = fixture('legacy');
+        assertComputed(el, '2px');
+      });
+    });
+  </script>
+</body>
+</html>
