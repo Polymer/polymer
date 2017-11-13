@@ -24,6 +24,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     return PolymerDomModule.import(moduleId);
   }
 
+  function styleForImport(importDoc) {
+    // NOTE: polyfill affordance.
+    // under the HTMLImports polyfill, there will be no 'body',
+    // but the import pseudo-doc can be used directly.
+    let container = importDoc.body ? importDoc.body : importDoc;
+    const importCss = Polymer.ResolveUrl.resolveCss(container.textContent,
+      importDoc.baseURI);
+    const style = document.createElement('style');
+    style.textContent = importCss;
+    return style;
+  }
+
   /** @typedef {{assetpath: string}} */
   let templateWithAssetPath; // eslint-disable-line no-unused-vars
 
@@ -108,13 +120,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (include) {
             styles.push(...this.stylesFromModules(include));
           }
-          if (window.ShadyDOM && e.hasAttribute(SHADY_UNSCOPED_ATTR)) {
-            e.textContent = baseURI ?
-              Polymer.ResolveUrl.resolveCss(e.textContent, baseURI) : e.textContent;
-            document.head.insertBefore(e, document.head.firstChild);
-          } else {
-            styles.push(e);
+          if (baseURI) {
+            e.textContent = Polymer.ResolveUrl.resolveCss(e.textContent, baseURI);
           }
+          styles.push(e);
         }
         template._styles = styles;
       }
@@ -147,28 +156,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let p = p$[i];
         if (p.import) {
           const importDoc = p.import;
-          if (!importDoc._style) {
-            // NOTE: polyfill affordance.
-            // under the HTMLImports polyfill, there will be no 'body',
-            // but the import pseudo-doc can be used directly.
-            let container = importDoc.body ? importDoc.body : importDoc;
-            const importCss = Polymer.ResolveUrl.resolveCss(container.textContent,
-              importDoc.baseURI);
-            const style = document.createElement('style');
-            if (p.hasAttribute(SHADY_UNSCOPED_ATTR)) {
-              style.setAttribute(SHADY_UNSCOPED_ATTR, '');
-            }
-            style.textContent = importCss;
-            importDoc._style = style;
+          const unscoped = p.hasAttribute(SHADY_UNSCOPED_ATTR);
+          if (unscoped && !importDoc._unscopedStyle) {
+            const style = styleForImport(importDoc);
+            style.setAttribute(SHADY_UNSCOPED_ATTR, '');
+            importDoc._unscopedStyle = style;
+          } else if (!importDoc._style) {
+            importDoc._style = styleForImport(importDoc);
           }
-          // support the shady-unscoped promoting styles to main document
-          if (window.ShadyDOM &&
-            importDoc._style.hasAttribute(SHADY_UNSCOPED_ATTR) &&
-            !importDoc._style.parentNode) {
-            document.head.insertBefore(importDoc._style, document.head.firstChild);
-          } else {
-            styles.push(importDoc._style);
-          }
+          styles.push(unscoped ? importDoc._unscopedStyle : importDoc._style);
         }
       }
       return styles;
@@ -218,7 +214,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // include css from the first template in the module
         let t = m.querySelector('template');
         if (t) {
-          cssText += this.cssFromTemplate(t, /** @type {templateWithAssetPath} */(m).assetpath);
+          cssText += this.cssFromTemplate(t,
+            /** @type {templateWithAssetPath} */(m).assetpath);
         }
         m._cssText = cssText || null;
       }
@@ -250,14 +247,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (e.parentNode) {
           e.parentNode.removeChild(e);
         }
-        const styleCss = baseURI ?
-          Polymer.ResolveUrl.resolveCss(e.textContent, baseURI) : e.textContent;
-        if (window.ShadyDOM && e.hasAttribute(SHADY_UNSCOPED_ATTR)) {
-          e.textContent = styleCss;
-          document.head.insertBefore(e, document.head.firstChild);
-        } else {
-          cssText += styleCss;
-        }
+        cssText += e.textContent;
       }
       return cssText;
     },
@@ -294,7 +284,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         cssText += styles[i].textContent;
       }
       return cssText;
-    },
+    }
   };
 
   Polymer.StyleGather = StyleGather;
