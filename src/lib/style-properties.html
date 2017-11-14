@@ -426,6 +426,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             rule.keyframesName, rule.transformedKeyframesName);
       },
 
+      _hasDirOrHostContext: function(parsedSelector) {
+        return /:host-context|:dir/.test(parsedSelector);
+      },
+
       // Strategy: x scope shim a selector e.g. to scope `.x-foo-42` (via classes):
       // non-host selector: .a.x-foo -> .x-foo-42 .a.x-foo
       // host selector: x-foo.wide -> .x-foo-42.wide
@@ -437,14 +441,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _scopeSelector: function(rule, hostRx, hostSelector, viaAttr, scopeId) {
         rule.transformedSelector = rule.transformedSelector || rule.selector;
         var selector = rule.transformedSelector;
-        var scope = viaAttr ? '[' + styleTransformer.SCOPE_NAME + '~=' +
-          scopeId + ']' :
-          '.' + scopeId;
+        var scope = styleTransformer._calcElementScope(scopeId, viaAttr);
+        var hostScope = styleTransformer._calcElementScope(hostSelector, viaAttr);
         var parts = selector.split(',');
+        var isDirOrHostContextSelector = this._hasDirOrHostContext(rule.parsedSelector);
         for (var i=0, l=parts.length, p; (i<l) && (p=parts[i]); i++) {
-          parts[i] = p.match(hostRx) ?
-            p.replace(hostSelector, scope) :
-            scope + ' ' + p;
+            parts[i] = p.match(hostRx) ?
+              p.replace(hostSelector, scope) :
+              // :host-context and :dir selectors require information from ancestor nodes
+              // however, the default scoping will prepend the instance scoping class, breaking the selector.
+              // In this case, make sure the scoping class is inserted into the correct spot
+              // :dir(rtl) -> [dir="rtl"] .x-foo, .x-foo[dir="rtl"] ->
+              // [dir="rtl"] .x-foo1 .x-foo, .x-foo1 .x-foo[dir="rtl"]
+              isDirOrHostContextSelector ?
+                p.replace(hostScope, scope + ' ' + hostScope) :
+                scope + ' ' + p;
         }
         rule.selector = parts.join(',');
       },
