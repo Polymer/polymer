@@ -82,6 +82,43 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
+     * Returns a memoized version of the `properties` object for the
+     * given class. Properties not in object format are converted to at
+     * least {type}.
+     *
+     * @param {PropertiesClassConstructor} ctor PropertiesClass constructor
+     * @return {object} Memoized properties object
+     */
+    function ownPropertiesForClass(ctor) {
+      if (!ctor.hasOwnProperty(
+        JSCompiler_renameProperty('__ownProperties', ctor))) {
+        const props = ctor.properties;
+        ctor.__ownProperties = props ? mixProperties({}, props) : null;
+      }
+      return ctor.__ownProperties;
+    }
+
+    /**
+     * Returns a memoized version attribute info for the
+     * given class.
+     *
+     * @param {PropertiesClassConstructor} ctor PropertiesClass constructor
+     * @return {object} Memoized attribute info object
+     */
+    function attributeInfoForClass(ctor) {
+      if (!ctor.hasOwnProperty(
+        JSCompiler_renameProperty('__attributeInfo', ctor))) {
+        const proto = ctor.prototype;
+        const attrInfo = ctor.__attributeInfo = {};
+        const props = ctor._properties;
+        for (let prop in props) {
+          attrInfo[proto._attributeForProperty(prop)] = prop;
+        }
+      }
+      return ctor.__attributeInfo;
+    }
+
+    /**
      * @polymer
      * @mixinClass
      * @extends {base}
@@ -131,25 +168,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       static _finalizeClass() {
-        const props = this._ownProperties;
+        const props = ownPropertiesForClass(this);
         if (props) {
           this.createProperties(props);
         }
-      }
-
-      /**
-       * Returns a memoized version of the `properties` object. Properties
-       * not in object format are converted to at lesat {type}.
-       *
-       * @return {Object} Object containing own properties for this class
-       * @protected
-       */
-      static get _ownProperties() {
-        if (!this.hasOwnProperty(JSCompiler_renameProperty('__ownProperties', this))) {
-          const props = this.properties;
-          this.__ownProperties = props ? mixProperties({}, props) : null;
-        }
-        return this.__ownProperties;
       }
 
       /**
@@ -161,28 +183,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       static get _properties() {
-        if (!this.hasOwnProperty(JSCompiler_renameProperty('__properties', this))) {
+        if (!this.hasOwnProperty(
+          JSCompiler_renameProperty('__properties', this))) {
           const superCtor = superForClass(this);
           this.__properties = Object.assign({},
-            superCtor && superCtor._properties, this._ownProperties);
+            superCtor && superCtor._properties, ownPropertiesForClass(this));
         }
         return this.__properties;
       }
 
-      static get _attributeInfo() {
-        if (!this.hasOwnProperty(JSCompiler_renameProperty('__attributeInfo', this))) {
-          const proto = this.prototype;
-          const attrInfo = this.__attributeInfo = {};
-          const props = this._properties;
-          for (let prop in props) {
-            attrInfo[proto._attributeForProperty(prop)] = prop;
-          }
-        }
-        return this.__attributeInfo;
-      }
-
       _propertyForAttribute(name) {
-        return this.constructor._attributeInfo[name] ||
+        return attributeInfoForClass(this.constructor)[name] ||
           super._propertyForAttribute(name);
       }
 

@@ -117,7 +117,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!klass.hasOwnProperty(
         JSCompiler_renameProperty('__classPropertyDefaults', klass))) {
         klass.__classPropertyDefaults = null;
-        //let props = propertiesForClass(klass);
         let props = klass._properties;
         for (let p in props) {
           let info = props[p];
@@ -128,6 +127,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
       return klass.__classPropertyDefaults;
+    }
+
+    /**
+     * Returns a memoized version of the the `observers` array.
+     * @param {PolymerElementConstructor} klass Element class
+     * @return {Array} Array containing own observers for the given class
+     * @protected
+     */
+    function ownObserversForClass(klass) {
+      if (!klass.hasOwnProperty(
+        JSCompiler_renameProperty('__ownObservers', klass))) {
+          klass.__ownObservers =
+          klass.hasOwnProperty(JSCompiler_renameProperty('observers', klass)) ?
+          /** @type {PolymerElementConstructor} */ (klass).observers : null;
+      }
+      return klass.__ownObservers;
     }
 
     /**
@@ -218,8 +233,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (info.observer) {
         proto._createPropertyObserver(name, info.observer, allProps[info.observer]);
       }
-      // always ensure an accessor is made for properties
-      if (!info.readOnly) {
+      // always ensure an accessor is made for properties but don't stomp
+      // on existing values.
+      if (!info.readOnly && !(name in proto)) {
         proto._createPropertyAccessor(name);
       }
     }
@@ -232,31 +248,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     class PolymerElement extends polymerElementBase {
 
-      /**
-       * Returns a memoized version of the the `observers` array. Use for
-       *
-       * @return {Array} Array containing own observers for this class
-       * @protected
-       */
-      static get _ownObservers() {
-        if (!this.hasOwnProperty(
-          JSCompiler_renameProperty('__ownObservers', this))) {
-          this.__ownObservers =
-            this.hasOwnProperty(JSCompiler_renameProperty('observers', this)) ?
-            /** @type {PolymerElementConstructor} */ (this).observers : null;
-        }
-        return this.__ownObservers;
-      }
-
       static _finalizeClass() {
         super._finalizeClass();
         if (this.hasOwnProperty(
           JSCompiler_renameProperty('is', this)) &&  this.is) {
           Polymer.telemetry.register(this.prototype);
         }
-        const observers = this._ownObservers;
+        const observers = ownObserversForClass(this);
         if (observers) {
-          this.createObservers(observers, this._ownProperties);
+          this.createObservers(observers, this._properties);
         }
         // note: create "working" template that is finalized at instance time
         let template = /** @type {PolymerElementConstructor} */ (this).template;
