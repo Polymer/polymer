@@ -86,7 +86,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {PropertiesClassConstructor} ctor PropertiesClass constructor
      * @return {Object} Memoized properties object
      */
-    function ownPropertiesForClass(ctor) {
+    function ownProperties(ctor) {
       if (!ctor.hasOwnProperty(
         JSCompiler_renameProperty('__ownProperties', ctor))) {
         const props = ctor.properties;
@@ -96,23 +96,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * Returns a memoized version attribute info for the
-     * given class.
+     * Returns map of properties for attributes for the given class.
      *
      * @param {PropertiesClassConstructor} ctor PropertiesClass constructor
-     * @return {Object} Memoized attribute info object
+     * @param {string} nane Name of attribute
+     * @return {string} Name of property.
      */
-    function attributeInfoForClass(ctor) {
+    function propertyNameForAttributeMap(ctor) {
       if (!ctor.hasOwnProperty(
-        JSCompiler_renameProperty('__attributeInfo', ctor))) {
-        const proto = ctor.prototype;
-        const attrInfo = ctor.__attributeInfo = {};
-        const props = ctor._properties;
-        for (let prop in props) {
-          attrInfo[proto._attributeForProperty(prop)] = prop;
-        }
+        JSCompiler_renameProperty('__propertyNameForAttributeMap', ctor))) {
+        ctor.__propertyNameForAttributeMap = {};
       }
-      return ctor.__attributeInfo;
+      return ctor.__propertyNameForAttributeMap;
     }
 
     /**
@@ -124,10 +119,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     class PropertiesClass extends base {
 
-      static get BooleanAttribute() {
-        return BooleanAttribute;
-      }
-
       /**
        * Implements standard custom elements getter to observes the attributes
        * listed in `properties`.
@@ -135,7 +126,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static get observedAttributes() {
         const props = this._properties;
         return props ? Object.keys(props).map(p => {
-          return this.prototype._attributeForProperty(p);
+          return this.prototype._attributeNameForProperty(p);
         }) : [];
       }
 
@@ -144,9 +135,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * are also finalized. This includes ensuring property
        * accessors exist on the element prototype. This method calls
        * `_finalizeClass` to finalize each constructor in the prototype chain.
-       * @param {string} name Name of the element
        */
-       static finalize() { // eslint-disable-line no-unused-vars
+       static finalize() {
         if (!this.hasOwnProperty(JSCompiler_renameProperty('__finalized', this))) {
           const superCtor = superForClass(this);
           if (superCtor) {
@@ -165,7 +155,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       static _finalizeClass() {
-        const props = ownPropertiesForClass(this);
+        const props = ownProperties(this);
         if (props) {
           this.createProperties(props);
         }
@@ -184,19 +174,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           JSCompiler_renameProperty('__properties', this))) {
           const superCtor = superForClass(this);
           this.__properties = Object.assign({},
-            superCtor && superCtor._properties, ownPropertiesForClass(this));
+            superCtor && superCtor._properties, ownProperties(this));
         }
         return this.__properties;
       }
 
-      _propertyForAttribute(name) {
-        return attributeInfoForClass(this.constructor)[name] ||
-          super._propertyForAttribute(name);
-      }
-
-      _attributeForProperty(name) {
-        const info = this.constructor._properties[name];
-        return info && info.attribute || super._attributeForProperty(name);
+      /**
+       * Overrides PropertiesChanged implementation to provide caching.
+       * @param {string} name Name of property
+       * @return {string} Name of attribute
+       */
+      _propertyNameForAttribute(name) {
+        const cache = propertyNameForAttributeMap(this.constructor);
+        if (!cache[name]) {
+          cache[name] = super._propertyNameForAttribute(name);
+        }
+        return cache[name];
       }
 
       /**
@@ -209,7 +202,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _typeForProperty(name) {
         const info = this.constructor._properties[name];
-        return info.type || info;
+        return info && info.type;
       }
 
       /**
@@ -218,7 +211,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        */
       _initializeProperties() {
-        this.constructor.finalize(this.localName);
+        this.constructor.finalize();
         super._initializeProperties();
       }
 
