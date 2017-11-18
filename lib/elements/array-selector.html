@@ -297,6 +297,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
+       * Deselects the given indexes if it is already selected.
+       *
+       * @param {Array<number>} indexes Indexes from `items` array to deselect
+       */
+      deselectIndexes(indexes) {
+        if (!this.multi) {
+          throw new Error('This method can be used only in multi = true mode');
+        }
+
+        if (indexes.length === 0) {
+          return;
+        }
+        if (indexes.length === 1) {
+          this.deselectIndex(indexes[0]);
+          return;
+        }
+
+        const haveToBeDeselectedIndexes =
+            indexes.filter(idx => this.isSelected(this.items[idx]));
+
+        const selectedIndexesToRemove = [];
+        for (const idx of haveToBeDeselectedIndexes) {
+          this.__selectedMap.delete(this.items[idx]);
+          selectedIndexesToRemove.push(this.__selectedIndexForItemIndex(idx));
+        }
+        this.__updateLinks();
+
+        const originalSelected =
+            Array.from(/** @type {!Array<!Object>} */(this.selected));
+        selectedIndexesToRemove.sort();
+        for (let i = selectedIndexesToRemove.length - 1; i >= 0; i--) {
+          this.selected.splice(selectedIndexesToRemove[i], 1);
+        }
+        const selectedSplices = Polymer.ArraySplice.calculateSplices(
+            this.selected, originalSelected);
+        this.notifySplices('selected', selectedSplices);
+      }
+
+      /**
        * Selects the given item.  When `toggle` is true, this will automatically
        * deselect the item if already selected.
        *
@@ -328,6 +367,42 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         } else if (this.toggle) {
           this.deselectIndex(idx);
         }
+      }
+
+      /**
+       * Selects the given indexes.  When `toggle` is true, this will automatically
+       * deselect the items if already selected.
+       *
+       * @param {Array<number>} indexes Indexes from `items` array to select
+       */
+      selectIndexes(indexes) {
+        if (!this.multi) {
+          throw new Error('This method can be used only in multi = true mode');
+        }
+
+        if (indexes.length === 0) {
+          return;
+        }
+        if (indexes.length === 1) {
+          this.selectIndex(indexes[0]);
+          return;
+        }
+
+        const haveToBeSelectedIndexes =
+            indexes.filter(idx => !this.isSelected(this.items[idx]));
+
+        if (this.toggle) {
+          const alreadySelectedIndexes =
+              indexes.filter(idx => this.isSelected(this.items[idx]));
+          this.deselectIndexes(alreadySelectedIndexes);
+        }
+
+        for (const idx of haveToBeSelectedIndexes) {
+          this.__selectedMap.set(this.items[idx], idx);
+        }
+        this.__updateLinks();
+        this.push(
+            'selected', ...haveToBeSelectedIndexes.map(idx => this.items[idx]));
       }
 
     }
