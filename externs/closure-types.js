@@ -693,7 +693,7 @@ Polymer_ElementMixin.prototype.importPath;
 /** @type {(StampedTemplate|HTMLElement|ShadowRoot)} */
 Polymer_ElementMixin.prototype.root;
 
-/** @type {!Object.<string, !Node>} */
+/** @type {!Object.<string, !Element>} */
 Polymer_ElementMixin.prototype.$;
 
 /**
