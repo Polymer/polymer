@@ -236,6 +236,19 @@ suite('single selection', function() {
     assert.equal(bind.$.singleBound.selected, null);
   });
 
+  test('reset item in array, selection should go away', function() {
+    let bind = fixture('bind');
+    bind.items = [
+      {name: 'one'},
+      {name: 'two'},
+      {name: 'three'}
+    ];
+    bind.$.singleBound.select(bind.items[0]);
+    assert.equal(bind.$.singleBound.selected, bind.items[0]);
+    bind.set('items.0', {name: 'new'});
+    assert.equal(bind.$.singleBound.selected, null);
+  });
+
 });
 
 suite('multi selection', function() {
@@ -478,6 +491,125 @@ suite('multi selection', function() {
     // set items to new objects; all should be removed (selection based on identity)
     bind.set('items.0', {name: 'new'});
     assert.sameMembers(bind.$.multiBound.selected, [bind.items[2]]);
+  });
+
+  test('batch selection and deselection of items', function() {
+    let bind = fixture('bind');
+    bind.items = [
+      {name: 'one'},
+      {name: 'two'},
+      {name: 'three'},
+      {name: 'four'},
+      {name: 'five'},
+      {name: 'six'}
+    ];
+    bind.$.multiBound.selectIndexes([1, 3]);
+    assert.sameMembers(
+        bind.$.multiBound.selected,
+        [bind.items[1], bind.items[3]]);
+
+    bind.$.multiBound.selectIndexes([3, 4, 5]);
+    assert.sameMembers(
+        bind.$.multiBound.selected,
+        [bind.items[1], bind.items[3], bind.items[4], bind.items[5]]);
+
+    bind.$.multiBound.deselectIndexes([1, 5]);
+    assert.sameMembers(
+        bind.$.multiBound.selected,
+        [bind.items[3], bind.items[4]]);
+
+    bind.$.multiBound.deselectIndexes([2, 4]);
+    assert.sameMembers(
+        bind.$.multiBound.selected,
+        [bind.items[3]]);
+  });
+
+  test('batch selection notification', function() {
+    let bind = fixture('bind');
+    bind.items = [
+      {name: 'one'},
+      {name: 'two'},
+      {name: 'three'},
+      {name: 'four'},
+      {name: 'five'},
+      {name: 'six'}
+    ];
+    // select second, third, fifth and sixth
+    bind.$.observer.multiChanged = sinon.spy();
+    bind.$.multiBound.selectIndexes([1, 2, 4, 5]);
+    assert.isTrue(bind.$.observer.multiChanged.calledTwice);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].path, 'multiSelected.splices');
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices.length, 1);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices[0].addedCount, 4);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices[0].removed.length, 0);
+    assert.sameMembers(
+        bind.$.observer.multiSelected,
+        [bind.items[1], bind.items[2], bind.items[4], bind.items[5]]);
+    assert.equal(bind.$.observer.multiChanged.secondCall.args[0].path, 'multiSelected.length');
+    assert.equal(bind.$.observer.multiChanged.secondCall.args[0].value, 4);
+
+    // select first
+    bind.$.observer.multiChanged = sinon.spy();
+    bind.$.multiBound.select(bind.items[0]);
+    assert.isTrue(bind.$.observer.multiChanged.calledTwice);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].path, 'multiSelected.splices');
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices.length, 1);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices[0].addedCount, 1);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices[0].removed.length, 0);
+    assert.sameMembers(
+        bind.$.observer.multiSelected,
+        [bind.items[1], bind.items[2], bind.items[4], bind.items[5], bind.items[0]]);
+    assert.equal(bind.$.observer.multiChanged.secondCall.args[0].path, 'multiSelected.length');
+    assert.equal(bind.$.observer.multiChanged.secondCall.args[0].value, 5);
+
+    // deselect items
+    bind.$.observer.multiChanged = sinon.spy();
+    bind.$.multiBound.deselectIndexes([5, 0, 2]);
+    assert.isTrue(bind.$.observer.multiChanged.calledTwice);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].path, 'multiSelected.splices');
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices.length, 2);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices[0].addedCount, 0);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices[0].removed.length, 1);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices[1].addedCount, 0);
+    assert.equal(bind.$.observer.multiChanged.firstCall.args[0].value.indexSplices[1].removed.length, 2);
+    assert.sameMembers(
+        bind.$.observer.multiSelected,
+        [bind.items[1], bind.items[4]]);
+    assert.equal(bind.$.observer.multiChanged.secondCall.args[0].path, 'multiSelected.length');
+    assert.equal(bind.$.observer.multiChanged.secondCall.args[0].value, 2);
+  });
+
+  test('batch selection toggle', function() {
+    let bind = fixture('bind');
+    bind.items = [
+      {name: 'one'},
+      {name: 'two'},
+      {name: 'three'},
+      {name: 'four'},
+      {name: 'five'},
+      {name: 'six'}
+    ];
+
+    bind.$.multiBound.toggle = true;
+
+    // select second, third, fifth and sixth
+    bind.$.multiBound.selectIndexes([1, 2, 4, 5]);
+    assert.sameMembers(
+        bind.$.observer.multiSelected,
+        [bind.items[1], bind.items[2], bind.items[4], bind.items[5]]);
+
+    // select first and deselect third
+    bind.$.multiBound.selectIndexes([0, 2]);
+    assert.sameMembers(
+        bind.$.observer.multiSelected,
+        [bind.items[1], bind.items[4], bind.items[5], bind.items[0]]);
+
+    // deselect items
+    bind.$.observer.multiChanged = sinon.spy();
+    bind.$.multiBound.deselectIndexes([4, 2]);
+    assert.sameMembers(
+      bind.$.observer.multiSelected,
+      [bind.items[1], bind.items[5], bind.items[0]]);
   });
 
 });
