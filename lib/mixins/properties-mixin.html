@@ -67,11 +67,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Returns the super class constructor for the given class, if it is an
      * instance of the PropertiesClass.
      *
-     * @param {PropertiesClassConstructor} ctor PropertiesClass constructor
+     * @param {PropertiesClassConstructor} constructor PropertiesClass constructor
      * @return {PropertiesClassConstructor} Super class constructor
      */
-    function superForClass(ctor) {
-      const proto = /** @type {PropertiesClassConstructor} */ (ctor).prototype;
+    function superForClass(constructor) {
+      const proto = /** @type {PropertiesClassConstructor} */ (constructor).prototype;
       const superCtor = Object.getPrototypeOf(proto).constructor;
       if (superCtor.prototype instanceof PropertiesClass) {
         return superCtor;
@@ -83,31 +83,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * given class. Properties not in object format are converted to at
      * least {type}.
      *
-     * @param {PropertiesClassConstructor} ctor PropertiesClass constructor
+     * @param {PropertiesClassConstructor} constructor PropertiesClass constructor
      * @return {Object} Memoized properties object
      */
-    function ownProperties(ctor) {
-      if (!ctor.hasOwnProperty(
-        JSCompiler_renameProperty('__ownProperties', ctor))) {
-        const props = ctor.properties;
-        ctor.__ownProperties = props ? normalizeProperties(props) : null;
+    function ownProperties(constructor) {
+      if (!constructor.hasOwnProperty(
+        JSCompiler_renameProperty('__ownProperties', constructor))) {
+        const props = constructor.properties;
+        constructor.__ownProperties = props ? normalizeProperties(props) : null;
       }
-      return ctor.__ownProperties;
+      return constructor.__ownProperties;
     }
 
     /**
-     * Returns map of properties for attributes for the given class.
+     * Creates a map matching attribute names to properties by using
+     * `attributeNameForProperty` and the names in `properties`. This map is
+     * used in `propertyNameForAttribute` which locks property names and
+     * attribute names together using this data.
      *
-     * @param {PropertiesClassConstructor} ctor PropertiesClass constructor
-     * @param {string} nane Name of attribute
-     * @return {string} Name of property.
+     * @private
+     * @param {PropertiesClassConstructor} constructor PropertiesClass constructor
+     * @return {Object} Object mapping property names to attributes.
      */
-    function propertyNameForAttributeMap(ctor) {
-      if (!ctor.hasOwnProperty(
-        JSCompiler_renameProperty('__propertyNameForAttributeMap', ctor))) {
-        ctor.__propertyNameForAttributeMap = {};
+    function propertyNameForAttributeMap(constructor) {
+      if (!constructor.hasOwnProperty(JSCompiler_renameProperty(
+        '__propertyNameForAttributeMap', constructor))) {
+        const map = constructor.__propertyNameForAttributeMap = {};
+        const props = constructor._properties;
+        for (let prop in props) {
+          const attr = constructor.attributeNameForProperty(prop);
+          map[attr] = prop;
+        }
       }
-      return ctor.__propertyNameForAttributeMap;
+      return constructor.__propertyNameForAttributeMap;
     }
 
     /**
@@ -126,7 +134,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static get observedAttributes() {
         const props = this._properties;
         return props ? Object.keys(props).map(p => {
-          return this.prototype._attributeNameForProperty(p);
+          return this.attributeNameForProperty(p);
         }) : [];
       }
 
@@ -180,16 +188,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides PropertiesChanged implementation to provide caching.
+       * Overrides PropertiesChanged implementation to discover the property
+       * associated with an attribute by revers mapping the property names in
+       * the `properties` object to the attribute name generated via
+       * `attributeNameForProperty`.
+       *
        * @param {string} name Name of property
        * @return {string} Name of attribute
        */
-      _propertyNameForAttribute(name) {
-        const cache = propertyNameForAttributeMap(this.constructor);
-        if (!cache[name]) {
-          cache[name] = super._propertyNameForAttribute(name);
-        }
-        return cache[name];
+      static propertyNameForAttribute(name) {
+        return propertyNameForAttributeMap(this)[name];
       }
 
       /**
@@ -200,8 +208,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @protected
        */
-      _typeForProperty(name) {
-        const info = this.constructor._properties[name];
+      static typeForProperty(name) {
+        const info = this._properties[name];
         return info && info.type;
       }
 
