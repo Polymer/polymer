@@ -18,7 +18,7 @@ Beyond GitHub, we try to have a variety of different lines of communication open
 
 Because of the component-based nature of the Polymer project, we tend to have lots of different repositories. Our main repository for the Polymer library itself is at [github.com/Polymer/polymer](https://github.com/polymer/polymer). File any issues or pull requests that have to do with the core library on that repository, and we'll take a look ASAP.
 
-We keep all of the element "product lines" that the Polymer team maintains and distributes in the [PolymerElements](https://github.com/polymerelements) organization. For any element-specific issues or pull requests, file directly on the element's repository, such as the `paper-button` repository at [github.com/polymerelements/paper-button](https://github.com/polymerelements/paper-button). Of course, the elements built by the Polymer team are just a tiny fraction of all the Polymer-based elements out there - catalogs of other web components include [customelements.io](http://www.customelements.io) and [component.kitchen](http://component.kitchen).
+We keep all of the element "product lines" that the Polymer team maintains and distributes in the [PolymerElements](https://github.com/polymerelements) organization. For any element-specific issues or pull requests, file directly on the element's repository, such as the `paper-button` repository at [github.com/polymerelements/paper-button](https://github.com/polymerelements/paper-button). Of course, the elements built by the Polymer team are just a tiny fraction of all the Polymer-based elements out there - catalogs of other web components include [https://www.webcomponents.org/](https://github.com/webcomponents/webcomponents.org) and [component.kitchen](https://component.kitchen).
 
 The GoogleWebComponents element product line is maintained by teams all across Google, and so is kept in a separate organization: the [GoogleWebComponents](https://github.com/googlewebcomponents) org. Feel free to file issues and PR's on those elements directly in that organization.
 
@@ -71,7 +71,7 @@ All elements should follow the [Polymer element style guide](http://polymereleme
 
 We follow the most common javascript and HTML style guidelines for how we structure our code - in general, look at the code and you'll know how to contribute! If you'd like a bit more structure, the [Google JavaScript Styleguide](https://google.github.io/styleguide/javascriptguide.xml) is a good place to start.
 
-Polymer also participates in Google's [Patch Rewards Program](http://www.google.com/about/appsecurity/patch-rewards/), where you can earn cold, hard cash for qualifying security patches to the Polymer library. Visit the [patch rewards page](http://www.google.com/about/appsecurity/patch-rewards/) to find out more.
+Polymer also participates in Google's [Patch Rewards Program](https://www.google.com/about/appsecurity/patch-rewards/), where you can earn cold, hard cash for qualifying security patches to the Polymer library. Visit the [patch rewards page](https://www.google.com/about/appsecurity/patch-rewards/) to find out more.
 
 ## Unit tests
 
