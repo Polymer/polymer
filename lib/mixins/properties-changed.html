@@ -21,6 +21,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     const microtask = Polymer.Async.microTask;
 
     /**
+     * Returns the map matching attribute names to properties. This map is
+     * used in `propertyNameForAttribute` which locks property names and
+     * attribute names together using this data.
+     *
+     * @private
+     * @param {PropertiesChangedConstructor} constructor PropertiesChanged
+     * constructor
+     * @return {Object} Object mapping property names to attributes.
+     */
+     function getAttributeToPropertyMap(constructor) {
+      return constructor.__attributeToPropertyMap;
+    }
+
+    /**
+     * Adds to the `attributeToPropertyMap` for the given class. A key for the
+     * attribute discovered via `attributeNameForProperty` points to the
+     * given property name. This map is used in `propertyNameForAttribute`.
+     *
+     * @private
+     * @param {PropertiesChangedConstructor} constructor PropertiesChanged
+     * constructor
+     * @param {string} property Property name.
+     */
+    function addToAttributeToPropertyMap(constructor, property) {
+      if (!constructor.hasOwnProperty(JSCompiler_renameProperty(
+        '__attributeToPropertyMap', constructor))) {
+        constructor.__attributeToPropertyMap = {};
+      }
+      const attr = constructor.attributeNameForProperty(property);
+      constructor.__attributeToPropertyMap[attr] = property;
+    }
+
+    /**
      * Element class mixin that provides basic meta-programming for creating one
      * or more property accessors (getter/setter pair) that enqueue an async
      * (batched) `_propertiesChanged` callback.
@@ -70,25 +103,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         /**
          * Returns a property name that corresponds to the given attribute.
-         * By default, converts dash to camel case, e.g. `foo-bar` to `fooBar`.
+         * The attribute name is always lowercase and the property name is the
+         * cased version for which a property accessor was created. Override to
+         * customize this mapping.
          * @param {string} attribute Attribute to convert
          * @return {string} Property name corresponding to the given attribute.
          *
          * @protected
          */
-         static propertyNameForAttribute(attribute) {
-          return attribute;
+        static propertyNameForAttribute(attribute) {
+          const map = getAttributeToPropertyMap(this);
+          return map && map[attribute] || attribute;
         }
 
         /**
          * Returns an attribute name that corresponds to the given property.
-         * By default, converts camel to dash case, e.g. `fooBar` to `foo-bar`.
+         * The attribute name is the lowercased property name. Override to
+         * customize this mapping.
          * @param {string} property Property to convert
          * @return {string} Attribute name corresponding to the given property.
          *
          * @protected
          */
-         static attributeNameForProperty(property) {
+        static attributeNameForProperty(property) {
           return property.toLowerCase();
         }
 
@@ -122,6 +159,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           }
           if (!this.__dataHasAccessor[property]) {
             this.__dataHasAccessor[property] = true;
+            addToAttributeToPropertyMap(this.constructor, property);
             this._definePropertyAccessor(property, readOnly);
           }
         }
