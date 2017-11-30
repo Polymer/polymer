@@ -200,9 +200,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         return s;
       },
 
+      // given a match from HOST_SCOPE_PAREN regex, add selectors for more :dir cases
+      // nested: [dir] is set on an ancestor node that is inside the host element
+      _additionalDirSelectors: function(dir, after, prefix) {
+        if (!dir || !after) {
+          return '';
+        }
+        prefix = prefix || '';
+        return COMPLEX_SELECTOR_SEP + prefix + ' ' + dir + ' ' + after;
+      },
+
       _transformComplexSelector: function(selector, scope, hostScope) {
         var stop = false;
         var hostContext = false;
+        var dir = false;
         var self = this;
         selector = selector.trim();
         selector = this._slottedToContent(selector);
@@ -214,6 +225,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             var info = self._transformCompoundSelector(s, c, scope, hostScope);
             stop = stop || info.stop;
             hostContext = hostContext || info.hostContext;
+            dir = dir || info.dir;
             c = info.combinator;
             s = info.value;
           } else {
@@ -224,8 +236,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (hostContext) {
           selector = selector.replace(HOST_CONTEXT_PAREN,
             function(m, pre, paren, post) {
-              return pre + paren + ' ' + hostScope + post +
+              var replacement = pre + paren + ' ' + hostScope + post +
                 COMPLEX_SELECTOR_SEP + ' ' + pre + hostScope + paren + post;
+              if (dir) {
+                replacement += self._additionalDirSelectors(paren, post, hostScope);
+              }
+              return replacement;
              });
         }
         return selector;
@@ -243,7 +259,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // replace :host with host scoping class
         var jumpIndex = selector.search(SCOPE_JUMP);
         var hostContext = false;
-        selector = this._transformDir(selector);
+        var dir = false;
+        if (selector.match(DIR_PAREN)){
+          selector = this._transformDir(selector);
+          dir = true;
+        }
         if (selector.indexOf(HOST_CONTEXT) >=0) {
           hostContext = true;
         } else if (selector.indexOf(HOST) >=0) {
@@ -265,7 +285,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           stop = true;
         }
         return {value: selector, combinator: combinator, stop: stop,
-          hostContext: hostContext};
+          hostContext: hostContext, dir: dir};
       },
 
       _transformSimpleSelector: function(selector, scope) {
@@ -339,7 +359,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _dirShadowTransform: function(selector) {
         return selector.split(',').map(function(s) {
           s = this._ensureScopedDir(s);
-          return this._transformDir(s);
+          s = this._transformDir(s);
+          var m = HOST_CONTEXT_PAREN.exec(s);
+          if (m) {
+            s += this._additionalDirSelectors(m[2], m[3], '');
+          }
+          return s;
         }, this).join(',');
       },
 
