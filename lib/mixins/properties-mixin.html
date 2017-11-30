@@ -17,14 +17,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   'use strict';
 
   /**
-   * Mixin that provides minimal starting point to using the PropertiesChanged
+   * Mixin that provides a minimal starting point to using the PropertiesChanged
    * mixin by providing a mechanism to declare properties in a static
    * getter (e.g. static get properties() { return { foo: String } }). Changes
    * are reported via the `_propertiesChanged` method.
    *
    * This mixin provides no specific support for rendering. Users are expected
-   * to create a shadowRoot and put content into it and update it in whatever
-   * way makes sense for the use case.
+   * to create a ShadowRoot and put content into it and update it in whatever
+   * way makes sense. This can be done in reaction to properties changing by
+   * implementing `_propertiesChanged`.
    *
    * @mixinFunction
    * @polymer
@@ -54,11 +55,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     function normalizeProperties(props) {
       const output = {};
       for (let p in props) {
-        let o = props[p];
-        if (typeof o == 'function') {
-          o = { type: o };
-        }
-        output[p] = o;
+        const o = props[p];
+        output[p] = (typeof o === 'function') ? {type: o} : o;
       }
       return output;
     }
@@ -70,9 +68,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {PropertiesMixinConstructor} constructor PropertiesMixin constructor
      * @return {PropertiesMixinConstructor} Super class constructor
      */
-    function superForClass(constructor) {
-      const proto = /** @type {PropertiesMixinConstructor} */ (constructor).prototype;
-      const superCtor = Object.getPrototypeOf(proto).constructor;
+    function superPropertiesClass(constructor) {
+      const superCtor = Object.getPrototypeOf(constructor);
       if (superCtor.prototype instanceof PropertiesMixin) {
         return superCtor;
       }
@@ -110,9 +107,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       static get observedAttributes() {
         const props = this._properties;
-        return props ? Object.keys(props).map(p => {
-          return this.attributeNameForProperty(p);
-        }) : [];
+        return props ? Object.keys(props).map(p => this.attributeNameForProperty(p)) : [];
       }
 
       /**
@@ -123,7 +118,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
        static finalize() {
         if (!this.hasOwnProperty(JSCompiler_renameProperty('__finalized', this))) {
-          const superCtor = superForClass(this);
+          const superCtor = superPropertiesClass(this);
           if (superCtor) {
             superCtor.finalize();
           }
@@ -149,7 +144,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Returns a memoized version of all properties, including those inherited
        * from super classes. Properties not in object format are converted to
-       * at lesat {type}.
+       * at least {type}.
        *
        * @return {Object} Object containing properties for this class
        * @protected
@@ -157,15 +152,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       static get _properties() {
         if (!this.hasOwnProperty(
           JSCompiler_renameProperty('__properties', this))) {
-          const superCtor = superForClass(this);
+          const superCtor = superPropertiesClass(this);
           this.__properties = Object.assign({},
-            superCtor && superCtor._properties, ownProperties(this));
+            superCtor && superCtor._properties,
+            ownProperties(this));
         }
         return this.__properties;
       }
 
       /**
-       * Overrides PropertiesChanged method to return type specified in the
+       * Overrides `PropertiesChanged` method to return type specified in the
        * static `properties` object for the given property.
        * @param {string} name Name of property
        * @return {*} Type to which to deserialize attribute
@@ -178,8 +174,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides default behavior and adds a call to `finalize` which lazily
-       * configures the element's property accessors.
+       * Overrides `PropertiesChanged` method and adds a call to
+       * `finalize` which lazily configures the element's property accessors.
        * @override
        */
       _initializeProperties() {
