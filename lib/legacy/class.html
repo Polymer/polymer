@@ -14,8 +14,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     'use strict';
 
-    let LegacyElementMixin = Polymer.LegacyElementMixin;
-
     let metaProps = {
       attached: true,
       detached: true,
@@ -26,7 +24,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       attributeChanged: true,
       // meta objects
       behaviors: true
-    }
+    };
 
     /**
      * Applies a "legacy" behavior or array of behaviors to the provided class.
@@ -35,20 +33,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * to ensure that any legacy behaviors can rely on legacy Polymer API on
      * the underlying element.
      *
-     * @param {Object|Array} behaviors Behavior object or array of behaviors.
-     * @param {HTMLElement} klass Element class.
-     * @return {HTMLElement} Returns a new Element class extended by the
+     * @param {!(Object|Array)} behaviors Behavior object or array of behaviors.
+     * @param {!HTMLElement|function(new:HTMLElement)} klass Element class.
+     * @return {function(new:HTMLElement)} Returns a new Element class extended by the
      * passed in `behaviors` and also by `Polymer.LegacyElementMixin`.
      * @memberof Polymer
+     * @suppress {invalidCasts, checkTypes}
      */
     function mixinBehaviors(behaviors, klass) {
       if (!behaviors) {
+        klass = /** @type {HTMLElement} */(klass); // eslint-disable-line no-self-assign
         return klass;
       }
-      // NOTE: ensure the bahevior is extending a class with
+      // NOTE: ensure the behavior is extending a class with
       // legacy element api. This is necessary since behaviors expect to be able
       // to access 1.x legacy api.
-      klass = LegacyElementMixin(klass);
+      klass = Polymer.LegacyElementMixin(klass);
       if (!Array.isArray(behaviors)) {
         behaviors = [behaviors];
       }
@@ -110,7 +110,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {Array} behaviors List of behaviors to flatten.
      * @param {Array=} list Target list to flatten behaviors into.
      * @param {Array=} exclude List of behaviors to exclude from the list.
-     * @return {Array} Returns the list of flattened behaviors.
+     * @return {!Array} Returns the list of flattened behaviors.
      */
     function flattenBehaviors(behaviors, list, exclude) {
       list = list || [];
@@ -132,6 +132,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return list;
     }
 
+    /**
+     * @param {!PolymerInit} info Polymer info object
+     * @param {function(new:HTMLElement)} Base base class to extend with info object
+     * @return {function(new:HTMLElement)} Generated class
+     * @suppress {checkTypes}
+     * @private
+     */
     function GenerateClassFromInfo(info, Base) {
 
       class PolymerGenerated extends Base {
@@ -144,6 +151,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           return info.observers;
         }
 
+        /**
+         * @return {HTMLTemplateElement} template for this class
+         */
         static get template() {
           // get template first from any imperative set in `info._template`
           return info._template ||
@@ -152,8 +162,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             // next look for superclass template (note: use superclass symbol
             // to ensure correct `this.is`)
             Base.template ||
-            // finally fall back to `_template` in element's protoype.
-            this.prototype._template;
+            // finally fall back to `_template` in element's prototype.
+            this.prototype._template ||
+            null;
         }
 
         created() {
@@ -230,7 +241,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        }
       }
 
-      PolymerGenerated.generatedFrom =  info
+      PolymerGenerated.generatedFrom = info;
 
       for (let p in info) {
         // NOTE: cannot copy `metaProps` methods onto prototype at least because
@@ -309,9 +320,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      *   this element have been propagated to its template and all observers
      *   have run
      *
-     * @param {Object} info Object containing Polymer metadata and functions
+     * @param {!PolymerInit} info Object containing Polymer metadata and functions
      *   to become class methods.
-     * @return {Polymer.LegacyElement} Generated class
+     * @return {function(new:HTMLElement)} Generated class
      * @memberof Polymer
      */
     Polymer.Class = function(info) {
@@ -321,11 +332,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let klass = GenerateClassFromInfo(info, info.behaviors ?
         // note: mixinBehaviors ensures `LegacyElementMixin`.
         mixinBehaviors(info.behaviors, HTMLElement) :
-        LegacyElementMixin(HTMLElement));
+        Polymer.LegacyElementMixin(HTMLElement));
       // decorate klass with registration info
       klass.is = info.is;
       return klass;
-    }
+    };
 
     Polymer.mixinBehaviors = mixinBehaviors;
 

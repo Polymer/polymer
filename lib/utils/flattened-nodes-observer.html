@@ -14,6 +14,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
   'use strict';
 
+  /**
+   * Returns true if `node` is a slot element
+   * @param {HTMLElement} node Node to test.
+   * @return {boolean} Returns true if the given `node` is a slot
+   * @private
+   */
   function isSlot(node) {
     return (node.localName === 'slot');
   }
@@ -39,9 +45,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * are asynchronous.
    *
    * @memberof Polymer
-   * @param {Node} target Node on which to listen for changes.
-   * @param {Function} callback Function called when there are additions
-   * or removals from the target's list of flattened nodes.
    * @summary Class that listens for changes (additions or removals) to
    * "flattened nodes" on a given `node`.
    */
@@ -56,15 +59,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * nodes list is `<a></a><div></div><b></b>`. If the `<slot>` has other
      * `<slot>` elements assigned to it, these are flattened as well.
      *
-     * @param {Node} node The node for which to return the list of flattened nodes.
+     * @param {HTMLElement|HTMLSlotElement} node The node for which to return the list of flattened nodes.
      * @return {Array} The list of flattened nodes for the given `node`.
     */
     static getFlattenedNodes(node) {
       if (isSlot(node)) {
+        node = /** @type {HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
         return node.assignedNodes({flatten: true});
       } else {
-        return Array.from(node.childNodes).map(node => {
+        return Array.from(node.childNodes).map((node) => {
           if (isSlot(node)) {
+            node = /** @type {HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
             return node.assignedNodes({flatten: true});
           } else {
             return [node];
@@ -73,6 +78,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
 
+    /**
+     * @param {Node} target Node on which to listen for changes.
+     * @param {Function} callback Function called when there are additions
+     * or removals from the target's list of flattened nodes.
+    */
     constructor(target, callback) {
       /** @type {MutationObserver} */
       this._shadyChildrenObserver = null;
@@ -84,9 +94,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._effectiveNodes = [];
       this._observer = null;
       this._scheduled = false;
+      /** @type {function()} */
       this._boundSchedule = () => {
         this._schedule();
-      }
+      };
       this.connect();
       this._schedule();
     }
@@ -95,6 +106,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Activates an observer. This method is automatically called when
      * a `FlattenedNodesObserver` is created. It should only be called to
      * re-activate an observer that has been deactivated via the `disconnect` method.
+     *
+     * @return {void}
      */
     connect() {
       if (isSlot(this._target)) {
@@ -122,6 +135,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * the observer callback will not be called when changes to flattened nodes
      * occur. The `connect` method may be subsequently called to reactivate
      * the observer.
+     *
+     * @return {void}
      */
     disconnect() {
       if (isSlot(this._target)) {
@@ -175,7 +190,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     flush() {
       if (!this._connected) {
-        return;
+        return false;
       }
       if (window.ShadyDOM) {
         ShadyDOM.flush();

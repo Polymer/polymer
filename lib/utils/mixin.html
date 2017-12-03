@@ -20,56 +20,57 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   let dedupeId = 0;
 
   /**
-   * Given a mixin producing function, memoize applications of mixin to base
-   * @private
-   * @param {Function} mixin Mixin for which to create a caching mixin.
-   * @return {Function} Returns a mixin which when applied multiple times to the
-   * same base will always return the same extended class.
+   * @constructor
+   * @extends {Function}
    */
-  function cachingMixin(mixin) {
-    return function(base) {
-      if (!mixin.__mixinApplications) {
-        mixin.__mixinApplications = new WeakMap();
-      }
-      let map = mixin.__mixinApplications;
-      let application = map.get(base);
-      if (!application) {
-        application = mixin(base);
-        map.set(base, application);
-      }
-      return application;
-    };
-  }
+  function MixinFunction(){}
+  /** @type {(WeakMap | undefined)} */
+  MixinFunction.prototype.__mixinApplications;
+  /** @type {(Object | undefined)} */
+  MixinFunction.prototype.__mixinSet;
 
+  /* eslint-disable valid-jsdoc */
   /**
    * Wraps an ES6 class expression mixin such that the mixin is only applied
-   * if it has not already been applied its base argument.  Also memoizes mixin
+   * if it has not already been applied its base argument. Also memoizes mixin
    * applications.
    *
    * @memberof Polymer
-   * @param {Function} mixin ES6 class expression mixin to wrap
-   * @return {Function} Wrapped mixin that deduplicates and memoizes
-   *   mixin applications to base
+   * @template T
+   * @param {T} mixin ES6 class expression mixin to wrap
+   * @suppress {invalidCasts}
    */
   Polymer.dedupingMixin = function(mixin) {
-    mixin = cachingMixin(mixin);
+    let mixinApplications = /** @type {!MixinFunction} */(mixin).__mixinApplications;
+    if (!mixinApplications) {
+      mixinApplications = new WeakMap();
+      /** @type {!MixinFunction} */(mixin).__mixinApplications = mixinApplications;
+    }
     // maintain a unique id for each mixin
-    mixin.__dedupeId = ++dedupeId;
-    return function(base) {
-      let baseSet = base.__mixinSet;
-      if (baseSet && baseSet[mixin.__dedupeId]) {
+    let mixinDedupeId = dedupeId++;
+    function dedupingMixin(base) {
+      let baseSet = /** @type {!MixinFunction} */(base).__mixinSet;
+      if (baseSet && baseSet[mixinDedupeId]) {
         return base;
       }
-      let extended = mixin(base);
+      let map = mixinApplications;
+      let extended = map.get(base);
+      if (!extended) {
+        extended = /** @type {!Function} */(mixin)(base);
+        map.set(base, extended);
+      }
       // copy inherited mixin set from the extended class, or the base class
       // NOTE: we avoid use of Set here because some browser (IE11)
       // cannot extend a base Set via the constructor.
-      extended.__mixinSet =
-        Object.create(extended.__mixinSet || baseSet || null);
-      extended.__mixinSet[mixin.__dedupeId] = true;
+      let mixinSet = Object.create(/** @type {!MixinFunction} */(extended).__mixinSet || baseSet || null);
+      mixinSet[mixinDedupeId] = true;
+      /** @type {!MixinFunction} */(extended).__mixinSet = mixinSet;
       return extended;
     }
+
+    return dedupingMixin;
   };
+  /* eslint-enable valid-jsdoc */
 
 })();
 
