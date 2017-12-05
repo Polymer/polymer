@@ -572,7 +572,10 @@ window.removeEventListener('test', null, opts);
 } catch (e) {
 }
 }());
-function PASSIVE_TOUCH() {
+function PASSIVE_TOUCH(eventName) {
+if (isMouseEvent(eventName) || eventName === 'touchend') {
+return;
+}
 if (HAS_NATIVE_TA && SUPPORTS_PASSIVE && Polymer.Settings.passiveTouchGestures) {
 return { passive: true };
 }
@@ -805,8 +808,7 @@ if (!gd) {
 gobj[dep] = gd = { _count: 0 };
 }
 if (gd._count === 0) {
-var options = !isMouseEvent(dep) && PASSIVE_TOUCH();
-node.addEventListener(dep, this.handleNative, options);
+node.addEventListener(dep, this.handleNative, PASSIVE_TOUCH(dep));
 }
 gd[name] = (gd[name] || 0) + 1;
 gd._count = (gd._count || 0) + 1;
@@ -830,8 +832,7 @@ if (gd && gd[name]) {
 gd[name] = (gd[name] || 1) - 1;
 gd._count = (gd._count || 1) - 1;
 if (gd._count === 0) {
-var options = !isMouseEvent(dep) && PASSIVE_TOUCH();
-node.removeEventListener(dep, this.handleNative, options);
+node.removeEventListener(dep, this.handleNative, PASSIVE_TOUCH(dep));
 }
 }
 }
@@ -2525,7 +2526,7 @@ MIXIN_RULE: 1000
 OPEN_BRACE: '{',
 CLOSE_BRACE: '}',
 _rx: {
-comments: /\/\*[^*]*\*+([^/*][^*]*\*+)*\//gim,
+comments: /\/\*[^*]*\*+([^\/*][^*]*\*+)*\//gim,
 port: /@import[^;]*;/gim,
 customProp: /(?:^[^;\-\s}]+)?--[^;{}]*?:[^{};]*?(?:[;\n]|$)/gim,
 mixinProp: /(?:^[^;\-\s}]+)?--[^;{}]*?:[^{};]*?{[^}]*?}(?:[;\n]|$)?/gim,
@@ -2541,6 +2542,8 @@ AT_START: '@'
 }();Polymer.StyleUtil = function () {
 var settings = Polymer.Settings;
 return {
+unscopedStyleImports: new WeakMap(),
+SHADY_UNSCOPED_ATTR: 'shady-unscoped',
 NATIVE_VARIABLES: Polymer.Settings.useNativeCSSProperties,
 MODULE_STYLES_SELECTOR: 'style, link[rel=import][type~=css], template',
 INCLUDE_ATTR: 'include',
@@ -2648,7 +2651,7 @@ this.__lastHeadApplyNode = placeHolder;
 return placeHolder;
 },
 cssFromModules: function (moduleIds, warnIfNotFound) {
-var modules = moduleIds.trim().split(' ');
+var modules = moduleIds.trim().split(/\s+/);
 var cssText = '';
 for (var i = 0; i < modules.length; i++) {
 cssText += this.cssFromModule(modules[i], warnIfNotFound);
@@ -2683,9 +2686,26 @@ cssText += this.cssFromModules(include, true);
 }
 e = e.__appliedElement || e;
 e.parentNode.removeChild(e);
-cssText += this.resolveCss(e.textContent, element.ownerDocument);
+var css = this.resolveCss(e.textContent, element.ownerDocument);
+if (!settings.useNativeShadow && e.hasAttribute(this.SHADY_UNSCOPED_ATTR)) {
+e.textContent = css;
+document.head.insertBefore(e, document.head.firstChild);
+} else {
+cssText += css;
+}
 } else if (e.import && e.import.body) {
-cssText += this.resolveCss(e.import.body.textContent, e.import);
+var importCss = this.resolveCss(e.import.body.textContent, e.import);
+if (!settings.useNativeShadow && e.hasAttribute(this.SHADY_UNSCOPED_ATTR)) {
+if (!this.unscopedStyleImports.has(e.import)) {
+this.unscopedStyleImports.set(e.import, true);
+var importStyle = document.createElement('style');
+importStyle.setAttribute(this.SHADY_UNSCOPED_ATTR, '');
+importStyle.textContent = importCss;
+document.head.insertBefore(importStyle, document.head.firstChild);
+}
+} else {
+cssText += importCss;
+}
 }
 }
 }
@@ -2890,19 +2910,36 @@ p$[i] = transformer.call(this, p, scope, hostScope);
 }
 return p$.join(COMPLEX_SELECTOR_SEP);
 },
+_ensureScopedDir: function (s) {
+var m = s.match(DIR_PAREN);
+if (m && m[1] === '' && m[0].length === s.length) {
+s = '*' + s;
+}
+return s;
+},
+_additionalDirSelectors: function (dir, after, prefix) {
+if (!dir || !after) {
+return '';
+}
+prefix = prefix || '';
+return COMPLEX_SELECTOR_SEP + prefix + ' ' + dir + ' ' + after;
+},
 _transformComplexSelector: function (selector, scope, hostScope) {
 var stop = false;
 var hostContext = false;
+var dir = false;
 var self = this;
 selector = selector.trim();
 selector = this._slottedToContent(selector);
 selector = selector.replace(ROOT, ':host > *');
 selector = selector.replace(CONTENT_START, HOST + ' $1');
+selector = this._ensureScopedDir(selector);
 selector = selector.replace(SIMPLE_SELECTOR_SEP, function (m, c, s) {
 if (!stop) {
 var info = self._transformCompoundSelector(s, c, scope, hostScope);
 stop = stop || info.stop;
 hostContext = hostContext || info.hostContext;
+dir = dir || info.dir;
 c = info.combinator;
 s = info.value;
 } else {
@@ -2912,14 +2949,28 @@ return c + s;
 });
 if (hostContext) {
 selector = selector.replace(HOST_CONTEXT_PAREN, function (m, pre, paren, post) {
-return pre + paren + ' ' + hostScope + post + COMPLEX_SELECTOR_SEP + ' ' + pre + hostScope + paren + post;
+var replacement = pre + paren + ' ' + hostScope + post + COMPLEX_SELECTOR_SEP + ' ' + pre + hostScope + paren + post;
+if (dir) {
+replacement += self._additionalDirSelectors(paren, post, hostScope);
+}
+return replacement;
 });
 }
 return selector;
 },
+_transformDir: function (s) {
+s = s.replace(HOST_DIR, HOST_DIR_REPLACE);
+s = s.replace(DIR_PAREN, DIR_REPLACE);
+return s;
+},
 _transformCompoundSelector: function (selector, combinator, scope, hostScope) {
 var jumpIndex = selector.search(SCOPE_JUMP);
 var hostContext = false;
+var dir = false;
+if (selector.match(DIR_PAREN)) {
+selector = this._transformDir(selector);
+dir = true;
+}
 if (selector.indexOf(HOST_CONTEXT) >= 0) {
 hostContext = true;
 } else if (selector.indexOf(HOST) >= 0) {
@@ -2935,12 +2986,12 @@ if (jumpIndex >= 0) {
 selector = selector.replace(SCOPE_JUMP, ' ');
 stop = true;
 }
-selector = selector.replace(DIR_PAREN, DIR_REPLACE);
 return {
 value: selector,
 combinator: combinator,
 stop: stop,
-hostContext: hostContext
+hostContext: hostContext,
+dir: dir
 };
 },
 _transformSimpleSelector: function (selector, scope) {
@@ -2991,10 +3042,14 @@ return cssText.replace(SLOTTED_PAREN, CONTENT + '> $1');
 },
 _dirShadowTransform: function (selector) {
 return selector.split(',').map(function (s) {
-s = s.replace(HOST_DIR, HOST_DIR_REPLACE);
-s = s.replace(DIR_PAREN, SHADOW_DIR_REPLACE);
+s = this._ensureScopedDir(s);
+s = this._transformDir(s);
+var m = HOST_CONTEXT_PAREN.exec(s);
+if (m) {
+s += this._additionalDirSelectors(m[2], m[3], '');
+}
 return s;
-}).join(',');
+}, this).join(',');
 },
 SCOPE_NAME: 'style-scope'
 };
@@ -3019,9 +3074,8 @@ var CONTENT_START = new RegExp('^(' + CONTENT + ')');
 var SELECTOR_NO_MATCH = 'should_not_match';
 var SLOTTED_PAREN = /(?:::slotted)(?:\(((?:\([^)(]*\)|[^)(]*)+?)\))/g;
 var HOST_OR_HOST_GT_STAR = /:host(?:\s*>\s*\*)?/;
-var DIR_PAREN = /(.*):dir\((ltr|rtl)\)/g;
-var DIR_REPLACE = '[dir="$2"] $1, $1[dir="$2"]';
-var SHADOW_DIR_REPLACE = ':host-context([dir="$2"]) $1';
+var DIR_PAREN = /(.*):dir\((ltr|rtl)\)/;
+var DIR_REPLACE = ':host-context([dir="$2"]) $1';
 var HOST_DIR = /:host\(:dir\((rtl|ltr)\)\)/g;
 var HOST_DIR_REPLACE = ':host-context([dir="$1"])';
 return api;
@@ -3704,13 +3758,18 @@ rule.transformedKeyframesName = rule.keyframesName + '-' + scopeId;
 rule.transformedSelector = rule.transformedSelector || rule.selector;
 rule.selector = rule.transformedSelector.replace(rule.keyframesName, rule.transformedKeyframesName);
 },
+_hasDirOrHostContext: function (parsedSelector) {
+return /:host-context|:dir/.test(parsedSelector);
+},
 _scopeSelector: function (rule, hostRx, hostSelector, viaAttr, scopeId) {
 rule.transformedSelector = rule.transformedSelector || rule.selector;
 var selector = rule.transformedSelector;
-var scope = viaAttr ? '[' + styleTransformer.SCOPE_NAME + '~=' + scopeId + ']' : '.' + scopeId;
+var scope = styleTransformer._calcElementScope(scopeId, viaAttr);
+var hostScope = styleTransformer._calcElementScope(hostSelector, viaAttr);
 var parts = selector.split(',');
+var isDirOrHostContextSelector = this._hasDirOrHostContext(rule.parsedSelector);
 for (var i = 0, l = parts.length, p; i < l && (p = parts[i]); i++) {
-parts[i] = p.match(hostRx) ? p.replace(hostSelector, scope) : scope + ' ' + p;
+parts[i] = p.match(hostRx) ? p.replace(hostSelector, scope) : isDirOrHostContextSelector ? p.replace(hostScope, scope + ' ' + hostScope) : scope + ' ' + p;
 }
 rule.selector = parts.join(',');
 },
