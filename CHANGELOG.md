@@ -1,5 +1,101 @@
 # Change Log
 
+## [v2.3.0](https://github.com/Polymer/polymer/tree/v2.3.0) (2017-12-05)
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/c727d35d))
+
+## [v2.2.1](https://github.com/Polymer/polymer/tree/v2.2.1) (2017-12-05)
+- [ci skip] commit new version in lib/utils/boot.html when using npm version ([commit](https://github.com/Polymer/polymer/commit/71fbf6ef))
+
+- change PolymerElement extern to var ([commit](https://github.com/Polymer/polymer/commit/5c3d58aa))
+
+- update node devDependencies ([commit](https://github.com/Polymer/polymer/commit/a39f3f41))
+
+- fix lint error ([commit](https://github.com/Polymer/polymer/commit/f242e197))
+
+- Fix :dir selectors with nested custom elements ([commit](https://github.com/Polymer/polymer/commit/3b76e86f))
+
+- Update test to be more descriptive ([commit](https://github.com/Polymer/polymer/commit/86a64b6c))
+
+- Annotate Polymer function with @global. (#4967) ([commit](https://github.com/Polymer/polymer/commit/b124b707))
+
+- make PASSIVE_TOUCH take an argument ([commit](https://github.com/Polymer/polymer/commit/c5407a8b))
+
+- Do not set touchend listeners to passive ([commit](https://github.com/Polymer/polymer/commit/84fa3bf3))
+
+- Add some @function annotations to APIs that are defined by assignment. ([commit](https://github.com/Polymer/polymer/commit/29f2a0e7))
+
+- add return jsdoc to void functions ([commit](https://github.com/Polymer/polymer/commit/a8105e55))
+
+- Update CONTRIBUTING.md ([commit](https://github.com/Polymer/polymer/commit/14fd53c3))
+
+- Fix typo. ([commit](https://github.com/Polymer/polymer/commit/581483f2))
+
+- Comment reworded based on feedback. ([commit](https://github.com/Polymer/polymer/commit/80a7f1e5))
+
+- Semantic issue (proposal) plus minor fixes ([commit](https://github.com/Polymer/polymer/commit/42ec14bf))
+
+- Depend on webcomponents and shadycss with shady-unscoped support ([commit](https://github.com/Polymer/polymer/commit/8241b887))
+
+- Also clarify `delay` units. Fixes #4707 ([commit](https://github.com/Polymer/polymer/commit/348ed92c))
+
+- Ensure re-sort/filter always happens after array item set. Fixes #3626 ([commit](https://github.com/Polymer/polymer/commit/f6d4771c))
+
+- Clarify docs on target-framerate. Fixes #4897 ([commit](https://github.com/Polymer/polymer/commit/c18a5349))
+
+- move test after ([commit](https://github.com/Polymer/polymer/commit/45598302))
+
+- test more permutations ([commit](https://github.com/Polymer/polymer/commit/f03e8d1b))
+
+- Fix missing comma in `Path.translate` JSDoc ([commit](https://github.com/Polymer/polymer/commit/41616c6f))
+
+- fix(bower): standardized version tagging (#4921) ([commit](https://github.com/Polymer/polymer/commit/6e3ae2e5))
+
+- Minor fixes (update URLs) ([commit](https://github.com/Polymer/polymer/commit/8e7024e6))
+
+- add license headers ([commit](https://github.com/Polymer/polymer/commit/518b4699))
+
+- Prep for processing of `shady-unscoped` moving to ShadyCSS ([commit](https://github.com/Polymer/polymer/commit/08c3a02e))
+
+- Implement type change in Polymer.ElementMixin ([commit](https://github.com/Polymer/polymer/commit/cda62d5f))
+
+- instance.$.foo should only give Elements ([commit](https://github.com/Polymer/polymer/commit/4837e4a8))
+
+- Annotate DomApi with @memberof Polymer ([commit](https://github.com/Polymer/polymer/commit/7308d8b6))
+
+- Clarify all elements between changes must apply mixing. Fixes #4914 ([commit](https://github.com/Polymer/polymer/commit/7360f42a))
+
+- add safari 11 to sauce testing ([commit](https://github.com/Polymer/polymer/commit/428ad8c2))
+
+- Fix tests on Firefox. ([commit](https://github.com/Polymer/polymer/commit/9a468335))
+
+- Update externs again. ([commit](https://github.com/Polymer/polymer/commit/1c5b731f))
+
+- Update externs. ([commit](https://github.com/Polymer/polymer/commit/8683b27c))
+
+- Lint fixes ([commit](https://github.com/Polymer/polymer/commit/092b210f))
+
+- Allow style elements to be separate in the element template. ([commit](https://github.com/Polymer/polymer/commit/819652eb))
+
+- Lint fix. ([commit](https://github.com/Polymer/polymer/commit/982d28c6))
+
+- Add support for styles with a `shady-unscoped` attribute ([commit](https://github.com/Polymer/polymer/commit/d77e073e))
+
+- [ci skip] Update CHANGELOG ([commit](https://github.com/Polymer/polymer/commit/314bada5))
+
+- [ci skip] version script did not work as expected ([commit](https://github.com/Polymer/polymer/commit/4265cba1))
+
+- adding test case for 4696 4706 ([commit](https://github.com/Polymer/polymer/commit/939ce63c))
+
+- Support property observers which are direct function references in addition to strings. Provides better static analysis and refactoring support in multiple tools. Alleviates the need for property reflection with Closure-compiler renaming. ([commit](https://github.com/Polymer/polymer/commit/4bae2b62))
+
+- removing package-lock.json from PR ([commit](https://github.com/Polymer/polymer/commit/0da00a1d))
+
+- implementing the code review suggestions ([commit](https://github.com/Polymer/polymer/commit/1b51f601))
+
+- Updating deserialize function (use of ternary operation). Fixes #4696 ([commit](https://github.com/Polymer/polymer/commit/ca139ed0))
+
+- Updating deserialize function. Fixes #4696 ([commit](https://github.com/Polymer/polymer/commit/277ca89a))
+
 ## [v2.2.0](https://github.com/Polymer/polymer/tree/v2.2.0) (2017-10-18)
 - [ci skip] Autoupdate version when releasing ([commit](https://github.com/Polymer/polymer/commit/d893d6ae))
 
