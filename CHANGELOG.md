@@ -1,5 +1,8 @@
 # Change Log
 
+## [v2.3.0](https://github.com/Polymer/polymer/tree/v2.3.0) (2017-12-05)
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/c727d35d))
+
 ## [v2.2.1](https://github.com/Polymer/polymer/tree/v2.2.1) (2017-12-05)
 - [ci skip] commit new version in lib/utils/boot.html when using npm version ([commit](https://github.com/Polymer/polymer/commit/71fbf6ef))
 
