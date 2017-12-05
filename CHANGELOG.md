@@ -1,5 +1,34 @@
 # Change Log
 
+## [v1.11.1-dev](https://github.com/Polymer/polymer/tree/v1.11.1-dev) (2017-12-05)
+- make PASSIVE_TOUCH take an argument ([commit](https://github.com/Polymer/polymer/commit/f038522f))
+
+- Handle more dir cases ([commit](https://github.com/Polymer/polymer/commit/1cc06fc2))
+
+- Make `:dir` more robust ([commit](https://github.com/Polymer/polymer/commit/f0ff70db))
+
+- Do not set touchend listeners to passive ([commit](https://github.com/Polymer/polymer/commit/f62f9f71))
+
+- Add comments on modified transforms ([commit](https://github.com/Polymer/polymer/commit/771cde09))
+
+- Fix :dir() bare selector in native shadowdom ([commit](https://github.com/Polymer/polymer/commit/788aad5f))
+
+- Fix :dir selector when element uses CSS Custom Property Shim ([commit](https://github.com/Polymer/polymer/commit/8fd3e93c))
+
+- Add a load-bearing escape into the comment regex ([commit](https://github.com/Polymer/polymer/commit/81383a76))
+
+- Polymer 1: Allow arbitrary whitespace in CSS imports ([commit](https://github.com/Polymer/polymer/commit/9356bd02))
+
+- fix license issues ([commit](https://github.com/Polymer/polymer/commit/471dc9aa))
+
+- Fix tests on Firefox. ([commit](https://github.com/Polymer/polymer/commit/bba3f5ab))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/0e15b179))
+
+- Add support for styles with a `shady-unscoped` attribute ([commit](https://github.com/Polymer/polymer/commit/90697bf2))
+
+- Skip tests of ::shadow and /deep/ under native Shadow DOM ([commit](https://github.com/Polymer/polymer/commit/40058aeb))
+
 ## [v1.11.0-dev](https://github.com/Polymer/polymer/tree/v1.11.0-dev) (2017-10-18)
 - Factor :dir replacement into a separate function for css building ([commit](https://github.com/Polymer/polymer/commit/00a64050))
 
