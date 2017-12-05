@@ -96,9 +96,10 @@ PolymerTelemetry.dumpRegistrations;;
 /** @type {PolymerTelemetry} */
 Polymer.telemetry;
 
+// nb. This is explicitly 'var', as Closure Compiler checks that this is the case.
 /**
  * @constructor
  * @extends {HTMLElement}
  * @implements {Polymer_LegacyElementMixin}
  */
-let PolymerElement = Polymer.LegacyElementMixin();
+var PolymerElement = Polymer.LegacyElementMixin();
