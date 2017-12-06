@@ -21,7 +21,7 @@ function StampedTemplate() { }
 StampedTemplate.prototype.__noInsertionPoint;
 /** @type {!Array<!Node>} */
 StampedTemplate.prototype.nodeList;
-/** @type {!Object<string, !Node>} */
+/** @type {!Object<string, !Element>} */
 StampedTemplate.prototype.$;
 /** @type {!TemplateInfo | undefined} */
 StampedTemplate.prototype.templateInfo;
