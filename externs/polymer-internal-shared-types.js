@@ -156,3 +156,10 @@ let PathInfo;
  * }}
  */
 let TemplatizeOptions;
+
+/** @record */
+function AsyncInterface(){}
+/** @type {function(!Function, number=): number} */
+AsyncInterface.prototype.run;
+/** @type {function(number)} */
+AsyncInterface.prototype.cancel;
