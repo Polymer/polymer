@@ -71,6 +71,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
+  /** @enum */
+  const AccessorType = {
+    NONE: 0,
+    SYNTHETIC: 1,
+    PRE_DEFINED: 2
+  };
+
   /**
    * Element class mixin that provides basic meta-programming for creating one
    * or more property accessors (getter/setter pair) that enqueue an async
@@ -140,11 +147,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__dataOld;
         /** @type {Object} */
         this.__dataProto;
-        /** @type {Object} */
+        /** @type {Object<string, number>} */
         this.__dataHasAccessor;
         /** @type {Object} */
         this.__dataInstanceProps;
         this._initializeProperties();
+      }
+
+      get ACCESSOR_TYPE() {
+        return AccessorType;
       }
 
       /**
@@ -424,21 +435,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!this.hasOwnProperty('__dataHasAccessor')) {
           this.__dataHasAccessor = Object.assign({}, this.__dataHasAccessor);
         }
-        if (!this.__dataHasAccessor[property]) {
-          this.__dataHasAccessor[property] = true;
+        if ((this.__dataHasAccessor[property] || AccessorType.NONE) === AccessorType.NONE) {
+          this.__dataHasAccessor[property] = AccessorType.SYNTHETIC;
           saveAccessorValue(this, property);
-          Object.defineProperty(this, property, {
-            /* eslint-disable valid-jsdoc */
+
+          const existingDescriptor = Object.getOwnPropertyDescriptor(this, property) || {};
+
+          /** @type {Object} */
+          const propertyDefinition = {
+            enumerable: existingDescriptor.enumerable || false
+          };
+
+          // If the property was pre-defined with an es6 getter,
+          // we just use that and don't need to define our own getter
+          if (existingDescriptor.get) {
+            propertyDefinition.get = existingDescriptor.get;
+            this.__dataHasAccessor[property] = AccessorType.PRE_DEFINED;
+          } else {
+            // eslint-disable-next-line valid-jsdoc
             /** @this {PropertyAccessors} */
-            get: function() {
+            propertyDefinition.get = function() {
               return this.__data[property];
-            },
+            };
+          }
+
+          // If the property was pre-defined with an es6 setter,
+          // use that, but also call our own _setProperty function
+          // so that change notifications are propagated
+          if (existingDescriptor.set) {
+            const existingSetter = /** @type {{set: function(*)}} */ (existingDescriptor).set.bind(this);
+            // eslint-disable-next-line valid-jsdoc
             /** @this {PropertyAccessors} */
-            set: readOnly ? function() {} : function(value) {
+            propertyDefinition.set = function(value) {
+              // Call the predefined setter
+              existingSetter(value);
+              // Invalidate properties if changed - includes dirty checking
               this._setProperty(property, value);
-            }
-            /* eslint-enable */
-          });
+            };
+          } else if (this.__dataHasAccessor[property] !== AccessorType.PRE_DEFINED) {
+            // eslint-disable-next-line valid-jsdoc
+            propertyDefinition.set = readOnly ? function() {} : /** @this {PropertyAccessors} */ function(value) {
+              this._setProperty(property, value);
+            };
+          }
+
+          Object.defineProperty(this, property, propertyDefinition);
         }
       }
 
@@ -449,7 +490,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {boolean} True if an accessor was created
        */
       _hasAccessor(property) {
-        return this.__dataHasAccessor && this.__dataHasAccessor[property];
+        return this.__dataHasAccessor !== undefined &&
+            (this.__dataHasAccessor[property] || AccessorType.NONE) !== AccessorType.NONE;
       }
 
       /**

@@ -42,11 +42,21 @@ Polymer_PropertyAccessors.prototype.__dataOld;
 /** @type {Object} */
 Polymer_PropertyAccessors.prototype.__dataProto;
 
-/** @type {Object} */
+/** @type {Object<string, number>} */
 Polymer_PropertyAccessors.prototype.__dataHasAccessor;
 
 /** @type {Object} */
 Polymer_PropertyAccessors.prototype.__dataInstanceProps;
+
+/**
+ * @const
+ * @type {{
+ *  NONE: number,
+ *  SYNTHETIC: number,
+ *  PRE_DEFINED: number
+ * }}
+ */
+Polymer_PropertyAccessors.prototype.ACCESSOR_TYPE;
 
 /**
 * @param {string} name Name of attribute that changed
@@ -314,6 +324,19 @@ Polymer_PropertyEffects.prototype.__readOnly;
 
 /** @type {!TemplateInfo} */
 Polymer_PropertyEffects.prototype.__templateInfo;
+
+/**
+ * @const
+ * @type {{
+ *   COMPUTE: string,
+ *   REFLECT: string,
+ *   NOTIFY: string,
+ *   PROPAGATE: string,
+ *   OBSERVE: string,
+ *   READ_ONLY: string
+ * }}
+ */
+Polymer_PropertyEffects.prototype.PROPERTY_EFFECT_TYPES;
 
 /**
 * @override
