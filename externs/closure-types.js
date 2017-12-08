@@ -52,9 +52,10 @@ Polymer_PropertiesChanged.prototype._getProperty = function(property){};
 /**
 * @param {string} property Name of the property
 * @param {*} value Value to set
+* @param {boolean=} ext Not used here; affordance for closure
 * @return {boolean}
 */
-Polymer_PropertiesChanged.prototype._setPendingProperty = function(property, value){};
+Polymer_PropertiesChanged.prototype._setPendingProperty = function(property, value, ext){};
 /**
 * @return {undefined}
 */
