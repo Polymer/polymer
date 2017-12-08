@@ -1,5 +1,14 @@
 # Change Log
 
+## [v2.3.1](https://github.com/Polymer/polymer/tree/v2.3.1) (2017-12-07)
+- Add test that would fail with the "last style" behavior in master ([commit](https://github.com/Polymer/polymer/commit/913dfce6))
+
+- Use padding-top to get correct computed style on older safari ([commit](https://github.com/Polymer/polymer/commit/b7c56173))
+
+- Handle styles that are not direct children of templates correctly ([commit](https://github.com/Polymer/polymer/commit/0b1cd70a))
+
+- [ci skip] update changelog again ([commit](https://github.com/Polymer/polymer/commit/2d739c75))
+
 ## [v2.3.0](https://github.com/Polymer/polymer/tree/v2.3.0) (2017-12-05)
 - [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/c727d35d))
 
