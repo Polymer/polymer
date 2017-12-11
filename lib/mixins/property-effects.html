@@ -8,7 +8,6 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 -->
 
-
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/mixin.html">
 <link rel="import" href="../utils/path.html">
@@ -1132,6 +1131,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       constructor() {
         super();
+        /** @type {number} */
+        // NOTE: used to track re-entrant calls to `_flushProperties`
+        // path changes dirty check against `__dataTemp` only during one "turn"
+        // and are cleared when `__dataCounter` returns to 0.
+        this.__dataCounter = 0;
         /** @type {boolean} */
         this.__dataClientsReady;
         /** @type {Array} */
@@ -1168,8 +1172,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.__observeEffects;
         /** @type {Object} */
         this.__readOnly;
-        /** @type {number} */
-        this.__dataCounter;
         /** @type {!TemplateInfo} */
         this.__templateInfo;
       }
@@ -1422,7 +1424,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides the `PropertyAccessors` implementation to introduce special
+       * Overrides the `PropertiesChanged` implementation to introduce special
        * dirty check logic depending on the property & value being set:
        *
        * 1. Any value set to a path (e.g. 'obj.prop': 42 or 'obj.prop': {...})
@@ -1449,12 +1451,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * user code); we could introduce a "fixup" for temporarily cached array
        * paths if needed: https://github.com/Polymer/polymer/issues/4227
        *
+       * @override
        * @param {string} property Name of the property
        * @param {*} value Value to set
        * @param {boolean=} shouldNotify True if property should fire notification
        *   event (applies only for `notify: true` properties)
        * @return {boolean} Returns true if the property changed
-       * @override
        */
       _setPendingProperty(property, value, shouldNotify) {
         let isPath = this.__dataHasPaths && Polymer.Path.isPath(property);
@@ -1527,6 +1529,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (client !== this) {
           this.__dataPendingClients.push(client);
         }
+      }
+
+      /**
+       * Overrides superclass implementation.
+       *
+       * @protected
+       */
+      _flushProperties() {
+        this.__dataCounter++;
+        super._flushProperties();
+        this.__dataCounter--;
       }
 
       /**
@@ -2035,7 +2048,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           fn: runObserverEffect, info, trigger: {name: property}
         });
         if (dynamicFn) {
-          this._addPropertyEffect(method, TYPES.OBSERVE, {
+          this._addPropertyEffect(/** @type {string} */(method), TYPES.OBSERVE, {
             fn: runObserverEffect, info, trigger: {name: method}
           });
         }
@@ -2089,7 +2102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        */
       _createReflectedProperty(property) {
-        let attr = CaseMap.camelToDashCase(property);
+        let attr = this.constructor.attributeNameForProperty(property);
         if (attr[0] === '-') {
           console.warn('Property ' + property + ' cannot be reflected to attribute ' +
             attr + ' because "-" is not a valid starting attribute name. Use a lowercase first letter for the property instead.');

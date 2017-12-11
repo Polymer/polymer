@@ -11,11 +11,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/settings.html">
 <link rel="import" href="../utils/mixin.html">
-<link rel="import" href="../utils/case-map.html">
 <link rel="import" href="../utils/style-gather.html">
 <link rel="import" href="../utils/resolve-url.html">
 <link rel="import" href="../elements/dom-module.html">
 <link rel="import" href="property-effects.html">
+<link rel="import" href="properties-mixin.html">
 
 <script>
 (function() {
@@ -80,6 +80,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @mixinFunction
    * @polymer
    * @appliesMixin Polymer.PropertyEffects
+   * @appliesMixin Polymer.PropertiesMixin
    * @memberof Polymer
    * @property rootPath {string} Set to the value of `Polymer.rootPath`,
    *   which defaults to the main document path
@@ -96,228 +97,51 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @constructor
      * @extends {base}
      * @implements {Polymer_PropertyEffects}
+     * @implements {Polymer_PropertiesMixin}
      */
-    const polymerElementBase = Polymer.PropertyEffects(base);
-
-    let caseMap = Polymer.CaseMap;
-
-    /**
-     * Returns the `properties` object specifically on `klass`. Use for:
-     * (1) super chain mixes together to make `propertiesForClass` which is
-     * then used to make `observedAttributes`.
-     * (2) properties effects and observers are created from it at `finalize` time.
-     *
-     * @param {HTMLElement} klass Element class
-     * @return {Object} Object containing own properties for this class
-     * @private
-     */
-    function ownPropertiesForClass(klass) {
-      if (!klass.hasOwnProperty(
-        JSCompiler_renameProperty('__ownProperties', klass))) {
-        klass.__ownProperties =
-          klass.hasOwnProperty(JSCompiler_renameProperty('properties', klass)) ?
-          /** @type {PolymerElementConstructor} */ (klass).properties : {};
-      }
-      return klass.__ownProperties;
-    }
-
-    /**
-     * Returns the `observers` array specifically on `klass`. Use for
-     * setting up observers.
-     *
-     * @param {HTMLElement} klass Element class
-     * @return {Array} Array containing own observers for this class
-     * @private
-     */
-    function ownObserversForClass(klass) {
-      if (!klass.hasOwnProperty(
-        JSCompiler_renameProperty('__ownObservers', klass))) {
-        klass.__ownObservers =
-          klass.hasOwnProperty(JSCompiler_renameProperty('observers', klass)) ?
-          /** @type {PolymerElementConstructor} */ (klass).observers : [];
-      }
-      return klass.__ownObservers;
-    }
-
-    /**
-     * Mixes `props` into `flattenedProps` but upgrades shorthand type
-     * syntax to { type: Type}.
-     *
-     * @param {Object} flattenedProps Bag to collect flattened properties into
-     * @param {Object} props Bag of properties to add to `flattenedProps`
-     * @return {Object} The input `flattenedProps` bag
-     * @private
-     */
-    function flattenProperties(flattenedProps, props) {
-      for (let p in props) {
-        let o = props[p];
-        if (typeof o == 'function') {
-          o = { type: o };
-        }
-        flattenedProps[p] = o;
-      }
-      return flattenedProps;
-    }
-
-    /**
-     * Returns a flattened list of properties mixed together from the chain of all
-     * constructor's `config.properties`. This list is used to create
-     * (1) observedAttributes,
-     * (2) class property default values
-     *
-     * @param {PolymerElementConstructor} klass Element class
-     * @return {PolymerElementProperties} Flattened properties for this class
-     * @suppress {missingProperties} class.prototype is not a property for some reason?
-     * @private
-     */
-    function propertiesForClass(klass) {
-      if (!klass.hasOwnProperty(
-        JSCompiler_renameProperty('__classProperties', klass))) {
-        klass.__classProperties =
-        flattenProperties({}, ownPropertiesForClass(klass));
-        let superCtor = Object.getPrototypeOf(klass.prototype).constructor;
-        if (superCtor.prototype instanceof PolymerElement) {
-          klass.__classProperties = Object.assign(
-            Object.create(propertiesForClass(/** @type {PolymerElementConstructor} */(superCtor))),
-            klass.__classProperties);
-        }
-      }
-      return klass.__classProperties;
-    }
+    const polymerElementBase = Polymer.PropertiesMixin(Polymer.PropertyEffects(base));
 
     /**
      * Returns a list of properties with default values.
      * This list is created as an optimization since it is a subset of
-     * the list returned from `propertiesForClass`.
+     * the list returned from `_properties`.
      * This list is used in `_initializeProperties` to set property defaults.
      *
-     * @param {PolymerElementConstructor} klass Element class
+     * @param {PolymerElementConstructor} constructor Element class
      * @return {PolymerElementProperties} Flattened properties for this class
      *   that have default values
      * @private
      */
-    function propertyDefaultsForClass(klass) {
-      if (!klass.hasOwnProperty(
-        JSCompiler_renameProperty('__classPropertyDefaults', klass))) {
-        klass.__classPropertyDefaults = null;
-        let props = propertiesForClass(klass);
+    function propertyDefaults(constructor) {
+      if (!constructor.hasOwnProperty(
+        JSCompiler_renameProperty('__propertyDefaults', constructor))) {
+        constructor.__propertyDefaults = null;
+        let props = constructor._properties;
         for (let p in props) {
           let info = props[p];
           if ('value' in info) {
-            klass.__classPropertyDefaults = klass.__classPropertyDefaults || {};
-            klass.__classPropertyDefaults[p] = info;
+            constructor.__propertyDefaults = constructor.__propertyDefaults || {};
+            constructor.__propertyDefaults[p] = info;
           }
         }
       }
-      return klass.__classPropertyDefaults;
+      return constructor.__propertyDefaults;
     }
 
     /**
-     * Returns true if a `klass` has finalized. Called in `ElementClass.finalize()`
-     * @param {PolymerElementConstructor} klass Element class
-     * @return {boolean} True if all metaprogramming for this class has been
-     *   completed
-     * @private
+     * Returns a memoized version of the the `observers` array.
+     * @param {PolymerElementConstructor} constructor Element class
+     * @return {Array} Array containing own observers for the given class
+     * @protected
      */
-    function hasClassFinalized(klass) {
-      return klass.hasOwnProperty(JSCompiler_renameProperty('__finalized', klass));
-    }
-
-    /**
-     * Called by `ElementClass.finalize()`. Ensures this `klass` and
-     * *all superclasses* are finalized by traversing the prototype chain
-     * and calling `klass.finalize()`.
-     *
-     * @param {PolymerElementConstructor} klass Element class
-     * @return {void}
-     * @private
-     */
-    function finalizeClassAndSuper(klass) {
-      let proto = /** @type {PolymerElementConstructor} */ (klass).prototype;
-      let superCtor = Object.getPrototypeOf(proto).constructor;
-      if (superCtor.prototype instanceof PolymerElement) {
-        superCtor.finalize();
+    function ownObservers(constructor) {
+      if (!constructor.hasOwnProperty(
+        JSCompiler_renameProperty('__ownObservers', constructor))) {
+          constructor.__ownObservers =
+          constructor.hasOwnProperty(JSCompiler_renameProperty('observers', constructor)) ?
+          /** @type {PolymerElementConstructor} */ (constructor).observers : null;
       }
-      finalizeClass(klass);
-    }
-
-    /**
-     * Configures a `klass` based on a static `klass.config` object and
-     * a `template`. This includes creating accessors and effects
-     * for properties in `config` and the `template` as well as preparing the
-     * `template` for stamping.
-     *
-     * @param {PolymerElementConstructor} klass Element class
-     * @return {void}
-     * @private
-     */
-    function finalizeClass(klass) {
-      klass.__finalized = true;
-      let proto = /** @type {PolymerElementConstructor} */ (klass).prototype;
-      if (klass.hasOwnProperty(
-        JSCompiler_renameProperty('is', klass)) && klass.is) {
-        Polymer.telemetry.register(proto);
-      }
-      let props = ownPropertiesForClass(klass);
-      if (props) {
-        finalizeProperties(proto, props);
-      }
-      let observers = ownObserversForClass(klass);
-      if (observers) {
-        finalizeObservers(proto, observers, props);
-      }
-      // note: create "working" template that is finalized at instance time
-      let template = /** @type {PolymerElementConstructor} */ (klass).template;
-      if (template) {
-        if (typeof template === 'string') {
-          // TODO(dan): Add link to docs explaining deprecation of string templates
-          console.warn('String templates are deprecated. ' +
-            `Please return a <template>, or use Polymer.html\`\` for element <${klass.is}>`);
-          let t = document.createElement('template');
-          t.innerHTML = template;
-          template = t;
-        } else {
-          template = template.cloneNode(true);
-        }
-        proto._template = template;
-      }
-    }
-
-    /**
-     * Configures a `proto` based on a `properties` object.
-     * Leverages `PropertyEffects` to create property accessors and effects
-     * supporting, observers, reflecting to attributes, change notification,
-     * computed properties, and read only properties.
-     * @param {PolymerElement} proto Element class prototype to add accessors
-     *    and effects to
-     * @param {Object} properties Flattened bag of property descriptors for
-     *    this class
-     * @return {void}
-     * @private
-     */
-    function finalizeProperties(proto, properties) {
-      for (let p in properties) {
-        createPropertyFromConfig(proto, p, properties[p], properties);
-      }
-    }
-
-    /**
-     * Configures a `proto` based on a `observers` array.
-     * Leverages `PropertyEffects` to create observers.
-     * @param {PolymerElement} proto Element class prototype to add accessors
-     *   and effects to
-     * @param {Object} observers Flattened array of observer descriptors for
-     *   this class
-     * @param {Object} dynamicFns Object containing keys for any properties
-     *   that are functions and should trigger the effect when the function
-     *   reference is changed
-     * @return {void}
-     * @private
-     */
-    function finalizeObservers(proto, observers, dynamicFns) {
-      for (let i=0; i < observers.length; i++) {
-        proto._createMethodObserver(observers[i], dynamicFns);
-      }
+      return constructor.__ownObservers;
     }
 
     /**
@@ -369,7 +193,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * and/or provide an advanced api for manipulating them.
      * Also consider adding warnings when an effect cannot be changed.
      *
-     * @param {PolymerElement} proto Element class prototype to add accessors
+     * @param {!PolymerElement} proto Element class prototype to add accessors
      *   and effects to
      * @param {string} name Name of the property.
      * @param {Object} info Info object from which to create property effects.
@@ -389,7 +213,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // setup where multiple triggers for setting a property)
       // While we do have `hasComputedEffect` this is set on the property's
       // dependencies rather than itself.
-      if (info.computed  && !proto._hasReadOnlyEffect(name)) {
+      if (info.computed && !proto._hasReadOnlyEffect(name)) {
         proto._createComputedProperty(name, info.computed, allProps);
       }
       if (info.readOnly && !proto._hasReadOnlyEffect(name)) {
@@ -404,6 +228,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // always add observer
       if (info.observer) {
         proto._createPropertyObserver(name, info.observer, allProps[info.observer]);
+      }
+      // always ensure an accessor is made for properties but don't stomp
+      // on existing values.
+      if (!info.readOnly && !(name in proto)) {
+        proto._createPropertyAccessor(name);
       }
     }
 
@@ -451,41 +280,66 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     class PolymerElement extends polymerElementBase {
 
       /**
-       * Standard Custom Elements V1 API.  The default implementation returns
-       * a list of dash-cased attributes based on a flattening of all properties
-       * declared in `static get properties()` for this element and any
-       * superclasses.
-       *
-       * @return {Array} Observed attribute list
+       * Override of PropertiesMixin _finalizeClass to create observers and
+       * find the template.
+       * @return {void}
+       * @protected
+       * @override
+       * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
-      static get observedAttributes() {
-        if (!this.hasOwnProperty(JSCompiler_renameProperty('__observedAttributes', this))) {
-          let list = [];
-          let properties = propertiesForClass(this);
-          for (let prop in properties) {
-            list.push(Polymer.CaseMap.camelToDashCase(prop));
-          }
-          this.__observedAttributes = list;
+     static _finalizeClass() {
+        super._finalizeClass();
+        if (this.hasOwnProperty(
+          JSCompiler_renameProperty('is', this)) &&  this.is) {
+          Polymer.telemetry.register(this.prototype);
         }
-        return this.__observedAttributes;
+        const observers = ownObservers(this);
+        if (observers) {
+          this.createObservers(observers, this._properties);
+        }
+        // note: create "working" template that is finalized at instance time
+        let template = /** @type {PolymerElementConstructor} */ (this).template;
+        if (template) {
+          if (typeof template === 'string') {
+            let t = document.createElement('template');
+            t.innerHTML = template;
+            template = t;
+          } else {
+            template = template.cloneNode(true);
+          }
+          this.prototype._template = template;
+        }
+
       }
 
       /**
-       * Called automatically when the first element instance is created to
-       * ensure that class finalization work has been completed.
-       * May be called by users to eagerly perform class finalization work
-       * prior to the creation of the first element instance.
-       *
-       * Class finalization work generally includes meta-programming such as
-       * creating property accessors and any property effect metadata needed for
-       * the features used.
-       *
+       * Override of PropertiesChanged createProperties to create accessors
+       * and property effects for all of the properties.
        * @return {void}
-       * @public
+       * @protected
+       * @override
        */
-      static finalize() {
-        if (!hasClassFinalized(this)) {
-          finalizeClassAndSuper(this);
+       static createProperties(props) {
+        for (let p in props) {
+          createPropertyFromConfig(this.prototype, p, props[p], props);
+        }
+      }
+
+      /**
+       * Creates observers for the given `observers` array.
+       * Leverages `PropertyEffects` to create observers.
+       * @param {Object} observers Array of observer descriptors for
+       *   this class
+       * @param {Object} dynamicFns Object containing keys for any properties
+       *   that are functions and should trigger the effect when the function
+       *   reference is changed
+       * @return {void}
+       * @protected
+       */
+      static createObservers(observers, dynamicFns) {
+        const proto = this.prototype;
+        for (let i=0; i < observers.length; i++) {
+          proto._createMethodObserver(observers[i], dynamicFns);
         }
       }
 
@@ -597,7 +451,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         this.rootPath = Polymer.rootPath;
         this.importPath = importPath;
         // apply property defaults...
-        let p$ = propertyDefaultsForClass(this.constructor);
+        let p$ = propertyDefaults(this.constructor);
         if (!p$) {
           return;
         }
@@ -663,20 +517,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * flushes any pending properties, and updates shimmed CSS properties
        * when using the ShadyCSS scoping/custom properties polyfill.
        *
-       * @suppress {invalidCasts}
+       * @suppress {missingProperties, invalidCasts} Super may or may not implement the callback
        */
       connectedCallback() {
         if (window.ShadyCSS && this._template) {
           window.ShadyCSS.styleElement(/** @type {!HTMLElement} */(this));
         }
-        this._enableProperties();
+        super.connectedCallback();
       }
-
-      /**
-       * Provides a default implementation of the standard Custom Elements
-       * `disconnectedCallback`.
-       */
-      disconnectedCallback() {}
 
       /**
        * Stamps the element template.
@@ -742,30 +590,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Provides a default implementation of the standard Custom Elements
-       * `attributeChangedCallback`.
-       *
-       * By default, attributes declared in `properties` metadata are
-       * deserialized using their `type` information to properties of the
-       * same name.  "Dash-cased" attributes are deserialized to "camelCase"
-       * properties.
-       *
-       * @param {string} name Name of attribute.
-       * @param {?string} old Old value of attribute.
-       * @param {?string} value Current value of attribute.
-       * @override
-       */
-      attributeChangedCallback(name, old, value) {
-        if (old !== value) {
-          let property = caseMap.dashToCamelCase(name);
-          let type = propertiesForClass(this.constructor)[property].type;
-          if (!this._hasReadOnlyEffect(property)) {
-            this._attributeToProperty(name, value, type);
-          }
-        }
-      }
-
-      /**
        * When using the ShadyCSS scoping and custom property shim, causes all
        * shimmed styles in this element (and its subtree) to be updated
        * based on current custom property values.
@@ -817,7 +641,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
       static _parseTemplateContent(template, templateInfo, nodeInfo) {
-        templateInfo.dynamicFns = templateInfo.dynamicFns || propertiesForClass(this);
+        templateInfo.dynamicFns = templateInfo.dynamicFns || this._properties;
         return super._parseTemplateContent(template, templateInfo, nodeInfo);
       }
 
