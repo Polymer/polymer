@@ -42,7 +42,7 @@ declare namespace Polymer {
      *
      * @returns Returns true if a gesture event listener was added.
      */
-    function addListener(node: Node|null, evType: string, handler: Function|null): boolean;
+    function addListener(node: Node, evType: string, handler: Function): boolean;
 
 
     /**
@@ -50,14 +50,14 @@ declare namespace Polymer {
      *
      * @returns Returns true if a gesture event listener was removed.
      */
-    function removeListener(node: Node|null, evType: string, handler: Function|null): boolean;
+    function removeListener(node: Node, evType: string, handler: Function): boolean;
 
 
     /**
      * Registers a new gesture event recognizer for adding new custom
      * gesture event types.
      */
-    function register(recog: GestureRecognizer|null): void;
+    function register(recog: GestureRecognizer): void;
 
 
     /**
@@ -66,7 +66,7 @@ declare namespace Polymer {
      * This value is checked on first move, thus it should be called prior to
      * adding event listeners.
      */
-    function setTouchAction(node: Element|null, value: string): void;
+    function setTouchAction(node: Element, value: string): void;
 
 
     /**

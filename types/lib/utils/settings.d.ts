@@ -14,9 +14,9 @@
 declare namespace Polymer {
 
   /**
-   * Legacy settings.
+   * Sets the global, legacy settings.
    */
-  namespace settings {
+  namespace Settings {
   }
 
 

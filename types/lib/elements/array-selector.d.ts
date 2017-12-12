@@ -68,7 +68,7 @@ declare namespace Polymer {
     /**
      * Clears the selection state.
      */
-    clearSelection(): any;
+    clearSelection(): void;
 
     /**
      * Returns whether the item is currently selected.

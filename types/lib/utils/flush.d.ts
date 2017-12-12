@@ -16,7 +16,7 @@ declare namespace Polymer {
   /**
    * Adds a `Polymer.Debouncer` to a list of globally flushable tasks.
    */
-  function enqueueDebouncer(debouncer: Polymer.Debouncer|null): void;
+  function enqueueDebouncer(debouncer: Polymer.Debouncer): void;
 
 
   /**

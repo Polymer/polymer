@@ -41,7 +41,7 @@ declare namespace Polymer {
      * @param old Old value of attribute.
      * @param value Current value of attribute.
      */
-    attributeChangedCallback(name: string, old: string|null, value: string|null): any;
+    attributeChangedCallback(name: string, old: string|null, value: string|null): void;
 
     /**
      * Overrides the default `Polymer.PropertyEffects` implementation to
@@ -302,7 +302,7 @@ declare namespace Polymer {
      *
      * @returns List of effective child nodes.
      */
-    getEffectiveChildNodes(): Array<Node|null>|null;
+    getEffectiveChildNodes(): Node[];
 
     /**
      * Returns a list of nodes distributed within this element that match
@@ -312,7 +312,7 @@ declare namespace Polymer {
      * @param selector Selector to run.
      * @returns List of distributed elements that match selector.
      */
-    queryDistributedElements(selector: string): Array<Node|null>|null;
+    queryDistributedElements(selector: string): Node[];
 
     /**
      * Returns a list of elements that are the effective children. The effective
@@ -322,7 +322,7 @@ declare namespace Polymer {
      *
      * @returns List of effective children.
      */
-    getEffectiveChildren(): Array<Node|null>|null;
+    getEffectiveChildren(): Node[];
 
     /**
      * Returns a string of text content that is the concatenation of the
@@ -351,7 +351,7 @@ declare namespace Polymer {
      * @param selector Selector to run.
      * @returns List of effective child nodes that match selector.
      */
-    queryAllEffectiveChildren(selector: string): Array<Node|null>|null;
+    queryAllEffectiveChildren(selector: string): Node[];
 
     /**
      * Returns a list of nodes distributed to this element's `<slot>`.
@@ -363,7 +363,7 @@ declare namespace Polymer {
      *   `<slot>`.  Defaults to `content`.
      * @returns List of distributed nodes for the `<slot>`.
      */
-    getContentChildNodes(slctr?: string): Array<Node|null>|null;
+    getContentChildNodes(slctr?: string): Node[];
 
     /**
      * Returns a list of element children distributed to this element's
@@ -379,7 +379,7 @@ declare namespace Polymer {
      * @returns List of distributed nodes for the
      *   `<slot>`.
      */
-    getContentChildren(slctr?: string): Array<HTMLElement|null>|null;
+    getContentChildren(slctr?: string): HTMLElement[];
 
     /**
      * Checks whether an element is in this element's light DOM tree.
@@ -435,7 +435,7 @@ declare namespace Polymer {
      * `flush()` immediately invokes the debounced callback if the debouncer
      * is active.
      */
-    debounce(jobName: string, callback: () => any, wait: number): Object|null;
+    debounce(jobName: string, callback: () => void, wait: number): Object|null;
 
     /**
      * Returns whether a named debouncer is active.
@@ -471,7 +471,7 @@ declare namespace Polymer {
      *   timing (before paint).
      * @returns Handle that may be used to cancel the async job.
      */
-    async(callback: Function|null, waitTime?: number): number;
+    async(callback: Function, waitTime?: number): number;
 
     /**
      * Cancels an async operation started with `async`.
@@ -508,7 +508,7 @@ declare namespace Polymer {
      *   Defaults to `false`.
      * @returns The link element for the URL to be loaded.
      */
-    importHref(href: string, onload: Function|null, onerror: Function|null, optAsync: boolean): HTMLLinkElement|null;
+    importHref(href: string, onload?: Function, onerror?: Function, optAsync?: boolean): HTMLLinkElement;
 
     /**
      * Polyfill for Element.prototype.matches, which is sometimes still
@@ -518,7 +518,7 @@ declare namespace Polymer {
      * @param node Element to test the selector against.
      * @returns Whether the element matches the selector.
      */
-    elementMatches(selector: string, node?: Element|null): boolean;
+    elementMatches(selector: string, node?: Element): boolean;
 
     /**
      * Toggles an HTML attribute on or off.

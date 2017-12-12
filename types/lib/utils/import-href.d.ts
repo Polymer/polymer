@@ -23,5 +23,5 @@ declare namespace Polymer {
    *
    * @returns The link element for the URL to be loaded.
    */
-  function importHref(href: string, onload?: Function|null, onerror?: Function|null, optAsync?: boolean): HTMLLinkElement|null;
+  function importHref(href: string, onload?: Function, onerror?: Function, optAsync?: boolean): HTMLLinkElement;
 }

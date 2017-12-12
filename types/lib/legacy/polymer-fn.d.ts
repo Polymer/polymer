@@ -22,4 +22,4 @@
  *
  * @returns Generated class
  */
-declare function Polymer(info: PolymerInit): HTMLElement;
+declare function Polymer(info: PolymerInit): {new(): HTMLElement};

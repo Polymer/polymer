@@ -111,10 +111,10 @@ declare namespace Polymer {
     importNode(node: Node|null, deep: boolean): Node|null;
 
     /**
-     * @returns Returns a flattened list of all child nodes and nodes assigned
-     * to child slots.
+     * @returns Returns a flattened list of all child nodes and
+     * nodes assigned to child slots.
      */
-    getEffectiveChildNodes(): any[]|null;
+    getEffectiveChildNodes(): Node[];
 
     /**
      * Returns a filtered list of flattened child elements for this element based

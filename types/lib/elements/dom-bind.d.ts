@@ -30,13 +30,9 @@ declare namespace Polymer {
     Polymer.OptionalMutableData(
     Polymer.GestureEventListeners(
     Polymer.Element))) {
-
-    /**
-     * assumes only one observed attribute
-     */
-    attributeChangedCallback(): any;
-    connectedCallback(): any;
-    disconnectedCallback(): any;
+    attributeChangedCallback(): void;
+    connectedCallback(): void;
+    disconnectedCallback(): void;
 
     /**
      * Forces the element to render its content. This is typically only

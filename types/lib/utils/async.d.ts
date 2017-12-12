@@ -32,7 +32,7 @@ declare namespace Polymer {
        *
        * @returns An async timeout interface
        */
-      function after(delay: number): AsyncInterface|null;
+      function after(delay: number): AsyncInterface;
 
 
       /**
@@ -40,7 +40,7 @@ declare namespace Polymer {
        *
        * @returns Handle used for canceling task
        */
-      function run(fn: Function|null): number;
+      function run(fn: Function): number;
 
 
       /**
@@ -66,7 +66,7 @@ declare namespace Polymer {
        *
        * @returns Handle used for canceling task
        */
-      function run(fn: Function|null): number;
+      function run(fn: Function): number;
     }
 
     /**
@@ -81,7 +81,7 @@ declare namespace Polymer {
        *
        * @returns Handle used for canceling task
        */
-      function run(fn: (p0: IdleDeadline|null) => any): number;
+      function run(fn: (p0: IdleDeadline) => void): number;
 
 
       /**
@@ -107,7 +107,7 @@ declare namespace Polymer {
        *
        * @returns Handle used for canceling task
        */
-      function run(callback: Function|null): number;
+      function run(callback?: Function): number;
 
 
       /**
