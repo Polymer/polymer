@@ -20,6 +20,8 @@ declare namespace Polymer {
 
     /**
      * Resolves the given URL against the provided `baseUri'.
+     *
+     * @returns resolved URL
      */
     function resolveUrl(url: string, baseURI?: string|null): string;
 
@@ -27,6 +29,8 @@ declare namespace Polymer {
     /**
      * Resolves any relative URL's in the given CSS text against the provided
      * `ownerDocument`'s `baseURI`.
+     *
+     * @returns Processed CSS text with resolved URL's
      */
     function resolveCss(cssText: string, baseURI: string): string;
 
@@ -34,6 +38,8 @@ declare namespace Polymer {
     /**
      * Returns a path from a given `url`. The path includes the trailing
      * `/` from the url.
+     *
+     * @returns resolved path
      */
     function pathFromUrl(url: string): string;
   }

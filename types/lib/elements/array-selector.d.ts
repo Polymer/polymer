@@ -91,14 +91,14 @@ declare namespace Polymer {
      *
      * @param item Item from `items` array to deselect
      */
-    deselect(item: any): void|null;
+    deselect(item: any): void;
 
     /**
      * Deselects the given index if it is already selected.
      *
      * @param idx Index from `items` array to deselect
      */
-    deselectIndex(idx: number): void|null;
+    deselectIndex(idx: number): void;
 
     /**
      * Selects the given item.  When `toggle` is true, this will automatically
@@ -106,7 +106,7 @@ declare namespace Polymer {
      *
      * @param item Item from `items` array to select
      */
-    select(item: any): void|null;
+    select(item: any): void;
 
     /**
      * Selects the given index.  When `toggle` is true, this will automatically
@@ -114,7 +114,7 @@ declare namespace Polymer {
      *
      * @param idx Index from `items` array to select
      */
-    selectIndex(idx: number): void|null;
+    selectIndex(idx: number): void;
   }
 
   /**

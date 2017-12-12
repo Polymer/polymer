@@ -19,8 +19,11 @@ declare namespace Polymer {
    * Note: this method will automatically also apply the `Polymer.LegacyElementMixin`
    * to ensure that any legacy behaviors can rely on legacy Polymer API on
    * the underlying element.
+   *
+   * @returns Returns a new Element class extended by the
+   * passed in `behaviors` and also by `Polymer.LegacyElementMixin`.
    */
-  function mixinBehaviors(behaviors: Object|any[]|null, klass: HTMLElement|(() => any)): () => any;
+  function mixinBehaviors(behaviors: Object|any[]|null, klass: HTMLElement|{new(): HTMLElement}): {new(): HTMLElement};
 
 
   /**
@@ -85,8 +88,10 @@ declare namespace Polymer {
    * - `ready`: called before first `attached`, after all properties of
    *   this element have been propagated to its template and all observers
    *   have run
+   *
+   * @returns Generated class
    */
-  function Class(info: PolymerInit): () => any;
+  function Class(info: PolymerInit): {new(): HTMLElement};
 }
 
 declare class PolymerGenerated {

@@ -34,7 +34,7 @@ declare class TemplateInstanceBase extends
    * @param prop Property or path name
    * @param value Value of the property to forward
    */
-  forwardHostProp(prop: string, value: any): void|null;
+  forwardHostProp(prop: string, value: any): void;
 
   /**
    * Shows or hides the template instance top level child elements. For
@@ -44,7 +44,7 @@ declare class TemplateInstanceBase extends
    * @param hide Set to true to hide the children;
    * set to false to show them.
    */
-  _showHideChildren(hide: boolean): void|null;
+  _showHideChildren(hide: boolean): void;
 }
 
 declare namespace templateInfo {
@@ -109,8 +109,11 @@ declare namespace Polymer {
      * used; rather, callbacks are called bound to the `owner`, and so context
      * needed from the callbacks (such as references to `instances` stamped)
      * should be stored on the `owner` such that they can be retrieved via `this`.
+     *
+     * @returns Generated class bound to the template
+     *   provided
      */
-    function templatize(template: HTMLTemplateElement, owner: Polymer_PropertyEffects, options?: Object|null): () => any;
+    function templatize(template: HTMLTemplateElement, owner: Polymer_PropertyEffects, options?: Object|null): {new(): TemplateInstanceBase};
 
 
     /**
@@ -126,6 +129,9 @@ declare namespace Polymer {
      *   if (model.index < 10) {
      *     model.set('item.checked', true);
      *   }
+     *
+     * @returns Template instance representing the
+     *   binding scope for the element
      */
     function modelForElement(template: HTMLTemplateElement|null, node: Node|null): TemplateInstanceBase|null;
   }

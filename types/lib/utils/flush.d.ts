@@ -16,7 +16,7 @@ declare namespace Polymer {
   /**
    * Adds a `Polymer.Debouncer` to a list of globally flushable tasks.
    */
-  function enqueueDebouncer(debouncer: Polymer.Debouncer|null): void|null;
+  function enqueueDebouncer(debouncer: Polymer.Debouncer|null): void;
 
 
   /**
@@ -24,5 +24,5 @@ declare namespace Polymer {
    * - Debouncers added via `enqueueDebouncer`
    * - ShadyDOM distribution
    */
-  function flush(): void|null;
+  function flush(): void;
 }

@@ -62,7 +62,7 @@ declare namespace Polymer {
      * a `FlattenedNodesObserver` is created. It should only be called to
      * re-activate an observer that has been deactivated via the `disconnect` method.
      */
-    connect(): void|null;
+    connect(): void;
 
     /**
      * Deactivates the flattened nodes observer. After calling this method
@@ -70,7 +70,7 @@ declare namespace Polymer {
      * occur. The `connect` method may be subsequently called to reactivate
      * the observer.
      */
-    disconnect(): void|null;
+    disconnect(): void;
     _schedule(): any;
     _processMutations(mutations: any): any;
     _processSlotMutations(mutations: any): any;

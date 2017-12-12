@@ -20,6 +20,8 @@ declare namespace Polymer {
    * the provided URL and appends it to the document to start loading.
    * In the `onload` callback, the `import` property of the `link`
    * element will contain the imported document contents.
+   *
+   * @returns The link element for the URL to be loaded.
    */
   function importHref(href: string, onload?: Function|null, onerror?: Function|null, optAsync?: boolean): HTMLLinkElement|null;
 }

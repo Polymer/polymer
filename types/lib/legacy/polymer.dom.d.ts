@@ -29,6 +29,8 @@ declare namespace Polymer {
 
     /**
      * Cross-platform `element.matches` shim.
+     *
+     * @returns True if node matched selector
      */
     function matchesSelector(node: Element, selector: string): boolean;
   }
@@ -55,12 +57,12 @@ declare namespace Polymer {
      * @param observerHandle Observer instance
      *   to disconnect.
      */
-    unobserveNodes(observerHandle: Polymer.FlattenedNodesObserver|null): void|null;
+    unobserveNodes(observerHandle: Polymer.FlattenedNodesObserver|null): void;
 
     /**
      * Provided as a backwards-compatible API only.  This method does nothing.
      */
-    notifyObserver(): void|null;
+    notifyObserver(): void;
 
     /**
      * Returns true if the provided node is contained with this element's
@@ -133,6 +135,8 @@ declare namespace Polymer {
    * Note that in Polymer 2.x use of `Polymer.dom` is no longer required and
    * in the majority of cases simply facades directly to the standard native
    * API.
+   *
+   * @returns Wrapper providing either node API or event API
    */
   function dom(obj: Node|Event|null): DomApi|EventApi|null;
 }

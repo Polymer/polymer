@@ -211,7 +211,7 @@ declare namespace Polymer {
      * should be called if, for example, template rendering is required to
      * validate application state.
      */
-    render(): void|null;
+    render(): void;
 
     /**
      * Implements extension point from Templatize mixin

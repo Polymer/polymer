@@ -169,7 +169,7 @@ declare namespace Polymer {
      * @param properties Bag of custom property key/values to
      *   apply to this element.
      */
-    updateStyles(properties?: Object|null): void|null;
+    updateStyles(properties?: Object|null): void;
 
     /**
      * Rewrites a given URL relative to a base URL. The base URL defaults to

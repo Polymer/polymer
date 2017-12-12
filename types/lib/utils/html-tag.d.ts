@@ -34,6 +34,8 @@ declare namespace Polymer {
    *     `;
    *   }
    *   static get partialTemplate() { return Polymer.html`<span>Partial!</span>`; }
+   *
+   * @returns Constructed HTMLTemplateElement
    */
   function html(strings: string[], ...values: any[]): HTMLTemplateElement;
 }

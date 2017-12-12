@@ -38,6 +38,11 @@ declare namespace Polymer {
      * to detect any shared prefix & suffix between the two arrays and only
      * perform the more expensive minimum edit distance calculation over the
      * non-shared portions of the arrays.
+     *
+     * @returns Returns an array of splice record objects. Each of these
+     * contains: `index` the location where the splice occurred; `removed`
+     * the array of removed items from this location; `addedCount` the number
+     * of items added at this location.
      */
     function calculateSplices(current: any[]|null, previous: any[]|null): any[]|null;
   }

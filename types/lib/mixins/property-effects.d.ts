@@ -164,7 +164,7 @@ declare namespace Polymer {
      * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
      * @param effect Effect metadata object
      */
-    _addPropertyEffect(property: string, type: string, effect?: Object|null): void|null;
+    _addPropertyEffect(property: string, type: string, effect?: Object|null): void;
 
     /**
      * Removes the given property effect.
@@ -173,7 +173,7 @@ declare namespace Polymer {
      * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
      * @param effect Effect metadata object to remove
      */
-    _removePropertyEffect(property: string, type: string, effect?: Object|null): void|null;
+    _removePropertyEffect(property: string, type: string, effect?: Object|null): void;
 
     /**
      * Returns whether the current prototype/instance has a property effect
@@ -269,7 +269,7 @@ declare namespace Polymer {
      * @param prop The property to set
      * @param value The value to set
      */
-    _setUnmanagedPropertyToNode(node: Node|null, prop: string, value: any): void|null;
+    _setUnmanagedPropertyToNode(node: Node|null, prop: string, value: any): void;
 
     /**
      * Enqueues the given client on a list of pending clients, whose
@@ -278,20 +278,20 @@ declare namespace Polymer {
      *
      * @param client PropertyEffects client to enqueue
      */
-    _enqueueClient(client: Object|null): void|null;
+    _enqueueClient(client: Object|null): void;
 
     /**
      * Flushes any clients previously enqueued via `_enqueueClient`, causing
      * their `_flushProperties` method to run.
      */
-    _flushClients(): void|null;
+    _flushClients(): void;
 
     /**
      * Perform any initial setup on client dom. Called before the first
      * `_flushProperties` call on client dom and before any element
      * observers are called.
      */
-    _readyClients(): void|null;
+    _readyClients(): void;
 
     /**
      * Sets a bag of property changes to this instance, and
@@ -306,7 +306,7 @@ declare namespace Polymer {
      *   `props` will be set. By default, `setProperties` will not set
      *   `readOnly: true` root properties.
      */
-    setProperties(props: Object|null, setReadOnly?: boolean): void|null;
+    setProperties(props: Object|null, setReadOnly?: boolean): void;
 
     /**
      * Called to propagate any property changes to stamped template nodes
@@ -316,7 +316,7 @@ declare namespace Polymer {
      * @param oldProps Bag of previous values for changed properties
      * @param hasPaths True with `props` contains one or more paths
      */
-    _propagatePropertyChanges(changedProps: Object|null, oldProps: Object|null, hasPaths: boolean): void|null;
+    _propagatePropertyChanges(changedProps: Object|null, oldProps: Object|null, hasPaths: boolean): void;
 
     /**
      * Aliases one data path as another, such that path notifications from one
@@ -325,7 +325,7 @@ declare namespace Polymer {
      * @param to Target path to link.
      * @param from Source path to link.
      */
-    linkPaths(to: string|Array<string|number>, from: string|Array<string|number>): void|null;
+    linkPaths(to: string|Array<string|number>, from: string|Array<string|number>): void;
 
     /**
      * Removes a data path alias previously established with `_linkPaths`.
@@ -335,7 +335,7 @@ declare namespace Polymer {
      *
      * @param path Target path to unlink.
      */
-    unlinkPaths(path: string|Array<string|number>): void|null;
+    unlinkPaths(path: string|Array<string|number>): void;
 
     /**
      * Notify that an array has changed.
@@ -365,7 +365,7 @@ declare namespace Polymer {
      *   reported in index order (raw results from `Object.observe` are not
      *   ordered and must be normalized/merged before notifying).
      */
-    notifySplices(path: string, splices: any[]|null): void|null;
+    notifySplices(path: string, splices: any[]|null): void;
 
     /**
      * Convenience method for reading a value from a path.
@@ -406,7 +406,7 @@ declare namespace Polymer {
      * @param root Root object from which the path is evaluated.
      *   When specified, no notification will occur.
      */
-    set(path: string|Array<string|number>, value: any, root?: Object|null): void|null;
+    set(path: string|Array<string|number>, value: any, root?: Object|null): void;
 
     /**
      * Adds items onto the end of the array at the path specified.
@@ -495,7 +495,7 @@ declare namespace Polymer {
      * @param path Path that should be notified.
      * @param value Value at the path (optional).
      */
-    notifyPath(path: string, value?: any): void|null;
+    notifyPath(path: string, value?: any): void;
 
     /**
      * Equivalent to static `createReadOnlyProperty` API but can be called on
@@ -506,7 +506,7 @@ declare namespace Polymer {
      * @param protectedSetter Creates a custom protected setter
      *   when `true`.
      */
-    _createReadOnlyProperty(property: string, protectedSetter?: boolean): void|null;
+    _createReadOnlyProperty(property: string, protectedSetter?: boolean): void;
 
     /**
      * Equivalent to static `createPropertyObserver` API but can be called on
@@ -518,7 +518,7 @@ declare namespace Polymer {
      * @param dynamicFn Whether the method name should be included as
      *   a dependency to the effect.
      */
-    _createPropertyObserver(property: string, method: string|((p0: any, p1: any) => any), dynamicFn?: boolean): void|null;
+    _createPropertyObserver(property: string, method: string|((p0: any, p1: any) => any), dynamicFn?: boolean): void;
 
     /**
      * Equivalent to static `createMethodObserver` API but can be called on
@@ -529,7 +529,7 @@ declare namespace Polymer {
      * @param dynamicFn Boolean or object map indicating
      *   whether method names should be included as a dependency to the effect.
      */
-    _createMethodObserver(expression: string, dynamicFn?: boolean|Object|null): void|null;
+    _createMethodObserver(expression: string, dynamicFn?: boolean|Object|null): void;
 
     /**
      * Equivalent to static `createNotifyingProperty` API but can be called on
@@ -538,7 +538,7 @@ declare namespace Polymer {
      *
      * @param property Property name
      */
-    _createNotifyingProperty(property: string): void|null;
+    _createNotifyingProperty(property: string): void;
 
     /**
      * Equivalent to static `createReflectedProperty` API but can be called on
@@ -547,7 +547,7 @@ declare namespace Polymer {
      *
      * @param property Property name
      */
-    _createReflectedProperty(property: string): void|null;
+    _createReflectedProperty(property: string): void;
 
     /**
      * Equivalent to static `createComputedProperty` API but can be called on
@@ -559,7 +559,7 @@ declare namespace Polymer {
      * @param dynamicFn Boolean or object map indicating
      *   whether method names should be included as a dependency to the effect.
      */
-    _createComputedProperty(property: string, expression: string, dynamicFn?: boolean|Object|null): void|null;
+    _createComputedProperty(property: string, expression: string, dynamicFn?: boolean|Object|null): void;
 
     /**
      * Equivalent to static `bindTemplate` API but can be called on
@@ -591,6 +591,6 @@ declare namespace Polymer {
      * @param dom DocumentFragment previously returned
      *   from `_stampTemplate` associated with the nodes to be removed
      */
-    _removeBoundDom(dom: StampedTemplate): void|null;
+    _removeBoundDom(dom: StampedTemplate): void;
   }
 }
