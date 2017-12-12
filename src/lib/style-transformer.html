@@ -177,8 +177,39 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           this._transformRuleCss(rule, transformer, scope, hostScope);
       },
 
+      // Split a selector separated by commas into an array in a smart way
+      _splitSelectorList: function(selector) {
+        var parts = [];
+        var part = '';
+        for (var i = 0; i >= 0 && i < selector.length; i++) {
+          // A selector with parentheses will be one complete part
+          if (selector[i] === '(') {
+            // find the matching paren
+            var end = styleUtil._findMatchingParen(selector, i);
+            // push the paren block into the part
+            part += selector.slice(i, end + 1);
+            // move the index to after the paren block
+            i = end;
+          } else if (selector[i] === COMPLEX_SELECTOR_SEP) {
+            parts.push(part);
+            part = '';
+          } else {
+            part += selector[i];
+          }
+        }
+        // catch any pieces after the last comma
+        if (part) {
+          parts.push(part);
+        }
+        // if there were no commas, just push the whole selector as a "part"
+        if (parts.length === 0) {
+          parts.push(selector);
+        }
+        return parts;
+      },
+
       _transformRuleCss: function(rule, transformer, scope, hostScope) {
-        var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
+        var p$ = this._splitSelectorList(rule.selector);
         // we want to skip transformation of rules that appear in keyframes,
         // because they are keyframe selectors, not element selectors.
         if (!styleUtil.isKeyframesSelector(rule)) {
@@ -339,7 +370,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       normalizeRootSelector: function(rule) {
         rule.selector = rule.selector.replace(ROOT, 'html');
         // handle 2.x rules like `:host, html {}`
-        var parts = rule.selector.split(COMPLEX_SELECTOR_SEP);
+        var parts = this._splitSelectorList(rule.selector);
         parts = parts.filter(function(part) {
           return !part.match(HOST_OR_HOST_GT_STAR);
         });
@@ -357,7 +388,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       _dirShadowTransform: function(selector) {
-        return selector.split(',').map(function(s) {
+        if (!selector.match(/:dir\(/)) {
+          return selector;
+        }
+        return this._splitSelectorList(selector).map(function(s) {
           s = this._ensureScopedDir(s);
           s = this._transformDir(s);
           var m = HOST_CONTEXT_PAREN.exec(s);
@@ -365,7 +399,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             s += this._additionalDirSelectors(m[2], m[3], '');
           }
           return s;
-        }, this).join(',');
+        }, this).join(COMPLEX_SELECTOR_SEP);
       },
 
       SCOPE_NAME: 'style-scope'
