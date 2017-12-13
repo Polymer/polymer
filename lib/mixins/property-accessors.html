@@ -11,7 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/boot.html">
 <link rel="import" href="../utils/mixin.html">
 <link rel="import" href="../utils/case-map.html">
-<link rel="import" href="../utils/async.html">
+<link rel="import" href="properties-changed.html">
 
 <script>
 (function() {
@@ -19,8 +19,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   'use strict';
 
   let caseMap = Polymer.CaseMap;
-
-  let microtask = Polymer.Async.microTask;
 
   // Save map of native properties; this forms a blacklist or properties
   // that won't have their values "saved" by `saveAccessorValue`, since
@@ -89,6 +87,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @mixinFunction
    * @polymer
+   * @appliesMixin Polymer.PropertiesChanged
    * @memberof Polymer
    * @summary Element class mixin for reacting to property changes from
    *   generated property accessors.
@@ -96,13 +95,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.PropertyAccessors = Polymer.dedupingMixin(superClass => {
 
     /**
+     * @constructor
+     * @extends {superClass}
+     * @implements {Polymer_PropertiesChanged}
+     * @unrestricted
+     */
+     const base = Polymer.PropertiesChanged(superClass);
+
+    /**
      * @polymer
      * @mixinClass
      * @implements {Polymer_PropertyAccessors}
-     * @extends HTMLElement
+     * @extends {base}
      * @unrestricted
      */
-    class PropertyAccessors extends superClass {
+    class PropertyAccessors extends base {
 
       /**
        * Generates property accessors for all attributes in the standard
@@ -120,79 +127,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      constructor() {
-        super();
-        /** @type {boolean} */
-        this.__serializing;
-        /** @type {number} */
-        this.__dataCounter;
-        /** @type {boolean} */
-        this.__dataEnabled;
-        /** @type {boolean} */
-        this.__dataReady;
-        /** @type {boolean} */
-        this.__dataInvalid;
-        /** @type {!Object} */
-        this.__data;
-        /** @type {Object} */
-        this.__dataPending;
-        /** @type {Object} */
-        this.__dataOld;
-        /** @type {Object} */
-        this.__dataProto;
-        /** @type {Object} */
-        this.__dataHasAccessor;
-        /** @type {Object} */
-        this.__dataInstanceProps;
-        this._initializeProperties();
-      }
-
       /**
-       * Implements native Custom Elements `attributeChangedCallback` to
-       * set an attribute value to a property via `_attributeToProperty`.
+       * Returns an attribute name that corresponds to the given property.
+       * By default, converts camel to dash case, e.g. `fooBar` to `foo-bar`.
+       * @param {string} property Property to convert
+       * @return {string} Attribute name corresponding to the given property.
        *
-       * @param {string} name Name of attribute that changed
-       * @param {?string} old Old attribute value
-       * @param {?string} value New attribute value
+       * @protected
        */
-      attributeChangedCallback(name, old, value) {
-        if (old !== value) {
-          this._attributeToProperty(name, value);
-        }
+      static attributeNameForProperty(property) {
+        return caseMap.camelToDashCase(property);
       }
 
       /**
-       * Initializes the local storage for property accessors.
-       *
-       * Provided as an override point for performing any setup work prior
-       * to initializing the property accessor system.
+       * Overrides PropertiesChanged implementation to initialize values for
+       * accessors created for values that already existed on the element
+       * prototype.
        *
        * @return {void}
        * @protected
        */
       _initializeProperties() {
-        this.__serializing = false;
-        this.__dataCounter = 0;
-        this.__dataEnabled = false;
-        this.__dataReady = false;
-        this.__dataInvalid = false;
-        this.__data = {};
-        this.__dataPending = null;
-        this.__dataOld = null;
         if (this.__dataProto) {
           this._initializeProtoProperties(this.__dataProto);
           this.__dataProto = null;
         }
-        // Capture instance properties; these will be set into accessors
-        // during first flush. Don't set them here, since we want
-        // these to overwrite defaults/constructor assignments
-        for (let p in this.__dataHasAccessor) {
-          if (this.hasOwnProperty(p)) {
-            this.__dataInstanceProps = this.__dataInstanceProps || {};
-            this.__dataInstanceProps[p] = this[p];
-            delete this[p];
-          }
-        }
+        super._initializeProperties();
       }
 
       /**
@@ -215,100 +175,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Called at ready time with bag of instance properties that overwrote
-       * accessors when the element upgraded.
-       *
-       * The default implementation sets these properties back into the
-       * setter at ready time.  This method is provided as an override
-       * point for customizing or providing more efficient initialization.
-       *
-       * @param {Object} props Bag of property values that were overwritten
-       *   when creating property accessors.
-       * @return {void}
-       * @protected
-       */
-      _initializeInstanceProperties(props) {
-        Object.assign(this, props);
-      }
-
-      /**
        * Ensures the element has the given attribute. If it does not,
        * assigns the given value to the attribute.
        *
+       * @suppress {invalidCasts} Closure can't figure out `this` is infact an element
        *
        * @param {string} attribute Name of attribute to ensure is set.
        * @param {string} value of the attribute.
        * @return {void}
        */
       _ensureAttribute(attribute, value) {
-        if (!this.hasAttribute(attribute)) {
-          this._valueToNodeAttribute(this, value, attribute);
+        const el = /** @type {!HTMLElement} */(this);
+        if (!el.hasAttribute(attribute)) {
+          this._valueToNodeAttribute(el, value, attribute);
         }
       }
 
       /**
-       * Deserializes an attribute to its associated property.
-       *
-       * This method calls the `_deserializeValue` method to convert the string to
-       * a typed value.
-       *
-       * @param {string} attribute Name of attribute to deserialize.
-       * @param {?string} value of the attribute.
-       * @param {*=} type type to deserialize to.
-       * @return {void}
-       */
-      _attributeToProperty(attribute, value, type) {
-        // Don't deserialize back to property if currently reflecting
-        if (!this.__serializing) {
-          let property = caseMap.dashToCamelCase(attribute);
-          this[property] = this._deserializeValue(value, type);
-        }
-      }
-
-      /**
-       * Serializes a property to its associated attribute.
-       *
-       * @param {string} property Property name to reflect.
-       * @param {string=} attribute Attribute name to reflect.
-       * @param {*=} value Property value to refect.
-       * @return {void}
-       */
-      _propertyToAttribute(property, attribute, value) {
-        this.__serializing = true;
-        value = (arguments.length < 3) ? this[property] : value;
-        this._valueToNodeAttribute(this, value,
-          attribute || caseMap.camelToDashCase(property));
-        this.__serializing = false;
-      }
-
-      /**
-       * Sets a typed value to an HTML attribute on a node.
-       *
-       * This method calls the `_serializeValue` method to convert the typed
-       * value to a string.  If the `_serializeValue` method returns `undefined`,
-       * the attribute will be removed (this is the default for boolean
-       * type `false`).
-       *
-       * @param {Element} node Element to set attribute to.
-       * @param {*} value Value to serialize.
-       * @param {string} attribute Attribute name to serialize to.
-       * @return {void}
-       */
-      _valueToNodeAttribute(node, value, attribute) {
-        let str = this._serializeValue(value);
-        if (str === undefined) {
-          node.removeAttribute(attribute);
-        } else {
-          node.setAttribute(attribute, str);
-        }
-      }
-
-      /**
-       * Converts a typed JavaScript value to a string.
-       *
-       * This method is called by Polymer when setting JS property values to
-       * HTML attributes.  Users may override this method on Polymer element
-       * prototypes to provide serialization for custom types.
+       * Overrides PropertiesChanged implemention to serialize objects as JSON.
        *
        * @param {*} value Property value to serialize.
        * @return {string | undefined} String serialized from the provided property value.
@@ -316,9 +200,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _serializeValue(value) {
         /* eslint-disable no-fallthrough */
         switch (typeof value) {
-          case 'boolean':
-            return value ? '' : undefined;
-
           case 'object':
             if (value instanceof Date) {
               return value.toString();
@@ -331,7 +212,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             }
 
           default:
-            return value != null ? value.toString() : undefined;
+            return super._serializeValue(value);
         }
       }
 
@@ -345,8 +226,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * `properties` configuration object for a given property, and is
        * by convention the constructor for the type to deserialize.
        *
-       * Note: The return value of `undefined` is used as a sentinel value to
-       * indicate the attribute should be removed.
        *
        * @param {?string} value Attribute value to deserialize.
        * @param {*=} type Type to deserialize the string to.
@@ -358,22 +237,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          */
         let outValue;
         switch (type) {
-          case Number:
-            outValue = Number(value);
-            break;
-
-          case Boolean:
-            outValue = (value !== null);
-            break;
-
           case Object:
             try {
               outValue = JSON.parse(/** @type {string} */(value));
             } catch(x) {
               // allow non-JSON literals like Strings and Numbers
+              outValue = value;
             }
             break;
-
           case Array:
             try {
               outValue = JSON.parse(/** @type {string} */(value));
@@ -382,64 +253,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               console.warn(`Polymer::Attributes: couldn't decode Array as JSON: ${value}`);
             }
             break;
-
           case Date:
-            value = isNaN(value) ? String(value) : Number(value);
-            outValue = new Date(value);
+            outValue = isNaN(value) ? String(value) : Number(value);
+            outValue = new Date(outValue);
             break;
-
-          case String:
           default:
-            outValue = value;
+            outValue = super._deserializeValue(value, type);
             break;
         }
-
         return outValue;
       }
       /* eslint-enable no-fallthrough */
 
       /**
-       * Creates a setter/getter pair for the named property with its own
-       * local storage.  The getter returns the value in the local storage,
-       * and the setter calls `_setProperty`, which updates the local storage
-       * for the property and enqueues a `_propertiesChanged` callback.
-       *
-       * This method may be called on a prototype or an instance.  Calling
-       * this method may overwrite a property value that already exists on
-       * the prototype/instance by creating the accessor.  When calling on
-       * a prototype, any overwritten values are saved in `__dataProto`,
-       * and it is up to the subclasser to decide how/when to set those
-       * properties back into the accessor.  When calling on an instance,
-       * the overwritten value is set via `_setPendingProperty`, and the
-       * user should call `_invalidateProperties` or `_flushProperties`
-       * for the values to take effect.
-       *
+       * Overrides PropertiesChanged implementation to save existing prototype
+       * property value so that it can be reset.
        * @param {string} property Name of the property
-       * @param {boolean=} readOnly When true, no setter is created; the
-       *   protected `_setProperty` function must be used to set the property
-       * @return {void}
+       * @param {boolean=} readOnly When true, no setter is created
+       *
+       * When calling on a prototype, any overwritten values are saved in
+       * `__dataProto`, and it is up to the subclasser to decide how/when
+       * to set those properties back into the accessor.  When calling on an
+       * instance, the overwritten value is set via `_setPendingProperty`,
+       * and the user should call `_invalidateProperties` or `_flushProperties`
+       * for the values to take effect.
        * @protected
+       * @return {void}
        */
-      _createPropertyAccessor(property, readOnly) {
-        if (!this.hasOwnProperty('__dataHasAccessor')) {
-          this.__dataHasAccessor = Object.assign({}, this.__dataHasAccessor);
-        }
-        if (!this.__dataHasAccessor[property]) {
-          this.__dataHasAccessor[property] = true;
-          saveAccessorValue(this, property);
-          Object.defineProperty(this, property, {
-            /* eslint-disable valid-jsdoc */
-            /** @this {PropertyAccessors} */
-            get: function() {
-              return this.__data[property];
-            },
-            /** @this {PropertyAccessors} */
-            set: readOnly ? function() {} : function(value) {
-              this._setProperty(property, value);
-            }
-            /* eslint-enable */
-          });
-        }
+      _definePropertyAccessor(property, readOnly) {
+        saveAccessorValue(this, property);
+        super._definePropertyAccessor(property, readOnly);
       }
 
       /**
@@ -453,50 +296,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Updates the local storage for a property (via `_setPendingProperty`)
-       * and enqueues a `_propertiesChanged` callback.
-       *
-       * @param {string} property Name of the property
-       * @param {*} value Value to set
-       * @return {void}
-       * @protected
-       */
-      _setProperty(property, value) {
-        if (this._setPendingProperty(property, value)) {
-          this._invalidateProperties();
-        }
-      }
-
-      /**
-       * Updates the local storage for a property, records the previous value,
-       * and adds it to the set of "pending changes" that will be passed to the
-       * `_propertiesChanged` callback.  This method does not enqueue the
-       * `_propertiesChanged` callback.
-       *
-       * @param {string} property Name of the property
-       * @param {*} value Value to set
-       * @return {boolean} Returns true if the property changed
-       * @protected
-       */
-      _setPendingProperty(property, value) {
-        let old = this.__data[property];
-        let changed = this._shouldPropertyChange(property, value, old);
-        if (changed) {
-          if (!this.__dataPending) {
-            this.__dataPending = {};
-            this.__dataOld = {};
-          }
-          // Ensure old is captured from the last turn
-          if (this.__dataOld && !(property in this.__dataOld)) {
-            this.__dataOld[property] = old;
-          }
-          this.__data[property] = value;
-          this.__dataPending[property] = value;
-        }
-        return changed;
-      }
-
-      /**
        * Returns true if the specified property has a pending change.
        *
        * @param {string} prop Property name
@@ -505,123 +304,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       _isPropertyPending(prop) {
         return Boolean(this.__dataPending && (prop in this.__dataPending));
-      }
-
-      /**
-       * Marks the properties as invalid, and enqueues an async
-       * `_propertiesChanged` callback.
-       *
-       * @return {void}
-       * @protected
-       */
-      _invalidateProperties() {
-        if (!this.__dataInvalid && this.__dataReady) {
-          this.__dataInvalid = true;
-          microtask.run(() => {
-            if (this.__dataInvalid) {
-              this.__dataInvalid = false;
-              this._flushProperties();
-            }
-          });
-        }
-      }
-
-      /**
-       * Call to enable property accessor processing. Before this method is
-       * called accessor values will be set but side effects are
-       * queued. When called, any pending side effects occur immediately.
-       * For elements, generally `connectedCallback` is a normal spot to do so.
-       * It is safe to call this method multiple times as it only turns on
-       * property accessors once.
-       *
-       * @return {void}
-       */
-      _enableProperties() {
-        if (!this.__dataEnabled) {
-          this.__dataEnabled = true;
-          if (this.__dataInstanceProps) {
-            this._initializeInstanceProperties(this.__dataInstanceProps);
-            this.__dataInstanceProps = null;
-          }
-          this.ready();
-        }
-      }
-
-      /**
-       * Calls the `_propertiesChanged` callback with the current set of
-       * pending changes (and old values recorded when pending changes were
-       * set), and resets the pending set of changes. Generally, this method
-       * should not be called in user code.
-       *
-       * @return {void}
-       * @protected
-       */
-      _flushProperties() {
-        if (this.__dataPending && this.__dataOld) {
-          let changedProps = this.__dataPending;
-          this.__dataPending = null;
-          this.__dataCounter++;
-          this._propertiesChanged(this.__data, changedProps, this.__dataOld);
-          this.__dataCounter--;
-        }
-      }
-
-      /**
-       * Lifecycle callback called the first time properties are being flushed.
-       * Prior to `ready`, all property sets through accessors are queued and
-       * their effects are flushed after this method returns.
-       *
-       * Users may override this function to implement behavior that is
-       * dependent on the element having its properties initialized, e.g.
-       * from defaults (initialized from `constructor`, `_initializeProperties`),
-       * `attributeChangedCallback`, or values propagated from host e.g. via
-       * bindings.  `super.ready()` must be called to ensure the data system
-       * becomes enabled.
-       *
-       * @public
-       */
-      ready() {
-        this.__dataReady = true;
-        // Run normal flush
-        this._flushProperties();
-      }
-
-      /**
-       * Callback called when any properties with accessors created via
-       * `_createPropertyAccessor` have been set.
-       *
-       * @param {!Object} currentProps Bag of all current accessor values
-       * @param {!Object} changedProps Bag of properties changed since the last
-       *   call to `_propertiesChanged`
-       * @param {!Object} oldProps Bag of previous values for each property
-       *   in `changedProps`
-       * @protected
-       */
-      _propertiesChanged(currentProps, changedProps, oldProps) { // eslint-disable-line no-unused-vars
-      }
-
-      /**
-       * Method called to determine whether a property value should be
-       * considered as a change and cause the `_propertiesChanged` callback
-       * to be enqueued.
-       *
-       * The default implementation returns `true` for primitive types if a
-       * strict equality check fails, and returns `true` for all Object/Arrays.
-       * The method always returns false for `NaN`.
-       *
-       * Override this method to e.g. provide stricter checking for
-       * Objects/Arrays when using immutable patterns.
-       *
-       * @param {string} property Property name
-       * @param {*} value New property value
-       * @param {*} old Previous property value
-       * @return {boolean} Whether the property should be considered a change
-       *   and enqueue a `_propertiesChanged` callback
-       * @protected
-       */
-      _shouldPropertyChange(property, value, old) {
-        // check equality, and ensure (old == NaN, value == NaN) always returns false
-        return old !== value && (old === old || value === value);
       }
 
     }
