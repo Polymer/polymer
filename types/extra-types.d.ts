@@ -156,3 +156,8 @@ interface IdleDeadline {
   didTimeout: boolean;
   timeRemaining(): number;
 }
+
+/**
+ * Closure type equivalence for tagged template literal function argument.
+ */
+type ITemplateArray = TemplateStringsArray;
