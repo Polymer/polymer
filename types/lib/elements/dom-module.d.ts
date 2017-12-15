@@ -33,7 +33,13 @@ declare namespace Polymer {
    *     let img = customElements.get('dom-module').import('foo', 'img');
    */
   class DomModule extends HTMLElement {
-    attributeChangedCallback(name: string, old: any, value: any): void;
+
+    /**
+     * @param name Name of attribute.
+     * @param old Old value of attribute.
+     * @param value Current value of attribute.
+     */
+    attributeChangedCallback(name: string, old: string|null, value: string|null): void;
 
     /**
      * Registers the dom-module at a given id. This method should only be called

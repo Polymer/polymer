@@ -70,16 +70,15 @@ declare namespace Polymer {
      * @returns Cloned template content
      */
     _stampTemplate(template: HTMLTemplateElement): StampedTemplate;
-    _initializeProperties(): any;
 
     /**
-     * Overrides `Polymer.PropertyAccessors` implementation to provide a
-     * more efficient implementation of initializing properties from
-     * the prototype on the instance.
-     *
-     * @param props Properties to initialize on the prototype
+     * Overrides `PropertyAccessors` so that property accessor
+     * side effects are not enabled until after client dom is fully ready.
+     * Also calls `_flushClients` callback to ensure client dom is enabled
+     * that was not enabled as a result of flushing properties.
      */
-    _initializeProtoProperties(props: Object|null): any;
+    ready(): any;
+    _initializeProperties(): any;
 
     /**
      * Overrides `Polymer.PropertyAccessors` implementation to avoid setting
@@ -87,7 +86,7 @@ declare namespace Polymer {
      *
      * @param props Properties to initialize on the instance
      */
-    _initializeInstanceProperties(props: Object|null): any;
+    _initializeInstanceProperties(props: object|null): any;
 
     /**
      * Overrides base implementation to ensure all accessors set `shouldNotify`
@@ -96,7 +95,7 @@ declare namespace Polymer {
     _setProperty(property: any, value: any): any;
 
     /**
-     * Overrides the `PropertyAccessors` implementation to introduce special
+     * Overrides the `PropertiesChanged` implementation to introduce special
      * dirty check logic depending on the property & value being set:
      *
      * 1. Any value set to a path (e.g. 'obj.prop': 42 or 'obj.prop': {...})
@@ -140,12 +139,9 @@ declare namespace Polymer {
     _invalidateProperties(): any;
 
     /**
-     * Overrides `PropertyAccessors` so that property accessor
-     * side effects are not enabled until after client dom is fully ready.
-     * Also calls `_flushClients` callback to ensure client dom is enabled
-     * that was not enabled as a result of flushing properties.
+     * Overrides superclass implementation.
      */
-    ready(): any;
+    _flushProperties(): any;
 
     /**
      * Implements `PropertyAccessors`'s properties changed callback.
@@ -156,6 +152,15 @@ declare namespace Polymer {
     _propertiesChanged(currentProps: any, changedProps: any, oldProps: any): any;
 
     /**
+     * Overrides `Polymer.PropertyAccessors` implementation to provide a
+     * more efficient implementation of initializing properties from
+     * the prototype on the instance.
+     *
+     * @param props Properties to initialize on the prototype
+     */
+    _initializeProtoProperties(props: object|null): any;
+
+    /**
      * Equivalent to static `addPropertyEffect` API but can be called on
      * an instance to add effects at runtime.  See that method for
      * full API docs.
@@ -164,7 +169,7 @@ declare namespace Polymer {
      * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
      * @param effect Effect metadata object
      */
-    _addPropertyEffect(property: string, type: string, effect?: Object|null): void;
+    _addPropertyEffect(property: string, type: string, effect?: object|null): void;
 
     /**
      * Removes the given property effect.
@@ -173,7 +178,7 @@ declare namespace Polymer {
      * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
      * @param effect Effect metadata object to remove
      */
-    _removePropertyEffect(property: string, type: string, effect?: Object|null): void;
+    _removePropertyEffect(property: string, type: string, effect?: object|null): void;
 
     /**
      * Returns whether the current prototype/instance has a property effect
@@ -278,7 +283,7 @@ declare namespace Polymer {
      *
      * @param client PropertyEffects client to enqueue
      */
-    _enqueueClient(client: Object|null): void;
+    _enqueueClient(client: object|null): void;
 
     /**
      * Flushes any clients previously enqueued via `_enqueueClient`, causing
@@ -306,7 +311,7 @@ declare namespace Polymer {
      *   `props` will be set. By default, `setProperties` will not set
      *   `readOnly: true` root properties.
      */
-    setProperties(props: Object|null, setReadOnly?: boolean): void;
+    setProperties(props: object|null, setReadOnly?: boolean): void;
 
     /**
      * Called to propagate any property changes to stamped template nodes
@@ -316,7 +321,7 @@ declare namespace Polymer {
      * @param oldProps Bag of previous values for changed properties
      * @param hasPaths True with `props` contains one or more paths
      */
-    _propagatePropertyChanges(changedProps: Object|null, oldProps: Object|null, hasPaths: boolean): void;
+    _propagatePropertyChanges(changedProps: object|null, oldProps: object|null, hasPaths: boolean): void;
 
     /**
      * Aliases one data path as another, such that path notifications from one
@@ -385,7 +390,7 @@ declare namespace Polymer {
      * @returns Value at the path, or `undefined` if any part of the path
      *   is undefined.
      */
-    get(path: string|Array<string|number>, root?: Object|null): any;
+    get(path: string|Array<string|number>, root?: object|null): any;
 
     /**
      * Convenience method for setting a value to a path and notifying any
@@ -406,7 +411,7 @@ declare namespace Polymer {
      * @param root Root object from which the path is evaluated.
      *   When specified, no notification will occur.
      */
-    set(path: string|Array<string|number>, value: any, root?: Object|null): void;
+    set(path: string|Array<string|number>, value: any, root?: object|null): void;
 
     /**
      * Adds items onto the end of the array at the path specified.
@@ -529,7 +534,7 @@ declare namespace Polymer {
      * @param dynamicFn Boolean or object map indicating
      *   whether method names should be included as a dependency to the effect.
      */
-    _createMethodObserver(expression: string, dynamicFn?: boolean|Object|null): void;
+    _createMethodObserver(expression: string, dynamicFn?: boolean|object|null): void;
 
     /**
      * Equivalent to static `createNotifyingProperty` API but can be called on
@@ -559,7 +564,7 @@ declare namespace Polymer {
      * @param dynamicFn Boolean or object map indicating
      *   whether method names should be included as a dependency to the effect.
      */
-    _createComputedProperty(property: string, expression: string, dynamicFn?: boolean|Object|null): void;
+    _createComputedProperty(property: string, expression: string, dynamicFn?: boolean|object|null): void;
 
     /**
      * Equivalent to static `bindTemplate` API but can be called on

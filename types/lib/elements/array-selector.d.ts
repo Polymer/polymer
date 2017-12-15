@@ -37,33 +37,33 @@ declare namespace Polymer {
     /**
      * An array containing items from which selection will be made.
      */
-    items: any[]|null;
+    items: any[]|null|undefined;
 
     /**
      * When `true`, multiple items may be selected at once (in this case,
      * `selected` is an array of currently selected items).  When `false`,
      * only one item may be selected at a time.
      */
-    multi: boolean;
+    multi: boolean|null|undefined;
 
     /**
      * When `multi` is true, this is an array that contains any selected.
      * When `multi` is false, this is the currently selected item, or `null`
      * if no item is selected.
      */
-    selected: Object|Object[]|null;
+    selected: object|object[]|null;
 
     /**
      * When `multi` is false, this is the currently selected item, or `null`
      * if no item is selected.
      */
-    selectedItem: Object|null;
+    selectedItem: object|null;
 
     /**
      * When `true`, calling `select` on an item that is already selected
      * will deselect the item.
      */
-    toggle: boolean;
+    toggle: boolean|null|undefined;
 
     /**
      * Clears the selection state.

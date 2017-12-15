@@ -97,7 +97,7 @@ declare namespace Polymer {
      * @returns Returns the created instance of
      * the template prepared by `templatize`.
      */
-    stamp(model?: Object|null): TemplateInstanceBase|null;
+    stamp(model?: object|null): TemplateInstanceBase|null;
 
     /**
      * Returns the template "model" (`TemplateInstance`) associated with

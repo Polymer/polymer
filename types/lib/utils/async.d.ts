@@ -32,7 +32,7 @@ declare namespace Polymer {
        *
        * @returns An async timeout interface
        */
-      function after(delay: number): AsyncInterface;
+      function after(delay?: number): AsyncInterface;
 
 
       /**
@@ -40,7 +40,15 @@ declare namespace Polymer {
        *
        * @returns Handle used for canceling task
        */
-      function run(fn: Function): number;
+      function run(fn: Function, delay?: number): number;
+
+
+      /**
+       * Enqueues a function called in the next task.
+       *
+       * @returns Handle used for canceling task
+       */
+      function run(fn: Function, delay?: number): number;
 
 
       /**
@@ -50,7 +58,7 @@ declare namespace Polymer {
 
 
       /**
-       * Cancels a previously enqueued `animationFrame` callback.
+       * Cancels a previously enqueued `timeOut` callback.
        */
       function cancel(handle: number): void;
     }
@@ -66,7 +74,27 @@ declare namespace Polymer {
        *
        * @returns Handle used for canceling task
        */
-      function run(fn: Function): number;
+      function run(fn: (p0: number) => any): number;
+
+
+      /**
+       * Enqueues a function called at `requestAnimationFrame` timing.
+       *
+       * @returns Handle used for canceling task
+       */
+      function run(fn: (p0: number) => any): number;
+
+
+      /**
+       * Cancels a previously enqueued `animationFrame` callback.
+       */
+      function cancel(handle: number): void;
+
+
+      /**
+       * Cancels a previously enqueued `animationFrame` callback.
+       */
+      function cancel(handle: number): void;
     }
 
     /**

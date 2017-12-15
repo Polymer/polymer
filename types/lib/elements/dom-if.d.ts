@@ -35,7 +35,7 @@ declare namespace Polymer {
     /**
      * A boolean indicating whether this template should stamp.
      */
-    if: boolean;
+    if: boolean|null|undefined;
 
     /**
      * When true, elements will be removed from DOM and discarded when `if`
@@ -44,7 +44,7 @@ declare namespace Polymer {
      * in the DOM when `if` becomes false, which is generally results
      * in better performance.
      */
-    restamp: boolean;
+    restamp: boolean|null|undefined;
     connectedCallback(): any;
     disconnectedCallback(): any;
 

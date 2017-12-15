@@ -111,13 +111,13 @@ declare namespace Polymer {
      * An array containing items determining how many instances of the template
      * to stamp and that that each template instance should bind to.
      */
-    items: any[]|null;
+    items: any[]|null|undefined;
 
     /**
      * The name of the variable to add to the binding scope for the array
      * element associated with a given template instance.
      */
-    as: string;
+    as: string|null|undefined;
 
     /**
      * The name of the variable to add to the binding scope with the index
@@ -125,7 +125,7 @@ declare namespace Polymer {
      * Note, for the index in the `this.items` array, use the value of the
      * `itemsIndexAs` property.
      */
-    indexAs: string;
+    indexAs: string|null|undefined;
 
     /**
      * The name of the variable to add to the binding scope with the index
@@ -133,7 +133,7 @@ declare namespace Polymer {
      * this instance in the sorted and filtered list of rendered items,
      * use the value of the `indexAs` property.
      */
-    itemsIndexAs: string;
+    itemsIndexAs: string|null|undefined;
 
     /**
      * A function that should determine the sort order of the items.  This
@@ -142,7 +142,7 @@ declare namespace Polymer {
      * function should match the sort function passed to `Array.sort`.
      * Using a sort function has no effect on the underlying `items` array.
      */
-    sort: Function|null;
+    sort: Function|null|undefined;
 
     /**
      * A function that can be used to filter items out of the view.  This
@@ -151,7 +151,7 @@ declare namespace Polymer {
      * function should match the sort function passed to `Array.filter`.
      * Using a filter function has no effect on the underlying `items` array.
      */
-    filter: Function|null;
+    filter: Function|null|undefined;
 
     /**
      * When using a `filter` or `sort` function, the `observe` property
@@ -160,7 +160,7 @@ declare namespace Polymer {
      * These should generally be fields of `item` that the sort or filter
      * function depends on.
      */
-    observe: string;
+    observe: string|null|undefined;
 
     /**
      * When using a `filter` or `sort` function, the `delay` property
@@ -169,14 +169,14 @@ declare namespace Polymer {
      * This is useful in rate-limiting shuffling of the view when
      * item changes may be frequent.
      */
-    delay: number;
+    delay: number|null|undefined;
 
     /**
      * Count of currently rendered items after `filter` (if any) has been applied.
      * If "chunking mode" is enabled, `renderedItemCount` is updated each time a
      * set of template instances is rendered.
      */
-    renderedItemCount: number;
+    renderedItemCount: number|null|undefined;
 
     /**
      * Defines an initial count of template instances to render after setting
@@ -185,7 +185,7 @@ declare namespace Polymer {
      * incrementally at each animation frame therof until all instances have
      * been rendered.
      */
-    initialCount: number;
+    initialCount: number|null|undefined;
 
     /**
      * When `initialCount` is used, this property defines a frame rate (in
@@ -199,8 +199,8 @@ declare namespace Polymer {
      * throughput for event handlers and other tasks, but results in a
      * longer time for the remaining items to complete rendering.
      */
-    targetFramerate: number;
-    _targetFrameTime: number;
+    targetFramerate: number|null|undefined;
+    _targetFrameTime: number|null|undefined;
     disconnectedCallback(): any;
     connectedCallback(): any;
 

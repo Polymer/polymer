@@ -117,7 +117,7 @@ declare namespace Polymer {
      * for this element.  When true, Objects and Arrays will skip dirty
      * checking, otherwise strict equality checking will be used.
      */
-    mutableData: boolean;
+    mutableData: boolean|null|undefined;
 
     /**
      * Overrides `Polymer.PropertyEffects` to provide option for skipping

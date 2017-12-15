@@ -11,11 +11,11 @@
 /// <reference path="../utils/boot.d.ts" />
 /// <reference path="../utils/settings.d.ts" />
 /// <reference path="../utils/mixin.d.ts" />
-/// <reference path="../utils/case-map.d.ts" />
 /// <reference path="../utils/style-gather.d.ts" />
 /// <reference path="../utils/resolve-url.d.ts" />
 /// <reference path="../elements/dom-module.d.ts" />
 /// <reference path="property-effects.d.ts" />
+/// <reference path="properties-mixin.d.ts" />
 
 declare namespace Polymer {
 
@@ -76,7 +76,7 @@ declare namespace Polymer {
    *   of dash-cased attributes based on `properties`)
    */
   function ElementMixin<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): ElementMixin & Polymer.PropertyEffects
+    new(...args: any[]): ElementMixin & Polymer.PropertyEffects & Polymer.PropertiesMixin
   } & T
 
   interface ElementMixin {
@@ -88,19 +88,9 @@ declare namespace Polymer {
     $: any;
 
     /**
-     * Provides a default implementation of the standard Custom Elements
-     * `attributeChangedCallback`.
-     *
-     * By default, attributes declared in `properties` metadata are
-     * deserialized using their `type` information to properties of the
-     * same name.  "Dash-cased" attributes are deserialized to "camelCase"
-     * properties.
-     *
-     * @param name Name of attribute.
-     * @param old Old value of attribute.
-     * @param value Current value of attribute.
+     * Stamps the element template.
      */
-    attributeChangedCallback(name: string, old: string|null, value: string|null): any;
+    ready(): any;
 
     /**
      * Overrides the default `Polymer.PropertyAccessors` to ensure class
@@ -111,11 +101,6 @@ declare namespace Polymer {
      * `properties` metadata.
      */
     _initializeProperties(): any;
-
-    /**
-     * Stamps the element template.
-     */
-    ready(): any;
 
     /**
      * Implements `PropertyEffects`'s `_readyClients` call. Attaches
@@ -135,12 +120,6 @@ declare namespace Polymer {
      * when using the ShadyCSS scoping/custom properties polyfill.
      */
     connectedCallback(): any;
-
-    /**
-     * Provides a default implementation of the standard Custom Elements
-     * `disconnectedCallback`.
-     */
-    disconnectedCallback(): any;
 
     /**
      * Attaches an element's stamped dom to itself. By default,
@@ -169,7 +148,7 @@ declare namespace Polymer {
      * @param properties Bag of custom property key/values to
      *   apply to this element.
      */
-    updateStyles(properties?: Object|null): void;
+    updateStyles(properties?: object|null): void;
 
     /**
      * Rewrites a given URL relative to a base URL. The base URL defaults to

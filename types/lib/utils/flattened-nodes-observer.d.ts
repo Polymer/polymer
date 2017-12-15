@@ -53,9 +53,6 @@ declare namespace Polymer {
    * ```
    */
   class FlattenedNodesObserver {
-    _shadyChildrenObserver: MutationObserver|null;
-    _nativeChildrenObserver: MutationObserver|null;
-    _boundSchedule: () => any;
 
     /**
      * Activates an observer. This method is automatically called when

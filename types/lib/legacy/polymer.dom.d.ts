@@ -32,7 +32,7 @@ declare namespace Polymer {
      *
      * @returns True if node matched selector
      */
-    function matchesSelector(node: Element, selector: string): boolean;
+    function matchesSelector(node: Node, selector: string): boolean;
   }
 
   /**

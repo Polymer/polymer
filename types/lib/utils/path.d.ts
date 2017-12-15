@@ -137,7 +137,7 @@ declare namespace Polymer {
      * @returns Value at path, or `undefined` if the path could not be
      *  fully dereferenced.
      */
-    function get(root: Object|null, path: string|Array<string|number>, info?: Object|null): any;
+    function get(root: object|null, path: string|Array<string|number>, info?: object|null): any;
 
 
     /**
@@ -146,6 +146,6 @@ declare namespace Polymer {
      *
      * @returns The normalized version of the input path
      */
-    function set(root: Object|null, path: string|Array<string|number>, value: any): string|undefined;
+    function set(root: object|null, path: string|Array<string|number>, value: any): string|undefined;
   }
 }
