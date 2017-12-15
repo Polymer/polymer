@@ -1,5 +1,12 @@
 # Change Log
 
+## [v1.11.2-dev](https://github.com/Polymer/polymer/tree/v1.11.2-dev) (2017-12-14)
+- Fix styling tests with Firefox ([commit](https://github.com/Polymer/polymer/commit/f6f0750b))
+
+- Handle :-webkit-any selectors correctly ([commit](https://github.com/Polymer/polymer/commit/9f3ff4e2))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/000e15e6))
+
 ## [v1.11.1-dev](https://github.com/Polymer/polymer/tree/v1.11.1-dev) (2017-12-05)
 - make PASSIVE_TOUCH take an argument ([commit](https://github.com/Polymer/polymer/commit/f038522f))
 
