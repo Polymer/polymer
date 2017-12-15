@@ -1145,7 +1145,7 @@ Polymer_LegacyElementMixin.prototype.flushDebouncer = function(jobName){};
 */
 Polymer_LegacyElementMixin.prototype.cancelDebouncer = function(jobName){};
 /**
-* @param {Function} callback The callback function to run, bound to `this`.
+* @param {!Function} callback The callback function to run, bound to `this`.
 * @param {number=} waitTime Time to wait before calling the
   `callback`.  If unspecified or 0, the callback will be run at microtask
   timing (before paint).
@@ -1167,18 +1167,18 @@ Polymer_LegacyElementMixin.prototype.cancelAsync = function(handle){};
 Polymer_LegacyElementMixin.prototype.create = function(tag, props){};
 /**
 * @param {string} href URL to document to load.
-* @param {Function} onload Callback to notify when an import successfully
+* @param {!Function=} onload Callback to notify when an import successfully
   loaded.
-* @param {Function} onerror Callback to notify when an import
+* @param {!Function=} onerror Callback to notify when an import
   unsuccessfully loaded.
-* @param {boolean} optAsync True if the import should be loaded `async`.
+* @param {boolean=} optAsync True if the import should be loaded `async`.
   Defaults to `false`.
 * @return {HTMLLinkElement}
 */
 Polymer_LegacyElementMixin.prototype.importHref = function(href, onload, onerror, optAsync){};
 /**
 * @param {string} selector Selector to test.
-* @param {Element=} node Element to test the selector against.
+* @param {!Element=} node Element to test the selector against.
 * @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype.elementMatches = function(selector, node){};
