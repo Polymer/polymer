@@ -2901,8 +2901,31 @@ this._transformRule(rule, this._transformComplexSelector, scope, hostScope);
 _transformRule: function (rule, transformer, scope, hostScope) {
 rule.selector = rule.transformedSelector = this._transformRuleCss(rule, transformer, scope, hostScope);
 },
+_splitSelectorList: function (selector) {
+var parts = [];
+var part = '';
+for (var i = 0; i >= 0 && i < selector.length; i++) {
+if (selector[i] === '(') {
+var end = styleUtil._findMatchingParen(selector, i);
+part += selector.slice(i, end + 1);
+i = end;
+} else if (selector[i] === COMPLEX_SELECTOR_SEP) {
+parts.push(part);
+part = '';
+} else {
+part += selector[i];
+}
+}
+if (part) {
+parts.push(part);
+}
+if (parts.length === 0) {
+parts.push(selector);
+}
+return parts;
+},
 _transformRuleCss: function (rule, transformer, scope, hostScope) {
-var p$ = rule.selector.split(COMPLEX_SELECTOR_SEP);
+var p$ = this._splitSelectorList(rule.selector);
 if (!styleUtil.isKeyframesSelector(rule)) {
 for (var i = 0, l = p$.length, p; i < l && (p = p$[i]); i++) {
 p$[i] = transformer.call(this, p, scope, hostScope);
@@ -3028,7 +3051,7 @@ this._transformRule(rule, this._transformDocumentSelector);
 },
 normalizeRootSelector: function (rule) {
 rule.selector = rule.selector.replace(ROOT, 'html');
-var parts = rule.selector.split(COMPLEX_SELECTOR_SEP);
+var parts = this._splitSelectorList(rule.selector);
 parts = parts.filter(function (part) {
 return !part.match(HOST_OR_HOST_GT_STAR);
 });
@@ -3041,7 +3064,10 @@ _slottedToContent: function (cssText) {
 return cssText.replace(SLOTTED_PAREN, CONTENT + '> $1');
 },
 _dirShadowTransform: function (selector) {
-return selector.split(',').map(function (s) {
+if (!selector.match(/:dir\(/)) {
+return selector;
+}
+return this._splitSelectorList(selector).map(function (s) {
 s = this._ensureScopedDir(s);
 s = this._transformDir(s);
 var m = HOST_CONTEXT_PAREN.exec(s);
@@ -3049,7 +3075,7 @@ if (m) {
 s += this._additionalDirSelectors(m[2], m[3], '');
 }
 return s;
-}, this).join(',');
+}, this).join(COMPLEX_SELECTOR_SEP);
 },
 SCOPE_NAME: 'style-scope'
 };
