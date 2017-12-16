@@ -119,7 +119,7 @@ Polymer_PropertiesChanged.prototype._propertyToAttribute = function(property, at
 Polymer_PropertiesChanged.prototype._valueToNodeAttribute = function(node, value, attribute){};
 /**
 * @param {*} value Property value to serialize.
-* @return {(string|undefined)}
+* @return {(string | undefined)}
 */
 Polymer_PropertiesChanged.prototype._serializeValue = function(value){};
 /**
@@ -165,7 +165,7 @@ Polymer_PropertyAccessors.prototype._definePropertyAccessor = function(property,
 Polymer_PropertyAccessors.prototype._initializeProperties = function(){};
 /**
 * @param {*} value Property value to serialize.
-* @return {(string|undefined)}
+* @return {(string | undefined)}
 */
 Polymer_PropertyAccessors.prototype._serializeValue = function(value){};
 /**
@@ -216,17 +216,17 @@ function Polymer_TemplateStamp(){}
 Polymer_TemplateStamp.prototype._stampTemplate = function(template){};
 /**
 * @param {!Node} node Node to add listener on
-* @param {!string} eventName Name of event
-* @param {!string} methodName Name of method
+* @param {string} eventName Name of event
+* @param {string} methodName Name of method
 * @param {*=} context Context the method will be called on (defaults
   to `node`)
-* @return {!Function}
+* @return {Function}
 */
 Polymer_TemplateStamp.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
 /**
 * @param {!Node} node Node to add event listener to
-* @param {!string} eventName Name of event
-* @param {!Function} handler Listener function to add
+* @param {string} eventName Name of event
+* @param {Function} handler Listener function to add
 * @return {void}
 */
 Polymer_TemplateStamp.prototype._addEventListenerToNode = function(node, eventName, handler){};
@@ -458,7 +458,7 @@ Polymer_PropertyEffects.prototype._hasReflectEffect = function(property){};
 */
 Polymer_PropertyEffects.prototype._hasComputedEffect = function(property){};
 /**
-* @param {(string|!Array.<(number|string)>)} path Path to set
+* @param {(string | !Array.<(number | string)>)} path Path to set
 * @param {*} value Value to set
 * @param {boolean=} shouldNotify Set to true if this change should
  cause a property notification event dispatch
@@ -507,13 +507,13 @@ Polymer_PropertyEffects.prototype.setProperties = function(props, setReadOnly){}
 */
 Polymer_PropertyEffects.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
 /**
-* @param {(string|!Array.<(string|number)>)} to Target path to link.
-* @param {(string|!Array.<(string|number)>)} from Source path to link.
+* @param {(string | !Array.<(string | number)>)} to Target path to link.
+* @param {(string | !Array.<(string | number)>)} from Source path to link.
 * @return {void}
 */
 Polymer_PropertyEffects.prototype.linkPaths = function(to, from){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Target path to unlink.
+* @param {(string | !Array.<(string | number)>)} path Target path to unlink.
 * @return {void}
 */
 Polymer_PropertyEffects.prototype.unlinkPaths = function(path){};
@@ -535,7 +535,7 @@ Polymer_PropertyEffects.prototype.unlinkPaths = function(path){};
 */
 Polymer_PropertyEffects.prototype.notifySplices = function(path, splices){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
+* @param {(string | !Array.<(string | number)>)} path Path to the value
   to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
   bracketed expressions are not supported; string-based path parts
@@ -547,7 +547,7 @@ Polymer_PropertyEffects.prototype.notifySplices = function(path, splices){};
 */
 Polymer_PropertyEffects.prototype.get = function(path, root){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
+* @param {(string | !Array.<(string | number)>)} path Path to the value
   to write.  The path may be specified as a string (e.g. `'foo.bar.baz'`)
   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
   bracketed expressions are not supported; string-based path parts
@@ -561,32 +561,32 @@ Polymer_PropertyEffects.prototype.get = function(path, root){};
 */
 Polymer_PropertyEffects.prototype.set = function(path, value, root){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
+* @param {(string | !Array.<(string | number)>)} path Path to array.
+* @param {...*} items Items to push onto array
 * @return {number}
 */
 Polymer_PropertyEffects.prototype.push = function(path, items){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {(string | !Array.<(string | number)>)} path Path to array.
 * @return {*}
 */
 Polymer_PropertyEffects.prototype.pop = function(path){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {(string | !Array.<(string | number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items 
+* @param {...*} items Items to insert into array.
 * @return {Array}
 */
 Polymer_PropertyEffects.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {(string | !Array.<(string | number)>)} path Path to array.
 * @return {*}
 */
 Polymer_PropertyEffects.prototype.shift = function(path){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
+* @param {(string | !Array.<(string | number)>)} path Path to array.
+* @param {...*} items Items to insert info array
 * @return {number}
 */
 Polymer_PropertyEffects.prototype.unshift = function(path, items){};
@@ -605,7 +605,7 @@ Polymer_PropertyEffects.prototype.notifyPath = function(path, value){};
 Polymer_PropertyEffects.prototype._createReadOnlyProperty = function(property, protectedSetter){};
 /**
 * @param {string} property Property name
-* @param {(string|function (*, *))} method Function or name of observer method to call
+* @param {(string | function (*, *))} method Function or name of observer method to call
 * @param {boolean=} dynamicFn Whether the method name should be included as
   a dependency to the effect.
 * @return {void}
@@ -613,7 +613,7 @@ Polymer_PropertyEffects.prototype._createReadOnlyProperty = function(property, p
 Polymer_PropertyEffects.prototype._createPropertyObserver = function(property, method, dynamicFn){};
 /**
 * @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
+* @param {(boolean | Object)=} dynamicFn Boolean or object map indicating
   whether method names should be included as a dependency to the effect.
 * @return {void}
 */
@@ -631,7 +631,7 @@ Polymer_PropertyEffects.prototype._createReflectedProperty = function(property){
 /**
 * @param {string} property Name of computed property to set
 * @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
+* @param {(boolean | Object)=} dynamicFn Boolean or object map indicating
   whether method names should be included as a dependency to the effect.
 * @return {void}
 */
@@ -688,7 +688,7 @@ Polymer_PropertyEffects._parseTemplateNodeAttribute = function(node, templateInf
 Polymer_PropertyEffects.addPropertyEffect = function(property, type, effect){};
 /**
 * @param {string} property Property name
-* @param {(string|function (*, *))} method Function or name of observer method to call
+* @param {(string | function (*, *))} method Function or name of observer method to call
 * @param {boolean=} dynamicFn Whether the method name should be included as
   a dependency to the effect.
 * @return {void}
@@ -696,7 +696,7 @@ Polymer_PropertyEffects.addPropertyEffect = function(property, type, effect){};
 Polymer_PropertyEffects.createPropertyObserver = function(property, method, dynamicFn){};
 /**
 * @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
+* @param {(boolean | Object)=} dynamicFn Boolean or object map indicating
 * @return {void}
 */
 Polymer_PropertyEffects.createMethodObserver = function(expression, dynamicFn){};
@@ -720,7 +720,7 @@ Polymer_PropertyEffects.createReflectedProperty = function(property){};
 /**
 * @param {string} property Name of computed property to set
 * @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating whether
+* @param {(boolean | Object)=} dynamicFn Boolean or object map indicating whether
   method names should be included as a dependency to the effect.
 * @return {void}
 */
@@ -804,7 +804,7 @@ Polymer_ElementMixin.prototype.rootPath;
 /** @type {string} */
 Polymer_ElementMixin.prototype.importPath;
 
-/** @type {(StampedTemplate|HTMLElement|ShadowRoot)} */
+/** @type {(StampedTemplate | HTMLElement | ShadowRoot)} */
 Polymer_ElementMixin.prototype.root;
 
 /** @type {!Object.<string, !Element>} */
@@ -887,15 +887,15 @@ Polymer_ElementMixin._finalizeTemplate = function(is){};
 function Polymer_GestureEventListeners(){}
 /**
 * @param {!Node} node Node to add event listener to
-* @param {!string} eventName Name of event
-* @param {!Function} handler Listener function to add
+* @param {string} eventName Name of event
+* @param {Function} handler Listener function to add
 * @return {void}
 */
 Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
 * @param {!Node} node Node to remove event listener from
-* @param {!string} eventName Name of event
-* @param {!Function} handler Listener function to remove
+* @param {string} eventName Name of event
+* @param {Function} handler Listener function to remove
 * @return {void}
 */
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
@@ -1004,7 +1004,7 @@ Polymer_LegacyElementMixin.prototype._ensureAttributes = function(){};
 Polymer_LegacyElementMixin.prototype._applyListeners = function(){};
 /**
 * @param {*} value Value to deserialize
-* @return {(string|undefined)}
+* @return {(string | undefined)}
 */
 Polymer_LegacyElementMixin.prototype.serialize = function(value){};
 /**
@@ -1055,7 +1055,7 @@ Polymer_LegacyElementMixin.prototype.instanceTemplate = function(template){};
 * @param {string} type Name of event type.
 * @param {*=} detail Detail value containing event-specific
   payload.
-* @param {{bubbles: (boolean|undefined), cancelable: (boolean|undefined), composed: (boolean|undefined)}=} options Object specifying options.  These may include:
+* @param {{bubbles: (boolean | undefined), cancelable: (boolean | undefined), composed: (boolean | undefined)}=} options Object specifying options.  These may include:
  `bubbles` (boolean, defaults to `true`),
  `cancelable` (boolean, defaults to false), and
  `node` on which to fire the event (HTMLElement, defaults to `this`).
@@ -1249,7 +1249,7 @@ Defaults to `this`.
 */
 Polymer_LegacyElementMixin.prototype.translate3d = function(x, y, z, node){};
 /**
-* @param {(string|!Array.<(number|string)>)} arrayOrPath Path to array from which to remove the item
+* @param {(string | !Array.<(number | string)>)} arrayOrPath Path to array from which to remove the item
   (or the array itself).
 * @param {*} item Item to remove.
 * @return {Array}
@@ -1262,23 +1262,23 @@ Polymer_LegacyElementMixin.prototype.arrayDelete = function(arrayOrPath, item){}
 */
 Polymer_LegacyElementMixin.prototype._logger = function(level, args){};
 /**
-* @param {...*} args 
+* @param {...*} args Array of strings or objects to log
 * @return {void}
 */
 Polymer_LegacyElementMixin.prototype._log = function(args){};
 /**
-* @param {...*} args 
+* @param {...*} args Array of strings or objects to log
 * @return {void}
 */
 Polymer_LegacyElementMixin.prototype._warn = function(args){};
 /**
-* @param {...*} args 
+* @param {...*} args Array of strings or objects to log
 * @return {void}
 */
 Polymer_LegacyElementMixin.prototype._error = function(args){};
 /**
 * @param {string} methodName Method name to associate with message
-* @param {...*} args 
+* @param {...*} args Array of strings or objects to log
 * @return {Array}
 */
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
@@ -1318,7 +1318,7 @@ Polymer_ArraySelectorMixin.prototype.items;
 /** @type {boolean} */
 Polymer_ArraySelectorMixin.prototype.multi;
 
-/** @type {?(Object|Array.<!Object>)} */
+/** @type {?(Object | Array.<!Object>)} */
 Polymer_ArraySelectorMixin.prototype.selected;
 
 /** @type {?Object} */
