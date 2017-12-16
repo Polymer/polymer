@@ -33,8 +33,8 @@ declare namespace Polymer {
   } & T
 
   interface DirMixin {
-    ready(): any;
-    connectedCallback(): any;
-    disconnectedCallback(): any;
+    ready(): void;
+    connectedCallback(): void;
+    disconnectedCallback(): void;
   }
 }

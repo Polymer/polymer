@@ -113,7 +113,7 @@ class AddClosureTypeImport extends Transform {
 
 gulp.task('clean', () => del([DIST_DIR, 'closure.log']));
 
-gulp.task('closure', ['clean'], () => {
+gulp.task('closure', ['generate-externs'], () => {
 
   let entry, splitRx, joinRx, addClosureTypes;
 

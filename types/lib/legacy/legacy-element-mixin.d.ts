@@ -37,14 +37,14 @@ declare namespace Polymer {
      * Overrides the default `Polymer.PropertyEffects` implementation to
      * add support for installing `hostAttributes` and `listeners`.
      */
-    ready(): any;
+    ready(): void;
 
     /**
      * Overrides the default `Polymer.PropertyEffects` implementation to
      * add support for class initialization via the `_registered` callback.
      * This is called only when the first instance of the element is created.
      */
-    _initializeProperties(): any;
+    _initializeProperties(): void;
 
     /**
      * Provides an override implementation of `attributeChangedCallback`
@@ -60,31 +60,31 @@ declare namespace Polymer {
      * Provides an implementation of `connectedCallback`
      * which adds Polymer legacy API's `attached` method.
      */
-    connectedCallback(): any;
+    connectedCallback(): void;
 
     /**
      * Provides an implementation of `disconnectedCallback`
      * which adds Polymer legacy API's `detached` method.
      */
-    disconnectedCallback(): any;
+    disconnectedCallback(): void;
 
     /**
      * Legacy callback called during the `constructor`, for overriding
      * by the user.
      */
-    created(): any;
+    created(): void;
 
     /**
      * Legacy callback called during `connectedCallback`, for overriding
      * by the user.
      */
-    attached(): any;
+    attached(): void;
 
     /**
      * Legacy callback called during `disconnectedCallback`, for overriding
      * by the user.
      */
-    detached(): any;
+    detached(): void;
 
     /**
      * Legacy callback called during `attributeChangedChallback`, for overriding
@@ -94,7 +94,7 @@ declare namespace Polymer {
      * @param old Old value of attribute.
      * @param value Current value of attribute.
      */
-    attributeChanged(name: string, old: string|null, value: string|null): any;
+    attributeChanged(name: string, old: string|null, value: string|null): void;
 
     /**
      * Called automatically when an element is initializing.
@@ -102,7 +102,7 @@ declare namespace Polymer {
      * work. The implementation should ensure the work is performed
      * only once for the class.
      */
-    _registered(): any;
+    _registered(): void;
 
     /**
      * Ensures an element has required attributes. Called when the element
@@ -113,7 +113,7 @@ declare namespace Polymer {
      * to the element user and not done here; reasonable exceptions include
      * setting aria roles and focusability.
      */
-    _ensureAttributes(): any;
+    _ensureAttributes(): void;
 
     /**
      * Adds element event listeners. Called when the element
@@ -124,7 +124,7 @@ declare namespace Polymer {
      * these elements, consider adding listeners asynchronously so as not to
      * block render.
      */
-    _applyListeners(): any;
+    _applyListeners(): void;
 
     /**
      * Converts a typed JavaScript value to a string.
@@ -398,9 +398,13 @@ declare namespace Polymer {
     isLocalDescendant(node?: Element|null): boolean;
 
     /**
-     * NOTE: should now be handled by ShadyCss library.
+     * No-op for backwards compatibility. This should now be handled by
+     * ShadyCss library.
+     *
+     * @param container Unused
+     * @param shouldObserve Unused
      */
-    scopeSubtree(container: any, shouldObserve: any): any;
+    scopeSubtree(container: any, shouldObserve: any): void;
 
     /**
      * Returns the computed style value for the given property.
@@ -528,7 +532,7 @@ declare namespace Polymer {
      *    When unspecified, the state of the attribute will be reversed.
      * @param node Node to target.  Defaults to `this`.
      */
-    toggleAttribute(name: string, bool?: boolean, node?: Element|null): any;
+    toggleAttribute(name: string, bool?: boolean, node?: Element|null): void;
 
     /**
      * Toggles a CSS class on or off.
@@ -538,7 +542,7 @@ declare namespace Polymer {
      *    When unspecified, the state of the class will be reversed.
      * @param node Node to target.  Defaults to `this`.
      */
-    toggleClass(name: string, bool?: boolean, node?: Element|null): any;
+    toggleClass(name: string, bool?: boolean, node?: Element|null): void;
 
     /**
      * Cross-platform helper for setting an element's CSS `transform` property.
@@ -584,28 +588,28 @@ declare namespace Polymer {
      * @param level One of 'log', 'warn', 'error'
      * @param args Array of strings or objects to log
      */
-    _logger(level: string, args: any[]|null): any;
+    _logger(level: string, args: any[]|null): void;
 
     /**
      * Facades `console.log` as an override point.
      *
      * @param args Array of strings or objects to log
      */
-    _log(...args: any[]): any;
+    _log(...args: any[]): void;
 
     /**
      * Facades `console.warn` as an override point.
      *
      * @param args Array of strings or objects to log
      */
-    _warn(...args: any[]): any;
+    _warn(...args: any[]): void;
 
     /**
      * Facades `console.error` as an override point.
      *
      * @param args Array of strings or objects to log
      */
-    _error(...args: any[]): any;
+    _error(...args: any[]): void;
 
     /**
      * Formats a message using the element type an a method name.

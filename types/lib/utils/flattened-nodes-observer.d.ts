@@ -68,9 +68,6 @@ declare namespace Polymer {
      * the observer.
      */
     disconnect(): void;
-    _schedule(): any;
-    _processMutations(mutations: any): any;
-    _processSlotMutations(mutations: any): any;
 
     /**
      * Flushes the observer causing any pending changes to be immediately
@@ -81,7 +78,5 @@ declare namespace Polymer {
      * callback to run.
      */
     flush(): boolean;
-    _listenSlots(nodeList: any): any;
-    _unlistenSlots(nodeList: any): any;
   }
 }

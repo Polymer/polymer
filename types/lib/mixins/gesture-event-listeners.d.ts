@@ -28,7 +28,23 @@ declare namespace Polymer {
   } & T
 
   interface GestureEventListeners {
-    _addEventListenerToNode(node: any, eventName: any, handler: any): any;
-    _removeEventListenerFromNode(node: any, eventName: any, handler: any): any;
+
+    /**
+     * Add the event listener to the node if it is a gestures event.
+     *
+     * @param node Node to add event listener to
+     * @param eventName Name of event
+     * @param handler Listener function to add
+     */
+    _addEventListenerToNode(node: Node, eventName: string, handler: Function): void;
+
+    /**
+     * Remove the event listener to the node if it is a gestures event.
+     *
+     * @param node Node to remove event listener from
+     * @param eventName Name of event
+     * @param handler Listener function to remove
+     */
+    _removeEventListenerFromNode(node: Node, eventName: string, handler: Function): void;
   }
 }

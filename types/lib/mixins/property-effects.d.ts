@@ -77,8 +77,8 @@ declare namespace Polymer {
      * Also calls `_flushClients` callback to ensure client dom is enabled
      * that was not enabled as a result of flushing properties.
      */
-    ready(): any;
-    _initializeProperties(): any;
+    ready(): void;
+    _initializeProperties(): void;
 
     /**
      * Overrides `Polymer.PropertyAccessors` implementation to avoid setting
@@ -86,13 +86,16 @@ declare namespace Polymer {
      *
      * @param props Properties to initialize on the instance
      */
-    _initializeInstanceProperties(props: object|null): any;
+    _initializeInstanceProperties(props: object|null): void;
 
     /**
      * Overrides base implementation to ensure all accessors set `shouldNotify`
      * to true, for per-property notification tracking.
+     *
+     * @param property Name of the property
+     * @param value Value to set
      */
-    _setProperty(property: any, value: any): any;
+    _setProperty(property: string, value: any): void;
 
     /**
      * Overrides the `PropertiesChanged` implementation to introduce special
@@ -136,20 +139,26 @@ declare namespace Polymer {
      * manually flushed), the function no-ops; otherwise flushes
      * `_propertiesChanged` synchronously.
      */
-    _invalidateProperties(): any;
+    _invalidateProperties(): void;
 
     /**
      * Overrides superclass implementation.
      */
-    _flushProperties(): any;
+    _flushProperties(): void;
 
     /**
      * Implements `PropertyAccessors`'s properties changed callback.
      *
      * Runs each class of effects for the batch of changed properties in
      * a specific order (compute, propagate, reflect, observe, notify).
+     *
+     * @param currentProps Bag of all current accessor values
+     * @param changedProps Bag of properties changed since the last
+     *   call to `_propertiesChanged`
+     * @param oldProps Bag of previous values for each property
+     *   in `changedProps`
      */
-    _propertiesChanged(currentProps: any, changedProps: any, oldProps: any): any;
+    _propertiesChanged(currentProps: object, changedProps: object, oldProps: object): void;
 
     /**
      * Overrides `Polymer.PropertyAccessors` implementation to provide a
@@ -158,7 +167,7 @@ declare namespace Polymer {
      *
      * @param props Properties to initialize on the prototype
      */
-    _initializeProtoProperties(props: object|null): any;
+    _initializeProtoProperties(props: object|null): void;
 
     /**
      * Equivalent to static `addPropertyEffect` API but can be called on
