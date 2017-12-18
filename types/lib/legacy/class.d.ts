@@ -95,16 +95,21 @@ declare namespace Polymer {
 }
 
 declare class PolymerGenerated {
-  created(): any;
-  _registered(): any;
-  _applyListeners(): any;
+  created(): void;
+  _registered(): void;
+  _applyListeners(): void;
+  _ensureAttributes(): void;
+  ready(): void;
+  attached(): void;
+  detached(): void;
 
   /**
-   * only apply if not already set.
+   * Implements native Custom Elements `attributeChangedCallback` to
+   * set an attribute value to a property via `_attributeToProperty`.
+   *
+   * @param name Name of attribute that changed
+   * @param old Old attribute value
+   * @param value New attribute value
    */
-  _ensureAttributes(): any;
-  ready(): any;
-  attached(): any;
-  detached(): any;
-  attributeChanged(name: any, old: any, value: any): any;
+  attributeChanged(name: string, old: string|null, value: string|null): void;
 }

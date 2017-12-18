@@ -124,7 +124,7 @@ interface Binding {
 
 interface AsyncInterface {
   run: (fn: Function, delay?: number) => number;
-  cancel: (handle: number) => any;
+  cancel: (handle: number) => void;
 }
 
 /**
@@ -138,14 +138,14 @@ type AsyncModule = AsyncInterface;
  */
 
 interface GestureRecognizer {
-  reset: () => any;
-  mousedown?: (e: MouseEvent) => any;
-  mousemove?: (e: MouseEvent) => any;
-  mouseup?: (e: MouseEvent) => any;
-  touchstart?: (e: TouchEvent) => any;
-  touchmove?: (e: TouchEvent) => any;
-  touchend?: (e: TouchEvent) => any;
-  click?: (e: MouseEvent) => any;
+  reset: () => void;
+  mousedown?: (e: MouseEvent) => void;
+  mousemove?: (e: MouseEvent) => void;
+  mouseup?: (e: MouseEvent) => void;
+  touchstart?: (e: TouchEvent) => void;
+  touchmove?: (e: TouchEvent) => void;
+  touchend?: (e: TouchEvent) => void;
+  click?: (e: MouseEvent) => void;
 }
 
 /**

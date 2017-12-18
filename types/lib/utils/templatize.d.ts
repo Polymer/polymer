@@ -15,14 +15,26 @@
 declare class TemplateInstanceBase extends
   Polymer.PropertyEffects(
   Polymer.Element) {
-  _addEventListenerToNode(node: any, eventName: any, handler: any): any;
+
+  /**
+   * Override point for adding custom or simulated event handling.
+   *
+   * @param node Node to add event listener to
+   * @param eventName Name of event
+   * @param handler Listener function to add
+   */
+  _addEventListenerToNode(node: Node, eventName: string, handler: Function): void;
 
   /**
    * Overrides default property-effects implementation to intercept
    * textContent bindings while children are "hidden" and cache in
    * private storage for later retrieval.
+   *
+   * @param node The node to set a property on
+   * @param prop The property to set
+   * @param value The value to set
    */
-  _setUnmanagedPropertyToNode(node: any, prop: any, value: any): any;
+  _setUnmanagedPropertyToNode(node: Node|null, prop: string, value: any): void;
 
   /**
    * Forwards a host property to this instance.  This method should be

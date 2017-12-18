@@ -90,7 +90,7 @@ declare namespace Polymer {
     /**
      * Stamps the element template.
      */
-    ready(): any;
+    ready(): void;
 
     /**
      * Overrides the default `Polymer.PropertyAccessors` to ensure class
@@ -100,7 +100,7 @@ declare namespace Polymer {
      * It also initializes any property defaults provided via `value` in
      * `properties` metadata.
      */
-    _initializeProperties(): any;
+    _initializeProperties(): void;
 
     /**
      * Implements `PropertyEffects`'s `_readyClients` call. Attaches
@@ -109,7 +109,7 @@ declare namespace Polymer {
      * client dom to be attached to the element prior to any observers
      * running.
      */
-    _readyClients(): any;
+    _readyClients(): void;
 
     /**
      * Provides a default implementation of the standard Custom Elements
@@ -119,7 +119,7 @@ declare namespace Polymer {
      * flushes any pending properties, and updates shimmed CSS properties
      * when using the ShadyCSS scoping/custom properties polyfill.
      */
-    connectedCallback(): any;
+    connectedCallback(): void;
 
     /**
      * Attaches an element's stamped dom to itself. By default,

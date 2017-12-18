@@ -50,7 +50,7 @@ declare namespace Polymer {
      * @param readOnly When true, no setter is created; the
      *   protected `_setProperty` function must be used to set the property
      */
-    _createPropertyAccessor(property: string, readOnly?: boolean): any;
+    _createPropertyAccessor(property: string, readOnly?: boolean): void;
 
     /**
      * Defines a property accessor for the given property.
@@ -58,7 +58,7 @@ declare namespace Polymer {
      * @param property Name of the property
      * @param readOnly When true, no setter is created
      */
-    _definePropertyAccessor(property: string, readOnly?: boolean): any;
+    _definePropertyAccessor(property: string, readOnly?: boolean): void;
 
     /**
      * Lifecycle callback called when properties are enabled via
@@ -71,7 +71,7 @@ declare namespace Polymer {
      * bindings.  `super.ready()` must be called to ensure the data system
      * becomes enabled.
      */
-    ready(): any;
+    ready(): void;
 
     /**
      * Initializes the local storage for property accessors.
@@ -79,7 +79,7 @@ declare namespace Polymer {
      * Provided as an override point for performing any setup work prior
      * to initializing the property accessor system.
      */
-    _initializeProperties(): any;
+    _initializeProperties(): void;
 
     /**
      * Called at ready time with bag of instance properties that overwrote
@@ -92,7 +92,7 @@ declare namespace Polymer {
      * @param props Bag of property values that were overwritten
      *   when creating property accessors.
      */
-    _initializeInstanceProperties(props: object|null): any;
+    _initializeInstanceProperties(props: object|null): void;
 
     /**
      * Updates the local storage for a property (via `_setPendingProperty`)
@@ -101,7 +101,7 @@ declare namespace Polymer {
      * @param property Name of the property
      * @param value Value to set
      */
-    _setProperty(property: string, value: any): any;
+    _setProperty(property: string, value: any): void;
 
     /**
      * Returns the value for the given property.
@@ -128,7 +128,7 @@ declare namespace Polymer {
      * Marks the properties as invalid, and enqueues an async
      * `_propertiesChanged` callback.
      */
-    _invalidateProperties(): any;
+    _invalidateProperties(): void;
 
     /**
      * Call to enable property accessor processing. Before this method is
@@ -138,7 +138,7 @@ declare namespace Polymer {
      * It is safe to call this method multiple times as it only turns on
      * property accessors once.
      */
-    _enableProperties(): any;
+    _enableProperties(): void;
 
     /**
      * Calls the `_propertiesChanged` callback with the current set of
@@ -146,7 +146,7 @@ declare namespace Polymer {
      * set), and resets the pending set of changes. Generally, this method
      * should not be called in user code.
      */
-    _flushProperties(): any;
+    _flushProperties(): void;
 
     /**
      * Callback called when any properties with accessors created via
@@ -158,7 +158,7 @@ declare namespace Polymer {
      * @param oldProps Bag of previous values for each property
      *   in `changedProps`
      */
-    _propertiesChanged(currentProps: object, changedProps: object, oldProps: object): any;
+    _propertiesChanged(currentProps: object, changedProps: object, oldProps: object): void;
 
     /**
      * Method called to determine whether a property value should be
@@ -188,7 +188,7 @@ declare namespace Polymer {
      * @param old Old attribute value
      * @param value New attribute value
      */
-    attributeChangedCallback(name: string, old: string|null, value: string|null): any;
+    attributeChangedCallback(name: string, old: string|null, value: string|null): void;
 
     /**
      * Deserializes an attribute to its associated property.
@@ -201,7 +201,7 @@ declare namespace Polymer {
      * @param type type to deserialize to, defaults to the value
      * returned from `typeForProperty`
      */
-    _attributeToProperty(attribute: string, value: string|null, type?: any): any;
+    _attributeToProperty(attribute: string, value: string|null, type?: any): void;
 
     /**
      * Serializes a property to its associated attribute.
@@ -210,7 +210,7 @@ declare namespace Polymer {
      * @param attribute Attribute name to reflect to.
      * @param value Property value to refect.
      */
-    _propertyToAttribute(property: string, attribute?: string, value?: any): any;
+    _propertyToAttribute(property: string, attribute?: string, value?: any): void;
 
     /**
      * Sets a typed value to an HTML attribute on a node.
@@ -224,7 +224,7 @@ declare namespace Polymer {
      * @param value Value to serialize.
      * @param attribute Attribute name to serialize to.
      */
-    _valueToNodeAttribute(node: Element|null, value: any, attribute: string): any;
+    _valueToNodeAttribute(node: Element|null, value: any, attribute: string): void;
 
     /**
      * Converts a typed JavaScript value to a string.

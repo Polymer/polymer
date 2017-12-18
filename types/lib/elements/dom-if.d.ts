@@ -45,8 +45,8 @@ declare namespace Polymer {
      * in better performance.
      */
     restamp: boolean|null|undefined;
-    connectedCallback(): any;
-    disconnectedCallback(): any;
+    connectedCallback(): void;
+    disconnectedCallback(): void;
 
     /**
      * Forces the element to render its content. Normally rendering is
@@ -56,7 +56,13 @@ declare namespace Polymer {
      * validate application state.
      */
     render(): void;
-    _showHideChildren(): any;
+
+    /**
+     * Shows or hides the template instance top level child elements. For
+     * text nodes, `textContent` is removed while "hidden" and replaced when
+     * "shown."
+     */
+    _showHideChildren(): void;
   }
 }
 

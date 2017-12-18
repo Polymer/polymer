@@ -35,18 +35,18 @@ declare namespace Polymer {
      * Overrides `PropertiesChanged` method and adds a call to
      * `finalize` which lazily configures the element's property accessors.
      */
-    _initializeProperties(): any;
+    _initializeProperties(): void;
 
     /**
      * Called when the element is added to a document.
      * Calls `_enableProperties` to turn on property system from
      * `PropertiesChanged`.
      */
-    connectedCallback(): any;
+    connectedCallback(): void;
 
     /**
      * Called when the element is removed from a document
      */
-    disconnectedCallback(): any;
+    disconnectedCallback(): void;
   }
 }

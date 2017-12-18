@@ -201,8 +201,8 @@ declare namespace Polymer {
      */
     targetFramerate: number|null|undefined;
     _targetFrameTime: number|null|undefined;
-    disconnectedCallback(): any;
-    connectedCallback(): any;
+    disconnectedCallback(): void;
+    connectedCallback(): void;
 
     /**
      * Forces the element to render its content. Normally rendering is
@@ -214,9 +214,14 @@ declare namespace Polymer {
     render(): void;
 
     /**
-     * Implements extension point from Templatize mixin
+     * Shows or hides the template instance top level child elements. For
+     * text nodes, `textContent` is removed while "hidden" and replaced when
+     * "shown."
+     *
+     * @param hidden Set to true to hide the children;
+     * set to false to show them.
      */
-    _showHideChildren(hidden: any): any;
+    _showHideChildren(hidden: boolean): void;
 
     /**
      * Returns the item associated with a given element stamped by

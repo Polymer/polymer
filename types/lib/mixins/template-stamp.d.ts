@@ -65,7 +65,7 @@ declare namespace Polymer {
      *   to `node`)
      * @returns Generated handler function
      */
-    _addMethodEventListenerToNode(node: Node|null, eventName: string, methodName: string, context?: any): Function|null;
+    _addMethodEventListenerToNode(node: Node, eventName: string, methodName: string, context?: any): Function;
 
     /**
      * Override point for adding custom or simulated event handling.
@@ -74,7 +74,7 @@ declare namespace Polymer {
      * @param eventName Name of event
      * @param handler Listener function to add
      */
-    _addEventListenerToNode(node: Node|null, eventName: string, handler: Function|null): void;
+    _addEventListenerToNode(node: Node, eventName: string, handler: Function): void;
 
     /**
      * Override point for adding custom or simulated event handling.
