@@ -16,7 +16,7 @@ const gulpif = require('gulp-if');
 const runseq = require('run-sequence');
 const del = require('del');
 const eslint = require('gulp-eslint');
-const fs = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
 const mergeStream = require('merge-stream');
 const babel = require('gulp-babel');
@@ -113,7 +113,7 @@ class AddClosureTypeImport extends Transform {
 
 gulp.task('clean', () => del([DIST_DIR, 'closure.log']));
 
-gulp.task('closure', ['clean'], () => {
+gulp.task('closure', ['generate-externs'], () => {
 
   let entry, splitRx, joinRx, addClosureTypes;
 
@@ -260,15 +260,24 @@ gulp.task('lint', (done) => {
   runseq('lint-eslint', 'lint-closure', done);
 });
 
-gulp.task('generate-externs', ['clean'], () => {
+gulp.task('generate-externs', ['clean'], async () => {
   let genClosure = require('@polymer/gen-closure-declarations').generateDeclarations;
-  return genClosure().then((declarations) => {
-    fs.writeFileSync('externs/closure-types.js', `${header}${declarations}`);
-  });
+  const declarations = await genClosure();
+  await fs.writeFile('externs/closure-types.js', `${header}${declarations}`);
+});
+
+gulp.task('generate-typescript', async () => {
+  let genTs = require('@polymer/gen-typescript-declarations').generateDeclarations;
+  await del(['types/**/*.d.ts', '!types/extra-types.d.ts']);
+  const config = await fs.readJson('gen-tsd.json');
+  const files = await genTs('.', config);
+  for (const [filePath, contents] of files) {
+    await fs.outputFile(path.join('types', filePath), contents);
+  }
 });
 
 gulp.task('update-version', () => {
-  gulp.src('lib/utils/boot.html')
+  return gulp.src('lib/utils/boot.html')
   .pipe(replace(/(window.Polymer.version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
   .pipe(gulp.dest('lib/utils'));
 });

@@ -1,5 +1,10 @@
 # Change Log
 
+## Unreleased
+- Add TypeScript type declarations to types/ directory.
+
+- Gulp build script now requires Node 7.6 or above (for async/await).
+
 ## [v2.3.1](https://github.com/Polymer/polymer/tree/v2.3.1) (2017-12-07)
 - Add test that would fail with the "last style" behavior in master ([commit](https://github.com/Polymer/polymer/commit/913dfce6))
 
