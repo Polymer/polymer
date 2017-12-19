@@ -12,6 +12,7 @@
 
 declare namespace Polymer {
 
+
   /**
    * Element class mixin to skip strict dirty-checking for objects and arrays
    * (always consider them to be "dirty"), for use on elements utilizing
@@ -46,9 +47,11 @@ declare namespace Polymer {
    * will be worse as opposed to using strict dirty checking with immutable
    * patterns or Polymer's path notification API.
    */
-  function MutableData<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): MutableData
-  } & T
+  function MutableData<T extends new (...args: any[]) => {}>(base: T): T & MutableDataConstructor;
+
+  interface MutableDataConstructor {
+    new(...args: any[]): MutableData;
+  }
 
   interface MutableData {
 
@@ -70,6 +73,7 @@ declare namespace Polymer {
      */
     _shouldPropertyChange(property: string, value: any, old: any): boolean;
   }
+
 
   /**
    * Element class mixin to add the optional ability to skip strict
@@ -106,9 +110,11 @@ declare namespace Polymer {
    * strict dirty checking with immutable patterns or Polymer's path notification
    * API.
    */
-  function OptionalMutableData<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): OptionalMutableData
-  } & T
+  function OptionalMutableData<T extends new (...args: any[]) => {}>(base: T): T & OptionalMutableDataConstructor;
+
+  interface OptionalMutableDataConstructor {
+    new(...args: any[]): OptionalMutableData;
+  }
 
   interface OptionalMutableData {
 

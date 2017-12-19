@@ -14,6 +14,7 @@
 
 declare namespace Polymer {
 
+
   /**
    * Element mixin for recording dynamic associations between item paths in a
    * master `items` array and a `selected` array such that path changes to the
@@ -28,9 +29,11 @@ declare namespace Polymer {
    * representing the last selected item.  When `multi` is true, `selected`
    * is an array of multiply selected items.
    */
-  function ArraySelectorMixin<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): ArraySelectorMixin & Polymer.ElementMixin
-  } & T
+  function ArraySelectorMixin<T extends new (...args: any[]) => {}>(base: T): T & ArraySelectorMixinConstructor & Polymer.ElementMixinConstructor;
+
+  interface ArraySelectorMixinConstructor {
+    new(...args: any[]): ArraySelectorMixin;
+  }
 
   interface ArraySelectorMixin {
 

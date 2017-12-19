@@ -13,6 +13,7 @@
 
 declare namespace Polymer {
 
+
   /**
    * Element mixin that provides basic template parsing and stamping, including
    * the following template-related features for stamped templates:
@@ -22,9 +23,178 @@ declare namespace Polymer {
    * - Nested template content caching/removal and re-installation (performance
    *   optimization)
    */
-  function TemplateStamp<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): TemplateStamp
-  } & T
+  function TemplateStamp<T extends new (...args: any[]) => {}>(base: T): T & TemplateStampConstructor;
+
+  interface TemplateStampConstructor {
+    new(...args: any[]): TemplateStamp;
+
+    /**
+     * Scans a template to produce template metadata.
+     *
+     * Template-specific metadata are stored in the object returned, and node-
+     * specific metadata are stored in objects in its flattened `nodeInfoList`
+     * array.  Only nodes in the template that were parsed as nodes of
+     * interest contain an object in `nodeInfoList`.  Each `nodeInfo` object
+     * contains an `index` (`childNodes` index in parent) and optionally
+     * `parent`, which points to node info of its parent (including its index).
+     *
+     * The template metadata object returned from this method has the following
+     * structure (many fields optional):
+     *
+     * ```js
+     *   {
+     *     // Flattened list of node metadata (for nodes that generated metadata)
+     *     nodeInfoList: [
+     *       {
+     *         // `id` attribute for any nodes with id's for generating `$` map
+     *         id: {string},
+     *         // `on-event="handler"` metadata
+     *         events: [
+     *           {
+     *             name: {string},   // event name
+     *             value: {string},  // handler method name
+     *           }, ...
+     *         ],
+     *         // Notes when the template contained a `<slot>` for shady DOM
+     *         // optimization purposes
+     *         hasInsertionPoint: {boolean},
+     *         // For nested `<template>`` nodes, nested template metadata
+     *         templateInfo: {object}, // nested template metadata
+     *         // Metadata to allow efficient retrieval of instanced node
+     *         // corresponding to this metadata
+     *         parentInfo: {number},   // reference to parent nodeInfo>
+     *         parentIndex: {number},  // index in parent's `childNodes` collection
+     *         infoIndex: {number},    // index of this `nodeInfo` in `templateInfo.nodeInfoList`
+     *       },
+     *       ...
+     *     ],
+     *     // When true, the template had the `strip-whitespace` attribute
+     *     // or was nested in a template with that setting
+     *     stripWhitespace: {boolean},
+     *     // For nested templates, nested template content is moved into
+     *     // a document fragment stored here; this is an optimization to
+     *     // avoid the cost of nested template cloning
+     *     content: {DocumentFragment}
+     *   }
+     * ```
+     *
+     * This method kicks off a recursive treewalk as follows:
+     *
+     * ```
+     *    _parseTemplate <---------------------+
+     *      _parseTemplateContent              |
+     *        _parseTemplateNode  <------------|--+
+     *          _parseTemplateNestedTemplate --+  |
+     *          _parseTemplateChildNodes ---------+
+     *          _parseTemplateNodeAttributes
+     *            _parseTemplateNodeAttribute
+     *
+     * ```
+     *
+     * These methods may be overridden to add custom metadata about templates
+     * to either `templateInfo` or `nodeInfo`.
+     *
+     * Note that this method may be destructive to the template, in that
+     * e.g. event annotations may be removed after being noted in the
+     * template metadata.
+     *
+     * @param template Template to parse
+     * @param outerTemplateInfo Template metadata from the outer
+     *   template, for parsing nested templates
+     * @returns Parsed template metadata
+     */
+    _parseTemplate(template: HTMLTemplateElement, outerTemplateInfo?: TemplateInfo|null): TemplateInfo;
+    _parseTemplateContent(template: any, templateInfo: any, nodeInfo: any): any;
+
+    /**
+     * Parses template node and adds template and node metadata based on
+     * the current node, and its `childNodes` and `attributes`.
+     *
+     * This method may be overridden to add custom node or template specific
+     * metadata based on this node.
+     *
+     * @param node Node to parse
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template.
+     * @returns `true` if the visited node added node-specific
+     *   metadata to `nodeInfo`
+     */
+    _parseTemplateNode(node: Node|null, templateInfo: TemplateInfo, nodeInfo: NodeInfo): boolean;
+
+    /**
+     * Parses template child nodes for the given root node.
+     *
+     * This method also wraps whitelisted legacy template extensions
+     * (`is="dom-if"` and `is="dom-repeat"`) with their equivalent element
+     * wrappers, collapses text nodes, and strips whitespace from the template
+     * if the `templateInfo.stripWhitespace` setting was provided.
+     *
+     * @param root Root node whose `childNodes` will be parsed
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template.
+     */
+    _parseTemplateChildNodes(root: Node|null, templateInfo: TemplateInfo, nodeInfo: NodeInfo): void;
+
+    /**
+     * Parses template content for the given nested `<template>`.
+     *
+     * Nested template info is stored as `templateInfo` in the current node's
+     * `nodeInfo`. `template.content` is removed and stored in `templateInfo`.
+     * It will then be the responsibility of the host to set it back to the
+     * template and for users stamping nested templates to use the
+     * `_contentForTemplate` method to retrieve the content for this template
+     * (an optimization to avoid the cost of cloning nested template content).
+     *
+     * @param node Node to parse (a <template>)
+     * @param outerTemplateInfo Template metadata for current template
+     *   that includes the template `node`
+     * @param nodeInfo Node metadata for current template.
+     * @returns `true` if the visited node added node-specific
+     *   metadata to `nodeInfo`
+     */
+    _parseTemplateNestedTemplate(node: HTMLTemplateElement|null, outerTemplateInfo: TemplateInfo|null, nodeInfo: NodeInfo): boolean;
+
+    /**
+     * Parses template node attributes and adds node metadata to `nodeInfo`
+     * for nodes of interest.
+     *
+     * @param node Node to parse
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template.
+     * @returns `true` if the visited node added node-specific
+     *   metadata to `nodeInfo`
+     */
+    _parseTemplateNodeAttributes(node: Element|null, templateInfo: TemplateInfo|null, nodeInfo: NodeInfo|null): boolean;
+
+    /**
+     * Parses a single template node attribute and adds node metadata to
+     * `nodeInfo` for attributes of interest.
+     *
+     * This implementation adds metadata for `on-event="handler"` attributes
+     * and `id` attributes.
+     *
+     * @param node Node to parse
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template.
+     * @param name Attribute name
+     * @param value Attribute value
+     * @returns `true` if the visited node added node-specific
+     *   metadata to `nodeInfo`
+     */
+    _parseTemplateNodeAttribute(node: Element|null, templateInfo: TemplateInfo, nodeInfo: NodeInfo, name: string, value: string): boolean;
+
+    /**
+     * Returns the `content` document fragment for a given template.
+     *
+     * For nested templates, Polymer performs an optimization to cache nested
+     * template content to avoid the cost of cloning deeply nested templates.
+     * This method retrieves the cached content for a given template.
+     *
+     * @param template Template to retrieve `content` for
+     * @returns Content fragment
+     */
+    _contentForTemplate(template: HTMLTemplateElement|null): DocumentFragment|null;
+  }
 
   interface TemplateStamp {
 
@@ -65,7 +235,7 @@ declare namespace Polymer {
      *   to `node`)
      * @returns Generated handler function
      */
-    _addMethodEventListenerToNode(node: Node, eventName: string, methodName: string, context?: any): Function;
+    _addMethodEventListenerToNode(node: Node, eventName: string, methodName: string, context?: any): Function|null;
 
     /**
      * Override point for adding custom or simulated event handling.
@@ -74,7 +244,7 @@ declare namespace Polymer {
      * @param eventName Name of event
      * @param handler Listener function to add
      */
-    _addEventListenerToNode(node: Node, eventName: string, handler: Function): void;
+    _addEventListenerToNode(node: Node, eventName: string, handler: Function|null): void;
 
     /**
      * Override point for adding custom or simulated event handling.

@@ -17,6 +17,7 @@
 
 declare namespace Polymer {
 
+
   /**
    * Element class mixin that provides meta-programming for Polymer's template
    * binding and data observation (collectively, "property effects") system.
@@ -45,9 +46,238 @@ declare namespace Polymer {
    * whereas the default when using `PropertyAccessors` standalone is to be
    * async by default.
    */
-  function PropertyEffects<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): PropertyEffects & Polymer.TemplateStamp & Polymer.PropertyAccessors
-  } & T
+  function PropertyEffects<T extends new (...args: any[]) => {}>(base: T): T & PropertyEffectsConstructor & Polymer.TemplateStampConstructor & Polymer.PropertyAccessorsConstructor;
+
+  interface PropertyEffectsConstructor {
+    new(...args: any[]): PropertyEffects;
+
+    /**
+     * Overrides default `TemplateStamp` implementation to add support for
+     * parsing bindings from `TextNode`'s' `textContent`.  A `bindings`
+     * array is added to `nodeInfo` and populated with binding metadata
+     * with information capturing the binding target, and a `parts` array
+     * with one or more metadata objects capturing the source(s) of the
+     * binding.
+     *
+     * @param node Node to parse
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template node
+     * @returns `true` if the visited node added node-specific
+     *   metadata to `nodeInfo`
+     */
+    _parseTemplateNode(node: Node|null, templateInfo: TemplateInfo|null, nodeInfo: NodeInfo|null): boolean;
+
+    /**
+     * Overrides default `TemplateStamp` implementation to add support for
+     * binding the properties that a nested template depends on to the template
+     * as `_host_<property>`.
+     *
+     * @param node Node to parse
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template node
+     * @returns `true` if the visited node added node-specific
+     *   metadata to `nodeInfo`
+     */
+    _parseTemplateNestedTemplate(node: Node|null, templateInfo: TemplateInfo|null, nodeInfo: NodeInfo|null): boolean;
+
+    /**
+     * Overrides default `TemplateStamp` implementation to add support for
+     * parsing bindings from attributes.  A `bindings`
+     * array is added to `nodeInfo` and populated with binding metadata
+     * with information capturing the binding target, and a `parts` array
+     * with one or more metadata objects capturing the source(s) of the
+     * binding.
+     *
+     * @param node Node to parse
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template node
+     * @param name Attribute name
+     * @param value Attribute value
+     * @returns `true` if the visited node added node-specific
+     *   metadata to `nodeInfo`
+     */
+    _parseTemplateNodeAttribute(node: Element|null, templateInfo: TemplateInfo|null, nodeInfo: NodeInfo|null, name: string, value: string): boolean;
+
+    /**
+     * Ensures an accessor exists for the specified property, and adds
+     * to a list of "property effects" that will run when the accessor for
+     * the specified property is set.  Effects are grouped by "type", which
+     * roughly corresponds to a phase in effect processing.  The effect
+     * metadata should be in the following form:
+     *
+     *     {
+     *       fn: effectFunction, // Reference to function to call to perform effect
+     *       info: { ... }       // Effect metadata passed to function
+     *       trigger: {          // Optional triggering metadata; if not provided
+     *         name: string      // the property is treated as a wildcard
+     *         structured: boolean
+     *         wildcard: boolean
+     *       }
+     *     }
+     *
+     * Effects are called from `_propertiesChanged` in the following order by
+     * type:
+     *
+     * 1. COMPUTE
+     * 2. PROPAGATE
+     * 3. REFLECT
+     * 4. OBSERVE
+     * 5. NOTIFY
+     *
+     * Effect functions are called with the following signature:
+     *
+     *     effectFunction(inst, path, props, oldProps, info, hasPaths)
+     *
+     * @param property Property that should trigger the effect
+     * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
+     * @param effect Effect metadata object
+     */
+    addPropertyEffect(property: string, type: string, effect?: object|null): void;
+
+    /**
+     * Creates a single-property observer for the given property.
+     *
+     * @param property Property name
+     * @param method Function or name of observer method to call
+     * @param dynamicFn Whether the method name should be included as
+     *   a dependency to the effect.
+     */
+    createPropertyObserver(property: string, method: string|((p0: any, p1: any) => any), dynamicFn?: boolean): void;
+
+    /**
+     * Creates a multi-property "method observer" based on the provided
+     * expression, which should be a string in the form of a normal JavaScript
+     * function signature: `'methodName(arg1, [..., argn])'`.  Each argument
+     * should correspond to a property or path in the context of this
+     * prototype (or instance), or may be a literal string or number.
+     *
+     * @param expression Method expression
+     * @param dynamicFn Boolean or object map indicating
+     * @returns whether method names should be included as a dependency to the effect.
+     */
+    createMethodObserver(expression: string, dynamicFn?: boolean|object|null): void;
+
+    /**
+     * Causes the setter for the given property to dispatch `<property>-changed`
+     * events to notify of changes to the property.
+     *
+     * @param property Property name
+     */
+    createNotifyingProperty(property: string): void;
+
+    /**
+     * Creates a read-only accessor for the given property.
+     *
+     * To set the property, use the protected `_setProperty` API.
+     * To create a custom protected setter (e.g. `_setMyProp()` for
+     * property `myProp`), pass `true` for `protectedSetter`.
+     *
+     * Note, if the property will have other property effects, this method
+     * should be called first, before adding other effects.
+     *
+     * @param property Property name
+     * @param protectedSetter Creates a custom protected setter
+     *   when `true`.
+     */
+    createReadOnlyProperty(property: string, protectedSetter?: boolean): void;
+
+    /**
+     * Causes the setter for the given property to reflect the property value
+     * to a (dash-cased) attribute of the same name.
+     *
+     * @param property Property name
+     */
+    createReflectedProperty(property: string): void;
+
+    /**
+     * Creates a computed property whose value is set to the result of the
+     * method described by the given `expression` each time one or more
+     * arguments to the method changes.  The expression should be a string
+     * in the form of a normal JavaScript function signature:
+     * `'methodName(arg1, [..., argn])'`
+     *
+     * @param property Name of computed property to set
+     * @param expression Method expression
+     * @param dynamicFn Boolean or object map indicating whether
+     *   method names should be included as a dependency to the effect.
+     */
+    createComputedProperty(property: string, expression: string, dynamicFn?: boolean|object|null): void;
+
+    /**
+     * Parses the provided template to ensure binding effects are created
+     * for them, and then ensures property accessors are created for any
+     * dependent properties in the template.  Binding effects for bound
+     * templates are stored in a linked list on the instance so that
+     * templates can be efficiently stamped and unstamped.
+     *
+     * @param template Template containing binding
+     *   bindings
+     * @returns Template metadata object
+     */
+    bindTemplate(template: HTMLTemplateElement|null): object|null;
+
+    /**
+     * Adds a property effect to the given template metadata, which is run
+     * at the "propagate" stage of `_propertiesChanged` when the template
+     * has been bound to the element via `_bindTemplate`.
+     *
+     * The `effect` object should match the format in `_addPropertyEffect`.
+     *
+     * @param templateInfo Template metadata to add effect to
+     * @param prop Property that should trigger the effect
+     * @param effect Effect metadata object
+     */
+    _addTemplatePropertyEffect(templateInfo: object|null, prop: string, effect?: object|null): void;
+
+    /**
+     * Called to parse text in a template (either attribute values or
+     * textContent) into binding metadata.
+     *
+     * Any overrides of this method should return an array of binding part
+     * metadata  representing one or more bindings found in the provided text
+     * and any "literal" text in between.  Any non-literal parts will be passed
+     * to `_evaluateBinding` when any dependencies change.  The only required
+     * fields of each "part" in the returned array are as follows:
+     *
+     * - `dependencies` - Array containing trigger metadata for each property
+     *   that should trigger the binding to update
+     * - `literal` - String containing text if the part represents a literal;
+     *   in this case no `dependencies` are needed
+     *
+     * Additional metadata for use by `_evaluateBinding` may be provided in
+     * each part object as needed.
+     *
+     * The default implementation handles the following types of bindings
+     * (one or more may be intermixed with literal strings):
+     * - Property binding: `[[prop]]`
+     * - Path binding: `[[object.prop]]`
+     * - Negated property or path bindings: `[[!prop]]` or `[[!object.prop]]`
+     * - Two-way property or path bindings (supports negation):
+     *   `{{prop}}`, `{{object.prop}}`, `{{!prop}}` or `{{!object.prop}}`
+     * - Inline computed method (supports negation):
+     *   `[[compute(a, 'literal', b)]]`, `[[!compute(a, 'literal', b)]]`
+     *
+     * @param text Text to parse from attribute or textContent
+     * @param templateInfo Current template metadata
+     * @returns Array of binding part metadata
+     */
+    _parseBindings(text: string, templateInfo: object|null): BindingPart[]|null;
+
+    /**
+     * Called to evaluate a previously parsed binding part based on a set of
+     * one or more changed dependencies.
+     *
+     * @param inst Element that should be used as scope for
+     *   binding dependencies
+     * @param part Binding part metadata
+     * @param path Property/path that triggered this effect
+     * @param props Bag of current property changes
+     * @param oldProps Bag of previous values for changed properties
+     * @param hasPaths True with `props` contains one or more paths
+     * @returns Value the binding part evaluated to
+     */
+    _evaluateBinding(inst: this|null, part: BindingPart|null, path: string, props: object|null, oldProps: object|null, hasPaths: boolean): any;
+  }
 
   interface PropertyEffects {
 

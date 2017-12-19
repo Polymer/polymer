@@ -15,6 +15,7 @@
 
 declare namespace Polymer {
 
+
   /**
    * Element class mixin that provides basic meta-programming for creating one
    * or more property accessors (getter/setter pair) that enqueue an async
@@ -31,9 +32,29 @@ declare namespace Polymer {
    * deserialized via `attributeChangedCallback` and set to the associated
    * property using `dash-case`-to-`camelCase` convention.
    */
-  function PropertyAccessors<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): PropertyAccessors & Polymer.PropertiesChanged
-  } & T
+  function PropertyAccessors<T extends new (...args: any[]) => {}>(base: T): T & PropertyAccessorsConstructor & Polymer.PropertiesChangedConstructor;
+
+  interface PropertyAccessorsConstructor {
+    new(...args: any[]): PropertyAccessors;
+
+    /**
+     * Returns an attribute name that corresponds to the given property.
+     * By default, converts camel to dash case, e.g. `fooBar` to `foo-bar`.
+     *
+     * @param property Property to convert
+     * @returns Attribute name corresponding to the given property.
+     */
+    attributeNameForProperty(property: string): string;
+
+    /**
+     * Generates property accessors for all attributes in the standard
+     * static `observedAttributes` array.
+     *
+     * Attribute names are mapped to property names using the `dash-case` to
+     * `camelCase` convention
+     */
+    createPropertiesForAttributes(): void;
+  }
 
   interface PropertyAccessors {
 

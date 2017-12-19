@@ -55,6 +55,20 @@ declare namespace Polymer {
   class FlattenedNodesObserver {
 
     /**
+     * Returns the list of flattened nodes for the given `node`.
+     * This list consists of a node's children and, for any children
+     * that are `<slot>` elements, the expanded flattened list of `assignedNodes`.
+     * For example, if the observed node has children `<a></a><slot></slot><b></b>`
+     * and the `<slot>` has one `<div>` assigned to it, then the flattened
+     * nodes list is `<a></a><div></div><b></b>`. If the `<slot>` has other
+     * `<slot>` elements assigned to it, these are flattened as well.
+     *
+     * @param node The node for which to return the list of flattened nodes.
+     * @returns The list of flattened nodes for the given `node`.
+     */
+    static getFlattenedNodes(node: HTMLElement|HTMLSlotElement|null): any[]|null;
+
+    /**
      * Activates an observer. This method is automatically called when
      * a `FlattenedNodesObserver` is created. It should only be called to
      * re-activate an observer that has been deactivated via the `disconnect` method.

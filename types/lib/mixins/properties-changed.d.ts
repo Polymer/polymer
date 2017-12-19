@@ -14,6 +14,7 @@
 
 declare namespace Polymer {
 
+
   /**
    * Element class mixin that provides basic meta-programming for creating one
    * or more property accessors (getter/setter pair) that enqueue an async
@@ -30,9 +31,36 @@ declare namespace Polymer {
    * deserialized via `attributeChangedCallback` and set to the associated
    * property using `dash-case`-to-`camelCase` convention.
    */
-  function PropertiesChanged<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): PropertiesChanged
-  } & T
+  function PropertiesChanged<T extends new (...args: any[]) => {}>(base: T): T & PropertiesChangedConstructor;
+
+  interface PropertiesChangedConstructor {
+    new(...args: any[]): PropertiesChanged;
+
+    /**
+     * Creates property accessors for the given property names.
+     *
+     * @param props Object whose keys are names of accessors.
+     */
+    createProperties(props: object|null): any;
+
+    /**
+     * Returns an attribute name that corresponds to the given property.
+     * The attribute name is the lowercased property name. Override to
+     * customize this mapping.
+     *
+     * @param property Property to convert
+     * @returns Attribute name corresponding to the given property.
+     */
+    attributeNameForProperty(property: string): string;
+
+    /**
+     * Override point to provide a type to which to deserialize a value to
+     * a given property.
+     *
+     * @param name Name of property
+     */
+    typeForProperty(name: string): any;
+  }
 
   interface PropertiesChanged {
 

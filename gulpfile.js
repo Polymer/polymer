@@ -277,7 +277,7 @@ gulp.task('generate-typescript', async () => {
 });
 
 gulp.task('update-version', () => {
-  gulp.src('lib/utils/boot.html')
+  return gulp.src('lib/utils/boot.html')
   .pipe(replace(/(window.Polymer.version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
   .pipe(gulp.dest('lib/utils'));
 });

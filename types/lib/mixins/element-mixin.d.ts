@@ -19,6 +19,7 @@
 
 declare namespace Polymer {
 
+
   /**
    * Element class mixin that provides the core API for Polymer's meta-programming
    * features including template stamping, data-binding, attribute deserialization,
@@ -75,9 +76,61 @@ declare namespace Polymer {
    *   `observedAttributes` implementation will automatically return an array
    *   of dash-cased attributes based on `properties`)
    */
-  function ElementMixin<T extends new(...args: any[]) => {}>(base: T): {
-    new(...args: any[]): ElementMixin & Polymer.PropertyEffects & Polymer.PropertiesMixin
-  } & T
+  function ElementMixin<T extends new (...args: any[]) => {}>(base: T): T & ElementMixinConstructor & Polymer.PropertyEffectsConstructor & Polymer.PropertiesMixinConstructor;
+
+  interface ElementMixinConstructor {
+    new(...args: any[]): ElementMixin;
+
+    /**
+     * Overrides `PropertyAccessors` to add map of dynamic functions on
+     * template info, for consumption by `PropertyEffects` template binding
+     * code. This map determines which method templates should have accessors
+     * created for them.
+     */
+    _parseTemplateContent(template: any, templateInfo: any, nodeInfo: any): any;
+
+    /**
+     * Override of PropertiesChanged createProperties to create accessors
+     * and property effects for all of the properties.
+     */
+    createProperties(props: any): void;
+
+    /**
+     * Override of PropertiesMixin _finalizeClass to create observers and
+     * find the template.
+     */
+    _finalizeClass(): void;
+
+    /**
+     * Creates observers for the given `observers` array.
+     * Leverages `PropertyEffects` to create observers.
+     *
+     * @param observers Array of observer descriptors for
+     *   this class
+     * @param dynamicFns Object containing keys for any properties
+     *   that are functions and should trigger the effect when the function
+     *   reference is changed
+     */
+    createObservers(observers: object|null, dynamicFns: object|null): void;
+
+    /**
+     * Gather style text for a style element in the template.
+     *
+     * @param cssText Text containing styling to process
+     * @param baseURI Base URI to rebase CSS paths against
+     * @returns The processed CSS text
+     */
+    _processStyleText(cssText: string, baseURI: string): string;
+
+    /**
+     * Configures an element `proto` to function with a given `template`.
+     * The element name `is` and extends `ext` must be specified for ShadyCSS
+     * style scoping.
+     *
+     * @param is Tag name (or type extension name) for this element
+     */
+    _finalizeTemplate(is: string): void;
+  }
 
   interface ElementMixin {
     _template: HTMLTemplateElement|null;
@@ -85,7 +138,7 @@ declare namespace Polymer {
     rootPath: string;
     importPath: string;
     root: StampedTemplate|HTMLElement|ShadowRoot|null;
-    $: any;
+    $: {[key: string]: Element};
 
     /**
      * Stamps the element template.

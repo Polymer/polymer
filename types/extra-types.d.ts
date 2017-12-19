@@ -4,17 +4,7 @@
  * automatically generated.
  */
 
-/// <reference path="lib/mixins/property-effects.d.ts" />
-
-/**
- * Types from "externs/closure-types.js"
- */
-
-type Polymer_PropertyEffects = Polymer.PropertyEffects;
-
-/**
- * Types from "externs/polymer-externs.js"
- */
+// Types from "externs/polymer-externs.js"
 
 interface PolymerElementPropertiesMeta {
   type?: Function;
@@ -30,6 +20,7 @@ type PolymerElementProperties = {
   [key: string]: PolymerElementPropertiesMeta
 };
 
+// TODO Document these properties.
 interface PolymerInit {
   is: string;
   extends?: string;
@@ -40,9 +31,7 @@ interface PolymerInit {
   listeners?: {[key: string]: string};
 }
 
-/**
- * Types from "externs/polymer-internal-shared-types.js"
- */
+// Types from "externs/polymer-internal-shared-types.js"
 
 interface StampedTemplate extends DocumentFragment {
   __noInsertionPoint: boolean;
@@ -118,24 +107,12 @@ interface Binding {
   listenerNegate?: boolean;
 }
 
-/**
- * Types from "lib/utils/async.html"
- */
-
 interface AsyncInterface {
   run: (fn: Function, delay?: number) => number;
   cancel: (handle: number) => void;
 }
 
-/**
- * Types from "lib/utils/debounce.html"
- */
-
-type AsyncModule = AsyncInterface;
-
-/**
- * Types from "lib/utils/gestures.html"
- */
+// Types from "lib/utils/gestures.html"
 
 interface GestureRecognizer {
   reset: () => void;
@@ -156,8 +133,3 @@ interface IdleDeadline {
   didTimeout: boolean;
   timeRemaining(): number;
 }
-
-/**
- * Closure type equivalence for tagged template literal function argument.
- */
-type ITemplateArray = TemplateStringsArray;

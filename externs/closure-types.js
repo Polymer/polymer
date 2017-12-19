@@ -1113,7 +1113,7 @@ Polymer_LegacyElementMixin.prototype.getEffectiveChildren = function(){};
 Polymer_LegacyElementMixin.prototype.getEffectiveTextContent = function(){};
 /**
 * @param {string} selector Selector to run.
-* @return {Object.<Node>}
+* @return {Node}
 */
 Polymer_LegacyElementMixin.prototype.queryEffectiveChildren = function(selector){};
 /**

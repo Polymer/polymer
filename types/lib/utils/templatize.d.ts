@@ -23,7 +23,7 @@ declare class TemplateInstanceBase extends
    * @param eventName Name of event
    * @param handler Listener function to add
    */
-  _addEventListenerToNode(node: Node, eventName: string, handler: Function): void;
+  _addEventListenerToNode(node: Node, eventName: string, handler: Function|null): void;
 
   /**
    * Overrides default property-effects implementation to intercept
@@ -125,7 +125,7 @@ declare namespace Polymer {
      * @returns Generated class bound to the template
      *   provided
      */
-    function templatize(template: HTMLTemplateElement, owner: Polymer_PropertyEffects, options?: object|null): {new(): TemplateInstanceBase};
+    function templatize(template: HTMLTemplateElement, owner: Polymer.PropertyEffects, options?: object|null): {new(): TemplateInstanceBase};
 
 
     /**
