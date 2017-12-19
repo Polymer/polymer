@@ -234,7 +234,7 @@ declare namespace Polymer {
      * @param el Element for which to return the item.
      * @returns Item associated with the element.
      */
-    itemForElement(el: HTMLElement|null): any;
+    itemForElement(el: HTMLElement): any;
 
     /**
      * Returns the inst index for a given element stamped by this `dom-repeat`.
@@ -245,7 +245,7 @@ declare namespace Polymer {
      * @returns Row index associated with the element (note this may
      *   not correspond to the array index if a user `sort` is applied).
      */
-    indexForElement(el: HTMLElement|null): any;
+    indexForElement(el: HTMLElement): number|null;
 
     /**
      * Returns the template "model" associated with a given element, which
@@ -264,7 +264,7 @@ declare namespace Polymer {
      * @returns Model representing the binding scope for
      *   the element.
      */
-    modelForElement(el: HTMLElement|null): TemplateInstanceBase|null;
+    modelForElement(el: HTMLElement): TemplateInstanceBase|null;
   }
 }
 

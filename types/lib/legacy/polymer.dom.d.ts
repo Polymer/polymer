@@ -49,7 +49,7 @@ declare namespace Polymer {
      *   of this element changes
      * @returns Observer instance
      */
-    observeNodes(callback: Function|null): Polymer.FlattenedNodesObserver|null;
+    observeNodes(callback: (p0: Element, p1: {target: Element, addedNodes: Element[], removedNodes: Element[]}) => void): Polymer.FlattenedNodesObserver;
 
     /**
      * Disconnects an observer previously created via `observeNodes`
@@ -57,7 +57,7 @@ declare namespace Polymer {
      * @param observerHandle Observer instance
      *   to disconnect.
      */
-    unobserveNodes(observerHandle: Polymer.FlattenedNodesObserver|null): void;
+    unobserveNodes(observerHandle: Polymer.FlattenedNodesObserver): void;
 
     /**
      * Provided as a backwards-compatible API only.  This method does nothing.
@@ -91,14 +91,14 @@ declare namespace Polymer {
      *
      * @returns Array of assigned nodes
      */
-    getDistributedNodes(): Array<Node|null>|null;
+    getDistributedNodes(): Node[];
 
     /**
      * Returns an array of all slots this element was distributed to.
      *
      * @returns Description
      */
-    getDestinationInsertionPoints(): Array<HTMLSlotElement|null>|null;
+    getDestinationInsertionPoints(): HTMLSlotElement[];
 
     /**
      * Calls `importNode` on the `ownerDocument` for this node.
@@ -108,7 +108,7 @@ declare namespace Polymer {
      *   import
      * @returns Clone of given node imported to this owner document
      */
-    importNode(node: Node|null, deep: boolean): Node|null;
+    importNode(node: Node, deep: boolean): Node|null;
 
     /**
      * @returns Returns a flattened list of all child nodes and
@@ -123,7 +123,7 @@ declare namespace Polymer {
      * @param selector Selector to filter nodes against
      * @returns List of flattened child elements
      */
-    queryDistributedElements(selector: string): Array<HTMLElement|null>|null;
+    queryDistributedElements(selector: string): HTMLElement[];
   }
 
 
@@ -138,7 +138,7 @@ declare namespace Polymer {
    *
    * @returns Wrapper providing either node API or event API
    */
-  function dom(obj: Node|Event|null): DomApi|EventApi|null;
+  function dom(obj?: Node|Event|null): DomApi|EventApi;
 }
 
 /**

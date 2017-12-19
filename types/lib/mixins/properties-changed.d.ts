@@ -41,7 +41,7 @@ declare namespace Polymer {
      *
      * @param props Object whose keys are names of accessors.
      */
-    createProperties(props: object|null): any;
+    createProperties(props: object): void;
 
     /**
      * Returns an attribute name that corresponds to the given property.

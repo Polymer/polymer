@@ -46,7 +46,7 @@ declare namespace Polymer {
      * accessors exist on the element prototype. This method calls
      * `_finalizeClass` to finalize each constructor in the prototype chain.
      */
-    finalize(): any;
+    finalize(): void;
 
     /**
      * Finalize an element class. This includes ensuring property
