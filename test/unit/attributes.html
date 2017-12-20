@@ -87,6 +87,38 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </test-fixture>
 
+  <test-fixture id="basic-lite">
+    <template>
+      <x-basic-lite attr3="instance"></x-basic-lite>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="basic-lite-with-attributes">
+    <template>
+      <x-basic-lite
+        object='{"foo": "bar", "nested": {"meaning": 42}, "arr": [0, "foo", true]}'
+        array='[0, "foo", true, {"foo": "bar"}]'
+        number="42"
+        string="The quick brown fox"
+        bool
+        date="Wed Mar 04 2015 10:46:05 GMT-0800 (PST)"
+        -u-p-c-a-s-e="The quick brown fox"
+        dash-case="The quick brown fox"
+        no-type="Should be String"
+        read-only="Should not change"
+        class="Should not deserialize"
+        nard="Should not deserialize"
+        behavior-bool
+        behavior-number="77"
+        shorthand-bool
+        shorthand-number="88"
+        behavior-shorthand-bool
+        behavior-shorthand-number="99"
+        >
+      </x-basic-lite>
+    </template>
+  </test-fixture>
+
   <script>
   suite('create-time deserialization', function() {
     function testAttributesMatchDefaults(element) {
@@ -162,6 +194,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       var element = fixture('reflect-to-attribute');
       assert.isTrue(element.__warnedAboutUPCASE = true);
     });
+
+    test('basic-lite default values', function() {
+      var element = fixture('basic-lite');
+      testAttributesMatchDefaults(element);
+    });
+
+    test('basic-lite deserialize attributes', function () {
+      var element = fixture('basic-lite-with-attributes');
+      testAttributesMatchCustomConfiguration(element);
+    });
   });
 
   suite('imperative attribute change (no-reflect)', function() {
@@ -181,6 +223,68 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     test('change object attribute to foreign type', function() {
       element.setAttribute('object', 'The quick brown fox');
       assert.strictEqual(element.object, 'The quick brown fox');
+    });
+
+    test('change array attribute', function() {
+      element.setAttribute('array', '[0, "foo", true, {"foo": "bar"}]');
+      assert.deepEqual(element.array, configuredArray);
+    });
+
+    test('change number attribute', function() {
+      element.setAttribute('number', 42);
+      assert.strictEqual(element.number, 42);
+    });
+
+    test('change string attribute', function() {
+      element.setAttribute('string', 'howdy');
+      assert.strictEqual(element.string, 'howdy');
+    });
+
+    test('change boolean attribute true', function() {
+      element.setAttribute('bool', '');
+      assert.strictEqual(element.bool, true);
+    });
+
+    test('change boolean attribute truthy', function() {
+      element.setAttribute('bool', 'sure!');
+      assert.strictEqual(element.bool, true);
+    });
+
+    test('change boolean attribute false', function() {
+      element.setAttribute('bool', '');
+      assert.strictEqual(element.bool, true);
+      element.removeAttribute('bool');
+      assert.strictEqual(element.bool, false);
+    });
+
+    test('change dashCase attribute', function() {
+      element.setAttribute('dash-case', 'Changed');
+      assert.strictEqual(element.dashCase, 'Changed');
+    });
+
+    test('value that cannot deserialize from JSON warns', function() {
+      sinon.spy(console, 'warn');
+      var badAttr = '[foo, bar]';
+      element.setAttribute('array', badAttr);
+      assert.isTrue(console.warn.calledOnce);
+      assert.include(console.warn.firstCall.args[0], badAttr);
+      console.warn.restore();
+    });
+
+  });
+
+  suite('imperative attribute change (no-reflect, basic-lite)', function() {
+    var element, configuredObject, configuredArray;
+
+    setup(function() {
+      element = fixture('basic-lite');
+      configuredObject = {foo: 'bar', nested: {'meaning': 42}, arr: [0, 'foo', true]};
+      configuredArray = [0, 'foo', true, {foo: 'bar'}];
+    });
+
+    test('change object attribute', function() {
+      element.setAttribute('object', '{"foo": "bar", "nested": {"meaning": 42}, "arr": [0, "foo", true]}');
+      assert.deepEqual(element.object, configuredObject);
     });
 
     test('change array attribute', function() {
@@ -348,6 +452,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       assert.equal(element.$.basic.propChangedCount, 1);
       assert.equal(element.$.basic.attr1ChangedCount, 1);
       assert.equal(element.prop2, 'hi');
+    });
+
+    test('hostAttributes set correctly, basic-lite', function() {
+      var element = fixture('basic-lite');
+      assert.strictEqual(element.getAttribute('attr1'), 'this is attr 1');
+      assert.strictEqual(element.getAttribute('attr2'), '42');
+      assert.strictEqual(element.getAttribute('attr3'), 'instance', 'host attribute overrode instance attribute and should not');
+      assert.strictEqual(element.getAttribute('aria-role'), 'button');
+      assert.strictEqual(element.getAttribute('title'), 'awesome');
+      assert.strictEqual(element.title, 'awesome');
+      assert.equal(element.getAttribute('attr-object'), JSON.stringify(configuredObject));
+      assert.equal(element.hasAttribute('attr-stupid'), false);
+      // class *is* serialized
+      // BREAKME(sorvell): document breaking change.
+      assert.ok(element.classList.contains('foo'));
+      assert.ok(element.classList.contains('bar'));
+      assert.ok(element.classList.contains('baz'));
+
     });
 
   });
