@@ -20,16 +20,13 @@ declare namespace Polymer {
    * or more property accessors (getter/setter pair) that enqueue an async
    * (batched) `_propertiesChanged` callback.
    *
-   * For basic usage of this mixin, simply declare attributes to observe via
-   * the standard `static get observedAttributes()`, implement `_propertiesChanged`
-   * on the class, and then call `MyClass.createPropertiesForAttributes()` once
-   * on the class to generate property accessors for each observed attribute
-   * prior to instancing. Last, call `this._enableProperties()` in the element's
+   * For basic usage of this mixin, call `MyClass.createProperties(props)`
+   * once at class definition time to create property accessors for properties
+   * named in props, implement `_propertiesChanged` to react as desired to
+   * property changes, and implement `static get observedAttributes()` and
+   * include lowercase versions of any property names that should be set from
+   * attributes. Last, call `this._enableProperties()` in the element's
    * `connectedCallback` to enable the accessors.
-   *
-   * Any `observedAttributes` will automatically be
-   * deserialized via `attributeChangedCallback` and set to the associated
-   * property using `dash-case`-to-`camelCase` convention.
    */
   function PropertiesChanged<T extends new (...args: any[]) => {}>(base: T): T & PropertiesChangedConstructor;
 
@@ -193,9 +190,8 @@ declare namespace Polymer {
      * considered as a change and cause the `_propertiesChanged` callback
      * to be enqueued.
      *
-     * The default implementation returns `true` for primitive types if a
-     * strict equality check fails, and returns `true` for all Object/Arrays.
-     * The method always returns false for `NaN`.
+     * The default implementation returns `true` if a strict equality
+     * check fails. The method always returns false for `NaN`.
      *
      * Override this method to e.g. provide stricter checking for
      * Objects/Arrays when using immutable patterns.
@@ -257,9 +253,9 @@ declare namespace Polymer {
     /**
      * Converts a typed JavaScript value to a string.
      *
-     * This method is called by Polymer when setting JS property values to
-     * HTML attributes.  Users may override this method on Polymer element
-     * prototypes to provide serialization for custom types.
+     * This method is called when setting JS property values to
+     * HTML attributes.  Users may override this method to provide
+     * serialization for custom types.
      *
      * @param value Property value to serialize.
      * @returns String serialized from the provided
@@ -272,9 +268,8 @@ declare namespace Polymer {
      *
      * This method is called when reading HTML attribute values to
      * JS properties.  Users may override this method to provide
-     * deserialization for custom `type`s. The given `type` is executed
-     * as a function with the value as an argument. The `Boolean` `type`
-     * is specially handled such that an empty string returns true.
+     * deserialization for custom `type`s. Types for `Boolean`, `String`,
+     * and `Number` convert attributes to the expected types.
      *
      * @param value Value to deserialize.
      * @param type Type to deserialize the string to.
