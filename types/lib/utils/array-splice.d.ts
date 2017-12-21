@@ -44,6 +44,6 @@ declare namespace Polymer {
      * the array of removed items from this location; `addedCount` the number
      * of items added at this location.
      */
-    function calculateSplices(current: any[]|null, previous: any[]|null): any[]|null;
+    function calculateSplices(current: any[], previous: any[]): any[];
   }
 }
