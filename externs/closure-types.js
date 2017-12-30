@@ -227,7 +227,7 @@ Polymer_TemplateStamp.prototype._addMethodEventListenerToNode = function(node, e
 /**
 * @param {!Node} node Node to add event listener to
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to add
+* @param {function (!Event): void} handler Listener function to add
 * @return {void}
 */
 Polymer_TemplateStamp.prototype._addEventListenerToNode = function(node, eventName, handler){};
@@ -472,7 +472,7 @@ Polymer_PropertyEffects.prototype._hasComputedEffect = function(property){};
 */
 Polymer_PropertyEffects.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
 /**
-* @param {Node} node The node to set a property on
+* @param {!Node} node The node to set a property on
 * @param {string} prop The property to set
 * @param {*} value The value to set
 * @return {void}
@@ -889,7 +889,7 @@ function Polymer_GestureEventListeners(){}
 /**
 * @param {!Node} node Node to add event listener to
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to add
+* @param {function (!Event): void} handler Listener function to add
 * @return {void}
 */
 Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node, eventName, handler){};

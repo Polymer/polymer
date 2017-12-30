@@ -513,7 +513,7 @@ declare namespace Polymer {
      * @param prop The property to set
      * @param value The value to set
      */
-    _setUnmanagedPropertyToNode(node: Node|null, prop: string, value: any): void;
+    _setUnmanagedPropertyToNode(node: Node, prop: string, value: any): void;
 
     /**
      * Enqueues the given client on a list of pending clients, whose
