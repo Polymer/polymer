@@ -234,7 +234,7 @@ Polymer_TemplateStamp.prototype._addEventListenerToNode = function(node, eventNa
 /**
 * @param {Node} node Node to remove event listener from
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to remove
+* @param {function (!Event): void} handler Listener function to remove
 * @return {void}
 */
 Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
@@ -896,7 +896,7 @@ Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node,
 /**
 * @param {!Node} node Node to remove event listener from
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to remove
+* @param {function (!Event): void} handler Listener function to remove
 * @return {void}
 */
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
