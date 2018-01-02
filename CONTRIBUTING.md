@@ -42,7 +42,7 @@ If you find an issue, please do file it on the repository. The [Polymer/polymer 
 
 For issues with elements the team maintains, please file directly on the element's repository. If you're not sure if a bug stems from the element or the library, air toward filing it on the element and we'll move the issue if necessary.
 
-Please file issues using the issue template provided, filling out as many fields as possible.  We love examples for addressing issues - issues with a Plunkr, jsFiddle, or jsBin will be much easier for us to work on quickly. You can start with [this jsbin](http://jsbin.com/luhaxab/edit) which sets up the basics to demonstrate a Polymer element.
+Please file issues using the issue template provided, filling out as many fields as possible. We love examples for addressing issues - issues with a Plunkr, jsFiddle, or jsBin will be much easier for us to work on quickly. You can start with [this jsbin](http://jsbin.com/luhaxab/edit) which sets up the basics to demonstrate a Polymer element.
 
 Occasionally we'll close issues if they appear stale or are too vague - please don't take this personally! Please feel free to re-open issues we've closed if there's something we've missed and they still need to be addressed.
 
@@ -122,14 +122,13 @@ Navigate to:
 
 ### Running Polymer element unit tests
 
-To run the element unit tests, you need a global 
-install of `web-component-tester` or `polyserve` (or both). 
+To run the element unit tests, you need a global install of `web-component-tester` or `polyserve` (or both).
 
 1.  Clone the element repo.
 
 2.  Install the dependencies.
 
-        bower install
+      bower install
 
 3.  Run the tests:
 
@@ -148,7 +147,5 @@ install of `web-component-tester` or `polyserve` (or both).
 By default, `web-component-tester` runs tests on all installed browsers. You can configure it
 to run tests on a subset of available browsers, or to run tests remotely using Sauce Labs.
 
-See the [`web-component-tester` README](https://github.com/Polymer/web-component-tester) for 
-information on configuring the tool. 
-
-
+See the [`web-component-tester` README](https://github.com/Polymer/web-component-tester) for
+information on configuring the tool.
