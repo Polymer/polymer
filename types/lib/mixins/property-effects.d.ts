@@ -280,6 +280,7 @@ declare namespace Polymer {
   }
 
   interface PropertyEffects {
+    readonly PROPERTY_EFFECT_TYPES: any;
 
     /**
      * Stamps the provided template and performs instance-time setup for

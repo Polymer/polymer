@@ -33,6 +33,18 @@ declare namespace Polymer {
    *     let img = customElements.get('dom-module').import('foo', 'img');
    */
   class DomModule extends HTMLElement {
+    readonly assetpath: any;
+
+    /**
+     * Retrieves the element specified by the css `selector` in the module
+     * registered by `id`. For example, this.import('foo', 'img');
+     *
+     * @param id The id of the dom-module in which to search.
+     * @param selector The css selector by which to find the element.
+     * @returns Returns the element which matches `selector` in the
+     * module registered at the specified `id`.
+     */
+    static import(id: string, selector?: string): Element|null;
 
     /**
      * @param name Name of attribute.

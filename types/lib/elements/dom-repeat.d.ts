@@ -176,7 +176,7 @@ declare namespace Polymer {
      * If "chunking mode" is enabled, `renderedItemCount` is updated each time a
      * set of template instances is rendered.
      */
-    renderedItemCount: number|null|undefined;
+    readonly renderedItemCount: number|null|undefined;
 
     /**
      * Defines an initial count of template instances to render after setting
@@ -200,7 +200,7 @@ declare namespace Polymer {
      * longer time for the remaining items to complete rendering.
      */
     targetFramerate: number|null|undefined;
-    _targetFrameTime: number|null|undefined;
+    readonly _targetFrameTime: number|null|undefined;
     disconnectedCallback(): void;
     connectedCallback(): void;
 

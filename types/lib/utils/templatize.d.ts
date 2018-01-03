@@ -17,6 +17,14 @@ declare class TemplateInstanceBase extends
   Polymer.Element) {
 
   /**
+   * Find the parent model of this template instance.  The parent model
+   * is either another templatize instance that had option `parentModel: true`,
+   * or else the host element.
+   */
+  readonly parentModel: Polymer.PropertyEffects;
+  _methodHost: Polymer.PropertyEffects;
+
+  /**
    * Override point for adding custom or simulated event handling.
    *
    * @param node Node to add event listener to
