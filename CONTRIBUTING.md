@@ -90,15 +90,15 @@ To run the Polymer library unit tests:
 
 2.  Install the dependencies:
 
-        npm install && bower install
+		npm install && bower install
 
 3.  Run the tests:
 
-        npm test
+		npm test
 
     Or if you have `web-component-tester` installed locally:
 
-        wct
+		wct
 
 To run individual test suites:
 
@@ -110,11 +110,11 @@ Or:
 
 For example:
 
-    npm test test/unit/template.html
+	npm test test/unit/template.html
 
 You can also run tests in the browser:
 
-    polyserve
+	polyserve
 
 Navigate to:
 
@@ -124,23 +124,23 @@ Navigate to:
 
 To run the element unit tests, you need a global install of `web-component-tester` or `polyserve` (or both).
 
-1.  Clone the element repo.
+1. Clone the element repo.
 
-2.  Install the dependencies.
+1. Install the dependencies.
 
-      bower install
+       bower install
 
-3.  Run the tests:
+1. Run the tests:
 
-	    wct
+       wct
 
-	Or run the tests in a browser:
+     Or run the tests in a browser:
 
-		polyserve
+       polyserve
 
-	Navigate to:
+     Navigate to:
 
-	<code>http://localhost:8080/components/<var>element-name</var>/test/runner.html</code>
+     <code>http://localhost:8080/components/<var>element-name</var>/test/runner.html</code>
 
 ### Configuring `web-component-tester`
 
