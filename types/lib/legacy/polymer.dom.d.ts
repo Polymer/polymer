@@ -130,6 +130,15 @@ declare namespace Polymer {
      * @returns List of flattened child elements
      */
     queryDistributedElements(selector: string): HTMLElement[];
+    cloneNode(deep?: boolean): Node;
+    appendChild(node: Node): Node;
+    insertBefore(newChild: Node, refChild: Node|null): Node;
+    removeChild(node: Node): Node;
+    replaceChild(oldChild: Node, newChild: Node): Node;
+    setAttribute(name: string, value: string): void;
+    removeAttribute(name: string): void;
+    querySelector(selector: string): Element|null;
+    querySelectorAll(selector: string): Element[];
   }
 
 
