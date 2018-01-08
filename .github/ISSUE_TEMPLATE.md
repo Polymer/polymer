@@ -9,8 +9,8 @@ If you are asking a question rather than filing a bug, try one of these instead:
 <!-- Example: Error thrown when calling `appendChild` on Polymer element -->
 
 #### Live Demo
-<!-- Fork this JSBin, or provide your own URL -->
-http://jsbin.com/luhaxab/1/edit
+<!-- Fork this glitch, or provide your own URL -->
+https://glitch.com/edit/#!/polymer-repro?path=my-element.html:2:0
 
 #### Steps to Reproduce
 <!--
