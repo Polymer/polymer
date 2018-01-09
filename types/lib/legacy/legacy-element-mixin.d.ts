@@ -37,6 +37,13 @@ declare namespace Polymer {
     _debouncers: {[key: string]: Function|null};
 
     /**
+     * Return the element whose local dom within which this element
+     * is contained. This is a shorthand for
+     * `this.getRootNode().host`.
+     */
+    readonly domHost: any;
+
+    /**
      * Overrides the default `Polymer.PropertyEffects` implementation to
      * add support for installing `hostAttributes` and `listeners`.
      */
@@ -203,7 +210,7 @@ declare namespace Polymer {
      * @param source Source object to copy properties from.
      * @returns Target object that was passed as first argument.
      */
-    mixin(target: object|null, source: object|null): object|null;
+    mixin(target: object, source: object): object;
 
     /**
      * Sets the prototype of an object.
@@ -227,7 +234,7 @@ declare namespace Polymer {
      * @returns Document fragment containing the imported
      *   template content.
      */
-    instanceTemplate(template: HTMLTemplateElement|null): DocumentFragment|null;
+    instanceTemplate(template: HTMLTemplateElement|null): DocumentFragment;
 
     /**
      * Dispatches a custom event with an optional detail value.
@@ -241,7 +248,7 @@ declare namespace Polymer {
      *  `node` on which to fire the event (HTMLElement, defaults to `this`).
      * @returns The new event that was fired.
      */
-    fire(type: string, detail?: any, options?: {bubbles?: boolean, cancelable?: boolean, composed?: boolean}): Event|null;
+    fire(type: string, detail?: any, options?: {bubbles?: boolean, cancelable?: boolean, composed?: boolean}): Event;
 
     /**
      * Convenience method to add an event listener on a given element,
@@ -398,7 +405,7 @@ declare namespace Polymer {
      * @param node The element to be checked.
      * @returns true if node is in this element's local DOM tree.
      */
-    isLocalDescendant(node?: Element|null): boolean;
+    isLocalDescendant(node: Element): boolean;
 
     /**
      * No-op for backwards compatibility. This should now be handled by
@@ -442,7 +449,7 @@ declare namespace Polymer {
      * `flush()` immediately invokes the debounced callback if the debouncer
      * is active.
      */
-    debounce(jobName: string, callback: () => void, wait: number): object|null;
+    debounce(jobName: string, callback: () => void, wait: number): object;
 
     /**
      * Returns whether a named debouncer is active.
@@ -496,7 +503,7 @@ declare namespace Polymer {
      *    instance.
      * @returns Newly created and configured element.
      */
-    create(tag: string, props: object|null): Element|null;
+    create(tag: string, props?: object|null): Element;
 
     /**
      * Convenience method for importing an HTML document imperatively.
@@ -515,7 +522,7 @@ declare namespace Polymer {
      *   Defaults to `false`.
      * @returns The link element for the URL to be loaded.
      */
-    importHref(href: string, onload?: Function, onerror?: Function, optAsync?: boolean): HTMLLinkElement;
+    importHref(href: string, onload?: ((p0: Event) => void)|null, onerror?: ((p0: ErrorEvent) => void)|null, optAsync?: boolean): HTMLLinkElement;
 
     /**
      * Polyfill for Element.prototype.matches, which is sometimes still

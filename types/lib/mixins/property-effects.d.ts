@@ -214,7 +214,7 @@ declare namespace Polymer {
      *   bindings
      * @returns Template metadata object
      */
-    bindTemplate(template: HTMLTemplateElement|null): object|null;
+    bindTemplate(template: HTMLTemplateElement): TemplateInfo;
 
     /**
      * Adds a property effect to the given template metadata, which is run
@@ -280,6 +280,7 @@ declare namespace Polymer {
   }
 
   interface PropertyEffects {
+    readonly PROPERTY_EFFECT_TYPES: any;
 
     /**
      * Stamps the provided template and performs instance-time setup for
@@ -513,7 +514,7 @@ declare namespace Polymer {
      * @param prop The property to set
      * @param value The value to set
      */
-    _setUnmanagedPropertyToNode(node: Node|null, prop: string, value: any): void;
+    _setUnmanagedPropertyToNode(node: Node, prop: string, value: any): void;
 
     /**
      * Enqueues the given client on a list of pending clients, whose
@@ -826,7 +827,7 @@ declare namespace Polymer {
      * @returns Template metadata object; for `runtimeBinding`,
      *   this is an instance of the prototypical template info
      */
-    _bindTemplate(template: HTMLTemplateElement|null, instanceBinding?: boolean): TemplateInfo;
+    _bindTemplate(template: HTMLTemplateElement, instanceBinding?: boolean): TemplateInfo;
 
     /**
      * Removes and unbinds the nodes previously contained in the provided
