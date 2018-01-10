@@ -65,6 +65,14 @@ declare class TemplateInstanceBase extends
    * set to false to show them.
    */
   _showHideChildren(hide: boolean): void;
+
+  /**
+   * Stub of HTMLElement's `dispatchEvent`, so that effects that may
+   * dispatch events safely no-op.
+   *
+   * @param event {Event} Event to dispatch
+   */
+  dispatchEvent(event: any): any;
 }
 
 declare namespace templateInfo {
