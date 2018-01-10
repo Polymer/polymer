@@ -70,9 +70,9 @@ declare class TemplateInstanceBase extends
    * Stub of HTMLElement's `dispatchEvent`, so that effects that may
    * dispatch events safely no-op.
    *
-   * @param event {Event} Event to dispatch
+   * @param event Event to dispatch
    */
-  dispatchEvent(event: any): any;
+  dispatchEvent(event: Event|null): any;
 }
 
 declare namespace templateInfo {
