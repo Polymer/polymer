@@ -57,6 +57,65 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   </dom-module>
 
+  <dom-module id="x-disabled-legacy">
+      <template>
+        <style>
+          :host {
+            display: block;
+          }
+
+          h2 {
+            letter-spacing: 1em;
+          }
+        </style>
+        <h2 id="element">[[prop]]</h2>
+      </template>
+
+      <script>
+        (function() {
+
+          // enable disable upgrade!
+          const polymerClass = Polymer.Class;
+          Polymer.Class = function(info) {
+            const ctor = polymerClass(info);
+            return Polymer.DisableUpgradeMixin(ctor);
+          }
+
+          Polymer({
+            is: 'x-disabled-legacy',
+            properties: {
+              prop: {
+                type: String
+              }
+            },
+            created() {
+              this.hasCreated = true;
+              this.prop = 'enabled!';
+            },
+            ready() {
+              this.enabled = true;
+            }
+          });
+
+          Polymer({
+            is: 'x-disabled-legacy-reg1',
+            registered() {
+              this.hasRegistered = true;
+            }
+          });
+
+          Polymer({
+            is: 'x-disabled-legacy-reg2',
+            registered() {
+              this.hasRegistered = true;
+            }
+          });
+
+        })();
+      </script>
+
+    </dom-module>
+
   <dom-module id="my-element">
 
     <template>
@@ -80,6 +139,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       customElements.define(MyElement.is, MyElement);
 
+    </script>
+
+  </dom-module>
+
+  <dom-module id="my-element-legacy">
+
+    <template>
+      <x-disabled-legacy id="enabledEl">Disabled</x-disabled-legacy>
+      <x-disabled-legacy id="disabledEl" disable-upgrade>Disabled</x-disabled-legacy>
+      <x-disabled-legacy id="disabledBoundEl" disable-upgrade$="[[upgradeDisabled]]">Disabled</x-disabled-legacy>
+      <x-disabled-legacy-reg1 id="disabledRegEl" disable-upgrade>Disabled</x-disabled-legacy-reg1>
+      <x-disabled-legacy-reg2 id="disabledRegBoundEl" disable-upgrade$="[[upgradeDisabled]]">Disabled</x-disabled-legacy-reg2>
+
+    </template>
+
+    <script>
+      Polymer({
+        is: 'my-element-legacy',
+        properties: {
+          upgradeDisabled: { type: String, value: true }
+        },
+        enable() {
+          this.$.disabledEl.removeAttribute('disable-upgrade');
+          this.$.disabledRegEl.removeAttribute('disable-upgrade');
+          this.upgradeDisabled = false;
+        }
+      });
     </script>
 
   </dom-module>
@@ -122,6 +208,60 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 
     });
-  </script>
+
+    suite('disable-upgrade-legacy', function() {
+      let el;
+
+      setup(() => {
+        el = document.createElement('my-element-legacy');
+        document.body.appendChild(el);
+      });
+      teardown(function() {
+        document.body.removeChild(el);
+      });
+
+      test('elements call `registered` as expected with `disable-upgrade`', function() {
+        assert.notOk(el.$.disabledRegEl.hasRegistered);
+        assert.notOk(el.$.disabledRegBoundEl.hasRegistered);
+        el.enable();
+        assert.ok(el.$.disabledRegEl.hasRegistered);
+        assert.ok(el.$.disabledRegBoundEl.hasRegistered);
+      });
+
+
+      test('elements upgrade as expected with and without `disable-upgrade`', function() {
+        assert.ok(el.$.enabledEl.hasCreated);
+        assert.ok(el.$.enabledEl.enabled);
+        assert.ok(el.$.enabledEl.$.element);
+        assert.equal(el.$.enabledEl.$.element.textContent, 'enabled!');
+        assert.notOk(el.$.disabledEl.hasCreated);
+        assert.notOk(el.$.disabledEl.enabled);
+        assert.notOk(el.$.disabledEl.$);
+        assert.notOk(el.$.disabledBoundEl.hasCreated);
+        assert.notOk(el.$.disabledBoundEl.enabled);
+        assert.notOk(el.$.disabledBoundEl.$);
+      });
+
+      test('elements upgrade when `disable-upgrade` removed', function() {
+        assert.notOk(el.$.disabledEl.hasCreated);
+        assert.notOk(el.$.disabledEl.enabled);
+        assert.notOk(el.$.disabledEl.$);
+        assert.notOk(el.$.disabledBoundEl.hasCreated);
+        assert.notOk(el.$.disabledBoundEl.enabled);
+        assert.notOk(el.$.disabledBoundEl.$);
+        el.enable();
+        assert.ok(el.$.disabledEl.hasCreated);
+        assert.ok(el.$.disabledEl.enabled);
+        assert.ok(el.$.disabledEl.$.element);
+        assert.equal(el.$.disabledEl.$.element.textContent, 'enabled!');
+        assert.ok(el.$.disabledBoundEl.hasCreated);
+        assert.ok(el.$.disabledBoundEl.enabled);
+        assert.ok(el.$.disabledBoundEl.$.element);
+        assert.equal(el.$.disabledBoundEl.$.element.textContent, 'enabled!');
+      });
+
+
+    });
+</script>
 </body>
 </html>
