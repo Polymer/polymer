@@ -138,7 +138,7 @@ declare namespace Polymer {
     setAttribute(name: string, value: string): void;
     removeAttribute(name: string): void;
     querySelector(selector: string): Element|null;
-    querySelectorAll(selector: string): NodeList;
+    querySelectorAll(selector: string): NodeListOf<Element>;
   }
 
 
