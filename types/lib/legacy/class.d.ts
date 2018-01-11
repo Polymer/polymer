@@ -23,7 +23,7 @@ declare namespace Polymer {
    * @returns Returns a new Element class extended by the
    * passed in `behaviors` and also by `Polymer.LegacyElementMixin`.
    */
-  function mixinBehaviors<T>(behaviors: PolymerInit|PolymerInit[]|null, klass: {new(): T}): {new(): T};
+  function mixinBehaviors<T>(behaviors: object|object[], klass: {new(): T}): {new(): T};
 
 
   /**
