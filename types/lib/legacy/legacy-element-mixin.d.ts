@@ -34,7 +34,6 @@ declare namespace Polymer {
 
   interface LegacyElementMixin {
     isAttached: boolean;
-    _debouncers: {[key: string]: Function|null};
 
     /**
      * Return the element whose local dom within which this element

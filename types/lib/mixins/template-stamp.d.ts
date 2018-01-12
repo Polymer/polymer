@@ -104,7 +104,17 @@ declare namespace Polymer {
      * @returns Parsed template metadata
      */
     _parseTemplate(template: HTMLTemplateElement, outerTemplateInfo?: TemplateInfo|null): TemplateInfo;
-    _parseTemplateContent(template: any, templateInfo: any, nodeInfo: any): any;
+
+    /**
+     * Parse the actual template content.
+     *
+     * @param template Template to parse
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template.
+     * @returns `true` if the visited node added node-specific
+     *   metadata to `nodeInfo`
+     */
+    _parseTemplateContent(template: HTMLTemplateElement, templateInfo: TemplateInfo, nodeInfo: NodeInfo): boolean;
 
     /**
      * Parses template node and adds template and node metadata based on
