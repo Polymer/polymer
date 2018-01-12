@@ -97,6 +97,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /** @type {(function(MouseEvent): void | undefined)} */
   GestureRecognizer.prototype.click;
 
+  // keep track of any labels hit by tghe mouseCanceller
+  /** @type {!Array<!HTMLLabelElement>} */
+  const clickedLabels = [];
+
   // touch will make synthetic mouse events
   // `preventDefault` on touchend will cancel them,
   // but this breaks `<input>` focus and link clicks
@@ -115,13 +119,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     mouseEvent[HANDLED_OBJ] = {skip: true};
     // disable "ghost clicks"
     if (mouseEvent.type === 'click') {
+      let labels = [];
+      let clickFromLabel = false;
       let path = mouseEvent.composedPath && mouseEvent.composedPath();
       if (path) {
         for (let i = 0; i < path.length; i++) {
+          if (path[i].nodeType === Node.ELEMENT_NODE) {
+            if (path[i].localName === 'label') {
+              labels.push(path[i]);
+            } else if (path[i].labels) {
+              let ownerLabels = path[i].labels;
+              for (let j = 0; j < ownerLabels.length; j++) {
+                clickFromLabel = clickFromLabel || clickedLabels.indexOf(ownerLabels[j]) > -1;
+              }
+            }
+          }
           if (path[i] === POINTERSTATE.mouse.target) {
+            // commit tracked labels to "clickedLabels"
+            clickedLabels.push(...labels);
             return;
           }
         }
+      }
+      if (clickFromLabel) {
+        return;
       }
       mouseEvent.preventDefault();
       mouseEvent.stopPropagation();
@@ -137,6 +158,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     for (let i = 0, en; i < events.length; i++) {
       en = events[i];
       if (setup) {
+        // reset clickLabels array
+        clickedLabels.length = 0;
         document.addEventListener(en, mouseCanceller, true);
       } else {
         document.removeEventListener(en, mouseCanceller, true);
