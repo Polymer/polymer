@@ -1,6 +1,6 @@
 <!--
 If you are asking a question rather than filing a bug, try one of these instead:
-- StackOverflow (http://stackoverflow.com/questions/tagged/polymer)
+- StackOverflow (https://stackoverflow.com/questions/tagged/polymer)
 - Polymer Slack Channel (https://bit.ly/polymerslack)
 - Mailing List (https://groups.google.com/forum/#!forum/polymer-dev)
 -->
@@ -10,7 +10,7 @@ If you are asking a question rather than filing a bug, try one of these instead:
 
 #### Live Demo
 <!-- jsBin starting point (fork and edit) -->
-http://jsbin.com/luhaxab/1/edit
+https://jsbin.com/luhaxab/1/edit
 <!-- glitch.me starting point (remix and edit -- must be logged in to persist!) -->
 https://glitch.com/edit/#!/polymer-repro?path=my-element.html:2:0
 <!-- ...or provide your own repro URL -->

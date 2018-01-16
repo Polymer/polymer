@@ -24,7 +24,7 @@ declare namespace Polymer {
      *
      * @returns Array of contained <style> elements
      */
-    function stylesFromModules(moduleIds: string): any[]|null;
+    function stylesFromModules(moduleIds: string): HTMLStyleElement[];
 
 
     /**
@@ -35,7 +35,7 @@ declare namespace Polymer {
      *
      * @returns Array of contained styles.
      */
-    function stylesFromModule(moduleId: string): any[]|null;
+    function stylesFromModule(moduleId: string): HTMLStyleElement[];
 
 
     /**
@@ -43,7 +43,7 @@ declare namespace Polymer {
      *
      * @returns Array of styles
      */
-    function stylesFromTemplate(template: HTMLTemplateElement|null, baseURI: string): any[]|null;
+    function stylesFromTemplate(template: HTMLTemplateElement, baseURI: string): HTMLStyleElement[];
 
 
     /**
@@ -51,13 +51,13 @@ declare namespace Polymer {
      *
      * @returns Array of contained styles.
      */
-    function stylesFromModuleImports(moduleId: string): any[]|null;
+    function stylesFromModuleImports(moduleId: string): HTMLStyleElement[];
 
 
     /**
      * @returns Array of contained styles
      */
-    function _stylesFromModuleImports(module: HTMLElement): any[]|null;
+    function _stylesFromModuleImports(module: HTMLElement): HTMLStyleElement[];
 
 
     /**
@@ -91,7 +91,7 @@ declare namespace Polymer {
      *
      * @returns Concatenated CSS content from specified template
      */
-    function cssFromTemplate(template: HTMLTemplateElement|null, baseURI: string): string;
+    function cssFromTemplate(template: HTMLTemplateElement, baseURI: string): string;
 
 
     /**

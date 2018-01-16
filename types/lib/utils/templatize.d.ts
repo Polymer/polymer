@@ -17,13 +17,21 @@ declare class TemplateInstanceBase extends
   Polymer.Element) {
 
   /**
+   * Find the parent model of this template instance.  The parent model
+   * is either another templatize instance that had option `parentModel: true`,
+   * or else the host element.
+   */
+  readonly parentModel: Polymer.PropertyEffects;
+  _methodHost: Polymer.PropertyEffects;
+
+  /**
    * Override point for adding custom or simulated event handling.
    *
    * @param node Node to add event listener to
    * @param eventName Name of event
    * @param handler Listener function to add
    */
-  _addEventListenerToNode(node: Node, eventName: string, handler: Function|null): void;
+  _addEventListenerToNode(node: Node, eventName: string, handler: (p0: Event) => void): void;
 
   /**
    * Overrides default property-effects implementation to intercept
@@ -34,7 +42,7 @@ declare class TemplateInstanceBase extends
    * @param prop The property to set
    * @param value The value to set
    */
-  _setUnmanagedPropertyToNode(node: Node|null, prop: string, value: any): void;
+  _setUnmanagedPropertyToNode(node: Node, prop: string, value: any): void;
 
   /**
    * Forwards a host property to this instance.  This method should be
@@ -73,7 +81,7 @@ declare namespace Polymer {
     /**
      * Returns an anonymous `Polymer.PropertyEffects` class bound to the
      * `<template>` provided.  Instancing the class will result in the
-     * template being stamped into document fragment stored as the instance's
+     * template being stamped into a document fragment stored as the instance's
      * `root` property, after which it can be appended to the DOM.
      *
      * Templates may utilize all Polymer data-binding features as well as
@@ -145,6 +153,6 @@ declare namespace Polymer {
      * @returns Template instance representing the
      *   binding scope for the element
      */
-    function modelForElement(template: HTMLTemplateElement|null, node: Node|null): TemplateInstanceBase|null;
+    function modelForElement(template: HTMLTemplateElement|null, node?: Node|null): TemplateInstanceBase|null;
   }
 }
