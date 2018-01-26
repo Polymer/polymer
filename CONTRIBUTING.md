@@ -42,7 +42,7 @@ If you find an issue, please do file it on the repository. The [Polymer/polymer 
 
 For issues with elements the team maintains, please file directly on the element's repository. If you're not sure if a bug stems from the element or the library, air toward filing it on the element and we'll move the issue if necessary.
 
-Please file issues using the issue template provided, filling out as many fields as possible. We love examples for addressing issues - issues with a Plunkr, jsFiddle, or jsBin will be much easier for us to work on quickly. You can start with [this jsbin](http://jsbin.com/luhaxab/edit) which sets up the basics to demonstrate a Polymer element.
+Please file issues using the issue template provided, filling out as many fields as possible. We love examples for addressing issues - issues with a jsBin, Plunkr, jsFiddle, or glitch.me repro will be much easier for us to work on quickly. You can start with [this jsbin](http://jsbin.com/luhaxab/edit) which sets up the basics to demonstrate a Polymer element.  If you need your repro to run in IE11, you can start from [this glitch](https://glitch.com/edit/#!/polymer-repro?path=my-element.html:2:0), which serves the source via polyserve for automatic transpilation, although you must sign up for a glitch.me account to ensure your code persists for more than 5 days (note the glitch.me _editing environment_ is not compatible with IE11, however the "live" view link of the running code should work).
 
 Occasionally we'll close issues if they appear stale or are too vague - please don't take this personally! Please feel free to re-open issues we've closed if there's something we've missed and they still need to be addressed.
 
