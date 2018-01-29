@@ -1,5 +1,254 @@
 # Change Log
 
+## [v2.4.0](https://github.com/Polymer/polymer/tree/v2.4.0) (2018-01-26)
+- Simplify code for <dom-repeat>'s `sort` and `filter` properties ([commit](https://github.com/Polymer/polymer/commit/88cca860))
+
+- fix test for normal escaping ([commit](https://github.com/Polymer/polymer/commit/5fa02aa2))
+
+- Use javascript string escaping in Polymer.html ([commit](https://github.com/Polymer/polymer/commit/4c662141))
+
+- [ci skip] Add CODEOWNERS file (#5061) ([commit](https://github.com/Polymer/polymer/commit/90199f3b))
+
+- Fix incorrect path modification in dom-repeat __handleObservedPaths() (#4983) (#5048) ([commit](https://github.com/Polymer/polymer/commit/4b58f54b))
+
+- Skip certain tests in Edge 16 ([commit](https://github.com/Polymer/polymer/commit/09897d18))
+
+- add Edge 16 testing ([commit](https://github.com/Polymer/polymer/commit/36fa08ae))
+
+- Fix tests (#5050) ([commit](https://github.com/Polymer/polymer/commit/ecd1ba3a))
+
+- Update to latest wct. ([commit](https://github.com/Polymer/polymer/commit/a85ff3fc))
+
+- HTTPS, please ([commit](https://github.com/Polymer/polymer/commit/c868575c))
+
+- Remove unnecessary limit check ([commit](https://github.com/Polymer/polymer/commit/5fb9c559))
+
+- Fix documentation in typescript ([commit](https://github.com/Polymer/polymer/commit/bc95c5ad))
+
+- test(logging): improve _log with single parameter with sinon.spy ([commit](https://github.com/Polymer/polymer/commit/9891f31a))
+
+- Add article "a" ([commit](https://github.com/Polymer/polymer/commit/cefdaa93))
+
+- Update mixinBehaviors annotation. Behaviors don't satisfy PolymerInit. (#5036) ([commit](https://github.com/Polymer/polymer/commit/d7ea2464))
+
+- add correct return type for `querySelectorAll` (#5034) ([commit](https://github.com/Polymer/polymer/commit/6ab5c4a4))
+
+- Gestures: fall back to event.target when composedPath is empty. (#5029) ([commit](https://github.com/Polymer/polymer/commit/98b5aadc))
+
+- add void return type annotations (#5000) ([commit](https://github.com/Polymer/polymer/commit/589684a5))
+
+- Easy script to update closure and typescript typings (#5026) ([commit](https://github.com/Polymer/polymer/commit/60e7121d))
+
+- Prefer jsBin since glitch.me requires signin to not be gc'ed. ([commit](https://github.com/Polymer/polymer/commit/e7722243))
+
+- Note that glitch editing environment is not IE11 friendly. ([commit](https://github.com/Polymer/polymer/commit/06ca708b))
+
+- Add links to glitch.me template using polyserve. Fixes #5016 ([commit](https://github.com/Polymer/polymer/commit/9f2ec5f6))
+
+- Update .travis.yml ([commit](https://github.com/Polymer/polymer/commit/9715ab8f))
+
+- [ci skip] Add comment to aid archeology ([commit](https://github.com/Polymer/polymer/commit/e76a2b90))
+
+- Move absolute url logic to element-mixin ([commit](https://github.com/Polymer/polymer/commit/9c189ac9))
+
+- Use double tabs ([commit](https://github.com/Polymer/polymer/commit/6f7b8608))
+
+- indentation fix ([commit](https://github.com/Polymer/polymer/commit/5dca5cd0))
+
+- Remove trailing spaces and extra lines in CONTRIBUTING.md ([commit](https://github.com/Polymer/polymer/commit/8ed376e6))
+
+- test(logging.html): #5007 make sure _logger called one time ([commit](https://github.com/Polymer/polymer/commit/fe48dfa4))
+
+- _loggertest(logging.html): make seperate test suite for _logger ([commit](https://github.com/Polymer/polymer/commit/bd5821b6))
+
+- test(logging.html): missing semicolon ([commit](https://github.com/Polymer/polymer/commit/df3c3c02))
+
+- test(logging): _log with single parameter #5007 ([commit](https://github.com/Polymer/polymer/commit/818c537d))
+
+- fix(legacy-element-mixin): syntax error in _logger ([commit](https://github.com/Polymer/polymer/commit/e0affe3f))
+
+- fix(legacy-element-mixin): _log with single parameter #5006 ([commit](https://github.com/Polymer/polymer/commit/f4ecbae5))
+
+- Fix settings so that its properly picked up by both gen-ts and modulizer ([commit](https://github.com/Polymer/polymer/commit/0356b2df))
+
+- Unbreak the build by changing back the type ([commit](https://github.com/Polymer/polymer/commit/d5dc2a21))
+
+- Enable gulp generate-typescript on Travis ([commit](https://github.com/Polymer/polymer/commit/764146cd))
+
+- Make sure that Travis fails when there are non-updated generated files ([commit](https://github.com/Polymer/polymer/commit/b2cd4370))
+
+- run `gulp generate-typescript` ([commit](https://github.com/Polymer/polymer/commit/541d1f89))
+
+- fix ArraySplice types to more closely match code ([commit](https://github.com/Polymer/polymer/commit/f6182b34))
+
+- [ProperitesChanged] Fix deserialization (#4996) ([commit](https://github.com/Polymer/polymer/commit/2719a9d6))
+
+- fix(FlattenedNodesObserver): do not fail on node without children ([commit](https://github.com/Polymer/polymer/commit/09bb6cd8))
+
+- Address latest round of comments. ([commit](https://github.com/Polymer/polymer/commit/7b581de9))
+
+- Update PropertyEffects interface name in remap config. ([commit](https://github.com/Polymer/polymer/commit/0ebfc24d))
+
+- Tighten more types for TypeScript and Closure (#4998) ([commit](https://github.com/Polymer/polymer/commit/e8729822))
+
+- Add renameTypes config. ([commit](https://github.com/Polymer/polymer/commit/73666c39))
+
+- New typings. ([commit](https://github.com/Polymer/polymer/commit/a1f33174))
+
+- Bump gen-typescript version. ([commit](https://github.com/Polymer/polymer/commit/266d599a))
+
+- Tighten Closure type annotations. (#4997) ([commit](https://github.com/Polymer/polymer/commit/ee4445f8))
+
+- Mark some FlattenedNodesObserver things private. ([commit](https://github.com/Polymer/polymer/commit/5190a89c))
+
+- Add TypeScript equivalent to Closure ITemplateArray. ([commit](https://github.com/Polymer/polymer/commit/a77310af))
+
+- Fix compilation errors. ([commit](https://github.com/Polymer/polymer/commit/f0e31f2d))
+
+- Use glob patterns instead of RegExps to exclude files. ([commit](https://github.com/Polymer/polymer/commit/8f8e54ca))
+
+- Bump version of gen-typescript-declarations. ([commit](https://github.com/Polymer/polymer/commit/cf11a826))
+
+- Handle case where there are no elements in the template ([commit](https://github.com/Polymer/polymer/commit/2d6b4684))
+
+- Update various Polymer annotations to constrain generated types. ([commit](https://github.com/Polymer/polymer/commit/ffc35e48))
+
+- Fix typo in comment ([commit](https://github.com/Polymer/polymer/commit/ade5e796))
+
+- Fix regression with imported css ([commit](https://github.com/Polymer/polymer/commit/706e6021))
+
+- Bring in latest gen-typescript-declarations updates. ([commit](https://github.com/Polymer/polymer/commit/6a0d214d))
+
+- Apply `listeners` in constructor rather than `ready` ([commit](https://github.com/Polymer/polymer/commit/35e3c54b))
+
+- Replace `disconnectedCallback` stub since this change is breaking. ([commit](https://github.com/Polymer/polymer/commit/c8acc183))
+
+- Minor fixes ([commit](https://github.com/Polymer/polymer/commit/1b514b4f))
+
+- Fix html-tag import path. ([commit](https://github.com/Polymer/polymer/commit/c9be530d))
+
+- Update CHANGELOG. ([commit](https://github.com/Polymer/polymer/commit/3ffb895e))
+
+- Fix import path for html-tag. ([commit](https://github.com/Polymer/polymer/commit/eb309934))
+
+- Add generated TypeScript declarations. ([commit](https://github.com/Polymer/polymer/commit/60450bf4))
+
+- Add script to generate TypeScript declarations. ([commit](https://github.com/Polymer/polymer/commit/1f9be786))
+
+- Annotate klass class as @private. Annotate that dedupingMixin returns T. ([commit](https://github.com/Polymer/polymer/commit/b02c4583))
+
+- fix eslint error for unused var in _setPendingProperty ([commit](https://github.com/Polymer/polymer/commit/a89c9ba0))
+
+- fix closure typing with Polymer.html function ([commit](https://github.com/Polymer/polymer/commit/c519796f))
+
+- re-add AsyncInterface definition, fix comment ([commit](https://github.com/Polymer/polymer/commit/986fb3e9))
+
+- Avoid _setPendingProperty warning due to types not understanding deduping mixin. ([commit](https://github.com/Polymer/polymer/commit/40d47f24))
+
+- [ci skip] Update changelog ([commit](https://github.com/Polymer/polymer/commit/f6cc61bd))
+
+- add test for legacy Polymer({}) elements ([commit](https://github.com/Polymer/polymer/commit/8a1c76cd))
+
+- Rename html-fn to html-tag ([commit](https://github.com/Polymer/polymer/commit/02c06aa3))
+
+- Fix most closure warnings. ([commit](https://github.com/Polymer/polymer/commit/a12934c5))
+
+- Add back disconnectedCallback. ([commit](https://github.com/Polymer/polymer/commit/fa40f205))
+
+- Merge with master ([commit](https://github.com/Polymer/polymer/commit/b158e082))
+
+- Move function out of closure.  Add comments. ([commit](https://github.com/Polymer/polymer/commit/ad539fe7))
+
+- [ci skip] TODO for link to docs and comment spellcheck ([commit](https://github.com/Polymer/polymer/commit/5c919850))
+
+- Use values.reduce instead of a temporary array ([commit](https://github.com/Polymer/polymer/commit/be9d6210))
+
+- Add deprecation notice for class.template returning a string ([commit](https://github.com/Polymer/polymer/commit/530a68b4))
+
+- [skip-ci] update comment for Polymer.html ([commit](https://github.com/Polymer/polymer/commit/bdfa5fcb))
+
+- remove null/undefined to empty string ([commit](https://github.com/Polymer/polymer/commit/75d873a0))
+
+- Address feedback ([commit](https://github.com/Polymer/polymer/commit/d5070bbe))
+
+- `html` tag function for generating templates ([commit](https://github.com/Polymer/polymer/commit/1bba3abb))
+
+- Add example for flattened-nodes-observer ([commit](https://github.com/Polymer/polymer/commit/08ad6e37))
+
+- Minor updates based on review. ([commit](https://github.com/Polymer/polymer/commit/ed1454d6))
+
+- Use correct assertation. ([commit](https://github.com/Polymer/polymer/commit/4692510f))
+
+- Add tests for non-JSON literals on object props. ([commit](https://github.com/Polymer/polymer/commit/7d49e803))
+
+- Remove PropertiesElement in favor of PropertiesMixin. ([commit](https://github.com/Polymer/polymer/commit/40f02ea1))
+
+- FIx typo ([commit](https://github.com/Polymer/polymer/commit/8af14800))
+
+- Skip test in old browsers. ([commit](https://github.com/Polymer/polymer/commit/a1bd9a4f))
+
+- Remove `propertyNameForAttribute` since it's never needed. ([commit](https://github.com/Polymer/polymer/commit/8d57a6e9))
+
+- Fix subclassing and simplify. ([commit](https://github.com/Polymer/polymer/commit/e09285db))
+
+- Move property<->attribute case mapping to PropertiesChanged. ([commit](https://github.com/Polymer/polymer/commit/603123e1))
+
+- Allow non-JSON literals when property type is "Object". ([commit](https://github.com/Polymer/polymer/commit/77b17b43))
+
+- Update tests ([commit](https://github.com/Polymer/polymer/commit/82cf96bb))
+
+- [PropertiesMixin] Fix mapping property names from attributes ([commit](https://github.com/Polymer/polymer/commit/feac9328))
+
+- Add test for observing id attribute. ([commit](https://github.com/Polymer/polymer/commit/c56f74f9))
+
+- Cleanup based on review. ([commit](https://github.com/Polymer/polymer/commit/4b9170ab))
+
+- Fix deserializing dates. ([commit](https://github.com/Polymer/polymer/commit/8d24c212))
+
+- Factoring improvements around attribute serialize/deserialize ([commit](https://github.com/Polymer/polymer/commit/a7b46b15))
+
+- Remove crufty comment. ([commit](https://github.com/Polymer/polymer/commit/fb0f90bc))
+
+- Lint fix ([commit](https://github.com/Polymer/polymer/commit/e8c27671))
+
+- Add tests for setting custom `attribute` name ([commit](https://github.com/Polymer/polymer/commit/1e903a94))
+
+- Expose less protected data. ([commit](https://github.com/Polymer/polymer/commit/74fb5151))
+
+- ElementMixin uses PropertiesMixin for ([commit](https://github.com/Polymer/polymer/commit/0fe9434f))
+
+- PropertiesMixin ([commit](https://github.com/Polymer/polymer/commit/3c50f44a))
+
+- PropertyAccessors ([commit](https://github.com/Polymer/polymer/commit/5846d582))
+
+- PropertiesChanged ([commit](https://github.com/Polymer/polymer/commit/05cb5d2c))
+
+- Force literal true` to be set as an attribute with a value of empty string. ([commit](https://github.com/Polymer/polymer/commit/1b501944))
+
+- Better attribute suppport ([commit](https://github.com/Polymer/polymer/commit/c91b9d19))
+
+- fix some formatting and closure linting ([commit](https://github.com/Polymer/polymer/commit/5ae21a08))
+
+- Lint fixes. ([commit](https://github.com/Polymer/polymer/commit/946aad5c))
+
+- Renamed basic element to properties element ([commit](https://github.com/Polymer/polymer/commit/e3e128ba))
+
+- Implement `basic-element` with `properties-changed` ([commit](https://github.com/Polymer/polymer/commit/d26955b4))
+
+- Fix lint issues ([commit](https://github.com/Polymer/polymer/commit/b8fd241a))
+
+- Improve docs and add test for case conversion. ([commit](https://github.com/Polymer/polymer/commit/152f896f))
+
+- Add test to runner. ([commit](https://github.com/Polymer/polymer/commit/dcdb750b))
+
+- Adds `Polymer.BasicElement` ([commit](https://github.com/Polymer/polymer/commit/717a4f41))
+
+- Factor PropertiesChanged out of PropertyAccessors ([commit](https://github.com/Polymer/polymer/commit/aa4f186e))
+
+- Add `accessor` property to properties object ([commit](https://github.com/Polymer/polymer/commit/c7b43f78))
+
+- Factor to treeshake better ([commit](https://github.com/Polymer/polymer/commit/e91b6a75))
+
 ## [v2.3.1](https://github.com/Polymer/polymer/tree/v2.3.1) (2017-12-07)
 - Add test that would fail with the "last style" behavior in master ([commit](https://github.com/Polymer/polymer/commit/913dfce6))
 

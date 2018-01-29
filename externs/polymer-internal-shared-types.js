@@ -161,5 +161,5 @@ let TemplatizeOptions;
 function AsyncInterface(){}
 /** @type {function(!Function, number=): number} */
 AsyncInterface.prototype.run;
-/** @type {function(number)} */
+/** @type {function(number): void} */
 AsyncInterface.prototype.cancel;
