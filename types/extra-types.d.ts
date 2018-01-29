@@ -13,7 +13,7 @@ interface PolymerElementPropertiesMeta {
   computed?: string;
   reflectToAttribute?: boolean;
   notify?: boolean;
-  observer?: string;
+  observer?: string|((val: any, old: any) => void);
 }
 
 type PolymerElementProperties = {

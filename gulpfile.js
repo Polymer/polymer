@@ -260,6 +260,10 @@ gulp.task('lint', (done) => {
   runseq('lint-eslint', 'lint-closure', done);
 });
 
+gulp.task('update-types', (done) => {
+  runseq('generate-externs', 'generate-typescript', done);
+});
+
 gulp.task('generate-externs', ['clean'], async () => {
   let genClosure = require('@polymer/gen-closure-declarations').generateDeclarations;
   const declarations = await genClosure();

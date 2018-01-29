@@ -42,6 +42,12 @@ declare namespace Polymer {
   class DomApi {
 
     /**
+     * For shadow roots, returns the currently focused element within this
+     * shadow root.
+     */
+    readonly activeElement: Node|null|undefined;
+
+    /**
      * Returns an instance of `Polymer.FlattenedNodesObserver` that
      * listens for node changes on this element.
      *
@@ -49,7 +55,7 @@ declare namespace Polymer {
      *   of this element changes
      * @returns Observer instance
      */
-    observeNodes(callback: Function|null): Polymer.FlattenedNodesObserver|null;
+    observeNodes(callback: (p0: Element, p1: {target: Element, addedNodes: Element[], removedNodes: Element[]}) => void): Polymer.FlattenedNodesObserver;
 
     /**
      * Disconnects an observer previously created via `observeNodes`
@@ -57,7 +63,7 @@ declare namespace Polymer {
      * @param observerHandle Observer instance
      *   to disconnect.
      */
-    unobserveNodes(observerHandle: Polymer.FlattenedNodesObserver|null): void;
+    unobserveNodes(observerHandle: Polymer.FlattenedNodesObserver): void;
 
     /**
      * Provided as a backwards-compatible API only.  This method does nothing.
@@ -91,14 +97,14 @@ declare namespace Polymer {
      *
      * @returns Array of assigned nodes
      */
-    getDistributedNodes(): Array<Node|null>|null;
+    getDistributedNodes(): Node[];
 
     /**
      * Returns an array of all slots this element was distributed to.
      *
      * @returns Description
      */
-    getDestinationInsertionPoints(): Array<HTMLSlotElement|null>|null;
+    getDestinationInsertionPoints(): HTMLSlotElement[];
 
     /**
      * Calls `importNode` on the `ownerDocument` for this node.
@@ -108,7 +114,7 @@ declare namespace Polymer {
      *   import
      * @returns Clone of given node imported to this owner document
      */
-    importNode(node: Node|null, deep: boolean): Node|null;
+    importNode(node: Node, deep: boolean): Node|null;
 
     /**
      * @returns Returns a flattened list of all child nodes and
@@ -123,7 +129,16 @@ declare namespace Polymer {
      * @param selector Selector to filter nodes against
      * @returns List of flattened child elements
      */
-    queryDistributedElements(selector: string): Array<HTMLElement|null>|null;
+    queryDistributedElements(selector: string): HTMLElement[];
+    cloneNode(deep?: boolean): Node;
+    appendChild(node: Node): Node;
+    insertBefore(newChild: Node, refChild: Node|null): Node;
+    removeChild(node: Node): Node;
+    replaceChild(oldChild: Node, newChild: Node): Node;
+    setAttribute(name: string, value: string): void;
+    removeAttribute(name: string): void;
+    querySelector(selector: string): Element|null;
+    querySelectorAll(selector: string): NodeListOf<Element>;
   }
 
 
@@ -138,7 +153,7 @@ declare namespace Polymer {
    *
    * @returns Wrapper providing either node API or event API
    */
-  function dom(obj: Node|Event|null): DomApi|EventApi|null;
+  function dom(obj?: Node|Event|null): DomApi|EventApi;
 }
 
 /**
@@ -146,4 +161,19 @@ declare namespace Polymer {
  * `target` is an `Event`.
  */
 declare class EventApi {
+
+  /**
+   * Returns the first node on the `composedPath` of this event.
+   */
+  readonly rootTarget: EventTarget;
+
+  /**
+   * Returns the local (re-targeted) target for this event.
+   */
+  readonly localTarget: EventTarget;
+
+  /**
+   * Returns the `composedPath` for this event.
+   */
+  readonly path: Array<EventTarget|null>;
 }

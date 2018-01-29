@@ -176,7 +176,7 @@ declare namespace Polymer {
      * If "chunking mode" is enabled, `renderedItemCount` is updated each time a
      * set of template instances is rendered.
      */
-    renderedItemCount: number|null|undefined;
+    readonly renderedItemCount: number|null|undefined;
 
     /**
      * Defines an initial count of template instances to render after setting
@@ -200,7 +200,7 @@ declare namespace Polymer {
      * longer time for the remaining items to complete rendering.
      */
     targetFramerate: number|null|undefined;
-    _targetFrameTime: number|null|undefined;
+    readonly _targetFrameTime: number|null|undefined;
     disconnectedCallback(): void;
     connectedCallback(): void;
 
@@ -234,7 +234,7 @@ declare namespace Polymer {
      * @param el Element for which to return the item.
      * @returns Item associated with the element.
      */
-    itemForElement(el: HTMLElement|null): any;
+    itemForElement(el: HTMLElement): any;
 
     /**
      * Returns the inst index for a given element stamped by this `dom-repeat`.
@@ -245,7 +245,7 @@ declare namespace Polymer {
      * @returns Row index associated with the element (note this may
      *   not correspond to the array index if a user `sort` is applied).
      */
-    indexForElement(el: HTMLElement|null): any;
+    indexForElement(el: HTMLElement): number|null;
 
     /**
      * Returns the template "model" associated with a given element, which
@@ -264,7 +264,7 @@ declare namespace Polymer {
      * @returns Model representing the binding scope for
      *   the element.
      */
-    modelForElement(el: HTMLElement|null): TemplateInstanceBase|null;
+    modelForElement(el: HTMLElement): TemplateInstanceBase|null;
   }
 }
 

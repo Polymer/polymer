@@ -129,7 +129,8 @@ Polymer_PropertiesChanged.prototype._serializeValue = function(value){};
 */
 Polymer_PropertiesChanged.prototype._deserializeValue = function(value, type){};
 /**
-* @param {Object} props Object whose keys are names of accessors.
+* @param {!Object} props Object whose keys are names of accessors.
+* @return {void}
 */
 Polymer_PropertiesChanged.createProperties = function(props){};
 /**
@@ -226,14 +227,14 @@ Polymer_TemplateStamp.prototype._addMethodEventListenerToNode = function(node, e
 /**
 * @param {!Node} node Node to add event listener to
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to add
+* @param {function (!Event): void} handler Listener function to add
 * @return {void}
 */
 Polymer_TemplateStamp.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
 * @param {Node} node Node to remove event listener from
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to remove
+* @param {function (!Event): void} handler Listener function to remove
 * @return {void}
 */
 Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
@@ -471,7 +472,7 @@ Polymer_PropertyEffects.prototype._hasComputedEffect = function(property){};
 */
 Polymer_PropertyEffects.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
 /**
-* @param {Node} node The node to set a property on
+* @param {!Node} node The node to set a property on
 * @param {string} prop The property to set
 * @param {*} value The value to set
 * @return {void}
@@ -637,7 +638,7 @@ Polymer_PropertyEffects.prototype._createReflectedProperty = function(property){
 */
 Polymer_PropertyEffects.prototype._createComputedProperty = function(property, expression, dynamicFn){};
 /**
-* @param {HTMLTemplateElement} template Template containing binding
+* @param {!HTMLTemplateElement} template Template containing binding
   bindings
 * @param {boolean=} instanceBinding When false (default), performs
   "prototypical" binding of the template and overwrites any previously
@@ -726,9 +727,9 @@ Polymer_PropertyEffects.createReflectedProperty = function(property){};
 */
 Polymer_PropertyEffects.createComputedProperty = function(property, expression, dynamicFn){};
 /**
-* @param {HTMLTemplateElement} template Template containing binding
+* @param {!HTMLTemplateElement} template Template containing binding
   bindings
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_PropertyEffects.bindTemplate = function(template){};
 /**
@@ -779,7 +780,7 @@ Polymer_PropertiesMixin.prototype.disconnectedCallback = function(){};
 */
 Polymer_PropertiesMixin.typeForProperty = function(name){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_PropertiesMixin.finalize = function(){};
 /**
@@ -888,14 +889,14 @@ function Polymer_GestureEventListeners(){}
 /**
 * @param {!Node} node Node to add event listener to
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to add
+* @param {function (!Event): void} handler Listener function to add
 * @return {void}
 */
 Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
 * @param {!Node} node Node to remove event listener from
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to remove
+* @param {function (!Event): void} handler Listener function to remove
 * @return {void}
 */
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
@@ -1034,9 +1035,9 @@ Polymer_LegacyElementMixin.prototype.serializeValueToAttribute = function(value,
 */
 Polymer_LegacyElementMixin.prototype.extend = function(prototype, api){};
 /**
-* @param {Object} target Target object to copy properties to.
-* @param {Object} source Source object to copy properties from.
-* @return {Object}
+* @param {!Object} target Target object to copy properties to.
+* @param {!Object} source Source object to copy properties from.
+* @return {!Object}
 */
 Polymer_LegacyElementMixin.prototype.mixin = function(target, source){};
 /**
@@ -1048,7 +1049,7 @@ Polymer_LegacyElementMixin.prototype.mixin = function(target, source){};
 Polymer_LegacyElementMixin.prototype.chainObject = function(object, prototype){};
 /**
 * @param {HTMLTemplateElement} template HTML template element to instance.
-* @return {DocumentFragment}
+* @return {!DocumentFragment}
 */
 Polymer_LegacyElementMixin.prototype.instanceTemplate = function(template){};
 /**
@@ -1059,7 +1060,7 @@ Polymer_LegacyElementMixin.prototype.instanceTemplate = function(template){};
  `bubbles` (boolean, defaults to `true`),
  `cancelable` (boolean, defaults to false), and
  `node` on which to fire the event (HTMLElement, defaults to `this`).
-* @return {Event}
+* @return {!Event}
 */
 Polymer_LegacyElementMixin.prototype.fire = function(type, detail, options){};
 /**
@@ -1139,7 +1140,7 @@ Polymer_LegacyElementMixin.prototype.getContentChildren = function(slctr){};
 */
 Polymer_LegacyElementMixin.prototype.isLightDescendant = function(node){};
 /**
-* @param {Element=} node The element to be checked.
+* @param {!Element} node The element to be checked.
 * @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype.isLocalDescendant = function(node){};
@@ -1160,7 +1161,7 @@ Polymer_LegacyElementMixin.prototype.getComputedStyleValue = function(property){
   context) when the wait time elapses.
 * @param {number} wait Optional wait time in milliseconds (ms) after the
   last signal that must elapse before invoking `callback`
-* @return {Object}
+* @return {!Object}
 */
 Polymer_LegacyElementMixin.prototype.debounce = function(jobName, callback, wait){};
 /**
@@ -1194,16 +1195,16 @@ Polymer_LegacyElementMixin.prototype.async = function(callback, waitTime){};
 Polymer_LegacyElementMixin.prototype.cancelAsync = function(handle){};
 /**
 * @param {string} tag HTML element tag to create.
-* @param {Object} props Object of properties to configure on the
+* @param {Object=} props Object of properties to configure on the
    instance.
-* @return {Element}
+* @return {!Element}
 */
 Polymer_LegacyElementMixin.prototype.create = function(tag, props){};
 /**
 * @param {string} href URL to document to load.
-* @param {!Function=} onload Callback to notify when an import successfully
+* @param {?function (!Event): void=} onload Callback to notify when an import successfully
   loaded.
-* @param {!Function=} onerror Callback to notify when an import
+* @param {?function (!ErrorEvent): void=} onerror Callback to notify when an import
   unsuccessfully loaded.
 * @param {boolean=} optAsync True if the import should be loaded `async`.
   Defaults to `false`.
