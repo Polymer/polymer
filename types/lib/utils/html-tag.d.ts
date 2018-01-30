@@ -10,7 +10,12 @@
 
 /// <reference path="boot.d.ts" />
 
-declare class HTMLLiteral {
+/**
+ * Class representing a static string value which can be used to filter
+ * strings by asseting that they have been created via this class. The
+ * `value` property returns the string passed to the constructor.
+ */
+declare class LiteralString {
 }
 
 declare namespace Polymer {
@@ -27,7 +32,10 @@ declare namespace Polymer {
    * `innerHTML` is included in the containing template.
    *
    * All other values are disallowed in expressions to help prevent XSS
-   * attacks.
+   * attacks; however, `Polymer.htmlLiteral` can be used to compose static
+   * string values into templates. This is useful to compose strings into
+   * places that do not accept html, like the css text of a `style`
+   * element.
    *
    * Example:
    *
@@ -65,5 +73,5 @@ declare namespace Polymer {
    *
    * @returns Constructed literal string
    */
-  function htmlLiteral(strings: TemplateStringsArray, ...values: any[]): HTMLLiteral;
+  function htmlLiteral(strings: TemplateStringsArray, ...values: any[]): LiteralString;
 }
