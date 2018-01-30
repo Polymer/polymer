@@ -44,20 +44,6 @@ declare namespace Polymer {
 
 
       /**
-       * Enqueues a function called in the next task.
-       *
-       * @returns Handle used for canceling task
-       */
-      function run(fn: Function, delay?: number): number;
-
-
-      /**
-       * Cancels a previously enqueued `timeOut` callback.
-       */
-      function cancel(handle: number): void;
-
-
-      /**
        * Cancels a previously enqueued `timeOut` callback.
        */
       function cancel(handle: number): void;
@@ -74,21 +60,7 @@ declare namespace Polymer {
        *
        * @returns Handle used for canceling task
        */
-      function run(fn: (p0: number) => any): number;
-
-
-      /**
-       * Enqueues a function called at `requestAnimationFrame` timing.
-       *
-       * @returns Handle used for canceling task
-       */
-      function run(fn: (p0: number) => any): number;
-
-
-      /**
-       * Cancels a previously enqueued `animationFrame` callback.
-       */
-      function cancel(handle: number): void;
+      function run(fn: (p0: number) => void): number;
 
 
       /**
