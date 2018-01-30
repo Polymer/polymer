@@ -29,7 +29,10 @@ declare namespace Polymer {
    *
    * Templates can be composed by interpolating `HTMLTemplateElement`s in
    * expressions in the JavaScript template literal. The nested template's
-   * `innerHTML` is included in the containing template.
+   * `innerHTML` is included in the containing template.  The only other
+   * values allowed in expressions are those returned from `Polymer.htmlLiteral`
+   * which ensures only literal values from JS source ever reach the HTML, to
+   * guard against XSS risks.
    *
    * All other values are disallowed in expressions to help prevent XSS
    * attacks; however, `Polymer.htmlLiteral` can be used to compose static
