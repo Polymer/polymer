@@ -10,19 +10,24 @@
 
 /// <reference path="boot.d.ts" />
 
+declare class HTMLLiteral {
+}
+
 declare namespace Polymer {
 
 
   /**
-   * A template literal tag that creates an HTML <template> element from the contents of the string.
+   * A template literal tag that creates an HTML <template> element from the
+   * contents of the string.
    *
    * This allows you to write a Polymer Template in JavaScript.
    *
-   * Interpolated values are converted to strings when the template is created,
-   * they are not intended as a replacement for Polymer data-binding.
+   * Templates can be composed by interpolating `HTMLTemplateElement`s in
+   * expressions in the JavaScript template literal. The nested template's
+   * `innerHTML` is included in the containing template.
    *
-   * There is special support for HTMLTemplateElement values,
-   * allowing for easy composition of superclass or partial templates.
+   * All other values are disallowed in expressions to help prevent XSS
+   * attacks.
    *
    * Example:
    *
@@ -38,4 +43,27 @@ declare namespace Polymer {
    * @returns Constructed HTMLTemplateElement
    */
   function html(strings: TemplateStringsArray, ...values: any[]): HTMLTemplateElement;
+
+
+  /**
+   * An html literal tag that can be used with `Polymer.html` to compose.
+   * a literal string.
+   *
+   * Example:
+   *
+   *   static get template() {
+   *     return Polymer.html`
+   *       <style>
+   *         :host { display: block; }
+   *         ${styleTemplate}
+   *       </style>
+   *       <div class="shadowed">${staticValue}</div>
+   *       ${super.template}
+   *     `;
+   *   }
+   *   static get styleTemplate() { return Polymer.htmlLiteral`.shadowed { background: gray; }`; }
+   *
+   * @returns Constructed literal string
+   */
+  function htmlLiteral(strings: TemplateStringsArray, ...values: any[]): HTMLLiteral;
 }
