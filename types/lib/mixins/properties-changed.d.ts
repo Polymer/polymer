@@ -78,6 +78,15 @@ declare namespace Polymer {
     _createPropertyAccessor(property: string, readOnly?: boolean): void;
 
     /**
+     * Adds the given `property` to a map matching attribute names
+     * to property names, using `attributeNameForProperty`. This map is
+     * used when deserializing attribute values to properties.
+     *
+     * @param property Name of the property
+     */
+    _addPropertyToAttributeMap(property: string): any;
+
+    /**
      * Defines a property accessor for the given property.
      *
      * @param property Name of the property
