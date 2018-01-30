@@ -16,6 +16,12 @@
  * `value` property returns the string passed to the constructor.
  */
 declare class LiteralString {
+  value: string;
+
+  /**
+   * @returns LiteralString string value
+   */
+  toString(): string;
 }
 
 declare namespace Polymer {
