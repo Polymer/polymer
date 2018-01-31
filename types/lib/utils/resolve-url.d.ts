@@ -21,6 +21,10 @@ declare namespace Polymer {
     /**
      * Resolves the given URL against the provided `baseUri'.
      *
+     * Note that this function performs no resolution for URLs that start
+     * with `/` (absolute URLs) or `#` (hash identifiers).  For general purpose
+     * URL resolution, use `window.URL`.
+     *
      * @returns resolved URL
      */
     function resolveUrl(url: string, baseURI?: string|null): string;
