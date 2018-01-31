@@ -100,6 +100,9 @@ PolymerTelemetry.dumpRegistrations;;
 /** @type {PolymerTelemetry} */
 Polymer.telemetry;
 
+/** @type {string} */
+Polymer.version;
+
 // nb. This is explicitly 'var', as Closure Compiler checks that this is the case.
 /**
  * @constructor
