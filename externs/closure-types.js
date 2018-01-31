@@ -24,6 +24,10 @@ function Polymer_PropertiesChanged(){}
 Polymer_PropertiesChanged.prototype._createPropertyAccessor = function(property, readOnly){};
 /**
 * @param {string} property Name of the property
+*/
+Polymer_PropertiesChanged.prototype._addPropertyToAttributeMap = function(property){};
+/**
+* @param {string} property Name of the property
 * @param {boolean=} readOnly When true, no setter is created
 * @return {void}
 */
