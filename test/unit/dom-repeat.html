@@ -43,6 +43,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </test-fixture>
 
+  <test-fixture id="filter-and-sort-by-nested-property">
+    <template>
+      <x-repeat-filter-and-sort-by-nested-property></x-repeat-filter-and-sort-by-nested-property>
+    </template>
+  </test-fixture>
+
   <test-fixture id="unconfigured">
     <template>
       <dom-bind>
@@ -464,6 +470,102 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       });
 
+      test('item change refreshes sort and filter', function(done) {
+        // set filter fn
+        configured.$.repeater.sort = 'sortDesc';
+        configured.$.repeater.filter = 'filter2nd';
+        configured.$.repeater.render();
+        var stamped = configured.root.querySelectorAll('*:not(template):not(dom-repeat)');
+        assert.equal(stamped.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+        assert.equal(stamped[0].itemaProp, 'prop-3');
+        assert.equal(stamped[0].indexa, 0);
+        assert.equal(stamped[13].itemaProp, 'prop-1');
+        assert.equal(stamped[13].indexa, 1);
+
+        // Update observed prop to be in filter (set new object)
+        configured.set(['items', 1], Object.assign({}, configured.items[1], {prop: 'prop-0'}));
+        // avoid imperative/synchronous refresh() since that forces a full refresh
+        setTimeout(function() {
+          stamped = configured.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+          assert.equal(stamped[0].itemaProp, 'prop-3');
+          assert.equal(stamped[0].indexa, 0);
+          assert.equal(stamped[13].itemaProp, 'prop-1');
+          assert.equal(stamped[13].indexa, 1);
+          assert.equal(stamped[26].itemaProp, 'prop-0');
+          assert.equal(stamped[26].indexa, 2);
+
+          // Update observed prop back to be out of the filter (set new object)
+          configured.set(['items', 1], Object.assign({}, configured.items[1], {prop: 'prop-2'}));
+          setTimeout(function() {
+            var stamped = configured.root.querySelectorAll('*:not(template):not(dom-repeat)');
+            assert.equal(stamped.length, 2 + 2*3 + 2*3*3, 'total stamped count incorrect');
+            assert.equal(stamped[0].itemaProp, 'prop-3');
+            assert.equal(stamped[0].indexa, 0);
+            assert.equal(stamped[13].itemaProp, 'prop-1');
+            assert.equal(stamped[13].indexa, 1);
+
+            // reset filter fn
+            configured.$.repeater.sort = null;
+            configured.$.repeater.filter = null;
+            configured.$.repeater.render();
+            stamped = configured.root.querySelectorAll('*:not(template):not(dom-repeat)');
+            assert.equal(stamped.length, 3 + 3*3 + 3*3*3, 'total stamped count incorrect');
+            assert.equal(stamped[0].itemaProp, 'prop-1');
+            assert.equal(stamped[0].indexa, 0);
+            assert.equal(stamped[13].itemaProp, 'prop-2');
+            assert.equal(stamped[13].indexa, 1);
+            assert.equal(stamped[26].itemaProp, 'prop-3');
+            assert.equal(stamped[26].indexa, 2);
+
+            done();
+          });
+        });
+      });
+    });
+
+    suite('filter and sort by nested property', function () {
+      let fixtureInstance;
+
+      setup(function() {
+        fixtureInstance = fixture('filter-and-sort-by-nested-property');
+        Polymer.flush();
+      });
+
+      test('change of item nested-property refreshes sort and filter', function(done) {
+        // Original values for `item.prop.nestedProp` are numbers 0 through 4
+        const repeater = fixtureInstance.$.repeater;
+        repeater.sort = (a, b) => b.prop.nestedProp - a.prop.nestedProp; // Desc order
+        repeater.filter = (a) => a.prop.nestedProp >= 1; // => Just 1 through 4
+        repeater.observe = 'prop.nestedProp';
+        repeater.render();
+
+        const stamped = fixtureInstance.root.querySelectorAll('*:not(template):not(dom-repeat)');
+        assert.equal(stamped.length, 4, 'total stamped count incorrect');
+        assert.equal(stamped[0].itemaProp, 4);
+        assert.equal(stamped[1].itemaProp, 3);
+        assert.equal(stamped[2].itemaProp, 2);
+        assert.equal(stamped[3].itemaProp, 1);
+
+        // Update observed nested prop
+        for (let i = 0; i < 5; i++) {
+          const x = fixtureInstance.get(['items', i, 'prop', 'nestedProp']);
+          fixtureInstance.set(['items', i, 'prop', 'nestedProp'], (x + 10) * 2);
+        }
+
+        // Wait for changes to be reflected to the DOM
+        setTimeout(function() {
+          const stamped = fixtureInstance.root.querySelectorAll('*:not(template):not(dom-repeat)');
+          assert.equal(stamped.length, 5, 'total stamped count incorrect');
+          assert.equal(stamped[0].itemaProp, 28);
+          assert.equal(stamped[1].itemaProp, 26);
+          assert.equal(stamped[2].itemaProp, 24);
+          assert.equal(stamped[3].itemaProp, 22);
+          assert.equal(stamped[4].itemaProp, 20);
+
+          done();
+        });
+      });
     });
 
     suite('nested un-configured dom-repeat in document', function() {

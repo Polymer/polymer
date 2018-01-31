@@ -14,86 +14,163 @@
 /**
 * @interface
 */
-function Polymer_PropertyAccessors(){}
-/** @type {boolean} */
-Polymer_PropertyAccessors.prototype.__serializing;
-
-/** @type {number} */
-Polymer_PropertyAccessors.prototype.__dataCounter;
-
-/** @type {boolean} */
-Polymer_PropertyAccessors.prototype.__dataEnabled;
-
-/** @type {boolean} */
-Polymer_PropertyAccessors.prototype.__dataReady;
-
-/** @type {boolean} */
-Polymer_PropertyAccessors.prototype.__dataInvalid;
-
-/** @type {!Object} */
-Polymer_PropertyAccessors.prototype.__data;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataPending;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataOld;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataProto;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataHasAccessor;
-
-/** @type {Object} */
-Polymer_PropertyAccessors.prototype.__dataInstanceProps;
-
+function Polymer_PropertiesChanged(){}
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created; the
+  protected `_setProperty` function must be used to set the property
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._createPropertyAccessor = function(property, readOnly){};
+/**
+* @param {string} property Name of the property
+*/
+Polymer_PropertiesChanged.prototype._addPropertyToAttributeMap = function(property){};
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._definePropertyAccessor = function(property, readOnly){};
+/**
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype.ready = function(){};
+/**
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._initializeProperties = function(){};
+/**
+* @param {Object} props Bag of property values that were overwritten
+  when creating property accessors.
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._initializeInstanceProperties = function(props){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._setProperty = function(property, value){};
+/**
+* @param {string} property Name of property
+* @return {*}
+*/
+Polymer_PropertiesChanged.prototype._getProperty = function(property){};
+/**
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @param {boolean=} ext Not used here; affordance for closure
+* @return {boolean}
+*/
+Polymer_PropertiesChanged.prototype._setPendingProperty = function(property, value, ext){};
+/**
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._invalidateProperties = function(){};
+/**
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._enableProperties = function(){};
+/**
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._flushProperties = function(){};
+/**
+* @param {!Object} currentProps Bag of all current accessor values
+* @param {!Object} changedProps Bag of properties changed since the last
+  call to `_propertiesChanged`
+* @param {!Object} oldProps Bag of previous values for each property
+  in `changedProps`
+* @return {void}
+*/
+Polymer_PropertiesChanged.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @param {string} property Property name
+* @param {*} value New property value
+* @param {*} old Previous property value
+* @return {boolean}
+*/
+Polymer_PropertiesChanged.prototype._shouldPropertyChange = function(property, value, old){};
 /**
 * @param {string} name Name of attribute that changed
 * @param {?string} old Old attribute value
 * @param {?string} value New attribute value
+* @return {void}
 */
-Polymer_PropertyAccessors.prototype.attributeChangedCallback = function(name, old, value){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype._initializeProperties = function(){};
-/**
-* @param {Object} props Bag of property values that were overwritten
-  when creating property accessors.
-*/
-Polymer_PropertyAccessors.prototype._initializeProtoProperties = function(props){};
-/**
-* @param {Object} props Bag of property values that were overwritten
-  when creating property accessors.
-*/
-Polymer_PropertyAccessors.prototype._initializeInstanceProperties = function(props){};
-/**
-* @param {string} attribute Name of attribute to ensure is set.
-* @param {string} value of the attribute.
-*/
-Polymer_PropertyAccessors.prototype._ensureAttribute = function(attribute, value){};
+Polymer_PropertiesChanged.prototype.attributeChangedCallback = function(name, old, value){};
 /**
 * @param {string} attribute Name of attribute to deserialize.
 * @param {?string} value of the attribute.
-* @param {*=} type type to deserialize to.
+* @param {*=} type type to deserialize to, defaults to the value
+returned from `typeForProperty`
+* @return {void}
 */
-Polymer_PropertyAccessors.prototype._attributeToProperty = function(attribute, value, type){};
+Polymer_PropertiesChanged.prototype._attributeToProperty = function(attribute, value, type){};
 /**
 * @param {string} property Property name to reflect.
-* @param {string=} attribute Attribute name to reflect.
+* @param {string=} attribute Attribute name to reflect to.
 * @param {*=} value Property value to refect.
+* @return {void}
 */
-Polymer_PropertyAccessors.prototype._propertyToAttribute = function(property, attribute, value){};
+Polymer_PropertiesChanged.prototype._propertyToAttribute = function(property, attribute, value){};
 /**
 * @param {Element} node Element to set attribute to.
 * @param {*} value Value to serialize.
 * @param {string} attribute Attribute name to serialize to.
+* @return {void}
 */
-Polymer_PropertyAccessors.prototype._valueToNodeAttribute = function(node, value, attribute){};
+Polymer_PropertiesChanged.prototype._valueToNodeAttribute = function(node, value, attribute){};
 /**
 * @param {*} value Property value to serialize.
-* @return {(string|undefined)}
+* @return {(string | undefined)}
+*/
+Polymer_PropertiesChanged.prototype._serializeValue = function(value){};
+/**
+* @param {?string} value Value to deserialize.
+* @param {*=} type Type to deserialize the string to.
+* @return {*}
+*/
+Polymer_PropertiesChanged.prototype._deserializeValue = function(value, type){};
+/**
+* @param {!Object} props Object whose keys are names of accessors.
+* @return {void}
+*/
+Polymer_PropertiesChanged.createProperties = function(props){};
+/**
+* @param {string} property Property to convert
+* @return {string}
+*/
+Polymer_PropertiesChanged.attributeNameForProperty = function(property){};
+/**
+* @param {string} name Name of property
+*/
+Polymer_PropertiesChanged.typeForProperty = function(name){};
+/**
+* @interface
+* @extends {Polymer_PropertiesChanged}
+*/
+function Polymer_PropertyAccessors(){}
+/**
+* @param {string} property Name of the property
+* @param {boolean=} readOnly When true, no setter is created
+
+When calling on a prototype, any overwritten values are saved in
+`__dataProto`, and it is up to the subclasser to decide how/when
+to set those properties back into the accessor.  When calling on an
+instance, the overwritten value is set via `_setPendingProperty`,
+and the user should call `_invalidateProperties` or `_flushProperties`
+for the values to take effect.
+* @return {void}
+*/
+Polymer_PropertyAccessors.prototype._definePropertyAccessor = function(property, readOnly){};
+/**
+* @return {void}
+*/
+Polymer_PropertyAccessors.prototype._initializeProperties = function(){};
+/**
+* @param {*} value Property value to serialize.
+* @return {(string | undefined)}
 */
 Polymer_PropertyAccessors.prototype._serializeValue = function(value){};
 /**
@@ -103,65 +180,34 @@ Polymer_PropertyAccessors.prototype._serializeValue = function(value){};
 */
 Polymer_PropertyAccessors.prototype._deserializeValue = function(value, type){};
 /**
-* @param {string} property Name of the property
-* @param {boolean=} readOnly When true, no setter is created; the
-  protected `_setProperty` function must be used to set the property
+* @param {Object} props Bag of property values that were overwritten
+  when creating property accessors.
+* @return {void}
 */
-Polymer_PropertyAccessors.prototype._createPropertyAccessor = function(property, readOnly){};
+Polymer_PropertyAccessors.prototype._initializeProtoProperties = function(props){};
+/**
+* @param {string} attribute Name of attribute to ensure is set.
+* @param {string} value of the attribute.
+* @return {void}
+*/
+Polymer_PropertyAccessors.prototype._ensureAttribute = function(attribute, value){};
 /**
 * @param {string} property Property name
 * @return {boolean}
 */
 Polymer_PropertyAccessors.prototype._hasAccessor = function(property){};
 /**
-* @param {string} property Name of the property
-* @param {*} value Value to set
-*/
-Polymer_PropertyAccessors.prototype._setProperty = function(property, value){};
-/**
-* @param {string} property Name of the property
-* @param {*} value Value to set
-* @return {boolean}
-*/
-Polymer_PropertyAccessors.prototype._setPendingProperty = function(property, value){};
-/**
 * @param {string} prop Property name
 * @return {boolean}
 */
 Polymer_PropertyAccessors.prototype._isPropertyPending = function(prop){};
 /**
-* @return {undefined}
+* @param {string} property Property to convert
+* @return {string}
 */
-Polymer_PropertyAccessors.prototype._invalidateProperties = function(){};
+Polymer_PropertyAccessors.attributeNameForProperty = function(property){};
 /**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype._enableProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype._flushProperties = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_PropertyAccessors.prototype.ready = function(){};
-/**
-* @param {!Object} currentProps Bag of all current accessor values
-* @param {!Object} changedProps Bag of properties changed since the last
-  call to `_propertiesChanged`
-* @param {!Object} oldProps Bag of previous values for each property
-  in `changedProps`
-*/
-Polymer_PropertyAccessors.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
-/**
-* @param {string} property Property name
-* @param {*} value New property value
-* @param {*} old Previous property value
-* @return {boolean}
-*/
-Polymer_PropertyAccessors.prototype._shouldPropertyChange = function(property, value, old){};
-/**
-* @return {undefined}
+* @return {void}
 */
 Polymer_PropertyAccessors.createPropertiesForAttributes = function(){};
 /**
@@ -174,7 +220,7 @@ function Polymer_TemplateStamp(){}
 */
 Polymer_TemplateStamp.prototype._stampTemplate = function(template){};
 /**
-* @param {Node} node Node to add listener on
+* @param {!Node} node Node to add listener on
 * @param {string} eventName Name of event
 * @param {string} methodName Name of method
 * @param {*=} context Context the method will be called on (defaults
@@ -183,15 +229,17 @@ Polymer_TemplateStamp.prototype._stampTemplate = function(template){};
 */
 Polymer_TemplateStamp.prototype._addMethodEventListenerToNode = function(node, eventName, methodName, context){};
 /**
-* @param {Node} node Node to add event listener to
+* @param {!Node} node Node to add event listener to
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to add
+* @param {function (!Event): void} handler Listener function to add
+* @return {void}
 */
 Polymer_TemplateStamp.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
 * @param {Node} node Node to remove event listener from
 * @param {string} eventName Name of event
-* @param {Function} handler Listener function to remove
+* @param {function (!Event): void} handler Listener function to remove
+* @return {void}
 */
 Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
@@ -218,6 +266,7 @@ Polymer_TemplateStamp._parseTemplateNode = function(node, templateInfo, nodeInfo
 * @param {Node} root Root node whose `childNodes` will be parsed
 * @param {!TemplateInfo} templateInfo Template metadata for current template
 * @param {!NodeInfo} nodeInfo Node metadata for current template.
+* @return {void}
 */
 Polymer_TemplateStamp._parseTemplateChildNodes = function(root, templateInfo, nodeInfo){};
 /**
@@ -255,18 +304,6 @@ Polymer_TemplateStamp._contentForTemplate = function(template){};
 * @extends {Polymer_PropertyAccessors}
 */
 function Polymer_PropertyEffects(){}
-/** @type {number} */
-Polymer_PropertyEffects.prototype.__dataCounter;
-
-/** @type {!Object} */
-Polymer_PropertyEffects.prototype.__data;
-
-/** @type {!Object} */
-Polymer_PropertyEffects.prototype.__dataPending;
-
-/** @type {!Object} */
-Polymer_PropertyEffects.prototype.__dataOld;
-
 /** @type {boolean} */
 Polymer_PropertyEffects.prototype.__dataClientsReady;
 
@@ -293,6 +330,15 @@ Polymer_PropertyEffects.prototype.__dataTemp;
 
 /** @type {boolean} */
 Polymer_PropertyEffects.prototype.__dataClientsInitialized;
+
+/** @type {!Object} */
+Polymer_PropertyEffects.prototype.__data;
+
+/** @type {!Object} */
+Polymer_PropertyEffects.prototype.__dataPending;
+
+/** @type {!Object} */
+Polymer_PropertyEffects.prototype.__dataOld;
 
 /** @type {Object} */
 Polymer_PropertyEffects.prototype.__computeEffects;
@@ -322,21 +368,25 @@ Polymer_PropertyEffects.prototype.__templateInfo;
 */
 Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
 /**
-* @return {undefined}
+* @override
+* @return {void}
+*/
+Polymer_PropertyEffects.prototype.ready = function(){};
+/**
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._initializeProperties = function(){};
 /**
 * @override
-* @param {Object} props Properties to initialize on the prototype
-*/
-Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){};
-/**
-* @override
 * @param {Object} props Properties to initialize on the instance
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._initializeInstanceProperties = function(props){};
 /**
 * @override
+* @param {string} property Name of the property
+* @param {*} value Value to set
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._setProperty = function(property, value){};
 /**
@@ -350,26 +400,40 @@ Polymer_PropertyEffects.prototype._setProperty = function(property, value){};
 Polymer_PropertyEffects.prototype._setPendingProperty = function(property, value, shouldNotify){};
 /**
 * @override
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._invalidateProperties = function(){};
 /**
-* @override
+* @return {void}
 */
-Polymer_PropertyEffects.prototype.ready = function(){};
+Polymer_PropertyEffects.prototype._flushProperties = function(){};
 /**
-* @override
+* @param {!Object} currentProps Bag of all current accessor values
+* @param {!Object} changedProps Bag of properties changed since the last
+  call to `_propertiesChanged`
+* @param {!Object} oldProps Bag of previous values for each property
+  in `changedProps`
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
+/**
+* @override
+* @param {Object} props Properties to initialize on the prototype
+* @return {void}
+*/
+Polymer_PropertyEffects.prototype._initializeProtoProperties = function(props){};
 /**
 * @param {string} property Property that should trigger the effect
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
 * @param {Object=} effect Effect metadata object
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._addPropertyEffect = function(property, type, effect){};
 /**
 * @param {string} property Property the effect was associated with
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
 * @param {Object=} effect Effect metadata object to remove
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._removePropertyEffect = function(property, type, effect){};
 /**
@@ -399,7 +463,7 @@ Polymer_PropertyEffects.prototype._hasReflectEffect = function(property){};
 */
 Polymer_PropertyEffects.prototype._hasComputedEffect = function(property){};
 /**
-* @param {(string|!Array.<(number|string)>)} path Path to set
+* @param {(string | !Array.<(number | string)>)} path Path to set
 * @param {*} value Value to set
 * @param {boolean=} shouldNotify Set to true if this change should
  cause a property notification event dispatch
@@ -412,21 +476,23 @@ Polymer_PropertyEffects.prototype._hasComputedEffect = function(property){};
 */
 Polymer_PropertyEffects.prototype._setPendingPropertyOrPath = function(path, value, shouldNotify, isPathNotification){};
 /**
-* @param {Node} node The node to set a property on
+* @param {!Node} node The node to set a property on
 * @param {string} prop The property to set
 * @param {*} value The value to set
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._setUnmanagedPropertyToNode = function(node, prop, value){};
 /**
 * @param {Object} client PropertyEffects client to enqueue
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._enqueueClient = function(client){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._flushClients = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._readyClients = function(){};
 /**
@@ -435,21 +501,25 @@ Polymer_PropertyEffects.prototype._readyClients = function(){};
 * @param {boolean=} setReadOnly When true, any private values set in
   `props` will be set. By default, `setProperties` will not set
   `readOnly: true` root properties.
+* @return {void}
 */
 Polymer_PropertyEffects.prototype.setProperties = function(props, setReadOnly){};
 /**
 * @param {Object} changedProps Bag of changed properties
 * @param {Object} oldProps Bag of previous values for changed properties
 * @param {boolean} hasPaths True with `props` contains one or more paths
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._propagatePropertyChanges = function(changedProps, oldProps, hasPaths){};
 /**
-* @param {(string|!Array.<(string|number)>)} to Target path to link.
-* @param {(string|!Array.<(string|number)>)} from Source path to link.
+* @param {(string | !Array.<(string | number)>)} to Target path to link.
+* @param {(string | !Array.<(string | number)>)} from Source path to link.
+* @return {void}
 */
 Polymer_PropertyEffects.prototype.linkPaths = function(to, from){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Target path to unlink.
+* @param {(string | !Array.<(string | number)>)} path Target path to unlink.
+* @return {void}
 */
 Polymer_PropertyEffects.prototype.unlinkPaths = function(path){};
 /**
@@ -466,10 +536,11 @@ Polymer_PropertyEffects.prototype.unlinkPaths = function(path){};
   Note that splice records _must_ be normalized such that they are
   reported in index order (raw results from `Object.observe` are not
   ordered and must be normalized/merged before notifying).
+* @return {void}
 */
 Polymer_PropertyEffects.prototype.notifySplices = function(path, splices){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
+* @param {(string | !Array.<(string | number)>)} path Path to the value
   to read.  The path may be specified as a string (e.g. `foo.bar.baz`)
   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
   bracketed expressions are not supported; string-based path parts
@@ -481,7 +552,7 @@ Polymer_PropertyEffects.prototype.notifySplices = function(path, splices){};
 */
 Polymer_PropertyEffects.prototype.get = function(path, root){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to the value
+* @param {(string | !Array.<(string | number)>)} path Path to the value
   to write.  The path may be specified as a string (e.g. `'foo.bar.baz'`)
   or an array of path parts (e.g. `['foo.bar', 'baz']`).  Note that
   bracketed expressions are not supported; string-based path parts
@@ -491,79 +562,87 @@ Polymer_PropertyEffects.prototype.get = function(path, root){};
 * @param {*} value Value to set at the specified path.
 * @param {Object=} root Root object from which the path is evaluated.
   When specified, no notification will occur.
+* @return {void}
 */
 Polymer_PropertyEffects.prototype.set = function(path, value, root){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
+* @param {(string | !Array.<(string | number)>)} path Path to array.
+* @param {...*} items Items to push onto array
 * @return {number}
 */
 Polymer_PropertyEffects.prototype.push = function(path, items){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {(string | !Array.<(string | number)>)} path Path to array.
 * @return {*}
 */
 Polymer_PropertyEffects.prototype.pop = function(path){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {(string | !Array.<(string | number)>)} path Path to array.
 * @param {number} start Index from which to start removing/inserting.
 * @param {number} deleteCount Number of items to remove.
-* @param {...*} items 
+* @param {...*} items Items to insert into array.
 * @return {Array}
 */
 Polymer_PropertyEffects.prototype.splice = function(path, start, deleteCount, items){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
+* @param {(string | !Array.<(string | number)>)} path Path to array.
 * @return {*}
 */
 Polymer_PropertyEffects.prototype.shift = function(path){};
 /**
-* @param {(string|!Array.<(string|number)>)} path Path to array.
-* @param {...*} items 
+* @param {(string | !Array.<(string | number)>)} path Path to array.
+* @param {...*} items Items to insert info array
 * @return {number}
 */
 Polymer_PropertyEffects.prototype.unshift = function(path, items){};
 /**
 * @param {string} path Path that should be notified.
 * @param {*=} value Value at the path (optional).
+* @return {void}
 */
 Polymer_PropertyEffects.prototype.notifyPath = function(path, value){};
 /**
 * @param {string} property Property name
 * @param {boolean=} protectedSetter Creates a custom protected setter
   when `true`.
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._createReadOnlyProperty = function(property, protectedSetter){};
 /**
 * @param {string} property Property name
-* @param {string} methodName Name of observer method to call
+* @param {(string | function (*, *))} method Function or name of observer method to call
 * @param {boolean=} dynamicFn Whether the method name should be included as
   a dependency to the effect.
+* @return {void}
 */
-Polymer_PropertyEffects.prototype._createPropertyObserver = function(property, methodName, dynamicFn){};
+Polymer_PropertyEffects.prototype._createPropertyObserver = function(property, method, dynamicFn){};
 /**
 * @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
+* @param {(boolean | Object)=} dynamicFn Boolean or object map indicating
   whether method names should be included as a dependency to the effect.
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._createMethodObserver = function(expression, dynamicFn){};
 /**
 * @param {string} property Property name
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._createNotifyingProperty = function(property){};
 /**
 * @param {string} property Property name
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._createReflectedProperty = function(property){};
 /**
 * @param {string} property Name of computed property to set
 * @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
+* @param {(boolean | Object)=} dynamicFn Boolean or object map indicating
   whether method names should be included as a dependency to the effect.
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._createComputedProperty = function(property, expression, dynamicFn){};
 /**
-* @param {HTMLTemplateElement} template Template containing binding
+* @param {!HTMLTemplateElement} template Template containing binding
   bindings
 * @param {boolean=} instanceBinding When false (default), performs
   "prototypical" binding of the template and overwrites any previously
@@ -576,6 +655,7 @@ Polymer_PropertyEffects.prototype._bindTemplate = function(template, instanceBin
 /**
 * @param {!StampedTemplate} dom DocumentFragment previously returned
   from `_stampTemplate` associated with the nodes to be removed
+* @return {void}
 */
 Polymer_PropertyEffects.prototype._removeBoundDom = function(dom){};
 /**
@@ -608,52 +688,59 @@ Polymer_PropertyEffects._parseTemplateNodeAttribute = function(node, templateInf
 * @param {string} property Property that should trigger the effect
 * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
 * @param {Object=} effect Effect metadata object
+* @return {void}
 */
 Polymer_PropertyEffects.addPropertyEffect = function(property, type, effect){};
 /**
 * @param {string} property Property name
-* @param {string} methodName Name of observer method to call
+* @param {(string | function (*, *))} method Function or name of observer method to call
 * @param {boolean=} dynamicFn Whether the method name should be included as
   a dependency to the effect.
+* @return {void}
 */
-Polymer_PropertyEffects.createPropertyObserver = function(property, methodName, dynamicFn){};
+Polymer_PropertyEffects.createPropertyObserver = function(property, method, dynamicFn){};
 /**
 * @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating
-  whether method names should be included as a dependency to the effect.
+* @param {(boolean | Object)=} dynamicFn Boolean or object map indicating
+* @return {void}
 */
 Polymer_PropertyEffects.createMethodObserver = function(expression, dynamicFn){};
 /**
 * @param {string} property Property name
+* @return {void}
 */
 Polymer_PropertyEffects.createNotifyingProperty = function(property){};
 /**
 * @param {string} property Property name
 * @param {boolean=} protectedSetter Creates a custom protected setter
   when `true`.
+* @return {void}
 */
 Polymer_PropertyEffects.createReadOnlyProperty = function(property, protectedSetter){};
 /**
 * @param {string} property Property name
+* @return {void}
 */
 Polymer_PropertyEffects.createReflectedProperty = function(property){};
 /**
 * @param {string} property Name of computed property to set
 * @param {string} expression Method expression
-* @param {(boolean|Object)=} dynamicFn Boolean or object map indicating whether
+* @param {(boolean | Object)=} dynamicFn Boolean or object map indicating whether
   method names should be included as a dependency to the effect.
+* @return {void}
 */
 Polymer_PropertyEffects.createComputedProperty = function(property, expression, dynamicFn){};
 /**
-* @param {HTMLTemplateElement} template Template containing binding
+* @param {!HTMLTemplateElement} template Template containing binding
   bindings
-* @return {Object}
+* @return {!TemplateInfo}
 */
 Polymer_PropertyEffects.bindTemplate = function(template){};
 /**
 * @param {Object} templateInfo Template metadata to add effect to
 * @param {string} prop Property that should trigger the effect
 * @param {Object=} effect Effect metadata object
+* @return {void}
 */
 Polymer_PropertyEffects._addTemplatePropertyEffect = function(templateInfo, prop, effect){};
 /**
@@ -675,7 +762,39 @@ Polymer_PropertyEffects._parseBindings = function(text, templateInfo){};
 Polymer_PropertyEffects._evaluateBinding = function(inst, part, path, props, oldProps, hasPaths){};
 /**
 * @interface
+* @extends {Polymer_PropertiesChanged}
+*/
+function Polymer_PropertiesMixin(){}
+/**
+* @override
+* @return {void}
+*/
+Polymer_PropertiesMixin.prototype._initializeProperties = function(){};
+/**
+* @return {void}
+*/
+Polymer_PropertiesMixin.prototype.connectedCallback = function(){};
+/**
+* @return {void}
+*/
+Polymer_PropertiesMixin.prototype.disconnectedCallback = function(){};
+/**
+* @param {string} name Name of property
+* @return {*}
+*/
+Polymer_PropertiesMixin.typeForProperty = function(name){};
+/**
+* @return {void}
+*/
+Polymer_PropertiesMixin.finalize = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_PropertiesMixin._finalizeClass = function(){};
+/**
+* @interface
 * @extends {Polymer_PropertyEffects}
+* @extends {Polymer_PropertiesMixin}
 */
 function Polymer_ElementMixin(){}
 /** @type {HTMLTemplateElement} */
@@ -690,39 +809,31 @@ Polymer_ElementMixin.prototype.rootPath;
 /** @type {string} */
 Polymer_ElementMixin.prototype.importPath;
 
-/** @type {(StampedTemplate|HTMLElement|ShadowRoot)} */
+/** @type {(StampedTemplate | HTMLElement | ShadowRoot)} */
 Polymer_ElementMixin.prototype.root;
 
-/** @type {!Object.<string, !Node>} */
+/** @type {!Object.<string, !Element>} */
 Polymer_ElementMixin.prototype.$;
 
 /**
 * @override
-* @param {string} name Name of attribute.
-* @param {?string} old Old value of attribute.
-* @param {?string} value Current value of attribute.
-*/
-Polymer_ElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
-/**
-* @override
-*/
-Polymer_ElementMixin.prototype._initializeProperties = function(){};
-/**
-* @override
+* @return {void}
 */
 Polymer_ElementMixin.prototype.ready = function(){};
 /**
 * @override
+* @return {void}
+*/
+Polymer_ElementMixin.prototype._initializeProperties = function(){};
+/**
+* @override
+* @return {void}
 */
 Polymer_ElementMixin.prototype._readyClients = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_ElementMixin.prototype.connectedCallback = function(){};
-/**
-* @return {undefined}
-*/
-Polymer_ElementMixin.prototype.disconnectedCallback = function(){};
 /**
 * @param {StampedTemplate} dom to attach to the element.
 * @return {ShadowRoot}
@@ -731,6 +842,7 @@ Polymer_ElementMixin.prototype._attachDom = function(dom){};
 /**
 * @param {Object=} properties Bag of custom property key/values to
   apply to this element.
+* @return {void}
 */
 Polymer_ElementMixin.prototype.updateStyles = function(properties){};
 /**
@@ -745,35 +857,51 @@ Polymer_ElementMixin.prototype.resolveUrl = function(url, base){};
 */
 Polymer_ElementMixin._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
-* @return {undefined}
+* @override
+* @return {void}
 */
-Polymer_ElementMixin.finalize = function(){};
+Polymer_ElementMixin.createProperties = function(props){};
 /**
-* @param {string} is Tag name for this element
-* @param {!HTMLTemplateElement} template Template to process
+* @override
+* @return {void}
+*/
+Polymer_ElementMixin._finalizeClass = function(){};
+/**
+* @param {Object} observers Array of observer descriptors for
+  this class
+* @param {Object} dynamicFns Object containing keys for any properties
+  that are functions and should trigger the effect when the function
+  reference is changed
+* @return {void}
+*/
+Polymer_ElementMixin.createObservers = function(observers, dynamicFns){};
+/**
+* @param {string} cssText Text containing styling to process
 * @param {string} baseURI Base URI to rebase CSS paths against
 * @return {string}
 */
-Polymer_ElementMixin._processStyleText = function(is, template, baseURI){};
+Polymer_ElementMixin._processStyleText = function(cssText, baseURI){};
 /**
 * @param {string} is Tag name (or type extension name) for this element
-* @param {string=} ext For type extensions, the tag name that was extended
+* @return {void}
 */
-Polymer_ElementMixin._finalizeTemplate = function(is, ext){};
+Polymer_ElementMixin._finalizeTemplate = function(is){};
 /**
 * @interface
 */
 function Polymer_GestureEventListeners(){}
 /**
-* @param {*} node 
-* @param {*} eventName 
-* @param {*} handler 
+* @param {!Node} node Node to add event listener to
+* @param {string} eventName Name of event
+* @param {function (!Event): void} handler Listener function to add
+* @return {void}
 */
 Polymer_GestureEventListeners.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
-* @param {*} node 
-* @param {*} eventName 
-* @param {*} handler 
+* @param {!Node} node Node to remove event listener from
+* @param {string} eventName Name of event
+* @param {function (!Event): void} handler Listener function to remove
+* @return {void}
 */
 Polymer_GestureEventListeners.prototype._removeEventListenerFromNode = function(node, eventName, handler){};
 /**
@@ -785,21 +913,21 @@ function Polymer_DirMixin(){}
 Polymer_DirMixin.prototype.__autoDirOptOut;
 
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_DirMixin.prototype.ready = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_DirMixin.prototype.connectedCallback = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_DirMixin.prototype.disconnectedCallback = function(){};
 /**
 * @override
 */
-Polymer_DirMixin._processStyleText = function(is, template, baseURI){};
+Polymer_DirMixin._processStyleText = function(cssText, baseURI){};
 /**
 * @param {string} text CSS text to replace DIR
 * @return {string}
@@ -822,60 +950,66 @@ Polymer_LegacyElementMixin.prototype._debouncers;
 
 /**
 * @override
-* @param {string} name Name of attribute.
-* @param {?string} old Old value of attribute.
-* @param {?string} value Current value of attribute.
-*/
-Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
-/**
-* @override
-*/
-Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
-/**
-* @override
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.ready = function(){};
 /**
 * @override
+* @return {void}
+*/
+Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
+/**
+* @override
+* @param {string} name Name of attribute.
+* @param {?string} old Old value of attribute.
+* @param {?string} value Current value of attribute.
+* @return {void}
+*/
+Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
+/**
+* @override
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.connectedCallback = function(){};
 /**
 * @override
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.disconnectedCallback = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.created = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.attached = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.detached = function(){};
 /**
 * @param {string} name Name of attribute.
 * @param {?string} old Old value of attribute.
 * @param {?string} value Current value of attribute.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.attributeChanged = function(name, old, value){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype._registered = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype._ensureAttributes = function(){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype._applyListeners = function(){};
 /**
 * @param {*} value Value to deserialize
-* @return {(string|undefined)}
+* @return {(string | undefined)}
 */
 Polymer_LegacyElementMixin.prototype.serialize = function(value){};
 /**
@@ -888,12 +1022,14 @@ Polymer_LegacyElementMixin.prototype.deserialize = function(value, type){};
 * @param {string} property Property name to reflect.
 * @param {string=} attribute Attribute name to reflect.
 * @param {*=} value Property value to reflect.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.reflectPropertyToAttribute = function(property, attribute, value){};
 /**
 * @param {*} value Value to serialize.
 * @param {string} attribute Attribute name to serialize to.
 * @param {Element} node Element to set attribute to.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.serializeValueToAttribute = function(value, attribute, node){};
 /**
@@ -903,9 +1039,9 @@ Polymer_LegacyElementMixin.prototype.serializeValueToAttribute = function(value,
 */
 Polymer_LegacyElementMixin.prototype.extend = function(prototype, api){};
 /**
-* @param {Object} target Target object to copy properties to.
-* @param {Object} source Source object to copy properties from.
-* @return {Object}
+* @param {!Object} target Target object to copy properties to.
+* @param {!Object} source Source object to copy properties from.
+* @return {!Object}
 */
 Polymer_LegacyElementMixin.prototype.mixin = function(target, source){};
 /**
@@ -917,24 +1053,25 @@ Polymer_LegacyElementMixin.prototype.mixin = function(target, source){};
 Polymer_LegacyElementMixin.prototype.chainObject = function(object, prototype){};
 /**
 * @param {HTMLTemplateElement} template HTML template element to instance.
-* @return {DocumentFragment}
+* @return {!DocumentFragment}
 */
 Polymer_LegacyElementMixin.prototype.instanceTemplate = function(template){};
 /**
 * @param {string} type Name of event type.
 * @param {*=} detail Detail value containing event-specific
   payload.
-* @param {{bubbles: (boolean|undefined), cancelable: (boolean|undefined), composed: (boolean|undefined)}=} options Object specifying options.  These may include:
+* @param {{bubbles: (boolean | undefined), cancelable: (boolean | undefined), composed: (boolean | undefined)}=} options Object specifying options.  These may include:
  `bubbles` (boolean, defaults to `true`),
  `cancelable` (boolean, defaults to false), and
  `node` on which to fire the event (HTMLElement, defaults to `this`).
-* @return {Event}
+* @return {!Event}
 */
 Polymer_LegacyElementMixin.prototype.fire = function(type, detail, options){};
 /**
 * @param {Element} node Element to add event listener to.
 * @param {string} eventName Name of event to listen for.
 * @param {string} methodName Name of handler method on `this` to call.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.listen = function(node, eventName, methodName){};
 /**
@@ -942,6 +1079,7 @@ Polymer_LegacyElementMixin.prototype.listen = function(node, eventName, methodNa
 * @param {string} eventName Name of event to stop listening to.
 * @param {string} methodName Name of handler method on `this` to not call
        anymore.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.unlisten = function(node, eventName, methodName){};
 /**
@@ -949,6 +1087,7 @@ Polymer_LegacyElementMixin.prototype.unlisten = function(node, eventName, method
 Defaults to `all`.
 * @param {Element=} node Element to apply scroll direction setting.
 Defaults to `this`.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.setScrollDirection = function(direction, node){};
 /**
@@ -957,20 +1096,20 @@ Polymer_LegacyElementMixin.prototype.setScrollDirection = function(direction, no
 */
 Polymer_LegacyElementMixin.prototype.$$ = function(slctr){};
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.distributeContent = function(){};
 /**
-* @return {Array.<Node>}
+* @return {!Array.<!Node>}
 */
 Polymer_LegacyElementMixin.prototype.getEffectiveChildNodes = function(){};
 /**
 * @param {string} selector Selector to run.
-* @return {Array.<Node>}
+* @return {!Array.<!Node>}
 */
 Polymer_LegacyElementMixin.prototype.queryDistributedElements = function(selector){};
 /**
-* @return {Array.<Node>}
+* @return {!Array.<!Node>}
 */
 Polymer_LegacyElementMixin.prototype.getEffectiveChildren = function(){};
 /**
@@ -979,24 +1118,24 @@ Polymer_LegacyElementMixin.prototype.getEffectiveChildren = function(){};
 Polymer_LegacyElementMixin.prototype.getEffectiveTextContent = function(){};
 /**
 * @param {string} selector Selector to run.
-* @return {Object.<Node>}
+* @return {Node}
 */
 Polymer_LegacyElementMixin.prototype.queryEffectiveChildren = function(selector){};
 /**
 * @param {string} selector Selector to run.
-* @return {Array.<Node>}
+* @return {!Array.<!Node>}
 */
 Polymer_LegacyElementMixin.prototype.queryAllEffectiveChildren = function(selector){};
 /**
 * @param {string=} slctr CSS selector to choose the desired
   `<slot>`.  Defaults to `content`.
-* @return {Array.<Node>}
+* @return {!Array.<!Node>}
 */
 Polymer_LegacyElementMixin.prototype.getContentChildNodes = function(slctr){};
 /**
 * @param {string=} slctr CSS selector to choose the desired
   `<content>`.  Defaults to `content`.
-* @return {Array.<HTMLElement>}
+* @return {!Array.<!HTMLElement>}
 */
 Polymer_LegacyElementMixin.prototype.getContentChildren = function(slctr){};
 /**
@@ -1005,13 +1144,14 @@ Polymer_LegacyElementMixin.prototype.getContentChildren = function(slctr){};
 */
 Polymer_LegacyElementMixin.prototype.isLightDescendant = function(node){};
 /**
-* @param {Element=} node The element to be checked.
+* @param {!Element} node The element to be checked.
 * @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype.isLocalDescendant = function(node){};
 /**
-* @param {*} container 
-* @param {*} shouldObserve 
+* @param {*} container Unused
+* @param {*} shouldObserve Unused
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.scopeSubtree = function(container, shouldObserve){};
 /**
@@ -1021,11 +1161,11 @@ Polymer_LegacyElementMixin.prototype.scopeSubtree = function(container, shouldOb
 Polymer_LegacyElementMixin.prototype.getComputedStyleValue = function(property){};
 /**
 * @param {string} jobName String to identify the debounce job.
-* @param {function ()} callback Function that is called (with `this`
+* @param {function (): void} callback Function that is called (with `this`
   context) when the wait time elapses.
 * @param {number} wait Optional wait time in milliseconds (ms) after the
   last signal that must elapse before invoking `callback`
-* @return {Object}
+* @return {!Object}
 */
 Polymer_LegacyElementMixin.prototype.debounce = function(jobName, callback, wait){};
 /**
@@ -1035,14 +1175,16 @@ Polymer_LegacyElementMixin.prototype.debounce = function(jobName, callback, wait
 Polymer_LegacyElementMixin.prototype.isDebouncerActive = function(jobName){};
 /**
 * @param {string} jobName The name of the debouncer started with `debounce`
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.flushDebouncer = function(jobName){};
 /**
 * @param {string} jobName The name of the debouncer started with `debounce`
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.cancelDebouncer = function(jobName){};
 /**
-* @param {Function} callback The callback function to run, bound to `this`.
+* @param {!Function} callback The callback function to run, bound to `this`.
 * @param {number=} waitTime Time to wait before calling the
   `callback`.  If unspecified or 0, the callback will be run at microtask
   timing (before paint).
@@ -1052,29 +1194,30 @@ Polymer_LegacyElementMixin.prototype.async = function(callback, waitTime){};
 /**
 * @param {number} handle Handle returned from original `async` call to
   cancel.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.cancelAsync = function(handle){};
 /**
 * @param {string} tag HTML element tag to create.
-* @param {Object} props Object of properties to configure on the
+* @param {Object=} props Object of properties to configure on the
    instance.
-* @return {Element}
+* @return {!Element}
 */
 Polymer_LegacyElementMixin.prototype.create = function(tag, props){};
 /**
 * @param {string} href URL to document to load.
-* @param {Function} onload Callback to notify when an import successfully
+* @param {?function (!Event): void=} onload Callback to notify when an import successfully
   loaded.
-* @param {Function} onerror Callback to notify when an import
+* @param {?function (!ErrorEvent): void=} onerror Callback to notify when an import
   unsuccessfully loaded.
-* @param {boolean} optAsync True if the import should be loaded `async`.
+* @param {boolean=} optAsync True if the import should be loaded `async`.
   Defaults to `false`.
-* @return {HTMLLinkElement}
+* @return {!HTMLLinkElement}
 */
 Polymer_LegacyElementMixin.prototype.importHref = function(href, onload, onerror, optAsync){};
 /**
 * @param {string} selector Selector to test.
-* @param {Element=} node Element to test the selector against.
+* @param {!Element=} node Element to test the selector against.
 * @return {boolean}
 */
 Polymer_LegacyElementMixin.prototype.elementMatches = function(selector, node){};
@@ -1083,6 +1226,7 @@ Polymer_LegacyElementMixin.prototype.elementMatches = function(selector, node){}
 * @param {boolean=} bool Boolean to force the attribute on or off.
    When unspecified, the state of the attribute will be reversed.
 * @param {Element=} node Node to target.  Defaults to `this`.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.toggleAttribute = function(name, bool, node){};
 /**
@@ -1090,12 +1234,14 @@ Polymer_LegacyElementMixin.prototype.toggleAttribute = function(name, bool, node
 * @param {boolean=} bool Boolean to force the class on or off.
    When unspecified, the state of the class will be reversed.
 * @param {Element=} node Node to target.  Defaults to `this`.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.toggleClass = function(name, bool, node){};
 /**
 * @param {string} transformText Transform setting.
 * @param {Element=} node Element to apply the transform to.
 Defaults to `this`
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.transform = function(transformText, node){};
 /**
@@ -1104,10 +1250,11 @@ Polymer_LegacyElementMixin.prototype.transform = function(transformText, node){}
 * @param {number} z Z offset.
 * @param {Element=} node Element to apply the transform to.
 Defaults to `this`.
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype.translate3d = function(x, y, z, node){};
 /**
-* @param {(string|!Array.<(number|string)>)} arrayOrPath Path to array from which to remove the item
+* @param {(string | !Array.<(number | string)>)} arrayOrPath Path to array from which to remove the item
   (or the array itself).
 * @param {*} item Item to remove.
 * @return {Array}
@@ -1116,23 +1263,27 @@ Polymer_LegacyElementMixin.prototype.arrayDelete = function(arrayOrPath, item){}
 /**
 * @param {string} level One of 'log', 'warn', 'error'
 * @param {Array} args Array of strings or objects to log
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype._logger = function(level, args){};
 /**
-* @param {...*} args 
+* @param {...*} args Array of strings or objects to log
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype._log = function(args){};
 /**
-* @param {...*} args 
+* @param {...*} args Array of strings or objects to log
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype._warn = function(args){};
 /**
-* @param {...*} args 
+* @param {...*} args Array of strings or objects to log
+* @return {void}
 */
 Polymer_LegacyElementMixin.prototype._error = function(args){};
 /**
 * @param {string} methodName Method name to associate with message
-* @param {...*} args 
+* @param {...*} args Array of strings or objects to log
 * @return {Array}
 */
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
@@ -1172,7 +1323,7 @@ Polymer_ArraySelectorMixin.prototype.items;
 /** @type {boolean} */
 Polymer_ArraySelectorMixin.prototype.multi;
 
-/** @type {?(Object|Array.<!Object>)} */
+/** @type {?(Object | Array.<!Object>)} */
 Polymer_ArraySelectorMixin.prototype.selected;
 
 /** @type {?Object} */
@@ -1182,7 +1333,7 @@ Polymer_ArraySelectorMixin.prototype.selectedItem;
 Polymer_ArraySelectorMixin.prototype.toggle;
 
 /**
-* @return {undefined}
+* @return {void}
 */
 Polymer_ArraySelectorMixin.prototype.clearSelection = function(){};
 /**
@@ -1197,17 +1348,21 @@ Polymer_ArraySelectorMixin.prototype.isSelected = function(item){};
 Polymer_ArraySelectorMixin.prototype.isIndexSelected = function(idx){};
 /**
 * @param {*} item Item from `items` array to deselect
+* @return {void}
 */
 Polymer_ArraySelectorMixin.prototype.deselect = function(item){};
 /**
 * @param {number} idx Index from `items` array to deselect
+* @return {void}
 */
 Polymer_ArraySelectorMixin.prototype.deselectIndex = function(idx){};
 /**
 * @param {*} item Item from `items` array to select
+* @return {void}
 */
 Polymer_ArraySelectorMixin.prototype.select = function(item){};
 /**
 * @param {number} idx Index from `items` array to select
+* @return {void}
 */
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};

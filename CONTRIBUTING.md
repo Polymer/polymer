@@ -18,7 +18,7 @@ Beyond GitHub, we try to have a variety of different lines of communication open
 
 Because of the component-based nature of the Polymer project, we tend to have lots of different repositories. Our main repository for the Polymer library itself is at [github.com/Polymer/polymer](https://github.com/polymer/polymer). File any issues or pull requests that have to do with the core library on that repository, and we'll take a look ASAP.
 
-We keep all of the element "product lines" that the Polymer team maintains and distributes in the [PolymerElements](https://github.com/polymerelements) organization. For any element-specific issues or pull requests, file directly on the element's repository, such as the `paper-button` repository at [github.com/polymerelements/paper-button](https://github.com/polymerelements/paper-button). Of course, the elements built by the Polymer team are just a tiny fraction of all the Polymer-based elements out there - catalogs of other web components include [customelements.io](http://www.customelements.io) and [component.kitchen](http://component.kitchen).
+We keep all of the element "product lines" that the Polymer team maintains and distributes in the [PolymerElements](https://github.com/polymerelements) organization. For any element-specific issues or pull requests, file directly on the element's repository, such as the `paper-button` repository at [github.com/polymerelements/paper-button](https://github.com/polymerelements/paper-button). Of course, the elements built by the Polymer team are just a tiny fraction of all the Polymer-based elements out there - catalogs of other web components include [https://www.webcomponents.org/](https://github.com/webcomponents/webcomponents.org) and [component.kitchen](https://component.kitchen).
 
 The GoogleWebComponents element product line is maintained by teams all across Google, and so is kept in a separate organization: the [GoogleWebComponents](https://github.com/googlewebcomponents) org. Feel free to file issues and PR's on those elements directly in that organization.
 
@@ -42,7 +42,7 @@ If you find an issue, please do file it on the repository. The [Polymer/polymer 
 
 For issues with elements the team maintains, please file directly on the element's repository. If you're not sure if a bug stems from the element or the library, air toward filing it on the element and we'll move the issue if necessary.
 
-Please file issues using the issue template provided, filling out as many fields as possible.  We love examples for addressing issues - issues with a Plunkr, jsFiddle, or jsBin will be much easier for us to work on quickly. You can start with [this jsbin](http://jsbin.com/luhaxab/edit) which sets up the basics to demonstrate a Polymer element.
+Please file issues using the issue template provided, filling out as many fields as possible. We love examples for addressing issues - issues with a jsBin, Plunkr, jsFiddle, or glitch.me repro will be much easier for us to work on quickly. You can start with [this jsbin](http://jsbin.com/luhaxab/edit) which sets up the basics to demonstrate a Polymer element.  If you need your repro to run in IE11, you can start from [this glitch](https://glitch.com/edit/#!/polymer-repro?path=my-element.html:2:0), which serves the source via polyserve for automatic transpilation, although you must sign up for a glitch.me account to ensure your code persists for more than 5 days (note the glitch.me _editing environment_ is not compatible with IE11, however the "live" view link of the running code should work).
 
 Occasionally we'll close issues if they appear stale or are too vague - please don't take this personally! Please feel free to re-open issues we've closed if there's something we've missed and they still need to be addressed.
 
@@ -71,7 +71,7 @@ All elements should follow the [Polymer element style guide](http://polymereleme
 
 We follow the most common javascript and HTML style guidelines for how we structure our code - in general, look at the code and you'll know how to contribute! If you'd like a bit more structure, the [Google JavaScript Styleguide](https://google.github.io/styleguide/javascriptguide.xml) is a good place to start.
 
-Polymer also participates in Google's [Patch Rewards Program](http://www.google.com/about/appsecurity/patch-rewards/), where you can earn cold, hard cash for qualifying security patches to the Polymer library. Visit the [patch rewards page](http://www.google.com/about/appsecurity/patch-rewards/) to find out more.
+Polymer also participates in Google's [Patch Rewards Program](https://www.google.com/about/appsecurity/patch-rewards/), where you can earn cold, hard cash for qualifying security patches to the Polymer library. Visit the [patch rewards page](https://www.google.com/about/appsecurity/patch-rewards/) to find out more.
 
 ## Unit tests
 
@@ -90,15 +90,15 @@ To run the Polymer library unit tests:
 
 2.  Install the dependencies:
 
-        npm install && bower install
+		npm install && bower install
 
 3.  Run the tests:
 
-        npm test
+		npm test
 
     Or if you have `web-component-tester` installed locally:
 
-        wct
+		wct
 
 To run individual test suites:
 
@@ -110,11 +110,11 @@ Or:
 
 For example:
 
-    npm test test/unit/template.html
+	npm test test/unit/template.html
 
 You can also run tests in the browser:
 
-    polyserve
+	polyserve
 
 Navigate to:
 
@@ -122,33 +122,30 @@ Navigate to:
 
 ### Running Polymer element unit tests
 
-To run the element unit tests, you need a global 
-install of `web-component-tester` or `polyserve` (or both). 
+To run the element unit tests, you need a global install of `web-component-tester` or `polyserve` (or both).
 
-1.  Clone the element repo.
+1. Clone the element repo.
 
-2.  Install the dependencies.
+1. Install the dependencies.
 
-        bower install
+       bower install
 
-3.  Run the tests:
+1. Run the tests:
 
-	    wct
+       wct
 
-	Or run the tests in a browser:
+     Or run the tests in a browser:
 
-		polyserve
+       polyserve
 
-	Navigate to:
+     Navigate to:
 
-	<code>http://localhost:8080/components/<var>element-name</var>/test/runner.html</code>
+     <code>http://localhost:8080/components/<var>element-name</var>/test/runner.html</code>
 
 ### Configuring `web-component-tester`
 
 By default, `web-component-tester` runs tests on all installed browsers. You can configure it
 to run tests on a subset of available browsers, or to run tests remotely using Sauce Labs.
 
-See the [`web-component-tester` README](https://github.com/Polymer/web-component-tester) for 
-information on configuring the tool. 
-
-
+See the [`web-component-tester` README](https://github.com/Polymer/web-component-tester) for
+information on configuring the tool.

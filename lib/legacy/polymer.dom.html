@@ -17,7 +17,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   const p = Element.prototype;
   /**
-   * @const {function(this:Element, string): boolean}
+   * @const {function(this:Node, string): boolean}
    */
   const normalizedMatchesSelector = p.matches || p.matchesSelector ||
     p.mozMatchesSelector || p.msMatchesSelector ||
@@ -28,7 +28,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @function matchesSelector
    * @memberof Polymer.dom
-   * @param {!Element} node Node to check selector against
+   * @param {!Node} node Node to check selector against
    * @param {string} selector Selector to match
    * @return {boolean} True if node matched selector
    */
@@ -39,6 +39,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /**
    * Node API wrapper class returned from `Polymer.dom.(target)` when
    * `target` is a `Node`.
+   *
+   * @memberof Polymer
    */
   class DomApi {
 
@@ -53,9 +55,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Returns an instance of `Polymer.FlattenedNodesObserver` that
      * listens for node changes on this element.
      *
-     * @param {Function} callback Called when direct or distributed children
+     * @param {function(!Element, { target: !Element, addedNodes: !Array<!Element>, removedNodes: !Array<!Element> }):void} callback Called when direct or distributed children
      *   of this element changes
-     * @return {Polymer.FlattenedNodesObserver} Observer instance
+     * @return {!Polymer.FlattenedNodesObserver} Observer instance
      */
     observeNodes(callback) {
       return new Polymer.FlattenedNodesObserver(this.node, callback);
@@ -64,8 +66,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Disconnects an observer previously created via `observeNodes`
      *
-     * @param {Polymer.FlattenedNodesObserver} observerHandle Observer instance
+     * @param {!Polymer.FlattenedNodesObserver} observerHandle Observer instance
      *   to disconnect.
+     * @return {void}
      */
     unobserveNodes(observerHandle) {
       observerHandle.disconnect();
@@ -73,6 +76,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * Provided as a backwards-compatible API only.  This method does nothing.
+     * @return {void}
      */
     notifyObserver() {}
 
@@ -115,7 +119,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * For slot elements, returns the nodes assigned to the slot; otherwise
      * an empty array. It is equivalent to `<slot>.addignedNodes({flatten:true})`.
      *
-     * @return {Array<Node>} Array of assigned nodes
+     * @return {!Array<!Node>} Array of assigned nodes
      */
     getDistributedNodes() {
       return (this.node.localName === 'slot') ?
@@ -126,7 +130,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Returns an array of all slots this element was distributed to.
      *
-     * @return {Array<HTMLSlotElement>} Description
+     * @return {!Array<!HTMLSlotElement>} Description
      */
     getDestinationInsertionPoints() {
       let ip$ = [];
@@ -141,7 +145,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Calls `importNode` on the `ownerDocument` for this node.
      *
-     * @param {Node} node Node to import
+     * @param {!Node} node Node to import
      * @param {boolean} deep True if the node should be cloned deeply during
      *   import
      * @return {Node} Clone of given node imported to this owner document
@@ -153,8 +157,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * @return {Array} Returns a flattened list of all child nodes and nodes assigned
-     * to child slots.
+     * @return {!Array<!Node>} Returns a flattened list of all child nodes and
+     * nodes assigned to child slots.
      */
     getEffectiveChildNodes() {
       return Polymer.FlattenedNodesObserver.getFlattenedNodes(this.node);
@@ -165,7 +169,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * on the given selector.
      *
      * @param {string} selector Selector to filter nodes against
-     * @return {Array<HTMLElement>} List of flattened child elements
+     * @return {!Array<!HTMLElement>} List of flattened child elements
      */
     queryDistributedElements(selector) {
       let c$ = this.getEffectiveChildNodes();
@@ -194,9 +198,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   function forwardMethods(proto, methods) {
     for (let i=0; i < methods.length; i++) {
       let method = methods[i];
+      /* eslint-disable valid-jsdoc */
       proto[method] = /** @this {DomApi} */ function() {
         return this.node[method].apply(this.node, arguments);
       };
+      /* eslint-enable */
     }
   }
 
@@ -259,7 +265,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Returns the first node on the `composedPath` of this event.
      *
-     * @return {Node} The node this event was dispatched to
+     * @return {!EventTarget} The node this event was dispatched to
      */
     get rootTarget() {
       return this.event.composedPath()[0];
@@ -268,7 +274,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     /**
      * Returns the local (re-targeted) target for this event.
      *
-     * @return {Node} The local (re-targeted) target for this event.
+     * @return {!EventTarget} The local (re-targeted) target for this event.
      */
     get localTarget() {
       return this.event.target;
@@ -276,6 +282,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * Returns the `composedPath` for this event.
+     * @return {!Array<EventTarget>} The nodes this event propagated through
      */
     get path() {
       return this.event.composedPath();
@@ -283,6 +290,64 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   }
 
   Polymer.DomApi = DomApi;
+
+  /**
+   * @function
+   * @param {boolean=} deep
+   * @return {!Node}
+   */
+  Polymer.DomApi.prototype.cloneNode;
+  /**
+   * @function
+   * @param {!Node} node
+   * @return {!Node}
+   */
+  Polymer.DomApi.prototype.appendChild;
+  /**
+   * @function
+   * @param {!Node} newChild
+   * @param {Node} refChild
+   * @return {!Node}
+   */
+  Polymer.DomApi.prototype.insertBefore;
+  /**
+   * @function
+   * @param {!Node} node
+   * @return {!Node}
+   */
+  Polymer.DomApi.prototype.removeChild;
+  /**
+   * @function
+   * @param {!Node} oldChild
+   * @param {!Node} newChild
+   * @return {!Node}
+   */
+  Polymer.DomApi.prototype.replaceChild;
+  /**
+   * @function
+   * @param {string} name
+   * @param {string} value
+   * @return {void}
+   */
+  Polymer.DomApi.prototype.setAttribute;
+  /**
+   * @function
+   * @param {string} name
+   * @return {void}
+   */
+  Polymer.DomApi.prototype.removeAttribute;
+  /**
+   * @function
+   * @param {string} selector
+   * @return {?Element}
+   */
+  Polymer.DomApi.prototype.querySelector;
+  /**
+   * @function
+   * @param {string} selector
+   * @return {!NodeList<!Element>}
+   */
+  Polymer.DomApi.prototype.querySelectorAll;
 
   /**
    * Legacy DOM and Event manipulation API wrapper factory used to abstract
@@ -297,8 +362,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @summary Legacy DOM and Event manipulation API wrapper factory used to
    * abstract differences between native Shadow DOM and "Shady DOM."
    * @memberof Polymer
-   * @param {!Node|Event} obj Node or event to operate on
-   * @return {DomApi|EventApi} Wrapper providing either node API or event API
+   * @param {(Node|Event)=} obj Node or event to operate on
+   * @return {!DomApi|!EventApi} Wrapper providing either node API or event API
    */
   Polymer.dom = function(obj) {
     obj = obj || document;
