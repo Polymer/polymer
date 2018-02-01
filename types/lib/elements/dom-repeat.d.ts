@@ -40,16 +40,22 @@ declare namespace Polymer {
    *   </template>
    *
    *   <script>
-   *     Polymer({
-   *       is: 'employee-list',
-   *       ready: function() {
-   *         this.employees = [
-   *             {first: 'Bob', last: 'Smith'},
-   *             {first: 'Sally', last: 'Johnson'},
-   *             ...
-   *         ];
+   *     class EmployeeList extends Polymer.Element {
+   *       static get is() { return 'employee-list'; }
+   *       static get properties() {
+   *         return {
+   *           employees: {
+   *             value() {
+   *               return [
+   *                 {first: 'Bob', last: 'Smith'},
+   *                 {first: 'Sally', last: 'Johnson'},
+   *                 ...
+   *               ];
+   *             }
+   *           }
+   *         };
    *       }
-   *     });
+   *     }
    *   < /script>
    *
    * </dom-module>
@@ -91,8 +97,8 @@ declare namespace Polymer {
    * For example, for an `dom-repeat` with a filter of the following:
    *
    * ```js
-   * isEngineer: function(item) {
-   *     return item.type == 'engineer' || item.manager.type == 'engineer';
+   * isEngineer(item) {
+   *   return item.type == 'engineer' || item.manager.type == 'engineer';
    * }
    * ```
    *
