@@ -187,7 +187,7 @@ declare namespace Polymer {
      * @param attribute Attribute name to serialize to.
      * @param node Element to set attribute to.
      */
-    serializeValueToAttribute(value: any, attribute: string, node: Element|null): void;
+    serializeValueToAttribute(value: any, attribute: string, node: _Element|null): void;
 
     /**
      * Copies own properties (including accessor descriptors) from a source
@@ -258,7 +258,7 @@ declare namespace Polymer {
      * @param eventName Name of event to listen for.
      * @param methodName Name of handler method on `this` to call.
      */
-    listen(node: Element|null, eventName: string, methodName: string): void;
+    listen(node: _Element|null, eventName: string, methodName: string): void;
 
     /**
      * Convenience method to remove an event listener from a given element,
@@ -269,7 +269,7 @@ declare namespace Polymer {
      * @param methodName Name of handler method on `this` to not call
      *        anymore.
      */
-    unlisten(node: Element|null, eventName: string, methodName: string): void;
+    unlisten(node: _Element|null, eventName: string, methodName: string): void;
 
     /**
      * Override scrolling behavior to all direction, one direction, or none.
@@ -285,7 +285,7 @@ declare namespace Polymer {
      * @param node Element to apply scroll direction setting.
      * Defaults to `this`.
      */
-    setScrollDirection(direction?: string, node?: Element|null): void;
+    setScrollDirection(direction?: string, node?: _Element|null): void;
 
     /**
      * Convenience method to run `querySelector` on this local DOM scope.
@@ -295,7 +295,7 @@ declare namespace Polymer {
      * @param slctr Selector to run on this local DOM scope
      * @returns Element found by the selector, or null if not found.
      */
-    $$(slctr: string): Element|null;
+    $$(slctr: string): _Element|null;
 
     /**
      * Force this element to distribute its children to its local dom.
@@ -405,7 +405,7 @@ declare namespace Polymer {
      * @param node The element to be checked.
      * @returns true if node is in this element's local DOM tree.
      */
-    isLocalDescendant(node: Element): boolean;
+    isLocalDescendant(node: _Element): boolean;
 
     /**
      * No-op for backwards compatibility. This should now be handled by
@@ -503,7 +503,7 @@ declare namespace Polymer {
      *    instance.
      * @returns Newly created and configured element.
      */
-    create(tag: string, props?: object|null): Element;
+    create(tag: string, props?: object|null): _Element;
 
     /**
      * Convenience method for importing an HTML document imperatively.
@@ -532,7 +532,7 @@ declare namespace Polymer {
      * @param node Element to test the selector against.
      * @returns Whether the element matches the selector.
      */
-    elementMatches(selector: string, node?: Element): boolean;
+    elementMatches(selector: string, node?: _Element): boolean;
 
     /**
      * Toggles an HTML attribute on or off.
@@ -542,7 +542,7 @@ declare namespace Polymer {
      *    When unspecified, the state of the attribute will be reversed.
      * @param node Node to target.  Defaults to `this`.
      */
-    toggleAttribute(name: string, bool?: boolean, node?: Element|null): void;
+    toggleAttribute(name: string, bool?: boolean, node?: _Element|null): void;
 
     /**
      * Toggles a CSS class on or off.
@@ -552,7 +552,7 @@ declare namespace Polymer {
      *    When unspecified, the state of the class will be reversed.
      * @param node Node to target.  Defaults to `this`.
      */
-    toggleClass(name: string, bool?: boolean, node?: Element|null): void;
+    toggleClass(name: string, bool?: boolean, node?: _Element|null): void;
 
     /**
      * Cross-platform helper for setting an element's CSS `transform` property.
@@ -561,7 +561,7 @@ declare namespace Polymer {
      * @param node Element to apply the transform to.
      * Defaults to `this`
      */
-    transform(transformText: string, node?: Element|null): void;
+    transform(transformText: string, node?: _Element|null): void;
 
     /**
      * Cross-platform helper for setting an element's CSS `translate3d`
@@ -573,7 +573,7 @@ declare namespace Polymer {
      * @param node Element to apply the transform to.
      * Defaults to `this`.
      */
-    translate3d(x: number, y: number, z: number, node?: Element|null): void;
+    translate3d(x: number, y: number, z: number, node?: _Element|null): void;
 
     /**
      * Removes an item from an array, if it exists.

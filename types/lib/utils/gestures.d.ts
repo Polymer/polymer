@@ -34,7 +34,7 @@ declare namespace Polymer {
      * @returns Returns the deepest shadowRoot inclusive element
      * found at the screen position given.
      */
-    function deepTargetFind(x: number, y: number): Element|null;
+    function deepTargetFind(x: number, y: number): _Element|null;
 
 
     /**
@@ -66,7 +66,7 @@ declare namespace Polymer {
      * This value is checked on first move, thus it should be called prior to
      * adding event listeners.
      */
-    function setTouchAction(node: Element, value: string): void;
+    function setTouchAction(node: _Element, value: string): void;
 
 
     /**
