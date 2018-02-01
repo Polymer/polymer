@@ -250,9 +250,10 @@ Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, ev
 */
 Polymer_TemplateStamp._parseTemplate = function(template, outerTemplateInfo){};
 /**
-* @param {*} template 
-* @param {*} templateInfo 
-* @param {*} nodeInfo 
+* @param {!HTMLTemplateElement} template Template to parse
+* @param {!TemplateInfo} templateInfo Template metadata for current template
+* @param {!NodeInfo} nodeInfo Node metadata for current template.
+* @return {boolean}
 */
 Polymer_TemplateStamp._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
@@ -806,9 +807,6 @@ Polymer_ElementMixin.prototype._importPath;
 /** @type {string} */
 Polymer_ElementMixin.prototype.rootPath;
 
-/** @type {string} */
-Polymer_ElementMixin.prototype.importPath;
-
 /** @type {(StampedTemplate | HTMLElement | ShadowRoot)} */
 Polymer_ElementMixin.prototype.root;
 
@@ -926,6 +924,9 @@ Polymer_DirMixin.prototype.connectedCallback = function(){};
 Polymer_DirMixin.prototype.disconnectedCallback = function(){};
 /**
 * @override
+* @param {string} cssText Text containing styling to process
+* @param {string} baseURI Base URI to rebase CSS paths against
+* @return {string}
 */
 Polymer_DirMixin._processStyleText = function(cssText, baseURI){};
 /**

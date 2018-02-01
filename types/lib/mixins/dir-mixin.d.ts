@@ -33,7 +33,13 @@ declare namespace Polymer {
 
   interface DirMixinConstructor {
     new(...args: any[]): DirMixin;
-    _processStyleText(cssText: any, baseURI: any): any;
+
+    /**
+     * @param cssText Text containing styling to process
+     * @param baseURI Base URI to rebase CSS paths against
+     * @returns The processed CSS text
+     */
+    _processStyleText(cssText: string, baseURI: string): string;
 
     /**
      * Replace `:dir` in the given CSS text

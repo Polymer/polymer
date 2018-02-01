@@ -22,7 +22,6 @@ declare class TemplateInstanceBase extends
    * or else the host element.
    */
   readonly parentModel: Polymer.PropertyEffects;
-  _methodHost: Polymer.PropertyEffects;
 
   /**
    * Override point for adding custom or simulated event handling.

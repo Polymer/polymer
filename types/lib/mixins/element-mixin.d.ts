@@ -133,11 +133,33 @@ declare namespace Polymer {
   }
 
   interface ElementMixin {
+
+    /**
+     * Memoized template as processed by Polymer
+     */
     _template: HTMLTemplateElement|null;
+
+    /**
+     * Memoized importPath computed from either the assetpath or importPath
+     */
     _importPath: string;
+
+    /**
+     * Memoized property for the setting Polymer.rootPath
+     */
     rootPath: string;
-    importPath: string;
+
+    /**
+     * The stamped template or the attached shadowRoot based on the template
+     */
     root: StampedTemplate|HTMLElement|ShadowRoot|null;
+
+    /**
+     * Map of node IDs when the element initializes its DOM template,
+     * to provide convenient access to frequently used nodes without the
+     * need to query for them manually. Any node specified in the element's
+     * template with an id is stored on hash by id.
+     */
     $: {[key: string]: Element};
 
     /**

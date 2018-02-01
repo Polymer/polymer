@@ -9,6 +9,7 @@
  */
 
 /// <reference path="boot.d.ts" />
+/// <reference path="debounce.d.ts" />
 
 declare namespace Polymer {
 
