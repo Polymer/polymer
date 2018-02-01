@@ -138,7 +138,7 @@ declare namespace Polymer {
     rootPath: string;
     importPath: string;
     root: StampedTemplate|HTMLElement|ShadowRoot|null;
-    $: {[key: string]: Element};
+    $: {[key: string]: _Element};
 
     /**
      * Stamps the element template.

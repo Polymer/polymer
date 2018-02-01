@@ -133,3 +133,15 @@ interface IdleDeadline {
   didTimeout: boolean;
   timeRemaining(): number;
 }
+
+/**
+ * Polymer defines its own `Element` class, shadowing the standard global
+ * `Element` class. This means that references to `Element` within the `Polymer`
+ * namespace inadvertently reference `Polymer.Element`. Here we define an alias
+ * of the global `Element`, so that we can reference it from declarations within
+ * the `Polymer` namespace.
+ *
+ * See https://github.com/Microsoft/TypeScript/issues/983 for general discussion
+ * of this shadowing problem in TypeScript.
+ */
+type _Element = Element;

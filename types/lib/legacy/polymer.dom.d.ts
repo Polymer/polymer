@@ -55,7 +55,7 @@ declare namespace Polymer {
      *   of this element changes
      * @returns Observer instance
      */
-    observeNodes(callback: (p0: Element, p1: {target: Element, addedNodes: Element[], removedNodes: Element[]}) => void): Polymer.FlattenedNodesObserver;
+    observeNodes(callback: (p0: _Element, p1: {target: _Element, addedNodes: _Element[], removedNodes: _Element[]}) => void): Polymer.FlattenedNodesObserver;
 
     /**
      * Disconnects an observer previously created via `observeNodes`
@@ -137,8 +137,8 @@ declare namespace Polymer {
     replaceChild(oldChild: Node, newChild: Node): Node;
     setAttribute(name: string, value: string): void;
     removeAttribute(name: string): void;
-    querySelector(selector: string): Element|null;
-    querySelectorAll(selector: string): NodeListOf<Element>;
+    querySelector(selector: string): _Element|null;
+    querySelectorAll(selector: string): NodeListOf<_Element>;
   }
 
 

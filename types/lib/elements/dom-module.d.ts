@@ -44,7 +44,7 @@ declare namespace Polymer {
      * @returns Returns the element which matches `selector` in the
      * module registered at the specified `id`.
      */
-    static import(id: string, selector?: string): Element|null;
+    static import(id: string, selector?: string): _Element|null;
 
     /**
      * @param name Name of attribute.
