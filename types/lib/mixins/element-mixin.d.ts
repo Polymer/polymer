@@ -209,6 +209,10 @@ declare namespace Polymer {
      * this element. This method will return the same URL before and after
      * bundling.
      *
+     * Note that this function performs no resolution for URLs that start
+     * with `/` (absolute URLs) or `#` (hash identifiers).  For general purpose
+     * URL resolution, use `window.URL`.
+     *
      * @param url URL to resolve.
      * @param base Optional base URL to resolve against, defaults
      * to the element's `importPath`
