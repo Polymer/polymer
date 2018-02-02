@@ -48,14 +48,14 @@ declare namespace Polymer {
    *
    * Example:
    *
-   *   static get template() {
-   *     return Polymer.html`
-   *       <style>:host{ content:"..." }</style>
-   *       <div class="shadowed">${this.partialTemplate}</div>
-   *       ${super.template}
-   *     `;
-   *   }
-   *   static get partialTemplate() { return Polymer.html`<span>Partial!</span>`; }
+   *     static get template() {
+   *       return Polymer.html`
+   *         <style>:host{ content:"..." }</style>
+   *         <div class="shadowed">${this.partialTemplate}</div>
+   *         ${super.template}
+   *       `;
+   *     }
+   *     static get partialTemplate() { return Polymer.html`<span>Partial!</span>`; }
    *
    * @returns Constructed HTMLTemplateElement
    */
@@ -68,17 +68,17 @@ declare namespace Polymer {
    *
    * Example:
    *
-   *   static get template() {
-   *     return Polymer.html`
-   *       <style>
-   *         :host { display: block; }
-   *         ${styleTemplate}
-   *       </style>
-   *       <div class="shadowed">${staticValue}</div>
-   *       ${super.template}
-   *     `;
-   *   }
-   *   static get styleTemplate() { return Polymer.htmlLiteral`.shadowed { background: gray; }`; }
+   *     static get template() {
+   *       return Polymer.html`
+   *         <style>
+   *           :host { display: block; }
+   *           ${styleTemplate}
+   *         </style>
+   *         <div class="shadowed">${staticValue}</div>
+   *         ${super.template}
+   *       `;
+   *     }
+   *     static get styleTemplate() { return Polymer.htmlLiteral`.shadowed { background: gray; }`; }
    *
    * @returns Constructed literal string
    */
