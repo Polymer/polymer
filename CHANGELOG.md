@@ -1,5 +1,92 @@
 # Change Log
 
+## [v2.5.0](https://github.com/Polymer/polymer/tree/v2.5.0) (2018-02-02)
+- Update types ([commit](https://github.com/Polymer/polymer/commit/5fa059fa))
+
+- Update JSDocs to use <dom-repeat> tags ([commit](https://github.com/Polymer/polymer/commit/636abae0))
+
+- Fix type declarations inadvertedtly referencing Polymer.Element. (#5084) ([commit](https://github.com/Polymer/polymer/commit/82cd3dad))
+
+- Use class syntax in <dom-repeat> documentation (#5077) ([commit](https://github.com/Polymer/polymer/commit/97837c7c))
+
+- Add hash/abs URL resolution tests. ([commit](https://github.com/Polymer/polymer/commit/d97373dd))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/892df3f3))
+
+- Add comments about resolveUrl idiosyncrasies. ([commit](https://github.com/Polymer/polymer/commit/a829cbce))
+
+- Revert "Move absolute url logic to element-mixin" ([commit](https://github.com/Polymer/polymer/commit/127bc866))
+
+- Added Polymer.version to polymer-externs (#5079) ([commit](https://github.com/Polymer/polymer/commit/b52ab81d))
+
+- Avoid tracking parentNode since it's unncessary ([commit](https://github.com/Polymer/polymer/commit/1463e3b2))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/2253e0db))
+
+- Fix nit. ([commit](https://github.com/Polymer/polymer/commit/c9208fd6))
+
+- Avoid comment constructor for IE support. ([commit](https://github.com/Polymer/polymer/commit/a39cfd11))
+
+- Disallow non-templates as interpolations in Polymer.html (#5023) ([commit](https://github.com/Polymer/polymer/commit/eeb71600))
+
+- Exclude index.html from type generation. (#5076) ([commit](https://github.com/Polymer/polymer/commit/6fc285c4))
+
+- update types ([commit](https://github.com/Polymer/polymer/commit/5521e43e))
+
+- [element-mixin] Do not create property accessors unless a property effect exists ([commit](https://github.com/Polymer/polymer/commit/4177d9ce))
+
+- Use containers for testing again (#5070) ([commit](https://github.com/Polymer/polymer/commit/5e2990e3))
+
+- Invoke JS compiler rename for properties ([commit](https://github.com/Polymer/polymer/commit/74a4626a))
+
+- Add package-lock.json back ([commit](https://github.com/Polymer/polymer/commit/c90eeb67))
+
+- fix test. ([commit](https://github.com/Polymer/polymer/commit/1c74ecde))
+
+- Enhance robustness by replacing slot with a comment ([commit](https://github.com/Polymer/polymer/commit/b76d81ee))
+
+- Avoid use of element accessors on doc frag to fix IE/Edge. ([commit](https://github.com/Polymer/polymer/commit/ecb1005e))
+
+- Fix linter errors ([commit](https://github.com/Polymer/polymer/commit/5e0bee77))
+
+- Fix issue with observers being called twice ([commit](https://github.com/Polymer/polymer/commit/291e4f56))
+
+- Revert package-lock change ([commit](https://github.com/Polymer/polymer/commit/86ecd982))
+
+- [ci-skip] Update changelog (2.4.0) ([commit](https://github.com/Polymer/polymer/commit/cb88252d))
+
+- Add package-lock.json to .gitignore ([commit](https://github.com/Polymer/polymer/commit/e53db30f))
+
+- Update types ([commit](https://github.com/Polymer/polymer/commit/7a52cda2))
+
+- Add comments re: instanceProps ([commit](https://github.com/Polymer/polymer/commit/cf5f818e))
+
+- Change if-condition to check for arguments.length ([commit](https://github.com/Polymer/polymer/commit/27750109))
+
+- Delete package-lock.json ([commit](https://github.com/Polymer/polymer/commit/e77149e2))
+
+- [ci skip] Fix test case name ([commit](https://github.com/Polymer/polymer/commit/eee609d4))
+
+- Fix issue where el.splice could not clear full array ([commit](https://github.com/Polymer/polymer/commit/a51de9e3))
+
+- Make owner optional as well. ([commit](https://github.com/Polymer/polymer/commit/b52c315e))
+
+- Update package-lock.json ([commit](https://github.com/Polymer/polymer/commit/38c0e443))
+
+- Update typescript types again, after fixing jsdoc. ([commit](https://github.com/Polymer/polymer/commit/3045e4b7))
+
+- Fix lint warnings. ([commit](https://github.com/Polymer/polymer/commit/715cde47))
+
+- Update typescript types. ([commit](https://github.com/Polymer/polymer/commit/c218ae62))
+
+- Ensure path notifications from templatized instances don't throw. Fixes #3422 ([commit](https://github.com/Polymer/polymer/commit/a9f71bd1))
+
+- Allow templatizer to be used without owner or host prop forwarding. Fixes #4458 ([commit](https://github.com/Polymer/polymer/commit/bde5898e))
+
+- Templatize: remove slots when hiding children ([commit](https://github.com/Polymer/polymer/commit/ea0abb95))
+
+- Clarify API docs for PropertyAccessors mixin ([commit](https://github.com/Polymer/polymer/commit/ae58e88b))
+
 ## [v2.4.0](https://github.com/Polymer/polymer/tree/v2.4.0) (2018-01-26)
 - Simplify code for <dom-repeat>'s `sort` and `filter` properties ([commit](https://github.com/Polymer/polymer/commit/88cca860))
 
