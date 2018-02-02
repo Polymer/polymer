@@ -32,10 +32,12 @@ declare namespace Polymer {
    *   <template>
    *
    *     <div> Employee list: </div>
-   *     <template is="dom-repeat" items="{{employees}}">
+   *     <dom-repeat items="{{employees}}">
+   *       <template>
    *         <div>First name: <span>{{item.first}}</span></div>
    *         <div>Last name: <span>{{item.last}}</span></div>
-   *     </template>
+   *       </template>
+   *     </dom-repeat>
    *
    *   </template>
    *
@@ -105,8 +107,7 @@ declare namespace Polymer {
    * Then the `observe` property should be configured as follows:
    *
    * ```html
-   * <template is="dom-repeat" items="{{employees}}"
-   *           filter="isEngineer" observe="type manager.type">
+   * <dom-repeat items="{{employees}}" filter="isEngineer" observe="type manager.type">
    * ```
    */
   class DomRepeat extends
