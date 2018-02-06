@@ -82,6 +82,15 @@ Polymer_PropertiesChanged.prototype._flushProperties = function(){};
   call to `_propertiesChanged`
 * @param {!Object} oldProps Bag of previous values for each property
   in `changedProps`
+* @return {boolean}
+*/
+Polymer_PropertiesChanged.prototype._shouldPropertiesChange = function(currentProps, changedProps, oldProps){};
+/**
+* @param {!Object} currentProps Bag of all current accessor values
+* @param {!Object} changedProps Bag of properties changed since the last
+  call to `_propertiesChanged`
+* @param {!Object} oldProps Bag of previous values for each property
+  in `changedProps`
 * @return {void}
 */
 Polymer_PropertiesChanged.prototype._propertiesChanged = function(currentProps, changedProps, oldProps){};
