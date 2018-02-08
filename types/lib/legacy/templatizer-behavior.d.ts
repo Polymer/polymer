@@ -111,4 +111,6 @@ declare namespace Polymer {
      */
     modelForElement(el: HTMLElement|null): TemplateInstanceBase|null;
   }
+
+  const Templatizer: object;
 }
