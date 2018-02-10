@@ -198,6 +198,9 @@ declare namespace Polymer {
      *
      * These properties are retained unless a value of `null` is set.
      *
+     * Note: This function does not support updating CSS mixins.
+     * You can not dynamically change the value of an `@apply`.
+     *
      * @param properties Bag of custom property key/values to
      *   apply to this element.
      */
