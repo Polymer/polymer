@@ -1,5 +1,20 @@
 # Change Log
 
+## [v1.11.3-dev](https://github.com/Polymer/polymer/tree/v1.11.3-dev) (2018-02-12)
+- Improve comment. ([commit](https://github.com/Polymer/polymer/commit/7a9d0819))
+
+- Add test. ([commit](https://github.com/Polymer/polymer/commit/527afba2))
+
+- Make _template an actual <template>, for correctness. ([commit](https://github.com/Polymer/polymer/commit/d25cb299))
+
+- Ensure template instance isn't cached on prototype. Fixes #5096 ([commit](https://github.com/Polymer/polymer/commit/75a9a5f0))
+
+- Port keyframe name fix from ShadyCSS (#5038) ([commit](https://github.com/Polymer/polymer/commit/97214333))
+
+- test if path exist with ghost clicks events (#4703) ([commit](https://github.com/Polymer/polymer/commit/7b6ff539))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/bd1792ac))
+
 ## [v1.11.2-dev](https://github.com/Polymer/polymer/tree/v1.11.2-dev) (2017-12-14)
 - Fix styling tests with Firefox ([commit](https://github.com/Polymer/polymer/commit/f6f0750b))
 
