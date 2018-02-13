@@ -26,7 +26,7 @@ declare namespace Polymer {
    * found on the Polymer 1.x `Polymer.Base` prototype applied to all elements
    * defined using the `Polymer({...})` function.
    */
-  function LegacyElementMixin<T extends new (...args: any[]) => {}>(base: T): T & LegacyElementMixinConstructor & Polymer.ElementMixinConstructor & Polymer.GestureEventListenersConstructor;
+  function LegacyElementMixin<T extends new (...args: any[]) => {}>(base: T): T & LegacyElementMixinConstructor & Polymer.ElementMixinConstructor & Polymer.PropertyEffectsConstructor & Polymer.TemplateStampConstructor & Polymer.PropertyAccessorsConstructor & Polymer.PropertiesChangedConstructor & Polymer.PropertiesMixinConstructor & Polymer.GestureEventListenersConstructor;
 
   interface LegacyElementMixinConstructor {
     new(...args: any[]): LegacyElementMixin;

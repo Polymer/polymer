@@ -76,7 +76,7 @@ declare namespace Polymer {
    *   `observedAttributes` implementation will automatically return an array
    *   of dash-cased attributes based on `properties`)
    */
-  function ElementMixin<T extends new (...args: any[]) => {}>(base: T): T & ElementMixinConstructor & Polymer.PropertyEffectsConstructor & Polymer.PropertiesMixinConstructor;
+  function ElementMixin<T extends new (...args: any[]) => {}>(base: T): T & ElementMixinConstructor & Polymer.PropertyEffectsConstructor & Polymer.TemplateStampConstructor & Polymer.PropertyAccessorsConstructor & Polymer.PropertiesChangedConstructor & Polymer.PropertiesMixinConstructor;
 
   interface ElementMixinConstructor {
     new(...args: any[]): ElementMixin;
