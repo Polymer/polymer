@@ -83,6 +83,39 @@ declare namespace templateInfo {
 
 declare namespace Polymer {
 
+  /**
+   * Module for preparing and stamping instances of templates that utilize
+   * Polymer's data-binding and declarative event listener features.
+   *
+   * Example:
+   *
+   *     // Get a template from somewhere, e.g. light DOM
+   *     let template = this.querySelector('template');
+   *     // Prepare the template
+   *     let TemplateClass = Polymer.Templatize.templatize(template);
+   *     // Instance the template with an initial data model
+   *     let instance = new TemplateClass({myProp: 'initial'});
+   *     // Insert the instance's DOM somewhere, e.g. element's shadow DOM
+   *     this.shadowRoot.appendChild(instance.root);
+   *     // Changing a property on the instance will propagate to bindings
+   *     // in the template
+   *     instance.myProp = 'new value';
+   *
+   * The `options` dictionary passed to `templatize` allows for customizing
+   * features of the generated template class, including how outer-scope host
+   * properties should be forwarded into template instances, how any instance
+   * properties added into the template's scope should be notified out to
+   * the host, and whether the instance should be decorated as a "parent model"
+   * of any event handlers.
+   *
+   *     // Customize property forwarding and event model decoration
+   *     let TemplateClass = Polymer.Templatize.templatize(template, this, {
+   *       parentModel: true,
+   *       forwardHostProp(property, value) {...},
+   *       instanceProps: {...},
+   *       notifyInstanceProp(instance, property, value) {...},
+   *     });
+   */
   namespace Templatize {
 
 
