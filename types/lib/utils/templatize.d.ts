@@ -71,8 +71,9 @@ declare class TemplateInstanceBase extends
    * dispatch events safely no-op.
    *
    * @param event Event to dispatch
+   * @returns Always true.
    */
-  dispatchEvent(event: Event|null): any;
+  dispatchEvent(event: Event|null): boolean;
 }
 
 declare namespace templateInfo {
