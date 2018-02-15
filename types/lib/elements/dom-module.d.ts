@@ -33,6 +33,19 @@ declare namespace Polymer {
    *     let img = customElements.get('dom-module').import('foo', 'img');
    */
   class DomModule extends HTMLElement {
+
+    /**
+     * The absolute URL of the original location of this `dom-module`.
+     *
+     * This value will differ from this element's `ownerDocument` in the
+     * following ways:
+     * - Takes into account any `assetpath` attribute added during bundling
+     *   to indicate the original location relative to the bundled location
+     * - Uses the HTMLImports polyfill's `importForElement` API to ensure
+     *   the path is relative to the import document's location since
+     *   `ownerDocument` is not currently polyfilled
+     *      
+     */
     readonly assetpath: any;
 
     /**

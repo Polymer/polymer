@@ -56,7 +56,7 @@ declare namespace Polymer {
      *
      * @param name Name of property
      */
-    typeForProperty(name: string): any;
+    typeForProperty(name: string): void;
   }
 
   interface PropertiesChanged {
@@ -84,7 +84,7 @@ declare namespace Polymer {
      *
      * @param property Name of the property
      */
-    _addPropertyToAttributeMap(property: string): any;
+    _addPropertyToAttributeMap(property: string): void;
 
     /**
      * Defines a property accessor for the given property.
