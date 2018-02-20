@@ -1,6 +1,7 @@
 # Polymer
 
 [![Build Status](https://travis-ci.org/Polymer/polymer.svg?branch=master)](https://travis-ci.org/Polymer/polymer)
+[![Open Source Helpers](https://www.codetriage.com/polymer/polymer/badges/users.svg)](https://www.codetriage.com/polymer/polymer)
 
 Polymer lets you build encapsulated, reusable elements that work just like standard HTML elements, to use in building web applications.
 
