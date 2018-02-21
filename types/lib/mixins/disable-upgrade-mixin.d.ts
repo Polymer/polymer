@@ -31,7 +31,7 @@ declare namespace Polymer {
    *
    *     MyClass = Polymer.DisableUpgradeMixin(class extends BaseClass {...});
    */
-  function DisableUpgradeMixin<T extends new (...args: any[]) => {}>(base: T): T & DisableUpgradeMixinConstructor & Polymer.PropertiesChangedConstructor;
+  function DisableUpgradeMixin<T extends new (...args: any[]) => {}>(base: T): T & DisableUpgradeMixinConstructor & Polymer.ElementMixinConstructor & Polymer.PropertyEffectsConstructor & Polymer.TemplateStampConstructor & Polymer.PropertyAccessorsConstructor & Polymer.PropertiesChangedConstructor & Polymer.PropertiesMixinConstructor;
 
   interface DisableUpgradeMixinConstructor {
     new(...args: any[]): DisableUpgradeMixin;

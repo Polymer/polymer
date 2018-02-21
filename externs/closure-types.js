@@ -1377,7 +1377,7 @@ Polymer_ArraySelectorMixin.prototype.select = function(item){};
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
 /**
 * @interface
-* @extends {Polymer_PropertiesChanged}
+* @extends {Polymer_ElementMixin}
 */
 function Polymer_DisableUpgradeMixin(){}
 /**
