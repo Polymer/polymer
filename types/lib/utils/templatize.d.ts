@@ -76,7 +76,7 @@ declare class TemplateInstanceBase extends
   dispatchEvent(event: Event|null): boolean;
 }
 
-declare namespace templateInfo {
+declare namespace userForwardHostProp {
 
   class templatizeTemplateClass {
   }
