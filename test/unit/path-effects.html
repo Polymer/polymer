@@ -49,7 +49,7 @@ suite('basic path bindings', function() {
     document.body.removeChild(el);
   });
 
-  function verifyObserverOutput(nestingLevel, nested) {
+  function verifyObserverOutput(nestingLevel, nested, done) {
     assert.equal(el.computed, '[' + nested.obj.value + ']');
     assert.equal(el.nestedChanged.callCount, nestingLevel == 0 ? 1 : 0);
     if (nestingLevel == 0) {
@@ -92,6 +92,7 @@ suite('basic path bindings', function() {
     assert.equal(el.$.compose.$.basic2.getAttribute('attrvalue'), '42');
     assert.equal(el.$.forward.$.compose.$.basic1.getAttribute('attrvalue'), '42');
     assert.equal(el.$.forward.$.compose.$.basic2.getAttribute('attrvalue'), '42');
+    assert.equal(el.$.pe.obj, nested.obj);
     switch (nestingLevel) {
       case 0:
         assert.equal(el.nestedSubpathChanged.firstCall.args[0].path, 'nested');
@@ -104,6 +105,12 @@ suite('basic path bindings', function() {
         assert.equal(el.$.forward.objSubpathChanged.firstCall.args[0].value, nested.obj);
         assert.equal(el.$.forward.$.compose.objSubpathChanged.firstCall.args[0].path, 'obj');
         assert.equal(el.$.forward.$.compose.objSubpathChanged.firstCall.args[0].value, nested.obj);
+        // x-pe uses async PropertiesChanged
+        setTimeout(() => {
+          assert.equal(el.$.pe._propertiesChanged.callCount, 1);
+          assert.equal(el.$.pe._propertiesChanged.firstCall.args[1].obj, nested.obj);
+          done();
+        });
         break;
       case 1:
         assert.equal(el.nestedSubpathChanged.firstCall.args[0].path, 'nested.obj');
@@ -116,6 +123,12 @@ suite('basic path bindings', function() {
         assert.equal(el.$.forward.objSubpathChanged.firstCall.args[0].value, nested.obj);
         assert.equal(el.$.forward.$.compose.objSubpathChanged.firstCall.args[0].path, 'obj');
         assert.equal(el.$.forward.$.compose.objSubpathChanged.firstCall.args[0].value, nested.obj);
+        // x-pe uses async PropertiesChanged
+        setTimeout(() => {
+          assert.equal(el.$.pe._propertiesChanged.callCount, 1);
+          assert.equal(el.$.pe._propertiesChanged.firstCall.args[1].obj, nested.obj);
+          done();
+        });
         break;
       case 2:
         assert.equal(el.nestedSubpathChanged.firstCall.args[0].path, 'nested.obj.value');
@@ -128,11 +141,19 @@ suite('basic path bindings', function() {
         assert.equal(el.$.forward.objSubpathChanged.firstCall.args[0].value, 42);
         assert.equal(el.$.forward.$.compose.objSubpathChanged.firstCall.args[0].path, 'obj.value');
         assert.equal(el.$.forward.$.compose.objSubpathChanged.firstCall.args[0].value, 42);
+        // x-pe uses async PropertiesChanged
+        setTimeout(() => {
+          // Note the PropertiesMixin element only sees a deep set to 'nested.obj.value'
+          // because it overrides _shouldPropertyChange to allow object re-sets through
+          assert.equal(el.$.pe._propertiesChanged.callCount, 1);
+          assert.equal(el.$.pe._propertiesChanged.firstCall.args[1].obj, nested.obj);
+          done();
+        });
         break;
     }
   }
 
-  test('downward data flow', function() {
+  test('downward data flow', function(done) {
     // Do the thing
     el.nested = {
       obj: {
@@ -140,10 +161,10 @@ suite('basic path bindings', function() {
       }
     };
     // Verify
-    verifyObserverOutput(0, el.nested);
+    verifyObserverOutput(0, el.nested, done);
   });
 
-  test('notification from basic element property change', function() {
+  test('notification from basic element property change', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -154,10 +175,10 @@ suite('basic path bindings', function() {
     // Do the thing
     el.$.basic.notifyingValue = 42;
     // Verify
-    verifyObserverOutput(2, el.nested);
+    verifyObserverOutput(2, el.nested, done);
   });
 
-  test('notification from composed element property change', function() {
+  test('notification from composed element property change', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -168,10 +189,10 @@ suite('basic path bindings', function() {
     // Do the thing
     el.$.compose.$.basic1.notifyingValue = 42;
     // Verify
-    verifyObserverOutput(2, el.nested);
+    verifyObserverOutput(2, el.nested, done);
   });
 
-  test('notification from forward\'s composed element property change', function() {
+  test('notification from forward\'s composed element property change', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -182,10 +203,10 @@ suite('basic path bindings', function() {
     // Do the thing
     el.$.forward.$.compose.$.basic1.notifyingValue = 42;
     // Verify
-    verifyObserverOutput(2, el.nested);
+    verifyObserverOutput(2, el.nested, done);
   });
 
-  test('notification from set in top element', function() {
+  test('notification from set in top element', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -196,10 +217,10 @@ suite('basic path bindings', function() {
     // Do the thing
     el.set('nested.obj.value', 42);
     // Verify
-    verifyObserverOutput(2, el.nested);
+    verifyObserverOutput(2, el.nested, done);
   });
 
-  test('notification from set in composed element', function() {
+  test('notification from set in composed element', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -210,10 +231,10 @@ suite('basic path bindings', function() {
     // Do the thing
     el.$.compose.set('obj.value', 42);
     // Verify
-    verifyObserverOutput(2, el.nested);
+    verifyObserverOutput(2, el.nested, done);
   });
 
-  test('notification from set in forward element', function() {
+  test('notification from set in forward element', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -224,10 +245,10 @@ suite('basic path bindings', function() {
     // Do the thing
     el.$.forward.set('obj.value', 42);
     // Verify
-    verifyObserverOutput(2, el.nested);
+    verifyObserverOutput(2, el.nested, done);
   });
 
-  test('notification from set in forward\'s composed element', function() {
+  test('notification from set in forward\'s composed element', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -238,10 +259,10 @@ suite('basic path bindings', function() {
     // Do the thing
     el.$.forward.$.compose.set('obj.value', 42);
     // Verify
-    verifyObserverOutput(2, el.nested);
+    verifyObserverOutput(2, el.nested, done);
   });
 
-  test('notification from object change in compose element', function() {
+  test('notification from object change in compose element', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -254,10 +275,10 @@ suite('basic path bindings', function() {
       value: 42
     };
     // Verify
-    verifyObserverOutput(1, el.nested);
+    verifyObserverOutput(1, el.nested, done);
   });
 
-  test('notification from object change in forward element', function() {
+  test('notification from object change in forward element', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -270,10 +291,10 @@ suite('basic path bindings', function() {
       value: 42
     };
     // Verify
-    verifyObserverOutput(1, el.nested);
+    verifyObserverOutput(1, el.nested, done);
   });
 
-  test('notification from object change in forward\'s compose element', function() {
+  test('notification from object change in forward\'s compose element', function(done) {
     // Setup
     el.nested = {
       obj: {
@@ -287,7 +308,7 @@ suite('basic path bindings', function() {
       value: 42
     };
     // Verify
-    verifyObserverOutput(1, el.nested);
+    verifyObserverOutput(1, el.nested, done);
   });
 
   test('cached paths get invalidated by object sets', function() {
