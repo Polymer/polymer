@@ -8,6 +8,8 @@
  *   lib/mixins/disable-upgrade-mixin.html
  */
 
+/// <reference path="element-mixin.d.ts" />
+
 declare namespace Polymer {
 
 
@@ -38,10 +40,10 @@ declare namespace Polymer {
   }
 
   interface DisableUpgradeMixin {
-    attributeChangedCallback(name: any, old: any, value: any): void;
     _initializeProperties(): void;
-    connectedCallback(): void;
     _enableProperties(): void;
+    attributeChangedCallback(name: any, old: any, value: any): void;
+    connectedCallback(): void;
     disconnectedCallback(): void;
   }
 }

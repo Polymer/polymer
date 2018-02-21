@@ -1383,19 +1383,19 @@ function Polymer_DisableUpgradeMixin(){}
 /**
 * @override
 */
-Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value){};
-/**
-* @override
-*/
 Polymer_DisableUpgradeMixin.prototype._initializeProperties = function(){};
 /**
 * @override
 */
-Polymer_DisableUpgradeMixin.prototype.connectedCallback = function(){};
+Polymer_DisableUpgradeMixin.prototype._enableProperties = function(){};
 /**
 * @override
 */
-Polymer_DisableUpgradeMixin.prototype._enableProperties = function(){};
+Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value){};
+/**
+* @override
+*/
+Polymer_DisableUpgradeMixin.prototype.connectedCallback = function(){};
 /**
 * @override
 */
