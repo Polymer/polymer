@@ -1377,27 +1377,26 @@ Polymer_ArraySelectorMixin.prototype.select = function(item){};
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
 /**
 * @interface
+* @extends {Polymer_PropertiesChanged}
 */
 function Polymer_DisableUpgradeMixin(){}
 /**
-* @param {*} name 
-* @param {*} old 
-* @param {*} value 
+* @override
 */
 Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
-* @return {undefined}
+* @override
 */
 Polymer_DisableUpgradeMixin.prototype._initializeProperties = function(){};
 /**
-* @return {undefined}
+* @override
 */
 Polymer_DisableUpgradeMixin.prototype.connectedCallback = function(){};
 /**
-* @return {undefined}
+* @override
 */
 Polymer_DisableUpgradeMixin.prototype._enableProperties = function(){};
 /**
-* @return {undefined}
+* @override
 */
 Polymer_DisableUpgradeMixin.prototype.disconnectedCallback = function(){};

@@ -31,7 +31,7 @@ declare namespace Polymer {
    *
    *     MyClass = Polymer.DisableUpgradeMixin(class extends BaseClass {...});
    */
-  function DisableUpgradeMixin<T extends new (...args: any[]) => {}>(base: T): T & DisableUpgradeMixinConstructor;
+  function DisableUpgradeMixin<T extends new (...args: any[]) => {}>(base: T): T & DisableUpgradeMixinConstructor & Polymer.PropertiesChangedConstructor;
 
   interface DisableUpgradeMixinConstructor {
     new(...args: any[]): DisableUpgradeMixin;
@@ -39,27 +39,9 @@ declare namespace Polymer {
 
   interface DisableUpgradeMixin {
     attributeChangedCallback(name: any, old: any, value: any): void;
-
-    /**
-     * NOTE: cannot gate on attribute because this is called before
-     *         attributes are delivered. Therefore, we stub this out and
-     *         call `super._initializeProperties()` manually.
-     */
     _initializeProperties(): void;
-
-    /**
-     * prevent user code in connected from running
-     */
     connectedCallback(): void;
-
-    /**
-     * prevent element from turning on properties
-     */
     _enableProperties(): void;
-
-    /**
-     * only go if "enabled"
-     */
     disconnectedCallback(): void;
   }
 }
