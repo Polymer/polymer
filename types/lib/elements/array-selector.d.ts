@@ -29,7 +29,7 @@ declare namespace Polymer {
    * representing the last selected item.  When `multi` is true, `selected`
    * is an array of multiply selected items.
    */
-  function ArraySelectorMixin<T extends new (...args: any[]) => {}>(base: T): T & ArraySelectorMixinConstructor & Polymer.ElementMixinConstructor & Polymer.PropertyEffectsConstructor & Polymer.TemplateStampConstructor & Polymer.PropertyAccessorsConstructor & Polymer.PropertiesChangedConstructor & Polymer.PropertiesMixinConstructor;
+  function ArraySelectorMixin<T extends new (...args: any[]) => {}>(base: T): T & ArraySelectorMixinConstructor & Polymer.ElementMixinConstructor;
 
   interface ArraySelectorMixinConstructor {
     new(...args: any[]): ArraySelectorMixin;

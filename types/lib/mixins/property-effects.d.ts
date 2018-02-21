@@ -46,7 +46,7 @@ declare namespace Polymer {
    * whereas the default when using `PropertyAccessors` standalone is to be
    * async by default.
    */
-  function PropertyEffects<T extends new (...args: any[]) => {}>(base: T): T & PropertyEffectsConstructor & Polymer.TemplateStampConstructor & Polymer.PropertyAccessorsConstructor & Polymer.PropertiesChangedConstructor;
+  function PropertyEffects<T extends new (...args: any[]) => {}>(base: T): T & PropertyEffectsConstructor & Polymer.TemplateStampConstructor & Polymer.PropertyAccessorsConstructor;
 
   interface PropertyEffectsConstructor {
     new(...args: any[]): PropertyEffects;

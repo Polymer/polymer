@@ -66,8 +66,6 @@ declare namespace Polymer {
     _shouldPropertyChange(property: string, value: any, old: any): boolean;
   }
 
-  const MutableDataBehavior: object;
-
   /**
    * Legacy element behavior to add the optional ability to skip strict
    * dirty-checking for objects and arrays (always consider them to be
@@ -130,6 +128,4 @@ declare namespace Polymer {
      */
     _shouldPropertyChange(property: string, value: any, old: any): boolean;
   }
-
-  const OptionalMutableDataBehavior: object;
 }

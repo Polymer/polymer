@@ -53,7 +53,7 @@ declare namespace Polymer {
      * accessors exist on the element prototype. This method is called by
      * `finalize` and finalizes the class constructor.
      */
-    _finalizeClass(): void;
+    _finalizeClass(): any;
   }
 
   interface PropertiesMixin {
