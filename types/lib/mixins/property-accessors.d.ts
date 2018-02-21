@@ -24,14 +24,14 @@ declare namespace Polymer {
    * For basic usage of this mixin:
    *
    * -   Declare attributes to observe via the standard `static get observedAttributes()`. Use
-   *     `dash-case` attribute names to represent `camelCase` property names. 
+   *     `dash-case` attribute names to represent `camelCase` property names.
    * -   Implement the `_propertiesChanged` callback on the class.
-   * -   Call `MyClass.createPropertiesForAttributes()` **once** on the class to generate 
-   *     property accessors for each observed attribute. This must be called before the first 
+   * -   Call `MyClass.createPropertiesForAttributes()` **once** on the class to generate
+   *     property accessors for each observed attribute. This must be called before the first
    *     instance is created, for example, by calling it before calling `customElements.define`.
    *     It can also be called lazily from the element's `constructor`, as long as it's guarded so
    *     that the call is only made once, when the first instance is created.
-   * -   Call `this._enableProperties()` in the element's `connectedCallback` to enable 
+   * -   Call `this._enableProperties()` in the element's `connectedCallback` to enable
    *     the accessors.
    *
    * Any `observedAttributes` will automatically be

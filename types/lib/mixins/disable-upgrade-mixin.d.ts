@@ -38,28 +38,28 @@ declare namespace Polymer {
   }
 
   interface DisableUpgradeMixin {
-    attributeChangedCallback(name: any, old: any, value: any): any;
+    attributeChangedCallback(name: any, old: any, value: any): void;
 
     /**
      * NOTE: cannot gate on attribute because this is called before
      *         attributes are delivered. Therefore, we stub this out and
      *         call `super._initializeProperties()` manually.
      */
-    _initializeProperties(): any;
+    _initializeProperties(): void;
 
     /**
      * prevent user code in connected from running
      */
-    connectedCallback(): any;
+    connectedCallback(): void;
 
     /**
      * prevent element from turning on properties
      */
-    _enableProperties(): any;
+    _enableProperties(): void;
 
     /**
      * only go if "enabled"
      */
-    disconnectedCallback(): any;
+    disconnectedCallback(): void;
   }
 }

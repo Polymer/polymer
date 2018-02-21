@@ -29,7 +29,7 @@ declare namespace Polymer {
    * - Changing `dir` at runtime is supported.
    * - Opting out of the global direction styling is permanent
    */
-  function DirMixin<T extends new (...args: any[]) => {}>(base: T): T & DirMixinConstructor & Polymer.PropertyAccessorsConstructor;
+  function DirMixin<T extends new (...args: any[]) => {}>(base: T): T & DirMixinConstructor & Polymer.PropertyAccessorsConstructor & Polymer.PropertiesChangedConstructor;
 
   interface DirMixinConstructor {
     new(...args: any[]): DirMixin;
