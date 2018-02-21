@@ -1375,3 +1375,18 @@ Polymer_ArraySelectorMixin.prototype.select = function(item){};
 * @return {void}
 */
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
+/**
+* @interface
+* @extends {Polymer_PropertyEffects}
+*/
+function Polymer_AttributeCapitalization(){}
+/**
+* @override
+* @param {Node} node Node to parse
+* @param {TemplateInfo} templateInfo Template metadata for current template
+* @param {NodeInfo} nodeInfo Node metadata for current template node
+* @param {*} name 
+* @param {*} value 
+* @return {boolean}
+*/
+Polymer_AttributeCapitalization._parseTemplateNodeAttribute = function(node, templateInfo, nodeInfo, name, value){};
