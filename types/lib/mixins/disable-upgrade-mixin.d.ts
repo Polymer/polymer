@@ -29,7 +29,7 @@ declare namespace Polymer {
    * itself implements a `connectedCallback` so that it can control the work
    * done in `connectedCallback`. For example,
    *
-   * MyClass = Polymer.DisableUpgradeMixin(class extends BaseClass {...});
+   *     MyClass = Polymer.DisableUpgradeMixin(class extends BaseClass {...});
    */
   function DisableUpgradeMixin<T extends new (...args: any[]) => {}>(base: T): T & DisableUpgradeMixinConstructor;
 
