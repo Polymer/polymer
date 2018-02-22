@@ -97,9 +97,58 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /** @type {(function(MouseEvent): void | undefined)} */
   GestureRecognizer.prototype.click;
 
-  // keep track of any labels hit by tghe mouseCanceller
+  // keep track of any labels hit by the mouseCanceller
   /** @type {!Array<!HTMLLabelElement>} */
   const clickedLabels = [];
+
+  /** @type {!Map<string, boolean>} */
+  const labellable = {
+    'button': true,
+    'input': true,
+    'keygen': true,
+    'meter': true,
+    'output': true,
+    'textarea': true,
+    'progress': true,
+    'select': true
+  };
+
+  /**
+   * @param {HTMLElement} el Element to check labelling status
+   * @return {boolean} element can have labels
+   */
+  function canBeLabelled(el) {
+    return labellable[el.localName] || false;
+  }
+
+  /**
+   * @param {HTMLElement} el Element that may be labelled.
+   * @return {!Array<!HTMLLabelElement>} Relevant label for `el`
+   */
+  function matchingLabels(el) {
+    /** @type {!Array<!HTMLLabelElement>} */
+    let labels = el.labels;
+    // IE doesn't have `labels` and Safari doesn't populate `labels` if element is in a shadowroot.
+    if (!labels || !labels.length) {
+      labels = [];
+      let root = el.getRootNode();
+      // find all labels that are ancestors
+      let cur = el.parentNode;
+      while (cur !== root) {
+        if (cur.localName === 'label') {
+          labels.push(/** @type {!HTMLLabelElement} */(cur));
+        }
+      }
+      // if there is an id on `el`, check for all labels with a matching `for` attribute
+      if (el.id) {
+        let matching = root.querySelectorAll(`label[for = ${el.id}]`);
+        for (let i = 0; i < matching.length; i++) {
+          labels.push(/** @type {!HTMLLabelElement} */(matching[i]));
+        }
+      }
+    }
+    return labels;
+  }
 
   // touch will make synthetic mouse events
   // `preventDefault` on touchend will cancel them,
@@ -127,8 +176,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (path[i].nodeType === Node.ELEMENT_NODE) {
             if (path[i].localName === 'label') {
               labels.push(path[i]);
-            } else if (path[i].labels) {
-              let ownerLabels = path[i].labels;
+            } else if (canBeLabelled(path[i])) {
+              let ownerLabels = matchingLabels(path[i]);
               for (let j = 0; j < ownerLabels.length; j++) {
                 clickFromLabel = clickFromLabel || clickedLabels.indexOf(ownerLabels[j]) > -1;
               }
