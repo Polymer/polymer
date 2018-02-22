@@ -97,6 +97,55 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /** @type {(function(MouseEvent): void | undefined)} */
   GestureRecognizer.prototype.click;
 
+  // keep track of any labels hit by the mouseCanceller
+  /** @type {!Array<!HTMLLabelElement>} */
+  const clickedLabels = [];
+
+  /** @type {!Map<string, boolean>} */
+  const labellable = {
+    'button': true,
+    'input': true,
+    'keygen': true,
+    'meter': true,
+    'output': true,
+    'textarea': true,
+    'progress': true,
+    'select': true
+  };
+
+  /**
+   * @param {HTMLElement} el Element to check labelling status
+   * @return {boolean} element can have labels
+   */
+  function canBeLabelled(el) {
+    return labellable[el.localName] || false;
+  }
+
+  /**
+   * @param {HTMLElement} el Element that may be labelled.
+   * @return {!Array<!HTMLLabelElement>} Relevant label for `el`
+   */
+  function matchingLabels(el) {
+    /** @type {!Array<!HTMLLabelElement>} */
+    let labels = el.labels;
+    // IE doesn't have `labels` and Safari doesn't populate `labels`
+    // if element is in a shadowroot.
+    // In this instance, finding the non-ancestor labels is enough,
+    // as the mouseCancellor code will handle ancstor labels
+    if (!labels || !labels.length) {
+      labels = [];
+      let root = el.getRootNode();
+      // if there is an id on `el`, check for all labels with a matching `for` attribute
+      if (el.id) {
+        let matching = root.querySelectorAll(`label[for = ${el.id}]`);
+        for (let i = 0; i < matching.length; i++) {
+          labels.push(/** @type {!HTMLLabelElement} */(matching[i]));
+        }
+      }
+    }
+    return labels;
+  }
+
   // touch will make synthetic mouse events
   // `preventDefault` on touchend will cancel them,
   // but this breaks `<input>` focus and link clicks
@@ -115,13 +164,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     mouseEvent[HANDLED_OBJ] = {skip: true};
     // disable "ghost clicks"
     if (mouseEvent.type === 'click') {
+      let clickFromLabel = false;
       let path = mouseEvent.composedPath && mouseEvent.composedPath();
       if (path) {
         for (let i = 0; i < path.length; i++) {
+          if (path[i].nodeType === Node.ELEMENT_NODE) {
+            if (path[i].localName === 'label') {
+              clickedLabels.push(path[i]);
+            } else if (canBeLabelled(path[i])) {
+              let ownerLabels = matchingLabels(path[i]);
+              // check if one of the clicked labels is labelling this element
+              for (let j = 0; j < ownerLabels.length; j++) {
+                clickFromLabel = clickFromLabel || clickedLabels.indexOf(ownerLabels[j]) > -1;
+              }
+            }
+          }
           if (path[i] === POINTERSTATE.mouse.target) {
             return;
           }
         }
+      }
+      // if one of the clicked labels was labelling the target element,
+      // this is not a ghost click
+      if (clickFromLabel) {
+        return;
       }
       mouseEvent.preventDefault();
       mouseEvent.stopPropagation();
@@ -137,6 +203,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     for (let i = 0, en; i < events.length; i++) {
       en = events[i];
       if (setup) {
+        // reset clickLabels array
+        clickedLabels.length = 0;
         document.addEventListener(en, mouseCanceller, true);
       } else {
         document.removeEventListener(en, mouseCanceller, true);
