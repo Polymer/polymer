@@ -41,26 +41,28 @@ declare namespace Polymer {
    *
    *   </template>
    *
-   *   <script>
-   *     class EmployeeList extends Polymer.Element {
-   *       static get is() { return 'employee-list'; }
-   *       static get properties() {
-   *         return {
-   *           employees: {
-   *             value() {
-   *               return [
-   *                 {first: 'Bob', last: 'Smith'},
-   *                 {first: 'Sally', last: 'Johnson'},
-   *                 ...
-   *               ];
-   *             }
-   *           }
-   *         };
-   *       }
-   *     }
-   *   < /script>
-   *
    * </dom-module>
+   * ```
+   *
+   * With the following custom element definition:
+   *
+   * ```js
+   * class EmployeeList extends Polymer.Element {
+   *   static get is() { return 'employee-list'; }
+   *   static get properties() {
+   *     return {
+   *       employees: {
+   *         value() {
+   *           return [
+   *             {first: 'Bob', last: 'Smith'},
+   *             {first: 'Sally', last: 'Johnson'},
+   *             ...
+   *           ];
+   *         }
+   *       }
+   *     };
+   *   }
+   * }
    * ```
    *
    * Notifications for changes to items sub-properties will be forwarded to template
