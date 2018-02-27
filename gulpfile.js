@@ -24,7 +24,7 @@ const size = require('gulp-size');
 const lazypipe = require('lazypipe');
 const closure = require('google-closure-compiler').gulp();
 const minimalDocument = require('./util/minimalDocument.js');
-const dom5 = require('dom5');
+const dom5 = require('dom5/lib/index-next');
 const parse5 = require('parse5');
 const replace = require('gulp-replace');
 
