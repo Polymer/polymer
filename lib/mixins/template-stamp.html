@@ -16,6 +16,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   'use strict';
 
+  const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+
   // 1.x backwards-compatible auto-wrapper for template type extensions
   // This is a clear layering violation and gives favored-nation status to
   // dom-if and dom-repeat templates.  This is a conceit we're choosing to keep
@@ -313,6 +315,32 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   metadata to `nodeInfo`
        */
       static _parseTemplateNestedTemplate(node, outerTemplateInfo, nodeInfo) {
+        // If a `<dom-repeat>` or a `<dom-if>` is inside of an svg, we need
+        // to create all elements in a different namespace. To do so, make an svg,
+        // let the HTML parser parse in that namespace, and then put back all
+        // created children in a fresh template.
+        if (node.parentElement.localName && templateExtensions[node.parentElement.localName]
+              && node.parentElement.parentElement && node.parentElement.parentElement.namespaceURI === SVG_NAMESPACE) {
+          const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+          svg.innerHTML = node.innerHTML;
+
+          const template = /** @type {HTMLTemplateElement} */ (document.createElement('template'));
+
+          while (svg.firstChild) {
+            template.content.appendChild(svg.removeChild(svg.firstChild));
+          }
+
+          node.parentNode.replaceChild(template, node);
+
+          // Clean up, such that `_parseTemplateChildNodes` does not run again
+          // on the old template children
+          while (node.firstChild) {
+            node.removeChild(node.firstChild);
+          }
+
+          node = template;
+        }
+
         let templateInfo = this._parseTemplate(node, outerTemplateInfo);
         let content = templateInfo.content =
           node.content.ownerDocument.createDocumentFragment();

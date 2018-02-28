@@ -1,0 +1,115 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+
+  <meta charset="utf-8">
+
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+
+  <title>svg-compatibility</title>
+
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+  <dom-module id="svg-element">
+    <template>
+      <svg id="svg" class="clock" version="1.1" xmlns="http://www.w3.org/2000/svg">
+        <template is="dom-repeat" items="[[positions]]" as="cx">
+          <ellipse rx="25" ry="25" cx$="[[cx]]" cy="25" stroke="black" />
+        </template>
+        <template is="dom-if" if="[[condition]]">
+          <circle cx="150" cy="150" r="100" fill="blue" />
+        </template>
+        <g stroke="green" fill="white" stroke-width="5">
+          <template is="dom-if" if="[[nestedCondition]]">
+            <rect x="10" y="10" width="50" height="50" rx="15" ry="15" fill="red"/>
+          </template>
+        </g>
+      </svg>
+    </template>
+    <script>
+      class SVGElement extends Polymer.Element {
+        static get is() { return 'svg-element'; }
+        constructor() {
+          super();
+          this.positions = [0, 100, 200, 300];
+          this.condition = true;
+          this.nestedCondition = true;
+        }
+      }
+      customElements.define(SVGElement.is, SVGElement);
+    </script>
+  </dom-module>
+
+  <script>
+  suite('can handle templates inside svg', function() {
+    let el;
+
+    setup(function() {
+      el = document.createElement('svg-element');
+      document.body.appendChild(el);
+
+      Polymer.flush();
+    });
+
+    teardown(function() {
+      document.body.removeChild(el);
+    });
+
+    suite('dom-repeat', function() {
+      test('creates multiple svg elements', function() {
+        const ellipses = el.$.svg.querySelectorAll('ellipse');
+        assert.equal(ellipses.length, 4);
+        assert.deepEqual(Array.from(ellipses, e => parseInt(e.getAttribute('cx'))), el.positions);
+      });
+
+      test('updates elements when array changes', function() {
+        el.pop('positions');
+        Polymer.flush();
+
+        let ellipses = el.$.svg.querySelectorAll('ellipse');
+        assert.equal(ellipses.length, 3);
+
+        el.push('positions', 400);
+        Polymer.flush();
+
+        ellipses = el.$.svg.querySelectorAll('ellipse');
+        assert.equal(ellipses.length, 4);
+        assert.deepEqual(Array.from(ellipses, e => parseInt(e.getAttribute('cx'))), [0, 100, 200, 400]);
+      });
+    });
+
+    suite('dom-if', function() {
+      test('stamps direct element child', function() {
+        assert.isOk(el.$.svg.querySelector('circle'));
+      });
+
+      test('stamps nested element child inside group', function() {
+        assert.isOk(el.$.svg.querySelector('rect'));
+      });
+
+      test('toggling negation works', function() {
+        el.condition = false;
+        Polymer.flush();
+
+        assert.equal(el.$.svg.querySelector('circle').style.display, 'none');
+
+        el.condition = true;
+        Polymer.flush();
+        assert.equal(el.$.svg.querySelector('circle').style.display, '');
+      });
+    });
+  });
+  </script>
+</body>
+</html>
