@@ -27,6 +27,9 @@ Polymer 2.0 is released, and will be the future focus of Polymer development goi
 
 👀 **Looking for Polymer v1.x?** Please see the [the v1 branch](https://github.com/Polymer/polymer/tree/1.x).
 
+⁉️ **Looking to use Polymer with npm?** Polymer 1.x and 2.x both use `bower` for version management, but v3 and on will use `npm`. Please see our [v3 announcement](https://www.polymer-project.org/blog/2017-08-22-npm-modules.html) and [v3 hand-on](https://www.polymer-project.org/blog/2017-08-23-hands-on-30-preview.html) to use a preview version of v3.
+Versions before 3.0 are also published to npm "as-is" and are generally unsupported. These packages are for advanced users who configure their own tooling to work around the differences between Bower and npm packages, like package folder layout.
+
 ## Overview
 
 Polymer is a lightweight library built on top of the web standards-based [Web Components](http://webcomponents.org/) APIs, and makes it easier to build your very own custom HTML elements. Creating reusable custom elements - and using elements built by others - can make building complex web applications easier and more efficient. By being based on the Web Components API's built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), Polymer elements are interoperable at the browser level, and can be used with other frameworks or libraries that work with modern browsers.

@@ -149,3 +149,14 @@ to run tests on a subset of available browsers, or to run tests remotely using S
 
 See the [`web-component-tester` README](https://github.com/Polymer/web-component-tester) for
 information on configuring the tool.
+
+### Viewing the source documentation locally
+
+You can view the updates you make to the source documentation locally with the following steps.
+Make sure to rerun step 1 after every change you make.
+
+1. Run `polymer analyze > analysis.json`
+
+1. Run `polymer serve`
+
+1. Open `http://127.0.0.1:PORT/components/polymer/` to view the documentation
