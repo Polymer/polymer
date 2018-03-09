@@ -43,6 +43,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     READ_ONLY: '__readOnly'
   };
 
+  const COMPUTE_INFO = '__computeInfo';
+
   /**
    * @typedef {{
    * name: (string | undefined),
@@ -82,20 +84,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {Object} model Prototype or instance
    * @param {string} type Property effect type
+   * @param {boolean=} cloneArrays Clone any arrays mapped in the map
    * @return {Object} The own-property map of effects for the given type
    * @private
    */
-  function ensureOwnEffectMap(model, type) {
+  function ensureOwnEffectMap(model, type, cloneArrays) {
     let effects = model[type];
     if (!effects) {
       effects = model[type] = {};
     } else if (!model.hasOwnProperty(type)) {
       effects = model[type] = Object.create(model[type]);
-      for (let p in effects) {
-        let protoFx = effects[p];
-        let instFx = effects[p] = Array(protoFx.length);
-        for (let i=0; i<protoFx.length; i++) {
-          instFx[i] = protoFx[i];
+      if (cloneArrays) {
+        for (let p in effects) {
+          let protoFx = effects[p];
+          let instFx = effects[p] = Array(protoFx.length);
+          for (let i=0; i<protoFx.length; i++) {
+            instFx[i] = protoFx[i];
+          }
         }
       }
     }
@@ -411,9 +416,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         Object.assign(changedProps, inst.__dataPending);
         inputProps = inst.__dataPending;
         inst.__dataPending = null;
+        // Ensure all computed properties are de-duped against the same turn
+        dedupeId--;
       }
     }
   }
+
+  const TRANSITIVE_DEPENDENCY = '~transitive~dependency~';
 
   /**
    * Implements the "computed property" effect by running the method with the
@@ -422,20 +431,106 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @param {!PropertyEffectsType} inst The instance the effect will be run on
    * @param {string} property Name of property
-   * @param {Object} props Bag of current property changes
+   * @param {Object} changedProps Bag of current property changes
    * @param {Object} oldProps Bag of previous values for changed properties
    * @param {?} info Effect metadata
    * @return {void}
    * @private
    */
-  function runComputedEffect(inst, property, props, oldProps, info) {
-    let result = runMethodEffect(inst, property, props, oldProps, info);
-    let computedProp = info.methodInfo;
-    if (inst.__dataHasAccessor && inst.__dataHasAccessor[computedProp]) {
-      inst._setPendingProperty(computedProp, result, true);
-    } else {
-      inst[computedProp] = result;
+  function runComputedEffect(inst, property, changedProps, oldProps, info) {
+    // Compute any dependencies first
+    computeDependencies(inst, info, changedProps, oldProps);
+    // Dirty check dependencies and run if any invalid
+    if (property !== TRANSITIVE_DEPENDENCY || 
+        computedPropertyIsDirty(inst, info, changedProps)) {
+      let result = runMethodEffect(inst, property, changedProps, oldProps, info);
+      let computedProp = info.methodInfo;
+      if (inst.__dataHasAccessor && inst.__dataHasAccessor[computedProp]) {
+        inst._setPendingProperty(computedProp, result, true);
+      } else {
+        inst[computedProp] = result;
+      }
     }
+  }
+  
+  /**
+   * Returns any dependencies of a computed property that are themselves
+   * also computed.
+   *
+   * @param {!PropertyEffectsType} inst The instance to test
+   * @param {?} info Computed effect metadata
+   * @return {Array<?>} Array of computed effect metadata for depenencies
+   * @private
+   */
+   function computedDependenciesFor(inst, info) {
+    let deps = info.computedDependencies;
+    if (!deps) {
+      deps = info.computedDependencies = [];
+      info.args.forEach(arg => {
+        const dep = arg.rootProperty || arg.name;
+        const depInfo = inst[COMPUTE_INFO][dep];
+        if (depInfo) {
+          deps.push(depInfo);
+        }
+      });
+    }
+    return deps;
+  }
+
+  /**
+   * Runs computed effects for dependencies of the computed property effect
+   * described by `info`.
+   *
+   * @param {!PropertyEffectsType} inst The instance to test
+   * @param {Object} info Effect metadata
+   * @param {Object} changedProps Bag of current property changes
+   * @param {Object} oldProps Bag of previous values for changed properties
+   * @return {void}
+   * @private
+   */
+   function computeDependencies(inst, info, changedProps, oldProps) {
+    let deps = computedDependenciesFor(inst, info);
+    if (deps.length) {
+      deps.forEach(depInfo => {
+        if (depInfo.lastRun !== info.lastRun) {
+          depInfo.lastRun = info.lastRun;
+          runComputedEffect(inst, TRANSITIVE_DEPENDENCY, changedProps, oldProps, depInfo);
+        }
+      });
+    }
+  }
+
+  /**
+   * Returns whether the computed effect has any changed dependencies.
+   *
+   * @param {!PropertyEffectsType} inst The instance to test
+   * @param {?} info Effect metadata
+   * @param {Object} changedProps Bag of current property changes
+   * @return {boolean} true when the computed effect should be re-calculated
+   * @private
+   */
+  function computedPropertyIsDirty(inst, info, changedProps) {
+    return info.dynamicFn && propertyIsDirty(inst, {name: info.methodName}, changedProps) ||
+      info.args.some(arg => propertyIsDirty(inst, arg, changedProps));
+  }
+
+  /**
+   * Returns whether any changed props match the effect trigger
+   *
+   * @param {!PropertyEffectsType} inst The instance to test
+   * @param {DataTrigger} trigger Descriptor
+   * @param {Object} changedProps Bag of current property changes
+   * @return {boolean} true when the property is dirty
+   * @private
+   */
+  function propertyIsDirty(inst, trigger, changedProps) {
+    return [changedProps, inst.__dataPending].some(props => {
+      for (let p in props) {
+        if (pathMatchesTrigger(p, trigger)) {
+          return true;
+        }
+      }
+    });
   }
 
   /**
@@ -763,7 +858,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @param {boolean|Object=} dynamicFn Boolean or object map indicating whether
    *   method names should be included as a dependency to the effect. Note,
    *   defaults to true if the signature is static (sig.static is true).
-   * @return {void}
+   * @return {Object} Effect metadata for this method effect
    * @private
    */
   function createMethodEffect(model, sig, type, effectFn, methodInfo, dynamicFn) {
@@ -787,6 +882,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         fn: effectFn, info: info
       });
     }
+    return info;
   }
 
   /**
@@ -1168,6 +1264,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         /** @type {Object} */
         this.__computeEffects;
         /** @type {Object} */
+        this.__computeInfo;
+        /** @type {Object} */
         this.__reflectEffects;
         /** @type {Object} */
         this.__notifyEffects;
@@ -1253,7 +1351,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _addPropertyEffect(property, type, effect) {
         this._createPropertyAccessor(property, type == TYPES.READ_ONLY);
         // effects are accumulated into arrays per property based on type
-        let effects = ensureOwnEffectMap(this, type)[property];
+        let effects = ensureOwnEffectMap(this, type, true)[property];
         if (!effects) {
           effects = this[type][property] = [];
         }
@@ -1269,7 +1367,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {void}
        */
       _removePropertyEffect(property, type, effect) {
-        let effects = ensureOwnEffectMap(this, type)[property];
+        let effects = ensureOwnEffectMap(this, type, true)[property];
         let idx = effects.indexOf(effect);
         if (idx >= 0) {
           effects.splice(idx, 1);
@@ -2174,7 +2272,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         if (!sig) {
           throw new Error("Malformed computed expression '" + expression + "'");
         }
-        createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property, dynamicFn);
+        const info = createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property, dynamicFn);
+        ensureOwnEffectMap(this, COMPUTE_INFO)[property] = info;
       }
 
       // -- static class methods ------------

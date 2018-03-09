@@ -353,6 +353,9 @@ Polymer_PropertyEffects.prototype.__dataOld;
 Polymer_PropertyEffects.prototype.__computeEffects;
 
 /** @type {Object} */
+Polymer_PropertyEffects.prototype.__computeInfo;
+
+/** @type {Object} */
 Polymer_PropertyEffects.prototype.__reflectEffects;
 
 /** @type {Object} */
