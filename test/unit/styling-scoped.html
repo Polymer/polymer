@@ -729,6 +729,37 @@ HTMLImports.whenReady(function() {
     </script>
   </dom-module>
 
+  <dom-module id="double-shared-style">
+    <template>
+      <style>
+        .double-shared-style {
+          color: green;
+        }
+      </style>
+    </template>
+  </dom-module>
+
+  <dom-module id="importing-double-shared-style">
+    <template>
+      <style include="double-shared-style">
+      </style>
+    </template>
+  </dom-module>
+
+  <dom-module id="double-shared-styling-element">
+    <template>
+      <style include="importing-double-shared-style double-shared-style"></style>
+    </template>
+    <script>
+    HTMLImports.whenReady(() => {
+      class DoubleSharedStylingElement extends Polymer.Element {
+        static get is() { return 'double-shared-styling-element'; }
+      }
+      customElements.define(DoubleSharedStylingElement.is, DoubleSharedStylingElement);
+    });
+    </script>
+  </dom-module>
+
 <script>
 (function() {
   function assertComputed(element, value, property, pseudo) {
@@ -1010,6 +1041,38 @@ HTMLImports.whenReady(function() {
       assertComputed(e, '2px');
     });
 
+  });
+
+  suite('double including style sheets', function() {
+    let el;
+
+    setup(function() {
+      el = document.createElement('double-shared-styling-element');
+      document.body.appendChild(el);
+    });
+
+    teardown(function() {
+      document.body.removeChild(el);
+    });
+
+    test('only includes style modules once', function() {
+      const style = el.shadowRoot.querySelector('style');
+
+      // We cant use the regular "does a sub-node have the correct style",
+      // because we actually need to assert on the actual style content.
+      // In native shadow dom, the style element resides in the shadowRoot,
+      // but in shadyDOM it has moved to the head and the selector has been altered.
+      if (style) {
+        assert.equal(style.textContent, `.double-shared-style {
+  color: green;
+}`, 'There should be only one class selector in this style element');
+      } else {
+        assert.equal(document.head.querySelector('[scope="double-shared-styling-element"]').textContent,
+`.double-shared-style.double-shared-styling-element {
+  color: green;
+}`);
+      }
+    });
   });
 
   if (window.ShadyDOM) {
