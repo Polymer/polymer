@@ -105,9 +105,10 @@ Polymer_PropertiesChanged.prototype._shouldPropertyChange = function(property, v
 * @param {string} name Name of attribute that changed
 * @param {?string} old Old attribute value
 * @param {?string} value New attribute value
+* @param {?string} namespace Attribute namespace.
 * @return {void}
 */
-Polymer_PropertiesChanged.prototype.attributeChangedCallback = function(name, old, value){};
+Polymer_PropertiesChanged.prototype.attributeChangedCallback = function(name, old, value, namespace){};
 /**
 * @param {string} attribute Name of attribute to deserialize.
 * @param {?string} value of the attribute.
@@ -972,9 +973,10 @@ Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
 * @param {string} name Name of attribute.
 * @param {?string} old Old value of attribute.
 * @param {?string} value Current value of attribute.
+* @param {?string} namespace Attribute namespace.
 * @return {void}
 */
-Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value){};
+Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value, namespace){};
 /**
 * @override
 * @return {void}
@@ -1391,7 +1393,7 @@ Polymer_DisableUpgradeMixin.prototype._enableProperties = function(){};
 /**
 * @override
 */
-Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value){};
+Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value, namespace){};
 /**
 * @override
 */

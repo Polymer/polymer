@@ -42,7 +42,7 @@ declare namespace Polymer {
   interface DisableUpgradeMixin {
     _initializeProperties(): void;
     _enableProperties(): void;
-    attributeChangedCallback(name: any, old: any, value: any): void;
+    attributeChangedCallback(name: any, old: any, value: any, namespace: any): void;
     connectedCallback(): void;
     disconnectedCallback(): void;
   }
