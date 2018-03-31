@@ -1379,6 +1379,17 @@ Polymer_ArraySelectorMixin.prototype.select = function(item){};
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
 /**
 * @interface
+* @extends {Polymer_PropertyEffects}
+*/
+function Polymer_StrictBindingParser(){}
+/**
+* @param {string} text Text to parse from attribute or textContent
+* @param {Object} templateInfo Current template metadata
+* @return {Array.<!BindingPart>}
+*/
+Polymer_StrictBindingParser._parseBindings = function(text, templateInfo){};
+/**
+* @interface
 * @extends {Polymer_ElementMixin}
 */
 function Polymer_DisableUpgradeMixin(){}

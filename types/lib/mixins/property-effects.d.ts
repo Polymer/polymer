@@ -257,6 +257,17 @@ declare namespace Polymer {
      * - Inline computed method (supports negation):
      *   `[[compute(a, 'literal', b)]]`, `[[!compute(a, 'literal', b)]]`
      *
+     * The default implementation uses a regular expression for best
+     * performance. However, the regular expression uses a white-list of
+     * allowed characters in a data-binding, which causes problems for
+     * data-bindings that do use characters not in this white-list.
+     *
+     * Instead of updating the white-list with all allowed characters,
+     * there is a StrictBindingParser (see lib/mixins/strict-binding-parser)
+     * that uses a state machine instead. This state machine is able to handle
+     * all characters. However, it is slightly less performant, therefore we
+     * extracted it into a separate optional mixin.
+     *
      * @param text Text to parse from attribute or textContent
      * @param templateInfo Current template metadata
      * @returns Array of binding part metadata
