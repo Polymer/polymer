@@ -235,8 +235,9 @@ declare namespace Polymer {
      * @param name Name of attribute that changed
      * @param old Old attribute value
      * @param value New attribute value
+     * @param namespace Attribute namespace.
      */
-    attributeChangedCallback(name: string, old: string|null, value: string|null): void;
+    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace: string|null): void;
 
     /**
      * Deserializes an attribute to its associated property.
