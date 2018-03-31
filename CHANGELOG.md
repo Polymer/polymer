@@ -1,5 +1,130 @@
 # Change Log
 
+## [v2.6.0](https://github.com/Polymer/polymer/tree/v2.6.0) (2018-03-22)
+- Use function instead of Set ([commit](https://github.com/Polymer/polymer/commit/33d2e1a8))
+
+- [ci skip] Fix typo ([commit](https://github.com/Polymer/polymer/commit/0d1b1c2e))
+
+- Fix test in shady DOM ([commit](https://github.com/Polymer/polymer/commit/a586b72c))
+
+- Deduplicate style includes ([commit](https://github.com/Polymer/polymer/commit/acfef71d))
+
+- use a clearer test for shadowRoot ([commit](https://github.com/Polymer/polymer/commit/b2fb1cfd))
+
+- Returning null in template should nullify parent template ([commit](https://github.com/Polymer/polymer/commit/2a6c0a2a))
+
+- [ci skip] Add clarifying comment ([commit](https://github.com/Polymer/polymer/commit/0573d483))
+
+- Correct the JSBin version ([commit](https://github.com/Polymer/polymer/commit/cb1ae7d3))
+
+- Put attribute capitalization fix in property-effects ([commit](https://github.com/Polymer/polymer/commit/d45dd575))
+
+- Add note about pre v3 releases ([commit](https://github.com/Polymer/polymer/commit/f9391618))
+
+- Add note for npm package ([commit](https://github.com/Polymer/polymer/commit/8f2cc0d5))
+
+- Add iron-component-page dev-dependency ([commit](https://github.com/Polymer/polymer/commit/d93dd1ce))
+
+- Update several gulp dependencies ([commit](https://github.com/Polymer/polymer/commit/ca57a1f3))
+
+- Update dom5 to 3.0.0 ([commit](https://github.com/Polymer/polymer/commit/d4a0914e))
+
+- Update Google Closure Compiler version and fix cast ([commit](https://github.com/Polymer/polymer/commit/4004c9c4))
+
+- Update types ([commit](https://github.com/Polymer/polymer/commit/bb61a20d))
+
+- Fix several issues in the documentation of dom-* elements ([commit](https://github.com/Polymer/polymer/commit/8e1b3f45))
+
+- Handle `disabled` attribute correctly for tap gesture ([commit](https://github.com/Polymer/polymer/commit/5c0f3e6a))
+
+- add test case for nested label ([commit](https://github.com/Polymer/polymer/commit/c11c99b2))
+
+- Add docs and cleanup matchingLabels ([commit](https://github.com/Polymer/polymer/commit/e1df1662))
+
+- Add tests ([commit](https://github.com/Polymer/polymer/commit/70edf1f8))
+
+- update types ([commit](https://github.com/Polymer/polymer/commit/2d674e75))
+
+- fix tests and add dependency import ([commit](https://github.com/Polymer/polymer/commit/a37ba7e2))
+
+- fix typings ([commit](https://github.com/Polymer/polymer/commit/8f8135b2))
+
+- Ensure DisableUpgradeMixin extends PropertiesMixin ([commit](https://github.com/Polymer/polymer/commit/7e74e363))
+
+- Format comment and remove deduping mixin ([commit](https://github.com/Polymer/polymer/commit/b8c66ded))
+
+- update types ([commit](https://github.com/Polymer/polymer/commit/1fd5f9cf))
+
+- update types ([commit](https://github.com/Polymer/polymer/commit/5bc45ce3))
+
+- Add mixin to automatically detect capitalized HTML attributes ([commit](https://github.com/Polymer/polymer/commit/37fd5ffe))
+
+- Add instructions for locally viewing the source documentation ([commit](https://github.com/Polymer/polymer/commit/206d3610))
+
+- Simplify condition checking in stylesFromModule function ([commit](https://github.com/Polymer/polymer/commit/e6903821))
+
+- Bump type generator and generate new typings. (#5119) ([commit](https://github.com/Polymer/polymer/commit/5c027309))
+
+- dispatchEvent returns boolean (#5117) ([commit](https://github.com/Polymer/polymer/commit/9d86135c))
+
+- Update types ([commit](https://github.com/Polymer/polymer/commit/63e7bbc7))
+
+- Fix license links ([commit](https://github.com/Polymer/polymer/commit/f3939875))
+
+- Fix issue with not genering the Templatizer docs ([commit](https://github.com/Polymer/polymer/commit/55708acf))
+
+- Bump TS type generator to pick up transitive mixin handling. ([commit](https://github.com/Polymer/polymer/commit/c3dad540))
+
+- Remove unnecessary mutableData property from MutableData mixin ([commit](https://github.com/Polymer/polymer/commit/92b83249))
+
+- Update types ([commit](https://github.com/Polymer/polymer/commit/868fba7c))
+
+- Add note to updateStyles regarding updates to CSS mixins ([commit](https://github.com/Polymer/polymer/commit/d458bab3))
+
+- Avoid timing issues with polyfilled Promise ([commit](https://github.com/Polymer/polymer/commit/6b3e007e))
+
+- Revert use of async/await due to lack of build/serve support. ([commit](https://github.com/Polymer/polymer/commit/d4a7a45b))
+
+- Revert types. ([commit](https://github.com/Polymer/polymer/commit/dea90802))
+
+- Update eslint parserOptions to es2017 for async/await support. ([commit](https://github.com/Polymer/polymer/commit/ef579e29))
+
+- Use stronger check for PropertyEffects clients. Fixes #5017 ([commit](https://github.com/Polymer/polymer/commit/e6d558ec))
+
+- Remove unneeded file ([commit](https://github.com/Polymer/polymer/commit/a5393b6d))
+
+- [PropertiesChanged]: allow old data to be gc'd after `_propertiesChanged` ([commit](https://github.com/Polymer/polymer/commit/74907b9a))
+
+- Update package-lock.json ([commit](https://github.com/Polymer/polymer/commit/c58f3e0d))
+
+- Make Travis update-types failure style the same as the elements. ([commit](https://github.com/Polymer/polymer/commit/8189382d))
+
+- Bump TypeScript generator version. ([commit](https://github.com/Polymer/polymer/commit/3e432190))
+
+- Make EventApi.path EventTarget type non-nullable. ([commit](https://github.com/Polymer/polymer/commit/3ede9b51))
+
+- Lint and type fixes ([commit](https://github.com/Polymer/polymer/commit/5607a2d8))
+
+- [PropertiesChanged]: adds _shouldPropertiesChange ([commit](https://github.com/Polymer/polymer/commit/c1885a6a))
+
+- Update docs: templatize() cannot be called multiple times ([commit](https://github.com/Polymer/polymer/commit/27fc21c5))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/65b4df86))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/c3b6236a))
+
+- Fix JSDoc example formatting ([commit](https://github.com/Polymer/polymer/commit/699cd87f))
+
+- Use latest webcomponents polyfill bundle ([commit](https://github.com/Polymer/polymer/commit/8fef6776))
+
+- Fix label tap by checking matched label pairs ([commit](https://github.com/Polymer/polymer/commit/a77d64e5))
+
+- Defer creation related work via `disable-upgrade` ([commit](https://github.com/Polymer/polymer/commit/a7eb9754))
+
+- lint fixes ([commit](https://github.com/Polymer/polymer/commit/de0ac5a2))
+
+- Adds `Polymer.DisableUpgradeMixin` ([commit](https://github.com/Polymer/polymer/commit/62ce3148))
+
 ## [v2.5.0](https://github.com/Polymer/polymer/tree/v2.5.0) (2018-02-02)
 - Update types ([commit](https://github.com/Polymer/polymer/commit/5fa059fa))
 

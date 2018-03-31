@@ -63,8 +63,9 @@ declare namespace Polymer {
      * @param name Name of attribute.
      * @param old Old value of attribute.
      * @param value Current value of attribute.
+     * @param namespace Attribute namespace.
      */
-    attributeChangedCallback(name: string, old: string|null, value: string|null): void;
+    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace: string|null): void;
 
     /**
      * Provides an implementation of `connectedCallback`
