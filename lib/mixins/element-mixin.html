@@ -409,11 +409,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       static get importPath() {
         if (!this.hasOwnProperty(JSCompiler_renameProperty('_importPath', this))) {
+          const meta = this.importMeta;
+          if (meta) {
+            this._importPath = meta.url.slice(0, meta.url.lastIndexOf('/') + 1);
+          } else {
             const module = Polymer.DomModule && Polymer.DomModule.import(/** @type {PolymerElementConstructor} */ (this).is);
-            this._importPath = module ? module.assetpath : '' ||
-            Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.importPath;
+            if (module) {
+              this._importPath = module ? module.assetpath : '';
+            } else {
+              this._importPath = Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.importPath;
+            }
+          }
         }
         return this._importPath;
+      }
+
+      /**
+       * When an element definition is being loaded from an ES module, users
+       * may override this getter to return the `import.meta` object from that
+       * module, which will be used to derive the `importPath` for the element.
+       * When implementing `importMeta`, users should not implement `importPath`.
+       *
+       * @return {!Object} The `import.meta` object for the element's module
+       */
+      static get importMeta() {
+        return null;
       }
 
       constructor() {
@@ -447,14 +467,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _initializeProperties() {
         Polymer.telemetry.instanceCount++;
         this.constructor.finalize();
-        const importPath = this.constructor.importPath;
         // note: finalize template when we have access to `localName` to
         // avoid dependence on `is` for polyfilling styling.
         this.constructor._finalizeTemplate(/** @type {!HTMLElement} */(this).localName);
         super._initializeProperties();
         // set path defaults
         this.rootPath = Polymer.rootPath;
-        this.importPath = importPath;
+        this.importPath = this.constructor.importPath;
         // apply property defaults...
         let p$ = propertyDefaults(this.constructor);
         if (!p$) {
