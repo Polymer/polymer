@@ -398,22 +398,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       /**
        * Path matching the url from which the element was imported.
+       *
        * This path is used to resolve url's in template style cssText.
        * The `importPath` property is also set on element instances and can be
        * used to create bindings relative to the import path.
-       * Defaults to the path matching the url containing a `dom-module` element
-       * matching this element's static `is` property.
+       * For elements defined in ES modules, users should implement `importMeta`
+       * and this getter will return `import.meta.url`'s path. For elements
+       * defined in HTML imports, this getter will return the path to the
+       * document containing a `dom-module` element matching this element's
+       * static `is` property.
+       *
        * Note, this path should contain a trailing `/`.
        *
        * @return {string} The import path for this element class
        */
       static get importPath() {
         if (!this.hasOwnProperty(JSCompiler_renameProperty('_importPath', this))) {
+          const meta = this.importMeta;
+          if (meta) {
+            this._importPath = Polymer.ResolveUrl.pathFromUrl(meta.url);
+          } else {
             const module = Polymer.DomModule && Polymer.DomModule.import(/** @type {PolymerElementConstructor} */ (this).is);
-            this._importPath = module ? module.assetpath : '' ||
-            Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.importPath;
+            this._importPath = (module && module.assetpath) || 
+              Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.importPath;
+          }
         }
         return this._importPath;
+      }
+
+      /**
+       * When an element definition is being loaded from an ES module, users
+       * may override this getter to return the `import.meta` object from that
+       * module, which will be used to derive the `importPath` for the element.
+       * When implementing `importMeta`, users should not implement `importPath`.
+       *
+       * @return {!Object} The `import.meta` object for the element's module
+       */
+      static get importMeta() {
+        return null;
       }
 
       constructor() {
@@ -447,14 +469,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       _initializeProperties() {
         Polymer.telemetry.instanceCount++;
         this.constructor.finalize();
-        const importPath = this.constructor.importPath;
         // note: finalize template when we have access to `localName` to
         // avoid dependence on `is` for polyfilling styling.
         this.constructor._finalizeTemplate(/** @type {!HTMLElement} */(this).localName);
         super._initializeProperties();
         // set path defaults
         this.rootPath = Polymer.rootPath;
-        this.importPath = importPath;
+        this.importPath = this.constructor.importPath;
         // apply property defaults...
         let p$ = propertyDefaults(this.constructor);
         if (!p$) {
