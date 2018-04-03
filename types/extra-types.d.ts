@@ -17,7 +17,7 @@ interface PolymerElementPropertiesMeta {
 }
 
 type PolymerElementProperties = {
-  [key: string]: PolymerElementPropertiesMeta
+  [key: string]: PolymerElementPropertiesMeta | Function;
 };
 
 // TODO Document these properties.
