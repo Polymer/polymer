@@ -1,10 +1,11 @@
-<link rel="import" href="settings.html">
-<link rel="import" href="elements.html">
+import './settings.js';
+import './elements.js';
+import { Polymer } from '../../../../lib/utils/boot.js';
+import { html } from '../../../../lib/utils/html-tag.js';
+import { dom } from '../../../../lib/legacy/polymer.dom.js';
 
-
-
-<dom-module id="x-view2">
-  <template>
+Polymer({
+  _template: html`
     <style>
 
       :host {
@@ -37,20 +38,13 @@
     <x-setting class="c">--c</x-setting>
     <x-setting class="cc">--cc</x-setting>
     <x-s></x-s>
-  </template>
-</dom-module>
+`,
 
-<script>
+  is: 'x-view2'
+});
 
-  Polymer({
-
-    is: 'x-view2'
-  });
-
-</script>
-
-<dom-module id="x-view1">
-  <template>
+Polymer({
+  _template: html`
     <style include="simple-layout-styles">
 
       :host {
@@ -86,21 +80,13 @@
       <x-s></x-s>
     </div>
     <x-view2 class="horizontal layout center-center flex"></x-view2>
-  </template>
-</dom-module>
+`,
 
-<script>
+  is: 'x-view1'
+});
 
-  Polymer({
-
-    is: 'x-view1'
-  });
-
-</script>
-
-
-<dom-module id="x-app">
-  <template>
+Polymer({
+  _template: html`
     <style include="simple-layout-styles">
 
       :host {
@@ -183,53 +169,45 @@
         </div>
       </template>
     </div>
-  </template>
-</dom-module>
+`,
 
-<script>
+  is: 'x-app',
 
-  Polymer({
+  listeners: {
+    'setting-change': 'settingChange'
+  },
 
-    is: 'x-app',
-
-    listeners: {
-      'setting-change': 'settingChange'
-    },
-
-    properties: {
-      items: {
-        value: function() {
-          var items = [];
-          for (var i = 0; i < 250; i++) {
-            items.push({index: i});
-          }
-          return items;
+  properties: {
+    items: {
+      value: function() {
+        var items = [];
+        for (var i = 0; i < 250; i++) {
+          items.push({index: i});
         }
+        return items;
       }
-    },
-
-    clickHandler: function() {
-      d = document.createElement('div');
-      d.innerHTML = 'Added!';
-      var children = Polymer.dom(this.root).childNodes;
-      var ref = children[Math.floor(children.length * Math.random(children.length))];
-      var ref = children[0];
-    },
-
-    settingChange: function(e) {
-      var target = e.composedPath()[0];
-      var host = target.getRootNode().host;
-      const obj = {};
-      obj[target.setting] = 'rgb(' +
-        Math.round(Math.random() * 255) + ',' +
-        Math.round(Math.random() * 255) + ',' +
-        Math.round(Math.random() * 255) + ')';
-      console.time('updateStyles');
-      host.updateStyles(obj);
-      document.body.offsetWidth;
-      console.timeEnd('updateStyles');
     }
+  },
 
-  });
+  clickHandler: function() {
+    d = document.createElement('div');
+    d.innerHTML = 'Added!';
+    var children = dom(this.root).childNodes;
+    var ref = children[Math.floor(children.length * Math.random(children.length))];
+    var ref = children[0];
+  },
 
-</script>
+  settingChange: function(e) {
+    var target = e.composedPath()[0];
+    var host = target.getRootNode().host;
+    const obj = {};
+    obj[target.setting] = 'rgb(' +
+      Math.round(Math.random() * 255) + ',' +
+      Math.round(Math.random() * 255) + ',' +
+      Math.round(Math.random() * 255) + ')';
+    console.time('updateStyles');
+    host.updateStyles(obj);
+    document.body.offsetWidth;
+    console.timeEnd('updateStyles');
+  }
+});

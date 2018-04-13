@@ -1,4 +1,4 @@
-<!--
+/**
 @license
 Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
@@ -6,68 +6,60 @@ The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
--->
-<script>
-  Polymer({
-    is: 'x-basic',
-    properties: {
-      notifyingvalue: {
-        notify: true
-      }
+*/
+import { Polymer } from '../../lib/utils/boot.js';
+
+import { html } from '../../lib/utils/html-tag.js';
+Polymer({
+  is: 'x-basic',
+  properties: {
+    notifyingvalue: {
+      notify: true
     }
-  });
-</script>
+  }
+});
+Polymer({
+  _template: html`
+<div id="container"><slot id="slot"></slot></div>
+`,
 
-<dom-module id="x-content">
-  <template><div id="container"><slot id="slot"></slot></div></template>
-  <script>
-    Polymer({
-      is: 'x-content'
-    });
-  </script>
-</dom-module>
+  is: 'x-content'
+});
+Polymer({
+  _template: html`
+<x-content id="local"></x-content>
+`,
 
-<dom-module id="x-attach-dom-bind">
-  <template><x-content id="local"></x-content></template>
-  <script>
-    Polymer({
-      is: 'x-attach-dom-bind',
+  is: 'x-attach-dom-bind',
 
-      attached: function() {
-        var domBind = document.createElement('dom-bind');
-        var template = document.createElement('template');
+  attached: function() {
+    var domBind = document.createElement('dom-bind');
+    var template = document.createElement('template');
 
-        domBind.appendChild(template);
+    domBind.appendChild(template);
 
-        var span = document.createElement('span');
-        span.innerHTML = '{{hello}}';
+    var span = document.createElement('span');
+    span.innerHTML = '{{hello}}';
 
-        template.content.appendChild(span);
-        domBind.hello = 'hey';
+    template.content.appendChild(span);
+    domBind.hello = 'hey';
 
-        this.$.local.appendChild(domBind);
-      }
-    });
-  </script>
-</dom-module>
+    this.$.local.appendChild(domBind);
+  }
+});
+Polymer({
+  _template: html`
+<x-content id="local"></x-content>
+`,
 
-<dom-module id="x-compose">
-  <template><x-content id="local"></x-content></template>
-  <script>
-    Polymer({
-      is: 'x-compose'
-    });
-  </script>
-</dom-module>
-
-<script>
-  Polymer({
-    is: 'x-produce-a',
-    properties: {
-      bindToText: {
-        notify: true,
-        value: 'this text is bound'
-      }
+  is: 'x-compose'
+});
+Polymer({
+  is: 'x-produce-a',
+  properties: {
+    bindToText: {
+      notify: true,
+      value: 'this text is bound'
     }
-  });
-</script>
+  }
+});

@@ -1,4 +1,7 @@
-<dom-module id="style-import">
+const $_documentContainer = document.createElement('div');
+$_documentContainer.setAttribute('style', 'display: none;');
+
+$_documentContainer.innerHTML = `<dom-module id="style-import">
   <template>
     <style>
       .foo {
@@ -8,9 +11,7 @@
       }
     </style>
   </template>
-</dom-module>
-
-<dom-module id="style-import2">
+</dom-module><dom-module id="style-import2">
   <template>
     <style>
       .foo {
@@ -18,4 +19,6 @@
       }
     </style>
   </template>
-</dom-module>
+</dom-module>`;
+
+document.head.appendChild($_documentContainer);

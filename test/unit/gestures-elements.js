@@ -1,4 +1,4 @@
-<!--
+/**
 @license
 Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
 This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
@@ -6,12 +6,15 @@ The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
 The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
--->
+*/
+import '../../polymer-legacy.js';
 
-<link rel="import" href="../../polymer.html">
-
-<dom-module id="x-foo">
-  <template>
+import { Polymer } from '../../lib/utils/boot.js';
+import { html } from '../../lib/utils/html-tag.js';
+import { PolymerElement } from '../../polymer-element.js';
+import { GestureEventListeners } from '../../lib/mixins/gesture-event-listeners.js';
+Polymer({
+  _template: html`
   <style>
     #div {
       height: 40px;
@@ -20,79 +23,62 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   </style>
 
     <div id="div"></div>
-  </template>
+`,
 
-  <script>
-    Polymer({
-      is: 'x-foo',
-      listeners: {
-        tap: 'tapHandler'
-      },
-      tapHandler: function(e) {
-        this._testLocalTarget = e.target;
-        this._testRootTarget = e.composedPath()[0];
-      }
-    });
-  </script>
-</dom-module>
+  is: 'x-foo',
 
-<dom-module id="x-app">
+  listeners: {
+    tap: 'tapHandler'
+  },
 
-  <template>
+  tapHandler: function(e) {
+    this._testLocalTarget = e.target;
+    this._testRootTarget = e.composedPath()[0];
+  }
+});
+Polymer({
+  _template: html`
     <x-foo id="foo"></x-foo>
-  </template>
+`,
 
-  <script>
-    Polymer({
-      is: 'x-app',
-      listeners: {
-        tap: 'tapHandler'
-      },
-      tapHandler: function(e) {
-        this._testLocalTarget = e.target;
-        this._testRootTarget = e.composedPath()[0];
-      }
-    });
-  </script>
+  is: 'x-app',
 
-</dom-module>
+  listeners: {
+    tap: 'tapHandler'
+  },
 
-<dom-module id="x-setup">
-  <template>
-    <div id="inner" on-tap="handler" on-track="handler" on-down="handler"
-      on-up="handler"></div>
-  </template>
-  <script>
-    Polymer({
-      is: 'x-setup',
-      listeners: {
-        tap: 'handler',
-        track: 'handler',
-        down: 'handler',
-        up: 'handler'
-      },
-      handler: function() {
-      }
-    });
-  </script>
-</dom-module>
+  tapHandler: function(e) {
+    this._testLocalTarget = e.target;
+    this._testRootTarget = e.composedPath()[0];
+  }
+});
+Polymer({
+  _template: html`
+    <div id="inner" on-tap="handler" on-track="handler" on-down="handler" on-up="handler"></div>
+`,
 
-<dom-module id="x-dynamic">
-  <script>
-    Polymer({
-      is: 'x-dynamic',
-      handler: function(){},
-      setup: function() {
-        this.listen(this, 'tap', 'handler');
-      },
-      teardown: function() {
-        this.unlisten(this, 'tap', 'handler');
-      }
-    });
-  </script>
-</dom-module>
+  is: 'x-setup',
 
-<script>
+  listeners: {
+    tap: 'handler',
+    track: 'handler',
+    down: 'handler',
+    up: 'handler'
+  },
+
+  handler: function() {
+  }
+});
+Polymer({
+  is: 'x-dynamic',
+  handler: function(){},
+  setup: function() {
+    this.listen(this, 'tap', 'handler');
+  },
+  teardown: function() {
+    this.unlisten(this, 'tap', 'handler');
+  }
+});
 var EventCaptureBehavior = {
   properties: {
     stream: {
@@ -106,73 +92,51 @@ var EventCaptureBehavior = {
     this.stream.push(e);
   }
 };
-</script>
-
-<dom-module id="x-prevent">
-  <script>
-    Polymer({
-      listeners: {
-        'down': 'prevent',
-        'up': 'handle',
-        'tap': 'handle',
-        'track': 'handle'
-      },
-      behaviors: [EventCaptureBehavior],
-      is: 'x-prevent',
-      prevent: function(e, detail) {
-        detail.prevent('tap');
-        detail.prevent('track');
-        e.preventDefault();
-        this.handle(e);
-      }
-    });
-  </script>
-</dom-module>
-
-<dom-module id="x-buttons">
-  <script>
-    Polymer({
-      is: 'x-buttons',
-      listeners: {
-        'down': 'handle',
-        'up': 'handle',
-        'tap': 'handle',
-        'track': 'handle'
-      },
-      behaviors: [EventCaptureBehavior]
-    });
-  </script>
-</dom-module>
-
-<dom-module id="x-document-listener">
-  <script>
-  Polymer({
-    is: 'x-document-listener',
-    setup: function() {
-      this.listen(document, 'down', 'handle');
-    },
-    teardown: function() {
-      this.unlisten(document, 'down', 'handle');
-    },
-    behaviors: [EventCaptureBehavior]
-  });
-  </script>
-</dom-module>
-
-<dom-module id="x-nested-child-prevent">
-  <script>
-    Polymer({
-      is: 'x-nested-child-prevent',
-      listeners: {
-        tap: 'handle'
-      },
-      behaviors: [EventCaptureBehavior]
-    });
-  </script>
-</dom-module>
-
-<dom-module id="x-nested-prevent">
-  <template>
+Polymer({
+  listeners: {
+    'down': 'prevent',
+    'up': 'handle',
+    'tap': 'handle',
+    'track': 'handle'
+  },
+  behaviors: [EventCaptureBehavior],
+  is: 'x-prevent',
+  prevent: function(e, detail) {
+    detail.prevent('tap');
+    detail.prevent('track');
+    e.preventDefault();
+    this.handle(e);
+  }
+});
+Polymer({
+  is: 'x-buttons',
+  listeners: {
+    'down': 'handle',
+    'up': 'handle',
+    'tap': 'handle',
+    'track': 'handle'
+  },
+  behaviors: [EventCaptureBehavior]
+});
+Polymer({
+  is: 'x-document-listener',
+  setup: function() {
+    this.listen(document, 'down', 'handle');
+  },
+  teardown: function() {
+    this.unlisten(document, 'down', 'handle');
+  },
+  behaviors: [EventCaptureBehavior]
+});
+Polymer({
+  is: 'x-nested-child-prevent',
+  listeners: {
+    tap: 'handle'
+  },
+  behaviors: [EventCaptureBehavior]
+});
+Polymer({
+  _template: html`
     <style>
       :host {
         position: absolute;
@@ -192,76 +156,64 @@ var EventCaptureBehavior = {
       }
     </style>
     <x-nested-child-prevent id="child"></x-nested-child-prevent>
-  </template>
-  <script>
-    Polymer({
-      is: 'x-nested-prevent',
-      listeners: {
-        track: 'handle'
-      },
-      behaviors: [EventCaptureBehavior]
-    });
-  </script>
-</dom-module>
+`,
 
-<dom-module id="x-imperative">
-  <script>
-  Polymer({
-    is: 'x-imperative',
-    behaviors: [EventCaptureBehavior]
-  });
-  </script>
-</dom-module>
+  is: 'x-nested-prevent',
 
-<dom-module id="x-native-label">
-  <template>
+  listeners: {
+    track: 'handle'
+  },
+
+  behaviors: [EventCaptureBehavior]
+});
+Polymer({
+  is: 'x-imperative',
+  behaviors: [EventCaptureBehavior]
+});
+class XNativeLabel extends PolymerElement {
+  static get template() {
+    return html`
     <label id="label" for="check"></label>
     <input id="check" type="checkbox">
-  </template>
-  <script>
-    class XNativeLabel extends Polymer.Element {
-      static get is() {
-        return 'x-native-label';
-      }
-    }
-    customElements.define(XNativeLabel.is, XNativeLabel);
-  </script>
-</dom-module>
+`;
+  }
 
-<dom-module id="x-native-label-nested">
-  <template>
+  static get is() {
+    return 'x-native-label';
+  }
+}
+customElements.define(XNativeLabel.is, XNativeLabel);
+class XNativeLabelNested extends PolymerElement {
+  static get template() {
+    return html`
     <label id="label">
       <input id="check" type="checkbox">
     </label>
-  </template>
-  <script>
-    class XNativeLabelNested extends Polymer.Element {
-      static get is() {
-        return 'x-native-label-nested';
-      }
-    }
-    customElements.define(XNativeLabelNested.is, XNativeLabelNested);
-  </script>
-</dom-module>
+`;
+  }
 
-<dom-module id="x-disabled-tap">
-  <template>
-    <button id="disabled" on-tap="tap" disabled></button>
-    <div disabled>
+  static get is() {
+    return 'x-native-label-nested';
+  }
+}
+customElements.define(XNativeLabelNested.is, XNativeLabelNested);
+class XDisabled extends GestureEventListeners(PolymerElement) {
+  static get template() {
+    return html`
+    <button id="disabled" on-tap="tap" disabled=""></button>
+    <div disabled="">
       <button id="nested" on-tap="tap"></button>
     </div>
-  </template>
-  <script>
-    class XDisabled extends Polymer.GestureEventListeners(Polymer.Element) {
-      constructor() {
-        super();
-        this.taps = [];
-      }
-      static get is() {return 'x-disabled-tap';}
-      tap(e) {
-        this.taps.push(e.id);
-      }
-    }
-    customElements.define(XDisabled.is, XDisabled);
-  </script>
-</dom-module>
+`;
+  }
+
+  constructor() {
+    super();
+    this.taps = [];
+  }
+  static get is() {return 'x-disabled-tap';}
+  tap(e) {
+    this.taps.push(e.id);
+  }
+}
+customElements.define(XDisabled.is, XDisabled);
