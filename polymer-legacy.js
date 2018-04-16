@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 */
 
 import { LegacyElementMixin } from './lib/legacy/legacy-element-mixin.js';
-import './lib/legacy/polymer-fn.js';
+export {Polymer} from  './lib/legacy/polymer-fn.js';
 /* template elements */
 import './lib/legacy/templatizer-behavior.js';
 import './lib/elements/dom-bind.js';
