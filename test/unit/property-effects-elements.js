@@ -10,7 +10,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import '../../polymer-legacy.js';
 
 import { StrictBindingParser } from '../../lib/mixins/strict-binding-parser.js';
-import { Polymer } from '../../lib/utils/boot.js';
+import { Polymer } from '../../lib/legacy/polymer-fn.js';
 import { html } from '../../lib/utils/html-tag.js';
 import { PolymerElement } from '../../polymer-element.js';
 import { MutableDataBehavior } from '../../lib/legacy/mutable-data-behavior.js';

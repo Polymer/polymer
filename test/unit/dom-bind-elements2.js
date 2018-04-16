@@ -7,7 +7,7 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 */
-import { Polymer } from '../../lib/utils/boot.js';
+import { Polymer } from '../../lib/legacy/polymer-fn.js';
 
 Polymer({
   is: 'x-needs-host',

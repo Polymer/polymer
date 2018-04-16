@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 */
 import { PropertiesMixin } from '../../lib/mixins/properties-mixin.js';
 
-import { Polymer } from '../../lib/utils/boot.js';
+import { Polymer } from '../../lib/legacy/polymer-fn.js';
 import { html } from '../../lib/utils/html-tag.js';
 class XPropertiesElement extends PropertiesMixin(HTMLElement) {
   static get properties() {

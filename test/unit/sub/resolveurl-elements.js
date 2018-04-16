@@ -11,7 +11,7 @@ import { html } from '../../../lib/utils/html-tag.js';
 
 import { PolymerElement } from '../../../polymer-element.js';
 import { DomModule } from '../../../lib/elements/dom-module.js';
-import { Polymer } from '../../../lib/utils/boot.js';
+import { Polymer } from '../../../lib/legacy/polymer-fn.js';
 const $_documentContainer = document.createElement('div');
 $_documentContainer.setAttribute('style', 'display: none;');
 $_documentContainer.innerHTML = `<dom-module id="p-r-ap" assetpath="../../assets/"></dom-module>`;

@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 */
 import { Base } from '../../polymer-legacy.js';
 
-import { Polymer } from '../../lib/utils/boot.js';
+import { Polymer } from '../../lib/legacy/polymer-fn.js';
 import { html } from '../../lib/utils/html-tag.js';
 var EventLoggerImpl = {
   created: function() {

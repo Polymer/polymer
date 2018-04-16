@@ -1,5 +1,5 @@
 import './elements-defaults.js';
-import { Polymer } from '../../../../lib/utils/boot.js';
+import { Polymer } from '../../../../lib/legacy/polymer-fn.js';
 import { html } from '../../../../lib/utils/html-tag.js';
 Polymer({
   _template: html`

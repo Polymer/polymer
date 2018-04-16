@@ -7,7 +7,7 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 */
-import { Polymer } from '../../lib/utils/boot.js';
+import { Polymer } from '../../lib/legacy/polymer-fn.js';
 
 import { templatize as templatize$0 } from '../../lib/utils/templatize.js';
 import { Templatizer } from '../../lib/legacy/templatizer-behavior.js';
@@ -174,7 +174,7 @@ Polymer({
       <template>
         <x-child on-tap="handleTap" id="childC" outer-prop="{{outerProp}}" outer-obj="{{outerObj}}" outer-obj-prop="{{outerObj.prop}}" prop="{{prop}}" obj="{{obj}}" obj-prop="{{obj.prop}}" conflict="{{outerInnerConflict.prop}}" computed-from-literal="{{computeFromLiteral(33, prop)}}"></x-child>
       </template>
-    
+
 
   </x-templatize-behavior>
 `,
