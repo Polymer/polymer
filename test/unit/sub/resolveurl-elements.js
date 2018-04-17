@@ -12,9 +12,11 @@ import { html } from '../../../lib/utils/html-tag.js';
 import { PolymerElement } from '../../../polymer-element.js';
 import { DomModule } from '../../../lib/elements/dom-module.js';
 import { Polymer } from '../../../lib/legacy/polymer-fn.js';
+import { pathFromUrl } from '../utils/resolve-url.js';
 const $_documentContainer = document.createElement('div');
 $_documentContainer.setAttribute('style', 'display: none;');
-$_documentContainer.innerHTML = `<dom-module id="p-r-ap" assetpath="../../assets/"></dom-module>`;
+const baseAssetPath = pathFromUrl(import.meta.url);
+$_documentContainer.innerHTML = `<dom-module id="p-r-ap" assetpath="${baseAssetPath}../../assets/"></dom-module>`;
 document.head.appendChild($_documentContainer);
 class PR extends PolymerElement {
   static get template() {
