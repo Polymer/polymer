@@ -681,6 +681,14 @@ Polymer({
     invocations.push('propagate');
   }
 });
+var TranslateBehavior = {
+  properties: {
+    translateMessage: {
+      type: Function,
+      computed: '_computeTranslateFn(translator)'
+    }
+  }
+};
 Polymer({
   _template: html`
     <div id="check">[[translateMessage('Hello World.')]]</div>
@@ -706,14 +714,6 @@ Polymer({
     };
   }
 });
-var TranslateBehavior = {
-  properties: {
-    translateMessage: {
-      type: Function,
-      computed: '_computeTranslateFn(translator)'
-    }
-  }
-};
 Polymer({
   _template: html`
     <div id="check">[[translateMessage(message)]]</div>
