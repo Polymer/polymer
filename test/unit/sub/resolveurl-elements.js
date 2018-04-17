@@ -49,7 +49,7 @@ customElements.define(PR.is, PR);
 
 class PRImportMeta extends PolymerElement {
   static get template() {
-    return DomModule.import('p-r', 'template').cloneNode(true);
+    return PR.template;
   }
   static get importMeta() {
     // Idiomatically, this would be `return import.meta`, but for purposes
@@ -61,7 +61,7 @@ customElements.define('p-r-im', PRImportMeta);
 
 const PRHybrid = Polymer({
   is: 'p-r-hybrid',
-  _template: DomModule.import('p-r', 'template').cloneNode(true),
+  _template: PR.template,
   // Idiomatically, this would be `return import.meta`, but for purposes
   // of stubbing the test without actual modules, it's shimmed
   importMeta: { url: 'http://hybrid.com/mymodule/index.js' }
