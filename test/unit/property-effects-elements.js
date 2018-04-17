@@ -988,6 +988,28 @@ Polymer({
     this.xChanged = sinon.spy();
   }
 });
+
+class SuperObserverElement extends PolymerElement {
+  static get is() { return 'super-observer-element'; }
+  static get properties() {
+    return {
+      prop: {
+        value: 'String',
+        observer() {
+          this.__observerCalled++;
+        }
+      }
+    };
+  }
+}
+SuperObserverElement.prototype.__observerCalled = 0;
+customElements.define(SuperObserverElement.is, SuperObserverElement);
+
+class SubObserverElement extends SuperObserverElement {
+  static get is() { return 'sub-observer-element'; }
+}
+customElements.define(SubObserverElement.is, SubObserverElement);
+
 class SVGElement extends PolymerElement {
   static get template() {
     return html`
