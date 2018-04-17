@@ -12,7 +12,7 @@ const $_documentContainer = document.createElement('div');
 $_documentContainer.setAttribute('style', 'display: none;');
 
 $_documentContainer.innerHTML = `<dom-module id="global-shared1">
-
+  <link rel="import" type="css" shady-unscoped href="shady-unscoped-style-import-css.html">
   <template>
     <style shady-unscoped="">
       :root {
@@ -32,7 +32,7 @@ $_documentContainer.innerHTML = `<dom-module id="global-shared1">
     </style>
   </template>
 </dom-module><dom-module id="global-shared2">
-
+<link rel="import" type="css" shady-unscoped href="shady-unscoped-style-import-css.html">
 </dom-module>`;
 
 document.head.appendChild($_documentContainer);
