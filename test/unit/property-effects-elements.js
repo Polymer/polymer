@@ -55,7 +55,7 @@ Polymer({
           return "We have a {{binding}} here";
         }
         /* eslint-enable no-unused-vars */
-      &lt;/script>
+      </script>
       <style id="styleWithBinding">
         :host {
           content: '[[binding]]'
