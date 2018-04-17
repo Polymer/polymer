@@ -439,13 +439,13 @@ Polymer 2.0 elements will target the V1 Custom Elements API, which primarily cha
   For the time being, Polymer (both legacy and class API) will automatically wrap template extensions used in Polymer element templates during template processing for backward-compatibility, although we may decide to remove this auto-wrapping in the future.  Templates used in the main document must be manually wrapped.
 * <a name="breaking-custom-style"></a>The `custom-style` element has also been changed to a standard custom element that must wrap a style element  e.g.
 
-  ```html
+  ```xml
   <style is="custom-style">...</style>
   ```
 
    should change to
 
-   ```html
+   ```xml
    <custom-style>
      <style>...</style>
    </custom-style>
