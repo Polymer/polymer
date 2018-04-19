@@ -1,4 +1,4 @@
-import { pathFromUrl } from '../utils/resolve-url.js';
+import { pathFromUrl } from '../../../lib/utils/resolve-url.js';
 
 const $_documentContainer = document.createElement('div');
 $_documentContainer.setAttribute('style', 'display: none;');
