@@ -124,7 +124,7 @@ gulp.task('closure', ['generate-externs'], () => {
     addClosureTypes = new AddClosureTypeImport(entry, 'externs/polymer-internal-types.html');
   }
 
-  config('polymer.html');
+  config('polymer-legacy.js');
 
   const project = new PolymerProject({
     shell: `./${entry}`,
@@ -250,7 +250,7 @@ gulp.task('estimate-size', ['clean'], () => {
 });
 
 gulp.task('lint-eslint', function() {
-  return gulp.src(['lib/**/*.html', 'test/unit/*.html', 'util/*.js'])
+  return gulp.src(['lib/**/*.js', 'test/unit/*.{html,js}', 'util/*.js'])
     .pipe(eslint())
     .pipe(eslint.format())
     .pipe(eslint.failAfterError());
