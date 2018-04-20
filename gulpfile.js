@@ -129,8 +129,8 @@ gulp.task('closure', ['generate-externs'], () => {
   const project = new PolymerProject({
     shell: `./${entry}`,
     fragments: [
-      'bower_components/shadycss/apply-shim.html',
-      'bower_components/shadycss/custom-style-interface.html'
+      'node_modules/@webcomponents/shadycss/entrypoints/apply-shim.js',
+      'node_modules/@webcomponents/shadycss/entrypoints/custom-style-interface.js'
     ],
     extraDependencies: [
       addClosureTypes.importPath,
@@ -219,8 +219,8 @@ gulp.task('estimate-size', ['clean'], () => {
   const project = new PolymerProject({
     shell: POLYMER_LEGACY,
     fragments: [
-      'bower_components/shadycss/apply-shim.html',
-      'bower_components/shadycss/custom-style-interface.html'
+      'node_modules/@webcomponents/shadycss/entrypoints/apply-shim.js',
+      'node_modules/@webcomponents/shadycss/entrypoints/custom-style-interface.js'
     ]
   });
 
@@ -281,7 +281,7 @@ gulp.task('generate-typescript', async () => {
 });
 
 gulp.task('update-version', () => {
-  return gulp.src('lib/utils/boot.html')
+  return gulp.src('lib/utils/boot.js')
   .pipe(replace(/(window.Polymer.version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
   .pipe(gulp.dest('lib/utils'));
 });
