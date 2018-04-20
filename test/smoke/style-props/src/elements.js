@@ -1,7 +1,8 @@
-<link rel="import" href="elements-defaults.html">
-
-<dom-module id="x-s">
-  <template>
+import './elements-defaults.js';
+import { Polymer } from '../../../../lib/legacy/polymer-fn.js';
+import { html } from '../../../../lib/utils/html-tag.js';
+Polymer({
+  _template: html`
     <style include="simple-layout-styles">
       :host {
         transform: rotate(-45deg);
@@ -51,19 +52,12 @@
       <section class="center-center horizontal layout c">--c</section>
       <section class="d"></section>
     </div>
-  </template>
-</dom-module>
+`,
 
-<script>
-  Polymer({
-
-    is: 'x-s'
-
-  });
-</script>
-
-<dom-module id="x-ss">
-  <template>
+  is: 'x-s'
+});
+Polymer({
+  _template: html`
     <style include="simple-layout-styles">
       :host {
         background-color: goldenrod;
@@ -104,11 +98,7 @@
       <section class="center-center horizontal layout a">--a</section>
       <section class="center-center horizontal layout b"></section>
     </div>
-  </template>
-</dom-module>
+`,
 
-<script>
-  Polymer({
-    is: 'x-ss'
-  });
-</script>
+  is: 'x-ss'
+});

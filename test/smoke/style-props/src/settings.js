@@ -1,4 +1,9 @@
-<dom-module id="simple-layout-styles">
+import { Polymer } from '../../../../lib/legacy/polymer-fn.js';
+import { html } from '../../../../lib/utils/html-tag.js';
+const $_documentContainer = document.createElement('div');
+$_documentContainer.setAttribute('style', 'display: none;');
+
+$_documentContainer.innerHTML = `<dom-module id="simple-layout-styles">
   <template>
     <style>
       .horizontal.layout {
@@ -23,10 +28,11 @@
       }
     </style>
   </template>
-</dom-module>
+</dom-module>`;
 
-<dom-module id="x-setting">
-  <template>
+document.head.appendChild($_documentContainer);
+Polymer({
+  _template: html`
     <style include="simple-layout-styles">
     :host {
       margin: 4px;
@@ -52,29 +58,23 @@
 
   </style>
     <section class="center-center horizontal layout setting"><slot></slot></section>
-  </template>
-</dom-module>
+`,
 
-<script>
-  Polymer({
+  is: 'x-setting',
 
-    is: 'x-setting',
+  listeners: {
+    click: 'clickHandler'
+  },
 
-    listeners: {
-      click: 'clickHandler'
-    },
-
-    ready: function() {
-      this.setting = this.textContent;
-      const obj = {
-        '--setting-color': 'var(' + this.setting + ')'
-      }
-      this.updateStyles(obj);
-    },
-
-    clickHandler: function() {
-      this.fire('setting-change', this.setting);
+  ready: function() {
+    this.setting = this.textContent;
+    const obj = {
+      '--setting-color': 'var(' + this.setting + ')'
     }
+    this.updateStyles(obj);
+  },
 
-  });
-</script>
+  clickHandler: function() {
+    this.fire('setting-change', this.setting);
+  }
+});
