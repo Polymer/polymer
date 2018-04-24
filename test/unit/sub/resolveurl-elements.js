@@ -12,12 +12,14 @@ import { html } from '../../../lib/utils/html-tag.js';
 import { PolymerElement } from '../../../polymer-element.js';
 import { DomModule } from '../../../lib/elements/dom-module.js';
 import { Polymer } from '../../../lib/legacy/polymer-fn.js';
-import { pathFromUrl } from '../utils/resolve-url.js';
+import { pathFromUrl } from '../../../lib/utils/resolve-url.js';
+
 const $_documentContainer = document.createElement('div');
 $_documentContainer.setAttribute('style', 'display: none;');
 const baseAssetPath = pathFromUrl(import.meta.url);
 $_documentContainer.innerHTML = `<dom-module id="p-r-ap" assetpath="${baseAssetPath}../../assets/"></dom-module>`;
 document.head.appendChild($_documentContainer);
+
 class PR extends PolymerElement {
   static get template() {
     return html`
@@ -44,29 +46,17 @@ class PR extends PolymerElement {
     <a id="protocol" href="data:foo.z">Foo</a>
 `;
   }
-
   static get is() { return 'p-r'; }
+  static get importMeta() {
+    return import.meta;
+  }
 }
 customElements.define(PR.is, PR);
-
-class PRImportMeta extends PolymerElement {
-  static get template() {
-    return PR.template;
-  }
-  static get importMeta() {
-    // Idiomatically, this would be `return import.meta`, but for purposes
-    // of stubbing the test without actual modules, it's shimmed
-    return { url: 'http://class.com/mymodule/index.js' };
-  }
-}
-customElements.define('p-r-im', PRImportMeta);
 
 const PRHybrid = Polymer({
   is: 'p-r-hybrid',
   _template: PR.template,
-  // Idiomatically, this would be `return import.meta`, but for purposes
-  // of stubbing the test without actual modules, it's shimmed
-  importMeta: { url: 'http://hybrid.com/mymodule/index.js' }
+  importMeta: import.meta
 });
 
 class PRAp extends PolymerElement {
