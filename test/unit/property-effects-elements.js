@@ -7,7 +7,6 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 */
-import '../../polymer-legacy.js';
 
 import { StrictBindingParser } from '../../lib/mixins/strict-binding-parser.js';
 import { Polymer } from '../../lib/legacy/polymer-fn.js';
@@ -55,7 +54,7 @@ Polymer({
           return "We have a {{binding}} here";
         }
         /* eslint-enable no-unused-vars */
-      &lt;/script>
+      </script>
       <style id="styleWithBinding">
         :host {
           content: '[[binding]]'
@@ -681,6 +680,14 @@ Polymer({
     invocations.push('propagate');
   }
 });
+var TranslateBehavior = {
+  properties: {
+    translateMessage: {
+      type: Function,
+      computed: '_computeTranslateFn(translator)'
+    }
+  }
+};
 Polymer({
   _template: html`
     <div id="check">[[translateMessage('Hello World.')]]</div>
@@ -706,14 +713,6 @@ Polymer({
     };
   }
 });
-var TranslateBehavior = {
-  properties: {
-    translateMessage: {
-      type: Function,
-      computed: '_computeTranslateFn(translator)'
-    }
-  }
-};
 Polymer({
   _template: html`
     <div id="check">[[translateMessage(message)]]</div>
@@ -988,6 +987,28 @@ Polymer({
     this.xChanged = sinon.spy();
   }
 });
+
+class SuperObserverElement extends PolymerElement {
+  static get is() { return 'super-observer-element'; }
+  static get properties() {
+    return {
+      prop: {
+        value: 'String',
+        observer() {
+          this.__observerCalled++;
+        }
+      }
+    };
+  }
+}
+SuperObserverElement.prototype.__observerCalled = 0;
+customElements.define(SuperObserverElement.is, SuperObserverElement);
+
+class SubObserverElement extends SuperObserverElement {
+  static get is() { return 'sub-observer-element'; }
+}
+customElements.define(SubObserverElement.is, SubObserverElement);
+
 class SVGElement extends PolymerElement {
   static get template() {
     return html`

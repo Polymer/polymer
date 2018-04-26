@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 */
 import { PolymerElement } from '../../polymer-element.js';
 
-import '../../../../@webcomponents/shadycss/entrypoints/apply-shim.js';
+import '@webcomponents/shadycss/entrypoints/apply-shim.js';
 import '../../lib/elements/custom-style.js';
 import { html } from '../../lib/utils/html-tag.js';
 class ApplyElement extends PolymerElement {
