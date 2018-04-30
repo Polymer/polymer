@@ -1,6 +1,6 @@
 import { pathFromUrl } from '../../../lib/utils/resolve-url.js';
 
-const $_documentContainer = document.createElement('div');
+const $_documentContainer = document.createElement('template');
 $_documentContainer.setAttribute('style', 'display: none;');
 const baseAssetPath = pathFromUrl(import.meta.url);
 $_documentContainer.innerHTML = `<dom-module id="style-import" assetpath="${baseAssetPath}">
@@ -23,4 +23,4 @@ $_documentContainer.innerHTML = `<dom-module id="style-import" assetpath="${base
   </template>
 </dom-module>`;
 
-document.head.appendChild($_documentContainer);
+document.head.appendChild($_documentContainer.content);
