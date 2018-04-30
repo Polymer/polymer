@@ -1,6 +1,6 @@
 import { Polymer } from '../../lib/legacy/polymer-fn.js';
 
-const $_documentContainer = document.createElement('div');
+const $_documentContainer = document.createElement('template');
 
 $_documentContainer.innerHTML = `<custom-style>
 <style is="custom-style">
@@ -24,7 +24,7 @@ $_documentContainer.innerHTML = `<custom-style>
 </template>
 </dom-module>`;
 
-document.body.appendChild($_documentContainer);
+document.body.appendChild($_documentContainer.content);
 
 Polymer({
   is: 'x-client'
