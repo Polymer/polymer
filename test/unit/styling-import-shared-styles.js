@@ -8,7 +8,7 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 */
 
-const $_documentContainer = document.createElement('div');
+const $_documentContainer = document.createElement('template');
 $_documentContainer.setAttribute('style', 'display: none;');
 
 $_documentContainer.innerHTML = `<dom-module id="shared-styles">
@@ -28,4 +28,4 @@ $_documentContainer.innerHTML = `<dom-module id="shared-styles">
   </template>
 </dom-module>`;
 
-document.head.appendChild($_documentContainer);
+document.head.appendChild($_documentContainer.content);

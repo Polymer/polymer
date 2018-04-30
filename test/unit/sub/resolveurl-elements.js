@@ -14,11 +14,11 @@ import { DomModule } from '../../../lib/elements/dom-module.js';
 import { Polymer } from '../../../lib/legacy/polymer-fn.js';
 import { pathFromUrl } from '../../../lib/utils/resolve-url.js';
 
-const $_documentContainer = document.createElement('div');
+const $_documentContainer = document.createElement('template');
 $_documentContainer.setAttribute('style', 'display: none;');
 const baseAssetPath = pathFromUrl(import.meta.url);
 $_documentContainer.innerHTML = `<dom-module id="p-r-ap" assetpath="${baseAssetPath}../../assets/"></dom-module>`;
-document.head.appendChild($_documentContainer);
+document.head.appendChild($_documentContainer.content);
 
 class PR extends PolymerElement {
   static get template() {
