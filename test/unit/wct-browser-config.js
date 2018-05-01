@@ -9,4 +9,4 @@ window.WCT = {
     'accessibility-developer-tools/dist/js/axs_testing.js',
     '@polymer/test-fixture/test-fixture.js'
 ]
-}
+};
