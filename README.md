@@ -22,13 +22,13 @@ Web Components are now implemented natively on Safari and Chrome (~70% of instal
 
     * Runs in all [supported](#supported-browsers) browsers: [StackBlitz](https://stackblitz.com/edit/polymer-element-example?file=index.js), [Glitch](https://glitch.com/edit/#!/polymer-element-example?path=index.html)
 
-    * Runs in browsers with [Javascript Modules](https://caniuse.com/#search=modules): [JSBin](https://jsbin.com/wuxejiz/edit?html,output),
+    * Runs in browsers with [JavaScript Modules](https://caniuse.com/#search=modules): [JSBin](https://jsbin.com/wuxejiz/edit?html,output),
  [CodePen](https://codepen.io/kevinpschaaf/pen/BxdErp?editors=1000).
 
- * You can also save [this HTML](https://gist.githubusercontent.com/kevinpschaaf/8a5acbea7b25d2bb5e82eeea2b105669/raw/c3a86872f07603e2d0ddae736687e52a5c8c499f/index.html) to a local file and run it in any browser that supports [Javascript Modules]((https://caniuse.com/#search=modules)).
+ * You can also save [this HTML file](https://gist.githubusercontent.com/kevinpschaaf/8a5acbea7b25d2bb5e82eeea2b105669/raw/c3a86872f07603e2d0ddae736687e52a5c8c499f/index.html) to a local file and run it in any browser that supports [JavaScript Modules]((https://caniuse.com/#search=modules)).
 
- * When you're ready to use Polymer in a project, install it via npm. To run the project in the browser,
- a module-compatible toolchain is required. We recommend installing the Polymer CLI to and using its development server as follows.
+ * When you're ready to use Polymer in a project, install it via [npm](https://www.npmjs.com/). To run the project in the browser,
+ a module-compatible toolchain is required. We recommend installing the [Polymer CLI](https://github.com/Polymer/polymer-cli) to and using its development server as follows.
 
     1. Add Polymer to your project:
 
@@ -44,8 +44,8 @@ Web Components are now implemented natively on Safari and Chrome (~70% of instal
 
         ```polymer serve```
 
-    > Polymer 3.0 is published on [npm](https://www.npmjs.com/package/@polymer/polymer) using Javascript Modules.
-    This means it can take advantage of the standard native Javascript module loader available in all current major browsers.
+    > Polymer 3.0 is published on [npm](https://www.npmjs.com/package/@polymer/polymer) using JavaScript Modules.
+    This means it can take advantage of the standard native JavaScript module loader available in all current major browsers.
     >
     > However, since Polymer uses npm conventions to reference dependencies by name, a light transform to rewrite specifiers to URLs is required to run in the browser. The polymer-cli's development server `polymer serve`, as well as `polymer build` (for building an optimized app for deployment)  automatically handles this transform.
 
