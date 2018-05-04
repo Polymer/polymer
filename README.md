@@ -82,9 +82,14 @@ Web Components are now implemented natively on Safari and Chrome (~70% of instal
 
 ## About Polymer 3.0
 
-Polymer 3.0 is now released to stable, and introduces a major change to how Polymer is distributed: from HTML Imports on bower, to JS modules on npm.  Otherwise, the API is virtually 100% backward compatible with Polymer 2.0 (the only changes are related to removing API's related to HTML Imports like `importHref`, and converting Polymer's API to be module-based rather than globals-based).
+Polymer 3.0 is now released to stable, and introduces a major change to how Polymer is distributed: from HTML Imports on bower, to JS modules on npm.  Otherwise, the API is virtually 100% backward compatible with Polymer 2.0 (the only changes are removing API's related to HTML Imports like `importHref`, and converting Polymer's API to be module-based rather than globals-based).
 
-Migrating to Polyme 3.0 by hand is mostly mechanical: All HTML Imports turn into JS module imports, and templates are encoded in JS using a `static get template()` getter on PolymerElement subclasses, using the `html` tagged template literal function (which parses `HTMLTemplateElement`'s out of strings in JS) rather than using `<template>` elements in a `<dom-module>`.  However, the [`polymer-modulizer`](https://github.com/Polymer/polymer-modulizer) tool automates the vast majority of this migration work.  Please see details on that repo for automated conversion of Polymer 2.0 apps and elements to Polymer 3.0.
+Migrating to Polyme 3.0 by hand is mostly mechanical:
+* Components should be defined in JS modules instead of in HTML
+* Templates should be encoded in JS modules using a `static get template()` getter on PolymerElement subclasses using the `html` tagged template literal function (which parses `HTMLTemplateElement`'s out of strings in JS) rather than using `<template>` elements in a `<dom-module>`
+* All dependencies should be imported JS module imports rather than from HTML Imports.
+
+However, the [`polymer-modulizer`](https://github.com/Polymer/polymer-modulizer) tool automates the vast majority of this migration work.  Please see details on that repo for automated conversion of Polymer 2.0 apps and elements to Polymer 3.0.
 
 👀 **Looking for Polymer v2.x?** Please see the [the v2 branch](https://github.com/Polymer/polymer/tree/2.x).
 
