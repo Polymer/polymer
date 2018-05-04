@@ -49,7 +49,7 @@ Web Components are now implemented natively on Safari and Chrome (~70% of instal
     >
     > However, since Polymer uses npm conventions to reference dependencies by name, a light transform to rewrite specifiers to URLs is required to run in the browser. The polymer-cli's development server `polymer serve`, as well as `polymer build` (for building an optimized app for deployment)  automatically handles this transform.
 
-    Tools like [WebPack](https://webpack.js.org/) and [Rollup](https://rollupjs.org/) can also be used to serve and/or bundle LitElement.
+    Tools like [WebPack](https://webpack.js.org/) and [Rollup](https://rollupjs.org/) can also be used to serve and/or bundle Polymer elements.
 
 
 ## Minimal Example
