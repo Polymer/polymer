@@ -113,7 +113,23 @@ class AddClosureTypeImport extends Transform {
 
 gulp.task('clean', () => del([DIST_DIR, 'closure.log']));
 
-gulp.task('closure', ['generate-externs'], () => {
+gulp.task('generate-externs', gulp.series('clean', async () => {
+  let genClosure = require('@polymer/gen-closure-declarations').generateDeclarations;
+  const declarations = await genClosure();
+  await fs.writeFile('externs/closure-types.js', `${header}${declarations}`);
+}));
+
+gulp.task('generate-typescript', async () => {
+  let genTs = require('@polymer/gen-typescript-declarations').generateDeclarations;
+  await del(['types/**/*.d.ts', '!types/extra-types.d.ts']);
+  const config = await fs.readJson('gen-tsd.json');
+  const files = await genTs('.', config);
+  for (const [filePath, contents] of files) {
+    await fs.outputFile(path.join('types', filePath), contents);
+  }
+});
+
+gulp.task('closure', gulp.series('generate-externs', () => {
 
   let entry, splitRx, joinRx, addClosureTypes;
 
@@ -203,14 +219,14 @@ gulp.task('closure', ['generate-externs'], () => {
     .pipe(gulpif(joinRx, minimalDocument()))
     .pipe(gulpif(joinRx, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
     .pipe(gulp.dest(COMPILED_DIR));
-});
+}));
 
 gulp.task('lint-closure', (done) => {
   CLOSURE_LINT_ONLY = true;
   runseq('closure', done);
 });
 
-gulp.task('estimate-size', ['clean'], () => {
+gulp.task('estimate-size', gulp.series('clean', () => {
 
   const babelPresets = {
     presets: [['minify', {regexpConstructors: false, simplifyComparisons: false}]]
@@ -247,7 +263,7 @@ gulp.task('estimate-size', ['clean'], () => {
     .pipe(gulpif(/polymer\.html$/, size({ title: 'bundled size', gzip: true, showTotal: false, showFiles: true })))
     // write to the bundled folder
     .pipe(gulp.dest(BUNDLED_DIR));
-});
+}));
 
 gulp.task('lint-eslint', function() {
   return gulp.src(['lib/**/*.js', 'test/unit/*.{html,js}', 'util/*.js'])
@@ -262,22 +278,6 @@ gulp.task('lint', (done) => {
 
 gulp.task('update-types', (done) => {
   runseq('generate-externs', 'generate-typescript', done);
-});
-
-gulp.task('generate-externs', ['clean'], async () => {
-  let genClosure = require('@polymer/gen-closure-declarations').generateDeclarations;
-  const declarations = await genClosure();
-  await fs.writeFile('externs/closure-types.js', `${header}${declarations}`);
-});
-
-gulp.task('generate-typescript', async () => {
-  let genTs = require('@polymer/gen-typescript-declarations').generateDeclarations;
-  await del(['types/**/*.d.ts', '!types/extra-types.d.ts']);
-  const config = await fs.readJson('gen-tsd.json');
-  const files = await genTs('.', config);
-  for (const [filePath, contents] of files) {
-    await fs.outputFile(path.join('types', filePath), contents);
-  }
 });
 
 gulp.task('update-version', () => {
