@@ -61,7 +61,7 @@ Web Components are now implemented natively on Safari and Chrome (~70% of instal
   1. Create a class that extends `PolymerElement`.
   1. Implement a static `properties` getter that describes the element's public property/attribute API
   (these automatically become observed attributes).
-  1. Then implement a `template` getter that reutrns an `HTMLTemplateElement` describing the element's rendering, including encapsulated styling and any property bindings.
+  1. Then implement a `template` getter that returns an `HTMLTemplateElement` describing the element's rendering, including encapsulated styling and any property bindings.
 
 ```html
   <script src="node_modules/@webcomponents/webcomponents-loader.js"></script>
@@ -90,13 +90,12 @@ Web components are an incredibly powerful new set of primitives baked into the w
 
 Polymer is a lightweight library built on top of the web standards-based [Web Components](http://webcomponents.org/introduction) APIs, and makes it easier to build your very own custom HTML elements. Creating reusable custom elements - and using elements built by others - can make building complex web applications easier and more efficient.
 
-By being based on the Web Components API's built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), elements built with Polymer are:
+By being based on the Web Components APIs built in the browser (or [polyfilled](https://github.com/webcomponents/webcomponentsjs) where needed), elements built with Polymer are:
 
-* Interoperable at the browser level
 * Built from the platform up
 * Self-contained
-* Don't require an overarching framework - are interoperable across frameworks
 * Re-usable
+* Interoperable across frameworks
 
 Among many ways to leverage custom elements, they can be particularly useful for building reusable UI components. Instead of continually re-building a specific navigation bar or button in different frameworks and for different projects, you can define this element once using Polymer, and then reuse it throughout your project or in any future project.
 
@@ -111,12 +110,12 @@ Polymer is designed to be flexible, lightweight, and close to the web platform -
 
 ## About Polymer 3.0
 
-Polymer 3.0 is now released to stable, and introduces a major change to how Polymer is distributed: from HTML Imports on bower, to JS modules on npm.  Otherwise, the API is virtually 100% backward compatible with Polymer 2.0 (the only changes are removing API's related to HTML Imports like `importHref`, and converting Polymer's API to be module-based rather than globals-based).
+Polymer 3.0 is now released to stable, and introduces a major change to how Polymer is distributed: from HTML Imports on Bower, to JS modules on npm.  Otherwise, the API is almost entirely backward compatible with Polymer 2.0 (the only changes are removing APIs related to HTML Imports like `importHref`, and converting Polymer's API to be module-based rather than globals-based).
 
-Migrating to Polyme 3.0 by hand is mostly mechanical:
+Migrating to Polymer 3.0 by hand is mostly mechanical:
 * Components should be defined in JS modules instead of in HTML
-* Templates should be encoded in JS modules using a `static get template()` getter on PolymerElement subclasses using the `html` tagged template literal function (which parses `HTMLTemplateElement`'s out of strings in JS) rather than using `<template>` elements in a `<dom-module>`
-* All dependencies should be imported JS module imports rather than from HTML Imports.
+* Templates should be encoded in JS modules using a `static get template()` getter on PolymerElement subclasses using the `html` tagged template literal function (which parses `HTMLTemplateElement`s out of strings in JS) rather than using `<template>` elements in a `<dom-module>`
+* All dependencies should be imported JS module imports rather than HTML Imports.
 
 However, the [`polymer-modulizer`](https://github.com/Polymer/polymer-modulizer) tool automates the vast majority of this migration work.  Please see details on that repo for automated conversion of Polymer 2.0 apps and elements to Polymer 3.0.
 
