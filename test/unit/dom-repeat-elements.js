@@ -195,7 +195,7 @@ Polymer({
   }
 });
 let XNestedRepeat = Polymer({
-    _template: `
+    _template: html`
   <template id="repeater" is="dom-repeat" items="{{items}}" as="itema" index-as="indexa" on-dom-change="domUpdateHandler">
     <x-foo on-test1="testHandler1"
            innera-prop="{{innera.prop}}"
@@ -254,8 +254,7 @@ let XNestedRepeat = Polymer({
 class XNestedRepeatMutable extends MutableData(XNestedRepeat) {
   static get template() {
     if (!this._templateEl) {
-      this._templateEl = document.createElement('template');
-      this._templateEl.innerHTML = XNestedRepeat.template;
+      this._templateEl = XNestedRepeat.template.cloneNode(true);
     }
     return this.makeRepeatsMutable(this._templateEl.cloneNode(true));
   }
