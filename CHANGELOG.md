@@ -1,5 +1,10 @@
 # Change Log
 
+## [v3.0.1](https://github.com/Polymer/polymer/tree/v3.0.1) (2018-05-09)
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/3a4b8b89))
+
+- Remove importHref from 3.0 ([commit](https://github.com/Polymer/polymer/commit/fd416a21))
+
 ## [v3.0.0](https://github.com/Polymer/polymer/tree/v3.0.0) (2018-05-08)
 - use released versions of shadycss and webcomponentsjs ([commit](https://github.com/Polymer/polymer/commit/8f79ec40))
 
