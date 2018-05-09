@@ -1,5 +1,10 @@
 # Change Log
 
+## [v3.0.2](https://github.com/Polymer/polymer/tree/v3.0.2) (2018-05-09)
+- Add back modulizer manifest ([commit](https://github.com/Polymer/polymer/commit/d32797e9))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/4794b323))
+
 ## [v3.0.1](https://github.com/Polymer/polymer/tree/v3.0.1) (2018-05-09)
 - [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/3a4b8b89))
 
