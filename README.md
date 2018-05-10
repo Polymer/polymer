@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/Polymer/polymer.svg?branch=master)](https://travis-ci.org/Polymer/polymer)
 
-> ℹ️ Note: This is the current stable version of the Polymer library.  At Google I/O 2018 we announced a new Web Component base class, [`LitElement`](https://github.com/PolymerLabs/lit-element), as a successor to the `PolymerElement` base class in this library.
+> ℹ️ Note: This is the current stable version of the Polymer library.  At Google I/O 2018 we announced a new Web Component base class, [`LitElement`](https://github.com/Polymer/lit-element), as a successor to the `PolymerElement` base class in this library.
 >
 > If you're starting a new project, we recommend that you consider using LitElement instead.
 >
