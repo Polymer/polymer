@@ -32,7 +32,7 @@ Web Components are now implemented natively on Safari and Chrome (~70% of instal
  * You can also save [this HTML file](https://gist.githubusercontent.com/kevinpschaaf/8a5acbea7b25d2bb5e82eeea2b105669/raw/c3a86872f07603e2d0ddae736687e52a5c8c499f/index.html) to a local file and run it in any browser that supports [JavaScript Modules]((https://caniuse.com/#search=modules)).
 
  * When you're ready to use Polymer in a project, install it via [npm](https://www.npmjs.com/). To run the project in the browser,
- a module-compatible toolchain is required. We recommend installing the [Polymer CLI](https://github.com/Polymer/polymer-cli) to and using its development server as follows.
+ a module-compatible toolchain is required. We recommend installing the [Polymer CLI](https://github.com/Polymer/tools/tree/master/packages/cli) to and using its development server as follows.
 
     1. Add Polymer to your project:
 
@@ -42,11 +42,11 @@ Web Components are now implemented natively on Safari and Chrome (~70% of instal
 
     1. Install the Polymer CLI:
 
-        ```npm i -g polymer-cli@next```
+        ```npm i -g polymer-cli```
 
     1. Run the development server and open a browser pointing to its URL:
 
-        ```polymer serve```
+        ```polymer serve --npm```
 
     > Polymer 3.0 is published on [npm](https://www.npmjs.com/package/@polymer/polymer) using JavaScript Modules.
     This means it can take advantage of the standard native JavaScript module loader available in all current major browsers.

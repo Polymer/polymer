@@ -65,22 +65,21 @@ If you've completed all of these steps the core team will do its best to respond
 
 Though the aim of the Polymer library is to allow lots of flexibility and not get in your way, we work to standardize our elements to make them as toolable and easy to maintain as possible.
 
-All elements should follow the [Polymer element style guide](http://polymerelements.github.io/style-guide/), which defines how to specify properties, documentation, and more. It's a great guide to follow when building your own elements as well, for maximum standardization and toolability. For instance, structuring elements following the style guide will ensure that they work with the [`iron-component-page`](https://github.com/polymerelements/iron-component-page) element, an incredibly easy way to turn any raw element directly into a documentation page.
+All elements should follow the [Polymer element style guide](https://www.polymer-project.org/3.0/docs/tools/documentation), which defines how to specify properties, documentation, and more. It's a great guide to follow when building your own elements as well, for maximum standardization and toolability. For instance, structuring elements following the style guide will ensure that they work with the [`iron-component-page`](https://github.com/polymerelements/iron-component-page) element, an incredibly easy way to turn any raw element directly into a documentation page.
 
 #### Contributing Code to the Polymer library
 
-We follow the most common javascript and HTML style guidelines for how we structure our code - in general, look at the code and you'll know how to contribute! If you'd like a bit more structure, the [Google JavaScript Styleguide](https://google.github.io/styleguide/javascriptguide.xml) is a good place to start.
+We follow the most common JavaScript and HTML style guidelines for how we structure our code - in general, look at the code and you'll know how to contribute! If you'd like a bit more structure, the [Google JavaScript Styleguide](https://google.github.io/styleguide/javascriptguide.xml) is a good place to start.
 
 Polymer also participates in Google's [Patch Rewards Program](https://www.google.com/about/appsecurity/patch-rewards/), where you can earn cold, hard cash for qualifying security patches to the Polymer library. Visit the [patch rewards page](https://www.google.com/about/appsecurity/patch-rewards/) to find out more.
 
 ## Unit tests
 
-All Polymer projects use [`web-component-tester`](https://github.com/Polymer/web-component-tester) for unit tests.
-The [`polyserve`](https://github.com/PolymerLabs/polyserve) utility is helpful for running tests in the browser.
+All Polymer projects use [`polymer-cli`](https://github.com/Polymer/tools/tree/master/packages/cli) for unit tests.
 
-For maximum flexibility, install `web-component-tester` and `polyserve` locally:
+For maximum flexibility, install `polymer-cli` locally:
 
-    npm install -g polyserve web-component-tester
+    npm install -g polymer-cli
 
 ### Running the Polymer library unit tests
 
@@ -90,15 +89,15 @@ To run the Polymer library unit tests:
 
 2.  Install the dependencies:
 
-		npm install && bower install
+		npm install
 
 3.  Run the tests:
 
 		npm test
 
-    Or if you have `web-component-tester` installed locally:
+    Or if you have `polymer-cli` installed locally:
 
-		wct
+		polymer test --npm
 
 To run individual test suites:
 
@@ -106,23 +105,23 @@ To run individual test suites:
 
 Or:
 
-<code>wct <var>path/to/suite</var></code>
+<code>polymer test --npm <var>path/to/suite</var></code>
 
 For example:
 
-	npm test test/unit/template.html
+	polymer test --npm test/unit/polymer.element.html
 
 You can also run tests in the browser:
 
-	polyserve
+	polymer serve --npm
 
 Navigate to:
 
-[`http://localhost:8080/components/polymer/test/runner.html`](http://localhost:8080/components/polymer/test/runner.html)
+[`http://localhost:8080/components/@polymer/polymer/test/runner.html`](http://localhost:8080/components/@polymer/polymer/test/runner.html)
 
 ### Running Polymer element unit tests
 
-To run the element unit tests, you need a global install of `web-component-tester` or `polyserve` (or both).
+To run the element unit tests, you need a global install of `polymer-cli` .
 
 1. Clone the element repo.
 
@@ -132,11 +131,11 @@ To run the element unit tests, you need a global install of `web-component-teste
 
 1. Run the tests:
 
-       wct
+       polymer test
 
      Or run the tests in a browser:
 
-       polyserve
+       polymer serve
 
      Navigate to:
 
@@ -144,11 +143,11 @@ To run the element unit tests, you need a global install of `web-component-teste
 
 ### Configuring `web-component-tester`
 
-By default, `web-component-tester` runs tests on all installed browsers. You can configure it
+By default, `polymer test` runs tests on all installed browsers. You can configure it
 to run tests on a subset of available browsers, or to run tests remotely using Sauce Labs.
 
-See the [`web-component-tester` README](https://github.com/Polymer/web-component-tester) for
-information on configuring the tool.
+See the [`web-component-tester` README](https://github.com/Polymer/tools/tree/master/packages/web-component-tester) for
+information on configuring the tool using by `polymer-cli` to run the tests.
 
 ### Viewing the source documentation locally
 
