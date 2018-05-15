@@ -12,6 +12,7 @@ import { Polymer } from '../../lib/legacy/polymer-fn.js';
 import { html } from '../../lib/utils/html-tag.js';
 import { PolymerElement } from '../../polymer-element.js';
 import { GestureEventListeners } from '../../lib/mixins/gesture-event-listeners.js';
+import { addListener } from '../../lib/utils/gestures.js';
 Polymer({
   _template: html`
   <style>
@@ -196,23 +197,88 @@ class XNativeLabelNested extends PolymerElement {
   }
 }
 customElements.define(XNativeLabelNested.is, XNativeLabelNested);
-class XDisabled extends GestureEventListeners(PolymerElement) {
-  static get template() {
-    return html`
-    <button id="disabled" on-tap="tap" disabled=""></button>
-    <div disabled="">
-      <button id="nested" on-tap="tap"></button>
-    </div>
-`;
-  }
 
+class XDisabled extends PolymerElement {
+  static get is() {
+    return 'x-disabled';
+  }
+  static get properties() {
+    return {
+      disabled: {
+        type: Boolean,
+        reflectToAttribute: true
+      }
+    };
+  }
+  constructor() {
+    super();
+    this.disabled = true;
+  }
+}
+customElements.define(XDisabled.is, XDisabled);
+
+class XDisabledTap extends GestureEventListeners(PolymerElement) {
   constructor() {
     super();
     this.taps = [];
   }
-  static get is() {return 'x-disabled-tap';}
+  static get template() {
+    return html`
+    <button id="disabled" on-tap="tap" disabled></button>
+    <div disabled>
+      <button id="nested" on-tap="tap"></button>
+    </div>
+    <x-disabled id="disabledEl" on-tap="tap"></x-disabled>`
+  }
+  static get is() {
+    return 'x-disabled-tap';
+  }
   tap(e) {
-    this.taps.push(e.id);
+    const target = e.target;
+    this.taps.push(`${target.localName}${target.id ? '#' + target.id : ''}`);
   }
 }
-customElements.define(XDisabled.is, XDisabled);
+customElements.define(XDisabledTap.is, XDisabledTap);
+
+
+class AllDisabled extends GestureEventListeners(PolymerElement) {
+  static get is() {
+    return 'all-disabled';
+  }
+  static get template() {
+    return html`
+    <button></button>
+    <!-- MDN lists as obsolete -->
+    <!-- <command></command> -->
+    <fieldset></fieldset>
+    <input>
+    <!-- MDN lists as obsolete -->
+    <!-- <keygen> -->
+    <select>
+      <optgroup>
+        <option></option>
+      </optgroup>
+    </select>
+    <textarea></textarea>`;
+  }
+  constructor() {
+    super();
+    this.taps = [];
+  }
+  tap(e) {
+    this.taps.push(e.target.localName);
+  }
+  ready() {
+    super.ready();
+    this.shadowRoot.querySelectorAll('*').forEach((el) => {
+      el.setAttribute('disabled', '');
+      addListener(el, 'tap', (e) => this.tap(e));
+    });
+  }
+  tapAll() {
+    this.shadowRoot.querySelectorAll('*').forEach((el) => {
+      el.click();
+    });
+  }
+}
+customElements.define(AllDisabled.is, AllDisabled);
