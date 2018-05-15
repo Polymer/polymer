@@ -228,7 +228,7 @@ class XDisabledTap extends GestureEventListeners(PolymerElement) {
     <div disabled>
       <button id="nested" on-tap="tap"></button>
     </div>
-    <x-disabled id="disabledEl" on-tap="tap"></x-disabled>`
+    <x-disabled id="disabledEl" on-tap="tap"></x-disabled>`;
   }
   static get is() {
     return 'x-disabled-tap';
