@@ -109,4 +109,4 @@ Polymer.version;
  * @extends {HTMLElement}
  * @implements {Polymer_LegacyElementMixin}
  */
-var PolymerElement = Polymer.LegacyElementMixin();
+var PolymerElement = function() {};
