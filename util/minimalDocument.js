@@ -8,8 +8,6 @@
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
 
-'use strict';
-
 const dom5 = require('dom5');
 const parse5 = require('parse5');
 const {Transform} = require('stream');

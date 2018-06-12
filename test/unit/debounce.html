@@ -11,9 +11,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <html>
 <head>
   <meta charset="utf-8">
-  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
-  <script src="../../../web-component-tester/browser.js"></script>
-  <link rel="import" href="../../polymer.html">
+  <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+  <script src="wct-browser-config.js"></script>
+  <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
+  <script type="module" src="../../polymer-legacy.js"></script>
 </head>
 <body>
   <test-fixture id="basic">
@@ -28,17 +29,59 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </test-fixture>
 
-<script>
+<script type="module">
+import { Polymer } from '../../polymer-legacy.js';
+import { Debouncer } from '../../lib/utils/debounce.js';
+import { microTask, timeOut, animationFrame, idlePeriod } from '../../lib/utils/async.js';
+Polymer({is: 'x-basic'});
 
-  HTMLImports.whenReady(function() {
-    Polymer({is: 'x-basic'});
+suite('debounce', function() {
+  var element;
+
+  setup(function() {
+    element = fixture('basic');
   });
 
-  suite('debounce', function() {
-    var element;
+  test('debounce (no-wait)', function(done) {
+    var called = 0;
+    var callback = function() {
+      called++;
+    };
+
+    element.debounce('job', callback);
+    element.debounce('job', callback);
+    element.debounce('job', callback);
+
+    setTimeout(function() {
+      assert.equal(called, 1, 'debounce should be called exactly once');
+      done();
+    }, 50);
+  });
+
+  test('debounce (wait)', function(done) {
+    var called = 0;
+    var now = Date.now();
+    var callback = function() {
+      called++;
+    };
+
+    element.debounce('job', callback);
+    element.debounce('job', callback, 100);
+    element.debounce('job', callback, 100);
+
+    setTimeout(function() {
+      assert.equal(called, 1, 'debounce should be called exactly once');
+      assert(Date.now() - now > 100, 'debounce should be called after at least 100ms');
+      done();
+    }, 200);
+  });
+
+  suite('debounce does not carry across multiple elements', function() {
+    var element1, element2;
 
     setup(function() {
-      element = fixture('basic');
+      element1 = fixture('basic');
+      element2 = fixture('another');
     });
 
     test('debounce (no-wait)', function(done) {
@@ -47,168 +90,126 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         called++;
       };
 
-      element.debounce('job', callback);
-      element.debounce('job', callback);
-      element.debounce('job', callback);
+      element1.debounce('job', callback);
+      element2.debounce('job', callback);
+      element1.debounce('job', callback);
+      element2.debounce('job', callback);
 
       setTimeout(function() {
-        assert.equal(called, 1, 'debounce should be called exactly once');
+        assert.equal(called, 2, 'debounce should be called exactly twice');
         done();
       }, 50);
     });
+  });
 
-    test('debounce (wait)', function(done) {
-      var called = 0;
-      var now = Date.now();
-      var callback = function() {
-        called++;
-      };
-
-      element.debounce('job', callback);
-      element.debounce('job', callback, 100);
-      element.debounce('job', callback, 100);
+  suite('Polymer.Debouncer.debounce', function() {
+    test('same debouncer and multiple micro tasks', function(done) {
+      var callback = sinon.spy();
+      var job = Debouncer.debounce(null, microTask, callback);
+      Debouncer.debounce(job, microTask, callback);
 
       setTimeout(function() {
-        assert.equal(called, 1, 'debounce should be called exactly once');
-        assert(Date.now() - now > 100, 'debounce should be called after at least 100ms');
+        assert.isTrue(callback.calledOnce, 'callback should be called once');
         done();
-      }, 200);
-    });
-
-    suite('debounce does not carry across multiple elements', function() {
-      var element1, element2;
-
-      setup(function() {
-        element1 = fixture('basic');
-        element2 = fixture('another');
-      });
-
-      test('debounce (no-wait)', function(done) {
-        var called = 0;
-        var callback = function() {
-          called++;
-        };
-
-        element1.debounce('job', callback);
-        element2.debounce('job', callback);
-        element1.debounce('job', callback);
-        element2.debounce('job', callback);
-
-        setTimeout(function() {
-          assert.equal(called, 2, 'debounce should be called exactly twice');
-          done();
-        }, 50);
       });
     });
 
-    suite('Polymer.Debouncer.debounce', function() {
-      test('same debouncer and multiple micro tasks', function(done) {
-        var callback = sinon.spy();
-        var job = Polymer.Debouncer.debounce(null, Polymer.Async.microTask, callback);
-        Polymer.Debouncer.debounce(job, Polymer.Async.microTask, callback);
+    test('flush debouncer', function(done) {
+      var callback = sinon.spy();
+      var job = Debouncer.debounce(null, microTask, callback);
 
-        setTimeout(function() {
-          assert.isTrue(callback.calledOnce, 'callback should be called once');
-          done();
-        });
+      setTimeout(function() {
+        job.flush();
+        assert.isTrue(callback.calledOnce, 'callback should be called once');
+        done();
       });
-
-      test('flush debouncer', function(done) {
-        var callback = sinon.spy();
-        var job = Polymer.Debouncer.debounce(null, Polymer.Async.microTask, callback);
-
-        setTimeout(function() {
-          job.flush();
-          assert.isTrue(callback.calledOnce, 'callback should be called once');
-          done();
-        });
-      });
-
-      test('different debouncers and multiple micro tasks', function(done) {
-        var callback = sinon.spy();
-        var job1 = Polymer.Debouncer.debounce(null, Polymer.Async.microTask, callback);
-        Polymer.Debouncer.debounce(job1, Polymer.Async.microTask, callback);
-        var job2 = Polymer.Debouncer.debounce(null, Polymer.Async.microTask, callback);
-        Polymer.Debouncer.debounce(job2, Polymer.Async.microTask, callback);
-
-        setTimeout(function() {
-          assert.isTrue(callback.calledTwice, 'callback should be called twice');
-          done();
-        });
-      });
-
-      test('same debouncer and multiple timers', function(done) {
-        var callback = sinon.spy();
-        var job = Polymer.Debouncer.debounce(null, Polymer.Async.timeOut.after(10), callback);
-        Polymer.Debouncer.debounce(job, Polymer.Async.timeOut.after(10), callback);
-
-        setTimeout(function() {
-          assert.isTrue(callback.calledOnce, 'callback should be called once');
-          done();
-        }, 20);
-      });
-
-      test('different debouncers and multiple timers', function(done) {
-        var callback = sinon.spy();
-        var job1 = Polymer.Debouncer.debounce(null, Polymer.Async.timeOut.after(10), callback);
-        Polymer.Debouncer.debounce(job1, Polymer.Async.timeOut.after(10), callback);
-        var job2 = Polymer.Debouncer.debounce(null, Polymer.Async.timeOut.after(10), callback);
-        Polymer.Debouncer.debounce(job2, Polymer.Async.timeOut.after(10), callback);
-
-        setTimeout(function() {
-          assert.isTrue(callback.calledTwice, 'callback should be called twice');
-          done();
-        }, 20);
-      });
-
-      test('same debouncer and multiple animation frames', function(done) {
-        var callback = sinon.spy();
-        var job = Polymer.Debouncer.debounce(null, Polymer.Async.animationFrame, callback);
-        Polymer.Debouncer.debounce(job, Polymer.Async.animationFrame, callback);
-
-        requestAnimationFrame(function() {
-          assert.isTrue(callback.calledOnce, 'callback should be called once');
-          done();
-        });
-      });
-
-      test('different debouncer and multiple animation frames', function(done) {
-        var callback = sinon.spy();
-        var job1 = Polymer.Debouncer.debounce(null, Polymer.Async.animationFrame, callback);
-        Polymer.Debouncer.debounce(job1, Polymer.Async.animationFrame, callback);
-        var job2 = Polymer.Debouncer.debounce(null, Polymer.Async.animationFrame, callback);
-        Polymer.Debouncer.debounce(job2, Polymer.Async.animationFrame, callback);
-
-        requestAnimationFrame(function() {
-          assert.isTrue(callback.calledTwice, 'callback should be called twice');
-          done();
-        });
-      });
-
-      test('same debouncer and multiple idle callbacks', function(done) {
-        var callback = sinon.spy();
-        var job = Polymer.Debouncer.debounce(null, Polymer.Async.idlePeriod, callback);
-        Polymer.Debouncer.debounce(job, Polymer.Async.idlePeriod, callback);
-        Polymer.Async.idlePeriod.run(function() {
-          assert.isTrue(callback.calledOnce, 'callback should be called once');
-          done();
-        });
-      });
-
-      test('different debouncer and multiple idle callbacks', function(done) {
-        var callback = sinon.spy();
-        var job1 = Polymer.Debouncer.debounce(null, Polymer.Async.idlePeriod, callback);
-        Polymer.Debouncer.debounce(job1, Polymer.Async.idlePeriod, callback);
-        var job2 = Polymer.Debouncer.debounce(null, Polymer.Async.idlePeriod, callback);
-        Polymer.Debouncer.debounce(job2, Polymer.Async.idlePeriod, callback);
-        Polymer.Async.idlePeriod.run(function() {
-          assert.isTrue(callback.calledTwice, 'callback should be called twice');
-          done();
-        });
-      });
-
     });
+
+    test('different debouncers and multiple micro tasks', function(done) {
+      var callback = sinon.spy();
+      var job1 = Debouncer.debounce(null, microTask, callback);
+      Debouncer.debounce(job1, microTask, callback);
+      var job2 = Debouncer.debounce(null, microTask, callback);
+      Debouncer.debounce(job2, microTask, callback);
+
+      setTimeout(function() {
+        assert.isTrue(callback.calledTwice, 'callback should be called twice');
+        done();
+      });
+    });
+
+    test('same debouncer and multiple timers', function(done) {
+      var callback = sinon.spy();
+      var job = Debouncer.debounce(null, timeOut.after(10), callback);
+      Debouncer.debounce(job, timeOut.after(10), callback);
+
+      setTimeout(function() {
+        assert.isTrue(callback.calledOnce, 'callback should be called once');
+        done();
+      }, 20);
+    });
+
+    test('different debouncers and multiple timers', function(done) {
+      var callback = sinon.spy();
+      var job1 = Debouncer.debounce(null, timeOut.after(10), callback);
+      Debouncer.debounce(job1, timeOut.after(10), callback);
+      var job2 = Debouncer.debounce(null, timeOut.after(10), callback);
+      Debouncer.debounce(job2, timeOut.after(10), callback);
+
+      setTimeout(function() {
+        assert.isTrue(callback.calledTwice, 'callback should be called twice');
+        done();
+      }, 20);
+    });
+
+    test('same debouncer and multiple animation frames', function(done) {
+      var callback = sinon.spy();
+      var job = Debouncer.debounce(null, animationFrame, callback);
+      Debouncer.debounce(job, animationFrame, callback);
+
+      requestAnimationFrame(function() {
+        assert.isTrue(callback.calledOnce, 'callback should be called once');
+        done();
+      });
+    });
+
+    test('different debouncer and multiple animation frames', function(done) {
+      var callback = sinon.spy();
+      var job1 = Debouncer.debounce(null, animationFrame, callback);
+      Debouncer.debounce(job1, animationFrame, callback);
+      var job2 = Debouncer.debounce(null, animationFrame, callback);
+      Debouncer.debounce(job2, animationFrame, callback);
+
+      requestAnimationFrame(function() {
+        assert.isTrue(callback.calledTwice, 'callback should be called twice');
+        done();
+      });
+    });
+
+    test('same debouncer and multiple idle callbacks', function(done) {
+      var callback = sinon.spy();
+      var job = Debouncer.debounce(null, idlePeriod, callback);
+      Debouncer.debounce(job, idlePeriod, callback);
+      idlePeriod.run(function() {
+        assert.isTrue(callback.calledOnce, 'callback should be called once');
+        done();
+      });
+    });
+
+    test('different debouncer and multiple idle callbacks', function(done) {
+      var callback = sinon.spy();
+      var job1 = Debouncer.debounce(null, idlePeriod, callback);
+      Debouncer.debounce(job1, idlePeriod, callback);
+      var job2 = Debouncer.debounce(null, idlePeriod, callback);
+      Debouncer.debounce(job2, idlePeriod, callback);
+      idlePeriod.run(function() {
+        assert.isTrue(callback.calledTwice, 'callback should be called twice');
+        done();
+      });
+    });
+
   });
+});
 </script>
 </body>
 </html>

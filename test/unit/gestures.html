@@ -12,650 +12,721 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
   <meta charset="utf-8">
 
-  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
-  <script src="../../../web-component-tester/browser.js"></script>
-
-  <link rel="import" href="../../polymer.html">
-  <link rel="import" href="gestures-elements.html">
+  <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+  <script src="wct-browser-config.js"></script>
+  <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
+  <script type="module" src="../../polymer-legacy.js"></script>
+  <script type="module" src="./gestures-elements.js"></script>
 
 </head>
 <body>
 
-  <script>
+  <script type="module">
+import './gestures-elements.js';
+import { afterNextRender } from '../../lib/utils/render-status.js';
+import * as gestures from '../../lib/utils/gestures.js';
+import { resetMouseCanceller, deepTargetFind, recognizers as recognizers$0, addListener, removeListener } from '../../lib/utils/gestures.js';
 
-    suite('simulate events', function() {
+suite('simulate events', function() {
 
-      var app;
+  var app;
 
-      setup(function(done) {
-        app = document.createElement('x-app');
-        document.body.appendChild(app);
-        Polymer.RenderStatus.afterNextRender(null, done);
+  setup(function(done) {
+    app = document.createElement('x-app');
+    document.body.appendChild(app);
+    afterNextRender(null, done);
+  });
+
+  teardown(function() {
+    document.body.removeChild(app);
+    resetMouseCanceller();
+  });
+
+  test('tap on x-foo and check localTarget and rootTarget', function() {
+    var foo = app.$.foo;
+    foo.dispatchEvent(new CustomEvent('click', {bubbles: true, composed: true}));
+    assert.equal(app._testLocalTarget, app, 'local target');
+    assert.equal(app._testRootTarget, foo, 'root target');
+    let touches = [{
+      clientX: 0,
+      clientY: 0,
+      identifier: 1,
+      // target is set to the element with `addEventListener`, which is app
+      target: app
+    }];
+    let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
+    touchstart.changedTouches = touchstart.touches = touches;
+    foo.dispatchEvent(touchstart);
+    let touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
+    touchend.touches = touchend.changedTouches = touches;
+    foo.dispatchEvent(touchend);
+    assert.equal(app._testLocalTarget, app, 'local target touch');
+    assert.equal(app._testRootTarget, foo, 'root target touch');
+  });
+
+  test('tap on x-foo.div and check target info', function() {
+    var foo = app.$.foo;
+    var div = foo.$.div;
+    div.dispatchEvent(new CustomEvent('click', {bubbles: true, composed: true}));
+    assert.equal(app._testLocalTarget, app, 'app local target');
+    assert.equal(app._testRootTarget, div, 'app root target');
+    assert.equal(foo._testLocalTarget, foo, 'foo local target');
+    assert.equal(foo._testRootTarget, div, 'foo root target');
+    let touches = [{
+      clientX: 0,
+      clientY: 0,
+      identifier: 1,
+      // target is set to the element with `addEventListener`, which is app
+      target: app
+    }];
+    let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
+    touchstart.touches = touchstart.changedTouches = touches;
+    let touchend = new CustomEvent('touchend', {composed: true, bubbles: true});
+    touchend.touches = touchend.changedTouches = touches;
+    div.dispatchEvent(touchstart);
+    div.dispatchEvent(touchend);
+    assert.equal(app._testLocalTarget, app, 'app local target touch');
+    assert.equal(app._testRootTarget, div, 'app root target touch');
+    assert.equal(foo._testLocalTarget, foo, 'foo local target touch');
+    assert.equal(foo._testRootTarget, div, 'foo root target touch');
+  });
+
+  test('HTMLElement.click triggers tap', function() {
+    // put the element off screen to prevent x/y weirdness from .click()
+    app.style.cssText = 'position: absolute; left: -1000px; top: -1000px;';
+    // make a mousedown *very* far away to tickle the distance check
+    var ev = new CustomEvent('mousedown', {composed: true});
+    ev.clientX = 1e8;
+    ev.clientY = 1e8;
+    app.dispatchEvent(ev);
+    app.click();
+    assert.equal(app._testLocalTarget, app, 'app local target');
+    assert.equal(app._testRootTarget, app, 'app root target');
+  });
+});
+
+suite('Event Setup and Teardown', function() {
+  var outer, inner;
+  suiteSetup(function(done) {
+    outer = document.createElement('x-setup');
+    document.body.appendChild(outer);
+    afterNextRender(null, function() {
+      inner = outer.$.inner;
+      done();
+    });
+  });
+
+  suite('setup', function() {
+    test('listeners block', function() {
+      assert.equal(outer.__polymerGesturesTouchAction, 'none');
+      var obj = outer.__polymerGestures;
+      assert.equal(obj.mousedown.downup, 2, 'mousedown downup');
+      assert.equal(obj.mousedown.track, 1, 'mousedown track');
+      assert.equal(obj.mousedown.tap, 1, 'mousedown tap');
+      assert.equal(obj.mousedown._count, 4, 'total mousedown');
+      assert.equal(obj.touchstart.downup, 2, 'touchstart downup');
+      assert.equal(obj.touchstart.tap, 1, 'touchstart tap');
+      assert.equal(obj.touchstart.track, 1, 'touchstart track');
+      assert.equal(obj.touchstart._count, 4, 'total touchstart');
+      assert.equal(obj.touchmove.track, 1, 'touchmove track');
+      assert.equal(obj.touchmove._count, 1, 'total touchmove');
+      assert.equal(obj.touchend.downup, 2, 'touchend downup');
+      assert.equal(obj.touchend.track, 1, 'touchend track');
+      assert.equal(obj.touchend.tap, 1, 'touchend tap');
+      assert.equal(obj.touchend._count, 4, 'total touchend');
+    });
+
+    test('on-*', function() {
+      assert.equal(inner.__polymerGesturesTouchAction, 'none');
+      var obj = inner.__polymerGestures;
+      assert.equal(obj.mousedown.downup, 2, 'mousedown downup');
+      assert.equal(obj.mousedown.track, 1, 'mousedown track');
+      assert.equal(obj.mousedown.tap, 1, 'mousedown tap');
+      assert.equal(obj.mousedown._count, 4, 'total mousedown');
+      assert.equal(obj.touchstart.downup, 2, 'touchstart downup');
+      assert.equal(obj.touchstart.tap, 1, 'touchstart tap');
+      assert.equal(obj.touchstart.track, 1, 'touchstart track');
+      assert.equal(obj.touchstart._count, 4, 'total touchstart');
+      assert.equal(obj.touchmove.track, 1, 'touchmove track');
+      assert.equal(obj.touchmove._count, 1, 'total touchmove');
+      assert.equal(obj.touchend.downup, 2, 'touchend downup');
+      assert.equal(obj.touchend.track, 1, 'touchend track');
+      assert.equal(obj.touchend.tap, 1, 'touchend tap');
+      assert.equal(obj.touchend._count, 4, 'total touchend');
+    });
+
+    test('dynamic', function(done) {
+      var el = document.createElement('x-dynamic');
+      afterNextRender(null, function() {
+        var obj = el.__polymerGestures;
+        assert(!obj);
+        el.setup();
+        obj = el.__polymerGestures;
+        assert(obj, 'gestures object exists');
+        assert.equal(obj.mousedown.tap, 1, 'mousedown tap');
+        assert.equal(obj.click.tap, 1, 'click tap');
+        assert.equal(obj.touchstart.tap, 1, 'touchstart tap');
+        assert.equal(obj.touchend.tap, 1, 'touchend tap');
+        done();
       });
+    });
+  });
 
-      teardown(function() {
-        document.body.removeChild(app);
-        Polymer.Gestures.resetMouseCanceller();
-      });
+  suite('teardown', function() {
+    test('dynamic', function(){
+      var el = document.createElement('x-dynamic');
+      var obj = el.__polymerGestures;
+      assert(!obj);
+      el.setup();
+      el.teardown();
+      obj = el.__polymerGestures;
+      assert(obj, 'gestures object exists');
+      assert.equal(obj.mousedown.tap, 0, 'mousedown tap');
+      assert.equal(obj.click.tap, 0, 'click tap');
+      assert.equal(obj.touchstart.tap, 0, 'touchstart tap');
+      assert.equal(obj.touchend.tap, 0, 'touchend tap');
+    });
+  });
+});
 
-      test('tap on x-foo and check localTarget and rootTarget', function() {
-        var foo = app.$.foo;
-        foo.dispatchEvent(new CustomEvent('click', {bubbles: true, composed: true}));
-        assert.equal(app._testLocalTarget, app, 'local target');
-        assert.equal(app._testRootTarget, foo, 'root target');
-        let touches = [{
-          clientX: 0,
-          clientY: 0,
+suite('target finding', function() {
+  var div, divLocation;
+
+  setup(function() {
+    div = document.createElement('div');
+    div.style.cssText = 'height: 50px; width: 50px; background: red;';
+    div.id = 'target';
+    document.body.appendChild(div);
+    divLocation = div.getBoundingClientRect();
+  });
+
+  test('target finding returns null outside the window', function() {
+    var actual = deepTargetFind(-1, -1);
+    assert.equal(actual, null);
+  });
+
+  test('find the div in document', function() {
+    var x = divLocation.left, y = divLocation.top;
+    var actual = deepTargetFind(x, y);
+    assert.equal(actual, div);
+  });
+
+  test('find the div with a shadowroot', function() {
+    div.attachShadow({mode: 'open'});
+    var x = divLocation.left, y = divLocation.top;
+    var actual = deepTargetFind(x, y);
+    assert.equal(actual, div);
+  });
+
+  test('find the div inside a shadowroot', function() {
+    var divOwner = document.createElement('span');
+    document.body.appendChild(divOwner);
+    divOwner.attachShadow({mode: 'open'}).appendChild(div);
+    var bcr = divOwner.getBoundingClientRect();
+    var x = bcr.left+10, y = bcr.top+10;
+    var actual = deepTargetFind(x, y);
+    assert.equal(actual, div);
+  });
+
+  test('find the div with a shadowroot inside a shadowroot', function() {
+    div.attachShadow({mode: 'open'});
+    var divOwner = document.createElement('span');
+    document.body.appendChild(divOwner);
+    divOwner.attachShadow({mode: 'open'}).appendChild(div);
+    var bcr = divOwner.getBoundingClientRect();
+    var x = bcr.left, y = bcr.top;
+    var actual = deepTargetFind(x, y);
+    assert.equal(actual, div);
+  });
+});
+
+suite('Prevention', function() {
+  var el;
+  setup(function(done) {
+    el = document.createElement('x-prevent');
+    document.body.appendChild(el);
+    afterNextRender(null, done);
+  });
+  teardown(function() {
+    el.parentNode.removeChild(el);
+    resetMouseCanceller();
+  });
+
+  test('tap', function() {
+    var ev = new CustomEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+    el.dispatchEvent(ev);
+    assert.equal(el.stream.length, 1, 'one event dispatched');
+    assert.equal(el.stream[0].type, 'down', 'was down event');
+    assert.equal(el.stream[0].defaultPrevented, true, 'was prevented');
+    assert.equal(ev.defaultPrevented, true, 'base event was prevented');
+  });
+
+  test('track', function() {
+    var ev = new CustomEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+    ev.clientX = ev.clientY = 0;
+    el.dispatchEvent(ev);
+    assert.equal(el.stream.length, 1);
+    for (var i = 0; i < 10; i++) {
+      ev = new CustomEvent(
+        i === 9 ? 'mouseup' : 'mousemove',
+        {bubbles: true, cancelable: true, composed: true}
+      );
+      ev.clientX = ev.clientY = 10 * i;
+      el.dispatchEvent(ev);
+    }
+    assert.equal(el.stream.length, 2, 'expected only down and up');
+    assert.equal(el.stream[0].type, 'down', 'down was found');
+    assert.equal(el.stream[0].defaultPrevented, true, 'down was prevented');
+    assert.equal(el.stream[1].type, 'up', 'up was found');
+  });
+
+  test('nested track and tap with touch', function(done) {
+    el.parentNode.removeChild(el);
+    el = document.createElement('x-nested-prevent');
+    document.body.appendChild(el);
+    afterNextRender(null, function() {
+      var child = el.$.child;
+      var options = {bubbles: true, cancelable: true, composed: true};
+
+      var bgr = el.getBoundingClientRect();
+      var clientX = bgr.left + (bgr.width / 2);
+      var clientY = bgr.top + (bgr.bottom / 2);
+      var ev = new CustomEvent('touchstart', options);
+      ev.touches = ev.changedTouches = [
+        {
+          clientX: clientX,
+          clientY: clientY,
           identifier: 1,
-          // target is set to the element with `addEventListener`, which is app
-          target: app
-        }];
-        let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
-        touchstart.changedTouches = touchstart.touches = touches;
-        foo.dispatchEvent(touchstart);
-        let touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
-        touchend.touches = touchend.changedTouches = touches;
-        foo.dispatchEvent(touchend);
-        assert.equal(app._testLocalTarget, app, 'local target touch');
-        assert.equal(app._testRootTarget, foo, 'root target touch');
-      });
-
-      test('tap on x-foo.div and check target info', function() {
-        var foo = app.$.foo;
-        var div = foo.$.div;
-        div.dispatchEvent(new CustomEvent('click', {bubbles: true, composed: true}));
-        assert.equal(app._testLocalTarget, app, 'app local target');
-        assert.equal(app._testRootTarget, div, 'app root target');
-        assert.equal(foo._testLocalTarget, foo, 'foo local target');
-        assert.equal(foo._testRootTarget, div, 'foo root target');
-        let touches = [{
-          clientX: 0,
-          clientY: 0,
-          identifier: 1,
-          // target is set to the element with `addEventListener`, which is app
-          target: app
-        }];
-        let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
-        touchstart.touches = touchstart.changedTouches = touches;
-        let touchend = new CustomEvent('touchend', {composed: true, bubbles: true});
-        touchend.touches = touchend.changedTouches = touches;
-        div.dispatchEvent(touchstart);
-        div.dispatchEvent(touchend);
-        assert.equal(app._testLocalTarget, app, 'app local target touch');
-        assert.equal(app._testRootTarget, div, 'app root target touch');
-        assert.equal(foo._testLocalTarget, foo, 'foo local target touch');
-        assert.equal(foo._testRootTarget, div, 'foo root target touch');
-      });
-
-      test('HTMLElement.click triggers tap', function() {
-        // put the element off screen to prevent x/y weirdness from .click()
-        app.style.cssText = 'position: absolute; left: -1000px; top: -1000px;';
-        // make a mousedown *very* far away to tickle the distance check
-        var ev = new CustomEvent('mousedown', {composed: true});
-        ev.clientX = 1e8;
-        ev.clientY = 1e8;
-        app.dispatchEvent(ev);
-        app.click();
-        assert.equal(app._testLocalTarget, app, 'app local target');
-        assert.equal(app._testRootTarget, app, 'app root target');
-      });
-    });
-
-    suite('Event Setup and Teardown', function() {
-      var outer, inner;
-      suiteSetup(function(done) {
-        outer = document.createElement('x-setup');
-        document.body.appendChild(outer);
-        Polymer.RenderStatus.afterNextRender(null, function() {
-          inner = outer.$.inner;
-          done();
-        });
-      });
-
-      suite('setup', function() {
-        test('listeners block', function() {
-          assert.equal(outer.__polymerGesturesTouchAction, 'none');
-          var obj = outer.__polymerGestures;
-          assert.equal(obj.mousedown.downup, 2, 'mousedown downup');
-          assert.equal(obj.mousedown.track, 1, 'mousedown track');
-          assert.equal(obj.mousedown.tap, 1, 'mousedown tap');
-          assert.equal(obj.mousedown._count, 4, 'total mousedown');
-          assert.equal(obj.touchstart.downup, 2, 'touchstart downup');
-          assert.equal(obj.touchstart.tap, 1, 'touchstart tap');
-          assert.equal(obj.touchstart.track, 1, 'touchstart track');
-          assert.equal(obj.touchstart._count, 4, 'total touchstart');
-          assert.equal(obj.touchmove.track, 1, 'touchmove track');
-          assert.equal(obj.touchmove._count, 1, 'total touchmove');
-          assert.equal(obj.touchend.downup, 2, 'touchend downup');
-          assert.equal(obj.touchend.track, 1, 'touchend track');
-          assert.equal(obj.touchend.tap, 1, 'touchend tap');
-          assert.equal(obj.touchend._count, 4, 'total touchend');
-        });
-
-        test('on-*', function() {
-          assert.equal(inner.__polymerGesturesTouchAction, 'none');
-          var obj = inner.__polymerGestures;
-          assert.equal(obj.mousedown.downup, 2, 'mousedown downup');
-          assert.equal(obj.mousedown.track, 1, 'mousedown track');
-          assert.equal(obj.mousedown.tap, 1, 'mousedown tap');
-          assert.equal(obj.mousedown._count, 4, 'total mousedown');
-          assert.equal(obj.touchstart.downup, 2, 'touchstart downup');
-          assert.equal(obj.touchstart.tap, 1, 'touchstart tap');
-          assert.equal(obj.touchstart.track, 1, 'touchstart track');
-          assert.equal(obj.touchstart._count, 4, 'total touchstart');
-          assert.equal(obj.touchmove.track, 1, 'touchmove track');
-          assert.equal(obj.touchmove._count, 1, 'total touchmove');
-          assert.equal(obj.touchend.downup, 2, 'touchend downup');
-          assert.equal(obj.touchend.track, 1, 'touchend track');
-          assert.equal(obj.touchend.tap, 1, 'touchend tap');
-          assert.equal(obj.touchend._count, 4, 'total touchend');
-        });
-
-        test('dynamic', function(done) {
-          var el = document.createElement('x-dynamic');
-          Polymer.RenderStatus.afterNextRender(null, function() {
-            var obj = el.__polymerGestures;
-            assert(!obj);
-            el.setup();
-            obj = el.__polymerGestures;
-            assert(obj, 'gestures object exists');
-            assert.equal(obj.mousedown.tap, 1, 'mousedown tap');
-            assert.equal(obj.click.tap, 1, 'click tap');
-            assert.equal(obj.touchstart.tap, 1, 'touchstart tap');
-            assert.equal(obj.touchend.tap, 1, 'touchend tap');
-            done();
-          });
-        });
-      });
-
-      suite('teardown', function() {
-        test('dynamic', function(){
-          var el = document.createElement('x-dynamic');
-          var obj = el.__polymerGestures;
-          assert(!obj);
-          el.setup();
-          el.teardown();
-          obj = el.__polymerGestures;
-          assert(obj, 'gestures object exists');
-          assert.equal(obj.mousedown.tap, 0, 'mousedown tap');
-          assert.equal(obj.click.tap, 0, 'click tap');
-          assert.equal(obj.touchstart.tap, 0, 'touchstart tap');
-          assert.equal(obj.touchend.tap, 0, 'touchend tap');
-        });
-      });
-    });
-
-    suite('target finding', function() {
-      var div, divLocation;
-
-      setup(function() {
-        div = document.createElement('div');
-        div.style.cssText = 'height: 50px; width: 50px; background: red;';
-        div.id = 'target';
-        document.body.appendChild(div);
-        divLocation = div.getBoundingClientRect();
-      });
-
-      test('target finding returns null outside the window', function() {
-        var actual = Polymer.Gestures.deepTargetFind(-1, -1);
-        assert.equal(actual, null);
-      });
-
-      test('find the div in document', function() {
-        var x = divLocation.left, y = divLocation.top;
-        var actual = Polymer.Gestures.deepTargetFind(x, y);
-        assert.equal(actual, div);
-      });
-
-      test('find the div with a shadowroot', function() {
-        div.attachShadow({mode: 'open'});
-        var x = divLocation.left, y = divLocation.top;
-        var actual = Polymer.Gestures.deepTargetFind(x, y);
-        assert.equal(actual, div);
-      });
-
-      test('find the div inside a shadowroot', function() {
-        var divOwner = document.createElement('span');
-        document.body.appendChild(divOwner);
-        divOwner.attachShadow({mode: 'open'}).appendChild(div);
-        var bcr = divOwner.getBoundingClientRect();
-        var x = bcr.left+10, y = bcr.top+10;
-        var actual = Polymer.Gestures.deepTargetFind(x, y);
-        assert.equal(actual, div);
-      });
-
-      test('find the div with a shadowroot inside a shadowroot', function() {
-        div.attachShadow({mode: 'open'});
-        var divOwner = document.createElement('span');
-        document.body.appendChild(divOwner);
-        divOwner.attachShadow({mode: 'open'}).appendChild(div);
-        var bcr = divOwner.getBoundingClientRect();
-        var x = bcr.left, y = bcr.top;
-        var actual = Polymer.Gestures.deepTargetFind(x, y);
-        assert.equal(actual, div);
-      });
-    });
-
-    suite('Prevention', function() {
-      var el;
-      setup(function(done) {
-        el = document.createElement('x-prevent');
-        document.body.appendChild(el);
-        Polymer.RenderStatus.afterNextRender(null, done);
-      });
-      teardown(function() {
-        el.parentNode.removeChild(el);
-        Polymer.Gestures.resetMouseCanceller();
-      });
-
-      test('tap', function() {
-        var ev = new CustomEvent('mousedown', {
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        });
-        el.dispatchEvent(ev);
-        assert.equal(el.stream.length, 1, 'one event dispatched');
-        assert.equal(el.stream[0].type, 'down', 'was down event');
-        assert.equal(el.stream[0].defaultPrevented, true, 'was prevented');
-        assert.equal(ev.defaultPrevented, true, 'base event was prevented');
-      });
-
-      test('track', function() {
-        var ev = new CustomEvent('mousedown', {
-          bubbles: true,
-          cancelable: true,
-          composed: true
-        });
-        ev.clientX = ev.clientY = 0;
-        el.dispatchEvent(ev);
-        assert.equal(el.stream.length, 1);
-        for (var i = 0; i < 10; i++) {
-          ev = new CustomEvent(
-            i === 9 ? 'mouseup' : 'mousemove',
-            {bubbles: true, cancelable: true, composed: true}
-          );
-          ev.clientX = ev.clientY = 10 * i;
-          el.dispatchEvent(ev);
+          // target is set to the element with `addEventListener`, which is el
+          target: el
         }
-        assert.equal(el.stream.length, 2, 'expected only down and up');
-        assert.equal(el.stream[0].type, 'down', 'down was found');
-        assert.equal(el.stream[0].defaultPrevented, true, 'down was prevented');
-        assert.equal(el.stream[1].type, 'up', 'up was found');
-      });
+      ];
+      ev.clientX = clientX;
+      ev.clientY = clientY;
+      child.dispatchEvent(ev);
 
-      test('nested track and tap with touch', function(done) {
-        el.parentNode.removeChild(el);
-        el = document.createElement('x-nested-prevent');
-        document.body.appendChild(el);
-        Polymer.RenderStatus.afterNextRender(null, function() {
-          var child = el.$.child;
-          var options = {bubbles: true, cancelable: true, composed: true};
-
-          var bgr = el.getBoundingClientRect();
-          var clientX = bgr.left + (bgr.width / 2);
-          var clientY = bgr.top + (bgr.bottom / 2);
-          var ev = new CustomEvent('touchstart', options);
-          ev.touches = ev.changedTouches = [
-            {
-              clientX: clientX,
-              clientY: clientY,
-              identifier: 1,
-              // target is set to the element with `addEventListener`, which is el
-              target: el
-            }
-          ];
-          ev.clientX = clientX;
-          ev.clientY = clientY;
-          child.dispatchEvent(ev);
-
-          for (var i = 0; i < 10; i++) {
-            clientX += 1;
-            ev = new CustomEvent(i === 9 ? 'touchend' : 'touchmove', options);
-            ev.touches = ev.changedTouches = [
-              {
-                clientX: clientX,
-                clientY: clientY,
-                identifier: 1,
-                // target is set to the element with `addEventListener`, which is el
-                target: el
-              }
-            ];
-            ev.clientX = clientX;
-            ev.clientY = clientY;
-            // tell gestures to not turn off mouse events
-            child.dispatchEvent(ev);
-          }
-
-          assert.equal(child.stream.length, 0, 'expected no taps on the child');
-          assert.notEqual(el.stream.length, 0, 'expected some tracks on the parent');
-          done();
-        });
-      });
-    });
-
-    suite('Buttons', function() {
-      var el;
-
-      setup(function(done) {
-        el = document.createElement('x-buttons');
-        document.body.appendChild(el);
-        Polymer.RenderStatus.afterNextRender(null, done);
-      });
-
-      teardown(function() {
-        el.parentNode.removeChild(el);
-      });
-
-      suite('Down and Up', function() {
-        test('Left Mouse Button Only', function() {
-          var options = {bubbles: true, composed: true};
-          var evLeftDown = new CustomEvent('mousedown', options);
-          // left button
-          evLeftDown.button = 0;
-          evLeftDown.clientX = 1;
-          var evLeftUp = new CustomEvent('mouseup', options);
-          var evRightDown = new CustomEvent('mousedown', options);
-          // right button
-          evRightDown.button = 2;
-          evRightDown.clientX = 2;
-          var evRightUp = new CustomEvent('mouseup', options);
-
-          el.dispatchEvent(evLeftDown);
-          el.dispatchEvent(evLeftUp);
-          el.dispatchEvent(evRightDown);
-          el.dispatchEvent(evRightUp);
-
-          assert.equal(el.stream.length, 2, 'only saw one up and down pair');
-          assert.equal(el.stream[0].type, 'down');
-          assert.equal(el.stream[1].type, 'up');
-          assert.equal(el.stream[0].detail.x, 1, 'only from the left button');
-        });
-
-        test('Recover from right click', function() {
-          var options = {bubbles: true, composed: true};
-          var evDown = new CustomEvent('mousedown', options);
-          var evMove = new CustomEvent('mousemove', options);
-          evMove.buttons = 0;
-          var evUp = new CustomEvent('mouseup', options);
-
-          el.dispatchEvent(evDown);
-          el.dispatchEvent(evMove);
-          el.dispatchEvent(evUp);
-
-          assert.equal(el.stream.length, 2, 'always get an up');
-        });
-      });
-
-      suite('Tap', function() {
-        test('Left Mouse Button Only', function() {
-          var evMid = new CustomEvent('click', {bubbles: true, composed: true});
-          evMid.button = 1;
-          var evLeft = new CustomEvent('click', {bubbles: true, composed: true});
-          evLeft.button = 0;
-
-          el.dispatchEvent(evMid);
-          el.dispatchEvent(evLeft);
-
-          assert.equal(el.stream.length, 1, 'only one tap');
-        });
-      });
-
-      suite('Track', function() {
-        test('Left Mouse Button Only', function() {
-          var options = {bubbles: true, composed: true};
-          var ev = new CustomEvent('mousedown', options);
-          ev.clientX = ev.clientY = 0;
-          el.dispatchEvent(ev);
-          for (var i = 0; i < 5; i++) {
-            ev = new CustomEvent('mousemove', options);
-            ev.clientX = 10 * i;
-            ev.clientY = 10 * i;
-            // left button until move 4
-            ev.buttons = (i > 3) ? 2 : 1;
-            el.dispatchEvent(ev);
-          }
-          el.dispatchEvent(new CustomEvent('mouseup', options));
-
-          // down, <skipped>, track:start, track:track, track:track, track:end, up
-          assert.equal(el.stream.length, 6);
-          assert.equal(el.stream[0].type, 'down');
-          assert.equal(el.stream[1].detail.state, 'start');
-          assert.equal(el.stream[2].detail.state, 'track');
-          assert.equal(el.stream[3].detail.state, 'track');
-          assert.equal(el.stream[4].type, 'up');
-          assert.equal(el.stream[5].detail.state, 'end');
-        });
-      });
-    });
-
-    suite('SD Polyfill', function() {
-      var el;
-      setup(function(done) {
-        el = document.createElement('x-document-listener');
-        document.body.appendChild(el);
-        Polymer.RenderStatus.afterNextRender(null, function() {
-          el.setup();
-          done();
-        });
-      });
-
-      teardown(function() {
-        el.teardown();
-        document.body.removeChild(el);
-      });
-
-      test('document listener works in SD polyfill', function() {
-        var ev = new CustomEvent('mousedown', {bubbles: true, composed: true});
-        el.dispatchEvent(ev);
-        assert.equal(el.stream.length, 1);
-      });
-    });
-
-    suite('Reference Cleanup', function() {
-      var el;
-
-      setup(function(done) {
-        el = document.createElement('x-buttons');
-        document.body.appendChild(el);
-        Polymer.RenderStatus.afterNextRender(null, done);
-      });
-
-      teardown(function() {
-        document.body.removeChild(el);
-      });
-
-      test('down and up clear document tracking', function() {
-        var ev = new CustomEvent('mousedown', {bubbles: true, composed: true});
-        el.dispatchEvent(ev);
-
-        // some recognizers do not track the document, like tap
-        var recognizers = Polymer.Gestures.recognizers.filter(function(r) {
-          return r.info.hasOwnProperty('movefn') &&
-            r.info.hasOwnProperty('upfn');
-        });
-
-        assert.isAbove(recognizers.length, 0, 'some recognizers track the document');
-
-        recognizers.forEach(function(r) {
-          assert.isFunction(r.info.movefn, r.name + ' movefn');
-          assert.isFunction(r.info.upfn, r.name + ' upfn');
-        });
-
-        ev = new CustomEvent('mouseup', {bubbles: true, composed: true});
-        el.dispatchEvent(ev);
-
-        recognizers.forEach(function(r) {
-          assert.isNull(r.info.movefn, r.name + ' movefn');
-          assert.isNull(r.info.upfn, r.name + ' upfn');
-        });
-      });
-    });
-
-    suite('Imperative API', function() {
-      var el, fn;
-      suiteSetup(function() {
-        el = document.createElement('x-imperative');
-        document.body.appendChild(el);
-        fn = function(e) { el.handle(e); };
-      });
-      suiteTeardown(function() {
-        document.body.removeChild(el);
-      });
-
-      test('add listeners with addListener', function() {
-        Polymer.Gestures.addListener(el, 'down', fn);
-        Polymer.Gestures.add(el, 'up', fn);
-        var ev = new CustomEvent('mousedown', {bubbles: true, composed: true});
-        el.dispatchEvent(ev);
-        assert.equal(el.stream.length, 1);
-        assert.equal(el.stream[0].type, 'down');
-        ev = new CustomEvent('mouseup', {bubbles: true, composed: true});
-        el.dispatchEvent(ev);
-        assert.equal(el.stream.length, 2);
-        assert.equal(el.stream[1].type, 'up');
-      });
-
-      test('remove listeners with removeListener', function() {
-        Polymer.Gestures.remove(el, 'down', fn);
-        Polymer.Gestures.removeListener(el, 'up', fn);
-        var ev = new CustomEvent('mousedown', {bubbles: true, composed: true});
-        el.dispatchEvent(ev);
-        ev = new CustomEvent('mouseup', {bubbles: true, composed: true});
-        el.dispatchEvent(ev);
-        assert.equal(el.stream.length, 2);
-      });
-    });
-
-    suite('setScrollDirection', function() {
-      test('mapping', function() {
-        var el = document.createElement('x-imperative');
-        var key = '__polymerGesturesTouchAction';
-        el.setScrollDirection('none');
-        assert.equal(el[key], 'none');
-        el.setScrollDirection('all');
-        assert.equal(el[key], 'auto');
-        el.setScrollDirection('x');
-        assert.equal(el[key], 'pan-x');
-        el.setScrollDirection('y');
-        assert.equal(el[key], 'pan-y');
-      });
-    });
-
-    suite('Regression Testing', function() {
-      test('#4459', function() {
-        Polymer.Gestures.add(document, 'tap', null);
-        document.dispatchEvent(new MouseEvent('mousedown', { detail: 1, clientX: -100, bubbles: true, composed: true }));
-        document.dispatchEvent(new MouseEvent('mouseup', { detail: 1, clientX: 100, bubbles: true, composed: true }));
-        document.dispatchEvent(new MouseEvent('click', { detail: 1, clientX: 100, bubbles: true, composed: true }));
-        Polymer.Gestures.remove(document, 'tap', null);
-      });
-
-      test('#5030', function() {
-        let count = 0;
-        const increment = function() { count++; };
-        Polymer.Gestures.add(window, 'tap', increment);
-        window.dispatchEvent(new MouseEvent('click', {bubbles: true}));
-        assert.equal(count, 1);
-        Polymer.Gestures.remove(window, 'tap', increment);
-      });
-
-      suite('native label click', function() {
-
-        test('native label click', function() {
-          let el = document.createElement('x-native-label');
-          document.body.appendChild(el);
-          let target = el.$.label;
-          // simulate the event sequence of a touch on the screen
-          let touches = [{
-            clientX: 0,
-            clientY: 0,
+      for (var i = 0; i < 10; i++) {
+        clientX += 1;
+        ev = new CustomEvent(i === 9 ? 'touchend' : 'touchmove', options);
+        ev.touches = ev.changedTouches = [
+          {
+            clientX: clientX,
+            clientY: clientY,
             identifier: 1,
-            // target is set to the element with `addEventListener`, which is `target`
-            target
-          }];
-          let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
-          touchstart.changedTouches = touchstart.touches = touches;
-          target.dispatchEvent(touchstart);
-          let touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
-          touchend.touches = touchend.changedTouches = touches;
-          target.dispatchEvent(touchend);
-          // simulate a mouse click on the label
-          let click = new MouseEvent('click', {bubbles: true, composed: true});
-          target.dispatchEvent(click);
-          // check that the mouse click on the label will activate the checkbox
-          assert.equal(el.$.check.checked, true, 'checkbox should be checked');
-          document.body.removeChild(el);
-        });
+            // target is set to the element with `addEventListener`, which is el
+            target: el
+          }
+        ];
+        ev.clientX = clientX;
+        ev.clientY = clientY;
+        // tell gestures to not turn off mouse events
+        child.dispatchEvent(ev);
+      }
 
-        test('label click with nested element', function() {
-          let el = document.createElement('x-native-label-nested');
-          document.body.appendChild(el);
-          let target = el.$.label;
-          // simulate the event sequence of a touch on the screen
-          let touches = [{
-            clientX: 0,
-            clientY: 0,
-            identifier: 1,
-            // target is set to the element with `addEventListener`, which is `target`
-            target
-          }];
-          let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
-          touchstart.changedTouches = touchstart.touches = touches;
-          target.dispatchEvent(touchstart);
-          let touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
-          touchend.touches = touchend.changedTouches = touches;
-          target.dispatchEvent(touchend);
-          // simulate a mouse click on the label
-          let click = new MouseEvent('click', {bubbles: true, composed: true});
-          target.dispatchEvent(click);
-          // check that the mouse click on the label will activate the checkbox
-          assert.equal(el.$.check.checked, true, 'checkbox should be checked');
-          document.body.removeChild(el);
-        });
-      });
-
-      test('disabled elements don\'t fire taps', function() {
-        let el = document.createElement('x-disabled-tap');
-        document.body.appendChild(el);
-        // tap an element with disabled attribute
-        let target = el.$.disabled;
-        // simulate the event sequence of a touch on the screen
-        let touches = [{
-          clientX: 0,
-          clientY: 0,
-          identifier: 1,
-          // target is set to the element with `addEventListener`, which is `target`
-          target
-        }];
-        let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
-        touchstart.changedTouches = touchstart.touches = touches;
-        target.dispatchEvent(touchstart);
-        let touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
-        touchend.touches = touchend.changedTouches = touches;
-        target.dispatchEvent(touchend);
-        assert.equal(el.taps.length, 0);
-        // tap an element with a disabled ancestor
-        target = el.$.nested;
-        // simulate the event sequence of a touch on the screen
-        touches = [{
-          clientX: 0,
-          clientY: 0,
-          identifier: 1,
-          // target is set to the element with `addEventListener`, which is `target`
-          target
-        }];
-        touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
-        touchstart.changedTouches = touchstart.touches = touches;
-        target.dispatchEvent(touchstart);
-        touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
-        touchend.touches = touchend.changedTouches = touches;
-        target.dispatchEvent(touchend);
-        assert.equal(el.taps.length, 1);
-        document.body.removeChild(el);
-      });
+      assert.equal(child.stream.length, 0, 'expected no taps on the child');
+      assert.notEqual(el.stream.length, 0, 'expected some tracks on the parent');
+      done();
     });
-  </script>
+  });
+});
+
+suite('Buttons', function() {
+  var el;
+
+  setup(function(done) {
+    el = document.createElement('x-buttons');
+    document.body.appendChild(el);
+    afterNextRender(null, done);
+  });
+
+  teardown(function() {
+    el.parentNode.removeChild(el);
+  });
+
+  suite('Down and Up', function() {
+    test('Left Mouse Button Only', function() {
+      var options = {bubbles: true, composed: true};
+      var evLeftDown = new CustomEvent('mousedown', options);
+      // left button
+      evLeftDown.button = 0;
+      evLeftDown.clientX = 1;
+      var evLeftUp = new CustomEvent('mouseup', options);
+      var evRightDown = new CustomEvent('mousedown', options);
+      // right button
+      evRightDown.button = 2;
+      evRightDown.clientX = 2;
+      var evRightUp = new CustomEvent('mouseup', options);
+
+      el.dispatchEvent(evLeftDown);
+      el.dispatchEvent(evLeftUp);
+      el.dispatchEvent(evRightDown);
+      el.dispatchEvent(evRightUp);
+
+      assert.equal(el.stream.length, 2, 'only saw one up and down pair');
+      assert.equal(el.stream[0].type, 'down');
+      assert.equal(el.stream[1].type, 'up');
+      assert.equal(el.stream[0].detail.x, 1, 'only from the left button');
+    });
+
+    test('Recover from right click', function() {
+      var options = {bubbles: true, composed: true};
+      var evDown = new CustomEvent('mousedown', options);
+      var evMove = new CustomEvent('mousemove', options);
+      evMove.buttons = 0;
+      var evUp = new CustomEvent('mouseup', options);
+
+      el.dispatchEvent(evDown);
+      el.dispatchEvent(evMove);
+      el.dispatchEvent(evUp);
+
+      assert.equal(el.stream.length, 2, 'always get an up');
+    });
+  });
+
+  suite('Tap', function() {
+    test('Left Mouse Button Only', function() {
+      var evMid = new CustomEvent('click', {bubbles: true, composed: true});
+      evMid.button = 1;
+      var evLeft = new CustomEvent('click', {bubbles: true, composed: true});
+      evLeft.button = 0;
+
+      el.dispatchEvent(evMid);
+      el.dispatchEvent(evLeft);
+
+      assert.equal(el.stream.length, 1, 'only one tap');
+    });
+  });
+
+  suite('Track', function() {
+    test('Left Mouse Button Only', function() {
+      var options = {bubbles: true, composed: true};
+      var ev = new CustomEvent('mousedown', options);
+      ev.clientX = ev.clientY = 0;
+      el.dispatchEvent(ev);
+      for (var i = 0; i < 5; i++) {
+        ev = new CustomEvent('mousemove', options);
+        ev.clientX = 10 * i;
+        ev.clientY = 10 * i;
+        // left button until move 4
+        ev.buttons = (i > 3) ? 2 : 1;
+        el.dispatchEvent(ev);
+      }
+      el.dispatchEvent(new CustomEvent('mouseup', options));
+
+      // down, <skipped>, track:start, track:track, track:track, track:end, up
+      assert.equal(el.stream.length, 6);
+      assert.equal(el.stream[0].type, 'down');
+      assert.equal(el.stream[1].detail.state, 'start');
+      assert.equal(el.stream[2].detail.state, 'track');
+      assert.equal(el.stream[3].detail.state, 'track');
+      assert.equal(el.stream[4].type, 'up');
+      assert.equal(el.stream[5].detail.state, 'end');
+    });
+  });
+});
+
+suite('SD Polyfill', function() {
+  var el;
+  setup(function(done) {
+    el = document.createElement('x-document-listener');
+    document.body.appendChild(el);
+    afterNextRender(null, function() {
+      el.setup();
+      done();
+    });
+  });
+
+  teardown(function() {
+    el.teardown();
+    document.body.removeChild(el);
+  });
+
+  test('document listener works in SD polyfill', function() {
+    var ev = new CustomEvent('mousedown', {bubbles: true, composed: true});
+    el.dispatchEvent(ev);
+    assert.equal(el.stream.length, 1);
+  });
+});
+
+suite('Reference Cleanup', function() {
+  var el;
+
+  setup(function(done) {
+    el = document.createElement('x-buttons');
+    document.body.appendChild(el);
+    afterNextRender(null, done);
+  });
+
+  teardown(function() {
+    document.body.removeChild(el);
+  });
+
+  test('down and up clear document tracking', function() {
+    var ev = new CustomEvent('mousedown', {bubbles: true, composed: true});
+    el.dispatchEvent(ev);
+
+    // some recognizers do not track the document, like tap
+    var recognizers = recognizers$0.filter(function(r) {
+      return r.info.hasOwnProperty('movefn') &&
+        r.info.hasOwnProperty('upfn');
+    });
+
+    assert.isAbove(recognizers.length, 0, 'some recognizers track the document');
+
+    recognizers.forEach(function(r) {
+      assert.isFunction(r.info.movefn, r.name + ' movefn');
+      assert.isFunction(r.info.upfn, r.name + ' upfn');
+    });
+
+    ev = new CustomEvent('mouseup', {bubbles: true, composed: true});
+    el.dispatchEvent(ev);
+
+    recognizers.forEach(function(r) {
+      assert.isNull(r.info.movefn, r.name + ' movefn');
+      assert.isNull(r.info.upfn, r.name + ' upfn');
+    });
+  });
+});
+
+suite('Imperative API', function() {
+  var el, fn;
+  suiteSetup(function() {
+    el = document.createElement('x-imperative');
+    document.body.appendChild(el);
+    fn = function(e) { el.handle(e); };
+  });
+  suiteTeardown(function() {
+    document.body.removeChild(el);
+  });
+
+  test('add listeners with addListener', function() {
+    addListener(el, 'down', fn);
+    gestures.add(el, 'up', fn);
+    var ev = new CustomEvent('mousedown', {bubbles: true, composed: true});
+    el.dispatchEvent(ev);
+    assert.equal(el.stream.length, 1);
+    assert.equal(el.stream[0].type, 'down');
+    ev = new CustomEvent('mouseup', {bubbles: true, composed: true});
+    el.dispatchEvent(ev);
+    assert.equal(el.stream.length, 2);
+    assert.equal(el.stream[1].type, 'up');
+  });
+
+  test('remove listeners with removeListener', function() {
+    gestures.remove(el, 'down', fn);
+    removeListener(el, 'up', fn);
+    var ev = new CustomEvent('mousedown', {bubbles: true, composed: true});
+    el.dispatchEvent(ev);
+    ev = new CustomEvent('mouseup', {bubbles: true, composed: true});
+    el.dispatchEvent(ev);
+    assert.equal(el.stream.length, 2);
+  });
+});
+
+suite('setScrollDirection', function() {
+  test('mapping', function() {
+    var el = document.createElement('x-imperative');
+    var key = '__polymerGesturesTouchAction';
+    el.setScrollDirection('none');
+    assert.equal(el[key], 'none');
+    el.setScrollDirection('all');
+    assert.equal(el[key], 'auto');
+    el.setScrollDirection('x');
+    assert.equal(el[key], 'pan-x');
+    el.setScrollDirection('y');
+    assert.equal(el[key], 'pan-y');
+  });
+});
+
+suite('Regression Testing', function() {
+  test('#4459', function() {
+    gestures.add(document, 'tap', null);
+    document.dispatchEvent(new MouseEvent('mousedown', { detail: 1, clientX: -100, bubbles: true, composed: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { detail: 1, clientX: 100, bubbles: true, composed: true }));
+    document.dispatchEvent(new MouseEvent('click', { detail: 1, clientX: 100, bubbles: true, composed: true }));
+    gestures.remove(document, 'tap', null);
+  });
+
+  test('#5030', function() {
+    let count = 0;
+    const increment = function() { count++; };
+    gestures.add(window, 'tap', increment);
+    window.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+    assert.equal(count, 1);
+    gestures.remove(window, 'tap', increment);
+  });
+
+  suite('native label click', function() {
+
+    test('native label click', function() {
+      let el = document.createElement('x-native-label');
+      document.body.appendChild(el);
+      let target = el.$.label;
+      // simulate the event sequence of a touch on the screen
+      let touches = [{
+        clientX: 0,
+        clientY: 0,
+        identifier: 1,
+        // target is set to the element with `addEventListener`, which is `target`
+        target
+      }];
+      let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
+      touchstart.changedTouches = touchstart.touches = touches;
+      target.dispatchEvent(touchstart);
+      let touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
+      touchend.touches = touchend.changedTouches = touches;
+      target.dispatchEvent(touchend);
+      // simulate a mouse click on the label
+      let click = new MouseEvent('click', {bubbles: true, composed: true});
+      target.dispatchEvent(click);
+      // check that the mouse click on the label will activate the checkbox
+      assert.equal(el.$.check.checked, true, 'checkbox should be checked');
+      document.body.removeChild(el);
+    });
+
+    test('label click with nested element', function() {
+      let el = document.createElement('x-native-label-nested');
+      document.body.appendChild(el);
+      let target = el.$.label;
+      // simulate the event sequence of a touch on the screen
+      let touches = [{
+        clientX: 0,
+        clientY: 0,
+        identifier: 1,
+        // target is set to the element with `addEventListener`, which is `target`
+        target
+      }];
+      let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
+      touchstart.changedTouches = touchstart.touches = touches;
+      target.dispatchEvent(touchstart);
+      let touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
+      touchend.touches = touchend.changedTouches = touches;
+      target.dispatchEvent(touchend);
+      // simulate a mouse click on the label
+      let click = new MouseEvent('click', {bubbles: true, composed: true});
+      target.dispatchEvent(click);
+      // check that the mouse click on the label will activate the checkbox
+      assert.equal(el.$.check.checked, true, 'checkbox should be checked');
+      document.body.removeChild(el);
+    });
+  });
+
+  suite('disabled', function() {
+    let shouldSkip = true;
+
+    suiteSetup(function() {
+      /*
+       * IE 11 does not dispatch events to elements with `disabled` attribute
+       * This is different from all other browsers, so skip these tests in IE 11
+       */
+      const div = document.createElement('div');
+      div.setAttribute('disabled', '');
+      document.body.appendChild(div);
+      div.addEventListener('click', () => {
+        shouldSkip = false;
+      });
+      div.click();
+      document.body.removeChild(div);
+    });
+    setup(function() {
+      gestures.resetMouseCanceller();
+    });
+
+    test('click() function works as expected on disabled elements', function() {
+      if (shouldSkip) {
+        this.skip();
+      }
+      let el = document.createElement('x-disabled-tap');
+      document.body.appendChild(el);
+      el.$.disabled.click();
+      el.$.nested.click();
+      el.$.disabledEl.click();
+      assert.deepEqual(el.taps, ['button#nested', 'x-disabled#disabledEl']);
+      document.body.removeChild(el);
+    });
+
+    test('disabled elements don\'t fire taps', function() {
+      if (shouldSkip) {
+        this.skip();
+      }
+      let el = document.createElement('x-disabled-tap');
+      document.body.appendChild(el);
+      // tap an element with disabled attribute
+      let target = el.$.disabled;
+      // simulate the event sequence of a touch on the screen
+      let touches = [{
+        clientX: 0,
+        clientY: 0,
+        identifier: 1,
+        // target is set to the element with `addEventListener`, which is `target`
+        target
+      }];
+      let touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
+      touchstart.changedTouches = touchstart.touches = touches;
+      target.dispatchEvent(touchstart);
+      let touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
+      touchend.touches = touchend.changedTouches = touches;
+      target.dispatchEvent(touchend);
+      assert.deepEqual(el.taps, []);
+
+      // tap an element with a disabled ancestor
+      target = el.$.nested;
+      // simulate the event sequence of a touch on the screen
+      touches = [{
+        clientX: 0,
+        clientY: 0,
+        identifier: 1,
+        // target is set to the element with `addEventListener`, which is `target`
+        target
+      }];
+      touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
+      touchstart.changedTouches = touchstart.touches = touches;
+      target.dispatchEvent(touchstart);
+      touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
+      touchend.touches = touchend.changedTouches = touches;
+      target.dispatchEvent(touchend);
+      assert.deepEqual(el.taps, ['button#nested']);
+
+      gestures.resetMouseCanceller();
+
+      // tap a custom element with a `disabled` property
+      target = el.$.disabledEl;
+      // simulate the event sequence of a touch on the screen
+      touches = [{
+        clientX: 0,
+        clientY: 0,
+        identifier: 1,
+        // target is set to the element with `addEventListener`, which is `target`
+        target
+      }];
+      touchstart = new CustomEvent('touchstart', {bubbles: true, composed: true});
+      touchstart.changedTouches = touchstart.touches = touches;
+      target.dispatchEvent(touchstart);
+      touchend = new CustomEvent('touchend', {bubbles: true, composed: true});
+      touchend.touches = touchend.changedTouches = touches;
+      target.dispatchEvent(touchend);
+      assert.deepEqual(el.taps, ['button#nested', 'x-disabled#disabledEl']);
+      document.body.removeChild(el);
+    });
+
+    test('test all "disableable" elements', function() {
+      const el = document.createElement('all-disabled');
+      document.body.appendChild(el);
+      el.tapAll();
+      assert.deepEqual(el.taps, []);
+      document.body.removeChild(el);
+    });
+  });
+});
+</script>
 
 </body>
 </html>
