@@ -37,8 +37,8 @@ Example:
 - [ ] Chrome
 - [ ] Firefox
 - [ ] Edge
-- [ ] Safari 9
-- [ ] Safari 8
+- [ ] Safari 11
+- [ ] Safari 10
 - [ ] IE 11
 
 ### Versions
