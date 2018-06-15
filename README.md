@@ -10,7 +10,7 @@
 >
 > If you have a project you've built with an earlier version of the Polymer library, we recommend that you [migrate](#about-polymer-30) to 3.0 for best compatibility with the JavaScript ecosystem. Thanks to the interoperability of Web Components, elements built with Polymer 3.0 and LitElement can be mixed and matched in the same app, so once you have updated your project to Polymer 3.0, you can migrate to LitElement incrementally, one element at a time.  See our blog post on the [Polymer Project roadmap](https://www.polymer-project.org/blog/2018-05-02-roadmap-update.html) for more information.
 
-Polymer lets you build encapsulated, reusable [Web Components](https://www.webcomponents.org/introduction) that work just like standard HTML elements, to use in building web applications.  Using a Web Commponent built with Polymer is as simple as importing its definition then using it like any other HTML element:
+Polymer lets you build encapsulated, reusable [Web Components](https://www.webcomponents.org/introduction) that work just like standard HTML elements, to use in building web applications.  Using a Web Component built with Polymer is as simple as importing its definition then using it like any other HTML element:
 
 ```html
 <!-- Import a component -->
