@@ -814,7 +814,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     let context = inst._methodHost || inst;
     let fn = context[info.methodName];
     if (fn) {
-      let args = marshalArgs(inst.__data, info.args, property, props);
+      let args = inst._marshalArgs(info.args, property, props);
       return fn.apply(context, args);
     } else if (!info.dynamicFn) {
       console.warn('method `' + info.methodName + '` not defined');
@@ -968,56 +968,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     }
     return a;
-  }
-
-  /**
-   * Gather the argument values for a method specified in the provided array
-   * of argument metadata.
-   *
-   * The `path` and `value` arguments are used to fill in wildcard descriptor
-   * when the method is being called as a result of a path notification.
-   *
-   * @param {Object} data Instance data storage object to read properties from
-   * @param {!Array<!MethodArg>} args Array of argument metadata
-   * @param {string} path Property/path name that triggered the method effect
-   * @param {Object} props Bag of current property changes
-   * @return {Array<*>} Array of argument values
-   * @private
-   */
-  function marshalArgs(data, args, path, props) {
-    let values = [];
-    for (let i=0, l=args.length; i<l; i++) {
-      let arg = args[i];
-      let name = arg.name;
-      let v;
-      if (arg.literal) {
-        v = arg.value;
-      } else {
-        if (arg.structured) {
-          v = Polymer.Path.get(data, name);
-          // when data is not stored e.g. `splices`
-          if (v === undefined) {
-            v = props[name];
-          }
-        } else {
-          v = data[name];
-        }
-      }
-      if (arg.wildcard) {
-        // Only send the actual path changed info if the change that
-        // caused the observer to run matched the wildcard
-        let baseChanged = (name.indexOf(path + '.') === 0);
-        let matches = (path.indexOf(name) === 0 && !baseChanged);
-        values[i] = {
-          path: matches ? path : name,
-          value: matches ? props[path] : v,
-          base: v
-        };
-      } else {
-        values[i] = v;
-      }
-    }
-    return values;
   }
 
   // data api
@@ -2178,6 +2128,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           throw new Error("Malformed computed expression '" + expression + "'");
         }
         createMethodEffect(this, sig, TYPES.COMPUTE, runComputedEffect, property, dynamicFn);
+      }
+
+      /**
+       * Gather the argument values for a method specified in the provided array
+       * of argument metadata.
+       *
+       * The `path` and `value` arguments are used to fill in wildcard descriptor
+       * when the method is being called as a result of a path notification.
+       *
+       * @param {!Array<!MethodArg>} args Array of argument metadata
+       * @param {string} path Property/path name that triggered the method effect
+       * @param {Object} props Bag of current property changes
+       * @return {Array<*>} Array of argument values
+       * @private
+       */
+      _marshalArgs(args, path, props) {
+        const data = this.__data;
+        let values = [];
+        for (let i=0, l=args.length; i<l; i++) {
+          let arg = args[i];
+          let name = arg.name;
+          let v;
+          if (arg.literal) {
+            v = arg.value;
+          } else {
+            if (arg.structured) {
+              v = Polymer.Path.get(data, name);
+              // when data is not stored e.g. `splices`
+              if (v === undefined) {
+                v = props[name];
+              }
+            } else {
+              v = data[name];
+            }
+          }
+          if (arg.wildcard) {
+            // Only send the actual path changed info if the change that
+            // caused the observer to run matched the wildcard
+            let baseChanged = (name.indexOf(path + '.') === 0);
+            let matches = (path.indexOf(name) === 0 && !baseChanged);
+            values[i] = {
+              path: matches ? path : name,
+              value: matches ? props[path] : v,
+              base: v
+            };
+          } else {
+            values[i] = v;
+          }
+        }
+        return values;
       }
 
       // -- static class methods ------------
