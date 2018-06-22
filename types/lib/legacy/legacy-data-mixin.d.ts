@@ -8,6 +8,7 @@
  *   lib/legacy/legacy-data-mixin.html
  */
 
+/// <reference path="class.d.ts" />
 /// <reference path="../utils/mixin.d.ts" />
 
 declare class UndefinedArgumentError {
