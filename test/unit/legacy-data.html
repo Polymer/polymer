@@ -18,24 +18,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 </head>
 <body>
 
-  <script>
-  </script>
-  
   <dom-module id="x-data">
     <script>
       HTMLImports.whenReady(() => {
         Polymer({
           is: 'x-data',
+          properties: {
+            singleProp: String,
+            multiProp1: String,
+            multiProp2: String
+          },
+          _legacyUndefinedCheck: true,
           observers: [
-            'static("static")',
-            'one(a)',
-            'two(b, c)',
-            'throws(d)'
+            'staticObserver("staticObserver")',
+            'singlePropObserver(singleProp)',
+            'multiPropObserver(multiProp1, multiProp2)',
+            'throws(throwProp)'
           ],
           created() {
-            this.one = sinon.spy();
-            this.two = sinon.spy();
-            this.static = sinon.spy();
+            this.singlePropObserver = sinon.spy();
+            this.multiPropObserver = sinon.spy();
+            this.staticObserver = sinon.spy();
           },
           throws() {
             throw new Error('real error');
@@ -45,234 +48,182 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </script>
   </dom-module>
 
-  <test-fixture id="declarative-one">
-    <x-data a="a"></x-data>
+  <test-fixture id="declarative-none">
+    <template>
+      <x-data></x-data>
+    </template>
+  </test-fixture>
+  
+  <test-fixture id="declarative-single">
+    <template>
+      <x-data single-prop="a"></x-data>
+    </template>
   </test-fixture>
 
-  <test-fixture id="declarative-two">
-    <x-data a="a" b="b"></x-data>
+  <test-fixture id="declarative-multi-one">
+    <template>
+      <x-data multi-prop1="b"></x-data>
+    </template>
   </test-fixture>
 
-  <test-fixture id="declarative-all">
-    <x-data a="a" b="b"></x-data>
+  <test-fixture id="declarative-multi-all">
+    <template>
+      <x-data multi-prop1="b" multi-prop2="c"></x-data>
+    </template>
   </test-fixture>
 
   <script>
-  suite('imperative', () => {
-    setup(() => sinon.spy(console, 'warn'));
-    teardown(() => console.warn.restore());
-    suite('check disabled', () => {
-      test('no arguments defined', () => {
-        const el = document.createElement('x-data');
+  (function() {
+
+    let el;
+
+    function assertEffects(callCounts) {
+      assert.equal(el.staticObserver.callCount, 1, 'staticObserver call count wrong');
+      assert.equal(el.singlePropObserver.callCount, 
+        callCounts.singlePropObserver || 0, 'singlePropObserver call count wrong');
+      assert.equal(el.multiPropObserver.callCount,
+        callCounts.multiPropObserver || 0, 'multiPropObserver call count wrong');
+      assert.equal(console.warn.callCount, callCounts.warn || 0,
+        'console.warn call count wrong');
+    }
+
+    suite('imperative', () => {
+
+      setup(() => sinon.spy(console, 'warn'));
+      
+      function setupElement(check, props) {
+        el = document.createElement('x-data');
+        el._legacyUndefinedCheck = check;
+        Object.assign(el, props);
         document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 0);
-        assert.equal(el.two.callCount, 0);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
+      }
+
+      teardown(() => {
+        console.warn.restore();
+        el.parentNode.removeChild(el);
       });
-      test('one argument defined', () => {
-        const el = document.createElement('x-data');
-        el.a = 'a';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 0);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
+
+      const singleProp = 'a';
+      const multiProp1 = 'b';
+      const multiProp2 = 'c';
+
+      suite('check disabled', () => {
+        test('no arguments defined', () => {
+          setupElement(false, {});
+          assertEffects({});
+        });
+        test('singlePropObserver argument defined', () => {
+          setupElement(false, {singleProp});
+          assertEffects({singlePropObserver: 1});
+        });
+        test('one multiPropObserver arguments defined', () => {
+          setupElement(false, {multiProp1});
+          assertEffects({multiPropObserver: 1});
+        });
+        test('all multiPropObserver defined', () => {
+          setupElement(false, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+        });
+        test('singlePropObserver argument undefined', () => {
+          setupElement(false, {singleProp});
+          assertEffects({singlePropObserver: 1});
+          el.singleProp = undefined;
+          assertEffects({singlePropObserver: 2});
+        });
+        test('one multiPropObserver arguments undefined', () => {
+          setupElement(false, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 2});
+        });
+        test('all multiPropObserver undefined', () => {
+          setupElement(false, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 2});
+          el.multiProp2 = undefined;
+          assertEffects({multiPropObserver: 3});
+        });
       });
-      test('two arguments defined', () => {
-        const el = document.createElement('x-data');
-        el.a = 'a';
-        el.b = 'b';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        document.body.removeChild(el);
-      });
-      test('all arguments defined', () => {
-        const el = document.createElement('x-data');
-        el.a = 'a';
-        el.b = 'b';
-        el.c = 'c';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
-      });
-      test('one argument undefined', () => {
-        const el = document.createElement('x-data');
-        el.a = 'a';
-        el.b = 'b';
-        el.c = 'c';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        el.a = undefined;
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 2);
-        assert.equal(el.two.callCount, 1);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
-      });
-      test('two arguments undefined', () => {
-        const el = document.createElement('x-data');
-        el.a = 'a';
-        el.b = 'b';
-        el.c = 'c';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        el.a = undefined;
-        el.b = undefined;
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 2);
-        assert.equal(el.two.callCount, 2);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
-      });
-      test('all arguments undefined', () => {
-        const el = document.createElement('x-data');
-        el.a = 'a';
-        el.b = 'b';
-        el.c = 'c';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        el.a = undefined;
-        el.b = undefined;
-        el.c = undefined;
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 2);
-        assert.equal(el.two.callCount, 3);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
-      });
-    });
-    // ------------------------------------------------
-    suite('warn', () => {
-      test('no arguments defined', () => {
-        const el = document.createElement('x-data');
-        el._legacyUndefinedCheck = true;
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 0);
-        assert.equal(el.two.callCount, 0);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
-      });
-      test('one argument defined', () => {
-        const el = document.createElement('x-data');
-        el._legacyUndefinedCheck = true;
-        el.a = 'a';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 0);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
-      });
-      test('two arguments defined', () => {
-        const el = document.createElement('x-data');
-        el._legacyUndefinedCheck = true;
-        el.a = 'a';
-        el.b = 'b';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 0);
-        assert.isTrue(console.warn.calledOnce);
-        assert.match(console.warn.firstCall.args[0], /'c' is undefined/);
-        document.body.removeChild(el);
-      });
-      test('all arguments defined', () => {
-        const el = document.createElement('x-data');
-        el._legacyUndefinedCheck = true;
-        el.a = 'a';
-        el.b = 'b';
-        el.c = 'c';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
-      });
-      test('one argument undefined', () => {
-        const el = document.createElement('x-data');
-        el._legacyUndefinedCheck = true;
-        el.a = 'a';
-        el.b = 'b';
-        el.c = 'c';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        el.a = undefined;
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 2);
-        assert.equal(el.two.callCount, 1);
-        assert.equal(console.warn.callCount, 0);
-        document.body.removeChild(el);
-      });
-      test('two arguments undefined', () => {
-        const el = document.createElement('x-data');
-        el._legacyUndefinedCheck = true;
-        el.a = 'a';
-        el.b = 'b';
-        el.c = 'c';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        el.a = undefined;
-        el.b = undefined;
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 2);
-        assert.equal(el.two.callCount, 1);
-        assert.equal(console.warn.callCount, 1);
-        assert.match(console.warn.firstCall.args[0], /'b' is undefined/);
-        document.body.removeChild(el);
-      });
-      test('all arguments undefined', () => {
-        const el = document.createElement('x-data');
-        el._legacyUndefinedCheck = true;
-        el.a = 'a';
-        el.b = 'b';
-        el.c = 'c';
-        document.body.appendChild(el);
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 1);
-        assert.equal(el.two.callCount, 1);
-        el.a = undefined;
-        el.b = undefined;
-        el.c = undefined;
-        assert.equal(el.static.callCount, 1);
-        assert.equal(el.one.callCount, 2);
-        assert.equal(el.two.callCount, 1);
-        assert.equal(console.warn.callCount, 2);
-        assert.match(console.warn.firstCall.args[0], /'b' is undefined/);
-        assert.match(console.warn.secondCall.args[0], /'b' is undefined/);
-        document.body.removeChild(el);
+
+      suite('warn', () => {
+        test('no arguments defined', () => {
+          setupElement(true, {});
+          assertEffects({});
+        });
+        test('singlePropObserver argument defined', () => {
+          setupElement(true, {singleProp});
+          assertEffects({singlePropObserver: 1});
+        });
+        test('one multiPropObserver arguments defined', () => {
+          setupElement(true, {multiProp1});
+          assertEffects({multiPropObserver: 0, warn: 1});
+        });
+        test('all multiPropObserver defined', () => {
+          setupElement(true, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+        });
+        test('singlePropObserver argument undefined', () => {
+          setupElement(true, {singleProp});
+          assertEffects({singlePropObserver: 1});
+          el.singleProp = undefined;
+          assertEffects({singlePropObserver: 2});
+        });
+        test('one multiPropObserver arguments undefined', () => {
+          setupElement(true, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 1, warn: 1});
+        });
+        test('all multiPropObserver undefined', () => {
+          setupElement(true, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 1, warn: 1});
+          el.multiProp2 = undefined;
+          assertEffects({multiPropObserver: 1, warn: 2});
+        });
       });
     });
+
+    suite('declarative', () => {
+
+      setup(() => sinon.spy(console, 'warn'));
+
+      teardown(() => console.warn.restore());
+
+      suite('warn', () => {
+        test('no arguments defined', () => {
+          el = fixture('declarative-none');
+          assertEffects({});
+        });
+        test('singlePropObserver argument defined', () => {
+          el = fixture('declarative-single');
+          assertEffects({singlePropObserver: 1});
+        });
+        test('one multiPropObserver arguments defined', () => {
+          el = fixture('declarative-multi-one');
+          assertEffects({multiPropObserver: 0, warn: 1});
+        });
+        test('all multiPropObserver defined', () => {
+          el = fixture('declarative-multi-all');
+          assertEffects({multiPropObserver: 1});
+        });
+      });
+    });
+
     suite('other', () => {
       test('real errors still throw', () => {
         const el = document.createElement('x-data');
         document.body.appendChild(el);
         assert.throws(() => {
-          el.d = true;
+          el.throwProp = true;
         }, /real error/);
         document.body.removeChild(el);
       });
     });
-  });
+    
+  })();
   </script>
 </body>
 </html>
