@@ -15,19 +15,19 @@
 
 /**
  * @typedef {{
- * type: !Function,
- * value: *,
- * readOnly: (boolean | undefined),
- * computed: (string | undefined),
- * reflectToAttribute: (boolean | undefined),
- * notify: (boolean | undefined),
- * observer: (string | function(*,*) | undefined)
+ *   type: !Function,
+ *   value: (* | undefined),
+ *   readOnly: (boolean | undefined),
+ *   computed: (string | undefined),
+ *   reflectToAttribute: (boolean | undefined),
+ *   notify: (boolean | undefined),
+ *   observer: (string | function(this:?, ?, ?) | undefined)
  * }}
  */
 let PolymerElementPropertiesMeta;
 
 /**
- * @typedef {Object<string, !PolymerElementPropertiesMeta>}
+ * @typedef {Object<string, !Function|!PolymerElementPropertiesMeta>}
  */
 let PolymerElementProperties;
 
@@ -68,9 +68,6 @@ PropertiesMixinConstructor.properties;
  * @return {!function(new:HTMLElement)}
  */
 function Polymer(init){}
-
-/** @type {PolymerElementProperties} */
-Polymer.ElementProperties;
 
 /**
  * @type {(function(*,string,string,Node):*)|undefined}
