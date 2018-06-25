@@ -109,4 +109,15 @@ Polymer.version;
  * @extends {HTMLElement}
  * @implements {Polymer_LegacyElementMixin}
  */
-var PolymerElement = Polymer.LegacyElementMixin();
+var PolymerElement = function() {};
+
+/** On create callback. */
+PolymerElement.prototype.created = function() {};
+/** On ready callback. */
+PolymerElement.prototype.ready = function() {};
+/** On registered callback. */
+PolymerElement.prototype.registered = function() {};
+/** On attached to the DOM callback. */
+PolymerElement.prototype.attached = function() {};
+/** On detached from the DOM callback. */
+PolymerElement.prototype.detached = function() {};
