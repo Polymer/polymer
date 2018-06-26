@@ -1,0 +1,142 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script>
+    Polymer = {
+      lazyRegister: true,
+      strictTemplatePolicy: true
+    };
+    // Errors thrown in custom element reactions are not thrown up
+    // the call stack to the dom methods that provoked them, so need
+    // to catch them here and prevent mocha from complaining about them
+    window.addEventListener('error', function(event) {
+      event.stopImmediatePropagation();
+      if (!window.globalError) {
+        window.globalError = event;
+      }
+    });
+  </script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+  <dom-module id="trusted-element">
+    <template>Trusted</template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({is: 'trusted-element'});
+      });
+    </script>
+  </dom-module>
+
+  <div id="target"></div>
+
+  <script>
+    suite('strictTemplatePolicy', function() {
+
+      teardown(function() {
+        window.globalError = null;
+      });
+
+      function assertThrows(fn, re) {
+        assert.throws(function() {
+          fn();
+          // Throw any errors caught on window
+          if (window.globalError) {
+            throw new Error(window.globalError.message);
+          }
+          // Force polyfill reactions and/or async template stamping
+          Polymer.dom.flush();
+          // Throw any add'l errors caught on window
+          if (window.globalError) {
+            throw new Error(window.globalError.message);
+          }
+        }, re);
+      }
+
+      test('dom-bind', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+          '<template is="dom-bind">' +
+          '  <div id="injected"></div>'+
+          '</template>`';
+        }, /dom-bind not allowed/);
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-if', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<template is="dom-if" if>' +
+            '  <div id="injected"></div>'+
+            '</template>`';
+        }, /template owner not trusted/);
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-repeat', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<template is="dom-repeat" items="[0]">' +
+            '  <div id="injected"></div>'+
+            '</template>`';
+        }, /template owner not trusted/);
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-module after registration', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-module id="trusted-element">' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>`' +
+            '</dom-module>' +
+            '<trusted-element></trusted-element>';
+        }, /trusted-element registered twice/);
+        var el = document.querySelector('trusted-element');
+        assert.notOk(el.root && Polymer.dom(el.root).querySelector('#injected'));
+      });
+      
+      test('dom-module before registration', function() {
+        document.getElementById('target').innerHTML =
+          '<dom-module id="has-no-template">' +
+          '  <template>' +
+          '    <div id="injected"></div>'+
+          '  </template>`' +
+          '</dom-module>';
+        Polymer({
+          is: 'has-no-template',
+          _template: null
+        });
+        var el = document.createElement('has-no-template');
+        document.getElementById('target').appendChild(el);
+        assert.notOk(el.root && Polymer.dom(el.root).querySelector('#injected'));
+      });
+
+      test('element without explicit template throws', function() {
+        assertThrows(function() {
+          Polymer({
+            is: 'has-no-template-throws'
+          });
+          var el = document.createElement('has-no-template-throws');
+          document.getElementById('target').appendChild(el);
+        }, /expecting dom-module or null _template/);
+      });
+
+    });
+  </script>
+    
+</body>
+</html>
