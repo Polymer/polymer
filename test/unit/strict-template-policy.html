@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+  <script src="wct-browser-config.js"></script>
+  <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
+  <script type="module">
+      import {Debouncer} from '../../lib/utils/debounce.js';
+      window.strictTemplatePolicy = true;
+      // Errors thrown in custom element reactions are not thrown up
+      // the call stack to the dom methods that provoked them, so need
+      // to catch them here and prevent mocha from complaining about them
+      window.addEventListener('error', function(event) {
+        event.stopImmediatePropagation();
+        if (!window.globalError) {
+          window.globalError = event;
+        }
+      });
+      // Errors thrown in Polymer's debouncer queue get re-thrown
+      // via setTimeout, making them particulary difficult to verify;
+      // Wrap debouncer callbacks and store on the globalError to test later
+      const debounce = Debouncer.debounce;
+      Debouncer.debounce = function(debouncer, asyncModule, callback) {
+        return debounce(debouncer, asyncModule, function() {
+          try { 
+            callback(); 
+          } catch(error) {
+            window.globalError = error;
+          }
+        });
+      };
+    </script>
+</head>
+<body>
+
+  <dom-module id="trusted-element">
+    <template>Should never be used</template>
+    <script type="module">
+      import {PolymerElement} from '../../polymer-element.js';
+      class TrustedElement extends PolymerElement {
+        static get is() { return 'trusted-element'; }
+      }
+      customElements.define(TrustedElement.is, TrustedElement);
+    </script>
+  </dom-module>
+
+  <dom-module id="trusted-element-legacy">
+    <template>Should never be used</template>
+    <script type="module">
+      import {Polymer} from '../../polymer-legacy.js';
+      Polymer({is: 'trusted-element-legacy'});
+    </script>
+  </dom-module>
+
+  <div id="target"></div>
+
+  <script type="module">
+    import {Polymer} from '../../polymer-legacy.js';
+    import {flush} from '../../lib/utils/flush.js';
+
+    suite('strictTemplatePolicy', function() {
+
+      teardown(function() {
+        window.globalError = null;
+      });
+
+      function assertThrows(fn, re) {
+        assert.throws(function() {
+          fn();
+          // Throw any errors caught on window
+          if (window.globalError) {
+            throw new Error(window.globalError.message);
+          }
+          // Force polyfill reactions and/or async template stamping
+          flush();
+          // Throw any add'l errors caught on window
+          if (window.globalError) {
+            throw new Error(window.globalError.message);
+          }
+        }, re);
+      }
+
+      test('dom-bind', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+          '<dom-bind>' +
+          '  <template>' +
+          '    <div id="injected"></div>'+
+          '  </template>`' + 
+          '</dom-bind>';
+        }, /dom-bind not allowed/);
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-if', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-if if>' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>' + 
+            '</dom-if>';
+        }, /template owner not trusted/);
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-repeat', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-repeat items="[0]">' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>`' + 
+            '</dom-repeat>';
+        }, /template owner not trusted/);
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-module never used', function() {
+        var el = document.createElement('trusted-element');
+        assert.notOk(el.shadowRoot);
+      });
+
+      test('dom-module never used (legacy)', function() {
+        var el = document.createElement('trusted-element-legacy');
+        assert.notOk(el.shadowRoot);
+      });
+
+      test('dom-module re-registration throws', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-module id="trusted-element">' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>`' +
+            '</dom-module>';
+        }, /trusted-element registered twice/);
+      });
+
+    });
+  </script>
+    
+</body>
+</html>
