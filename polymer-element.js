@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 */
 
 import { ElementMixin } from './lib/mixins/element-mixin.js';
-export { html } from './lib/utils/html-tag.js';
+export { html, htmlLiteral } from './lib/utils/html-tag.js';
 
 /**
  * Base class that provides the core API for Polymer's meta-programming
