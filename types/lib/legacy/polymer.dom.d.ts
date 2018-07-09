@@ -48,11 +48,6 @@ declare namespace Polymer {
     readonly activeElement: Node|null|undefined;
 
     /**
-     * @param node Node for which to create a Polymer.dom helper object.
-     */
-    constructor(node: Node|null);
-
-    /**
      * Returns an instance of `Polymer.FlattenedNodesObserver` that
      * listens for node changes on this element.
      *
@@ -181,5 +176,4 @@ declare class EventApi {
    * Returns the `composedPath` for this event.
    */
   readonly path: EventTarget[];
-  constructor(event: any);
 }
