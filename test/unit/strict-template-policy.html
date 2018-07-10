@@ -18,10 +18,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // Errors thrown in custom element reactions are not thrown up
     // the call stack to the dom methods that provoked them, so need
     // to catch them here and prevent mocha from complaining about them
-    window.addEventListener('error', function(event) {
+    window.addEventListener('error', event => {
+      event.preventDefault();
       event.stopImmediatePropagation();
-      if (!window.globalError) {
-        window.globalError = event;
+      if (!window.uncaughtError) {
+        window.uncaughtError = event;
       }
     });
   </script>
@@ -38,7 +39,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           try { 
             callback(); 
           } catch(error) {
-            window.globalError = error;
+            window.onerror(error);
           }
         });
       };
@@ -72,24 +73,46 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <script>
     suite('strictTemplatePolicy', function() {
 
+      // Capture mocha's default onerror
+      const onerror = window.onerror;
+      const topOnerror = window.top.topOnerror;
+
       teardown(function() {
-        window.globalError = null;
+        // Restore mocha's onerror
+        window.onerror = onerror;
+        window.top.onerror = topOnerror;
+        window.uncaughtError = null;
       });
 
+      // Errors thrown in custom element reactions are not thrown up
+      // the call stack to the dom methods that provoked them, so this
+      // wraps Chai's assert.throws to re-throw uncaught errors
       function assertThrows(fn, re) {
         // Safari does not forward error messages
         re = new RegExp('(' + re.toString().slice(1,-1) + ')|(Script error\\.)', re.flags);
+        // Catch uncaught errors; note when running in iframe sometimes
+        // Safari errors are thrown on the top window, sometimes not, so
+        // catch in both places
+        let uncaughtError = null;
+        const onerror = window.onerror;
+        const topOnerror = window.top.topOnerror;
+        window.onerror = window.top.onerror = function(err) {
+          if (!uncaughtError) {
+            uncaughtError = new Error(err);
+          }
+        }
         assert.throws(function() {
           fn();
-          // Throw any errors caught on window
-          if (window.globalError) {
-            throw new Error(window.globalError.message);
+          // Re-throw any uncaughtErrors
+          let err;
+          if (err = (uncaughtError || window.uncaughtError)) {
+            throw new Error(err.message);
           }
           // Force polyfill reactions and/or async template stamping
           Polymer.flush();
-          // Throw any add'l errors caught on window
-          if (window.globalError) {
-            throw new Error(window.globalError.message);
+          // Re-throw any uncaughtErrors
+          if (err = (uncaughtError || window.uncaughtError)) {
+            throw new Error(err.message);
           }
         }, re);
       }
