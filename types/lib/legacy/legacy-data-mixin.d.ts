@@ -12,6 +12,7 @@
 /// <reference path="../utils/mixin.d.ts" />
 
 declare class UndefinedArgumentError {
+  constructor(message: any);
 }
 
 declare class LegacyDataMixin {
