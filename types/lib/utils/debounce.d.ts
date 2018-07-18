@@ -15,6 +15,7 @@
 declare namespace Polymer {
 
   class Debouncer {
+    constructor();
 
     /**
      * Creates a debouncer if no debouncer is passed as a parameter

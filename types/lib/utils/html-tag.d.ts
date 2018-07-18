@@ -17,6 +17,7 @@
  */
 declare class LiteralString {
   value: string;
+  constructor(string: any);
 
   /**
    * @returns LiteralString string value
