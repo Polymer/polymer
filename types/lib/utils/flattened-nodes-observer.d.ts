@@ -55,6 +55,13 @@ declare namespace Polymer {
   class FlattenedNodesObserver {
 
     /**
+     * @param target Node on which to listen for changes.
+     * @param callback Function called when there are additions
+     * or removals from the target's list of flattened nodes.
+     */
+    constructor(target: _Element|null, callback: ((p0: _Element, p1: {target: _Element, addedNodes: _Element[], removedNodes: _Element[]}) => void)|null);
+
+    /**
      * Returns the list of flattened nodes for the given `node`.
      * This list consists of a node's children and, for any children
      * that are `<slot>` elements, the expanded flattened list of `assignedNodes`.
