@@ -118,3 +118,34 @@ PolymerElement.prototype.registered = function() {};
 PolymerElement.prototype.attached = function() {};
 /** On detached from the DOM callback. */
 PolymerElement.prototype.detached = function() {};
+
+/**
+ * @typedef {{
+ *   index: number,
+ *   removed: !Array,
+ *   addedCount: number,
+ *   object: !Array,
+ *   type: string,
+ * }}
+ */
+let PolymerSplice;
+
+/**
+ * @typedef {{
+ *   indexSplices: ?Array<!PolymerSplice>,
+ * }}
+ */
+let PolymerSpliceChange;
+
+/**
+ * The type of the object received by an observer function when deep
+ * sub-property observation is enabled. See:
+ * https://www.polymer-project.org/2.0/docs/devguide/observers#deep-observation
+ *
+ * @typedef {{
+ *   path: string,
+ *   value: (?Object|undefined),
+ *   base: (?Object|undefined)
+ * }}
+ */
+let PolymerDeepPropertyChange;
