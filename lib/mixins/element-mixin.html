@@ -276,6 +276,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
+     * Look up template from dom-module for element
+     * 
+     * @param {!string} is Element name to look up
+     * @return {!HTMLTemplateElement} Template found in dom module, or
+     *   undefined if not found
+     * @private
+     */
+     function getTemplateFromDomModule(is) {
+      let template = null;
+      if (is && Polymer.DomModule) {
+        template = Polymer.DomModule.import(is, 'template');
+        // Under strictTemplatePolicy, require any element with an `is`
+        // specified to have a dom-module
+        if (Polymer.strictTemplatePolicy && !template) {
+          throw new Error(`strictTemplatePolicy: expecting dom-module or null template for ${is}`);
+        }
+      }
+      return template;
+    }
+
+    /**
      * @polymer
      * @mixinClass
      * @unrestricted
@@ -373,7 +394,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   class MySubClass extends MySuperClass {
        *     static get template() {
        *       if (!memoizedTemplate) {
-       *         memoizedTemplate = super.template.cloneNode(true);
+       *         memoizedTemplate = MySuperClass.template.cloneNode(true);
        *         let subContent = document.createElement('div');
        *         subContent.textContent = 'This came from MySubClass';
        *         memoizedTemplate.content.appendChild(subContent);
@@ -386,16 +407,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        */
       static get template() {
         if (!this.hasOwnProperty(JSCompiler_renameProperty('_template', this))) {
-          const template = Polymer.DomModule && Polymer.DomModule.import(
-            /** @type {PolymerElementConstructor}*/ (this).is, 'template') ||
-            // note: implemented so a subclass can retrieve the super
-            // template; call the super impl this way so that `this` points
-            // to the superclass.
-            Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.template;
-          if (Polymer.strictTemplatePolicy && this.is && !template) {
-            throw new Error(`strictTemplatePolicy: expecting dom-module or null template for ${this.is}`);
-          }
-          this._template = template;
+          this._template =
+            // Look in dom-module associated with this element's is
+            getTemplateFromDomModule(/** @type {PolymerElementConstructor}*/ (this).is) ||
+            // Next look for superclass template (call the super impl this
+            // way so that `this` points to the superclass)
+            Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.template ||
+            // Finally, fall back to any _template set on prototype, e.g.
+            // via registered callback
+            this.prototype._template;
         }
         return this._template;
       }
