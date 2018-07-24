@@ -13,7 +13,6 @@
 
 const gulp = require('gulp');
 const gulpif = require('gulp-if');
-const runseq = require('run-sequence');
 const del = require('del');
 const eslint = require('gulp-eslint');
 const fs = require('fs-extra');
@@ -31,8 +30,7 @@ const replace = require('gulp-replace');
 const DIST_DIR = 'dist';
 const BUNDLED_DIR = path.join(DIST_DIR, 'bundled');
 const COMPILED_DIR = path.join(DIST_DIR, 'compiled');
-const POLYMER_LEGACY = 'polymer.html';
-const POLYMER_ELEMENT = 'polymer-element.html';
+const POLYMER_LEGACY = 'polymer-legacy.js';
 
 const {PolymerProject, HtmlSplitter} = require('polymer-build');
 
@@ -63,8 +61,6 @@ class BackfillStream extends Transform {
     cb();
   }
 }
-
-let CLOSURE_LINT_ONLY = false;
 
 let firstImportFinder = dom5.predicates.AND(
   dom5.predicates.hasTagName('link'), dom5.predicates.hasAttrValue('rel', 'import')
@@ -129,8 +125,7 @@ gulp.task('generate-typescript', async () => {
   }
 });
 
-gulp.task('closure', gulp.series('generate-externs', () => {
-
+const runClosureOnly = ({lintOnly}) => () => {
   let entry, splitRx, joinRx, addClosureTypes;
 
   function config(path) {
@@ -164,7 +159,7 @@ gulp.task('closure', gulp.series('generate-externs', () => {
 
   let closurePluginOptions;
 
-  if (CLOSURE_LINT_ONLY) {
+  if (lintOnly) {
     closurePluginOptions = {
       logger: closureLintLogger
     };
@@ -179,7 +174,7 @@ gulp.task('closure', gulp.series('generate-externs', () => {
     assume_function_wrapper: true,
     rewrite_polyfills: false,
     new_type_inf: true,
-    checks_only: CLOSURE_LINT_ONLY,
+    checks_only: lintOnly,
     polymer_version: 2,
     externs: [
       'bower_components/shadycss/externs/shadycss-externs.js',
@@ -219,12 +214,15 @@ gulp.task('closure', gulp.series('generate-externs', () => {
     .pipe(gulpif(joinRx, minimalDocument()))
     .pipe(gulpif(joinRx, size({title: 'closure size', gzip: true, showTotal: false, showFiles: true})))
     .pipe(gulp.dest(COMPILED_DIR));
-}));
+};
 
-gulp.task('lint-closure', (done) => {
-  CLOSURE_LINT_ONLY = true;
-  runseq('closure', done);
-});
+gulp.task('closure', gulp.series('generate-externs', runClosureOnly({
+  lintOnly: false
+})));
+
+gulp.task('lint-closure', runClosureOnly({
+  lintOnly: true
+}));
 
 gulp.task('estimate-size', gulp.series('clean', () => {
 
@@ -272,13 +270,11 @@ gulp.task('lint-eslint', function() {
     .pipe(eslint.failAfterError());
 });
 
-gulp.task('lint', (done) => {
-  runseq('lint-eslint', 'lint-closure', done);
-});
+// TODO(timvdlippe): Add back `, 'lint-closure'` once closure lint works again
+gulp.task('lint', gulp.series('lint-eslint'));
 
-gulp.task('update-types', (done) => {
-  runseq('generate-externs', 'generate-typescript', done);
-});
+// TODO(timvdlippe): Add back `'generate-externs',` once we can generate externs again
+gulp.task('generate-types', gulp.series('generate-typescript'));
 
 gulp.task('update-version', () => {
   return gulp.src('lib/utils/boot.js')
