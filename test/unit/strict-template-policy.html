@@ -20,10 +20,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // the call stack to the dom methods that provoked them, so need
     // to catch them here and prevent mocha from complaining about them
     window.addEventListener('error', function(event) {
-      event.stopImmediatePropagation();
-      event.preventDefault();
-      if (!window.uncaughtError) {
-        window.uncaughtError = event;
+      if (window.uncaughtErrorFilter && window.uncaughtErrorFilter(event)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
       }
     });
   </script>
@@ -41,30 +40,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </script>
   </dom-module>
 
+  <dom-module id="trusted-templates">
+    <template>
+      <template is="dom-repeat" items="[0]">
+        <div id="dom-repeat-ok"></div>
+        <template is="dom-if" if><div id="nested-dom-if-ok"></div></template>
+      </template>
+      <template is="dom-if" if>
+        <div id="dom-if-ok"></div>
+        <template is="dom-repeat" items="[0]"><div id="nested-dom-repeat-ok"></div></template>
+      </template>
+    </template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({is: 'trusted-templates'});
+      });
+    </script>
+  </dom-module>
+
   <div id="target"></div>
 
   <script>
     suite('strictTemplatePolicy', function() {
 
       teardown(function() {
-        window.uncaughtError = null;
+        window.uncaughtErrorFilter = null;
+        document.getElementById('target').textContent = '';
       });
 
       // Errors thrown in custom element reactions are not thrown up
       // the call stack to the dom methods that provoked them, so this
       // wraps Chai's assert.throws to re-throw uncaught errors
       function assertThrows(fn, re) {
+        var uncaughtError = null;
+        window.uncaughtErrorFilter = function(err) {
+          if (!uncaughtError) {
+            uncaughtError = err instanceof Error ? err : new Error(err.message);
+          }
+          return true;
+        };
         assert.throws(function() {
           fn();
           // Throw any errors caught on window
-          if (window.uncaughtError) {
-            throw new Error(window.uncaughtError.message);
+          if (uncaughtError) {
+            throw uncaughtError;
           }
           // Force polyfill reactions and/or async template stamping
           Polymer.dom.flush();
           // Throw any add'l errors caught on window
-          if (window.uncaughtError) {
-            throw new Error(window.uncaughtError.message);
+          if (uncaughtError) {
+            throw uncaughtError;
           }
         }, re);
       }
@@ -106,11 +131,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             '  <template>' +
             '    <div id="injected"></div>'+
             '  </template>`' +
-            '</dom-module>' +
-            '<trusted-element></trusted-element>';
+            '</dom-module>';
         }, /trusted-element re-registered/);
-        var el = document.querySelector('trusted-element');
-        assert.notOk(el.root && Polymer.dom(el.root).querySelector('#injected'));
+        var el = document.createElement('trusted-element');
+        document.getElementById('target').appendChild(el);
+        assert.notInstanceOf(el.root, DocumentFragment);
+        assert.notOk(document.getElementById('injected'));
+      });
+      
+      test('dom-module after registration, again', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-module id="trusted-element">' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>`' +
+            '</dom-module>';
+        }, /trusted-element re-registered/);
+        var el = document.createElement('trusted-element');
+        document.getElementById('target').appendChild(el);
+        assert.notInstanceOf(el.root, DocumentFragment);
+        assert.notOk(document.getElementById('injected'));
       });
       
       test('dom-module before registration', function() {
@@ -126,7 +167,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
         var el = document.createElement('has-no-template');
         document.getElementById('target').appendChild(el);
-        assert.notOk(el.root && Polymer.dom(el.root).querySelector('#injected'));
+        assert.notInstanceOf(el.root, DocumentFragment);
+        assert.notOk(document.getElementById('injected'));
       });
 
       test('element without explicit template throws', function() {
@@ -137,6 +179,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var el = document.createElement('has-no-template-throws');
           document.getElementById('target').appendChild(el);
         }, /expecting dom-module or null _template/);
+      });
+
+      test('template helpers in trusted templates work', function() {
+        var el = document.createElement('trusted-templates');
+        document.getElementById('target').appendChild(el);
+        Polymer.dom.flush();
+        assert.ok(Polymer.dom(el.root).querySelector('#dom-repeat-ok'));
+        assert.ok(Polymer.dom(el.root).querySelector('#dom-if-ok'));
+        assert.ok(Polymer.dom(el.root).querySelector('#nested-dom-repeat-ok'));
+        assert.ok(Polymer.dom(el.root).querySelector('#nested-dom-if-ok'));
       });
 
     });
