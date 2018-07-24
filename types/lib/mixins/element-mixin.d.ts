@@ -114,6 +114,14 @@ declare namespace Polymer {
     createObservers(observers: object|null, dynamicFns: object|null): void;
 
     /**
+     * Look up template from dom-module for element
+     *
+     * @returns Template found in dom module, or
+     *   undefined if not found
+     */
+    _getTemplateFromDomModule(): HTMLTemplateElement;
+
+    /**
      * Gather style text for a style element in the template.
      *
      * @param cssText Text containing styling to process

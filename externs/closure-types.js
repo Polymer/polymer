@@ -886,6 +886,10 @@ Polymer_ElementMixin._finalizeClass = function(){};
 */
 Polymer_ElementMixin.createObservers = function(observers, dynamicFns){};
 /**
+* @return {!HTMLTemplateElement}
+*/
+Polymer_ElementMixin._getTemplateFromDomModule = function(){};
+/**
 * @param {string} cssText Text containing styling to process
 * @param {string} baseURI Base URI to rebase CSS paths against
 * @return {string}
