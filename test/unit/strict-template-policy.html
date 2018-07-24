@@ -19,10 +19,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // the call stack to the dom methods that provoked them, so need
     // to catch them here and prevent mocha from complaining about them
     window.addEventListener('error', event => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (!window.uncaughtError) {
-        window.uncaughtError = event;
+      if (window.uncaughtErrorFilter && window.uncaughtErrorFilter(event)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
       }
     });
   </script>
@@ -39,7 +38,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           try { 
             callback(); 
           } catch(error) {
-            window.onerror(error);
+            if (!window.uncaughtErrorFilter || !window.uncaughtErrorFilter(error)) {
+              throw error;
+            }
           }
         });
       };
@@ -69,6 +70,55 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </script>
   </dom-module>
 
+  <dom-module id="trusted-templates">
+    <template>
+      <dom-repeat items="[0]">
+        <template>
+          <div id="dom-repeat-ok"></div>
+          <dom-if if>
+            <template><div id="nested-dom-if-ok"></div></template>
+          </dom-if>
+        </template>
+      </dom-repeat>
+      <dom-if if>
+        <template>
+          <div id="dom-if-ok"></div>
+          <dom-repeat items="[0]">
+            <template>
+              <div id="nested-dom-repeat-ok"></div>
+            </template>
+          </dom-repeat>
+        </template>
+      </dom-if>
+    </template>
+    <script>
+      HTMLImports.whenReady(function() {
+        class TrustedTemplates extends Polymer.Element {
+          static get is() { return 'trusted-templates'; }
+        }
+        customElements.define(TrustedTemplates.is, TrustedTemplates);
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="trusted-templates-legacy">
+    <template>
+      <template is="dom-repeat" items="[0]">
+        <div id="dom-repeat-ok"></div>
+        <template is="dom-if" if><div id="nested-dom-if-ok"></div></template>
+      </template>
+      <template is="dom-if" if>
+        <div id="dom-if-ok"></div>
+        <template is="dom-repeat" items="[0]"><div id="nested-dom-repeat-ok"></div></template>
+      </template>
+    </template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({is: 'trusted-templates-legacy'});
+      });
+    </script>
+  </dom-module>
+
   <div id="target"></div>
 
   <script>
@@ -82,7 +132,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Restore mocha's onerror
         window.onerror = onerror;
         window.top.onerror = topOnerror;
-        window.uncaughtError = null;
+        window.uncaughtErrorFilter = window.top.uncaughtErrorFilter = null;
+        document.getElementById('target').textContent = '';
       });
 
       // Errors thrown in custom element reactions are not thrown up
@@ -94,22 +145,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Catch uncaught errors; note when running in iframe sometimes
         // Safari errors are thrown on the top window, sometimes not, so
         // catch in both places
-        window.onerror = window.top.onerror = function(err) {
-          if (!window.uncaughtError) {
-            window.uncaughtError = new Error(err);
+        let uncaughtError = null;
+        window.onerror = window.top.onerror = window.uncaughtErrorFilter = 
+          window.top.uncaughtErrorFilter = function(err) {
+          if (!uncaughtError) {
+            uncaughtError = err instanceof Error ? err : new Error(err.message);
           }
+          return true;
         };
         assert.throws(function() {
           fn();
           // Re-throw any uncaughtErrors
-          if (window.uncaughtError) {
-            throw new Error(window.uncaughtError.message);
+          if (uncaughtError) {
+            throw uncaughtError;
           }
           // Force polyfill reactions and/or async template stamping
           Polymer.flush();
           // Re-throw any uncaughtErrors
-          if (window.uncaughtError) {
-            throw new Error(window.uncaughtError.message);
+          if (uncaughtError) {
+            throw uncaughtError;
           }
         }, re);
       }
@@ -264,6 +318,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           var el = document.createElement('has-no-template-throws-legacy');
           document.getElementById('target').appendChild(el);
         }, /expecting dom-module or null template/);
+      });
+
+      test('template helpers in trusted templates work', function() {
+        var el = document.createElement('trusted-templates');
+        document.getElementById('target').appendChild(el);
+        Polymer.flush();
+        assert.ok(el.shadowRoot.querySelector('#dom-repeat-ok'));
+        assert.ok(el.shadowRoot.querySelector('#dom-if-ok'));
+        assert.ok(el.shadowRoot.querySelector('#nested-dom-repeat-ok'));
+        assert.ok(el.shadowRoot.querySelector('#nested-dom-if-ok'));
+      });
+
+      test('template helpers in trusted templates work (legacy)', function() {
+        var el = document.createElement('trusted-templates-legacy');
+        document.getElementById('target').appendChild(el);
+        Polymer.flush();
+        assert.ok(el.shadowRoot.querySelector('#dom-repeat-ok'));
+        assert.ok(el.shadowRoot.querySelector('#dom-if-ok'));
+        assert.ok(el.shadowRoot.querySelector('#nested-dom-repeat-ok'));
+        assert.ok(el.shadowRoot.querySelector('#nested-dom-if-ok'));
       });
 
     });
