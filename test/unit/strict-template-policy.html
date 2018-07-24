@@ -78,7 +78,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <div id="target"></div>
     
   <script type="module">
-    import {PolymerElement} from '../../polymer-element.js';
+    import {PolymerElement, html} from '../../polymer-element.js';
     import {Polymer} from '../../polymer-legacy.js';
     import {flush} from '../../lib/utils/flush.js';
     import {setAllowTemplateFromDomModule} from '../../lib/utils/settings.js';
@@ -94,10 +94,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // the call stack to the dom methods that provoked them, so this
       // wraps Chai's assert.throws to re-throw uncaught errors
       function assertThrows(fn, re) {
-        let uncaughtError = null;
         // Catch uncaught errors; note when running in iframe sometimes
         // Safari errors are thrown on the top window, sometimes not, so
         // catch in both places
+        let uncaughtError = null;
         window.uncaughtErrorFilter = window.top.uncaughtErrorFilter = function(err) {
           if (!uncaughtError) {
             uncaughtError = err;
@@ -179,11 +179,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             '  <template>' +
             '    <div id="injected"></div>'+
             '  </template>`' +
-            '</dom-module>' +
-            '<trusted-element></trusted-element>';
+            '</dom-module>';
         }, /trusted-element re-registered/);
-        const el = document.querySelector('trusted-element');
-        assert.notOk(el && el.shadowRoot && el.shadowRoot.querySelector('#injected'));
+        const el = document.createElement('trusted-element');
+        document.getElementById('target').appendChild(el);
+        assert.notOk(el.shadowRoot);
+        assert.notOk(document.getElementById('injected'));
+      });
+      
+      test('dom-module after registration, again', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-module id="trusted-element">' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>`' +
+            '</dom-module>';
+        }, /trusted-element re-registered/);
+        const el = document.createElement('trusted-element');
+        document.getElementById('target').appendChild(el);
+        assert.notOk(el.shadowRoot);
+        assert.notOk(document.getElementById('injected'));
       });
       
       test('dom-module before registration', function() {
@@ -201,6 +217,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let el = document.createElement('has-no-template');
         document.getElementById('target').appendChild(el);
         assert.notOk(el.shadowRoot);
+        assert.notOk(document.getElementById('injected'));
       });
 
       test('dom-module after registration (legacy)', function() {
@@ -210,13 +227,29 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             '  <template>' +
             '    <div id="injected"></div>'+
             '  </template>`' +
-            '</dom-module>' +
-            '<trusted-element-legacy></trusted-element-legacy>';
+            '</dom-module>';
         }, /trusted-element-legacy re-registered/);
-        const el = document.querySelector('trusted-element-legacy');
-        assert.notOk(el && el.shadowRoot && el.shadowRoot.querySelector('#injected'));
+        const el = document.createElement('trusted-element-legacy');
+        document.getElementById('target').appendChild(el);
+        assert.notOk(el.shadowRoot);
+        assert.notOk(document.getElementById('injected'));
       });
       
+      test('dom-module after registration, again (legacy)', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-module id="trusted-element-legacy">' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>`' +
+            '</dom-module>';
+        }, /trusted-element-legacy re-registered/);
+        const el = document.createElement('trusted-element-legacy');
+        document.getElementById('target').appendChild(el);
+        assert.notOk(el.shadowRoot);
+        assert.notOk(document.getElementById('injected'));
+      });
+            
       test('dom-module before registration (legacy)', function() {
         document.getElementById('target').innerHTML =
           '<dom-module id="has-no-template-legacy">' +
@@ -230,7 +263,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
         let el = document.createElement('has-no-template-legacy');
         document.getElementById('target').appendChild(el);
-        assert.notOk(document.querySelector('has-no-template-legacy').shadowRoot);
+        assert.notOk(el.shadowRoot);
+        assert.notOk(document.getElementById('injected'));
       });
 
       test('element without explicit template throws', function() {
@@ -253,8 +287,68 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           document.getElementById('target').appendChild(el);
         }, /expecting dom-module or null template/);
       });
-      
+
+      test('template helpers in trusted templates work', function() {
+        
+        class TrustedTemplates extends PolymerElement {
+          static get template() { return html`
+            <dom-repeat items="[0]">
+              <template>
+                <div id="dom-repeat-ok"></div>
+                <dom-if if>
+                  <template><div id="nested-dom-if-ok"></div></template>
+                </dom-if>
+              </template>
+            </dom-repeat>
+            <dom-if if>
+              <template>
+                <div id="dom-if-ok"></div>
+                <dom-repeat items="[0]">
+                  <template>
+                    <div id="nested-dom-repeat-ok"></div>
+                  </template>
+                </dom-repeat>
+              </template>
+            </dom-if>`; 
+          }
+        }
+        customElements.define('trusted-templates', TrustedTemplates);
+    
+        var el = document.createElement('trusted-templates');
+        document.getElementById('target').appendChild(el);
+        flush();
+        assert.ok(el.shadowRoot.querySelector('#dom-repeat-ok'));
+        assert.ok(el.shadowRoot.querySelector('#dom-if-ok'));
+        assert.ok(el.shadowRoot.querySelector('#nested-dom-repeat-ok'));
+        assert.ok(el.shadowRoot.querySelector('#nested-dom-if-ok'));
+      });
+
+      test('template helpers in trusted templates work (legacy)', function() {
+
+        Polymer({
+          is: 'trusted-templates-legacy',
+          _template: html`
+            <template is="dom-repeat" items="[0]">
+              <div id="dom-repeat-ok"></div>
+              <template is="dom-if" if><div id="nested-dom-if-ok"></div></template>
+            </template>
+            <template is="dom-if" if>
+              <div id="dom-if-ok"></div>
+              <template is="dom-repeat" items="[0]"><div id="nested-dom-repeat-ok"></div></template>
+            </template>`
+        });
+
+        var el = document.createElement('trusted-templates-legacy');
+        document.getElementById('target').appendChild(el);
+        flush();
+        assert.ok(el.shadowRoot.querySelector('#dom-repeat-ok'));
+        assert.ok(el.shadowRoot.querySelector('#dom-if-ok'));
+        assert.ok(el.shadowRoot.querySelector('#nested-dom-repeat-ok'));
+        assert.ok(el.shadowRoot.querySelector('#nested-dom-if-ok'));
+      });
+
     });
+
   </script>
     
 </body>
