@@ -15,19 +15,19 @@
 
 /**
  * @typedef {{
- * type: !Function,
- * value: *,
- * readOnly: (boolean | undefined),
- * computed: (string | undefined),
- * reflectToAttribute: (boolean | undefined),
- * notify: (boolean | undefined),
- * observer: (string | function(*,*) | undefined)
+ *   type: !Function,
+ *   value: (* | undefined),
+ *   readOnly: (boolean | undefined),
+ *   computed: (string | undefined),
+ *   reflectToAttribute: (boolean | undefined),
+ *   notify: (boolean | undefined),
+ *   observer: (string | function(this:?, ?, ?) | undefined)
  * }}
  */
 let PolymerElementPropertiesMeta;
 
 /**
- * @typedef {Object<string, !PolymerElementPropertiesMeta>}
+ * @typedef {Object<string, !Function|!PolymerElementPropertiesMeta>}
  */
 let PolymerElementProperties;
 
@@ -69,9 +69,6 @@ PropertiesMixinConstructor.properties;
  */
 function Polymer(init){}
 
-/** @type {PolymerElementProperties} */
-Polymer.ElementProperties;
-
 /**
  * @type {(function(*,string,string,Node):*)|undefined}
  */
@@ -110,3 +107,45 @@ Polymer.version;
  * @implements {Polymer_LegacyElementMixin}
  */
 var PolymerElement = function() {};
+
+/** On create callback. */
+PolymerElement.prototype.created = function() {};
+/** On ready callback. */
+PolymerElement.prototype.ready = function() {};
+/** On registered callback. */
+PolymerElement.prototype.registered = function() {};
+/** On attached to the DOM callback. */
+PolymerElement.prototype.attached = function() {};
+/** On detached from the DOM callback. */
+PolymerElement.prototype.detached = function() {};
+
+/**
+ * @typedef {{
+ *   index: number,
+ *   removed: !Array,
+ *   addedCount: number,
+ *   object: !Array,
+ *   type: string,
+ * }}
+ */
+let PolymerSplice;
+
+/**
+ * @typedef {{
+ *   indexSplices: ?Array<!PolymerSplice>,
+ * }}
+ */
+let PolymerSpliceChange;
+
+/**
+ * The type of the object received by an observer function when deep
+ * sub-property observation is enabled. See:
+ * https://www.polymer-project.org/2.0/docs/devguide/observers#deep-observation
+ *
+ * @typedef {{
+ *   path: string,
+ *   value: (?Object|undefined),
+ *   base: (?Object|undefined)
+ * }}
+ */
+let PolymerDeepPropertyChange;
