@@ -260,9 +260,9 @@ Polymer_TemplateStamp.prototype._removeEventListenerFromNode = function(node, ev
 */
 Polymer_TemplateStamp._parseTemplate = function(template, outerTemplateInfo){};
 /**
-* @param {*} template 
-* @param {*} templateInfo 
-* @param {*} nodeInfo 
+* @param {*} template
+* @param {*} templateInfo
+* @param {*} nodeInfo
 */
 Polymer_TemplateStamp._parseTemplateContent = function(template, templateInfo, nodeInfo){};
 /**
@@ -1377,6 +1377,17 @@ Polymer_ArraySelectorMixin.prototype.select = function(item){};
 * @return {void}
 */
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
+/**
+* @interface
+* @extends {Polymer_PropertyEffects}
+*/
+function Polymer_StrictBindingParser(){}
+/**
+* @param {string} text Text to parse from attribute or textContent
+* @param {Object} templateInfo Current template metadata
+* @return {Array.<!BindingPart>}
+*/
+Polymer_StrictBindingParser._parseBindings = function(text, templateInfo){};
 /**
 * @interface
 * @extends {Polymer_ElementMixin}
