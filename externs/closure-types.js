@@ -33,7 +33,7 @@ Polymer_PropertiesChanged.prototype._addPropertyToAttributeMap = function(proper
 */
 Polymer_PropertiesChanged.prototype._definePropertyAccessor = function(property, readOnly){};
 /**
-* @return {void}
+* @return {void|!Promise<void>}
 */
 Polymer_PropertiesChanged.prototype.ready = function(){};
 /**
@@ -105,7 +105,7 @@ Polymer_PropertiesChanged.prototype._shouldPropertyChange = function(property, v
 * @param {string} name Name of attribute that changed
 * @param {?string} old Old attribute value
 * @param {?string} value New attribute value
-* @param {?string} namespace Attribute namespace.
+* @param {?string} namespace Namespace of the attribute
 * @return {void}
 */
 Polymer_PropertiesChanged.prototype.attributeChangedCallback = function(name, old, value, namespace){};
@@ -379,7 +379,7 @@ Polymer_PropertyEffects.prototype.__templateInfo;
 Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
 /**
 * @override
-* @return {void}
+* @return {void|!Promise<void>}
 */
 Polymer_PropertyEffects.prototype.ready = function(){};
 /**
@@ -760,7 +760,7 @@ Polymer_PropertyEffects._addTemplatePropertyEffect = function(templateInfo, prop
 */
 Polymer_PropertyEffects._parseBindings = function(text, templateInfo){};
 /**
-* @param {this} inst Element that should be used as scope for
+* @param {Element} inst Element that should be used as scope for
   binding dependencies
 * @param {BindingPart} part Binding part metadata
 * @param {string} path Property/path that triggered this effect
@@ -973,7 +973,7 @@ Polymer_LegacyElementMixin.prototype._initializeProperties = function(){};
 * @param {string} name Name of attribute.
 * @param {?string} old Old value of attribute.
 * @param {?string} value Current value of attribute.
-* @param {?string} namespace Attribute namespace.
+* @param {?string} namespace Namespace of the attribute
 * @return {void}
 */
 Polymer_LegacyElementMixin.prototype.attributeChangedCallback = function(name, old, value, namespace){};
@@ -1174,7 +1174,7 @@ Polymer_LegacyElementMixin.prototype.getComputedStyleValue = function(property){
 * @param {string} jobName String to identify the debounce job.
 * @param {function (): void} callback Function that is called (with `this`
   context) when the wait time elapses.
-* @param {number} wait Optional wait time in milliseconds (ms) after the
+* @param {number=} wait Optional wait time in milliseconds (ms) after the
   last signal that must elapse before invoking `callback`
 * @return {!Object}
 */
@@ -1379,17 +1379,6 @@ Polymer_ArraySelectorMixin.prototype.select = function(item){};
 Polymer_ArraySelectorMixin.prototype.selectIndex = function(idx){};
 /**
 * @interface
-* @extends {Polymer_PropertyEffects}
-*/
-function Polymer_StrictBindingParser(){}
-/**
-* @param {string} text Text to parse from attribute or textContent
-* @param {Object} templateInfo Current template metadata
-* @return {Array.<!BindingPart>}
-*/
-Polymer_StrictBindingParser._parseBindings = function(text, templateInfo){};
-/**
-* @interface
 * @extends {Polymer_ElementMixin}
 */
 function Polymer_DisableUpgradeMixin(){}
@@ -1404,7 +1393,7 @@ Polymer_DisableUpgradeMixin.prototype._enableProperties = function(){};
 /**
 * @override
 */
-Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value, namespace){};
+Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value){};
 /**
 * @override
 */
