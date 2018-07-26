@@ -210,8 +210,8 @@ declare namespace Polymer {
      */
     targetFramerate: number|null|undefined;
     readonly _targetFrameTime: number|null|undefined;
-    disconnectedCallback(): void;
     connectedCallback(): void;
+    disconnectedCallback(): void;
 
     /**
      * Forces the element to render its content. Normally rendering is

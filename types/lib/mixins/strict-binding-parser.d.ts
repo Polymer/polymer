@@ -62,6 +62,6 @@ declare namespace Polymer {
     _parseBindings(text: string, templateInfo: object|null): BindingPart[]|null;
   }
 
-  interface StrictBindingParser {
+  interface StrictBindingParser extends Polymer.PropertyEffects, Polymer.TemplateStamp, Polymer.PropertyAccessors, Polymer.PropertiesChanged {
   }
 }

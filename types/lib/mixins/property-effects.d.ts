@@ -290,7 +290,7 @@ declare namespace Polymer {
     _evaluateBinding(inst: this|null, part: BindingPart|null, path: string, props: object|null, oldProps: object|null, hasPaths: boolean): any;
   }
 
-  interface PropertyEffects {
+  interface PropertyEffects extends Polymer.TemplateStamp, Polymer.PropertyAccessors, Polymer.PropertiesChanged {
     readonly PROPERTY_EFFECT_TYPES: any;
 
     /**

@@ -32,7 +32,7 @@ declare namespace Polymer {
     new(...args: any[]): LegacyElementMixin;
   }
 
-  interface LegacyElementMixin {
+  interface LegacyElementMixin extends Polymer.ElementMixin, Polymer.PropertyEffects, Polymer.TemplateStamp, Polymer.PropertyAccessors, Polymer.PropertiesChanged, Polymer.PropertiesMixin, Polymer.GestureEventListeners {
     isAttached: boolean;
     _debouncers: {[key: string]: Function|null};
 
