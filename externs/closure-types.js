@@ -246,7 +246,7 @@ Polymer_TemplateStamp.prototype._addMethodEventListenerToNode = function(node, e
 */
 Polymer_TemplateStamp.prototype._addEventListenerToNode = function(node, eventName, handler){};
 /**
-* @param {Node} node Node to remove event listener from
+* @param {!Node} node Node to remove event listener from
 * @param {string} eventName Name of event
 * @param {function (!Event): void} handler Listener function to remove
 * @return {void}
