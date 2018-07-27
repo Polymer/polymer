@@ -62,7 +62,7 @@ declare namespace Polymer {
     createPropertiesForAttributes(): void;
   }
 
-  interface PropertyAccessors {
+  interface PropertyAccessors extends Polymer.PropertiesChanged {
 
     /**
      * Overrides PropertiesChanged implementation to save existing prototype
