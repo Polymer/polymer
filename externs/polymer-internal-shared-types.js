@@ -1,5 +1,6 @@
 /**
  * @fileoverview Internal shared types for Polymer
+ * @externs
  *
  * @license
  * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
