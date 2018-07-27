@@ -33,7 +33,7 @@ Polymer_PropertiesChanged.prototype._addPropertyToAttributeMap = function(proper
 */
 Polymer_PropertiesChanged.prototype._definePropertyAccessor = function(property, readOnly){};
 /**
-* @return {void|!Promise<void>}
+* @return {void}
 */
 Polymer_PropertiesChanged.prototype.ready = function(){};
 /**
@@ -379,7 +379,7 @@ Polymer_PropertyEffects.prototype.__templateInfo;
 Polymer_PropertyEffects.prototype._stampTemplate = function(template){};
 /**
 * @override
-* @return {void|!Promise<void>}
+* @return {void}
 */
 Polymer_PropertyEffects.prototype.ready = function(){};
 /**
