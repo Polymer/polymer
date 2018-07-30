@@ -1,5 +1,10 @@
 # Change Log
 
+## [v3.0.5](https://github.com/Polymer/polymer/tree/v3.0.5) (2018-07-30)
+- Add more missing .d.ts files from being npm published. ([commit](https://github.com/Polymer/polymer/commit/f372ea89))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/1a9e81c2))
+
 ## [v3.0.4](https://github.com/Polymer/polymer/tree/v3.0.4) (2018-07-30)
 - Ensure generated interfaces.d.ts is included in npm package ([commit](https://github.com/Polymer/polymer/commit/003b0518))
 
