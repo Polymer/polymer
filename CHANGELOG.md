@@ -1,5 +1,10 @@
 # Change Log
 
+## [v3.0.4](https://github.com/Polymer/polymer/tree/v3.0.4) (2018-07-30)
+- Ensure generated interfaces.d.ts is included in npm package ([commit](https://github.com/Polymer/polymer/commit/003b0518))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/028a718c))
+
 ## [v3.0.3](https://github.com/Polymer/polymer/tree/v3.0.3) (2018-07-30)
 - rebuild package-lock ([commit](https://github.com/Polymer/polymer/commit/95bbefd0))
 
