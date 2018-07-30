@@ -1,5 +1,78 @@
 # Change Log
 
+## [v3.0.3](https://github.com/Polymer/polymer/tree/v3.0.3) (2018-07-30)
+- rebuild package-lock ([commit](https://github.com/Polymer/polymer/commit/95bbefd0))
+
+- Generate typings for Polymer 3. ([commit](https://github.com/Polymer/polymer/commit/536030ac))
+
+- Revert Promise<void> changes. ([commit](https://github.com/Polymer/polymer/commit/ac6011e0))
+
+- Lint fixes. ([commit](https://github.com/Polymer/polymer/commit/73ae8b4d))
+
+- Restore some externs. ([commit](https://github.com/Polymer/polymer/commit/8b1e7934))
+
+- Upstream a bunch of g3 changes. ([commit](https://github.com/Polymer/polymer/commit/3b817192))
+
+- Add no-unused-vars eslint suppressions. ([commit](https://github.com/Polymer/polymer/commit/745883ea))
+
+- Annotate another two ephemeral classes. ([commit](https://github.com/Polymer/polymer/commit/c96b4502))
+
+- Mark some ephemeral super classes as private. ([commit](https://github.com/Polymer/polymer/commit/8728287f))
+
+- Annotate Node parameter as not null. ([commit](https://github.com/Polymer/polymer/commit/642f94f8))
+
+- Annotate some internal classes as private. ([commit](https://github.com/Polymer/polymer/commit/fa58519c))
+
+- Fix some appliesMixin annotations still with Polymer namespace. ([commit](https://github.com/Polymer/polymer/commit/a0a6c6b9))
+
+- TypeScript generator config and extra interfaces for Polymer 3. ([commit](https://github.com/Polymer/polymer/commit/3ac7eed2))
+
+- Tweaks to make Polymer 3 more amenable to typings generation. ([commit](https://github.com/Polymer/polymer/commit/605c8912))
+
+- Fix gulp 4 issues ([commit](https://github.com/Polymer/polymer/commit/4f0337a5))
+
+- Extend Safari exceptions beyond 10.1 ([commit](https://github.com/Polymer/polymer/commit/a78732ff))
+
+- Ignore shady CSS scoping in getComposedHTML ([commit](https://github.com/Polymer/polymer/commit/b1aa3058))
+
+- Fix method to force CE polyfill on in 3.x ([commit](https://github.com/Polymer/polymer/commit/84455c9c))
+
+- Convert object to class for better compilation ([commit](https://github.com/Polymer/polymer/commit/b2681170))
+
+- Fix Typo in Readme (#5260) ([commit](https://github.com/Polymer/polymer/commit/665901ab))
+
+- regen package-lock.json ([commit](https://github.com/Polymer/polymer/commit/a7152dd5))
+
+- Update supported browsers in issue template ([commit](https://github.com/Polymer/polymer/commit/1bd28098))
+
+- Remove modulized comment ([commit](https://github.com/Polymer/polymer/commit/07f26b26))
+
+- Update package.lock ([commit](https://github.com/Polymer/polymer/commit/1e1709cc))
+
+- Fix typo in jsdoc (#5248) ([commit](https://github.com/Polymer/polymer/commit/218189e2))
+
+- Replace .npmignore with package.json "files" option. (#5245) ([commit](https://github.com/Polymer/polymer/commit/eb84ea04))
+
+- Spelling ([commit](https://github.com/Polymer/polymer/commit/2eade585))
+
+- Update template docs (#5233) ([commit](https://github.com/Polymer/polymer/commit/31e5d058))
+
+- fix lint ([commit](https://github.com/Polymer/polymer/commit/44e725b8))
+
+- Port disabled fixes from 2.x ([commit](https://github.com/Polymer/polymer/commit/358a1c67))
+
+- Update repo URL ([commit](https://github.com/Polymer/polymer/commit/cdb34fc8))
+
+- Add badges ([commit](https://github.com/Polymer/polymer/commit/41d69801))
+
+- Update development instructions for 3.0 (#5226) ([commit](https://github.com/Polymer/polymer/commit/83ab5a14))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/e366b368))
+
+- Closure extern update ([commit](https://github.com/Polymer/polymer/commit/3c23d673))
+
+- Add user-importable files to `bower.json`'s `main` field for modulizer. ([commit](https://github.com/Polymer/polymer/commit/40e312f8))
+
 ## [v3.0.2](https://github.com/Polymer/polymer/tree/v3.0.2) (2018-05-09)
 - Add back modulizer manifest ([commit](https://github.com/Polymer/polymer/commit/d32797e9))
 
