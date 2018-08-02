@@ -164,3 +164,51 @@ function AsyncInterface(){}
 AsyncInterface.prototype.run;
 /** @type {function(number): void} */
 AsyncInterface.prototype.cancel;
+
+/** @record */
+let GestureInfo = function(){};
+/** @type {string|undefined} */
+GestureInfo.prototype.state;
+/** @type {boolean|undefined} */
+GestureInfo.prototype.started;
+/** @type {!Array<?>|undefined} */
+GestureInfo.prototype.moves;
+/** @type {number|undefined} */
+GestureInfo.prototype.x;
+/** @type {number|undefined} */
+GestureInfo.prototype.y;
+/** @type {boolean|undefined} */
+GestureInfo.prototype.prevent;
+/** @type {function(?): void|undefined} */
+GestureInfo.prototype.addMove;
+/** @type {null|undefined} */
+GestureInfo.prototype.movefn;
+/** @type {null|undefined} */
+GestureInfo.prototype.upFn;
+
+/** @record */
+let GestureRecognizer = function(){};
+/** @type {string} */
+GestureRecognizer.prototype.name;
+/** @type {!Array<string>} */
+GestureRecognizer.prototype.deps;
+/** @type {function(): void} */
+GestureRecognizer.prototype.reset;
+/** @type {function(MouseEvent): void | undefined} */
+GestureRecognizer.prototype.mousedown;
+/** @type {(function(MouseEvent): void | undefined)} */
+GestureRecognizer.prototype.mousemove;
+/** @type {(function(MouseEvent): void | undefined)} */
+GestureRecognizer.prototype.mouseup;
+/** @type {(function(TouchEvent): void | undefined)} */
+GestureRecognizer.prototype.touchstart;
+/** @type {(function(TouchEvent): void | undefined)} */
+GestureRecognizer.prototype.touchmove;
+/** @type {(function(TouchEvent): void | undefined)} */
+GestureRecognizer.prototype.touchend;
+/** @type {(function(MouseEvent): void | undefined)} */
+GestureRecognizer.prototype.click;
+/** @type {!GestureInfo} */
+GestureRecognizer.prototype.info;
+/** @type {!Array<string>} */
+GestureRecognizer.prototype.emits;
