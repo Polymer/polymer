@@ -117,11 +117,11 @@ gulp.task('generate-externs', gulp.series('clean', async () => {
 
 gulp.task('generate-typescript', async () => {
   let genTs = require('@polymer/gen-typescript-declarations').generateDeclarations;
-  await del(['types/**/*.d.ts', '!types/extra-types.d.ts']);
-  const config = await fs.readJson('gen-tsd.json');
-  const files = await genTs('.', config);
+  await del(['**/*.d.ts', '!interfaces.d.ts', '!node_modules/**']);
+  const config = await fs.readJson(path.join(__dirname, 'gen-tsd.json'));
+  const files = await genTs(__dirname, config);
   for (const [filePath, contents] of files) {
-    await fs.outputFile(path.join('types', filePath), contents);
+    await fs.outputFile(path.join(__dirname, filePath), contents);
   }
 });
 
