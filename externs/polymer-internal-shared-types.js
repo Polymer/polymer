@@ -166,6 +166,27 @@ AsyncInterface.prototype.run;
 AsyncInterface.prototype.cancel;
 
 /** @record */
+let GestureInfo = function(){};
+/** @type {string|undefined} */
+GestureInfo.prototype.state;
+/** @type {boolean|undefined} */
+GestureInfo.prototype.started;
+/** @type {!Array<?>|undefined} */
+GestureInfo.prototype.moves;
+/** @type {number|undefined} */
+GestureInfo.prototype.x;
+/** @type {number|undefined} */
+GestureInfo.prototype.y;
+/** @type {boolean|undefined} */
+GestureInfo.prototype.prevent;
+/** @type {function(?): void|undefined} */
+GestureInfo.prototype.addMove;
+/** @type {null|undefined} */
+GestureInfo.prototype.movefn;
+/** @type {null|undefined} */
+GestureInfo.prototype.upFn;
+
+/** @record */
 let GestureRecognizer = function(){};
 /** @type {function(): void} */
 GestureRecognizer.prototype.reset;
