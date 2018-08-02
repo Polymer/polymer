@@ -188,6 +188,10 @@ GestureInfo.prototype.upFn;
 
 /** @record */
 let GestureRecognizer = function(){};
+/** @type {string} */
+GestureRecognizer.prototype.name;
+/** @type {!Array<string>} */
+GestureRecognizer.prototype.deps;
 /** @type {function(): void} */
 GestureRecognizer.prototype.reset;
 /** @type {function(MouseEvent): void | undefined} */
