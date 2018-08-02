@@ -164,3 +164,26 @@ function AsyncInterface(){}
 AsyncInterface.prototype.run;
 /** @type {function(number): void} */
 AsyncInterface.prototype.cancel;
+
+/** @record */
+let GestureRecognizer = function(){};
+/** @type {function(): void} */
+GestureRecognizer.prototype.reset;
+/** @type {function(MouseEvent): void | undefined} */
+GestureRecognizer.prototype.mousedown;
+/** @type {(function(MouseEvent): void | undefined)} */
+GestureRecognizer.prototype.mousemove;
+/** @type {(function(MouseEvent): void | undefined)} */
+GestureRecognizer.prototype.mouseup;
+/** @type {(function(TouchEvent): void | undefined)} */
+GestureRecognizer.prototype.touchstart;
+/** @type {(function(TouchEvent): void | undefined)} */
+GestureRecognizer.prototype.touchmove;
+/** @type {(function(TouchEvent): void | undefined)} */
+GestureRecognizer.prototype.touchend;
+/** @type {(function(MouseEvent): void | undefined)} */
+GestureRecognizer.prototype.click;
+/** @type {!GestureInfo} */
+GestureRecognizer.prototype.info;
+/** @type {!Array<string>} */
+GestureRecognizer.prototype.emits;
