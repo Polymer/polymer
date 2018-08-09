@@ -28,3 +28,8 @@ export { html } from './lib/utils/html-tag.js';
  */
 export const PolymerElement = ElementMixin(HTMLElement);
 
+/**
+ * Current Polymer version in Semver notation.
+ * @type {String} Semver notation of the current version of Polymer.
+ */
+export const version = '3.0.5';
