@@ -7,5 +7,40 @@ The complete set of contributors may be found at http://polymer.github.io/CONTRI
 Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 */
-import { Polymer } from '../../lib/legacy/polymer-fn.js';
-Polymer({ is: 'css-build' });
+import {Polymer} from '../../lib/legacy/polymer-fn.js';
+import {PolymerElement, html} from '../../polymer-element.js';
+
+Polymer({
+  is: 'css-build'
+});
+
+class CssBuildClass extends PolymerElement {
+  static get is() {
+    return 'css-build-class';
+  }
+  static get template() {
+    return html`
+      <style>
+        :host {
+          @apply --mixin;
+          display: block;
+        }
+        :host(.ignore-background) {
+          background-color: rgb(255, 0, 0);
+        }
+        #div {
+          border: var(--border, 2px solid black);
+        }
+        #container ::slotted(*) {
+          padding-left: 10px;
+        }
+      </style>
+      <div id="div"></div>
+      <div id="container">
+        <slot></slot>
+      </div>
+    `;
+  }
+}
+
+customElements.define(CssBuildClass.is, CssBuildClass);
