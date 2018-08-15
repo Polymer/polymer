@@ -32,7 +32,7 @@ let PolymerElementPropertiesMeta;
 let PolymerElementProperties;
 
 /** @record */
-let PolymerInit = function(){};
+let PolymerInit = function() {};
 /** @type {string} */
 PolymerInit.prototype.is;
 /** @type {(string | undefined)} */
@@ -48,7 +48,7 @@ PolymerInit.prototype.hostAttributes;
 /** @type {(!Object<string, string> | undefined)} */
 PolymerInit.prototype.listeners;
 
-let PolymerElementConstructor = function (){};
+let PolymerElementConstructor = function () {};
 /** @type {(string | undefined)} */
 PolymerElementConstructor.is;
 /** @type {(string | undefined)} */
@@ -61,7 +61,7 @@ PolymerElementConstructor.observers;
 PolymerElementConstructor.template;
 
 /** @interface */
-let PropertiesMixinConstructor = function (){};
+let PropertiesMixinConstructor = function () {};
 /** @type {(!PolymerElementProperties | undefined)} */
 PropertiesMixinConstructor.prototype.properties;
 /** @return {void} */
@@ -86,7 +86,7 @@ Polymer.sanitizeDOMValue;
 function JSCompiler_renameProperty(string, obj) {}
 
 /** @record */
-function PolymerTelemetry(){}
+function PolymerTelemetry() {}
 /** @type {number} */
 PolymerTelemetry.instanceCount;
 /** @type {Array<HTMLElement>} */
@@ -164,3 +164,20 @@ var PolymerSpliceChange;
  * }}
  */
 var PolymerDeepPropertyChange;
+
+/**
+ * Event object for events dispatched by children of a dom-repeat template.
+ * @see https://www.polymer-project.org/2.0/docs/devguide/templates#handling-events
+ * @extends {Event}
+ * @constructor
+ * @template T
+ */
+let DomRepeatEvent = function() {};
+
+/**
+ * @type {{
+ *   index: number,
+ *   item: T
+ * }}
+ */
+DomRepeatEvent.prototype.model;
