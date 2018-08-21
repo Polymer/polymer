@@ -1,0 +1,229 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+  <script src="wct-browser-config.js"></script>
+  <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
+  <!-- Applies LegacyDataMixin to all legacy Polymer({..}) elements -->
+  <script type="module" src="../../lib/legacy/legacy-data-mixin.js"></script>
+</head>
+<body>
+
+  <dom-module id="x-data">
+    <script type="module">
+      import {Polymer} from '../../polymer-legacy.js';
+      Polymer({
+        is: 'x-data',
+        properties: {
+          singleProp: String,
+          multiProp1: String,
+          multiProp2: String
+        },
+        _legacyUndefinedCheck: true,
+        observers: [
+          'staticObserver("staticObserver")',
+          'singlePropObserver(singleProp)',
+          'multiPropObserver(multiProp1, multiProp2)',
+          'throws(throwProp)'
+        ],
+        created() {
+          this.singlePropObserver = sinon.spy();
+          this.multiPropObserver = sinon.spy();
+          this.staticObserver = sinon.spy();
+        },
+        throws() {
+          throw new Error('real error');
+        }
+      });
+    </script>
+  </dom-module>
+
+  <test-fixture id="declarative-none">
+    <template>
+      <x-data></x-data>
+    </template>
+  </test-fixture>
+  
+  <test-fixture id="declarative-single">
+    <template>
+      <x-data single-prop="a"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-one">
+    <template>
+      <x-data multi-prop1="b"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-all">
+    <template>
+      <x-data multi-prop1="b" multi-prop2="c"></x-data>
+    </template>
+  </test-fixture>
+
+  <script>
+  (function() {
+
+    let el;
+
+    function assertEffects(callCounts) {
+      assert.equal(el.staticObserver.callCount, 1, 'staticObserver call count wrong');
+      assert.equal(el.singlePropObserver.callCount, 
+        callCounts.singlePropObserver || 0, 'singlePropObserver call count wrong');
+      assert.equal(el.multiPropObserver.callCount,
+        callCounts.multiPropObserver || 0, 'multiPropObserver call count wrong');
+      assert.equal(console.warn.callCount, callCounts.warn || 0,
+        'console.warn call count wrong');
+    }
+
+    suite('imperative', () => {
+
+      setup(() => sinon.spy(console, 'warn'));
+      
+      function setupElement(check, props) {
+        el = document.createElement('x-data');
+        el._legacyUndefinedCheck = check;
+        Object.assign(el, props);
+        document.body.appendChild(el);
+      }
+
+      teardown(() => {
+        console.warn.restore();
+        el.parentNode.removeChild(el);
+      });
+
+      const singleProp = 'a';
+      const multiProp1 = 'b';
+      const multiProp2 = 'c';
+
+      suite('check disabled', () => {
+        test('no arguments defined', () => {
+          setupElement(false, {});
+          assertEffects({});
+        });
+        test('singlePropObserver argument defined', () => {
+          setupElement(false, {singleProp});
+          assertEffects({singlePropObserver: 1});
+        });
+        test('one multiPropObserver arguments defined', () => {
+          setupElement(false, {multiProp1});
+          assertEffects({multiPropObserver: 1});
+        });
+        test('all multiPropObserver defined', () => {
+          setupElement(false, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+        });
+        test('singlePropObserver argument undefined', () => {
+          setupElement(false, {singleProp});
+          assertEffects({singlePropObserver: 1});
+          el.singleProp = undefined;
+          assertEffects({singlePropObserver: 2});
+        });
+        test('one multiPropObserver arguments undefined', () => {
+          setupElement(false, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 2});
+        });
+        test('all multiPropObserver undefined', () => {
+          setupElement(false, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 2});
+          el.multiProp2 = undefined;
+          assertEffects({multiPropObserver: 3});
+        });
+      });
+
+      suite('warn', () => {
+        test('no arguments defined', () => {
+          setupElement(true, {});
+          assertEffects({});
+        });
+        test('singlePropObserver argument defined', () => {
+          setupElement(true, {singleProp});
+          assertEffects({singlePropObserver: 1});
+        });
+        test('one multiPropObserver arguments defined', () => {
+          setupElement(true, {multiProp1});
+          assertEffects({multiPropObserver: 0, warn: 1});
+        });
+        test('all multiPropObserver defined', () => {
+          setupElement(true, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+        });
+        test('singlePropObserver argument undefined', () => {
+          setupElement(true, {singleProp});
+          assertEffects({singlePropObserver: 1});
+          el.singleProp = undefined;
+          assertEffects({singlePropObserver: 2});
+        });
+        test('one multiPropObserver arguments undefined', () => {
+          setupElement(true, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 1, warn: 1});
+        });
+        test('all multiPropObserver undefined', () => {
+          setupElement(true, {multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 1, warn: 1});
+          el.multiProp2 = undefined;
+          assertEffects({multiPropObserver: 1, warn: 2});
+        });
+      });
+    });
+
+    suite('declarative', () => {
+
+      setup(() => sinon.spy(console, 'warn'));
+
+      teardown(() => console.warn.restore());
+
+      suite('warn', () => {
+        test('no arguments defined', () => {
+          el = fixture('declarative-none');
+          assertEffects({});
+        });
+        test('singlePropObserver argument defined', () => {
+          el = fixture('declarative-single');
+          assertEffects({singlePropObserver: 1});
+        });
+        test('one multiPropObserver arguments defined', () => {
+          el = fixture('declarative-multi-one');
+          assertEffects({multiPropObserver: 0, warn: 1});
+        });
+        test('all multiPropObserver defined', () => {
+          el = fixture('declarative-multi-all');
+          assertEffects({multiPropObserver: 1});
+        });
+      });
+    });
+
+    suite('other', () => {
+      test('real errors still throw', () => {
+        const el = document.createElement('x-data');
+        document.body.appendChild(el);
+        assert.throws(() => {
+          el.throwProp = true;
+        }, /real error/);
+        document.body.removeChild(el);
+      });
+    });
+    
+  })();
+  </script>
+</body>
+</html>
