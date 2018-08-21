@@ -277,7 +277,7 @@ gulp.task('lint', gulp.series('lint-eslint'));
 gulp.task('generate-types', gulp.series('generate-typescript'));
 
 gulp.task('update-version', () => {
-  return gulp.src('polymer-element.js')
+  return gulp.src('lib/mixins/element-mixin.js')
   .pipe(replace(/(export const version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
-  .pipe(gulp.dest('.'));
+  .pipe(gulp.dest('lib/mixins'));
 });
