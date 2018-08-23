@@ -1,5 +1,124 @@
 # Change Log
 
+## [v2.6.1](https://github.com/Polymer/polymer/tree/v2.6.1) (2018-08-23)
+- Make event notification handler read the value from currentTarget, (#5309) ([commit](https://github.com/Polymer/polymer/commit/ffe8f7e8))
+
+- Regenerate types. ([commit](https://github.com/Polymer/polymer/commit/7f68ab5b))
+
+- Annotate another two ephemeral classes. ([commit](https://github.com/Polymer/polymer/commit/50ba80b8))
+
+- Mark some ephemeral super classes as private. ([commit](https://github.com/Polymer/polymer/commit/0bf03d3c))
+
+- Annotate Node parameter as not null. ([commit](https://github.com/Polymer/polymer/commit/04289ac7))
+
+- Updates for improved type generation. ([commit](https://github.com/Polymer/polymer/commit/748db7ce))
+
+- Disable combined CE+SD polyfill testing on browsers with native support, for test economy. ([commit](https://github.com/Polymer/polymer/commit/e24f4f7e))
+
+- Extend Safari exceptions beyond 10.1 ([commit](https://github.com/Polymer/polymer/commit/fac5f27f))
+
+- Extend Edge exceptions beyond Edge 16 ([commit](https://github.com/Polymer/polymer/commit/2ac2c6e4))
+
+- Ignore shady CSS scoping in getComposedHTML ([commit](https://github.com/Polymer/polymer/commit/2729662b))
+
+- Update gen-typescript-declarations and generate constructor types (#5281) ([commit](https://github.com/Polymer/polymer/commit/2a7c43f3))
+
+- split chrome and firefox runs, maybe fewer timeouts for firefox ([commit](https://github.com/Polymer/polymer/commit/80512201))
+
+- port other fixes as well ([commit](https://github.com/Polymer/polymer/commit/bcd01b96))
+
+- Port Closure Compiler fixes to polymer-externs ([commit](https://github.com/Polymer/polymer/commit/bbaaf727))
+
+- Fix method to force CE polyfill on. Fixes #5267. ([commit](https://github.com/Polymer/polymer/commit/12b6253f))
+
+- Fix lint errors. ([commit](https://github.com/Polymer/polymer/commit/77d4de10))
+
+- Add a test for touches on labels causing clicks on the labelled element. ([commit](https://github.com/Polymer/polymer/commit/6ac4813f))
+
+- Replace an attempt to spread a NodeList to an array with `Array.from` for Safari 9, where NodeList is not iterable. ([commit](https://github.com/Polymer/polymer/commit/cb40bb41))
+
+- IE fixes ([commit](https://github.com/Polymer/polymer/commit/6255cdb9))
+
+- Use node 8 ([commit](https://github.com/Polymer/polymer/commit/28625d61))
+
+- Only disable tabs for "disablable" elements ([commit](https://github.com/Polymer/polymer/commit/2bca0eeb))
+
+- Add `@const` to elements ([commit](https://github.com/Polymer/polymer/commit/8009e497))
+
+- Add user-importable files to `bower.json`'s `main` field for modulizer. ([commit](https://github.com/Polymer/polymer/commit/40e312f8))
+
+- Add reasoning for suppress missingProperties ([commit](https://github.com/Polymer/polymer/commit/61ca60e4))
+
+- Don't rely on dom-module synchronously until WCR. ([commit](https://github.com/Polymer/polymer/commit/e64bd0ba))
+
+- Avoid closure warnings. ([commit](https://github.com/Polymer/polymer/commit/412bb1e0))
+
+- Add ability to define importMeta on legacy elements. Fixes #5163 ([commit](https://github.com/Polymer/polymer/commit/616f6662))
+
+- Allow legacy element property definitions with only a type. Fixes #5173 ([commit](https://github.com/Polymer/polymer/commit/d321c6c9))
+
+- Update docs. ([commit](https://github.com/Polymer/polymer/commit/c8c9e24d))
+
+- Use Polymer.ResolveUrl.pathFromUrl ([commit](https://github.com/Polymer/polymer/commit/d9d3e439))
+
+- Fix test under shadydom. Slight logic refactor. ([commit](https://github.com/Polymer/polymer/commit/2128ebe2))
+
+- Fix lint warning ([commit](https://github.com/Polymer/polymer/commit/fb741ee3))
+
+- Add importMeta getter to derive importPath from modules. Fixes #5163 ([commit](https://github.com/Polymer/polymer/commit/f7672da9))
+
+- Reference dependencies as siblings in tests. ([commit](https://github.com/Polymer/polymer/commit/2561d868))
+
+- Update types ([commit](https://github.com/Polymer/polymer/commit/23ba7dee))
+
+- Add note about performance vs correctness ([commit](https://github.com/Polymer/polymer/commit/89ab7385))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/5357d64a))
+
+- Lint clean. ([commit](https://github.com/Polymer/polymer/commit/f78b0518))
+
+- Pass through fourth namespace param on attributeChangedCallback. ([commit](https://github.com/Polymer/polymer/commit/91d4aeba))
+
+- Add a @const annotation to help the Closure Compiler understand that Polymer.Debouncer is the name of a type. ([commit](https://github.com/Polymer/polymer/commit/e5a5725d))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/92d282a9))
+
+- Update docs and types ([commit](https://github.com/Polymer/polymer/commit/211c223f))
+
+- Update perf test to use strict-binding-parser ([commit](https://github.com/Polymer/polymer/commit/f53e9e8a))
+
+- Correct import paths ([commit](https://github.com/Polymer/polymer/commit/ab93ab08))
+
+- Only store method once for dynamic functions ([commit](https://github.com/Polymer/polymer/commit/0f0ccdad))
+
+- Move strict-binding-parser to lib/mixins ([commit](https://github.com/Polymer/polymer/commit/a4d4eb9a))
+
+- Rename to StrictBindingParser ([commit](https://github.com/Polymer/polymer/commit/19d4b8cb))
+
+- Fix linter errors ([commit](https://github.com/Polymer/polymer/commit/d8cf449e))
+
+- Extract to a mixin ([commit](https://github.com/Polymer/polymer/commit/57a14236))
+
+- Add missing dependency to bower.json ([commit](https://github.com/Polymer/polymer/commit/333a4664))
+
+- Fix linter warning ([commit](https://github.com/Polymer/polymer/commit/14fac019))
+
+- Add documentation ([commit](https://github.com/Polymer/polymer/commit/df0ee354))
+
+- Add performance test for binding-expressions ([commit](https://github.com/Polymer/polymer/commit/42f7d785))
+
+- Rewrite parser to use switch-case instead of functions ([commit](https://github.com/Polymer/polymer/commit/423074d1))
+
+- Remove escaping from bindings ([commit](https://github.com/Polymer/polymer/commit/8cd49479))
+
+- Fix linter warning ([commit](https://github.com/Polymer/polymer/commit/8a5525b0))
+
+- Refactor to be functional and add more tests ([commit](https://github.com/Polymer/polymer/commit/7eb1a627))
+
+- Fix linter warnings ([commit](https://github.com/Polymer/polymer/commit/79d05b8a))
+
+- Rewrite expression parser to state machine ([commit](https://github.com/Polymer/polymer/commit/13b834df))
+
 ## [v2.6.0](https://github.com/Polymer/polymer/tree/v2.6.0) (2018-03-22)
 - Use function instead of Set ([commit](https://github.com/Polymer/polymer/commit/33d2e1a8))
 
