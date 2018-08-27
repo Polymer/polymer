@@ -9,4 +9,4 @@
 # subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 #
 set -x
-node ./node_modules/.bin/polymer test --npm --module-resolution=node -s 'windows 10/microsoftedge@15' -s 'windows 10/microsoftedge@17' -s 'windows 8.1/internet explorer@11' -s 'os x 10.11/safari@9' -s 'macos 10.12/safari@10' -s 'macos 10.13/safari@11' -s 'Linux/chrome@41'
+node ./node_modules/.bin/polymer test --npm --module-resolution=node -s 'windows 10/microsoftedge@15' -s 'windows 10/microsoftedge@17' -s 'windows 8.1/internet explorer@11' -s 'os x 10.11/safari@9' -s 'macos 10.12/safari@10' -s 'macos 10.13/safari@11' -s 'Linux/chrome@41' -s 'Linux/firefox'
