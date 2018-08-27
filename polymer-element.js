@@ -9,6 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 */
 
 import { ElementMixin } from './lib/mixins/element-mixin.js';
+export { version } from './lib/mixins/element-mixin.js';
 export { html } from './lib/utils/html-tag.js';
 
 /**
@@ -27,4 +28,3 @@ export { html } from './lib/utils/html-tag.js';
  *   attribute deserialization, and property change observation
  */
 export const PolymerElement = ElementMixin(HTMLElement);
-

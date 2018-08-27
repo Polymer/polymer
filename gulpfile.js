@@ -266,7 +266,7 @@ gulp.task('lint', gulp.series('lint-eslint'));
 // TODO(timvdlippe): Add back `'generate-externs',` once we can generate externs again
 
 gulp.task('update-version', () => {
-  return gulp.src('lib/utils/boot.js')
-  .pipe(replace(/(window.Polymer.version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
-  .pipe(gulp.dest('lib/utils'));
+  return gulp.src('lib/mixins/element-mixin.js')
+  .pipe(replace(/(export const version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
+  .pipe(gulp.dest('lib/mixins'));
 });
