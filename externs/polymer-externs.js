@@ -79,6 +79,21 @@ function Polymer(init){}
 Polymer.sanitizeDOMValue;
 
 /**
+ * @type {boolean}
+ */
+Polymer.passiveTouchGestures;
+
+/**
+ * @type {boolean}
+ */
+Polymer.strictTemplatePolicy;
+
+/**
+ * @type {boolean}
+ */
+Polymer.allowTemplateFromDomModule;
+
+/**
  * @param {string} string
  * @param {Object} obj
  * @return {string}
@@ -172,7 +187,7 @@ var PolymerDeepPropertyChange;
  * @constructor
  * @template T
  */
-let DomRepeatEvent = function() {};
+var DomRepeatEvent = function() {};
 
 /**
  * @type {{
