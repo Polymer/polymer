@@ -115,16 +115,6 @@ gulp.task('generate-externs', gulp.series('clean', async () => {
   await fs.writeFile('externs/closure-types.js', `${header}${declarations}`);
 }));
 
-gulp.task('generate-typescript', async () => {
-  let genTs = require('@polymer/gen-typescript-declarations').generateDeclarations;
-  await del(['**/*.d.ts', '!interfaces.d.ts', '!node_modules/**']);
-  const config = await fs.readJson(path.join(__dirname, 'gen-tsd.json'));
-  const files = await genTs(__dirname, config);
-  for (const [filePath, contents] of files) {
-    await fs.outputFile(path.join(__dirname, filePath), contents);
-  }
-});
-
 const runClosureOnly = ({lintOnly}) => () => {
   let entry, splitRx, joinRx, addClosureTypes;
 
@@ -274,10 +264,9 @@ gulp.task('lint-eslint', function() {
 gulp.task('lint', gulp.series('lint-eslint'));
 
 // TODO(timvdlippe): Add back `'generate-externs',` once we can generate externs again
-gulp.task('generate-types', gulp.series('generate-typescript'));
 
 gulp.task('update-version', () => {
-  return gulp.src('lib/utils/boot.js')
-  .pipe(replace(/(window.Polymer.version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
-  .pipe(gulp.dest('lib/utils'));
+  return gulp.src('lib/mixins/element-mixin.js')
+  .pipe(replace(/(export const version = )'\d+\.\d+\.\d+'/, `$1'${require('./package.json').version}'`))
+  .pipe(gulp.dest('lib/mixins'));
 });
