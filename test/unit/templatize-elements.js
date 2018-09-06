@@ -9,7 +9,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 */
 import { Polymer } from '../../lib/legacy/polymer-fn.js';
 
-import { templatize as templatize$0 } from '../../lib/utils/templatize.js';
+import { templatize } from '../../lib/utils/templatize.js';
 import { Templatizer } from '../../lib/legacy/templatizer-behavior.js';
 import { html } from '../../lib/utils/html-tag.js';
 
@@ -72,7 +72,7 @@ Polymer({
   },
   go: function(withProps) {
     var template = this.querySelector('template');
-    var ctor = templatize$0(template, this, {
+    var ctor = templatize(template, this, {
       parentModel: true,
       instanceProps: {
         obj: true,
