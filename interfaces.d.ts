@@ -37,7 +37,7 @@ export interface PolymerInit {
   attached?(): void;
   detached?(): void;
   ready?(): void;
-  attributeChanged?(name: string, old?: string, value?: string);
+  attributeChanged?(name: string, old?: string, value?: string): void;
 
   // Allow any other user-defined properties
   [others: string]: any;
