@@ -26,9 +26,21 @@ export interface PolymerInit {
   extends?: string;
   properties?: PolymerElementProperties;
   observers?: string[];
-  template?: HTMLTemplateElement|string;
+  _template?: HTMLTemplateElement;
   hostAttributes?: {[key: string]: any};
   listeners?: {[key: string]: string};
+  behaviors?: PolymerInit | PolymerInit[];
+
+  // Lifecycle methods
+  registered?(): void;
+  created?(): void;
+  attached?(): void;
+  detached?(): void;
+  ready?(): void;
+  attributeChanged?(name: string, old?: string, value?: string);
+
+  // Allow any other user-defined properties
+  [others: string]: any;
 }
 
 // Types from "externs/polymer-internal-shared-types.js"
