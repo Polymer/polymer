@@ -29,7 +29,7 @@ export interface PolymerInit {
   _template?: HTMLTemplateElement;
   hostAttributes?: {[key: string]: any};
   listeners?: {[key: string]: string};
-  behaviors?: PolymerInit | PolymerInit[];
+  behaviors?: BehaviorInit | BehaviorInit[];
 
   // Lifecycle methods
   registered?(): void;
@@ -42,6 +42,11 @@ export interface PolymerInit {
   // Allow any other user-defined properties
   [others: string]: any;
 }
+
+export type BehaviorInit = Pick<
+  PolymerInit,
+  Exclude<keyof PolymerInit, "is" | "extends" | "_template">
+>;
 
 // Types from "externs/polymer-internal-shared-types.js"
 
