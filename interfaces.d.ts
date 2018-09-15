@@ -31,6 +31,47 @@ export interface PolymerInit {
   listeners?: {[key: string]: string};
 }
 
+/**
+ * The object passed to ".*" wildcard obsevers. A record of a change made to an
+ * object.
+ * @template V The type of values at the path.
+ * @template B The type of the base property.
+ */
+export interface PolymerDeepPropertyChange<V, B> {
+  /** Path to the property that changed. */
+  path: string;
+  /** New value of the path that changed. */
+  value: V;
+  /** The object matching the non-wildcard portion of the path. */
+  base: B;
+}
+
+/**
+ * A record of changes made to an array.
+ * @template T The type of object contained by the array.
+ */
+export interface PolymerSplice<T> {
+  /** Position where the splice started. */
+  index: number;
+  /** Array of removed items. */
+  removed: T[];
+  /** Number of new items inserted at index. */
+  addedCount: number;
+  /** A reference to the array in question. */
+  object: T[];
+  /** The string literal 'splice'. */
+  type: 'splice';
+}
+
+/**
+ * The object passed to ".splices" observers. A set of mutations made to the
+ * array.
+ * @template T The type of object contained by the array.
+ */
+export interface PolymerSpliceChange<T> {
+  indexSplices: Array<PolymerSplice<T>>;
+}
+
 // Types from "externs/polymer-internal-shared-types.js"
 
 export interface StampedTemplate extends DocumentFragment {
