@@ -34,16 +34,16 @@ export interface PolymerInit {
 /**
  * The object passed to ".*" wildcard obsevers. A record of a change made to an
  * object.
- * @template V The type of values at the path.
- * @template B The type of the base property.
+ * @template B The object matching the non-wildcard portion of the path.
+ * @template V Additional types that could be set at the path.
  */
-export interface PolymerDeepPropertyChange<V, B> {
+export interface PolymerDeepPropertyChange<B, V> {
   /** Path to the property that changed. */
   path: string;
-  /** New value of the path that changed. */
-  value: V;
   /** The object matching the non-wildcard portion of the path. */
   base: B;
+  /** New value of the path that changed. */
+  value: B|V;
 }
 
 /**
