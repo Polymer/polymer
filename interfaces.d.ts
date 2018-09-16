@@ -50,7 +50,7 @@ export interface PolymerDeepPropertyChange<B, V> {
  * A record of changes made to an array.
  * @template T The type of the array being observed.
  */
-export interface PolymerSplice<T extends Array<{}>> {
+export interface PolymerSplice<T extends Array<{}|null|undefined>> {
   /** Position where the splice started. */
   index: number;
   /** Array of removed items. */
@@ -68,7 +68,7 @@ export interface PolymerSplice<T extends Array<{}>> {
  * array.
  * @template T The type of the array being observed.
  */
-export interface PolymerSpliceChange<T extends Array<{}>> {
+export interface PolymerSpliceChange<T extends Array<{}|null|undefined>> {
   indexSplices: Array<PolymerSplice<T>>;
 }
 
