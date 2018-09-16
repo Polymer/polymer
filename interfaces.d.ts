@@ -26,10 +26,27 @@ export interface PolymerInit {
   extends?: string;
   properties?: PolymerElementProperties;
   observers?: string[];
-  template?: HTMLTemplateElement|string;
+  _template?: HTMLTemplateElement;
   hostAttributes?: {[key: string]: any};
   listeners?: {[key: string]: string};
+  behaviors?: BehaviorInit | BehaviorInit[];
+
+  // Lifecycle methods
+  registered?(): void;
+  created?(): void;
+  attached?(): void;
+  detached?(): void;
+  ready?(): void;
+  attributeChanged?(name: string, old?: string, value?: string): void;
+
+  // Allow any other user-defined properties
+  [others: string]: any;
 }
+
+export type BehaviorInit = Pick<
+  PolymerInit,
+  Exclude<keyof PolymerInit, "is" | "extends" | "_template">
+>;
 
 /**
  * The object passed to ".*" wildcard obsevers. A record of a change made to an
