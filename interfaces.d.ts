@@ -48,6 +48,47 @@ export type BehaviorInit = Pick<
   Exclude<keyof PolymerInit, "is" | "extends" | "_template">
 >;
 
+/**
+ * The object passed to ".*" wildcard obsevers. A record of a change made to an
+ * object.
+ * @template B The object matching the non-wildcard portion of the path.
+ * @template V Additional types that could be set at the path.
+ */
+export interface PolymerDeepPropertyChange<B, V> {
+  /** Path to the property that changed. */
+  path: string;
+  /** The object matching the non-wildcard portion of the path. */
+  base: B;
+  /** New value of the path that changed. */
+  value: B|V;
+}
+
+/**
+ * A record of changes made to an array.
+ * @template T The type of the array being observed.
+ */
+export interface PolymerSplice<T extends Array<{}|null|undefined>> {
+  /** Position where the splice started. */
+  index: number;
+  /** Array of removed items. */
+  removed: T;
+  /** Number of new items inserted at index. */
+  addedCount: number;
+  /** A reference to the array in question. */
+  object: T;
+  /** The string literal 'splice'. */
+  type: 'splice';
+}
+
+/**
+ * The object passed to ".splices" observers. A set of mutations made to the
+ * array.
+ * @template T The type of the array being observed.
+ */
+export interface PolymerSpliceChange<T extends Array<{}|null|undefined>> {
+  indexSplices: Array<PolymerSplice<T>>;
+}
+
 // Types from "externs/polymer-internal-shared-types.js"
 
 export interface StampedTemplate extends DocumentFragment {
