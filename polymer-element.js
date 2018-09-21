@@ -8,8 +8,10 @@ Code distributed by Google as part of the polymer project is also
 subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 */
 
-import { ElementMixin } from './lib/mixins/element-mixin.js';
+import { ElementMixin, version } from './lib/mixins/element-mixin.js';
 export { html } from './lib/utils/html-tag.js';
+
+export { version };
 
 /**
  * Base class that provides the core API for Polymer's meta-programming
@@ -27,4 +29,3 @@ export { html } from './lib/utils/html-tag.js';
  *   attribute deserialization, and property change observation
  */
 export const PolymerElement = ElementMixin(HTMLElement);
-

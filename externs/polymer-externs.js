@@ -15,23 +15,24 @@
 
 /**
  * @typedef {{
- * type: !Function,
- * value: *,
- * readOnly: (boolean | undefined),
- * computed: (string | undefined),
- * reflectToAttribute: (boolean | undefined),
- * notify: (boolean | undefined),
- * observer: (string | function(*,*) | undefined)
+ *   type: !Function,
+ *   value: (* | undefined),
+ *   readOnly: (boolean | undefined),
+ *   computed: (string | undefined),
+ *   reflectToAttribute: (boolean | undefined),
+ *   notify: (boolean | undefined),
+ *   observer: (string | function(this:?, ?, ?) | undefined)
  * }}
  */
 let PolymerElementPropertiesMeta;
 
 /**
- * @typedef {Object<string, !PolymerElementPropertiesMeta>}
+ * @typedef {Object<string, !Function|!PolymerElementPropertiesMeta>}
  */
 let PolymerElementProperties;
 
-let PolymerInit = function(){};
+/** @record */
+let PolymerInit = function() {};
 /** @type {string} */
 PolymerInit.prototype.is;
 /** @type {(string | undefined)} */
@@ -47,7 +48,7 @@ PolymerInit.prototype.hostAttributes;
 /** @type {(!Object<string, string> | undefined)} */
 PolymerInit.prototype.listeners;
 
-let PolymerElementConstructor = function (){};
+let PolymerElementConstructor = function () {};
 /** @type {(string | undefined)} */
 PolymerElementConstructor.is;
 /** @type {(string | undefined)} */
@@ -59,18 +60,18 @@ PolymerElementConstructor.observers;
 /** @type {(!HTMLTemplateElement | string | undefined)} */
 PolymerElementConstructor.template;
 
-let PropertiesMixinConstructor = function (){};
+/** @interface */
+let PropertiesMixinConstructor = function () {};
 /** @type {(!PolymerElementProperties | undefined)} */
-PropertiesMixinConstructor.properties;
+PropertiesMixinConstructor.prototype.properties;
+/** @return {void} */
+PropertiesMixinConstructor.prototype.finalize = function() {};
 
 /**
  * @param {!PolymerInit} init
  * @return {!function(new:HTMLElement)}
  */
 function Polymer(init){}
-
-/** @type {PolymerElementProperties} */
-Polymer.ElementProperties;
 
 /**
  * @type {(function(*,string,string,Node):*)|undefined}
@@ -85,7 +86,7 @@ Polymer.sanitizeDOMValue;
 function JSCompiler_renameProperty(string, obj) {}
 
 /** @record */
-function PolymerTelemetry(){}
+function PolymerTelemetry() {}
 /** @type {number} */
 PolymerTelemetry.instanceCount;
 /** @type {Array<HTMLElement>} */
@@ -95,7 +96,7 @@ PolymerTelemetry._regLog;
 /** @type {function(HTMLElement)} */
 PolymerTelemetry.register;
 /** @type {function(HTMLElement)} */
-PolymerTelemetry.dumpRegistrations;;
+PolymerTelemetry.dumpRegistrations;
 
 /** @type {PolymerTelemetry} */
 Polymer.telemetry;
@@ -110,3 +111,73 @@ Polymer.version;
  * @implements {Polymer_LegacyElementMixin}
  */
 var PolymerElement = function() {};
+
+/**
+ * On create callback.
+ * @override
+ */
+PolymerElement.prototype.created = function() {};
+/**
+ * On ready callback.
+ * @override
+ */
+PolymerElement.prototype.ready = function() {};
+/** On registered callback. */
+PolymerElement.prototype.registered = function() {};
+/**
+ * On attached to the DOM callback.
+ * @override
+ */
+PolymerElement.prototype.attached = function() {};
+/**
+ * On detached from the DOM callback.
+ * @override
+ */
+PolymerElement.prototype.detached = function() {};
+
+/**
+ * @typedef {{
+ *   index: number,
+ *   removed: !Array,
+ *   addedCount: number,
+ *   object: !Array,
+ *   type: string,
+ * }}
+ */
+var PolymerSplice;
+/**
+ * @typedef {{
+ *   indexSplices: ?Array<!PolymerSplice>,
+ * }}
+ */
+var PolymerSpliceChange;
+
+/**
+ * The type of the object received by an observer function when deep
+ * sub-property observation is enabled. See:
+ * https://www.polymer-project.org/2.0/docs/devguide/observers#deep-observation
+ *
+ * @typedef {{
+ *   path: string,
+ *   value: (?Object|undefined),
+ *   base: (?Object|undefined)
+ * }}
+ */
+var PolymerDeepPropertyChange;
+
+/**
+ * Event object for events dispatched by children of a dom-repeat template.
+ * @see https://www.polymer-project.org/2.0/docs/devguide/templates#handling-events
+ * @extends {Event}
+ * @constructor
+ * @template T
+ */
+let DomRepeatEvent = function() {};
+
+/**
+ * @type {{
+ *   index: number,
+ *   item: T
+ * }}
+ */
+DomRepeatEvent.prototype.model;

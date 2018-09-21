@@ -12,20 +12,6 @@
  */
 /* eslint-disable */
 
-let HTMLImports = {
-  /**
-   * @param {function()} callback
-   */
-  whenReady(callback){},
-  /**
-   * @param {Element} element
-   * @returns {Document} document
-   */
-  importForElement(element){}
-};
-
-window.HTMLImports = HTMLImports;
-
 let ShadyDOM = {
   inUse: false,
   flush(){},
