@@ -26,6 +26,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       behaviors: true
     };
 
+    function copyProperties(source, target) {
+      for (let p in source) {
+        // NOTE: cannot copy `metaProps` methods onto prototype at least because
+        // `super.ready` must be called and is not included in the user fn.
+        if (!(p in metaProps)) {
+          let pd = Object.getOwnPropertyDescriptor(source, p);
+          if (pd) {
+            Object.defineProperty(target, p, pd);
+          }
+        }
+      }
+    }
+    
+    // TODO(sorvell): this breaks `Polymer.mixinBehaviors`; should fix via factoring
     /**
      * Applies a "legacy" behavior or array of behaviors to the provided class.
      *
@@ -42,6 +56,15 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @suppress {invalidCasts, checkTypes}
      */
     function mixinBehaviors(behaviors, klass) {
+      if (behaviors) {
+        klass = applyBehaviors(behaviors, klass);
+      }
+      // provides behaviors functionality
+      return GenerateClassFromInfo({}, klass);
+    }
+
+    
+    function applyBehaviors(behaviors, klass) {
       if (!behaviors) {
         klass = /** @type {HTMLElement} */(klass); // eslint-disable-line no-self-assign
         return klass;
@@ -49,7 +72,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // NOTE: ensure the behavior is extending a class with
       // legacy element api. This is necessary since behaviors expect to be able
       // to access 1.x legacy api.
-      klass = Polymer.LegacyElementMixin(klass);
+      klass = class extends Polymer.LegacyElementMixin(klass) {};
       if (!Array.isArray(behaviors)) {
         behaviors = [behaviors];
       }
@@ -57,7 +80,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // get flattened, deduped list of behaviors *not* already on super class
       behaviors = flattenBehaviors(behaviors, null, superBehaviors);
       // mixin new behaviors
-      klass = _mixinBehaviors(behaviors, klass);
+      klass = _applyBehaviors(behaviors, klass);
       if (superBehaviors) {
         behaviors = superBehaviors.concat(behaviors);
       }
@@ -96,12 +119,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // If lifecycle is called (super then me), order is
     // (1) C.created, (2) A.created, (3) B.created, (4) element.created
     // (again same as 1.x)
-    function _mixinBehaviors(behaviors, klass) {
+    function _applyBehaviors(behaviors, klass) {
       for (let i=0; i<behaviors.length; i++) {
         let b = behaviors[i];
         if (b) {
-          klass = Array.isArray(b) ? _mixinBehaviors(b, klass) :
-            GenerateClassFromInfo(b, klass);
+          Array.isArray(b) ? _applyBehaviors(b, klass) :
+            copyProperties(b, klass.prototype);
         }
       }
       return klass;
@@ -133,6 +156,52 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       return list;
     }
 
+    function mergePropertyInfo(a, b) {
+      if (typeof b === 'function') {
+        a.type = b;
+        return;
+      }
+      if ('type' in b) {
+        a.type = b.type;
+      }
+      if ('value' in b) {
+        a.value = b.value;
+      }
+      // readOnly: cannot become false and takes on `computed` value
+      a.readOnly = a.readOnly || Boolean(a.computed) || b.readOnly || Boolean(b.computed);
+      // computed: first in wins
+      if ('computed' in b) {
+        a.computed = a.computed || b.computed;
+      }
+      // reflectToAttribute: cannot become false
+      if ('reflectToAttribute' in b) {
+        a.reflectToAttribute = a.reflectToAttribute || b.reflectToAttribute;
+      }
+      // notify: cannot become false (only install 1x)
+      if ('notify' in b) {
+        a.notify = a.notify || b.notify;
+      }
+      // make this an array
+      if ('observer' in b) {
+        if (!a.observer) {
+          a.observer = b.observer;
+        // we have both: make array and push onto
+        } else {
+          if (!Array.isArray(a.observer)) {
+            a.observer = [a.observer];
+          }
+          a.observer.push(b.observer);
+        }
+      }
+    }
+    
+    function mergeProperties(a, b) {
+      for (let p in b) {
+        a[p] = a[p] || {};
+        mergePropertyInfo(a[p], b[p]);
+      }
+    }
+
     /**
      * @param {!PolymerInit} info Polymer info object
      * @param {function(new:HTMLElement)} Base base class to extend with info object
@@ -146,11 +215,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       class PolymerGenerated extends Base {
 
         static get properties() {
-          return info.properties;
+          const properties = {};
+          if (this.prototype.behaviors) {
+            for (let i=0, b; i < this.prototype.behaviors.length; i++) {
+              b = this.prototype.behaviors[i];
+              mergeProperties(properties, b.properties);
+            }
+          }
+          mergeProperties(properties, info.properties);
+          return properties;
         }
 
         static get observers() {
-          return info.observers;
+          let observers = [];
+          if (this.prototype.behaviors) {
+            for (let i=0, b; i < this.prototype.behaviors.length; i++) {
+              b = this.prototype.behaviors[i];
+              if (b.observers) {
+                observers = observers.concat(b.observers);
+              }
+            }
+          }
+          if (info.observers) {
+            observers = observers.concat(info.observers);
+          }
+          return observers;
         }
 
         /**
@@ -173,7 +262,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         created() {
-          super.created();
+          if (this.behaviors) {
+            for (let i=0, b; i < this.behaviors.length; i++) {
+              b = this.behaviors[i];
+              if (b.created) {
+                b.created.call(this);
+              }
+            }
+          }
           if (info.created) {
             info.created.call(this);
           }
@@ -183,7 +279,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         _registered() {
-          super._registered();
           /* NOTE: `beforeRegister` is called here for bc, but the behavior
            is different than in 1.x. In 1.0, the method was called *after*
            mixing prototypes together but *before* processing of meta-objects.
@@ -191,6 +286,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            in `beforeRegister` or `registered`. It is no longer possible to set
            `is` in `beforeRegister` as you could in 1.x.
           */
+          if (this.behaviors) {
+            for (let i=0, b; i < this.behaviors.length; i++) {
+              b = this.behaviors[i];
+              if (b.beforeRegister) {
+                b.beforeRegister.call(Object.getPrototypeOf(this));
+              }
+              if (b.registered) {
+                b.registered.call(Object.getPrototypeOf(this));
+              }
+            }
+          }
           if (info.beforeRegister) {
             info.beforeRegister.call(Object.getPrototypeOf(this));
           }
@@ -203,7 +309,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         _applyListeners() {
-          super._applyListeners();
+          if (this.behaviors) {
+            for (let i=0, b; i < this.behaviors.length; i++) {
+              b = this.behaviors[i];
+              if (b.listeners) {
+                for (let l in b.listeners) {
+                  this._addMethodEventListenerToNode(this, l, b.listeners[l]);
+                }
+              }
+            }
+          }
           if (info.listeners) {
             for (let l in info.listeners) {
               this._addMethodEventListenerToNode(this, l, info.listeners[l]);
@@ -223,7 +338,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               this._ensureAttribute(a, info.hostAttributes[a]);
             }
           }
-          super._ensureAttributes();
+          if (this.behaviors) {
+            for (let i=this.behaviors.length-1, b; i >= 0; i--) {
+              b = this.behaviors[i];
+              if (b.hostAttributes) {
+                for (let a in b.hostAttributes) {
+                  this._ensureAttribute(a, b.hostAttributes[a]);
+                }
+              }
+            }
+          }
         }
 
         /**
@@ -231,6 +355,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          */
         ready() {
           super.ready();
+          if (this.behaviors) {
+            for (let i=0, b; i < this.behaviors.length; i++) {
+              b = this.behaviors[i];
+              if (b.ready) {
+                b.ready.call(this);
+              }
+            }
+          }
           if (info.ready) {
             info.ready.call(this);
           }
@@ -240,7 +372,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         attached() {
-          super.attached();
+          if (this.behaviors) {
+            for (let i=0, b; i < this.behaviors.length; i++) {
+              b = this.behaviors[i];
+              if (b.attached) {
+                b.attached.call(this);
+              }
+            }
+          }
           if (info.attached) {
             info.attached.call(this);
           }
@@ -250,7 +389,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         detached() {
-          super.detached();
+          if (this.behaviors) {
+            for (let i=0, b; i < this.behaviors.length; i++) {
+              b = this.behaviors[i];
+              if (b.detached) {
+                b.detached.call(this);
+              }
+            }
+          }
           if (info.detached) {
             info.detached.call(this);
           }
@@ -266,7 +412,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         attributeChanged(name, old, value) {
-          super.attributeChanged(name, old, value);
+          if (this.behaviors) {
+            for (let i=0, b; i < this.behaviors.length; i++) {
+              b = this.behaviors[i];
+              if (b.attributeChanged) {
+                b.attributeChanged.call(this, name, old, value);
+              }
+            }
+          }
           if (info.attributeChanged) {
             info.attributeChanged.call(this, name, old, value);
           }
@@ -275,16 +428,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       PolymerGenerated.generatedFrom = info;
 
-      for (let p in info) {
-        // NOTE: cannot copy `metaProps` methods onto prototype at least because
-        // `super.ready` must be called and is not included in the user fn.
-        if (!(p in metaProps)) {
-          let pd = Object.getOwnPropertyDescriptor(info, p);
-          if (pd) {
-            Object.defineProperty(PolymerGenerated.prototype, p, pd);
-          }
-        }
-      }
+      copyProperties(info, PolymerGenerated.prototype);
 
       return PolymerGenerated;
     }
@@ -357,14 +501,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @return {function(new:HTMLElement)} Generated class
      * @memberof Polymer
      */
-    Polymer.Class = function(info) {
+    Polymer.Class = function(info, mixin) {
       if (!info) {
         console.warn('Polymer.Class requires `info` argument');
       }
-      let klass = GenerateClassFromInfo(info, info.behaviors ?
-        // note: mixinBehaviors ensures `LegacyElementMixin`.
-        mixinBehaviors(info.behaviors, HTMLElement) :
-        Polymer.LegacyElementMixin(HTMLElement));
+      let klass = mixin ? mixin(Polymer.LegacyElementMixin(HTMLElement)) :
+          Polymer.LegacyElementMixin(HTMLElement);
+      if (info.behaviors) {
+        klass = applyBehaviors(info.behaviors, klass);
+      }
+      klass = GenerateClassFromInfo(info, klass);
       // decorate klass with registration info
       klass.is = info.is;
       return klass;

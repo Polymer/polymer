@@ -228,7 +228,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       // always add observer
       if (info.observer) {
-        proto._createPropertyObserver(name, info.observer, allProps[info.observer]);
+        if (Array.isArray(info.observer)) {
+          for (let i=0; i < info.observer.length; i++) {
+            const o = info.observer[i];
+            proto._createPropertyObserver(name, o, allProps[o]);
+          }
+        } else {
+          proto._createPropertyObserver(name, info.observer, allProps[info.observer]);
+        }
       }
       // always create the mapping from attribute back to property for deserialization.
       proto._addPropertyToAttributeMap(name);
@@ -245,31 +252,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @private
      */
     function processElementStyles(klass, template, is, baseURI) {
-      const templateStyles = template.content.querySelectorAll('style');
-      const stylesWithImports = Polymer.StyleGather.stylesFromTemplate(template);
-      // insert styles from <link rel="import" type="css"> at the top of the template
-      const linkedStyles = Polymer.StyleGather.stylesFromModuleImports(is);
-      const firstTemplateChild = template.content.firstElementChild;
-      for (let idx = 0; idx < linkedStyles.length; idx++) {
-        let s = linkedStyles[idx];
-        s.textContent = klass._processStyleText(s.textContent, baseURI);
-        template.content.insertBefore(s, firstTemplateChild);
-      }
-      // keep track of the last "concrete" style in the template we have encountered
-      let templateStyleIndex = 0;
-      // ensure all gathered styles are actually in this template.
-      for (let i = 0; i < stylesWithImports.length; i++) {
-        let s = stylesWithImports[i];
-        let templateStyle = templateStyles[templateStyleIndex];
-        // if the style is not in this template, it's been "included" and
-        // we put a clone of it in the template before the style that included it
-        if (templateStyle !== s) {
-          s = s.cloneNode(true);
-          templateStyle.parentNode.insertBefore(s, templateStyle);
-        } else {
-          templateStyleIndex++;
+      if (!window.skipStyleIncludesAndUrls) {
+        const templateStyles = template.content.querySelectorAll('style');
+        const stylesWithImports = Polymer.StyleGather.stylesFromTemplate(template);
+        // insert styles from <link rel="import" type="css"> at the top of the template
+        const linkedStyles = Polymer.StyleGather.stylesFromModuleImports(is);
+        const firstTemplateChild = template.content.firstElementChild;
+        for (let idx = 0; idx < linkedStyles.length; idx++) {
+          let s = linkedStyles[idx];
+          s.textContent = klass._processStyleText(s.textContent, baseURI);
+          template.content.insertBefore(s, firstTemplateChild);
         }
-        s.textContent = klass._processStyleText(s.textContent, baseURI);
+        // keep track of the last "concrete" style in the template we have encountered
+        let templateStyleIndex = 0;
+        // ensure all gathered styles are actually in this template.
+        for (let i = 0; i < stylesWithImports.length; i++) {
+          let s = stylesWithImports[i];
+          let templateStyle = templateStyles[templateStyleIndex];
+          // if the style is not in this template, it's been "included" and
+          // we put a clone of it in the template before the style that included it
+          if (templateStyle !== s) {
+            s = s.cloneNode(true);
+            templateStyle.parentNode.insertBefore(s, templateStyle);
+          } else {
+            templateStyleIndex++;
+          }
+          s.textContent = klass._processStyleText(s.textContent, baseURI);
+        }
       }
       if (window.ShadyCSS) {
         window.ShadyCSS.prepareTemplate(template, is);
