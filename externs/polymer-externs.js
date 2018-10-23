@@ -122,6 +122,8 @@ PolymerElement.prototype.created = function() {};
  * @override
  */
 PolymerElement.prototype.ready = function() {};
+/** On before register callback. */
+PolymerElement.prototype.beforeRegister = function() {};
 /** On registered callback. */
 PolymerElement.prototype.registered = function() {};
 /**
