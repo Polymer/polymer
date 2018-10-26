@@ -66,7 +66,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @summary Class that listens for changes (additions or removals) to
    * "flattened nodes" on a given `node`.
    */
-  class FlattenedNodesObserver {
+  let FlattenedNodesObserver = class {
 
     /**
      * Returns the list of flattened nodes for the given `node`.
@@ -80,21 +80,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @param {HTMLElement|HTMLSlotElement} node The node for which to return the list of flattened nodes.
      * @return {Array} The list of flattened nodes for the given `node`.
     */
-    static getFlattenedNodes(node) {
-      if (isSlot(node)) {
-        node = /** @type {HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
-        return node.assignedNodes({flatten: true});
-      } else {
-        return Array.from(node.childNodes).map((node) => {
-          if (isSlot(node)) {
-            node = /** @type {HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
-            return node.assignedNodes({flatten: true});
-          } else {
-            return [node];
-          }
-        }).reduce((a, b) => a.concat(b), []);
-      }
+    static getFlattenedNodes(node, wrapper = (n) => n) {
+    const wrapped = wrapper(node);
+    if (isSlot(node)) {
+      node = /** @type {!HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
+      return wrapped.assignedNodes({flatten: true});
+    } else {
+      return Array.from(wrapped.childNodes).map((node) => {
+        if (isSlot(node)) {
+          node = /** @type {!HTMLSlotElement} */(node); // eslint-disable-line no-self-assign
+          return wrapper(node).assignedNodes({flatten: true});
+        } else {
+          return [node];
+        }
+      }).reduce((a, b) => a.concat(b), []);
     }
+  }
 
     /**
      * @param {Element} target Node on which to listen for changes.
@@ -106,6 +107,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @type {MutationObserver}
        * @private
        */
+      this._wrap = wrapper;
       this._shadyChildrenObserver = null;
       /**
        * @type {MutationObserver}
@@ -143,8 +145,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     connect() {
       if (isSlot(this._target)) {
         this._listenSlots([this._target]);
-      } else if (this._target.children) {
-        this._listenSlots(this._target.children);
+      } else if (this._wrap(this._target).children) {
+        this._listenSlots(
+            /** @type {!NodeList<!Node>} */ (this._wrap(this._target).children));
         if (window.ShadyDOM) {
           this._shadyChildrenObserver =
             ShadyDOM.observeChildren(this._target, (mutations) => {
@@ -172,8 +175,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     disconnect() {
       if (isSlot(this._target)) {
         this._unlistenSlots([this._target]);
-      } else if (this._target.children) {
-        this._unlistenSlots(this._target.children);
+      } else if (this._wrap(this._target).children) {
+        this._unlistenSlots(
+            /** @type {!NodeList<!Node>} */ (this._wrap(this._target).children));
         if (window.ShadyDOM && this._shadyChildrenObserver) {
           ShadyDOM.unobserveChildren(this._shadyChildrenObserver);
           this._shadyChildrenObserver = null;

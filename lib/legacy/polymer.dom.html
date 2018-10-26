@@ -42,7 +42,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    *
    * @memberof Polymer
    */
-  class DomApi {
+  let DomApi = class {
 
     /**
      * @param {Node} node Node for which to create a Polymer.dom helper object.
@@ -235,24 +235,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  forwardMethods(DomApi.prototype, [
-    'cloneNode', 'appendChild', 'insertBefore', 'removeChild',
-    'replaceChild', 'setAttribute', 'removeAttribute',
-    'querySelector', 'querySelectorAll'
-  ]);
-
-  forwardReadOnlyProperties(DomApi.prototype, [
-    'parentNode', 'firstChild', 'lastChild',
-    'nextSibling', 'previousSibling', 'firstElementChild',
-    'lastElementChild', 'nextElementSibling', 'previousElementSibling',
-    'childNodes', 'children', 'classList'
-  ]);
-
-  forwardProperties(DomApi.prototype, [
-    'textContent', 'innerHTML'
-  ]);
-
-
   /**
    * Event API wrapper class returned from `Polymer.dom.(target)` when
    * `target` is an `Event`.
@@ -348,6 +330,105 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @return {!NodeList<!Element>}
    */
   Polymer.DomApi.prototype.querySelectorAll;
+
+  if (window.ShadyDOM && window.ShadyDOM.inUse && window.ShadyDOM.noPatch) {
+
+    class Wrapper extends ShadyDOM.Wrapper {
+
+      observeNodes(callback) {
+        return new FlattenedNodesObserver(
+            /** @type {!HTMLElement} */(this.node), callback, Polymer.dom);
+      }
+
+      unobserveNodes(observerHandle) {
+        observerHandle.disconnect();
+      }
+
+      notifyObserver() {}
+
+      deepContains(node) {
+        if (this.contains(node)) {
+          return true;
+        }
+        let n = node;
+        let doc = node.ownerDocument;
+        // walk from node to `this` or `document`
+        while (n && n !== doc && n !== this.node) {
+          // use logical parentnode, or native ShadowRoot host
+          n = this.parentNode || n.host;
+        }
+        return n === this.node;
+      }
+
+      getOwnerRoot() {
+        return this.getRootNode();
+      }
+
+      getDistributedNodes() {
+        return (this.node.localName === 'slot') ?
+          this.assignedNodes({flatten: true}) :
+          [];
+      }
+
+      getDestinationInsertionPoints() {
+        let ip$ = [];
+        let n = this.assignedSlot;
+        while (n) {
+          ip$.push(n);
+          n = ShadyDOM.wrap(n).assignedSlot;
+        }
+        return ip$;
+      }
+
+      importNode(node, deep) {
+        let doc = this.node instanceof Document ? this.node :
+          this.node.ownerDocument;
+        return ShadyDOM.wrap(doc).importNode(node, deep);
+      }
+
+      getEffectiveChildNodes() {
+        return FlattenedNodesObserver.getFlattenedNodes(
+            /** @type {!HTMLElement} */ (this), dom);
+      }
+
+      queryDistributedElements(selector) {
+        let c$ = this.getEffectiveChildNodes();
+        let list = [];
+        for (let i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
+          if ((c.nodeType === Node.ELEMENT_NODE) &&
+              matchesSelector(c, selector)) {
+            list.push(c);
+          }
+        }
+        return list;
+      }
+
+      get activeElement() {
+        let node = this.node;
+        return node._activeElement !== undefined ? node._activeElement : node.activeElement;
+      }
+    }
+
+    Polymer.DomApi = Wrapper;
+  } else {
+
+    forwardMethods(Polymer.DomApi.prototype, [
+      'cloneNode', 'appendChild', 'insertBefore', 'removeChild',
+      'replaceChild', 'setAttribute', 'removeAttribute',
+      'querySelector', 'querySelectorAll'
+    ]);
+
+    forwardReadOnlyProperties(Polymer.DomApi.prototype, [
+      'parentNode', 'firstChild', 'lastChild',
+      'nextSibling', 'previousSibling', 'firstElementChild',
+      'lastElementChild', 'nextElementSibling', 'previousElementSibling',
+      'childNodes', 'children', 'classList'
+    ]);
+
+    forwardProperties(Polymer.DomApi.prototype, [
+      'textContent', 'innerHTML'
+    ]);
+  }
 
   /**
    * Legacy DOM and Event manipulation API wrapper factory used to abstract

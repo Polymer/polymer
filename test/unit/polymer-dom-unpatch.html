@@ -1,0 +1,352 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script>ShadyDOM = {force: true, unPatch: true}</script>
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+  <dom-module id="x-slot">
+    <template>
+      <div id="container"><slot id="slot"></slot></div>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-slot'
+      });
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-container-slot">
+    <template>
+      <x-slot id="container"><div id="first">first</div><slot id="slot"></slot><div id="last">last</div></x-slot>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-container-slot'
+      });
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-event-scoped">
+    <template>
+      <div id="scoped"></div>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-event-scoped',
+        fireComposed: function() {
+          return this.fire('composed', null, {node: this.$.scoped});
+        }
+      });
+    });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-focusable-in-shadow">
+    <template>
+      <input id="focusable"></input>
+    </template>
+    <script>
+    HTMLImports.whenReady(function() {
+      Polymer({
+        is: 'x-focusable-in-shadow'
+      });
+    });
+    </script>
+  </dom-module>
+
+   <test-fixture id="scoped">
+    <template>
+      <x-event-scoped></x-event-scoped>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="slot">
+    <template>
+      <x-container-slot></x-container-slot>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="focusableInShadow">
+    <template>
+      <x-focusable-in-shadow></x-focusable-in-shadow>
+    </template>
+  </test-fixture>
+
+<script>
+
+  suite('extended dom api', function() {
+    test('getEffectiveChildNodes', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      Polymer.dom(el).appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(Polymer.dom(el).getEffectiveChildNodes(),
+        [div]);
+      assert.deepEqual(Polymer.dom(el.$.container).getEffectiveChildNodes(),
+        [el.$.first, div, el.$.last]);
+      assert.deepEqual(Polymer.dom(el.$.container.$.container).getEffectiveChildNodes(),
+        [el.$.first, div, el.$.last]);
+    });
+
+    test('queryDistributedElements', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      Polymer.dom(el).appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(Polymer.dom(el).queryDistributedElements('foo'),
+        []);
+      assert.deepEqual(Polymer.dom(el).queryDistributedElements('div'),
+        [div]);
+      assert.deepEqual(Polymer.dom(el.$.container).queryDistributedElements('#first'),
+        [el.$.first]);
+      assert.deepEqual(Polymer.dom(el.$.container.$.container).queryDistributedElements('#last'),
+        [el.$.last]);
+    });
+
+  });
+
+  suite('distribution', function() {
+    test('getDistributedNodes', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      Polymer.dom(el).appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(Polymer.dom(el.$.slot).getDistributedNodes(), [div]);
+      assert.deepEqual(Polymer.dom(el.$.container.$.slot).getDistributedNodes(),
+        [el.$.first, div, el.$.last]);
+    });
+
+    test('getDestinationInsertionPoints', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      Polymer.dom(el).appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(Polymer.dom(el.$.first).getDestinationInsertionPoints(),
+        [el.$.container.$.slot]);
+      assert.deepEqual(Polymer.dom(div).getDestinationInsertionPoints(),
+        [el.$.slot, el.$.container.$.slot]);
+    });
+  });
+
+  // suite('events', function() {
+
+  //   test('localTarget, rootTarget, path', function(done) {
+  //     var el = fixture('scoped');
+  //     el.addEventListener('composed', function(e) {
+  //       assert.equal(Polymer.dom(e).rootTarget, el.$.scoped);
+  //       assert.equal(Polymer.dom(e).localTarget, el);
+  //       let nodes = [];
+  //       let p = el.$.scoped;
+  //       while (p) {
+  //         nodes.push(p);
+  //         p = p.parentNode || p.host;
+  //       }
+  //       nodes.push(window);
+  //       assert.deepEqual(Array.from(Polymer.dom(e).path), nodes);
+  //       done();
+  //     });
+  //     el.fireComposed();
+  //   });
+
+  // });
+
+  // suite('activeElement getter', function() {
+  //   test('Retrieves `_activeElement` (ShadyDOM) or `activeElement`.', function() {
+  //     var focusableInShadow = fixture('focusableInShadow');
+  //     focusableInShadow.$.focusable.focus();
+  //     var rootNode = focusableInShadow.getRootNode();
+  //     assert.equal(Polymer.dom(rootNode).activeElement, focusableInShadow);
+  //     assert.equal(Polymer.dom(focusableInShadow.shadowRoot).activeElement, focusableInShadow.$.focusable);
+  //   });
+  // });
+
+  suite('legacy api', function() {
+    test('getEffectiveChildNodes', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      var t = document.createTextNode('');
+      Polymer.dom(el).appendChild(div);
+      Polymer.dom(el).appendChild(t);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(el.getEffectiveChildNodes(),
+        [div, t]);
+      assert.deepEqual(el.$.container.getEffectiveChildNodes(),
+        [el.$.first, div, t, el.$.last]);
+    });
+
+    test('getEffectiveChildren', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      Polymer.dom(el).appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(el.getEffectiveChildNodes(),
+        [div]);
+      assert.deepEqual(el.$.container.getEffectiveChildNodes(),
+        [el.$.first, div, el.$.last]);
+    });
+
+    test('getEffectiveTextContent', function() {
+      var el = fixture('slot');
+      var t1 = document.createTextNode('a');
+      var t2 = document.createTextNode('b');
+      Polymer.dom(el).appendChild(t1);
+      Polymer.dom(el).appendChild(t2);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(el.getEffectiveTextContent(), 'ab');
+      assert.deepEqual(el.$.container.getEffectiveTextContent(), 'firstablast');
+    });
+
+    test('getContentChildNodes', function() {
+      var el = fixture('slot');
+      var div1 = document.createElement('div');
+      var t = document.createTextNode('');
+      var div2 = document.createElement('div');
+      Polymer.dom(el).appendChild(div1);
+      Polymer.dom(el).appendChild(t);
+      Polymer.dom(el).appendChild(div2);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(el.getContentChildNodes(),
+        [div1, t, div2]);
+      assert.deepEqual(el.getContentChildNodes('slot'),
+        [div1, t, div2]);
+    });
+
+    test('getContentChildren', function() {
+      var el = fixture('slot');
+      var div1 = document.createElement('div');
+      var t = document.createTextNode('');
+      var div2 = document.createElement('div');
+      Polymer.dom(el).appendChild(div1);
+      Polymer.dom(el).appendChild(t);
+      Polymer.dom(el).appendChild(div2);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(el.getContentChildren(),
+        [div1, div2]);
+      assert.deepEqual(el.getContentChildren('slot'),
+        [div1, div2]);
+    });
+
+    test('queryDistributedElements', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      Polymer.dom(el).appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(el.queryDistributedElements('foo'),
+        []);
+      assert.deepEqual(el.queryDistributedElements('div'),
+        [div]);
+      assert.deepEqual(el.$.container.queryDistributedElements('#first'),
+        [el.$.first]);
+    });
+
+    test('queryEffectiveChildren', function() {
+      var el = fixture('slot');
+      var div = document.createElement('div');
+      Polymer.dom(el).appendChild(div);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.equal(el.queryEffectiveChildren('foo'),
+        null);
+      assert.deepEqual(el.queryEffectiveChildren('div'),
+        div);
+      assert.deepEqual(el.$.container.queryEffectiveChildren('#first'),
+        el.$.first);
+    });
+
+    test('queryAllEffectiveChildren', function() {
+      var el = fixture('slot');
+      var div1 = document.createElement('div');
+      var div2 = document.createElement('div');
+      Polymer.dom(el).appendChild(div1);
+      Polymer.dom(el).appendChild(div2);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.deepEqual(el.queryAllEffectiveChildren('foo'),
+        []);
+      assert.deepEqual(el.queryAllEffectiveChildren('div'),
+        [div1, div2]);
+      assert.deepEqual(el.$.container.queryAllEffectiveChildren('div'),
+        [el.$.first, div1, div2, el.$.last]);
+    });
+
+    test('isLightDescendant', function() {
+      var el = fixture('slot');
+      var div1 = document.createElement('div');
+      Polymer.dom(el).appendChild(div1);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.equal(el.isLightDescendant(div1), true);
+      assert.equal(el.isLightDescendant(el.$.container), false);
+    });
+
+    test('isLocalDescendant', function() {
+      var el = fixture('slot');
+      var div1 = document.createElement('div');
+      Polymer.dom(el).appendChild(div1);
+      if (window.ShadyDOM) {
+        ShadyDOM.flush();
+      }
+      assert.equal(el.isLocalDescendant(div1), false);
+      assert.equal(el.isLocalDescendant(el.$.container), true);
+    });
+
+    test('domHost', function() {
+      var el = fixture('slot');
+      assert.equal(el.domHost, document);
+      assert.equal(el.$.container.domHost, el);
+    });
+
+    test('legacy settings', function() {
+      assert.equal(Polymer.Settings.useShadow, !(window.ShadyDOM));
+      assert.equal(Polymer.Settings.useNativeCustomElements, !(window.customElements.polyfillWrapFlushCallback));
+      assert.equal(Polymer.Settings.useNativeCSSProperties, Boolean(!window.ShadyCSS || window.ShadyCSS.nativeCss));
+    });
+
+  });
+
+</script>
+
+</body>
+</html>
