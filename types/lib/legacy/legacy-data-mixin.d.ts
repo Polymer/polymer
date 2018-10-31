@@ -9,8 +9,9 @@
  */
 
 /// <reference path="class.d.ts" />
-/// <reference path="../polymer.d.ts" />
+/// <reference path="../../polymer.d.ts" />
 /// <reference path="../utils/mixin.d.ts" />
+/// <reference path="../utils/templatize.d.ts" />
 
 declare class UndefinedArgumentError extends Error {
   constructor(message: any, arg: any);
@@ -50,6 +51,7 @@ declare namespace Polymer {
   }
 
   interface LegacyDataMixin {
+    readonly _legacyUndefinedCheck: any;
 
     /**
      * Overrides `Polyer.PropertyEffects` to wrap effect functions to
@@ -61,4 +63,27 @@ declare namespace Polymer {
      */
     _addPropertyEffect(property: string, type: string, effect?: object|null): void;
   }
+}
+
+declare class LegacyDataMixin extends superClass {
+
+  /**
+   * Overrides `Polyer.PropertyEffects` to wrap effect functions to
+   * catch `UndefinedArgumentError`s and warn.
+   *
+   * @param templateInfo Template metadata to add effect to
+   * @param prop Property that should trigger the effect
+   * @param effect Effect metadata object
+   */
+  static _addTemplatePropertyEffect(templateInfo: object|null, prop: string, effect?: object|null): void;
+
+  /**
+   * Overrides `Polyer.PropertyEffects` to wrap effect functions to
+   * catch `UndefinedArgumentError`s and warn.
+   *
+   * @param property Property that should trigger the effect
+   * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
+   * @param effect Effect metadata object
+   */
+  _addPropertyEffect(property: string, type: string, effect?: object|null): void;
 }
