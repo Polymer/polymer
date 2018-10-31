@@ -29,7 +29,7 @@ declare namespace Polymer {
     Polymer.PropertyEffects(
     Polymer.OptionalMutableData(
     Polymer.GestureEventListeners(
-    Polymer.Element))) {
+    HTMLElement))) {
     attributeChangedCallback(): void;
     connectedCallback(): void;
     disconnectedCallback(): void;

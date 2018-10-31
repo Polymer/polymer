@@ -14,7 +14,7 @@
 
 declare class TemplateInstanceBase extends
   Polymer.PropertyEffects(
-  Polymer.Element) {
+  Object) {
 
   /**
    * Find the parent model of this template instance.  The parent model
@@ -74,12 +74,6 @@ declare class TemplateInstanceBase extends
    * @returns Always true.
    */
   dispatchEvent(event: Event|null): boolean;
-}
-
-declare namespace templateInfo {
-
-  class templatizeTemplateClass {
-  }
 }
 
 declare namespace Polymer {
