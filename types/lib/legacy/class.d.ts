@@ -93,23 +93,3 @@ declare namespace Polymer {
    */
   function Class<T>(info: PolymerInit, mixin: (p0: T) => T): {new(): HTMLElement};
 }
-
-declare class PolymerGenerated {
-  created(): void;
-  _registered(): void;
-  _applyListeners(): void;
-  _ensureAttributes(): void;
-  ready(): void;
-  attached(): void;
-  detached(): void;
-
-  /**
-   * Implements native Custom Elements `attributeChangedCallback` to
-   * set an attribute value to a property via `_attributeToProperty`.
-   *
-   * @param name Name of attribute that changed
-   * @param old Old attribute value
-   * @param value New attribute value
-   */
-  attributeChanged(name: string, old: string|null, value: string|null): void;
-}

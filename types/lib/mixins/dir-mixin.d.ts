@@ -44,7 +44,7 @@ declare namespace Polymer {
     _replaceDirInCssText(text: string): string;
   }
 
-  interface DirMixin {
+  interface DirMixin extends Polymer.PropertyAccessors, Polymer.PropertiesChanged {
     ready(): void;
     connectedCallback(): void;
     disconnectedCallback(): void;
