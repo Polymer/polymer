@@ -14,7 +14,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     'use strict';
 
-    let metaProps = {
+    const metaProps = {
       attached: true,
       detached: true,
       ready: true,
@@ -22,15 +22,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       beforeRegister: true,
       registered: true,
       attributeChanged: true,
-      // meta objects
-      behaviors: true
     };
+
+    const noBehaviorCopyProps = Object.assign({
+      behaviors: true
+    }, metaProps);
+
+    const memoizedProps = Object.assign({
+      listeners: true,
+      hostAttributes: true
+    }, metaProps);
 
     function copyProperties(source, target) {
       for (let p in source) {
-        // NOTE: cannot copy `metaProps` methods onto prototype at least because
+        // NOTE: cannot copy `noBehaviorCopyProps` methods onto prototype at least because
         // `super.ready` must be called and is not included in the user fn.
-        if (!(p in metaProps)) {
+        if (!(p in noBehaviorCopyProps)) {
           let pd = Object.getOwnPropertyDescriptor(source, p);
           if (pd) {
             Object.defineProperty(target, p, pd);
@@ -38,8 +45,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
     }
-    
-    // TODO(sorvell): this breaks `Polymer.mixinBehaviors`; should fix via factoring
+
     /**
      * Applies a "legacy" behavior or array of behaviors to the provided class.
      *
@@ -78,12 +84,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let superBehaviors = klass.prototype.behaviors;
       // get flattened, deduped list of behaviors *not* already on super class
       behaviors = flattenBehaviors(behaviors, null, superBehaviors);
-      // mixin new behaviors
-      // klass = _applyBehaviors(behaviors, klass);
       if (superBehaviors) {
         behaviors = superBehaviors.concat(behaviors);
       }
-      // Set behaviors on prototype for BC...
+      // Set behaviors on prototype
       klass.prototype.behaviors = behaviors;
       return klass;
     }
@@ -118,16 +122,24 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // If lifecycle is called (super then me), order is
     // (1) C.created, (2) A.created, (3) B.created, (4) element.created
     // (again same as 1.x)
-    function _applyBehaviors(behaviors, klass) {
+    function copyBehaviorProperties(behaviors, klass) {
+      const meta = {};
       if (behaviors) {
+        klass.prototype.__behaviorMetaProps = meta;
         for (let i=0; i<behaviors.length; i++) {
-          let b = behaviors[i];
-          // if (b) {
-          //   Array.isArray(b) ? _applyBehaviors(b, klass) :
-              copyProperties(b, klass.prototype);
-          // }
+          copyProperties(behaviors[i], klass.prototype);
+          memoizeBehaviorMetaProps(meta, behaviors[i]);
         }
-        return klass;
+      }
+      klass.prototype.__behaviorMetaProps = meta;
+    }
+
+    function memoizeBehaviorMetaProps(meta, behavior) {
+      for (let p in memoizedProps) {
+        if (behavior[p]) {
+          meta[p] = meta[p] || [];
+          meta[p].push(behavior[p]);
+        }
       }
     }
 
@@ -195,7 +207,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
     }
-    
+
     function mergeProperties(a, b) {
       for (let p in b) {
         a[p] = a[p] || {};
@@ -263,12 +275,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         created() {
-          if (this.behaviors) {
-            for (let i=0, b; i < this.behaviors.length; i++) {
-              b = this.behaviors[i];
-              if (b.created) {
-                b.created.call(this);
-              }
+          const list = this.__behaviorMetaProps.created;
+          if (list) {
+            for (let i=0; i < list.length; i++) {
+              list[i].call(this);
             }
           }
           if (info.created) {
@@ -288,17 +298,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            `is` in `beforeRegister` as you could in 1.x.
           */
           const proto = Object.getPrototypeOf(this);
-          _applyBehaviors(proto.behaviors, proto.constructor);
+          copyBehaviorProperties(proto.behaviors, proto.constructor);
           copyProperties(info, proto);
-          if (proto.behaviors) {
-            for (let i=0, b; i < proto.behaviors.length; i++) {
-              b = proto.behaviors[i];
-              if (b.beforeRegister) {
-                b.beforeRegister.call(proto);
-              }
-              if (b.registered) {
-                b.registered.call(proto);
-              }
+          // Note, previously these were interleaved.
+          let list = this.__behaviorMetaProps.beforeRegister;
+          if (list) {
+            for (let i=0; i < list.length; i++) {
+              list[i].call(proto);
+            }
+          }
+          list = this.__behaviorMetaProps.registered;
+          if (list) {
+            for (let i=0; i < list.length; i++) {
+              list[i].call(proto);
             }
           }
           if (info.beforeRegister) {
@@ -313,12 +325,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         _applyListeners() {
-          if (this.behaviors) {
-            for (let i=0, b; i < this.behaviors.length; i++) {
-              b = this.behaviors[i];
-              if (b.listeners) {
-                for (let l in b.listeners) {
-                  this._addMethodEventListenerToNode(this, l, b.listeners[l]);
+          const list = this.__behaviorMetaProps.listeners;
+          if (list) {
+            for (let i=0; i < list.length; i++) {
+              const listeners = list[i];
+              if (listeners) {
+                for (let l in listeners) {
+                  this._addMethodEventListenerToNode(this, l, listeners[l]);
                 }
               }
             }
@@ -342,14 +355,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               this._ensureAttribute(a, info.hostAttributes[a]);
             }
           }
-          if (this.behaviors) {
-            for (let i=this.behaviors.length-1, b; i >= 0; i--) {
-              b = this.behaviors[i];
-              if (b.hostAttributes) {
-                for (let a in b.hostAttributes) {
-                  this._ensureAttribute(a, b.hostAttributes[a]);
+          const list = this.__behaviorMetaProps.hostAttributes;
+          if (list) {
+            for (let i=list.length-1; i >= 0; i--) {
+              const hostAttributes = list[i];
+              for (let a in hostAttributes) {
+                  this._ensureAttribute(a, hostAttributes[a]);
                 }
-              }
             }
           }
         }
@@ -359,12 +371,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          */
         ready() {
           super.ready();
-          if (this.behaviors) {
-            for (let i=0, b; i < this.behaviors.length; i++) {
-              b = this.behaviors[i];
-              if (b.ready) {
-                b.ready.call(this);
-              }
+          let list = this.__behaviorMetaProps.ready;
+          if (list) {
+            for (let i=0; i < list.length; i++) {
+              list[i].call(this);
             }
           }
           if (info.ready) {
@@ -376,12 +386,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         attached() {
-          if (this.behaviors) {
-            for (let i=0, b; i < this.behaviors.length; i++) {
-              b = this.behaviors[i];
-              if (b.attached) {
-                b.attached.call(this);
-              }
+          let list = this.__behaviorMetaProps.attached;
+          if (list) {
+            for (let i=0; i < list.length; i++) {
+              list[i].call(this);
             }
           }
           if (info.attached) {
@@ -393,12 +401,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         detached() {
-          if (this.behaviors) {
-            for (let i=0, b; i < this.behaviors.length; i++) {
-              b = this.behaviors[i];
-              if (b.detached) {
-                b.detached.call(this);
-              }
+          let list = this.__behaviorMetaProps.detached;
+          if (list) {
+            for (let i=0; i < list.length; i++) {
+              list[i].call(this);
             }
           }
           if (info.detached) {
@@ -416,12 +422,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          * @return {void}
          */
         attributeChanged(name, old, value) {
-          if (this.behaviors) {
-            for (let i=0, b; i < this.behaviors.length; i++) {
-              b = this.behaviors[i];
-              if (b.attributeChanged) {
-                b.attributeChanged.call(this, name, old, value);
-              }
+          let list = this.__behaviorMetaProps.attributeChanged;
+          if (list) {
+            for (let i=0; i < list.length; i++) {
+              list[i].call(this, name, old, value);
             }
           }
           if (info.attributeChanged) {
@@ -431,8 +435,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       PolymerGenerated.generatedFrom = info;
-
-      // copyProperties(info, PolymerGenerated.prototype);
 
       return PolymerGenerated;
     }
