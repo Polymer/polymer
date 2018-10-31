@@ -62,34 +62,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @suppress {invalidCasts, checkTypes}
      */
     function mixinBehaviors(behaviors, klass) {
-      if (behaviors) {
-        klass = applyBehaviors(behaviors, klass);
-      }
-      // provides behaviors functionality
-      return GenerateClassFromInfo({}, klass);
-    }
-
-    function applyBehaviors(behaviors, klass) {
-      if (!behaviors) {
-        klass = /** @type {HTMLElement} */(klass); // eslint-disable-line no-self-assign
-        return klass;
-      }
-      // NOTE: ensure the behavior is extending a class with
-      // legacy element api. This is necessary since behaviors expect to be able
-      // to access 1.x legacy api.
-      klass = class extends Polymer.LegacyElementMixin(klass) { };
-      if (!Array.isArray(behaviors)) {
-        behaviors = [behaviors];
-      }
-      let superBehaviors = klass.prototype.behaviors;
-      // get flattened, deduped list of behaviors *not* already on super class
-      behaviors = flattenBehaviors(behaviors, null, superBehaviors);
-      if (superBehaviors) {
-        behaviors = superBehaviors.concat(behaviors);
-      }
-      // Set behaviors on prototype
-      klass.prototype.behaviors = behaviors;
-      return klass;
+      return GenerateClassFromInfo({}, Polymer.LegacyElementMixin(klass), behaviors);
     }
 
     // NOTE:
@@ -124,20 +97,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // (again same as 1.x)
     function copyBehaviorProperties(behaviors, klass) {
       const meta = {};
+      const superMeta = klass.prototype.__behaviorMetaProps;
       if (behaviors) {
         klass.prototype.__behaviorMetaProps = meta;
         for (let i=0; i<behaviors.length; i++) {
           copyProperties(behaviors[i], klass.prototype);
-          memoizeBehaviorMetaProps(meta, behaviors[i]);
+          memoizeBehaviorMetaProps(meta, behaviors[i], superMeta);
         }
       }
       klass.prototype.__behaviorMetaProps = meta;
     }
 
-    function memoizeBehaviorMetaProps(meta, behavior) {
+    function memoizeBehaviorMetaProps(meta, behavior, superMeta) {
       for (let p in memoizedProps) {
         if (behavior[p]) {
-          meta[p] = meta[p] || [];
+          meta[p] = meta[p] || (superMeta && superMeta[p] ? superMeta[p].slice() : []);
           meta[p].push(behavior[p]);
         }
       }
@@ -222,7 +196,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @suppress {checkTypes}
      * @private
      */
-    function GenerateClassFromInfo(info, Base) {
+    function GenerateClassFromInfo(info, Base, behaviors) {
 
       /** @private */
       class PolymerGenerated extends Base {
@@ -289,6 +263,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         /**
          * @return {void}
          */
+        // Called on element prototype
         _registered() {
           /* NOTE: `beforeRegister` is called here for bc, but the behavior
            is different than in 1.x. In 1.0, the method was called *after*
@@ -297,17 +272,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            in `beforeRegister` or `registered`. It is no longer possible to set
            `is` in `beforeRegister` as you could in 1.x.
           */
-          const proto = Object.getPrototypeOf(this);
-          copyBehaviorProperties(proto.behaviors, proto.constructor);
+          const proto = this;
+          if (proto.hasOwnProperty('behaviors')) {
+            copyBehaviorProperties(proto.behaviors, proto.constructor);
+          }
+          proto.__behaviorMetaProps = proto.__behaviorMetaProps || {};
           copyProperties(info, proto);
           // Note, previously these were interleaved.
-          let list = this.__behaviorMetaProps.beforeRegister;
+          let list = proto.__behaviorMetaProps.beforeRegister;
           if (list) {
             for (let i=0; i < list.length; i++) {
               list[i].call(proto);
             }
           }
-          list = this.__behaviorMetaProps.registered;
+          list = proto.__behaviorMetaProps.registered;
           if (list) {
             for (let i=0; i < list.length; i++) {
               list[i].call(proto);
@@ -431,7 +409,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           if (info.attributeChanged) {
             info.attributeChanged.call(this, name, old, value);
           }
-       }
+        }
+      }
+
+      // apply behaviors
+      if (behaviors) {
+        // NOTE: ensure the behavior is extending a class with
+        // legacy element api. This is necessary since behaviors expect to be able
+        // to access 1.x legacy api.
+        if (!Array.isArray(behaviors)) {
+          behaviors = [behaviors];
+        }
+        let superBehaviors = PolymerGenerated.prototype.__allBehaviors;
+        // get flattened, deduped list of behaviors *not* already on super class
+        behaviors = flattenBehaviors(behaviors, null, superBehaviors);
+        PolymerGenerated.prototype.__allBehaviors = superBehaviors ?
+          superBehaviors.concat(behaviors) : behaviors;
+        PolymerGenerated.prototype.behaviors = behaviors;
       }
 
       PolymerGenerated.generatedFrom = info;
@@ -513,10 +507,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       let klass = mixin ? mixin(Polymer.LegacyElementMixin(HTMLElement)) :
           Polymer.LegacyElementMixin(HTMLElement);
-      if (info.behaviors) {
-        klass = applyBehaviors(info.behaviors, klass);
-      }
-      klass = GenerateClassFromInfo(info, klass);
+      klass = GenerateClassFromInfo(info, klass, info.behaviors);
       // decorate klass with registration info
       klass.is = info.is;
       return klass;
