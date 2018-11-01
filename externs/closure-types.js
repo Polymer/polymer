@@ -1299,6 +1299,10 @@ Polymer_LegacyElementMixin.prototype._error = function(args){};
 */
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
 /**
+* @return {undefined}
+*/
+Polymer_LegacyElementMixin._finalizeClass = function(){};
+/**
 * @interface
 */
 function Polymer_MutableData(){}
