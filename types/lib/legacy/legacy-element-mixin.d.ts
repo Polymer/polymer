@@ -30,6 +30,7 @@ declare namespace Polymer {
 
   interface LegacyElementMixinConstructor {
     new(...args: any[]): LegacyElementMixin;
+    _finalizeClass(): void;
   }
 
   interface LegacyElementMixin extends Polymer.ElementMixin, Polymer.PropertyEffects, Polymer.TemplateStamp, Polymer.PropertyAccessors, Polymer.PropertiesChanged, Polymer.PropertiesMixin, Polymer.GestureEventListeners {

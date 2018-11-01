@@ -16,4 +16,11 @@
  *   own custom HTML elements.
  */
 declare namespace Polymer {
+
+  /**
+   * Provides basic tracking of element definitions (registrations) and
+   * instance counts.
+   */
+  namespace telemetry {
+  }
 }
