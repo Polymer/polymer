@@ -1,5 +1,146 @@
 # Change Log
 
+## [v3.1.0](https://github.com/Polymer/polymer/tree/v3.1.0) (2018-10-26)
+- update dependencies ([commit](https://github.com/Polymer/polymer/commit/99e39706))
+
+- Add beforeRegister callback to externs ([commit](https://github.com/Polymer/polymer/commit/0492390b))
+
+- Make toggleAttribute match with native signature (#5372) ([commit](https://github.com/Polymer/polymer/commit/693f9e4e))
+
+- Fixed typos on lines 133 and 157 (#5409) ([commit](https://github.com/Polymer/polymer/commit/750e7e1a))
+
+- Fix signature of toggleAttribute to match native version (#5370) ([commit](https://github.com/Polymer/polymer/commit/ce85eb99))
+
+- Update jsdoc for PropertyEffects.splice (#5367) ([commit](https://github.com/Polymer/polymer/commit/96557f78))
+
+- Expand type of LegacyElementMixin#listen and unlisten to accept EventTargets. ([commit](https://github.com/Polymer/polymer/commit/b55c56f7))
+
+- Update gen-closure-declarations to 0.5.0 (#5360) ([commit](https://github.com/Polymer/polymer/commit/9dbc8728))
+
+- Add TypeScript types for observer parameters. (#5359) ([commit](https://github.com/Polymer/polymer/commit/912c19cc))
+
+- Add missing return type to attributeChanged ([commit](https://github.com/Polymer/polymer/commit/239e99a5))
+
+- Add specific type for behaviors ([commit](https://github.com/Polymer/polymer/commit/bf02bd32))
+
+- Improve typings for legacy elements ([commit](https://github.com/Polymer/polymer/commit/d6d3c822))
+
+- Add @export ([commit](https://github.com/Polymer/polymer/commit/84b69918))
+
+- Improve types of flattened-nodes-observer further. ([commit](https://github.com/Polymer/polymer/commit/29428a82))
+
+- Add cast for compilation ([commit](https://github.com/Polymer/polymer/commit/b0aa913d))
+
+- Only generate types once on Travis ([commit](https://github.com/Polymer/polymer/commit/2a497433))
+
+- Move type generation from prepack to prepare ([commit](https://github.com/Polymer/polymer/commit/104e3e56))
+
+- Collapse imports for file into one statement ([commit](https://github.com/Polymer/polymer/commit/82e705f7))
+
+- Cleanup modulizer conversion leftovers (#5347) ([commit](https://github.com/Polymer/polymer/commit/448093b6))
+
+- Add comments re: need for mixing in before metaprogramming ([commit](https://github.com/Polymer/polymer/commit/d93cbfa5))
+
+- regen-package-lock ([commit](https://github.com/Polymer/polymer/commit/2d06ff59))
+
+- Don't run Firefox in headless mode. ([commit](https://github.com/Polymer/polymer/commit/44fcb9db))
+
+- Fix jsdoc syntax. ([commit](https://github.com/Polymer/polymer/commit/8d4e04bc))
+
+- Updates based on code review. Add computed tests. ([commit](https://github.com/Polymer/polymer/commit/ae1b4173))
+
+- Use type generator binary instead of gulp script. ([commit](https://github.com/Polymer/polymer/commit/a5afc8f1))
+
+- Remove unnecessary @const. ([commit](https://github.com/Polymer/polymer/commit/89cc5c62))
+
+- Add return description. ([commit](https://github.com/Polymer/polymer/commit/7901dc9d))
+
+- Grandfather defaulting sanitizeDOMValue from legacy Polymer object. ([commit](https://github.com/Polymer/polymer/commit/d5672dcf))
+
+- Minor changes to formatting and jsdoc ([commit](https://github.com/Polymer/polymer/commit/d5935a9c))
+
+- Update paths in gulpfile ([commit](https://github.com/Polymer/polymer/commit/f845842f))
+
+- Fix mixin jsdoc. ([commit](https://github.com/Polymer/polymer/commit/2d2320e5))
+
+- Add legacy-data-mixin as 1.x->2.x/3.x migration aide. Fixes #5262. ([commit](https://github.com/Polymer/polymer/commit/e385e49b))
+
+- Fix jsdoc to pass lint ([commit](https://github.com/Polymer/polymer/commit/33828f38))
+
+- Add documentation to boot.js ([commit](https://github.com/Polymer/polymer/commit/27036ea6))
+
+- The return type of mixinBehaviors is unknown ([commit](https://github.com/Polymer/polymer/commit/6cf5f9d0))
+
+- Export EventApi, same as DomApi ([commit](https://github.com/Polymer/polymer/commit/b71f9f4e))
+
+- Remove undocumented logging feature (#5331) ([commit](https://github.com/Polymer/polymer/commit/33ab3ae6))
+
+- Cleanup element-mixin leftovers from modulizer ([commit](https://github.com/Polymer/polymer/commit/dae63e3d))
+
+- Use case-map lib in a saner way. ([commit](https://github.com/Polymer/polymer/commit/7241ec58))
+
+- Fix a grab bag of closure compiler warnings. ([commit](https://github.com/Polymer/polymer/commit/658d1cf7))
+
+- Protect DomModule.import against renaming ([commit](https://github.com/Polymer/polymer/commit/aaf2cca0))
+
+- Add @nocollapse for jscompiler ([commit](https://github.com/Polymer/polymer/commit/4e4db700))
+
+- Ensure boot.js can only be parsed as a module ([commit](https://github.com/Polymer/polymer/commit/a64dfb08))
+
+- Use simpler class declaration and export form (#5325) ([commit](https://github.com/Polymer/polymer/commit/6dc01841))
+
+- Ensure unresolved.js is an es module (#5324) ([commit](https://github.com/Polymer/polymer/commit/20d4e35c))
+
+- Move version to ElementMixin prototype ([commit](https://github.com/Polymer/polymer/commit/2957e9d4))
+
+- Use relative path module specifier in gen-tsd autoImport setting. ([commit](https://github.com/Polymer/polymer/commit/76cf2af1))
+
+- Update TemplateStamp event listen param types from Node to EventTarget. (#5320) ([commit](https://github.com/Polymer/polymer/commit/e8167f7f))
+
+- Add test for direct assignment to template. ([commit](https://github.com/Polymer/polymer/commit/7644464c))
+
+- Add a template setter to ElementMixin. ([commit](https://github.com/Polymer/polymer/commit/d27b4a12))
+
+- Export the current Polymer version in polymer-element.js ([commit](https://github.com/Polymer/polymer/commit/05c62f44))
+
+- Make Polymer gestures library safe for Closure property renaming (take 2). (#5314) ([commit](https://github.com/Polymer/polymer/commit/6847cf47))
+
+- Make event notification handler read the value from currentTarget, (#5313) ([commit](https://github.com/Polymer/polymer/commit/db2f3cc7))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/0bf1e60c))
+
+- Upstream externs changes for DomRepeatEvent ([commit](https://github.com/Polymer/polymer/commit/e3b9d4e6))
+
+- Back to single template getter. Add more comments. ([commit](https://github.com/Polymer/polymer/commit/10d657b3))
+
+- Revert to legacy template getter, update tests. ([commit](https://github.com/Polymer/polymer/commit/c4b94a02))
+
+- More updates based on code review. ([commit](https://github.com/Polymer/polymer/commit/376f44c4))
+
+- Fix allowTemplateFromDomModule opt-in ([commit](https://github.com/Polymer/polymer/commit/36727379))
+
+- Fix lint warnings. ([commit](https://github.com/Polymer/polymer/commit/a199aa91))
+
+- Updates based on code review. ([commit](https://github.com/Polymer/polymer/commit/36c4dfa9))
+
+- npm upgrade dependencies ([commit](https://github.com/Polymer/polymer/commit/a515c992))
+
+- Fix lint warnings. ([commit](https://github.com/Polymer/polymer/commit/a0c5268c))
+
+- Catch errors on top window using uncaughtErrorFilter Works around safari quirk when running in iframe ([commit](https://github.com/Polymer/polymer/commit/47ade191))
+
+- Fix latent (benign) error thrown when removing dom-if via innerHTML. ([commit](https://github.com/Polymer/polymer/commit/e3066924))
+
+- Use setting via setStrictTemplatePolicy export. ([commit](https://github.com/Polymer/polymer/commit/8667b895))
+
+- Add tests. ([commit](https://github.com/Polymer/polymer/commit/625372ea))
+
+- Implement opt-in `strictTemplatePolicy` (flag TBD) - disable dom-bind - disable dom-module template lookup - disable templatizer of templates not stamped in trusted polymer template ([commit](https://github.com/Polymer/polymer/commit/2e6df0ee))
+
+- Ensure properties is only called once ([commit](https://github.com/Polymer/polymer/commit/63c7fc00))
+
+- Remove dom-module in test ([commit](https://github.com/Polymer/polymer/commit/617cb4c9))
+
 ## [v3.0.5](https://github.com/Polymer/polymer/tree/v3.0.5) (2018-07-30)
 - Add more missing .d.ts files from being npm published. ([commit](https://github.com/Polymer/polymer/commit/f372ea89))
 
