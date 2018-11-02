@@ -171,6 +171,7 @@ const runClosureOnly = ({lintOnly}) => () => {
       'externs/webcomponents-externs.js',
       'externs/closure-types.js',
       'externs/polymer-externs.js',
+      'externs/polymer-dom-api-externs.js',
     ],
     extra_annotation_name: [
       'appliesMixin',
