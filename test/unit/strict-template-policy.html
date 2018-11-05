@@ -1,0 +1,220 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <script src="../../../webcomponentsjs/webcomponents-lite.js"></script>
+  <script>
+    Polymer = {
+      lazyRegister: true,
+      strictTemplatePolicy: true
+    };
+    // Errors thrown in custom element reactions are not thrown up
+    // the call stack to the dom methods that provoked them, so need
+    // to catch them here and prevent mocha from complaining about them
+    window.addEventListener('error', function(event) {
+      if (window.uncaughtErrorFilter && window.uncaughtErrorFilter(event)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    });
+  </script>
+  <script src="../../../web-component-tester/browser.js"></script>
+  <link rel="import" href="../../polymer.html">
+</head>
+<body>
+
+  <dom-module id="trusted-element">
+    <template>Trusted</template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({is: 'trusted-element'});
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="trusted-templates">
+    <template>
+      <template is="dom-repeat" items="[0]">
+        <div id="dom-repeat-ok"></div>
+        <template is="dom-if" if><div id="nested-dom-if-ok"></div></template>
+      </template>
+      <template is="dom-if" if>
+        <div id="dom-if-ok"></div>
+        <template is="dom-repeat" items="[0]"><div id="nested-dom-repeat-ok"></div></template>
+      </template>
+    </template>
+    <script>
+      HTMLImports.whenReady(function() {
+        Polymer({is: 'trusted-templates'});
+      });
+    </script>
+  </dom-module>
+
+  <div id="target"></div>
+
+  <script>
+    suite('strictTemplatePolicy', function() {
+
+      teardown(function() {
+        window.uncaughtErrorFilter = null;
+        document.getElementById('target').textContent = '';
+      });
+
+      // Errors thrown in custom element reactions are not thrown up
+      // the call stack to the dom methods that provoked them, so this
+      // wraps Chai's assert.throws to re-throw uncaught errors
+      function assertThrows(fn, re) {
+        var uncaughtError = null;
+        window.uncaughtErrorFilter = function(err) {
+          if (!uncaughtError) {
+            uncaughtError = err instanceof Error ? err : new Error(err.message || err);
+          }
+          return true;
+        };
+        assert.throws(function() {
+          fn();
+          // Throw any errors caught on window
+          if (uncaughtError) {
+            throw uncaughtError;
+          }
+          // Force polyfill reactions and/or async template stamping
+          Polymer.dom.flush();
+          // Throw any add'l errors caught on window
+          if (uncaughtError) {
+            throw uncaughtError;
+          }
+        }, re);
+        window.uncaughtErrorFilter = null;
+      }
+
+      test('dom-bind', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+          '<template is="dom-bind">' +
+          '  <div id="injected"></div>'+
+          '</template>`';
+        }, /dom-bind not allowed/);
+        // Avoid template polyfill issues
+        HTMLTemplateElement.bootstrap &&
+          HTMLTemplateElement.bootstrap(document.getElementById('target'));
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-if', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<template is="dom-if" if>' +
+            '  <div id="injected"></div>'+
+            '</template>`';
+        }, /template owner not trusted/);
+        // Avoid template polyfill issues
+        HTMLTemplateElement.bootstrap &&
+          HTMLTemplateElement.bootstrap(document.getElementById('target'));
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-repeat', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<template is="dom-repeat" items="[0]">' +
+            '  <div id="injected"></div>'+
+            '</template>`';
+        }, /template owner not trusted/);
+        // Avoid template polyfill issues
+        HTMLTemplateElement.bootstrap &&
+          HTMLTemplateElement.bootstrap(document.getElementById('target'));
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('dom-module after registration', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-module id="trusted-element">' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>`' +
+            '</dom-module>';
+        }, /trusted-element re-registered/);
+        var el;
+        assertThrows(function() {
+          el = document.createElement('trusted-element');
+          document.getElementById('target').appendChild(el);
+        }, /expecting dom-module or null _template for trusted-element/);
+        assert.notInstanceOf(el && el.root, DocumentFragment);
+        // Avoid template polyfill issues
+        HTMLTemplateElement.bootstrap &&
+          HTMLTemplateElement.bootstrap(document.getElementById('target'));
+        assert.notOk(document.getElementById('injected'));
+      });
+      
+      test('dom-module after registration, again', function() {
+        assertThrows(function() {
+          document.getElementById('target').innerHTML =
+            '<dom-module id="trusted-element">' +
+            '  <template>' +
+            '    <div id="injected"></div>'+
+            '  </template>`' +
+            '</dom-module>';
+        }, /trusted-element re-registered/);
+        var el = document.createElement('trusted-element');
+        document.getElementById('target').appendChild(el);
+        assert.notInstanceOf(el.root, DocumentFragment);
+        // Avoid template polyfill issues
+        HTMLTemplateElement.bootstrap &&
+          HTMLTemplateElement.bootstrap(document.getElementById('target'));
+        assert.notOk(document.getElementById('injected'));
+      });
+      
+      test('dom-module before registration', function() {
+        document.getElementById('target').innerHTML =
+          '<dom-module id="has-no-template">' +
+          '  <template>' +
+          '    <div id="injected"></div>'+
+          '  </template>`' +
+          '</dom-module>';
+        Polymer({
+          is: 'has-no-template',
+          _template: null
+        });
+        var el = document.createElement('has-no-template');
+        document.getElementById('target').appendChild(el);
+        assert.notInstanceOf(el.root, DocumentFragment);
+        // Avoid template polyfill issues
+        HTMLTemplateElement.bootstrap &&
+          HTMLTemplateElement.bootstrap(document.getElementById('target'));
+        assert.notOk(document.getElementById('injected'));
+      });
+
+      test('element without explicit template throws', function() {
+        assertThrows(function() {
+          Polymer({
+            is: 'has-no-template-throws'
+          });
+          var el = document.createElement('has-no-template-throws');
+          document.getElementById('target').appendChild(el);
+        }, /expecting dom-module or null _template/);
+      });
+
+      test('template helpers in trusted templates work', function() {
+        var el = document.createElement('trusted-templates');
+        document.getElementById('target').appendChild(el);
+        Polymer.dom.flush();
+        assert.ok(Polymer.dom(el.root).querySelector('#dom-repeat-ok'));
+        assert.ok(Polymer.dom(el.root).querySelector('#dom-if-ok'));
+        assert.ok(Polymer.dom(el.root).querySelector('#nested-dom-repeat-ok'));
+        assert.ok(Polymer.dom(el.root).querySelector('#nested-dom-if-ok'));
+      });
+
+    });
+  </script>
+    
+</body>
+</html>
