@@ -130,7 +130,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
-     * Returns a memoized version of the the `observers` array.
+     * Returns a memoized version of the `observers` array.
      * @param {PolymerElementConstructor} constructor Element class
      * @return {Array} Array containing own observers for the given class
      * @protected
@@ -154,7 +154,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * alter these settings. However, additional `observers` may be added
      * by subclasses.
      *
-     * The info object should may contain property metadata as follows:
+     * The info object should contain property metadata as follows:
      *
      * * `type`: {function} type to which an attribute matching the property
      * is deserialized. Note the property is camel-cased from a dash-cased
@@ -166,7 +166,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * property 'foo',
      *
      * * `computed`: {string} creates a computed property. A computed property
-     * also automatically is set to `readOnly: true`. The value is calculated
+     * is also automatically set to `readOnly: true`. The value is calculated
      * by running a method and arguments parsed from the given string. For
      * example 'compute(foo)' will compute a given property when the
      * 'foo' property changes by executing the 'compute' method. This method
@@ -277,6 +277,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
 
     /**
+     * Look up template from dom-module for element
+     *
+     * @param {!string} is Element name to look up
+     * @return {!HTMLTemplateElement} Template found in dom module, or
+     *   undefined if not found
+     * @protected
+     */
+    function getTemplateFromDomModule(is) {
+      let template = null;
+      if (is && Polymer.DomModule) {
+        template = Polymer.DomModule.import(is, 'template');
+        // Under strictTemplatePolicy, require any element with an `is`
+        // specified to have a dom-module
+        if (Polymer.strictTemplatePolicy && !template) {
+          throw new Error(`strictTemplatePolicy: expecting dom-module or null template for ${is}`);
+        }
+      }
+      return template;
+    }
+
+  /**
      * @polymer
      * @mixinClass
      * @unrestricted
@@ -374,7 +395,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *   class MySubClass extends MySuperClass {
        *     static get template() {
        *       if (!memoizedTemplate) {
-       *         memoizedTemplate = super.template.cloneNode(true);
+       *         memoizedTemplate = MySuperClass.template.cloneNode(true);
        *         let subContent = document.createElement('div');
        *         subContent.textContent = 'This came from MySubClass';
        *         memoizedTemplate.content.appendChild(subContent);
@@ -386,15 +407,41 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {HTMLTemplateElement|string} Template to be stamped
        */
       static get template() {
+        // Explanation of template-related properties:
+        // - constructor.template (this getter): the template for the class.
+        //     This can come from the prototype (for legacy elements), from a
+        //     dom-module, or from the super class's template (or can be overridden
+        //     altogether by the user)
+        // - constructor._template: memoized version of constructor.template
+        // - prototype._template: working template for the element, which will be
+        //     parsed and modified in place. It is a cloned version of
+        //     constructor.template, saved in _finalizeClass(). Note that before
+        //     this getter is called, for legacy elements this could be from a
+        //     _template field on the info object passed to Polymer(), a behavior,
+        //     or set in registered(); once the static getter runs, a clone of it
+        //     will overwrite it on the prototype as the working template.
         if (!this.hasOwnProperty(JSCompiler_renameProperty('_template', this))) {
-          this._template = Polymer.DomModule && Polymer.DomModule.import(
-            /** @type {PolymerElementConstructor}*/ (this).is, 'template') ||
-            // note: implemented so a subclass can retrieve the super
-            // template; call the super impl this way so that `this` points
-            // to the superclass.
-            Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.template;
+          this._template =
+            // If user has put template on prototype (e.g. in legacy via registered
+            // callback or info object), prefer that first
+            this.prototype.hasOwnProperty(JSCompiler_renameProperty('_template', this.prototype)) ?
+            this.prototype._template :
+            // Look in dom-module associated with this element's is
+            (getTemplateFromDomModule(/** @type {PolymerElementConstructor}*/ (this).is) ||
+            // Next look for superclass template (call the super impl this
+            // way so that `this` points to the superclass)
+            Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.template);
         }
         return this._template;
+      }
+
+      /**
+       * Set the template.
+       *
+       * @param {!HTMLTemplateElement|string} value Template to set.
+       */
+      static set template(value) {
+        this._template = value;
       }
 
       /**
@@ -404,7 +451,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * The `importPath` property is also set on element instances and can be
        * used to create bindings relative to the import path.
        *
-       * For elements defined in ES modules, users should implement 
+       * For elements defined in ES modules, users should implement
        * `static get importMeta() { return import.meta; }`, and the default
        * implementation of `importPath` will  return `import.meta.url`'s path.
        * For elements defined in HTML imports, this getter will return the path
