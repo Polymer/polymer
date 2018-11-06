@@ -91,5 +91,5 @@ declare namespace Polymer {
    *
    * @returns Generated class
    */
-  function Class(info: PolymerInit, mixin: (p0: T|null) => T|null): {new(): HTMLElement};
+  function Class<T>(info: PolymerInit, mixin: (p0: T) => T): {new(): HTMLElement};
 }
