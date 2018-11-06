@@ -24,20 +24,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       attributeChanged: true,
     };
 
-    const noCopyProps = Object.assign({
+    const excludeProps = Object.assign({
       behaviors: true
     }, metaProps);
 
-    const filteredProps = Object.assign({
+    const lifecycleProps = Object.assign({
       listeners: true,
       hostAttributes: true
     }, metaProps);
 
     function copyProperties(source, target) {
       for (let p in source) {
-        // NOTE: cannot copy `noCopyProps` methods onto prototype at least because
+        // NOTE: cannot copy `excludeProps` methods onto prototype at least because
         // `super.ready` must be called and is not included in the user fn.
-        if (!(p in noCopyProps)) {
+        if (!(p in excludeProps)) {
           let pd = Object.getOwnPropertyDescriptor(source, p);
           if (pd) {
             Object.defineProperty(target, p, pd);
@@ -95,18 +95,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     // If lifecycle is called (super then me), order is
     // (1) C.created, (2) A.created, (3) B.created, (4) element.created
     // (again same as 1.x)
-    function copyAndFilterBehaviors(proto, behaviors, lifecycle) {
+    function applyBehaviors(proto, behaviors, lifecycle) {
       for (let i=0; i<behaviors.length; i++) {
-        copyAndFilterProperties(proto, behaviors[i], lifecycle);
+        applyInfo(proto, behaviors[i], lifecycle);
       }
     }
 
-    function copyAndFilterProperties(proto, infoOrBehavior, lifecycle) {
-      copyProperties(infoOrBehavior, proto);
-      for (let p in filteredProps) {
-        if (infoOrBehavior[p]) {
+    function applyInfo(proto, info, lifecycle) {
+      copyProperties(info, proto);
+      for (let p in lifecycleProps) {
+        if (info[p]) {
           lifecycle[p] = lifecycle[p] || [];
-          lifecycle[p].push(infoOrBehavior[p]);
+          lifecycle[p].push(info[p]);
         }
       }
     }
@@ -219,7 +219,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     function GenerateClassFromInfo(info, Base, behaviors) {
 
       // manages behavior and lifecycle processing (filled in after class definition)
-      let activeBehaviors;
+      let behaviorList;
       const lifecycle = {};
 
       /** @private */
@@ -227,9 +227,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         static get properties() {
           const properties = {};
-          if (activeBehaviors) {
-            for (let i=0, b; i < activeBehaviors.length; i++) {
-              b = activeBehaviors[i];
+          if (behaviorList) {
+            for (let i=0, b; i < behaviorList.length; i++) {
+              b = behaviorList[i];
               mergeElementProperties(properties, b.properties);
             }
           }
@@ -239,9 +239,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
         static get observers() {
           let observers = [];
-          if (activeBehaviors) {
-            for (let i=0, b; i < activeBehaviors.length; i++) {
-              b = activeBehaviors[i];
+          if (behaviorList) {
+            for (let i=0, b; i < behaviorList.length; i++) {
+              b = behaviorList[i];
               if (b.observers) {
                 observers = observers.concat(b.observers);
               }
@@ -279,10 +279,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
            `is` in `beforeRegister` as you could in 1.x.
           */
           const proto = this;
-          if (activeBehaviors) {
-            copyAndFilterBehaviors(proto, activeBehaviors, lifecycle);
+          if (behaviorList) {
+            applyBehaviors(proto, behaviorList, lifecycle);
           }
-          copyAndFilterProperties(proto, info, lifecycle);
+          applyInfo(proto, info, lifecycle);
           let list = lifecycle.beforeRegister;
           if (list) {
             for (let i=0; i < list.length; i++) {
@@ -403,9 +403,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
         let superBehaviors = Base.prototype.behaviors;
         // get flattened, deduped list of behaviors *not* already on super class
-        activeBehaviors = flattenBehaviors(behaviors, null, superBehaviors);
+        behaviorList = flattenBehaviors(behaviors, null, superBehaviors);
         PolymerGenerated.prototype.behaviors = superBehaviors ?
-          superBehaviors.concat(behaviors) : activeBehaviors;
+          superBehaviors.concat(behaviors) : behaviorList;
       }
 
       PolymerGenerated.generatedFrom = info;
