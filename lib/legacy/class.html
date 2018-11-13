@@ -218,13 +218,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       behaviors not active on the superclass. In order to call through to the
       entire list of lifecycle methods, it's important to call `super`.
 
-      The element's `properties`, `observers`, and the `_registered` method
-      are controlled via the finalization mechanism provided by `PropertiesMixin`.
+      The element's `properties` and `observers` are controlled via the finalization
+      mechanism provided by `PropertiesMixin`. `Properties` and `observers` are
+      collected by manually traversing the prototype chain and merging.
 
-      `Properties` and `observers` are collected by manually traversing the prototype
-      chain and merging. The `_registered` method is called via
-      `LegacyElementMixin._finalizeClass`.
-
+      To limit changes, the `_registered` method is called via `_initializeProperties`
+      and not `_finalizeClass`.
     */
     /**
      * @param {!PolymerInit} info Polymer info object
@@ -290,27 +289,37 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Called on element prototype
         _registered() {
           /* NOTE: `beforeRegister` is called here for bc, but the behavior
-           is different than in 1.x. In 1.0, the method was called *after*
-           mixing prototypes together but *before* processing of meta-objects.
-           However, dynamic effects can still be set here and can be done either
-           in `beforeRegister` or `registered`. It is no longer possible to set
-           `is` in `beforeRegister` as you could in 1.x.
+            is different than in 1.x. In 1.0, the method was called *after*
+            mixing prototypes together but *before* processing of meta-objects.
+            However, dynamic effects can still be set here and can be done either
+            in `beforeRegister` or `registered`. It is no longer possible to set
+            `is` in `beforeRegister` as you could in 1.x.
           */
-          const proto = this;
-          // copy properties lazily if we're optimizing
-          if (Polymer.legacyOptimizations) {
-            copyPropertiesToProto(proto);
-          }
-          let list = lifecycle.beforeRegister;
-          if (list) {
-            for (let i=0; i < list.length; i++) {
-              list[i].call(proto);
+          // only proceed if the generated class' prototype has not been registered.
+          const generatedProto = PolymerGenerated.prototype;
+          if (!generatedProto.hasOwnProperty('__hasRegisterFinished')) {
+            generatedProto.__hasRegisterFinished = true;
+            // ensure superclass is registered first.
+            super._registered();
+            // copy properties onto the generated class lazily if we're optimizing,
+            if (Polymer.legacyOptimizations) {
+              copyPropertiesToProto(generatedProto);
             }
-          }
-          list = lifecycle.registered;
-          if (list) {
-            for (let i=0; i < list.length; i++) {
-              list[i].call(proto);
+            // make sure legacy lifecycle is called on the *element*'s prototype
+            // and not the generated class prototype; if the element has been
+            // extended, these are *not* the same.
+            const proto = Object.getPrototypeOf(this);
+            let list = lifecycle.beforeRegister;
+            if (list) {
+              for (let i=0; i < list.length; i++) {
+                list[i].call(proto);
+              }
+            }
+            list = lifecycle.registered;
+            if (list) {
+              for (let i=0; i < list.length; i++) {
+                list[i].call(proto);
+              }
             }
           }
         }
@@ -521,8 +530,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let klass = mixin ? mixin(Polymer.LegacyElementMixin(HTMLElement)) :
           Polymer.LegacyElementMixin(HTMLElement);
       klass = GenerateClassFromInfo(info, klass, info.behaviors);
+      if (info._enableDisableUpgrade) {
+        klass = Polymer.DisableUpgradeMixin(klass);
+      }
       // decorate klass with registration info
-      klass.is = info.is;
+      klass.is = klass.prototype.is = info.is;
       return klass;
     };
 
