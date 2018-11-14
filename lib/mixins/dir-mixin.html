@@ -19,6 +19,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     const EL_DIR = /([\s\w-#\.\[\]\*]*):dir\((ltr|rtl)\)/g;
     const EL_DIR_REPLACMENT = ':host([dir="$2"]) $1';
 
+    const DIR_CHECK = /:dir\((?:ltr|rtl)\)/;
+    
+    const SHIM_SHADOW = Boolean(window['ShadyDOM'] && window['ShadyDOM']['inUse']);
+
     /**
      * @type {!Array<!Polymer_DirMixin>}
      */
@@ -80,10 +84,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     Polymer.DirMixin = Polymer.dedupingMixin((base) => {
 
-      if (!observer) {
-        getRTL();
-        observer = new MutationObserver(updateDirection);
-        observer.observe(document.documentElement, {attributes: true, attributeFilter: ['dir']});
+      if (!SHIM_SHADOW) {
+        if (!observer) {
+          getRTL();
+          observer = new MutationObserver(updateDirection);
+          observer.observe(document.documentElement, {attributes: true, attributeFilter: ['dir']});
+        }
       }
 
       /**
@@ -107,7 +113,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
          */
         static _processStyleText(cssText, baseURI) {
           cssText = super._processStyleText(cssText, baseURI);
-          cssText = this._replaceDirInCssText(cssText);
+          if (!SHIM_SHADOW && DIR_CHECK.test(cssText)) {
+            cssText = this._replaceDirInCssText(cssText);
+            this.__activateDir = true;
+          }
           return cssText;
         }
 
@@ -121,9 +130,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           let replacedText = text;
           replacedText = replacedText.replace(HOST_DIR, HOST_DIR_REPLACMENT);
           replacedText = replacedText.replace(EL_DIR, EL_DIR_REPLACMENT);
-          if (text !== replacedText) {
-            this.__activateDir = true;
-          }
           return replacedText;
         }
 
