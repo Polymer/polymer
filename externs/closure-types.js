@@ -877,6 +877,10 @@ Polymer_ElementMixin.createProperties = function(props){};
 */
 Polymer_ElementMixin._finalizeClass = function(){};
 /**
+* @return {undefined}
+*/
+Polymer_ElementMixin._prepareTemplate = function(){};
+/**
 * @param {Object} observers Array of observer descriptors for
   this class
 * @param {Object} dynamicFns Object containing keys for any properties
@@ -1298,10 +1302,6 @@ Polymer_LegacyElementMixin.prototype._error = function(args){};
 * @return {Array}
 */
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
-/**
-* @return {undefined}
-*/
-Polymer_LegacyElementMixin._finalizeClass = function(){};
 /**
 * @interface
 */

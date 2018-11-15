@@ -100,6 +100,7 @@ declare namespace Polymer {
      * find the template.
      */
     _finalizeClass(): void;
+    _prepareTemplate(): void;
 
     /**
      * Creates observers for the given `observers` array.
