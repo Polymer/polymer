@@ -9,6 +9,7 @@
  */
 
 /// <reference path="legacy-element-mixin.d.ts" />
+/// <reference path="../mixins/disable-upgrade-mixin.d.ts" />
 
 declare namespace Polymer {
 
