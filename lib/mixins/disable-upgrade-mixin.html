@@ -12,16 +12,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
   'use strict';
 
-  const DISABLED_ATTR = 'disable-upgrade';
+  const DISABLE_UPGRADE = 'disable-upgrade';
 
   /**
    * Element class mixin that allows the element to boot up in a non-enabled
    * state when the `disable-upgrade` attribute is present. This mixin is
-   * designed to be used with element classes like Polymer.Element that perform
+   * designed to be used with element classes like PolymerElement that perform
    * initial startup work when they are first connected. When the
-   * `disable-upgrade` attribute is removed, if the element is connected, it
-   * boots up and "enables" as it otherwise would; if it is not connected, the
-   * element boots up when it is next connected.
+   * `disable-upgrade` attribute is removed, the element
+   * boots up and "enables" as it otherwise would.
+   *
+   * For legacy elements, it also prevents the `created` method from being called
+   * and event listeners from being added.
    *
    * Using `disable-upgrade` with Polymer.Element prevents any data propagation
    * to the element, any element DOM from stamping, or any work done in
@@ -38,32 +40,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @polymer
    * @appliesMixin Polymer.ElementMixin
    * @memberof Polymer
+   * @param {Object} base base class on which to apply mixin
+   * @return {Object} class with mixin applied
    */
-  Polymer.DisableUpgradeMixin = Polymer.dedupingMixin((base) => {
-
-    /**
-     * @constructor
-     * @extends {base}
-     * @implements {Polymer_ElementMixin}
-     * @private
-     */
-    const superClass = Polymer.ElementMixin(base);
+  Polymer.DisableUpgradeMixin = (base) => {
 
     /**
      * @polymer
      * @mixinClass
      * @implements {Polymer_DisableUpgradeMixin}
      */
-    class DisableUpgradeClass extends superClass {
+    class DisableUpgradeClass extends base {
 
       /** @override */
       static get observedAttributes() {
-        return super.observedAttributes.concat(DISABLED_ATTR);
+        return super.observedAttributes.concat(DISABLE_UPGRADE);
       }
 
       /** @override */
       attributeChangedCallback(name, old, value, namespace) {
-        if (name == DISABLED_ATTR) {
+        if (name == DISABLE_UPGRADE) {
           if (!this.__dataEnabled && value == null && this.isConnected) {
             super.connectedCallback();
           }
@@ -72,18 +68,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      /*
-        NOTE: cannot gate on attribute because this is called before
-        attributes are delivered. Therefore, we stub this out and
-        call `super._initializeProperties()` manually.
-      */
-     /** @override */
-      _initializeProperties() {}
+      // disable while `disable-upgrade` is on
+      created() {}
+
+      // disable while `disable-upgrade` is on
+      _applyListeners() {}
 
       // prevent user code in connected from running
       /** @override */
       connectedCallback() {
-        if (this.__dataEnabled || !this.hasAttribute(DISABLED_ATTR)) {
+        if (this.__dataEnabled || !this.hasAttribute(DISABLE_UPGRADE)) {
           super.connectedCallback();
         }
       }
@@ -91,11 +85,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // prevent element from turning on properties
       /** @override */
       _enableProperties() {
-        if (!this.hasAttribute(DISABLED_ATTR)) {
-          if (!this.__dataEnabled) {
-            super._initializeProperties();
+        if (!this.__dataEnabled) {
+          if (!this.hasAttribute(DISABLE_UPGRADE)) {
+            // When enabling, run previously disabled lifecycle.
+            // NOTE: This alters the timing of disabled lifecycle for all
+            // elements that support `disable-upgrade`
+            if (super.created) {
+              super.created();
+            }
+            if (super._applyListeners) {
+              super._applyListeners();
+            }
+            super._enableProperties();
           }
-          super._enableProperties();
         }
       }
 
@@ -111,7 +113,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return DisableUpgradeClass;
 
-  });
+  };
 
 })();
 

@@ -9,6 +9,7 @@
  */
 
 /// <reference path="../utils/boot.d.ts" />
+/// <reference path="../utils/telemetry.d.ts" />
 /// <reference path="../utils/mixin.d.ts" />
 /// <reference path="properties-changed.d.ts" />
 

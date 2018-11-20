@@ -22,8 +22,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </dom-module>
 
+  <dom-module id="template-from-base">
+    <template>
+      <div id="from-base">should not be used</div>
+    </template>
+  </dom-module>
+
   <script>
   HTMLImports.whenReady(function() {
+
+    Polymer.setLegacyOptimizations(Boolean(window.location.search.match('legacyOptimizations')));
+
     window.BehaviorA = {
       properties: {
 
@@ -57,6 +66,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           computed: '_computeProp(computeADependency)'
         }
       },
+
+      observers: [],
 
       _simpleProperty: 'A',
 
@@ -283,6 +294,146 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
       is: 'behavior-registered'
     });
+
+    window.templateBehavior1 = {
+      _template: Polymer.html`<div id="from-behavior1"></div>`
+    };
+
+    window.templateBehavior2 = {
+      _template: Polymer.html`<div id="from-behavior2"></div>`
+    };
+
+    window.templateBehaviorFromRegistered = {
+      registered: function() {
+        this._template = Polymer.html`<div id="behavior-from-registered"></div>`;
+      }
+    };
+
+    Polymer({
+      is: 'template-from-registered',
+      registered: function() {
+        this._template = Polymer.html`<div id="from-registered"></div>`;
+      }
+    });
+
+    Polymer({
+      is: 'template-from-base',
+      behaviors: [
+        window.templateBehavior1
+      ]
+    });
+
+    Polymer({
+      is: 'template-from-behavior',
+      behaviors: [
+        window.templateBehavior1
+      ]
+    });
+
+    Polymer({
+      is: 'template-from-behavior-overridden',
+      behaviors: [
+        window.templateBehavior1,
+        window.templateBehavior2
+      ]
+    });
+
+    Polymer({
+      is: 'template-from-behavior-registered',
+      behaviors: [
+        window.templateBehaviorFromRegistered
+      ]
+    });
+
+    window.ModifyObserversBehavior = {
+
+      __barChangedCalled: 0,
+
+      beforeRegister: function() {
+        const observers = this.constructor.generatedFrom.observers;
+        this.constructor.generatedFrom.observers = observers.concat([
+          '_barChanged(bar)'
+        ]);
+      },
+
+      _barChanged: function() {
+        this.__barChangedCalled++;
+      }
+
+    };
+
+    Polymer({
+      is: 'modify-observers-via-behavior',
+      __zonkChangedCalled: 0,
+      observers: [
+        '_zonkChanged(zonk)'
+      ],
+      behaviors: [
+        window.ModifyObserversBehavior
+      ],
+      _zonkChanged: function() {
+        this.__zonkChangedCalled++;
+      }
+    });
+
+    Polymer({
+      is: 'behavior-properties',
+      behaviors: [window.BehaviorA]
+    });
+
+    Polymer({
+      is: 'no-accessors-behavior',
+      behaviors: [{
+        _noAccessors: true,
+        properties: {
+          nug: String
+        },
+        foo: function() {},
+        bar: true
+      }],
+      _noAccessors: true,
+      zot: 'zot'
+    });
+
+    Polymer({
+      is: 'override-default-value',
+      behaviors: [
+        {
+          properties: {
+            foo: { value: true },
+            bar: { value: true}
+          }
+        },
+        {
+          properties: {
+            foo: { value: true },
+            bar: String,
+            zot: {value: true}
+          }
+        },
+
+      ],
+
+      properties: {
+        foo: String,
+        zot: String
+      }
+    });
+
+    Polymer({
+      is: 'property-observer-readonly',
+      behaviors: [
+        {
+          observers: ['_changed(bar)'],
+          _changed() {}
+        }
+      ],
+
+      properties: {
+        bar: {readOnly: true}
+      }
+    });
+
   });
   </script>
 
@@ -309,6 +460,67 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <behavior-registered></behavior-registered>
     </template>
   </test-fixture>
+
+  <test-fixture id="from-registered">
+    <template>
+      <template-from-registered></template-from-registered>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="from-base">
+    <template>
+      <template-from-base></template-from-base>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="from-behavior">
+    <template>
+      <template-from-behavior></template-from-behavior>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="from-behavior-overridden">
+    <template>
+      <template-from-behavior-overridden></template-from-behavior-overridden>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="from-behavior-registered">
+    <template>
+      <template-from-behavior-registered></template-from-behavior-registered>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="modify-observers-via-behavior">
+    <template>
+      <modify-observers-via-behavior></modify-observers-via-behavior>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="behavior-properties">
+    <template>
+      <behavior-properties></behavior-properties>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="no-accessors-behavior">
+    <template>
+      <no-accessors-behavior></no-accessors-behavior>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="override-default-value">
+    <template>
+      <override-default-value></override-default-value>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="property-observer-readonly">
+    <template>
+      <property-observer-readonly></property-observer-readonly>
+    </template>
+  </test-fixture>
+
 <script>
 
 suite('single behavior element', function() {
@@ -354,6 +566,36 @@ suite('single behavior element', function() {
     assert.equal(el.computeA, true);
   });
 
+  test('special properties not copied from behavior to element', function() {
+    const el = fixture('behavior-properties');
+    assert.notOk(el.properties);
+    assert.notOk(el.observers);
+    assert.notOk(el.hostAttributes);
+    assert.notOk(el.listeners);
+  });
+
+  test('properties on objects marked with `_noAccessors` are copied to class', function() {
+    const el = fixture('no-accessors-behavior');
+    assert.ok(el.foo);
+    assert.isTrue(el.bar);
+    assert.equal(el.zot, 'zot');
+    el.setAttribute('nug', 'nug');
+    assert.equal(el.nug, 'nug');
+  });
+
+  test('behavior default values can be overridden', function() {
+    const el = fixture('override-default-value');
+    assert.notOk(el.foo);
+    assert.notOk(el.bar);
+    assert.notOk(el.zot);
+  });
+
+  test('readOnly not applied when property was previously observed', function() {
+    const el = fixture('property-observer-readonly');
+    el.bar = 5;
+    assert.equal(el.bar, 5);
+  });
+
 });
 
 suite('behavior.registered', function() {
@@ -389,6 +631,14 @@ suite('behavior.beforeRegister', function() {
     assert.equal(el.beforeRegisterCount, 4);
     assert.equal(el.beforeRegisterBehaviors.length, 3);
     assert.equal(el.beforeRegisterBehaviors, el.behaviors);
+  });
+
+  test('modify element observers', function() {
+    var el = fixture('modify-observers-via-behavior');
+    el.bar = 1;
+    assert.equal(el.__barChangedCalled, 1);
+    el.zonk = 1;
+    assert.equal(el.__zonkChangedCalled, 1);
   });
 
 });
@@ -501,6 +751,37 @@ suite('nested-behaviors element', function() {
     assert.ok(el.hasBehaviorC, "missing BehaviorC");
     assert.ok(el.hasBehaviorD, "missing BehaviorD");
     assert.equal(el._simpleProperty, 'D', 'Behavior simple property was not overridden by sub-behavior');
+  });
+
+});
+
+suite('templates from behaviors', function() {
+
+  test('template from registered callback', function() {
+    var el = fixture('from-registered');
+    assert.ok(el.shadowRoot.querySelector('#from-registered'));
+  });
+
+  test('template from base', function() {
+    var el = fixture('from-base');
+    assert.notOk(el.shadowRoot.querySelector('#from-base'));
+    assert.ok(el.shadowRoot.querySelector('#from-behavior1'));
+  });
+
+  test('template from behavior', function() {
+    var el = fixture('from-behavior');
+    assert.ok(el.shadowRoot.querySelector('#from-behavior1'));
+  });
+
+  test('template from overriding behavior', function() {
+    var el = fixture('from-behavior-overridden');
+    assert.notOk(el.shadowRoot.querySelector('#from-behavior1'));
+    assert.ok(el.shadowRoot.querySelector('#from-behavior2'));
+  });
+
+  test('template from behavior registered callback', function() {
+    var el = fixture('from-behavior-registered');
+    assert.ok(el.shadowRoot.querySelector('#behavior-from-registered'));
   });
 
 });

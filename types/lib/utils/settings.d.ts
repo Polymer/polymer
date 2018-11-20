@@ -37,4 +37,11 @@ declare namespace Polymer {
    * Sets `passiveTouchGestures` globally for all elements using Polymer Gestures.
    */
   function setPassiveTouchGestures(usePassive: boolean): void;
+
+
+  /**
+   * Sets `legacyOptimizations` globally for all elements. Enables
+   * optimizations when only legacy Polymer() style elements are used.
+   */
+  function setLegacyOptimizations(useLegacyOptimizations: boolean): void;
 }

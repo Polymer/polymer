@@ -9,6 +9,7 @@
  */
 
 /// <reference path="legacy-element-mixin.d.ts" />
+/// <reference path="../mixins/disable-upgrade-mixin.d.ts" />
 
 declare namespace Polymer {
 
@@ -91,5 +92,5 @@ declare namespace Polymer {
    *
    * @returns Generated class
    */
-  function Class(info: PolymerInit): {new(): HTMLElement};
+  function Class<T>(info: PolymerInit, mixin: (p0: T) => T): {new(): HTMLElement};
 }

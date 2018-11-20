@@ -877,6 +877,10 @@ Polymer_ElementMixin.createProperties = function(props){};
 */
 Polymer_ElementMixin._finalizeClass = function(){};
 /**
+* @return {undefined}
+*/
+Polymer_ElementMixin._prepareTemplate = function(){};
+/**
 * @param {Object} observers Array of observer descriptors for
   this class
 * @param {Object} dynamicFns Object containing keys for any properties
@@ -1300,6 +1304,35 @@ Polymer_LegacyElementMixin.prototype._error = function(args){};
 Polymer_LegacyElementMixin.prototype._logf = function(methodName, args){};
 /**
 * @interface
+* @extends {Polymer_ElementMixin}
+*/
+function Polymer_DisableUpgradeMixin(){}
+/**
+* @override
+*/
+Polymer_DisableUpgradeMixin.prototype._enableProperties = function(){};
+/**
+* @override
+*/
+Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value, namespace){};
+/**
+* @override
+*/
+Polymer_DisableUpgradeMixin.prototype.connectedCallback = function(){};
+/**
+* @override
+*/
+Polymer_DisableUpgradeMixin.prototype.disconnectedCallback = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DisableUpgradeMixin.prototype.created = function(){};
+/**
+* @return {undefined}
+*/
+Polymer_DisableUpgradeMixin.prototype._applyListeners = function(){};
+/**
+* @interface
 */
 function Polymer_MutableData(){}
 /**
@@ -1390,26 +1423,19 @@ function Polymer_StrictBindingParser(){}
 Polymer_StrictBindingParser._parseBindings = function(text, templateInfo){};
 /**
 * @interface
-* @extends {Polymer_ElementMixin}
 */
-function Polymer_DisableUpgradeMixin(){}
+function Polymer_LegacyDataMixin(){}
 /**
-* @override
+* @param {string} property Property that should trigger the effect
+* @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
+* @param {Object=} effect Effect metadata object
+* @return {void}
 */
-Polymer_DisableUpgradeMixin.prototype._initializeProperties = function(){};
+Polymer_LegacyDataMixin.prototype._addPropertyEffect = function(property, type, effect){};
 /**
-* @override
+* @param {Object} templateInfo Template metadata to add effect to
+* @param {string} prop Property that should trigger the effect
+* @param {Object=} effect Effect metadata object
+* @return {void}
 */
-Polymer_DisableUpgradeMixin.prototype._enableProperties = function(){};
-/**
-* @override
-*/
-Polymer_DisableUpgradeMixin.prototype.attributeChangedCallback = function(name, old, value, namespace){};
-/**
-* @override
-*/
-Polymer_DisableUpgradeMixin.prototype.connectedCallback = function(){};
-/**
-* @override
-*/
-Polymer_DisableUpgradeMixin.prototype.disconnectedCallback = function(){};
+Polymer_LegacyDataMixin._addTemplatePropertyEffect = function(templateInfo, prop, effect){};

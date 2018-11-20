@@ -19,9 +19,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <script>
   HTMLImports.whenReady(function() {
     window.LifeCycleBehavior1 = {
-      _calledCreated: 0,
-      _calledAttached: 0,
-      _calledAttributeChanged: 0,
 
       properties: {
         foo: {
@@ -30,27 +27,45 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       },
 
       created() {
-        this._calledCreated++;
+        this.__createdList = this.__createdList || [];
+        this.__createdList.push('1');
       },
 
       attached() {
-        this._calledAttached++;
+        this.__attachedList = this.__attachedList || [];
+        this.__attachedList.push('1');
       },
 
       attributeChanged() {
-        this._calledAttributeChanged++;
+        this.__attributeChangedList = this.__attributeChangedList || [];
+        this.__attributeChangedList.push('1');
       }
     };
 
     window.LifeCycleBehavior2 = {
       created() {
-        this._calledCreated++;
+        this.__createdList = this.__createdList || [];
+        this.__createdList.push('2');
       },
 
       attached() {
-        this._calledAttached++;
-      },
+        this.__attachedList = this.__attachedList || [];
+        this.__attachedList.push('2');
+      }
+    };
 
+    window.LifeCycleBehavior3 = {
+      created() {
+        this.__createdList = this.__createdList || [];
+        this.__createdList.push('3');
+      }
+    };
+
+    window.LifeCycleBehavior4 = {
+      created() {
+        this.__createdList = this.__createdList || [];
+        this.__createdList.push('4');
+      }
     };
 
     window.BehaviorA = {
@@ -252,19 +267,40 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </script>
   </dom-module>
 
-  <dom-module id="nested-behaviors">
     <script>
     HTMLImports.whenReady(function() {
+
       customElements.define('nested-behaviors',
-        class extends Polymer.mixinBehaviors(
+        class extends Polymer.mixinBehaviors([window.BehaviorD, window.LifeCycleBehavior1], Polymer.mixinBehaviors(
           [
-            [window.BehaviorB, [window.BehaviorC, window.BehaviorB], window.BehaviorA],
-            [window.BehaviorD]
-          ], Polymer.Element) {
+            [window.BehaviorB, [window.BehaviorC, window.BehaviorB], window.BehaviorA, window.LifeCycleBehavior2],
+          ], Polymer.Element)) {
       });
+
+      var base = Polymer({
+        is: 'sup-element',
+        behaviors: [
+          window.LifeCycleBehavior1,
+          window.LifeCycleBehavior2
+        ],
+        created: function() {
+          this.__createdList.push('sup');
+        }
+      });
+
+      class extended extends Polymer.mixinBehaviors([window.LifeCycleBehavior3,
+          window.LifeCycleBehavior4], base) {
+
+        created() {
+          super.created();
+          this.__createdList.push('sub');
+        }
+      }
+
+      customElements.define('extended-behaviors', extended);
+
     });
     </script>
-  </dom-module>
 
   <dom-module id="behavior-registered">
     <template>
@@ -274,6 +310,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     HTMLImports.whenReady(function() {
 
       window.registerBehavior1 ={
+        registeredCount: 0,
         registered: function() {
           this._createPropertyObserver('prop', 'propChanged1');
           this._createMethodObserver('propChanged2(prop)');
@@ -321,20 +358,67 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         }
       }
 
-      BehaviorRegistered.prototype.registeredCount = 0;
-
       customElements.define(BehaviorRegistered.is, BehaviorRegistered);
 
       class BehaviorRegisteredExt extends BehaviorRegistered {
         static get is() { return 'behavior-registered-ext';}
       }
 
-      BehaviorRegisteredExt.prototype.registeredCount = 0;
-
       customElements.define(BehaviorRegisteredExt.is, BehaviorRegisteredExt);
     });
     </script>
   </dom-module>
+
+  <script>
+    HTMLImports.whenReady(function() {
+      var klass = Polymer.mixinBehaviors([
+        {
+          __fooChangedCalled: 0,
+          beforeRegister: function() {
+            this.constructor.generatedFrom.observers = [
+              '_fooChanged(foo)'
+            ];
+          },
+          _fooChanged: function() {
+            this.__fooChangedCalled++;
+          }
+        }
+      ], Polymer.Element);
+
+      customElements.define('before-register-observers', klass);
+
+      const Base = Polymer.mixinBehaviors([{
+        registered() {
+          this.usedExtendedProto = this.canUseExtendedProto;
+        }
+      }], Polymer.Element);
+
+      customElements.define('registered-proto', Polymer.mixinBehaviors([
+        {canUseExtendedProto: true}
+      ], Base));
+
+
+      class Base2 extends Polymer.mixinBehaviors([{
+          properties: {b1: String} }], Polymer.Element) {
+
+        static get properties() {
+          return { e1: String};
+        }
+      }
+
+      class El extends Polymer.mixinBehaviors([{
+          properties: {b2: String}}], Base2) {
+
+        static get properties() {
+          return { e2: String};
+        }
+
+      }
+
+      customElements.define('extended-observed-attributes', El);
+
+    });
+  </script>
 
   <test-fixture id="single">
     <template>
@@ -356,7 +440,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   <test-fixture id="nested">
     <template>
-      <nested-behaviors></nested-behaviors>
+      <nested-behaviors foo="foo"></nested-behaviors>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="extended-behaviors">
+    <template>
+      <extended-behaviors></extended-behaviors>
     </template>
   </test-fixture>
 
@@ -366,11 +456,30 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     </template>
   </test-fixture>
 
+  <test-fixture id="before-register-observers">
+    <template>
+      <before-register-observers></before-register-observers>
+    </template>
+  </test-fixture>
+
   <test-fixture id="registered-ext">
     <template>
       <behavior-registered-ext></behavior-registered-ext>
     </template>
   </test-fixture>
+
+  <test-fixture id="registered-proto">
+    <template>
+      <registered-proto></registered-proto>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="extended-observed-attributes">
+    <template>
+      <extended-observed-attributes b1="b1" e1="e1" b2="b2" e2="e2"></extended-observed-attributes>
+    </template>
+  </test-fixture>
+
 <script>
 
 suite('single behavior element', function() {
@@ -410,7 +519,7 @@ suite('single behavior element', function() {
 
 });
 
-suite('behavior.registered', function() {
+suite('behavior.registered/beforeRegister', function() {
   test('can install dynamic properties', function() {
     var el = fixture('registered');
     assert.ok(el.$.content);
@@ -436,6 +545,17 @@ suite('behavior.registered', function() {
     assert.deepEqual(el.registeredProps, [true, true, true]);
   });
 
+  test('add observers via behavior in beforeRegister', function() {
+    var el = fixture('before-register-observers');
+    el.foo = 1;
+    assert.equal(el.__fooChangedCalled, 1);
+  });
+
+  test('registered called on class prototype when extended', function() {
+    var el = fixture('registered-proto');
+    assert.isTrue(el.usedExtendedProto);
+  });
+
 });
 
 suite('behavior lifecycle', function() {
@@ -447,9 +567,9 @@ suite('behavior lifecycle', function() {
     });
 
     test('lifecycle', function() {
-      assert.equal(el._calledCreated, 2, 'created call count wrong');
-      assert.equal(el._calledAttached, 2, 'attached call count wrong');
-      assert.equal(el._calledAttributeChanged, 1,  'attributeChanged call count wrong');
+      assert.deepEqual(el.__createdList, ['1', '2'], 'created list wrong');
+      assert.deepEqual(el.__attachedList, ['1', '2'], 'attached list wrong');
+      assert.deepEqual(el.__attributeChangedList, ['1'],  'attributeChanged list wrong');
     });
 
   });
@@ -552,7 +672,13 @@ suite('nested-behaviors element', function() {
   });
 
   test('nested-behavior dedups', function() {
-    assert.equal(el.behaviors.length, 4);
+    assert.equal(el.behaviors.length, 6);
+  });
+
+  test('nested-behavior lifecycle', function() {
+    assert.deepEqual(el.__createdList, ['2', '1'], 'created list wrong');
+    assert.deepEqual(el.__attachedList, ['2', '1'], 'attached list wrong');
+    assert.deepEqual(el.__attributeChangedList, ['1'],  'attributeChanged list wrong');
   });
 
   test('nested-behavior overrides ordering', function() {
@@ -561,6 +687,28 @@ suite('nested-behaviors element', function() {
     assert.ok(el.hasBehaviorC, "missing BehaviorC");
     assert.ok(el.hasBehaviorD, "missing BehaviorD");
     assert.equal(el._simpleProperty, 'D', 'Behavior simple property was not overridden by sub-behavior');
+  });
+
+});
+
+suite('extended-behaviors', function() {
+
+  var el;
+
+  setup(function() {
+    el = fixture('extended-behaviors');
+  });
+
+  test('lifecycle', function() {
+    assert.deepEqual(el.__createdList, ['1', '2', 'sup', '3', '4', 'sub'], 'created list wrong');
+  });
+
+  test('observedAttributes when extended', function() {
+    const el = fixture('extended-observed-attributes');
+    assert.equal(el.b1, 'b1');
+    assert.equal(el.e1, 'e1');
+    assert.equal(el.b2, 'b2');
+    assert.equal(el.e2, 'e2');
   });
 
 });
