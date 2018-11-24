@@ -20,7 +20,7 @@ Polymer lets you build encapsulated, reusable [Web Components](https://www.webco
 <paper-checkbox>Web Components!</paper-checkbox>
 ```
 
-Web Components are now implemented natively on Safari and Chrome (~70% of installed browsers), and run well on Firefox, Edge, and IE11 using [polyfills](https://github.com/webcomponents/webcomponentsjs).  Read more [below](#overview).
+Web Components are now implemented natively on Safari, Firefox and Chrome (~80% of installed browsers), and run well on Edge, and IE11 using [polyfills](https://github.com/webcomponents/webcomponentsjs).  Read more [below](#overview).
 
 ## Getting started
 
