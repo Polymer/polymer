@@ -21,6 +21,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 (function() {
   'use strict';
 
+  const builtCSS = window.ShadyCSS && window.ShadyCSS['cssBuild'];
+
   /**
    * Element class mixin that provides the core API for Polymer's meta-programming
    * features including template stamping, data-binding, attribute deserialization,
@@ -245,31 +247,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @private
      */
     function processElementStyles(klass, template, is, baseURI) {
-      const templateStyles = template.content.querySelectorAll('style');
-      const stylesWithImports = Polymer.StyleGather.stylesFromTemplate(template);
-      // insert styles from <link rel="import" type="css"> at the top of the template
-      const linkedStyles = Polymer.StyleGather.stylesFromModuleImports(is);
-      const firstTemplateChild = template.content.firstElementChild;
-      for (let idx = 0; idx < linkedStyles.length; idx++) {
-        let s = linkedStyles[idx];
-        s.textContent = klass._processStyleText(s.textContent, baseURI);
-        template.content.insertBefore(s, firstTemplateChild);
-      }
-      // keep track of the last "concrete" style in the template we have encountered
-      let templateStyleIndex = 0;
-      // ensure all gathered styles are actually in this template.
-      for (let i = 0; i < stylesWithImports.length; i++) {
-        let s = stylesWithImports[i];
-        let templateStyle = templateStyles[templateStyleIndex];
-        // if the style is not in this template, it's been "included" and
-        // we put a clone of it in the template before the style that included it
-        if (templateStyle !== s) {
-          s = s.cloneNode(true);
-          templateStyle.parentNode.insertBefore(s, templateStyle);
-        } else {
-          templateStyleIndex++;
+      if (!builtCSS) {
+        const templateStyles = template.content.querySelectorAll('style');
+        const stylesWithImports = Polymer.StyleGather.stylesFromTemplate(template);
+        // insert styles from <link rel="import" type="css"> at the top of the template
+        const linkedStyles = Polymer.StyleGather.stylesFromModuleImports(is);
+        const firstTemplateChild = template.content.firstElementChild;
+        for (let idx = 0; idx < linkedStyles.length; idx++) {
+          let s = linkedStyles[idx];
+          s.textContent = klass._processStyleText(s.textContent, baseURI);
+          template.content.insertBefore(s, firstTemplateChild);
         }
-        s.textContent = klass._processStyleText(s.textContent, baseURI);
+        // keep track of the last "concrete" style in the template we have encountered
+        let templateStyleIndex = 0;
+        // ensure all gathered styles are actually in this template.
+        for (let i = 0; i < stylesWithImports.length; i++) {
+          let s = stylesWithImports[i];
+          let templateStyle = templateStyles[templateStyleIndex];
+          // if the style is not in this template, it's been "included" and
+          // we put a clone of it in the template before the style that included it
+          if (templateStyle !== s) {
+            s = s.cloneNode(true);
+            templateStyle.parentNode.insertBefore(s, templateStyle);
+          } else {
+            templateStyleIndex++;
+          }
+          s.textContent = klass._processStyleText(s.textContent, baseURI);
+        }
       }
       if (window.ShadyCSS) {
         window.ShadyCSS.prepareTemplate(template, is);
@@ -313,16 +317,16 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @override
        * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
-     static _finalizeClass() {
+      static _finalizeClass() {
         super._finalizeClass();
-        if (this.hasOwnProperty(
-          JSCompiler_renameProperty('is', this)) &&  this.is) {
-          Polymer.telemetry.register(this.prototype);
-        }
         const observers = ownObservers(this);
         if (observers) {
           this.createObservers(observers, this._properties);
         }
+        this._prepareTemplate();
+      }
+
+      static _prepareTemplate() {
         // note: create "working" template that is finalized at instance time
         let template = /** @type {PolymerElementConstructor} */ (this).template;
         if (template) {
@@ -330,8 +334,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             let t = document.createElement('template');
             t.innerHTML = template;
             template = t;
-          } else {
-            template = template.cloneNode(true);
+          } else if (!Polymer.legacyOptimizations) {
+             template = template.cloneNode(true);
           }
         }
 
@@ -345,7 +349,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @protected
        * @override
        */
-       static createProperties(props) {
+      static createProperties(props) {
         for (let p in props) {
           createPropertyFromConfig(this.prototype, p, props[p], props);
         }
@@ -470,7 +474,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             this._importPath = Polymer.ResolveUrl.pathFromUrl(meta.url);
           } else {
             const module = Polymer.DomModule && Polymer.DomModule.import(/** @type {PolymerElementConstructor} */ (this).is);
-            this._importPath = (module && module.assetpath) || 
+            this._importPath = (module && module.assetpath) ||
               Object.getPrototypeOf(/** @type {PolymerElementConstructor}*/ (this).prototype).constructor.importPath;
           }
         }
@@ -506,7 +510,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @suppress {invalidCasts}
        */
       _initializeProperties() {
-        Polymer.telemetry.instanceCount++;
         this.constructor.finalize();
         // note: finalize template when we have access to `localName` to
         // avoid dependence on `is` for polyfilling styling.
@@ -724,53 +727,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     return PolymerElement;
   });
-
-  /**
-   * Provides basic tracking of element definitions (registrations) and
-   * instance counts.
-   *
-   * @namespace
-   * @summary Provides basic tracking of element definitions (registrations) and
-   * instance counts.
-   */
-  Polymer.telemetry = {
-    /**
-     * Total number of Polymer element instances created.
-     * @type {number}
-     */
-    instanceCount: 0,
-    /**
-     * Array of Polymer element classes that have been finalized.
-     * @type {Array<Polymer.Element>}
-     */
-    registrations: [],
-    /**
-     * @param {!PolymerElementConstructor} prototype Element prototype to log
-     * @this {this}
-     * @private
-     */
-    _regLog: function(prototype) {
-      console.log('[' + prototype.is + ']: registered');
-    },
-    /**
-     * Registers a class prototype for telemetry purposes.
-     * @param {HTMLElement} prototype Element prototype to register
-     * @this {this}
-     * @protected
-     */
-    register: function(prototype) {
-      this.registrations.push(prototype);
-      Polymer.log && this._regLog(prototype);
-    },
-    /**
-     * Logs all elements registered with an `is` to the console.
-     * @public
-     * @this {this}
-     */
-    dumpRegistrations: function() {
-      this.registrations.forEach(this._regLog);
-    }
-  };
 
   /**
    * When using the ShadyCSS scoping and custom property shim, causes all
