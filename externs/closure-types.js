@@ -15,6 +15,27 @@
 * @interface
 */
 function Polymer_PropertiesChanged(){}
+/** @type {boolean} */
+Polymer_PropertiesChanged.prototype.__dataEnabled;
+
+/** @type {boolean} */
+Polymer_PropertiesChanged.prototype.__dataReady;
+
+/** @type {boolean} */
+Polymer_PropertiesChanged.prototype.__dataInvalid;
+
+/** @type {Object} */
+Polymer_PropertiesChanged.prototype.__dataPending;
+
+/** @type {Object} */
+Polymer_PropertiesChanged.prototype.__dataOld;
+
+/** @type {Object} */
+Polymer_PropertiesChanged.prototype.__dataInstanceProps;
+
+/** @type {boolean} */
+Polymer_PropertiesChanged.prototype.__serializing;
+
 /**
 * @param {string} property Name of the property
 * @param {boolean=} readOnly When true, no setter is created; the
@@ -314,6 +335,12 @@ Polymer_TemplateStamp._contentForTemplate = function(template){};
 * @extends {Polymer_PropertyAccessors}
 */
 function Polymer_PropertyEffects(){}
+/** @type {!Object} */
+Polymer_PropertyEffects.prototype.__dataPending;
+
+/** @type {!Object} */
+Polymer_PropertyEffects.prototype.__dataOld;
+
 /** @type {boolean} */
 Polymer_PropertyEffects.prototype.__dataClientsReady;
 
@@ -343,12 +370,6 @@ Polymer_PropertyEffects.prototype.__dataClientsInitialized;
 
 /** @type {!Object} */
 Polymer_PropertyEffects.prototype.__data;
-
-/** @type {!Object} */
-Polymer_PropertyEffects.prototype.__dataPending;
-
-/** @type {!Object} */
-Polymer_PropertyEffects.prototype.__dataOld;
 
 /** @type {Object} */
 Polymer_PropertyEffects.prototype.__computeEffects;
