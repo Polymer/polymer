@@ -1,5 +1,172 @@
 # Change Log
 
+## [v2.7.0](https://github.com/Polymer/polymer/tree/v2.7.0) (2018-12-03)
+- Update to webcomponentsjs 1.3.0 ([commit](https://github.com/Polymer/polymer/commit/5df96021))
+
+- Lint fixes ([commit](https://github.com/Polymer/polymer/commit/41c75c26))
+
+- Fix settings to pull from Polymer object for defaults. ([commit](https://github.com/Polymer/polymer/commit/77f34369))
+
+- Update types ([commit](https://github.com/Polymer/polymer/commit/e8095154))
+
+- Merge css-build-dir changes into 2.x * Don't set up observer in ShadyDOM * Move __activateDir into check instead of replace * skip some tests that never really worked in ShadyDOM ([commit](https://github.com/Polymer/polymer/commit/cc1402d9))
+
+- Use closure-safe name ([commit](https://github.com/Polymer/polymer/commit/d74aa82a))
+
+- Add tests ([commit](https://github.com/Polymer/polymer/commit/db4dbf8f))
+
+- Ensure properties and observers are interleaved per behavior ([commit](https://github.com/Polymer/polymer/commit/bbf1acce))
+
+- Ensure property values are always overridden by extendors/behaviors ([commit](https://github.com/Polymer/polymer/commit/6f3057ec))
+
+- Ensure `registered` is always called on element prototype ([commit](https://github.com/Polymer/polymer/commit/29d514f7))
+
+- Do lazy behavior copying only when `legacyOptimizations` is set ([commit](https://github.com/Polymer/polymer/commit/44e48287))
+
+- Behavior property copying fixes ([commit](https://github.com/Polymer/polymer/commit/fbf827d9))
+
+- Ensure initial static classes are preserved when a class$ binding is present. ([commit](https://github.com/Polymer/polymer/commit/83c0e9d1))
+
+- Avoid copying certain properties from behaviors ([commit](https://github.com/Polymer/polymer/commit/5b34ce9d))
+
+- Sync memoized properties getter with 3.x version. ([commit](https://github.com/Polymer/polymer/commit/b3568bb3))
+
+- Remove unnecessary setting of `_template`. ([commit](https://github.com/Polymer/polymer/commit/9d33ecb9))
+
+- Minor renaming based on review. ([commit](https://github.com/Polymer/polymer/commit/b12a0b6a))
+
+- Slight tweaks based on review. ([commit](https://github.com/Polymer/polymer/commit/9e141723))
+
+- Slightly improve how `_registered` is called. ([commit](https://github.com/Polymer/polymer/commit/5d5c95ca))
+
+- Changed based on review feedback. ([commit](https://github.com/Polymer/polymer/commit/f62755d4))
+
+- Ensure _template from behaviors takes precedence over `is` in legacy. ([commit](https://github.com/Polymer/polymer/commit/08b267f3))
+
+- TemplateStamp: fix TreeWalker ([commit](https://github.com/Polymer/polymer/commit/c2746704))
+
+- update types ([commit](https://github.com/Polymer/polymer/commit/5c3bf54c))
+
+- update package-lock ([commit](https://github.com/Polymer/polymer/commit/f93daba4))
+
+- Update FF test config. ([commit](https://github.com/Polymer/polymer/commit/6e902838))
+
+- Factor telemetry to separate module ([commit](https://github.com/Polymer/polymer/commit/ca03e08d))
+
+- update more types ([commit](https://github.com/Polymer/polymer/commit/8d9219f9))
+
+- update types ([commit](https://github.com/Polymer/polymer/commit/fe1bcd1c))
+
+- Address linting issues. ([commit](https://github.com/Polymer/polymer/commit/dadcfc2e))
+
+- Address review feedback ([commit](https://github.com/Polymer/polymer/commit/0190e330))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/fb5a7e32))
+
+- Sync with changes made in master. ([commit](https://github.com/Polymer/polymer/commit/620ae42e))
+
+- Disable running FF in headless mode on Travis ([commit](https://github.com/Polymer/polymer/commit/1d67cec0))
+
+- Use windows for FF62 ([commit](https://github.com/Polymer/polymer/commit/83dd540f))
+
+- Update wct for FF63, add FF62 to sauce for pre-WC testing, drop Safari 10. ([commit](https://github.com/Polymer/polymer/commit/1d017142))
+
+- Disable running FF in headless mode on Travis ([commit](https://github.com/Polymer/polymer/commit/d91ac936))
+
+- Add comment and handle undefined host case. ([commit](https://github.com/Polymer/polymer/commit/6e4f62d8))
+
+- Use windows for FF62 ([commit](https://github.com/Polymer/polymer/commit/9f65049f))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/75cfcb82))
+
+- Behaviors ([commit](https://github.com/Polymer/polymer/commit/efb8d71c))
+
+- Update wct for FF63, add FF62 to sauce for pre-WC testing, drop Safari 10. ([commit](https://github.com/Polymer/polymer/commit/509b73f8))
+
+- LegacyElement ([commit](https://github.com/Polymer/polymer/commit/20c8bf10))
+
+- Apply mixin to TemplatizeInstance ([commit](https://github.com/Polymer/polymer/commit/55e9dfd1))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/7f2fcb18))
+
+- Sync with changes made on master. ([commit](https://github.com/Polymer/polymer/commit/ed6deea8))
+
+- Adds `legacyOptimizations` flag ([commit](https://github.com/Polymer/polymer/commit/4f223035))
+
+- memoize behavior method lists for fasting runtime calling. ([commit](https://github.com/Polymer/polymer/commit/7251a3ac))
+
+- stripWhitespace ([commit](https://github.com/Polymer/polymer/commit/09a6d1af))
+
+- noDirMixin ([commit](https://github.com/Polymer/polymer/commit/c421f08d))
+
+- noCloneTemplate ([commit](https://github.com/Polymer/polymer/commit/2a258182))
+
+- lazyCopyProps ([commit](https://github.com/Polymer/polymer/commit/a7847816))
+
+- Fix prototype registration ([commit](https://github.com/Polymer/polymer/commit/2f785733))
+
+- Fix telemetry registrations to go eagerly ([commit](https://github.com/Polymer/polymer/commit/f1718034))
+
+- Use TreeWalker for template-stamp. ([commit](https://github.com/Polymer/polymer/commit/c61df6f4))
+
+- Avoid using mixins for behaviors. ([commit](https://github.com/Polymer/polymer/commit/527f519c))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/7569d74d))
+
+- Fix error reporting on Safari. ([commit](https://github.com/Polymer/polymer/commit/02f54710))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/7c147a7a))
+
+- Revert to legacy template getter, update tests. ([commit](https://github.com/Polymer/polymer/commit/dfc8398b))
+
+- Fix lint warning. ([commit](https://github.com/Polymer/polymer/commit/1f9bced6))
+
+- Ensure template helpers in trusted templates work. ([commit](https://github.com/Polymer/polymer/commit/2ac221bf))
+
+- More updates based on code review. ([commit](https://github.com/Polymer/polymer/commit/275491e0))
+
+- Ensure instanceof works after babel ES5 compilation ([commit](https://github.com/Polymer/polymer/commit/d44969a2))
+
+- Updates based on code review. ([commit](https://github.com/Polymer/polymer/commit/ed790713))
+
+- Fix update-types. ([commit](https://github.com/Polymer/polymer/commit/59927747))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/7897d0ac))
+
+- Fix lint warnings ([commit](https://github.com/Polymer/polymer/commit/52b25e49))
+
+- Catch errors on top window using on error Works around safari quirk when running in iframe ([commit](https://github.com/Polymer/polymer/commit/f11b1a14))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/5cc4937e))
+
+- Fix lint warning. ([commit](https://github.com/Polymer/polymer/commit/16e695fc))
+
+- Fix latent (benign) error thrown when removing dom-if via innerHTML. ([commit](https://github.com/Polymer/polymer/commit/9a75976d))
+
+- Use setting set via global Polymer object. ([commit](https://github.com/Polymer/polymer/commit/a6331a25))
+
+- Add tests. ([commit](https://github.com/Polymer/polymer/commit/2a38d382))
+
+- Implement opt-in `strictTemplatePolicy` (flag TBD) - disable dom-bind - disable dom-module re-registration - require elements with no template to implement null template - disable templatizer of templates not stamped in trusted polymer template ([commit](https://github.com/Polymer/polymer/commit/ada72d4d))
+
+- Add comment ([commit](https://github.com/Polymer/polymer/commit/c550e9e5))
+
+- Factor out some helpers, add declarative tests. ([commit](https://github.com/Polymer/polymer/commit/08e13f21))
+
+- Add constructor name and fix mixin wrapping. ([commit](https://github.com/Polymer/polymer/commit/68185549))
+
+- Fix test name ([commit](https://github.com/Polymer/polymer/commit/a470e452))
+
+- Fix method to force CE polyfill on ([commit](https://github.com/Polymer/polymer/commit/b3bbd215))
+
+- Update types. ([commit](https://github.com/Polymer/polymer/commit/7fc9564e))
+
+- Ensure class.html is imported before patching it. ([commit](https://github.com/Polymer/polymer/commit/2214b9e3))
+
+- Add legacy-data-mixin tests to runner. ([commit](https://github.com/Polymer/polymer/commit/4ec63a41))
+
+- Add legacy-data-mixin as 1.x->2.x migration aide. Fixes #5262. ([commit](https://github.com/Polymer/polymer/commit/c46a38de))
+
 ## [v2.6.1](https://github.com/Polymer/polymer/tree/v2.6.1) (2018-08-23)
 - Make event notification handler read the value from currentTarget, (#5309) ([commit](https://github.com/Polymer/polymer/commit/ffe8f7e8))
 
