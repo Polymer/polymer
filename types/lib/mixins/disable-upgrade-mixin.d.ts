@@ -16,13 +16,11 @@ declare namespace Polymer {
   /**
    * Element class mixin that allows the element to boot up in a non-enabled
    * state when the `disable-upgrade` attribute is present. This mixin is
-   * designed to be used with element classes like PolymerElement that perform
+   * designed to be used with element classes like Polymer.Element that perform
    * initial startup work when they are first connected. When the
-   * `disable-upgrade` attribute is removed, the element
-   * boots up and "enables" as it otherwise would.
-   *
-   * For legacy elements, it also prevents the `created` method from being called
-   * and event listeners from being added.
+   * `disable-upgrade` attribute is removed, if the element is connected, it
+   * boots up and "enables" as it otherwise would; if it is not connected, the
+   * element boots up when it is next connected.
    *
    * Using `disable-upgrade` with Polymer.Element prevents any data propagation
    * to the element, any element DOM from stamping, or any work done in
@@ -42,19 +40,10 @@ declare namespace Polymer {
   }
 
   interface DisableUpgradeMixin extends Polymer.ElementMixin, Polymer.PropertyEffects, Polymer.TemplateStamp, Polymer.PropertyAccessors, Polymer.PropertiesChanged, Polymer.PropertiesMixin {
+    _initializeProperties(): void;
     _enableProperties(): void;
     attributeChangedCallback(name: any, old: any, value: any, namespace: any): void;
     connectedCallback(): void;
     disconnectedCallback(): void;
-
-    /**
-     * disable while `disable-upgrade` is on
-     */
-    created(): void;
-
-    /**
-     * disable while `disable-upgrade` is on
-     */
-    _applyListeners(): void;
   }
 }
