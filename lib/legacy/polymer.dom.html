@@ -90,7 +90,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      *   this element's light or shadow DOM.
      */
     deepContains(node) {
-      if (this.node.contains(node)) {
+      if (Polymer.wrap(this.node).contains(node)) {
         return true;
       }
       let n = node;
@@ -98,7 +98,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // walk from node to `this` or `document`
       while (n && n !== doc && n !== this.node) {
         // use logical parentnode, or native ShadowRoot host
-        n = n.parentNode || n.host;
+        n = Polymer.wrap(n).parentNode || Polymer.wrap(n).host;
       }
       return n === this.node;
     }
@@ -112,7 +112,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * itself or a node or document fragment containing it.
      */
     getOwnerRoot() {
-      return this.node.getRootNode();
+      return Polymer.wrap(this.node).getRootNode();
     }
 
     /**
@@ -123,7 +123,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     getDistributedNodes() {
       return (this.node.localName === 'slot') ?
-        this.node.assignedNodes({flatten: true}) :
+        Polymer.wrap(this.node).assignedNodes({flatten: true}) :
         [];
     }
 
@@ -333,77 +333,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   if (window.ShadyDOM && window.ShadyDOM.inUse && window.ShadyDOM.noPatch) {
 
-    class Wrapper extends ShadyDOM.Wrapper {
+    class Wrapper extends ShadyDOM.Wrapper {}
 
-      observeNodes(callback) {
-        return new Polymer.FlattenedNodesObserver(
-            /** @type {!HTMLElement} */(this.node), callback);
+    // copy bespoke API onto wrapper
+    Object.getOwnPropertyNames(DomApi.prototype).forEach((prop) => {
+      if (prop != 'activeElement') {
+        Wrapper.prototype[prop] = DomApi.prototype[prop];
       }
-
-      unobserveNodes(observerHandle) {
-        observerHandle.disconnect();
-      }
-
-      notifyObserver() {}
-
-      deepContains(node) {
-        if (this.contains(node)) {
-          return true;
-        }
-        let n = node;
-        let doc = node.ownerDocument;
-        // walk from node to `this` or `document`
-        while (n && n !== doc && n !== this.node) {
-          // use logical parentnode, or native ShadowRoot host
-          n = this.parentNode || n.host;
-        }
-        return n === this.node;
-      }
-
-      getOwnerRoot() {
-        return this.getRootNode();
-      }
-
-      getDistributedNodes() {
-        return (this.node.localName === 'slot') ?
-          this.assignedNodes({flatten: true}) :
-          [];
-      }
-
-      getDestinationInsertionPoints() {
-        let ip$ = [];
-        let n = this.assignedSlot;
-        while (n) {
-          ip$.push(n);
-          n = ShadyDOM.wrap(n).assignedSlot;
-        }
-        return ip$;
-      }
-
-      importNode(node, deep) {
-        let doc = this.node instanceof Document ? this.node :
-          this.node.ownerDocument;
-        return ShadyDOM.wrap(doc).importNode(node, deep);
-      }
-
-      getEffectiveChildNodes() {
-        return Polymer.FlattenedNodesObserver.getFlattenedNodes(
-            /** @type {!HTMLElement} */ (this));
-      }
-
-      queryDistributedElements(selector) {
-        let c$ = this.getEffectiveChildNodes();
-        let list = [];
-        for (let i=0, l=c$.length, c; (i<l) && (c=c$[i]); i++) {
-          if ((c.nodeType === Node.ELEMENT_NODE) &&
-              matchesSelector(c, selector)) {
-            list.push(c);
-          }
-        }
-        return list;
-      }
-
-    }
+    });
 
     DomApi = Polymer.DomApi = Wrapper;
 
@@ -465,8 +402,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     if (obj instanceof DomApi || obj instanceof EventApi) {
       return obj;
     }
-    if (!obj.__domApi) {
-      let helper;
+    let helper = obj.__domApi;
+    if (!helper) {
       if (obj instanceof Event) {
         helper = new EventApi(obj);
       } else {
@@ -474,7 +411,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       obj.__domApi = helper;
     }
-    return obj.__domApi;
+    return helper;
   };
 
   Polymer.dom.matchesSelector = matchesSelector;
