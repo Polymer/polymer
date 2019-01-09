@@ -70,6 +70,7 @@ const header =
 `/**
  * @fileoverview Generated typings for Polymer mixins
  * @externs
+ * @suppress {checkPrototypalTypes}
  *
  * @license
  * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
