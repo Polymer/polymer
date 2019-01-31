@@ -245,6 +245,42 @@ Polymer({
     this.objChanged = sinon.spy();
   }
 });
+
+Polymer({
+
+  is: 'x-reentry-wildcard',
+
+  properties: {
+    array: {
+      type: Array,
+      computed: 'computeArray(trigger, size)'
+    },
+    size: {
+      type: Number
+    },
+    trigger: {
+      type: Boolean,
+      observer: 'triggerChanged',
+      value: true
+    }
+  },
+  
+  observers: ['arrayChanged(array.*)'],
+
+  created() {
+    this.arrayChanged = sinon.spy();
+  },
+  
+  computeArray(trigger, size) {
+    return new Array(size || 0);
+  },
+  
+  triggerChanged() {
+    this.size = 1;
+  }
+  
+});
+
 Polymer({
   is: 'x-path-client',
   observers: ['objChanged(obj.*)'],
