@@ -162,6 +162,9 @@ Polymer({
     'aChanged(a.*)',
     'xChanged(x.*)',
     'yChanged(y.*)',
+    'abChanged(a.b.*)',
+    'abcChanged(a.b.c.*)',
+    'abcxChanged(a.b.c.*, x)'
   ],
 
   created: function() {
@@ -190,6 +193,9 @@ Polymer({
       this.$.forward.resetObservers();
       this.$.pe.resetObservers();
     }
+    this.abChanged = sinon.spy();
+    this.abcChanged = sinon.spy();
+    this.abcxChanged = sinon.spy();
   },
 
   computeFromPaths: function(a, b, c) {
