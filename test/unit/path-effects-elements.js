@@ -346,9 +346,7 @@ Polymer({
   ],
 
   created() {
-    this.propChanged = sinon.spy(function() {
-      this.debug = true;
-    });
+    this.propChanged = sinon.spy();
   },
   
   computeProp(trigger, value) {
@@ -382,16 +380,14 @@ Polymer({
   ],
 
   created() {
-    this.arrayChanged = sinon.spy(function() {
-      this.debug = true;
-    });
+    this.arrayChanged = sinon.spy();
   },
 
   changeArray() {
     if (this.array.length === 0) {
       this.push('array', 'one');
     } else if (this.array.length === 1) {
-      this.push('array', 'two')
+      this.push('array', 'two');
     }
   }
   
