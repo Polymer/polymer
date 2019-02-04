@@ -254,15 +254,15 @@ Polymer({
 
 Polymer({
 
-  is: 'x-reentry-wildcard',
+  is: 'x-reentry-true',
 
   properties: {
-    array: {
-      type: Array,
-      computed: 'computeArray(trigger, size)'
+    prop: {
+      type: Boolean,
+      computed: 'computeProp(trigger, value)'
     },
-    size: {
-      type: Number
+    value: {
+      type: Boolean
     },
     trigger: {
       type: Boolean,
@@ -271,18 +271,128 @@ Polymer({
     }
   },
   
-  observers: ['arrayChanged(array.*)'],
+  observers: ['propChanged(prop.*)'],
 
   created() {
-    this.arrayChanged = sinon.spy();
+    this.propChanged = sinon.spy();
   },
   
-  computeArray(trigger, size) {
-    return new Array(size || 0);
+  computeProp(trigger, value) {
+    return Boolean(value);
   },
   
   triggerChanged() {
-    this.size = 1;
+    this.value = true;
+  }
+  
+});
+
+Polymer({
+
+  is: 'x-reentry-undefined',
+
+  properties: {
+    prop: {
+      type: Boolean,
+      computed: 'computeProp(trigger, value)'
+    },
+    value: {
+      type: Boolean
+    },
+    trigger: {
+      type: Boolean,
+      observer: 'triggerChanged',
+      value: true
+    }
+  },
+  
+  observers: ['propChanged(prop.*)'],
+
+  created() {
+    this.propChanged = sinon.spy();
+  },
+  
+  computeProp(trigger, value) {
+    return value ? undefined : true;
+  },
+  
+  triggerChanged() {
+    this.value = true;
+  }
+  
+});
+
+Polymer({
+
+  is: 'x-reentry-undefined-path',
+
+  properties: {
+    prop: {
+      type: Object
+    },
+    value: {
+      type: Boolean
+    },
+    trigger: {
+      type: Boolean,
+      value: true
+    }
+  },
+  
+  observers: [
+    'computeProp(trigger, value)',
+    'triggerChanged(trigger)',
+    'propChanged(prop.sub.*)'
+  ],
+
+  created() {
+    this.propChanged = sinon.spy(function() {
+      this.debug = true;
+    });
+  },
+  
+  computeProp(trigger, value) {
+    if (value) {
+      this.set('prop.sub', undefined);
+    } else {
+      this.prop = {sub: true};
+    }
+  },
+  
+  triggerChanged() {
+    this.value = true;
+  }
+  
+});
+
+Polymer({
+
+  is: 'x-reentry-splices',
+
+  properties: {
+    array: {
+      type: Array,
+      value() { return []; }
+    }
+  },
+  
+  observers: [
+    'changeArray(array.splices.*)',
+    'arrayChanged(array.splices.*)'
+  ],
+
+  created() {
+    this.arrayChanged = sinon.spy(function() {
+      this.debug = true;
+    });
+  },
+
+  changeArray() {
+    if (this.array.length === 0) {
+      this.push('array', 'one');
+    } else if (this.array.length === 1) {
+      this.push('array', 'two')
+    }
   }
   
 });
