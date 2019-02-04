@@ -162,6 +162,9 @@ Polymer({
     'aChanged(a.*)',
     'xChanged(x.*)',
     'yChanged(y.*)',
+    'abChanged(a.b.*)',
+    'abcChanged(a.b.c.*)',
+    'abcxChanged(a.b.c.*, x)'
   ],
 
   created: function() {
@@ -190,6 +193,9 @@ Polymer({
       this.$.forward.resetObservers();
       this.$.pe.resetObservers();
     }
+    this.abChanged = sinon.spy();
+    this.abcChanged = sinon.spy();
+    this.abcxChanged = sinon.spy();
   },
 
   computeFromPaths: function(a, b, c) {
@@ -245,6 +251,148 @@ Polymer({
     this.objChanged = sinon.spy();
   }
 });
+
+Polymer({
+
+  is: 'x-reentry-true',
+
+  properties: {
+    prop: {
+      type: Boolean,
+      computed: 'computeProp(trigger, value)'
+    },
+    value: {
+      type: Boolean
+    },
+    trigger: {
+      type: Boolean,
+      observer: 'triggerChanged',
+      value: true
+    }
+  },
+  
+  observers: ['propChanged(prop.*)'],
+
+  created() {
+    this.propChanged = sinon.spy();
+  },
+  
+  computeProp(trigger, value) {
+    return Boolean(value);
+  },
+  
+  triggerChanged() {
+    this.value = true;
+  }
+  
+});
+
+Polymer({
+
+  is: 'x-reentry-undefined',
+
+  properties: {
+    prop: {
+      type: Boolean,
+      computed: 'computeProp(trigger, value)'
+    },
+    value: {
+      type: Boolean
+    },
+    trigger: {
+      type: Boolean,
+      observer: 'triggerChanged',
+      value: true
+    }
+  },
+  
+  observers: ['propChanged(prop.*)'],
+
+  created() {
+    this.propChanged = sinon.spy();
+  },
+  
+  computeProp(trigger, value) {
+    return value ? undefined : true;
+  },
+  
+  triggerChanged() {
+    this.value = true;
+  }
+  
+});
+
+Polymer({
+
+  is: 'x-reentry-undefined-path',
+
+  properties: {
+    prop: {
+      type: Object
+    },
+    value: {
+      type: Boolean
+    },
+    trigger: {
+      type: Boolean,
+      value: true
+    }
+  },
+  
+  observers: [
+    'computeProp(trigger, value)',
+    'triggerChanged(trigger)',
+    'propChanged(prop.sub.*)'
+  ],
+
+  created() {
+    this.propChanged = sinon.spy();
+  },
+  
+  computeProp(trigger, value) {
+    if (value) {
+      this.set('prop.sub', undefined);
+    } else {
+      this.prop = {sub: true};
+    }
+  },
+  
+  triggerChanged() {
+    this.value = true;
+  }
+  
+});
+
+Polymer({
+
+  is: 'x-reentry-splices',
+
+  properties: {
+    array: {
+      type: Array,
+      value() { return []; }
+    }
+  },
+  
+  observers: [
+    'changeArray(array.splices.*)',
+    'arrayChanged(array.splices.*)'
+  ],
+
+  created() {
+    this.arrayChanged = sinon.spy();
+  },
+
+  changeArray() {
+    if (this.array.length === 0) {
+      this.push('array', 'one');
+    } else if (this.array.length === 1) {
+      this.push('array', 'two');
+    }
+  }
+  
+});
+
 Polymer({
   is: 'x-path-client',
   observers: ['objChanged(obj.*)'],
