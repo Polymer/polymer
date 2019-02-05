@@ -70,6 +70,7 @@ const header =
 `/**
  * @fileoverview Generated typings for Polymer mixins
  * @externs
+ * @suppress {checkPrototypalTypes}
  *
  * @license
  * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
@@ -171,6 +172,7 @@ const runClosureOnly = ({lintOnly}) => () => {
       'externs/webcomponents-externs.js',
       'externs/closure-types.js',
       'externs/polymer-externs.js',
+      'externs/polymer-dom-api-externs.js',
     ],
     extra_annotation_name: [
       'appliesMixin',

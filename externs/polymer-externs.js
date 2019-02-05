@@ -48,6 +48,7 @@ PolymerInit.prototype.hostAttributes;
 /** @type {(!Object<string, string> | undefined)} */
 PolymerInit.prototype.listeners;
 
+/** @record */
 let PolymerElementConstructor = function () {};
 /** @type {(string | undefined)} */
 PolymerElementConstructor.is;
@@ -94,6 +95,11 @@ Polymer.strictTemplatePolicy;
 Polymer.allowTemplateFromDomModule;
 
 /**
+ * @type {string}
+ */
+Polymer.rootPath;
+
+/**
  * @param {string} string
  * @param {Object} obj
  * @return {string}
@@ -137,6 +143,8 @@ PolymerElement.prototype.created = function() {};
  * @override
  */
 PolymerElement.prototype.ready = function() {};
+/** On before register callback. */
+PolymerElement.prototype.beforeRegister = function() {};
 /** On registered callback. */
 PolymerElement.prototype.registered = function() {};
 /**

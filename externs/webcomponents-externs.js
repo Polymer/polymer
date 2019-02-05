@@ -47,7 +47,7 @@ var ShadyDOM = {
 
 window.ShadyDOM = ShadyDOM;
 
-let WebComponents = {};
+var WebComponents = {};
 window.WebComponents = WebComponents;
 
 /** @type {Element} */
