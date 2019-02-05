@@ -12,23 +12,37 @@
  */
 /* eslint-disable */
 
-let ShadyDOM = {
+var HTMLImports = {
+  /**
+   * @param {function()} callback
+   */
+  whenReady(callback) {},
+  /**
+   * @param {Element} element
+   * @returns {Document} document
+   */
+  importForElement(element) {}
+};
+
+window.HTMLImports = HTMLImports;
+
+var ShadyDOM = {
   inUse: false,
-  flush(){},
+  flush() {},
   /**
    * @param {!Node} target
    * @param {function(Array<MutationRecord>, MutationObserver)} callback
    * @return {MutationObserver}
    */
-  observeChildren(target, callback){},
+  observeChildren(target, callback) {},
   /**
    * @param {MutationObserver} observer
    */
-  unobserveChildren(observer){},
+  unobserveChildren(observer) {},
   /**
    * @param {Node} node
    */
-  patch(node){}
+  patch(node) {}
 };
 
 window.ShadyDOM = ShadyDOM;
