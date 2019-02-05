@@ -25,8 +25,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
 <script type="module">
 import './property-effects-elements.js';
-import { Polymer } from '../../lib/legacy/polymer-fn.js';
-import { setSanitizeDOMValue, sanitizeDOMValue } from '../../lib/utils/settings.js';
+import { Polymer, html } from '../../polymer-legacy.js';
+import { setSanitizeDOMValue, sanitizeDOMValue, setLegacyOptimizations } from '../../lib/utils/settings.js';
 import { PropertyEffects } from '../../lib/mixins/property-effects.js';
 
 suite('single-element binding effects', function() {
@@ -1870,6 +1870,110 @@ suite('a la carte usage of API', function() {
     el.shadowRoot.querySelector('button').click();
     assert.equal(el.handler.callCount, 1);
     document.body.removeChild(el);
+  });
+
+});
+
+suite('warn on legacy differences', () => {
+
+  setup(function() {
+    sinon.spy(console, 'warn');
+  });
+
+  teardown(function() {
+    setLegacyOptimizations(false);
+    console.warn.restore();
+  });
+
+  test('warn if non-declared property used in binding', () => {
+    setLegacyOptimizations(true);
+    Polymer({
+      is: 'x-warn-undeclared-binding',
+      _template: html`
+        <div attr$="[[undeclaredToAttr]]"
+             prop="[[undeclaredToProp]]">
+             [[undeclaredToText]]</div>`
+    });
+    const el = document.createElement('x-warn-undeclared-binding');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 3);
+  });
+
+  test('warn when re-declaring a computed property', () => {
+    Polymer({
+      is: 'x-warn-redeclared-computed',
+      behaviors: [{
+        properties: {
+          a: { computed: 'compute(x)' }
+        }
+      }, {
+        properties: {
+          a: { computed: 'compute(y)' }
+        }
+      }]
+    });
+    const el = document.createElement('x-warn-redeclared-computed');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 1);
+  });
+
+  test('warn when disabling readOnly on a readOnly property', () => {
+    Polymer({
+      is: 'x-warn-disable-readonly',
+      behaviors: [{
+        properties: {
+          a: { readOnly: true }
+        }
+      }, {
+        properties: {
+          a: { readOnly: false }
+        }
+      }]
+    });
+    const el = document.createElement('x-warn-disable-readonly');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 1);
+  });
+
+  test('warn when disabling reflect on a reflect property', () => {
+    Polymer({
+      is: 'x-warn-disable-reflect',
+      behaviors: [{
+        properties: {
+          a: { reflectToAttribute: true }
+        }
+      }, {
+        properties: {
+          a: { reflectToAttribute: false }
+        }
+      }]
+    });
+    const el = document.createElement('x-warn-disable-reflect');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 1);
+  });
+
+  test('warn when disabling notify on a notify property', () => {
+    Polymer({
+      is: 'x-warn-disable-notify',
+      behaviors: [{
+        properties: {
+          a: { notify: true }
+        }
+      }, {
+        properties: {
+          a: { notify: false }
+        }
+      }]
+    });
+    const el = document.createElement('x-warn-disable-notify');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 1);
   });
 
 });
