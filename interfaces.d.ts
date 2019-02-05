@@ -191,3 +191,12 @@ export interface IdleDeadline {
   didTimeout: boolean;
   timeRemaining(): number;
 }
+
+export interface PolymerElementConstructor {
+  new (): HTMLElement;
+  is?: string;
+  extends?: string;
+  properties?: PolymerElementProperties;
+  observers?: string[];
+  template?: string|HTMLTemplateElement|null;
+}

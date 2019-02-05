@@ -48,6 +48,7 @@ PolymerInit.prototype.hostAttributes;
 /** @type {(!Object<string, string> | undefined)} */
 PolymerInit.prototype.listeners;
 
+/** @record */
 let PolymerElementConstructor = function () {};
 /** @type {(string | undefined)} */
 PolymerElementConstructor.is;
@@ -77,6 +78,26 @@ function Polymer(init){}
  * @type {(function(*,string,string,Node):*)|undefined}
  */
 Polymer.sanitizeDOMValue;
+
+/**
+ * @type {boolean}
+ */
+Polymer.passiveTouchGestures;
+
+/**
+ * @type {boolean}
+ */
+Polymer.strictTemplatePolicy;
+
+/**
+ * @type {boolean}
+ */
+Polymer.allowTemplateFromDomModule;
+
+/**
+ * @type {string}
+ */
+Polymer.rootPath;
 
 /**
  * @param {string} string
@@ -174,7 +195,7 @@ var PolymerDeepPropertyChange;
  * @constructor
  * @template T
  */
-let DomRepeatEvent = function() {};
+var DomRepeatEvent = function() {};
 
 /**
  * @type {{
