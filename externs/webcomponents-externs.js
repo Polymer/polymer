@@ -18,8 +18,8 @@ var HTMLImports = {
    */
   whenReady(callback) {},
   /**
-   * @param {Element} element
-   * @returns {Document} document
+   * @param {!Node} element
+   * @return {?HTMLLinkElement|?Document|undefined}
    */
   importForElement(element) {}
 };
@@ -42,7 +42,11 @@ var ShadyDOM = {
   /**
    * @param {Node} node
    */
-  patch(node) {}
+  patch(node) {},
+  /**
+   * @param {!ShadowRoot} shadowroot
+   */
+  flushInitial(shadowroot) {}
 };
 
 window.ShadyDOM = ShadyDOM;

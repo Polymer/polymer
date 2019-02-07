@@ -47,6 +47,8 @@ PolymerInit.prototype.template;
 PolymerInit.prototype.hostAttributes;
 /** @type {(!Object<string, string> | undefined)} */
 PolymerInit.prototype.listeners;
+/** @type {(!Object| !Array<!Object> | undefined)} */
+PolymerInit.prototype.behaviors;
 
 /** @record */
 let PolymerElementConstructor = function () {};
@@ -110,6 +112,8 @@ function JSCompiler_renameProperty(string, obj) {}
 function PolymerTelemetry() {}
 /** @type {number} */
 PolymerTelemetry.instanceCount;
+/** @type {function():void} */
+PolymerTelemetry.incrementInstanceCount;
 /** @type {Array<HTMLElement>} */
 PolymerTelemetry.registrations;
 /** @type {function(HTMLElement)} */
@@ -124,6 +128,12 @@ Polymer.telemetry;
 
 /** @type {string} */
 Polymer.version;
+
+/** @type {boolean} */
+Polymer.legacyOptimizations;
+
+/** @type {boolean} */
+Polymer.syncInitialRender;
 
 // nb. This is explicitly 'var', as Closure Compiler checks that this is the case.
 /**
