@@ -45,7 +45,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           fn.apply(this, arguments);
         } catch (e) {
           if (e instanceof UndefinedArgumentError) {
-            console.warn(`Argument '${e.arg}'${fnName ?` for method '${fnName}'` : ''} was undefined. Ensure it has an undefined check.`);
+            console.warn(`Argument '${e.arg}'${fnName ?` for method '${fnName}'` : ''} was undefined. Ensure it has a default value, or else ensure the method handles the argument being undefined.`);
           } else {
             throw e;
           }
@@ -59,11 +59,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * Mixin to selectively add back Polymer 1.x's `undefined` rules
    * governing when observers & computing functions run based
    * on all arguments being defined (reference https://www.polymer-project.org/1.0/docs/devguide/observers#multi-property-observers).
-   * 
+   *
    * When loaded, all legacy elements (defined with `Polymer({...})`)
    * will have the mixin applied. The mixin only restores legacy data handling
    * if `_legacyUndefinedCheck: true` is set on the element's prototype.
-   * 
+   *
    * This mixin is intended for use to help migration from Polymer 1.x to
    * 2.x+ by allowing legacy code to work while identifying observers and
    * computing functions that need undefined checks to work without
@@ -77,9 +77,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.LegacyDataMixin = Polymer.dedupingMixin(superClass => {
 
     /**
-     * @polymer
-     * @mixinClass
-     * @implements {Polymer_LegacyDataMixin}
+     * @unrestricted
+     * @private
      */
     class LegacyDataMixin extends superClass {
       /**
@@ -103,7 +102,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
               // Break out of effect's control flow; will be caught in
               // wrapped property effect function below
               const name = args[i].name;
-              throw new UndefinedArgumentError(`Argument '${name}' is undefined. Ensure it has an undefined check.`, name);
+              throw new UndefinedArgumentError(`Argument '${name}' is undefined.`, name);
             }
           }
         }
@@ -113,7 +112,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Overrides `Polyer.PropertyEffects` to wrap effect functions to
        * catch `UndefinedArgumentError`s and warn.
-       * 
+       *
        * @param {string} property Property that should trigger the effect
        * @param {string} type Effect type, from this.PROPERTY_EFFECT_TYPES
        * @param {Object=} effect Effect metadata object
@@ -157,12 +156,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // Apply LegacyDataMixin to Templatizer instances as well, and defer
   // runtime switch to the root's host (_methodHost)
-  Polymer.Templatize.mixin = 
-    Polymer.dedupingMixin(superClass => class extends Polymer.LegacyDataMixin(superClass) {
-      get _legacyUndefinedCheck() {
-        return this._methodHost && this._methodHost._legacyUndefinedCheck;
+  /**
+   * @mixinFunction
+   * @polymer
+   */
+  const TemplatizeMixin =
+    Polymer.dedupingMixin(superClass => {
+      /**
+       * @constructor
+       * @extends {HTMLElement}
+       */
+      const legacyBase = Polymer.LegacyDataMixin(superClass);
+      /**
+       * @private
+       */
+      class TemplateLegacy extends legacyBase {
+        get _legacyUndefinedCheck() {
+          return this._methodHost && this._methodHost._legacyUndefinedCheck;
+        }
       }
+      /** @type {!Polymer_PropertyEffects} */
+      TemplateLegacy.prototype._methodHost;
+      return TemplateLegacy;
     });
+
+  Polymer.Templatize.mixin = TemplatizeMixin;
 
   console.info('LegacyDataMixin will be applied to all legacy elements.\n' +
                'Set `_legacyUndefinedCheck: true` to enable.');

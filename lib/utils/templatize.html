@@ -11,6 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="boot.html">
 <link rel="import" href="../mixins/property-effects.html">
 <link rel="import" href="../mixins/mutable-data.html">
+<link rel="import" href="./settings.html">
 
 <script>
   (function() {
@@ -77,6 +78,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       constructor(props) {
         super();
         this._configureProperties(props);
+        /** @type {!StampedTemplate} */
         this.root = this._stampTemplate(this.__dataHost);
         // Save list of stamped children
         let children = this.children = [];
@@ -295,19 +297,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @suppress {missingProperties} class.prototype is not defined for some reason
      */
     function createTemplatizerClass(template, templateInfo, options) {
-      // Anonymous class created by the templatize
-      let base = options.mutableData ?
-        MutableTemplateInstanceBase : TemplateInstanceBase;
-      // Affordance for global mixins onto TemplatizeInstance
-      if (Polymer.Templatize.mixin) {
-        base = Polymer.Templatize.mixin(base);
-      }
       /**
        * @constructor
-       * @extends {base}
+       * @extends {TemplateInstanceBase}
+       */
+      let templatizerBase = options.mutableData ?
+        MutableTemplateInstanceBase : TemplateInstanceBase;
+
+      // Affordance for global mixins onto TemplatizeInstance
+      if (Polymer.Templatize.mixin) {
+        templatizerBase = Polymer.Templatize.mixin(templatizerBase);
+      }
+
+      /**
+       * Anonymous class created by the templatize
+       * @constructor
        * @private
        */
-      let klass = class extends base { };
+      let klass = class extends templatizerBase { };
+      /** @override */
       klass.prototype.__templatizeOptions = options;
       klass.prototype._bindTemplate(template);
       addNotifyEffects(klass, template, templateInfo, options);
@@ -323,10 +331,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Provide data API and property effects on memoized template class
         let klass = templateInfo.templatizeTemplateClass;
         if (!klass) {
-          let base = options.mutableData ? MutableDataTemplate : DataTemplate;
+          /**
+           * @constructor
+           * @extends {DataTemplate}
+           */
+          let templatizedBase = options.mutableData ? MutableDataTemplate : DataTemplate;
           /** @private */
           klass = templateInfo.templatizeTemplateClass =
-            class TemplatizedTemplate extends base {};
+            class TemplatizedTemplate extends templatizedBase {};
           // Add template - >instances effects
           // and host <- template effects
           let hostProps = templateInfo.hostProps;
@@ -529,6 +541,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let templateInfo = ctor._parseTemplate(template);
         // Get memoized base class for the prototypical template, which
         // includes property effects for binding template & forwarding
+        /**
+         * @constructor
+         * @extends {TemplateInstanceBase}
+         */
         let baseClass = templateInfo.templatizeInstanceClass;
         if (!baseClass) {
           baseClass = createTemplatizerClass(template, templateInfo, options);
@@ -539,9 +555,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         // Subclass base class and add reference for this specific template
         /** @private */
         let klass = class TemplateInstance extends baseClass {};
+  /** @override */
         klass.prototype._methodHost = findMethodHost(template);
-        klass.prototype.__dataHost = template;
-        klass.prototype.__templatizeOwner = owner;
+        /** @override */
+        klass.prototype.__dataHost = /** @type {!DataTemplate} */ (template);
+        /** @override */
+        klass.prototype.__templatizeOwner = /** @type {!Object} */ (owner);
+        /** @override */
         klass.prototype.__hostProps = templateInfo.hostProps;
         klass = /** @type {function(new:TemplateInstanceBase)} */(klass); //eslint-disable-line no-self-assign
         return klass;

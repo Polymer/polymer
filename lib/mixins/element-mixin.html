@@ -97,9 +97,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * @constructor
-     * @extends {base}
      * @implements {Polymer_PropertyEffects}
      * @implements {Polymer_PropertiesMixin}
+   * @extends {HTMLElement}
      * @private
      */
     const polymerElementBase = Polymer.PropertiesMixin(Polymer.PropertyEffects(base));
@@ -141,8 +141,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       if (!constructor.hasOwnProperty(
         JSCompiler_renameProperty('__ownObservers', constructor))) {
           constructor.__ownObservers =
-          constructor.hasOwnProperty(JSCompiler_renameProperty('observers', constructor)) ?
-          /** @type {PolymerElementConstructor} */ (constructor).observers : null;
+            constructor.hasOwnProperty(
+                JSCompiler_renameProperty('observers', constructor)) ?
+            /** @type {PolymerElementConstructor} */ (constructor).observers :
+            null;
       }
       return constructor.__ownObservers;
     }
@@ -194,7 +196,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * disables the effect, the setter would fail unexpectedly.
      * Based on feedback, we may want to try to make effects more malleable
      * and/or provide an advanced api for manipulating them.
-     * Also consider adding warnings when an effect cannot be changed.
      *
      * @param {!PolymerElement} proto Element class prototype to add accessors
      *   and effects to
@@ -216,17 +217,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       // setup where multiple triggers for setting a property)
       // While we do have `hasComputedEffect` this is set on the property's
       // dependencies rather than itself.
-      if (info.computed && !proto._hasReadOnlyEffect(name)) {
-        proto._createComputedProperty(name, info.computed, allProps);
+      if (info.computed) {
+        if (proto._hasReadOnlyEffect(name)) {
+          console.warn(`Cannot redefine computed property '${name}'.`);
+        } else {
+          proto._createComputedProperty(name, info.computed, allProps);
+        }
       }
       if (info.readOnly && !proto._hasReadOnlyEffect(name)) {
         proto._createReadOnlyProperty(name, !info.computed);
+      } else if (info.readOnly === false && proto._hasReadOnlyEffect(name)) {
+        console.warn(`Cannot make readOnly property '${name}' non-readOnly.`);
       }
       if (info.reflectToAttribute && !proto._hasReflectEffect(name)) {
         proto._createReflectedProperty(name);
+      } else if (info.reflectToAttribute === false && proto._hasReflectEffect(name)) {
+        console.warn(`Cannot make reflected property '${name}' non-reflected.`);
       }
       if (info.notify && !proto._hasNotifyEffect(name)) {
         proto._createNotifyingProperty(name);
+      } else if (info.notify === false && proto._hasNotifyEffect(name)) {
+        console.warn(`Cannot make notify property '${name}' non-notify.`);
       }
       // always add observer
       if (info.observer) {
@@ -306,6 +317,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * @mixinClass
      * @unrestricted
      * @implements {Polymer_ElementMixin}
+     * @extends {polymerElementBase}
      */
     class PolymerElement extends polymerElementBase {
 
@@ -314,7 +326,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * find the template.
        * @return {void}
        * @protected
-       * @override
        * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
       static _finalizeClass() {
@@ -345,9 +356,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Override of PropertiesChanged createProperties to create accessors
        * and property effects for all of the properties.
+       * @param {!Object} props .
        * @return {void}
        * @protected
-       * @override
        */
       static createProperties(props) {
         for (let p in props) {
@@ -442,7 +453,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       /**
        * Set the template.
        *
-       * @param {!HTMLTemplateElement|string} value Template to set.
+       * @param {HTMLTemplateElement|string} value Template to set.
        */
       static set template(value) {
         this._template = value;
@@ -507,7 +518,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @return {void}
        * @override
-       * @suppress {invalidCasts}
+       * @suppress {invalidCasts,missingProperties} go/missingfnprops
        */
       _initializeProperties() {
         this.constructor.finalize();
@@ -585,7 +596,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * flushes any pending properties, and updates shimmed CSS properties
        * when using the ShadyCSS scoping/custom properties polyfill.
        *
-       * @suppress {missingProperties, invalidCasts} Super may or may not implement the callback
+       * @suppress {missingProperties, invalidCasts} Super may or may not
+       *     implement the callback
        * @return {void}
        */
       connectedCallback() {
@@ -599,7 +611,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Stamps the element template.
        *
        * @return {void}
-       * @override
        */
       ready() {
         if (this._template) {
@@ -714,17 +725,47 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
 
       /**
-       * Overrides `PropertyAccessors` to add map of dynamic functions on
+       * Overrides `PropertyEffects` to add map of dynamic functions on
        * template info, for consumption by `PropertyEffects` template binding
        * code. This map determines which method templates should have accessors
        * created for them.
        *
-       * @override
+       * @param {!HTMLTemplateElement} template Template
+       * @param {!TemplateInfo} templateInfo Template metadata for current template
+       * @param {!NodeInfo} nodeInfo Node metadata for current template.
+       * @return {boolean} .
        * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
        */
       static _parseTemplateContent(template, templateInfo, nodeInfo) {
         templateInfo.dynamicFns = templateInfo.dynamicFns || this._properties;
         return super._parseTemplateContent(template, templateInfo, nodeInfo);
+      }
+
+      /**
+       * Overrides `PropertyEffects` to warn on use of undeclared properties in
+       * template.
+       *
+       * @param {Object} templateInfo Template metadata to add effect to
+       * @param {string} prop Property that should trigger the effect
+       * @param {Object=} effect Effect metadata object
+       * @return {void}
+       * @protected
+       * @suppress {missingProperties} Interfaces in closure do not inherit statics, but classes do
+       */
+      static _addTemplatePropertyEffect(templateInfo, prop, effect) {
+        // Warn if properties are used in template without being declared.
+        // Properties must be listed in `properties` to be included in
+        // `observedAttributes` since CE V1 reads that at registration time, and
+        // since we want to keep template parsing lazy, we can't automatically
+        // add undeclared properties used in templates to `observedAttributes`.
+        // The warning is only enabled in `legacyOptimizations` mode, since
+        // we don't want to spam existing users who might have adopted the
+        // shorthand when attribute deserialization is not important.
+        if (Polymer.legacyOptimizations && !(prop in this._properties)) {
+          console.warn(`Property '${prop}' used in template but not declared in 'properties'; ` +
+            `attribute will not be observed.`);
+        }
+        return super._addTemplatePropertyEffect(templateInfo, prop, effect);
       }
 
     }

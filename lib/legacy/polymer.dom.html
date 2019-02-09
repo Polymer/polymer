@@ -39,10 +39,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   /**
    * Node API wrapper class returned from `Polymer.dom.(target)` when
    * `target` is a `Node`.
-   *
-   * @memberof Polymer
+   * @implements {PolymerDomApi}
+   * @unrestricted
    */
-  let DomApi = class {
+  class DomApiNative {
 
     /**
      * @param {Node} node Node for which to create a Polymer.dom helper object.
@@ -55,18 +55,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * Returns an instance of `Polymer.FlattenedNodesObserver` that
      * listens for node changes on this element.
      *
-     * @param {function(!Element, { target: !Element, addedNodes: !Array<!Element>, removedNodes: !Array<!Element> }):void} callback Called when direct or distributed children
+     * @param {function(this:HTMLElement, { target: !HTMLElement, addedNodes: !Array<!Element>, removedNodes: !Array<!Element> }):void} callback Called when direct or distributed children
      *   of this element changes
-     * @return {!Polymer.FlattenedNodesObserver} Observer instance
+     * @return {!Polymer.DomApi.ObserveHandle} Observer instance
      */
     observeNodes(callback) {
-      return new Polymer.FlattenedNodesObserver(this.node, callback);
+      return new Polymer.FlattenedNodesObserver(
+          /** @type {!HTMLElement} */(this.node), callback);
     }
 
     /**
      * Disconnects an observer previously created via `observeNodes`
      *
-     * @param {!Polymer.FlattenedNodesObserver} observerHandle Observer instance
+     * @param {!Polymer.DomApi.ObserveHandle} observerHandle Observer instance
      *   to disconnect.
      * @return {void}
      */
@@ -153,7 +154,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     importNode(node, deep) {
       let doc = this.node instanceof Document ? this.node :
         this.node.ownerDocument;
-      return doc.importNode(node, deep);
+      return Polymer.wrap(doc).importNode(node, deep);
     }
 
     /**
@@ -161,7 +162,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      * nodes assigned to child slots.
      */
     getEffectiveChildNodes() {
-      return Polymer.FlattenedNodesObserver.getFlattenedNodes(this.node);
+      return Polymer.FlattenedNodesObserver.getFlattenedNodes(
+          /** @type {!HTMLElement} */ (this.node));
     }
 
     /**
@@ -193,13 +195,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let node = this.node;
       return node._activeElement !== undefined ? node._activeElement : node.activeElement;
     }
-  };
+  }
 
   function forwardMethods(proto, methods) {
     for (let i=0; i < methods.length; i++) {
       let method = methods[i];
       /* eslint-disable valid-jsdoc */
-      proto[method] = /** @this {DomApi} */ function() {
+      proto[method] = /** @this {DomApiNative} */ function() {
         return this.node[method].apply(this.node, arguments);
       };
       /* eslint-enable */
@@ -211,7 +213,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       let name = properties[i];
       Object.defineProperty(proto, name, {
         get: function() {
-          const domApi = /** @type {DomApi} */(this);
+          const domApi = /** @type {DomApiNative} */(this);
           return domApi.node[name];
         },
         configurable: true
@@ -223,17 +225,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     for (let i=0; i < properties.length; i++) {
       let name = properties[i];
       Object.defineProperty(proto, name, {
+        /**
+         * @this {DomApiNative}
+         * @return {*} .
+         */
         get: function() {
-          const domApi = /** @type {DomApi} */(this);
-          return domApi.node[name];
+          return this.node[name];
         },
+        /**
+         * @this {DomApiNative}
+         * @param {*} value .
+         */
         set: function(value) {
-          /** @type {DomApi} */ (this).node[name] = value;
+          this.node[name] = value;
         },
         configurable: true
       });
     }
   }
+
 
   /**
    * Event API wrapper class returned from `Polymer.dom.(target)` when
@@ -271,78 +281,112 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     }
   }
 
-  Polymer.DomApi = DomApi;
-
   /**
    * @function
    * @param {boolean=} deep
    * @return {!Node}
    */
-  Polymer.DomApi.prototype.cloneNode;
+  DomApiNative.prototype.cloneNode;
   /**
    * @function
    * @param {!Node} node
    * @return {!Node}
    */
-  Polymer.DomApi.prototype.appendChild;
+  DomApiNative.prototype.appendChild;
   /**
    * @function
    * @param {!Node} newChild
    * @param {Node} refChild
    * @return {!Node}
    */
-  Polymer.DomApi.prototype.insertBefore;
+  DomApiNative.prototype.insertBefore;
   /**
    * @function
    * @param {!Node} node
    * @return {!Node}
    */
-  Polymer.DomApi.prototype.removeChild;
+  DomApiNative.prototype.removeChild;
   /**
    * @function
    * @param {!Node} oldChild
    * @param {!Node} newChild
    * @return {!Node}
    */
-  Polymer.DomApi.prototype.replaceChild;
+  DomApiNative.prototype.replaceChild;
   /**
    * @function
    * @param {string} name
    * @param {string} value
    * @return {void}
    */
-  Polymer.DomApi.prototype.setAttribute;
+  DomApiNative.prototype.setAttribute;
   /**
    * @function
    * @param {string} name
    * @return {void}
    */
-  Polymer.DomApi.prototype.removeAttribute;
+  DomApiNative.prototype.removeAttribute;
   /**
    * @function
    * @param {string} selector
    * @return {?Element}
    */
-  Polymer.DomApi.prototype.querySelector;
+  DomApiNative.prototype.querySelector;
   /**
    * @function
    * @param {string} selector
    * @return {!NodeList<!Element>}
    */
-  Polymer.DomApi.prototype.querySelectorAll;
+  DomApiNative.prototype.querySelectorAll;
 
-  if (window['ShadyDOM'] && window['ShadyDOM']['inUse'] && window['ShadyDOM']['noPatch'] && window['ShadyDOM']['Wrapper']) {
+  /** @type {?Node} */
+  DomApiNative.prototype.parentNode;
+  /** @type {?Node} */
+  DomApiNative.prototype.firstChild;
+  /** @type {?Node} */
+  DomApiNative.prototype.lastChild;
+  /** @type {?Node} */
+  DomApiNative.prototype.nextSibling;
+  /** @type {?Node} */
+  DomApiNative.prototype.previousSibling;
+  /** @type {?HTMLElement} */
+  DomApiNative.prototype.firstElementChild;
+  /** @type {?HTMLElement} */
+  DomApiNative.prototype.lastElementChild;
+  /** @type {?HTMLElement} */
+  DomApiNative.prototype.nextElementSibling;
+  /** @type {?HTMLElement} */
+  DomApiNative.prototype.previousElementSibling;
+  /** @type {!Array<!Node>} */
+  DomApiNative.prototype.childNodes;
+  /** @type {!Array<!HTMLElement>} */
+  DomApiNative.prototype.children;
+  /** @type {?DOMTokenList} */
+  DomApiNative.prototype.classList;
+  
+  /** @type {string} */
+  DomApiNative.prototype.textContent;
+  /** @type {string} */
+  DomApiNative.prototype.innerHTML;
+  
+  let DomApiImpl = DomApiNative;
 
-    class Wrapper extends window['ShadyDOM']['Wrapper'] {}
+  if (window.ShadyDOM && window.ShadyDOM.inUse && window.ShadyDOM.noPatch && window.ShadyDOM.Wrapper) {
+
+    /**
+     * @private
+     * @extends {HTMLElement}
+     */
+    class Wrapper extends window.ShadyDOM.Wrapper {}
 
     // copy bespoke API onto wrapper
-    Object.getOwnPropertyNames(DomApi.prototype).forEach((prop) => {
+    Object.getOwnPropertyNames(DomApiNative.prototype).forEach((prop) => {
       if (prop != 'activeElement') {
-        Wrapper.prototype[prop] = DomApi.prototype[prop];
+        Wrapper.prototype[prop] = DomApiNative.prototype[prop];
       }
     });
 
-    DomApi = Polymer.DomApi = Wrapper;
+    DomApiImpl = Wrapper;
 
     Object.defineProperties(EventApi.prototype, {
 
@@ -363,23 +407,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   } else {
 
-    forwardMethods(Polymer.DomApi.prototype, [
+    forwardMethods(DomApiNative.prototype, [
       'cloneNode', 'appendChild', 'insertBefore', 'removeChild',
       'replaceChild', 'setAttribute', 'removeAttribute',
       'querySelector', 'querySelectorAll'
     ]);
 
-    forwardReadOnlyProperties(Polymer.DomApi.prototype, [
+    forwardReadOnlyProperties(DomApiNative.prototype, [
       'parentNode', 'firstChild', 'lastChild',
       'nextSibling', 'previousSibling', 'firstElementChild',
       'lastElementChild', 'nextElementSibling', 'previousElementSibling',
       'childNodes', 'children', 'classList'
     ]);
 
-    forwardProperties(Polymer.DomApi.prototype, [
+    forwardProperties(DomApiNative.prototype, [
       'textContent', 'innerHTML'
     ]);
   }
+
+  Polymer.DomApi = DomApiImpl;
 
   /**
    * Legacy DOM and Event manipulation API wrapper factory used to abstract
@@ -394,22 +440,25 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @summary Legacy DOM and Event manipulation API wrapper factory used to
    * abstract differences between native Shadow DOM and "Shady DOM."
    * @memberof Polymer
-   * @param {(Node|Event)=} obj Node or event to operate on
-   * @return {!DomApi|!EventApi} Wrapper providing either node API or event API
+   * @param {(Node|Event|DomApiNative|EventApi)=} obj Node or event to operate on
+   * @return {!DomApiNative|!EventApi} Wrapper providing either node API or event API
    */
   Polymer.dom = function(obj) {
     obj = obj || document;
-    if (obj instanceof DomApi || obj instanceof EventApi) {
-      return obj;
+    if (obj instanceof DomApiImpl) {
+      return /** @type {!DomApiImpl} */(obj);
     }
-    let helper = obj.__domApi;
+    if (obj instanceof EventApi) {
+      return /** @type {!EventApi} */(obj);
+    }
+    let helper = obj['__domApi'];
     if (!helper) {
       if (obj instanceof Event) {
         helper = new EventApi(obj);
       } else {
-        helper = new DomApi(obj);
+        helper = new DomApiImpl(/** @type {Node} */(obj));
       }
-      obj.__domApi = helper;
+      obj['__domApi'] = helper;
     }
     return helper;
   };

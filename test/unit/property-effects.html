@@ -329,6 +329,14 @@ suite('single-element binding effects', function() {
     assert.equal(el.observerCounts.customEventValueChanged, 1, 'custom bound property observer not called');
   });
 
+  test('custom notification event to path', function() {
+    el.clearObserverCounts();
+    el.$.boundChild.customEventObjectValue = 84;
+    el.$.boundChild.dispatchEvent(new Event('change'));
+    assert.equal(el.customEventObject.value, 84, 'custom bound path incorrect');
+    assert.equal(el.observerCounts.customEventObjectValueChanged, 1, 'custom bound path observer not called');
+  });
+
   test('custom notification bubbling event to property', function() {
     const child = document.createElement('div');
     el.$.boundChild.appendChild(child);
@@ -337,14 +345,6 @@ suite('single-element binding effects', function() {
     child.dispatchEvent(new Event('custom', {bubbles: true}));
     assert.equal(el.customEventValue, 42, 'custom bound property incorrect');
     assert.equal(el.observerCounts.customEventValueChanged, 1, 'custom bound property observer not called');
-  });
-
-  test('custom notification event to path', function() {
-    el.clearObserverCounts();
-    el.$.boundChild.customEventObjectValue = 84;
-    el.$.boundChild.dispatchEvent(new Event('change'));
-    assert.equal(el.customEventObject.value, 84, 'custom bound path incorrect');
-    assert.equal(el.observerCounts.customEventObjectValueChanged, 1, 'custom bound path observer not called');
   });
 
   test('computed property with negative number', function() {
@@ -1869,6 +1869,109 @@ suite('a la carte usage of API', function() {
 
 });
 
+suite('warn on legacy differences', () => {
+
+  setup(function() {
+    sinon.spy(console, 'warn');
+  });
+
+  teardown(function() {
+    Polymer.setLegacyOptimizations(false);
+    console.warn.restore();
+  });
+
+  test('warn if non-declared property used in binding', () => {
+    Polymer.setLegacyOptimizations(true);
+    Polymer({
+      is: 'x-warn-undeclared-binding',
+      _template: Polymer.html`
+        <div attr$="[[undeclaredToAttr]]"
+             prop="[[undeclaredToProp]]">
+             [[undeclaredToText]]</div>`
+    });
+    const el = document.createElement('x-warn-undeclared-binding');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 3);
+  });
+
+  test('warn when re-declaring a computed property', () => {
+    Polymer({
+      is: 'x-warn-redeclared-computed',
+      behaviors: [{
+        properties: {
+          a: { computed: 'compute(x)' }
+        }
+      }, {
+        properties: {
+          a: { computed: 'compute(y)' }
+        }
+      }]
+    });
+    const el = document.createElement('x-warn-redeclared-computed');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 1);
+  });
+
+  test('warn when disabling readOnly on a readOnly property', () => {
+    Polymer({
+      is: 'x-warn-disable-readonly',
+      behaviors: [{
+        properties: {
+          a: { readOnly: true }
+        }
+      }, {
+        properties: {
+          a: { readOnly: false }
+        }
+      }]
+    });
+    const el = document.createElement('x-warn-disable-readonly');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 1);
+  });
+
+  test('warn when disabling reflect on a reflect property', () => {
+    Polymer({
+      is: 'x-warn-disable-reflect',
+      behaviors: [{
+        properties: {
+          a: { reflectToAttribute: true }
+        }
+      }, {
+        properties: {
+          a: { reflectToAttribute: false }
+        }
+      }]
+    });
+    const el = document.createElement('x-warn-disable-reflect');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 1);
+  });
+
+  test('warn when disabling notify on a notify property', () => {
+    Polymer({
+      is: 'x-warn-disable-notify',
+      behaviors: [{
+        properties: {
+          a: { notify: true }
+        }
+      }, {
+        properties: {
+          a: { notify: false }
+        }
+      }]
+    });
+    const el = document.createElement('x-warn-disable-notify');
+    document.body.appendChild(el);
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 1);
+  });
+
+});
 </script>
 
 </body>

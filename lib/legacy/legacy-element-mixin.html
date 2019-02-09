@@ -17,6 +17,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <link rel="import" href="../utils/render-status.html">
 <link rel="import" href="../utils/unresolved.html">
 <link rel="import" href="polymer.dom.html">
+<link rel="import" href="../utils/gestures.html">
+<link rel="import" href="../utils/debounce.html">
+<link rel="import" href="../utils/async.html">
+<link rel="import" href="../utils/path.html">
 
 <script>
 (function() {
@@ -44,10 +48,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     /**
      * @constructor
-     * @extends {base}
      * @implements {Polymer_ElementMixin}
      * @implements {Polymer_GestureEventListeners}
      * @implements {Polymer_DirMixin}
+     * @extends {HTMLElement}
      * @private
      */
     const legacyElementBase = Polymer.DirMixin(Polymer.GestureEventListeners(Polymer.ElementMixin(base)));
@@ -76,9 +80,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         super();
         /** @type {boolean} */
         this.isAttached;
-        /** @type {WeakMap<!Element, !Object<string, !Function>>} */
+        /** @type {?WeakMap<!Element, !Object<string, !Function>>} */
         this.__boundListeners;
-        /** @type {Object<string, Function>} */
+        /** @type {?Object<string, ?Function>} */
         this._debouncers;
       }
 
@@ -145,7 +149,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} name Name of attribute.
        * @param {?string} old Old value of attribute.
        * @param {?string} value Current value of attribute.
-       * @param {?string} namespace Attribute namespace.
+       * @param {?string=} namespace Attribute namespace.
        * @return {void}
        * @override
        */
@@ -370,6 +374,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {HTMLTemplateElement} template HTML template element to instance.
        * @return {!DocumentFragment} Document fragment containing the imported
        *   template content.
+       * @suppress {missingProperties} go/missingfnprops
       */
       instanceTemplate(template) {
         let content = this.constructor._contentForTemplate(template);
@@ -388,7 +393,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} type Name of event type.
        * @param {*=} detail Detail value containing event-specific
        *   payload.
-       * @param {{ bubbles: (boolean|undefined), cancelable: (boolean|undefined), composed: (boolean|undefined) }=}
+       * @param {{ bubbles: (boolean|undefined), cancelable: (boolean|undefined),
+       *     composed: (boolean|undefined) }=}
        *  options Object specifying options.  These may include:
        *  `bubbles` (boolean, defaults to `true`),
        *  `cancelable` (boolean, defaults to false), and
@@ -413,13 +419,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Convenience method to add an event listener on a given element,
        * late bound to a named method on this element.
        *
-       * @param {Element} node Element to add event listener to.
+       * @param {?EventTarget} node Element to add event listener to.
        * @param {string} eventName Name of event to listen for.
        * @param {string} methodName Name of handler method on `this` to call.
        * @return {void}
        */
       listen(node, eventName, methodName) {
-        node = /** @type {!Element} */ (node || this);
+        node = /** @type {!EventTarget} */ (node || this);
         let hbl = this.__boundListeners ||
           (this.__boundListeners = new WeakMap());
         let bl = hbl.get(node);
@@ -430,7 +436,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         let key = eventName + methodName;
         if (!bl[key]) {
           bl[key] = this._addMethodEventListenerToNode(
-            node, eventName, methodName, this);
+              /** @type {!Node} */ (node), eventName, methodName, this);
         }
       }
 
@@ -438,20 +444,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * Convenience method to remove an event listener from a given element,
        * late bound to a named method on this element.
        *
-       * @param {Element} node Element to remove event listener from.
+       * @param {?EventTarget} node Element to remove event listener from.
        * @param {string} eventName Name of event to stop listening to.
        * @param {string} methodName Name of handler method on `this` to not call
        anymore.
        * @return {void}
        */
       unlisten(node, eventName, methodName) {
-        node = /** @type {!Element} */ (node || this);
-        let bl = this.__boundListeners && this.__boundListeners.get(node);
+        node = /** @type {!EventTarget} */ (node || this);
+        let bl = this.__boundListeners &&
+            this.__boundListeners.get(/** @type {!Element} */ (node));
         let key = eventName + methodName;
         let handler = bl && bl[key];
         if (handler) {
-          this._removeEventListenerFromNode(node, eventName, handler);
-          bl[key] = null;
+          this._removeEventListenerFromNode(
+              /** @type {!Node} */ (node), eventName, handler);
+          bl[key] = /** @type {?} */ (null);
         }
       }
 
@@ -471,7 +479,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {void}
        */
       setScrollDirection(direction, node) {
-        Polymer.Gestures.setTouchAction(/** @type {Element} */ (node || this), DIRECTION_MAP[direction] || 'auto');
+        Polymer.Gestures.setTouchAction(
+            /** @type {!Element} */ (node || this),
+            DIRECTION_MAP[direction] || 'auto');
       }
       /* **** End Events **** */
 
@@ -519,7 +529,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * any `<content>` elements are replaced with the list of nodes distributed
        * to the `<content>`, the result of its `getDistributedNodes` method.
        * @return {!Array<!Node>} List of effective child nodes.
-       * @suppress {invalidCasts} LegacyElementMixin must be applied to an HTMLElement
+       * @suppress {invalidCasts} LegacyElementMixin must be applied to an
+       *     HTMLElement
        */
       getEffectiveChildNodes() {
         const thisEl = /** @type {Element} */ (this);
@@ -533,7 +544,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * children that are insertion points.
        * @param {string} selector Selector to run.
        * @return {!Array<!Node>} List of distributed elements that match selector.
-       * @suppress {invalidCasts} LegacyElementMixin must be applied to an HTMLElement
+       * @suppress {invalidCasts} LegacyElementMixin must be applied to an
+       * HTMLElement
        */
       queryDistributedElements(selector) {
         const thisEl = /** @type {Element} */ (this);
@@ -591,7 +603,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * match `selector`. These can be dom child nodes or elements distributed
        * to children that are insertion points.
        * @param {string} selector Selector to run.
-       * @return {!Array<!Node>} List of effective child nodes that match selector.
+       * @return {!Array<!Node>} List of effective child nodes that match
+       *     selector.
        */
       queryAllEffectiveChildren(selector) {
         return this.queryDistributedElements(selector);
@@ -610,7 +623,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       getContentChildNodes(slctr) {
         // Note, no need to `wrap` this because root is always patched
         let content = this.root.querySelector(slctr || 'slot');
-        return content ? /** @type {Polymer.DomApi} */(Polymer.dom(content)).getDistributedNodes() : [];
+        return content ?
+            /** @type {Polymer.DomApi} */ (Polymer.dom(content)).getDistributedNodes() :
+            [];
       }
 
       /**
@@ -640,7 +655,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        *
        * @param {?Node} node The element to be checked.
        * @return {boolean} true if node is in this element's light DOM tree.
-       * @suppress {invalidCasts} LegacyElementMixin must be applied to an HTMLElement
+       * @suppress {invalidCasts} LegacyElementMixin must be applied to an
+       * HTMLElement
        */
       isLightDescendant(node) {
         const thisNode = /** @type {Node} */ (this);
@@ -673,7 +689,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} property The css property name.
        * @return {string} Returns the computed css property value for the given
        * `property`.
-       * @suppress {invalidCasts} LegacyElementMixin must be applied to an HTMLElement
+       * @suppress {invalidCasts} LegacyElementMixin must be applied to an
+       *     HTMLElement
        */
       getComputedStyleValue(property) {
         return styleInterface.getComputedStyleValue(/** @type {!Element} */(this), property);
@@ -697,7 +714,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} jobName String to identify the debounce job.
        * @param {function():void} callback Function that is called (with `this`
        *   context) when the wait time elapses.
-       * @param {number} wait Optional wait time in milliseconds (ms) after the
+       * @param {number=} wait Optional wait time in milliseconds (ms) after the
        *   last signal that must elapse before invoking `callback`
        * @return {!Object} Returns a debouncer object on which exists the
        * following methods: `isActive()` returns true if the debouncer is
@@ -759,7 +776,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * By default (if no waitTime is specified), async callbacks are run at
        * microtask timing, which will occur before paint.
        *
-       * @param {!Function} callback The callback function to run, bound to `this`.
+       * @param {!Function} callback The callback function to run, bound to
+       *     `this`.
        * @param {number=} waitTime Time to wait before calling the
        *   `callback`.  If unspecified or 0, the callback will be run at microtask
        *   timing (before paint).
@@ -838,7 +856,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @return {boolean} Whether the element matches the selector.
        */
       elementMatches(selector, node) {
-        return Polymer.dom.matchesSelector(/** @type {!Element} */ (node || this), selector);
+        return Polymer.dom.matchesSelector( (node || this), selector);
       }
 
       /**
@@ -847,18 +865,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * @param {string} name HTML attribute name
        * @param {boolean=} bool Boolean to force the attribute on or off.
        *    When unspecified, the state of the attribute will be reversed.
-       * @param {Element=} node Node to target.  Defaults to `this`.
-       * @return {void}
+       * @return {boolean} true if the attribute now exists
        */
-      toggleAttribute(name, bool, node) {
-        node = /** @type {Element} */ (node || this);
+      toggleAttribute(name, bool) {
+        let node = /** @type {Element} */(this);
+        if (arguments.length === 3) {
+          node = /** @type {Element} */(arguments[2]);
+        }
         if (arguments.length == 1) {
           bool = !node.hasAttribute(name);
         }
         if (bool) {
           Polymer.wrap(node).setAttribute(name, '');
+          return true;
         } else {
           Polymer.wrap(node).removeAttribute(name);
+          return false;
         }
       }
 
@@ -924,7 +946,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
        * If the array is passed directly, **no change
        * notification is generated**.
        *
-       * @param {string | !Array<number|string>} arrayOrPath Path to array from which to remove the item
+       * @param {string | !Array<number|string>} arrayOrPath Path to array from
+       *     which to remove the item
        *   (or the array itself).
        * @param {*} item Item to remove.
        * @return {Array} Array containing item removed.
