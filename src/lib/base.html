@@ -64,20 +64,26 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     },
 
     createdCallback: function() {
-      if (settings.disableUpgradeEnabled) {
-        if (this.hasAttribute('disable-upgrade')) {
-          this._propertySetter = disableUpgradePropertySetter;
-          this._configValue = null;
-          this.__data__ = {};
-          return;
-        } else {
-          this.__hasInitialized = true;
-        }
+      if (settings.disableUpgradeEnabled && this.hasAttribute('disable-upgrade')) {
+        this._propertySetter = this._disabledPropertySetter;
+        this._configValue = null;
+        this.__data__ = {};
+      } else {
+        this.__initialize();
       }
-      this.__initialize();
     },
 
     __initialize: function() {
+      if (this.__hasInitialized) {
+        return;
+      }
+      this.__hasInitialized = true;
+      if (this._propertySetter && this._propertySetter === this._disabledPropertySetter) {
+        if (Polymer.Bind) {
+          this._propertySetter = Polymer.Bind._modelApi._propertySetter;
+        }
+      }
+      this._configValue = Polymer.Base._configValue;
       if (!this.__hasRegisterFinished) {
         this._ensureRegisterFinished(this.__proto__);
       }
@@ -302,25 +308,20 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   Polymer.Base = Polymer.Base.chainObject(Polymer.Base, HTMLElement.prototype);
   Polymer.BaseDescriptors = {};
 
-  var disableUpgradePropertySetter;
+  Polymer.Base._disabledPropertySetter = function(property, value) {
+    this.__data__[property] = value;
+  }
+
+  Polymer.Base._defaultAttributeChangedCallback = Polymer.Base.attributeChangedCallback;
 
   if (settings.disableUpgradeEnabled) {
 
-    disableUpgradePropertySetter = function(property, value) {
-      this.__data__[property] = value;
-    }
-
-    var origAttributeChangedCallback = Polymer.Base.attributeChangedCallback;
     Polymer.Base.attributeChangedCallback = function(name, oldValue, newValue) {
       if (!this.__hasInitialized && name === 'disable-upgrade') {
-        this.__hasInitialized = true;
-        this._propertySetter = Polymer.Bind._modelApi._propertySetter;
-        this._configValue = Polymer.Base._configValue;
         this.__initialize();
       }
-      origAttributeChangedCallback.call(this, name, oldValue, newValue);
+      this._defaultAttributeChangedCallback(name, oldValue, newValue);
     }
-
   }
 
   if (window.CustomElements) {
@@ -337,6 +338,85 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   // TODO(sjmiles): ad hoc telemetry
   Polymer.telemetry.instanceCount = 0;
+
+  Polymer.BaseV1 = {
+
+      createdCallback: function() {
+        if (!this.hasAttribute('disable-upgrade')) {
+          this._registerHost();
+        }
+        this.__data__ = {};
+        this._configValue = this._defaultConfigValue;
+      },
+
+      _defaultConfigValue: function(name, value) {
+        this.__data__[name] = value;
+      },
+
+      connectedCallback: function() {
+        this.attachedCallback();
+      },
+
+      attachedCallback: function() {
+        if (!this.__hasInitialized && !this.hasAttribute('disable-upgrade')) {
+          // note, this initializes features and plays in attributes
+          this.__initialize();
+        }
+        // it's critical to always do this as it will queue attached if
+        // the element is not yet ready.
+        Polymer.Base.attachedCallback.call(this);
+      },
+
+      disconnectedCallback: function() {
+        this.detachedCallback();
+      },
+
+      // here so that this works when `lazyRegister` is used
+      _propertySetter: Polymer.Base._disabledPropertySetter,
+
+      // called on prototype
+      _prepEffects: function() {
+        //Polymer.Base._prepEffects.call(this);
+        Polymer.Bind.prepareModel(this);
+        this._addAnnotationEffects(this._notes);
+        this._propertySetter = Polymer.Base._disabledPropertySetter;
+      },
+
+      attributeChangedCallback: function(name, oldValue, newValue) {
+        // note, initialization plays in attributes so we ignore then before that
+        if (!this.__hasInitialized) {
+          if (name === 'disable-upgrade') {
+            // note, this triggers ready which calls `attachedCallback` if it was pending.
+            this.__initialize();
+          }
+        } else {
+          this._defaultAttributeChangedCallback(name, oldValue, newValue);
+        }
+      },
+
+      // TODO(sorvell): hack for not setting observedAttributes
+      // _native_setAttribute: Element.prototype.setAttribute,
+      // _native_removeAttribute: Element.prototype.removeAttribute,
+      // setAttribute: function(name, value) {
+      //   var old = this.getAttribute(name);
+      //   this._native_setAttribute(name, value);
+      //   this.attributeChangedCallback(name, old, value);
+      // },
+      // // TODO(sorvell): hack for not setting observedAttributes
+      // removeAttribute: function(name) {
+      //   var old = this.getAttribute(name);
+      //   this._native_removeAttribute(name);
+      //   this.attributeChangedCallback(name, old, null);
+      // },
+
+      _ready: function() {
+        if (!this.hasAttribute('disable-upgrade')) {
+          this.__initialize();
+          Polymer.Base._ready.call(this);
+        }
+      },
+
+    }
 
 })();
 </script>

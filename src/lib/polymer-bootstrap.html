@@ -19,7 +19,44 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
     var userPolymer = window.Polymer;
 
+    var PolymerBaseCtor;
+
     window.Polymer = function(prototype) {
+
+      // TODO(sorvell): these should be Polymer settings instead. It's like this for
+      // easy testing only.
+      if ((console.perfParams && (console.perfParams.ceV1 || console.perfParams.ceV0)) && !(prototype && prototype.extends)) {
+        if (!prototype) {
+          return;
+        }
+        if (!PolymerBaseCtor) {
+          PolymerBaseCtor = class extends HTMLElement {
+            constructor() {
+              super();
+              this.createdCallback();
+            }
+
+            // TODO(sorvell): work out when/how to get this list or override `setAttribute`
+            static get observedAttributes() {
+              return ["disable-upgrade"];
+            }
+
+          }
+          Polymer.Base.extend(PolymerBaseCtor.prototype, Polymer.Base);
+          Polymer.Base.extend(PolymerBaseCtor.prototype, Polymer.BaseV1);
+        }
+        class PolymerGenerated extends PolymerBaseCtor {};
+        Polymer.Base.extend(PolymerGenerated.prototype, prototype);
+        PolymerGenerated.prototype.registerCallback();
+        if (console.perfParams.ceV1) {
+          customElements.define(PolymerGenerated.prototype.is.toLowerCase(), PolymerGenerated);
+          return PolymerGenerated;
+        } else {
+          return document.registerElement(PolymerGenerated.prototype.is.toLowerCase(), PolymerGenerated);
+        }
+      }
+
+
       // if input is a `class` (aka a function with a prototype), use the prototype
       // remember that the `constructor` will never be called
       if (typeof prototype === 'function') {
