@@ -26,8 +26,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script type="module">
 import './property-effects-elements.js';
 import { Polymer, html } from '../../polymer-legacy.js';
-import { setSanitizeDOMValue, sanitizeDOMValue, setLegacyOptimizations } from '../../lib/utils/settings.js';
+import { setSanitizeDOMValue, sanitizeDOMValue, setLegacyOptimizations, legacyUndefined, setLegacyUndefined, legacyNoBatch, setLegacyNoBatch } from '../../lib/utils/settings.js';
 import { PropertyEffects } from '../../lib/mixins/property-effects.js';
+
+setLegacyUndefined(Boolean(window.location.search.match('legacyUndefined'))); 
+setLegacyNoBatch(Boolean(window.location.search.match('legacyNoBatch')));
+
 
 suite('single-element binding effects', function() {
 
@@ -1234,7 +1238,9 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3literalComputedcpnd4');
+    assert.equal(el.$.boundProps.prop1, 
+      legacyUndefined ?
+      'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
     assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3literalComputedcpnd5cpnd4');
   });
@@ -1265,7 +1271,9 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3literalComputedcpnd4');
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 
+      legacyUndefined ?
+      'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
     assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3literalComputedcpnd5cpnd4');
   });
@@ -1302,7 +1310,9 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3literalComputedcpnd4');
+    assert.equal(el.$.compound1.textContent, 
+      legacyUndefined ?
+      'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
     assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3literalComputedcpnd5cpnd4');
     // Once the binding evaluates back to '', it will in fact be ''
@@ -1770,29 +1780,57 @@ suite('a la carte usage of API', function() {
     customElements.define('pe-method-observer', TestClass);
     let el = document.createElement('pe-method-observer');
     document.body.appendChild(el);
-    assert.equal(el.observer.callCount, 1);
-    assert.deepEqual(el.observer.getCall(0).args, [undefined, undefined]);
+    if (legacyUndefined) {
+      assert.equal(el.observer.callCount, 0);
+    } else {
+      assert.equal(el.observer.callCount, 1);
+      assert.deepEqual(el.observer.getCall(0).args, [undefined, undefined]);
+    }
     assert.equal(el.pcSpy.callCount, 1);
     el.a = 'a';
-    assert.equal(el.observer.callCount, 2);
-    assert.deepEqual(el.observer.getCall(1).args, ['a', undefined]);
+    if (legacyUndefined) {
+      assert.equal(el.observer.callCount, 0);
+    } else {
+      assert.equal(el.observer.callCount, 2);
+      assert.deepEqual(el.observer.getCall(1).args, ['a', undefined]);
+    }
     assert.equal(el.pcSpy.callCount, 2);
     el.b = {c: 'c'};
-    assert.equal(el.observer.callCount, 3);
-    assert.deepEqual(el.observer.getCall(2).args, ['a', 'c']);
+    if (legacyUndefined) {
+      assert.equal(el.observer.callCount, 1);
+      assert.deepEqual(el.observer.getCall(0).args, ['a', 'c']);
+    } else {
+      assert.equal(el.observer.callCount, 3);
+      assert.deepEqual(el.observer.getCall(2).args, ['a', 'c']);
+    }
     assert.equal(el.pcSpy.callCount, 3);
     el.setProperties({
       a: 'A',
       b: {c: 'C'}
     });
-    assert.equal(el.observer.callCount, 4);
-    assert.deepEqual(el.observer.getCall(3).args, ['A', 'C']);
-    assert.equal(el.pcSpy.callCount, 4);
+    if (legacyNoBatch && legacyUndefined) {
+      assert.equal(el.observer.callCount, 3);
+      assert.deepEqual(el.observer.getCall(1).args, ['A', 'c']);
+      assert.deepEqual(el.observer.getCall(2).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 5);
+    } else if (legacyUndefined) {
+      assert.equal(el.observer.callCount, 2);
+      assert.deepEqual(el.observer.getCall(1).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 4);
+    } else {
+      assert.equal(el.observer.callCount, 4);
+      assert.deepEqual(el.observer.getCall(3).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 4);
+    }
 
     el.observer = sinon.spy();
     assert.equal(el.observer.callCount, 1);
     assert.deepEqual(el.observer.getCall(0).args, ['A', 'C']);
-    assert.equal(el.pcSpy.callCount, 5);
+    if (legacyNoBatch && legacyUndefined) {
+      assert.equal(el.pcSpy.callCount, 6);
+    } else {
+      assert.equal(el.pcSpy.callCount, 5);
+    }
     document.body.removeChild(el);
   });
 
@@ -1810,23 +1848,43 @@ suite('a la carte usage of API', function() {
     assert.equal(el.compute.callCount, 0);
     assert.equal(el.pcSpy.callCount, 0);
     el.a = 'a';
-    assert.equal(el.compute.callCount, 1);
-    assert.deepEqual(el.compute.getCall(0).args, ['a', undefined]);
-    assert.equal(el.prop, 'aundefined');
+    if (legacyUndefined) {
+      assert.equal(el.compute.callCount, 0);
+    } else {
+      assert.equal(el.compute.callCount, 1);
+      assert.deepEqual(el.compute.getCall(0).args, ['a', undefined]);
+      assert.equal(el.prop, 'aundefined');
+    }
     assert.equal(el.pcSpy.callCount, 1);
     el.b = {c: 'c'};
-    assert.equal(el.compute.callCount, 2);
-    assert.deepEqual(el.compute.getCall(1).args, ['a', 'c']);
+    if (legacyUndefined) {
+      assert.equal(el.compute.callCount, 1);
+      assert.deepEqual(el.compute.getCall(0).args, ['a', 'c']);
+    } else {
+      assert.equal(el.compute.callCount, 2);
+      assert.deepEqual(el.compute.getCall(1).args, ['a', 'c']);
+    }
     assert.equal(el.prop, 'ac');
     assert.equal(el.pcSpy.callCount, 2);
     el.setProperties({
       a: 'A',
       b: {c: 'C'}
     });
-    assert.equal(el.compute.callCount, 3);
-    assert.deepEqual(el.compute.getCall(2).args, ['A', 'C']);
+    if (legacyNoBatch && legacyUndefined) {
+      assert.equal(el.compute.callCount, 3);
+      assert.deepEqual(el.compute.getCall(1).args, ['A', 'c']);
+      assert.deepEqual(el.compute.getCall(2).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 4);
+    } else if (legacyUndefined) {
+      assert.equal(el.compute.callCount, 2);
+      assert.deepEqual(el.compute.getCall(1).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 3);
+    } else {
+      assert.equal(el.compute.callCount, 3);
+      assert.deepEqual(el.compute.getCall(2).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 3);
+    }
     assert.equal(el.prop, 'AC');
-    assert.equal(el.pcSpy.callCount, 3);
     document.body.removeChild(el);
   });
 

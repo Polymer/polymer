@@ -298,7 +298,9 @@ Polymer({
   },
 
   $computeTrickyFunctionFromLiterals: function(num, str) {
-    return this.computeFromLiterals(num, str);
+    assert.equal(num, 3);
+    assert.equal(str, 'foo');
+    return num + str;
   },
 
   computeFromTrickyLiterals: function(a, b) {
