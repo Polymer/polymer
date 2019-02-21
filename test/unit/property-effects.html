@@ -26,7 +26,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script type="module">
 import './property-effects-elements.js';
 import { Polymer, html } from '../../polymer-legacy.js';
-import { setSanitizeDOMValue, sanitizeDOMValue, setLegacyOptimizations } from '../../lib/utils/settings.js';
+import { flush } from '../../lib/utils/flush.js';
+import { setSanitizeDOMValue, sanitizeDOMValue, setLegacyWarnings } from '../../lib/utils/settings.js';
 import { PropertyEffects } from '../../lib/mixins/property-effects.js';
 
 suite('single-element binding effects', function() {
@@ -1881,45 +1882,65 @@ suite('warn on legacy differences', () => {
   });
 
   teardown(function() {
-    setLegacyOptimizations(false);
+    setLegacyWarnings(false);
     console.warn.restore();
   });
 
   test('warn if non-declared property used in binding', () => {
-    setLegacyOptimizations(true);
+    setLegacyWarnings(true);
     Polymer({
       is: 'x-warn-undeclared-binding',
       _template: html`
         <div attr$="[[undeclaredToAttr]]"
              prop="[[undeclaredToProp]]">
-             [[undeclaredToText]]</div>`
+             [[undeclaredToText]]
+             [[compute(undeclaredDep1, undeclaredDep2)]]
+             </div>
+        <template is="dom-repeat" items="[0]">
+          <div attr$="[[nestedUndeclaredToAttr]]"
+             prop="[[nestedUndeclaredToProp]]">
+             [[nestedUndeclaredToText]]
+             [[compute(nestedUndeclaredDep1, nestedUndeclaredDep2)]]
+             </div>
+        </template>
+        `,
+      compute(dep) { return dep; }
     });
     const el = document.createElement('x-warn-undeclared-binding');
     document.body.appendChild(el);
+    flush();
     document.body.removeChild(el);
-    assert.equal(console.warn.callCount, 3);
+    assert.equal(console.warn.callCount, 10);
   });
 
   test('do not warn on valid non-property bindings', () => {
-    setLegacyOptimizations(true);
+    setLegacyWarnings(true);
     Polymer({
       is: 'x-nowarn-undeclared-binding',
       properties: {
-        hostProp: String
+        hostProp: String,
+        dynamicFn: Function
       },
       _template: html`
-        <div>[[noDeps()]]</div>
-        <div>[[hostProp]]</div>
+        <div>[[hostProp]]</div>    <!-- host prop -->
+        <div>[[noDeps()]]</div>    <!-- method with no deps -->
+        <div>[[dynamicFn()]]</div> <!-- dynamic function with no deps -->
+        <div>[[dynamicFnWithDep(hostProp)]]</div>  <!-- dynamic function with deps -->
         <template is="dom-repeat" items="[0]" as="instProp">
           <div>[[instProp]]</div>  <!-- instance prop -->
-          <div>[[hostProp]]</div>  <!-- host prop -->
-          <div>[[noDeps()]]</div>  <!-- method with no deps -->
+          <div>[[hostProp]]</div>  <!-- nested host prop -->
+          <div>[[noDeps()]]</div>  <!-- nested method with no deps -->
+          <div>[[dynamicFn()]]</div> <!-- dynamic function with no deps -->
+          <div>[[dynamicFnWithDep(hostProp)]]</div>  <!-- dynamic function with deps -->
         </template>
       `,
-      noDeps() { return 'static'; }
+      noDeps() { return 'static'; },
+      dynamicFn(dep) { return dep; },
+      dynamicFnWithDep(dep) { return dep; }
     });
     const el = document.createElement('x-nowarn-undeclared-binding');
     document.body.appendChild(el);
+    flush();
     document.body.removeChild(el);
     assert.equal(console.warn.callCount, 0);
   });
