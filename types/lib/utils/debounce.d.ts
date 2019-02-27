@@ -80,4 +80,10 @@ declare namespace Polymer {
      */
     isActive(): boolean;
   }
+
+
+  /**
+   * Adds a `Debouncer` to a list of globally flushable tasks.
+   */
+  function enqueueDebouncer(debouncer: Debouncer): void;
 }

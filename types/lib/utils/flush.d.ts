@@ -12,14 +12,9 @@
 // tslint:disable:variable-name Describing an API that's defined elsewhere.
 
 /// <reference path="boot.d.ts" />
+/// <reference path="debounce.d.ts" />
 
 declare namespace Polymer {
-
-
-  /**
-   * Adds a `Polymer.Debouncer` to a list of globally flushable tasks.
-   */
-  function enqueueDebouncer(debouncer: Polymer.Debouncer): void;
 
 
   /**
