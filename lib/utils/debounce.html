@@ -40,6 +40,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       this._timer = this._asyncModule.run(() => {
         this._timer = null;
         this._callback();
+        debouncerQueue.delete(this);
       });
     }
     /**
@@ -115,5 +116,36 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 
   /** @const */
   Polymer.Debouncer = Debouncer;
+
+  let debouncerQueue = new Set();
+  
+  /**
+   * Adds a `Debouncer` to a list of globally flushable tasks.
+   *
+   * @param {!Debouncer} debouncer Debouncer to enqueue
+   * @return {void}
+   */
+  Polymer.enqueueDebouncer = function(debouncer) {
+    if (debouncerQueue.has(debouncer)) {
+      debouncerQueue.delete(debouncer);
+    }
+    debouncerQueue.add(debouncer);
+  };
+  
+  Polymer.flushDebouncers = function() {
+    const didFlush = Boolean(debouncerQueue.size);
+    debouncerQueue.forEach(debouncer => {
+      try {
+        debouncer.flush();
+      } catch(e) {
+        setTimeout(() => {
+          throw e;
+        });
+      }
+    });
+    debouncerQueue = new Set();
+    return didFlush;
+  };
+
 })();
 </script>
