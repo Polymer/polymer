@@ -33,6 +33,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import { Polymer } from '../../polymer-legacy.js';
 import { Debouncer } from '../../lib/utils/debounce.js';
 import { microTask, timeOut, animationFrame, idlePeriod } from '../../lib/utils/async.js';
+import { enqueueDebouncer, flush } from '../../lib/utils/flush.js';
 Polymer({is: 'x-basic'});
 
 suite('debounce', function() {
@@ -206,6 +207,53 @@ suite('debounce', function() {
         assert.isTrue(callback.calledTwice, 'callback should be called twice');
         done();
       });
+    });
+
+  });
+
+  suite('enqueueDebouncer & flush', function() {
+    function testEnqueue(shouldFlush, done) {
+      // Longer-running debouncer
+      const timeoutCallback = sinon.spy(() => actualCallbacks.push(timeoutCallback));
+      enqueueDebouncer(Debouncer.debounce(null, timeOut, timeoutCallback));
+      // Set of short-running debouncers enqueued in the middle of first set
+      const nestedCallbacks = new Array(150).fill().map((_, i) => sinon.spy(() =>
+        actualCallbacks.push(nestedCallbacks[i])));
+      // First set of short-running debouncers
+      const microtaskCallbacks = new Array(150).fill().map((_, i) => sinon.spy(() => {
+        actualCallbacks.push(microtaskCallbacks[i]);
+        if (i === 125) {
+          nestedCallbacks.forEach(cb => 
+            enqueueDebouncer(Debouncer.debounce(null, microTask, cb)));
+        }
+      }));
+      microtaskCallbacks.forEach(cb => 
+        enqueueDebouncer(Debouncer.debounce(null, microTask, cb)));
+      // Expect short before long
+      let expectedCallbacks;
+      const actualCallbacks = [];
+      const verify = () => {
+        actualCallbacks.forEach(cb => assert.isTrue(cb.calledOnce));
+        assert.deepEqual(expectedCallbacks, actualCallbacks);
+        done();
+      };
+      if (shouldFlush) {
+        expectedCallbacks = [timeoutCallback, ...microtaskCallbacks, ...nestedCallbacks];
+        flush();
+        // When flushing, order is order of enqueing
+        verify();
+      } else {
+        expectedCallbacks = [...microtaskCallbacks, ...nestedCallbacks, timeoutCallback];
+        timeOut.run(verify);
+      }
+    }
+
+    test('non-flushed', function(done) {
+      testEnqueue(false, done);
+    });
+
+    test('flushed', function(done) {
+      testEnqueue(true, done);
     });
 
   });
