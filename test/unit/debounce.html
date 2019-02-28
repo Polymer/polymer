@@ -33,6 +33,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import { Polymer } from '../../polymer-legacy.js';
 import { Debouncer } from '../../lib/utils/debounce.js';
 import { microTask, timeOut, animationFrame, idlePeriod } from '../../lib/utils/async.js';
+import { enqueueDebouncer, flush } from '../../lib/utils/flush.js';
 Polymer({is: 'x-basic'});
 
 suite('debounce', function() {
@@ -206,6 +207,44 @@ suite('debounce', function() {
         assert.isTrue(callback.calledTwice, 'callback should be called twice');
         done();
       });
+    });
+
+  });
+
+  suite('enqueueDebouncer & flush', function() {
+
+    const testEnqueue = (shouldFlush, done) => {
+      const actualOrder = [];
+      const enqueue = (type, {db, cb} = {}) => {
+        cb = cb || (() => actualOrder.push(cb));
+        db = Debouncer.debounce(db, type, cb);
+        enqueueDebouncer(db);
+        return {db, cb};
+      };
+      const db1 = enqueue(microTask);
+      const db2 = enqueue(microTask);
+      const db3 = enqueue(timeOut);
+      const db4 = enqueue(microTask);
+      enqueue(microTask, db2);
+      enqueue(microTask, db1);
+      if (shouldFlush) {
+        flush();
+        assert.deepEqual(actualOrder, [db1.cb, db2.cb, db3.cb, db4.cb]);
+        done();
+      } else {
+        timeOut.run(() => {
+          assert.deepEqual(actualOrder, [db4.cb, db2.cb, db1.cb, db3.cb]);
+          done();
+        });
+      }
+    };
+
+    test('non-flushed', function(done) {
+      testEnqueue(false, done);
+    });
+
+    test('flushed', function(done) {
+      testEnqueue(true, done);
     });
 
   });
