@@ -69,6 +69,11 @@ declare namespace Polymer {
     cancel(): void;
 
     /**
+     * Cancels a debouncer's async callback.
+     */
+    _cancelAsync(): void;
+
+    /**
      * Flushes an active debouncer and returns a reference to itself.
      */
     flush(): void;
