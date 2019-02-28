@@ -211,47 +211,33 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   });
 
   suite('enqueueDebouncer & flush', function() {
-    function testEnqueue(shouldFlush, done) {
-      // Longer-running debouncer
-      const timeoutCallback = sinon.spy(() => actualCallbacks.push(timeoutCallback));
-      Polymer.enqueueDebouncer(Polymer.Debouncer.debounce(null, Polymer.Async.timeOut, timeoutCallback));
-      // Set of short-running debouncers enqueued in the middle of first set
-      const nestedCallbacks = [];
-      for (let i=0; i<150; i++) {
-        nestedCallbacks.push(sinon.spy(() =>
-          actualCallbacks.push(nestedCallbacks[i])));
-      }
-      // First set of short-running debouncers
-      const microtaskCallbacks = [];
-      for (let i=0; i<150; i++) {
-        microtaskCallbacks.push(sinon.spy(() => {
-          actualCallbacks.push(microtaskCallbacks[i]);
-          if (i === 125) {
-            nestedCallbacks.forEach(cb => 
-              Polymer.enqueueDebouncer(Polymer.Debouncer.debounce(null, Polymer.Async.microTask, cb)));
-          }
-        }));
-      }
-      microtaskCallbacks.forEach(cb => 
-        Polymer.enqueueDebouncer(Polymer.Debouncer.debounce(null, Polymer.Async.microTask, cb)));
-      // Expect short before long
-      let expectedCallbacks;
-      const actualCallbacks = [];
-      const verify = () => {
-        actualCallbacks.forEach(cb => assert.isTrue(cb.calledOnce));
-        assert.deepEqual(expectedCallbacks, actualCallbacks);
-        done();
+
+    const testEnqueue = (shouldFlush, done) => {
+      const actualOrder = [];
+      let i=1;
+      const enqueue = (type, {db, cb} = {}) => {
+        cb = cb || (() => actualOrder.push(cb));
+        db = Polymer.Debouncer.debounce(db, type, cb);
+        Polymer.enqueueDebouncer(db);
+        return {db, cb};
       };
+      const db1 = enqueue(Polymer.Async.microTask);
+      const db2 = enqueue(Polymer.Async.microTask);
+      const db3 = enqueue(Polymer.Async.timeOut);
+      const db4 = enqueue(Polymer.Async.microTask);
+      enqueue(Polymer.Async.microTask, db2);
+      enqueue(Polymer.Async.microTask, db1);
       if (shouldFlush) {
-        expectedCallbacks = [timeoutCallback, ...microtaskCallbacks, ...nestedCallbacks];
         Polymer.flush();
-        // When flushing, order is order of enqueing
-        verify();
+        assert.deepEqual(actualOrder, [db1.cb, db2.cb, db3.cb, db4.cb]);
+        done();
       } else {
-        expectedCallbacks = [...microtaskCallbacks, ...nestedCallbacks, timeoutCallback];
-        Polymer.Async.timeOut.run(verify);
+        Polymer.Async.timeOut.run(() => {
+          assert.deepEqual(actualOrder, [db4.cb, db2.cb, db1.cb, db3.cb]);
+          done();
+        });
       }
-    }
+    };
 
     test('non-flushed', function(done) {
       testEnqueue(false, done);

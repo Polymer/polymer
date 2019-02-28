@@ -50,9 +50,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     cancel() {
       if (this.isActive()) {
-        this._asyncModule.cancel(this._timer);
+        this._cancelAsync();
         this._timer = null;
+        debouncerQueue.delete(this);
       }
+    }
+    /**
+     * Cancels a debouncer's async callback.
+     *
+     * @return {void}
+     */
+    _cancelAsync() {
+      this._asyncModule.cancel(/** @type {number} */(this._timer));
     }
     /**
      * Flushes an active debouncer and returns a reference to itself.
@@ -105,7 +114,9 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
      */
     static debounce(debouncer, asyncModule, callback) {
       if (debouncer instanceof Debouncer) {
-        debouncer.cancel();
+        // Cancel the async callback, but leave in debouncerQueue if it was
+        // enqueued, to maintain 1.x flush order
+        debouncer._cancelAsync();
       } else {
         debouncer = new Debouncer();
       }
@@ -127,11 +138,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
    * @return {void}
    */
   Polymer.enqueueDebouncer = function(debouncer) {
-    // Re-enqueued debouncers are put at the end of the queue; for Set, this
-    // means removing and re-adding, since forEach traverses insertion order
-    if (debouncerQueue.has(debouncer)) {
-      debouncerQueue.delete(debouncer);
-    }
     debouncerQueue.add(debouncer);
   };
   
