@@ -1011,6 +1011,47 @@ class SubObserverElement extends SuperObserverElement {
 }
 customElements.define(SubObserverElement.is, SubObserverElement);
 
+customElements.define('x-computed-ordering', class extends PolymerElement {
+  static get properties() {
+    return {
+      a: {type: Number},
+      b: {type: Number},
+      c: {type: Number},
+      d: {type: Number},
+      abbcd: {computed: 'computeABBCD(a, b, bcd)', observer: 'abbcdChanged'},
+      bcd: {computed: 'computeBCD(bc, d)', observer: 'bcdChanged'},
+      bc: {computed: 'computeBC(b, c)', observer: 'bcChanged'},
+      circIn: {type: Number},
+      circA: {computed: 'computeCircA(circIn, circB)'},
+      circB: {computed: 'computeCircA(circIn, circA)'},
+    };
+  }
+  constructor() {
+    super();
+    sinon.spy(this, 'computeABBCD');
+    sinon.spy(this, 'computeBCD');
+    sinon.spy(this, 'computeBC');
+    this.abbcdChanged = sinon.spy();
+    this.bcdChanged = sinon.spy();
+    this.bcChanged = sinon.spy();
+  }
+  computeABBCD(a, b, bcd) {
+    return a + b + bcd;
+  }
+  computeBCD(bc, d) {
+    return bc + d;
+  }
+  computeBC(b, c) {
+    return b + c;
+  }
+  computeCircA(circIn, circB) {
+    return circIn + (circB || 0);
+  }
+  computeCircB(circIn, circA) {
+    return circIn + (circA || 0);
+  }
+});
+  
 class SVGElement extends PolymerElement {
   static get template() {
     return html`
