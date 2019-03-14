@@ -34,6 +34,86 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     Polymer({is: 'x-basic'});
   });
 
+  suite('enqueueDebouncer & flush', function() {
+  
+    // NOTE: This is a regression test; the bug it fixed only occurred if the
+    // debouncer was flushed before any microtasks run, hence it should be
+    // first in this file
+    test('re-enqueue canceled debouncer', function() {
+      const cb = sinon.spy();
+      let db;
+      db = Polymer.Debouncer.debounce(null, Polymer.Async.microTask, cb);
+      Polymer.enqueueDebouncer(db);
+      db.cancel();
+      assert.equal(db.isActive(), false);
+      assert.equal(cb.callCount, 0);
+      db = Polymer.Debouncer.debounce(db, Polymer.Async.microTask, cb);
+      Polymer.enqueueDebouncer(db);
+      Polymer.flush();
+      assert.isTrue(cb.calledOnce);
+    });
+  
+    test('flushDebouncers from enqueued debouncer', function(done) {
+      const cb = sinon.spy(() => Polymer.flush());
+      let db = Polymer.Debouncer.debounce(null, Polymer.Async.microTask, cb);
+      Polymer.enqueueDebouncer(db);
+      setTimeout(() => {
+        assert.isTrue(cb.calledOnce);
+        done();
+      });
+    });
+  
+    const testEnqueue = (shouldFlush, done) => {
+      const actualOrder = [];
+      const enqueue = (type, {db, cb} = {}) => {
+        cb = cb || (() => actualOrder.push(cb));
+        db = Polymer.Debouncer.debounce(db, type, cb);
+        Polymer.enqueueDebouncer(db);
+        return {db, cb};
+      };
+      const db1 = enqueue(Polymer.Async.microTask);
+      const db2 = enqueue(Polymer.Async.microTask);
+      const db3 = enqueue(Polymer.Async.timeOut);
+      const db4 = enqueue(Polymer.Async.microTask);
+      enqueue(Polymer.Async.microTask, db2);
+      enqueue(Polymer.Async.microTask, db1);
+      if (shouldFlush) {
+        Polymer.flush();
+        assert.deepEqual(actualOrder, [db1.cb, db2.cb, db3.cb, db4.cb]);
+        done();
+      } else {
+        Polymer.Async.timeOut.run(() => {
+          assert.deepEqual(actualOrder, [db4.cb, db2.cb, db1.cb, db3.cb]);
+          done();
+        });
+      }
+    };
+  
+    test('non-flushed', function(done) {
+      testEnqueue(false, done);
+    });
+  
+    test('flushed', function(done) {
+      testEnqueue(true, done);
+    });
+  
+    test('reentrant flush', function() {
+      const cb2 = sinon.spy();
+      let db2;
+      const cb1 = sinon.spy(() => {
+        Polymer.flush();
+        db2 = Polymer.Debouncer.debounce(null, Polymer.Async.microTask, cb2);
+        Polymer.enqueueDebouncer(db2);
+      });
+      const db1 = Polymer.Debouncer.debounce(null, Polymer.Async.microTask, cb1);
+      Polymer.enqueueDebouncer(db1);
+      Polymer.flush();
+      assert.isTrue(cb1.calledOnce);
+      assert.isTrue(cb2.calledOnce);
+    });
+  
+  });
+
   suite('debounce', function() {
     var element;
 
@@ -207,43 +287,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
       });
 
-    });
-  });
-
-  suite('enqueueDebouncer & flush', function() {
-
-    const testEnqueue = (shouldFlush, done) => {
-      const actualOrder = [];
-      const enqueue = (type, {db, cb} = {}) => {
-        cb = cb || (() => actualOrder.push(cb));
-        db = Polymer.Debouncer.debounce(db, type, cb);
-        Polymer.enqueueDebouncer(db);
-        return {db, cb};
-      };
-      const db1 = enqueue(Polymer.Async.microTask);
-      const db2 = enqueue(Polymer.Async.microTask);
-      const db3 = enqueue(Polymer.Async.timeOut);
-      const db4 = enqueue(Polymer.Async.microTask);
-      enqueue(Polymer.Async.microTask, db2);
-      enqueue(Polymer.Async.microTask, db1);
-      if (shouldFlush) {
-        Polymer.flush();
-        assert.deepEqual(actualOrder, [db1.cb, db2.cb, db3.cb, db4.cb]);
-        done();
-      } else {
-        Polymer.Async.timeOut.run(() => {
-          assert.deepEqual(actualOrder, [db4.cb, db2.cb, db1.cb, db3.cb]);
-          done();
-        });
-      }
-    };
-
-    test('non-flushed', function(done) {
-      testEnqueue(false, done);
-    });
-
-    test('flushed', function(done) {
-      testEnqueue(true, done);
     });
 
   });
