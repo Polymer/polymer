@@ -1,5 +1,42 @@
 # Change Log
 
+## [v2.7.1](https://github.com/Polymer/polymer/tree/v2.7.1) (2019-03-21)
+- Sync with fixes on master branch. ([commit](https://github.com/Polymer/polymer/commit/2228f678))
+
+- Add comment about order when re-debouncing ([commit](https://github.com/Polymer/polymer/commit/d06334e1))
+
+- Fix lint, update types ([commit](https://github.com/Polymer/polymer/commit/33c37fb8))
+
+- Fix order of flushed debouncers to match 1.x ([commit](https://github.com/Polymer/polymer/commit/52c41e69))
+
+- Avoid Array.fill ([commit](https://github.com/Polymer/polymer/commit/7485a60d))
+
+- Add comments ([commit](https://github.com/Polymer/polymer/commit/f4df4663))
+
+- Update types ([commit](https://github.com/Polymer/polymer/commit/8fba53f5))
+
+- Use set and clear debouncer upon completion. Fixes #5250 ([commit](https://github.com/Polymer/polymer/commit/1137a0ac))
+
+- Revert "Use set and clear debouncer upon completion. Fixes #5250" ([commit](https://github.com/Polymer/polymer/commit/5788df29))
+
+- Use set and clear debouncer upon completion. Fixes #5250 ([commit](https://github.com/Polymer/polymer/commit/e8d23144))
+
+- Quote the getStyle method of the custom style element. ([commit](https://github.com/Polymer/polymer/commit/d2bdf684))
+
+- Remove yet another string concatenation to a template string ([commit](https://github.com/Polymer/polymer/commit/40d58814))
+
+- Avoid string concatentation to template strings ([commit](https://github.com/Polymer/polymer/commit/0e6daa70))
+
+- Update several string references which can be renamed by closure-compiler ([commit](https://github.com/Polymer/polymer/commit/f5c95f64))
+
+- Disable auto `strip-whitespace` on template with legacyOptimizations ([commit](https://github.com/Polymer/polymer/commit/e55efa0d))
+
+- Polymer 2.x version of #5464 ([commit](https://github.com/Polymer/polymer/commit/625a166c))
+
+- Update generated types for Polymer 2.x ([commit](https://github.com/Polymer/polymer/commit/ee566940))
+
+- [ci skip] update chnagelog ([commit](https://github.com/Polymer/polymer/commit/1c51d5f1))
+
 ## [v2.7.0](https://github.com/Polymer/polymer/tree/v2.7.0) (2018-12-03)
 - Update to webcomponentsjs 1.3.0 ([commit](https://github.com/Polymer/polymer/commit/5df96021))
 
