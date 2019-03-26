@@ -135,7 +135,6 @@ Beyond GitHub, we try to have a variety of different lines of communication avai
 
 * [Blog](https://blog.polymer-project.org/)
 * [Twitter](https://twitter.com/polymer)
-* [Google+ community](https://plus.google.com/communities/115626364525706131031)
 * [Mailing list](https://groups.google.com/forum/#!forum/polymer-dev)
 * [Slack channel](https://bit.ly/polymerslack)
 
