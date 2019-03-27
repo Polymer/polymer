@@ -155,7 +155,10 @@ declare namespace Polymer {
    *       </template>
    *     </dom-repeat>
    *
-   *     <array-selector id="selector" items="{{employees}}" selected="{{selected}}" multi toggle></array-selector>
+   *     <array-selector id="selector"
+   *                     items="{{employees}}"
+   *                     selected="{{selected}}"
+   *                     multi toggle></array-selector>
    *
    *     <div> Selected employees: </div>
    *     <dom-repeat items="{{selected}}">
@@ -187,7 +190,7 @@ declare namespace Polymer {
    *    };
    *  }
    *  toggleSelection(e) {
-   *    let item = this.$.employeeList.itemForElement(e.target);
+   *    const item = this.$.employeeList.itemForElement(e.target);
    *    this.$.selector.select(item);
    *  }
    * }

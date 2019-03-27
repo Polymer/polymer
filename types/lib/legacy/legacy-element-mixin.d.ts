@@ -20,6 +20,10 @@
 /// <reference path="../utils/render-status.d.ts" />
 /// <reference path="../utils/unresolved.d.ts" />
 /// <reference path="polymer.dom.d.ts" />
+/// <reference path="../utils/gestures.d.ts" />
+/// <reference path="../utils/debounce.d.ts" />
+/// <reference path="../utils/async.d.ts" />
+/// <reference path="../utils/path.d.ts" />
 
 declare namespace Polymer {
 
@@ -38,7 +42,7 @@ declare namespace Polymer {
 
   interface LegacyElementMixin extends Polymer.ElementMixin, Polymer.PropertyEffects, Polymer.TemplateStamp, Polymer.PropertyAccessors, Polymer.PropertiesChanged, Polymer.PropertiesMixin, Polymer.GestureEventListeners {
     isAttached: boolean;
-    _debouncers: {[key: string]: Function|null};
+    _debouncers: {[key: string]: Function|null}|null;
 
     /**
      * Return the element whose local dom within which this element
@@ -70,7 +74,7 @@ declare namespace Polymer {
      * @param value Current value of attribute.
      * @param namespace Attribute namespace.
      */
-    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace: string|null): void;
+    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace?: string|null): void;
 
     /**
      * Provides an implementation of `connectedCallback`
@@ -264,7 +268,7 @@ declare namespace Polymer {
      * @param eventName Name of event to listen for.
      * @param methodName Name of handler method on `this` to call.
      */
-    listen(node: _Element|null, eventName: string, methodName: string): void;
+    listen(node: EventTarget|null, eventName: string, methodName: string): void;
 
     /**
      * Convenience method to remove an event listener from a given element,
@@ -275,7 +279,7 @@ declare namespace Polymer {
      * @param methodName Name of handler method on `this` to not call
      *        anymore.
      */
-    unlisten(node: _Element|null, eventName: string, methodName: string): void;
+    unlisten(node: EventTarget|null, eventName: string, methodName: string): void;
 
     /**
      * Override scrolling behavior to all direction, one direction, or none.
@@ -365,7 +369,8 @@ declare namespace Polymer {
      * to children that are insertion points.
      *
      * @param selector Selector to run.
-     * @returns List of effective child nodes that match selector.
+     * @returns List of effective child nodes that match
+     *     selector.
      */
     queryAllEffectiveChildren(selector: string): Node[];
 
@@ -455,7 +460,7 @@ declare namespace Polymer {
      * `flush()` immediately invokes the debounced callback if the debouncer
      * is active.
      */
-    debounce(jobName: string, callback: () => void, wait: number): object;
+    debounce(jobName: string, callback: () => void, wait?: number): object;
 
     /**
      * Returns whether a named debouncer is active.
@@ -485,7 +490,8 @@ declare namespace Polymer {
      * By default (if no waitTime is specified), async callbacks are run at
      * microtask timing, which will occur before paint.
      *
-     * @param callback The callback function to run, bound to `this`.
+     * @param callback The callback function to run, bound to
+     *     `this`.
      * @param waitTime Time to wait before calling the
      *   `callback`.  If unspecified or 0, the callback will be run at microtask
      *   timing (before paint).
@@ -546,9 +552,9 @@ declare namespace Polymer {
      * @param name HTML attribute name
      * @param bool Boolean to force the attribute on or off.
      *    When unspecified, the state of the attribute will be reversed.
-     * @param node Node to target.  Defaults to `this`.
+     * @returns true if the attribute now exists
      */
-    toggleAttribute(name: string, bool?: boolean, node?: _Element|null): void;
+    toggleAttribute(name: string, bool?: boolean): boolean;
 
     /**
      * Toggles a CSS class on or off.
@@ -591,7 +597,8 @@ declare namespace Polymer {
      * If the array is passed directly, **no change
      * notification is generated**.
      *
-     * @param arrayOrPath Path to array from which to remove the item
+     * @param arrayOrPath Path to array from
+     *     which to remove the item
      *   (or the array itself).
      * @param item Item to remove.
      * @returns Array containing item removed.

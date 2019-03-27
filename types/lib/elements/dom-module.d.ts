@@ -69,7 +69,7 @@ declare namespace Polymer {
      * @param value Current value of attribute.
      * @param namespace Attribute namespace.
      */
-    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace: string|null): void;
+    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace?: string|null): void;
 
     /**
      * Registers the dom-module at a given id. This method should only be called

@@ -48,4 +48,11 @@ declare namespace Polymer {
    * optimizations when only legacy Polymer() style elements are used.
    */
   function setLegacyOptimizations(useLegacyOptimizations: boolean): void;
+
+
+  /**
+   * Sets `syncInitialRender` globally for all elements. Enables
+   * synchronous initial rendering. This matches the behavior of Polymer 1.
+   */
+  function setSyncInitialRender(useSyncInitialRender: boolean): void;
 }

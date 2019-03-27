@@ -86,18 +86,35 @@ declare namespace Polymer {
     new(...args: any[]): ElementMixin;
 
     /**
-     * Overrides `PropertyAccessors` to add map of dynamic functions on
+     * Overrides `PropertyEffects` to add map of dynamic functions on
      * template info, for consumption by `PropertyEffects` template binding
      * code. This map determines which method templates should have accessors
      * created for them.
+     *
+     * @param template Template
+     * @param templateInfo Template metadata for current template
+     * @param nodeInfo Node metadata for current template.
+     * @returns .
      */
-    _parseTemplateContent(template: any, templateInfo: any, nodeInfo: any): any;
+    _parseTemplateContent(template: HTMLTemplateElement, templateInfo: TemplateInfo, nodeInfo: NodeInfo): boolean;
 
     /**
      * Override of PropertiesChanged createProperties to create accessors
      * and property effects for all of the properties.
+     *
+     * @param props .
      */
-    createProperties(props: any): void;
+    createProperties(props: object): void;
+
+    /**
+     * Overrides `PropertyEffects` to warn on use of undeclared properties in
+     * template.
+     *
+     * @param templateInfo Template metadata to add effect to
+     * @param prop Property that should trigger the effect
+     * @param effect Effect metadata object
+     */
+    _addTemplatePropertyEffect(templateInfo: object|null, prop: string, effect?: object|null): void;
 
     /**
      * Override of PropertiesMixin _finalizeClass to create observers and

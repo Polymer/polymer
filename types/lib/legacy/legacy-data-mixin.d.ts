@@ -42,52 +42,20 @@ declare namespace Polymer {
 
   interface LegacyDataMixinConstructor {
     new(...args: any[]): LegacyDataMixin;
-
-    /**
-     * Overrides `Polyer.PropertyEffects` to wrap effect functions to
-     * catch `UndefinedArgumentError`s and warn.
-     *
-     * @param templateInfo Template metadata to add effect to
-     * @param prop Property that should trigger the effect
-     * @param effect Effect metadata object
-     */
-    _addTemplatePropertyEffect(templateInfo: object|null, prop: string, effect?: object|null): void;
   }
 
   interface LegacyDataMixin {
-    readonly _legacyUndefinedCheck: any;
-
-    /**
-     * Overrides `Polyer.PropertyEffects` to wrap effect functions to
-     * catch `UndefinedArgumentError`s and warn.
-     *
-     * @param property Property that should trigger the effect
-     * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
-     * @param effect Effect metadata object
-     */
-    _addPropertyEffect(property: string, type: string, effect?: object|null): void;
   }
 }
 
-declare class LegacyDataMixin extends superClass {
+declare function TemplatizeMixin<T extends new (...args: any[]) => {}>(base: T): T & TemplatizeMixinConstructor;
 
-  /**
-   * Overrides `Polyer.PropertyEffects` to wrap effect functions to
-   * catch `UndefinedArgumentError`s and warn.
-   *
-   * @param templateInfo Template metadata to add effect to
-   * @param prop Property that should trigger the effect
-   * @param effect Effect metadata object
-   */
-  static _addTemplatePropertyEffect(templateInfo: object|null, prop: string, effect?: object|null): void;
+interface TemplatizeMixinConstructor {
+  new(...args: any[]): TemplatizeMixin;
+}
 
-  /**
-   * Overrides `Polyer.PropertyEffects` to wrap effect functions to
-   * catch `UndefinedArgumentError`s and warn.
-   *
-   * @param property Property that should trigger the effect
-   * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
-   * @param effect Effect metadata object
-   */
-  _addPropertyEffect(property: string, type: string, effect?: object|null): void;
+interface TemplatizeMixin {
+}
+
+declare class legacyBase extends HTMLElement {
 }

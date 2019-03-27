@@ -15,10 +15,12 @@
 /// <reference path="boot.d.ts" />
 /// <reference path="../mixins/property-effects.d.ts" />
 /// <reference path="../mixins/mutable-data.d.ts" />
+/// <reference path="settings.d.ts" />
 
 declare class TemplateInstanceBase extends
   Polymer.PropertyEffects(
   Object) {
+  root: StampedTemplate;
 
   /**
    * Find the parent model of this template instance.  The parent model
@@ -78,6 +80,12 @@ declare class TemplateInstanceBase extends
    * @returns Always true.
    */
   dispatchEvent(event: Event|null): boolean;
+}
+
+declare class templatizerBase extends TemplateInstanceBase {
+}
+
+declare class templatizedBase extends HTMLTemplateElementExtension {
 }
 
 declare namespace Polymer {
@@ -213,4 +221,7 @@ declare namespace Polymer {
      */
     function modelForElement(template: HTMLTemplateElement|null, node?: Node|null): TemplateInstanceBase|null;
   }
+}
+
+declare class baseClass extends TemplateInstanceBase {
 }

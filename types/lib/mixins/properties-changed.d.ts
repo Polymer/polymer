@@ -64,6 +64,7 @@ declare namespace Polymer {
   }
 
   interface PropertiesChanged {
+    __dataEnabled: any;
 
     /**
      * Creates a setter/getter pair for the named property with its own
@@ -199,7 +200,7 @@ declare namespace Polymer {
      *   in `changedProps`
      * @returns true if changedProps is truthy
      */
-    _shouldPropertiesChange(currentProps: object, changedProps: object, oldProps: object): boolean;
+    _shouldPropertiesChange(currentProps: object, changedProps: object|null, oldProps: object|null): boolean;
 
     /**
      * Callback called when any properties with accessors created via
@@ -211,7 +212,7 @@ declare namespace Polymer {
      * @param oldProps Bag of previous values for each property
      *   in `changedProps`
      */
-    _propertiesChanged(currentProps: object, changedProps: object, oldProps: object): void;
+    _propertiesChanged(currentProps: object, changedProps: object|null, oldProps: object|null): void;
 
     /**
      * Method called to determine whether a property value should be
@@ -241,7 +242,7 @@ declare namespace Polymer {
      * @param value New attribute value
      * @param namespace Attribute namespace.
      */
-    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace: string|null): void;
+    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace?: string|null): void;
 
     /**
      * Deserializes an attribute to its associated property.

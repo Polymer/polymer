@@ -18,6 +18,7 @@
 /// <reference path="../utils/case-map.d.ts" />
 /// <reference path="property-accessors.d.ts" />
 /// <reference path="template-stamp.d.ts" />
+/// <reference path="../utils/settings.d.ts" />
 
 declare namespace Polymer {
 
@@ -282,8 +283,8 @@ declare namespace Polymer {
      * Called to evaluate a previously parsed binding part based on a set of
      * one or more changed dependencies.
      *
-     * @param inst Element that should be used as scope for
-     *   binding dependencies
+     * @param inst Element that should be used as
+     *     scope for binding dependencies
      * @param part Binding part metadata
      * @param path Property/path that triggered this effect
      * @param props Bag of current property changes
@@ -291,7 +292,7 @@ declare namespace Polymer {
      * @param hasPaths True with `props` contains one or more paths
      * @returns Value the binding part evaluated to
      */
-    _evaluateBinding(inst: this|null, part: BindingPart|null, path: string, props: object|null, oldProps: object|null, hasPaths: boolean): any;
+    _evaluateBinding(inst: Polymer.PropertyEffects, part: BindingPart|null, path: string, props: object|null, oldProps: object|null, hasPaths: boolean): any;
   }
 
   interface PropertyEffects extends Polymer.TemplateStamp, Polymer.PropertyAccessors, Polymer.PropertiesChanged {
@@ -404,7 +405,7 @@ declare namespace Polymer {
      * @param oldProps Bag of previous values for each property
      *   in `changedProps`
      */
-    _propertiesChanged(currentProps: object, changedProps: object, oldProps: object): void;
+    _propertiesChanged(currentProps: object, changedProps: object|null, oldProps: object|null): void;
 
     /**
      * Overrides `Polymer.PropertyAccessors` implementation to provide a
@@ -441,7 +442,8 @@ declare namespace Polymer {
      *
      * @param property Property name
      * @param type Effect type, from this.PROPERTY_EFFECT_TYPES
-     * @returns True if the prototype/instance has an effect of this type
+     * @returns True if the prototype/instance has an effect of this
+     *     type
      */
     _hasPropertyEffect(property: string, type?: string): boolean;
 
@@ -450,7 +452,8 @@ declare namespace Polymer {
      * accessor for the given property.
      *
      * @param property Property name
-     * @returns True if the prototype/instance has an effect of this type
+     * @returns True if the prototype/instance has an effect of this
+     *     type
      */
     _hasReadOnlyEffect(property: string): boolean;
 
@@ -459,16 +462,18 @@ declare namespace Polymer {
      * property effect for the given property.
      *
      * @param property Property name
-     * @returns True if the prototype/instance has an effect of this type
+     * @returns True if the prototype/instance has an effect of this
+     *     type
      */
     _hasNotifyEffect(property: string): boolean;
 
     /**
-     * Returns whether the current prototype/instance has a "reflect to attribute"
-     * property effect for the given property.
+     * Returns whether the current prototype/instance has a "reflect to
+     * attribute" property effect for the given property.
      *
      * @param property Property name
-     * @returns True if the prototype/instance has an effect of this type
+     * @returns True if the prototype/instance has an effect of this
+     *     type
      */
     _hasReflectEffect(property: string): boolean;
 
@@ -477,7 +482,8 @@ declare namespace Polymer {
      * property effect for the given property.
      *
      * @param property Property name
-     * @returns True if the prototype/instance has an effect of this type
+     * @returns True if the prototype/instance has an effect of this
+     *     type
      */
     _hasComputedEffect(property: string): boolean;
 
@@ -607,8 +613,10 @@ declare namespace Polymer {
      *     this.items.splice(1, 1, {name: 'Sam'});
      *     this.items.push({name: 'Bob'});
      *     this.notifySplices('items', [
-     *       { index: 1, removed: [{name: 'Todd'}], addedCount: 1, object: this.items, type: 'splice' },
-     *       { index: 3, removed: [], addedCount: 1, object: this.items, type: 'splice'}
+     *       { index: 1, removed: [{name: 'Todd'}], addedCount: 1,
+     *         object: this.items, type: 'splice' },
+     *       { index: 3, removed: [], addedCount: 1,
+     *         object: this.items, type: 'splice'}
      *     ]);
      *
      * @param path Path that should be notified.
@@ -713,7 +721,7 @@ declare namespace Polymer {
      * @param items Items to insert into array.
      * @returns Array of removed items.
      */
-    splice(path: string|Array<string|number>, start: number, deleteCount: number, ...items: any[]): any[]|null;
+    splice(path: string|Array<string|number>, start: number, deleteCount?: number, ...items: any[]): any[]|null;
 
     /**
      * Removes an item from the beginning of array at the path specified.
@@ -774,7 +782,8 @@ declare namespace Polymer {
      * full API docs.
      *
      * @param property Property name
-     * @param method Function or name of observer method to call
+     * @param method Function or name of observer method
+     *     to call
      * @param dynamicFn Whether the method name should be included as
      *   a dependency to the effect.
      */

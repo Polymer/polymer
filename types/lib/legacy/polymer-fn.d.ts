@@ -19,7 +19,8 @@
  * elements.
  *
  * This method is equivalent to
- * `customElements.define(info.is, Polymer.Class(info));`
+ *
+ *     customElements.define(info.is, Polymer.Class(info));
  *
  * See `Polymer.Class` for details on valid legacy metadata format for `info`.
  *

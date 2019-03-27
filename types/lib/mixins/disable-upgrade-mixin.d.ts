@@ -13,6 +13,7 @@
 // tslint:disable:no-any describes the API as best we are able today
 
 /// <reference path="element-mixin.d.ts" />
+/// <reference path="../utils/mixin.d.ts" />
 
 declare namespace Polymer {
 
@@ -46,7 +47,14 @@ declare namespace Polymer {
   interface DisableUpgradeMixin extends Polymer.ElementMixin, Polymer.PropertyEffects, Polymer.TemplateStamp, Polymer.PropertyAccessors, Polymer.PropertiesChanged, Polymer.PropertiesMixin {
     _initializeProperties(): void;
     _enableProperties(): void;
-    attributeChangedCallback(name: any, old: any, value: any, namespace: any): void;
+
+    /**
+     * @param name Attribute name.
+     * @param old The previous value for the attribute.
+     * @param value The new value for the attribute.
+     * @param namespace The XML namespace for the attribute.
+     */
+    attributeChangedCallback(name: string, old: string|null, value: string|null, namespace?: string|null): undefined;
     connectedCallback(): void;
     disconnectedCallback(): void;
   }

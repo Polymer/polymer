@@ -17,19 +17,6 @@ declare namespace Polymer {
 
 
   /**
-   * Applies a "legacy" behavior or array of behaviors to the provided class.
-   *
-   * Note: this method will automatically also apply the `Polymer.LegacyElementMixin`
-   * to ensure that any legacy behaviors can rely on legacy Polymer API on
-   * the underlying element.
-   *
-   * @returns Returns a new Element class extended by the
-   * passed in `behaviors` and also by `Polymer.LegacyElementMixin`.
-   */
-  function mixinBehaviors<T>(behaviors: object|object[], klass: {new(): T}): {new(): T};
-
-
-  /**
    * Generates a class that extends `Polymer.LegacyElement` based on the
    * provided info object.  Metadata objects on the `info` object
    * (`properties`, `observers`, `listeners`, `behaviors`, `is`) are used

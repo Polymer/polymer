@@ -83,7 +83,9 @@ declare namespace Polymer {
    *         ${super.template}
    *       `;
    *     }
-   *     static get styleTemplate() { return Polymer.htmlLiteral`.shadowed { background: gray; }`; }
+   *     static get styleTemplate() {
+   *        return Polymer.htmlLiteral`.shadowed { background: gray; }`;
+   *     }
    *
    * @returns Constructed literal string
    */

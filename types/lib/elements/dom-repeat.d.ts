@@ -73,15 +73,14 @@ declare namespace Polymer {
    * instances, which will update via the normal structured data notification system.
    *
    * Mutations to the `items` array itself should be made using the Array
-   * mutation API's on `Polymer.Base` (`push`, `pop`, `splice`, `shift`,
-   * `unshift`), and template instances will be kept in sync with the data in the
-   * array.
+   * mutation API's on the PropertyEffects mixin (`push`, `pop`, `splice`,
+   * `shift`, `unshift`), and template instances will be kept in sync with the
+   * data in the array.
    *
    * Events caught by event handlers within the `dom-repeat` template will be
    * decorated with a `model` property, which represents the binding scope for
-   * each template instance.  The model is an instance of Polymer.Base, and should
-   * be used to manipulate data on the instance, for example
-   * `event.model.set('item.checked', true);`.
+   * each template instance.  The model should be used to manipulate data on the
+   * instance, for example `event.model.set('item.checked', true);`.
    *
    * Alternatively, the model for a template instance for an element stamped by
    * a `dom-repeat` can be obtained using the `modelForElement` API on the
