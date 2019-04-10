@@ -33,7 +33,88 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 import { Polymer } from '../../polymer-legacy.js';
 import { Debouncer } from '../../lib/utils/debounce.js';
 import { microTask, timeOut, animationFrame, idlePeriod } from '../../lib/utils/async.js';
+import { enqueueDebouncer, flush } from '../../lib/utils/flush.js';
 Polymer({is: 'x-basic'});
+
+suite('enqueueDebouncer & flush', function() {
+
+  // NOTE: This is a regression test; the bug it fixed only occurred if the
+  // debouncer was flushed before any microtasks run, hence it should be
+  // first in this file
+  test('re-enqueue canceled debouncer', function() {
+    const cb = sinon.spy();
+    let db;
+    db = Debouncer.debounce(null, microTask, cb);
+    enqueueDebouncer(db);
+    db.cancel();
+    assert.equal(db.isActive(), false);
+    assert.equal(cb.callCount, 0);
+    db = Debouncer.debounce(db, microTask, cb);
+    enqueueDebouncer(db);
+    flush();
+    assert.isTrue(cb.calledOnce);
+  });
+
+  test('flushDebouncers from enqueued debouncer', function(done) {
+    const cb = sinon.spy(() => flush());
+    let db = Debouncer.debounce(null, microTask, cb);
+    enqueueDebouncer(db);
+    setTimeout(() => {
+      assert.isTrue(cb.calledOnce);
+      done();
+    });
+  });
+
+  const testEnqueue = (shouldFlush, done) => {
+    const actualOrder = [];
+    const enqueue = (type, {db, cb} = {}) => {
+      cb = cb || (() => actualOrder.push(cb));
+      db = Debouncer.debounce(db, type, cb);
+      enqueueDebouncer(db);
+      return {db, cb};
+    };
+    const db1 = enqueue(microTask);
+    const db2 = enqueue(microTask);
+    const db3 = enqueue(timeOut);
+    const db4 = enqueue(microTask);
+    enqueue(microTask, db2);
+    enqueue(microTask, db1);
+    if (shouldFlush) {
+      flush();
+      assert.deepEqual(actualOrder, [db1.cb, db2.cb, db3.cb, db4.cb]);
+      done();
+    } else {
+      timeOut.run(() => {
+        assert.deepEqual(actualOrder, [db4.cb, db2.cb, db1.cb, db3.cb]);
+        done();
+      });
+    }
+  };
+
+  test('non-flushed', function(done) {
+    testEnqueue(false, done);
+  });
+
+  test('flushed', function(done) {
+    testEnqueue(true, done);
+  });
+
+  test('reentrant flush', function() {
+    const cb2 = sinon.spy();
+    let db2;
+    const cb1 = sinon.spy(() => {
+      flush();
+      db2 = Debouncer.debounce(null, microTask, cb2);
+      enqueueDebouncer(db2);
+    });
+    const db1 = Debouncer.debounce(null, microTask, cb1);
+    enqueueDebouncer(db1);
+    flush();
+    assert.isTrue(cb1.calledOnce);
+    assert.isTrue(cb2.calledOnce);
+  });
+
+});
 
 suite('debounce', function() {
   var element;
@@ -209,6 +290,7 @@ suite('debounce', function() {
     });
 
   });
+
 });
 </script>
 </body>
