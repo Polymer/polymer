@@ -1014,16 +1014,22 @@ customElements.define(SubObserverElement.is, SubObserverElement);
 customElements.define('x-computed-ordering', class extends PolymerElement {
   static get properties() {
     return {
-      a: {type: Number},
-      b: {type: Number},
-      c: {type: Number},
-      d: {type: Number},
+      a: {type: Number, value: 1000},
+      b: {type: Number, value: 100},
+      c: {type: Number, value: 10},
+      d: {type: Number, value: 1},
       abbcd: {computed: 'computeABBCD(a, b, bcd)', observer: 'abbcdChanged'},
       bcd: {computed: 'computeBCD(bc, d)', observer: 'bcdChanged'},
       bc: {computed: 'computeBC(b, c)', observer: 'bcChanged'},
       circIn: {type: Number},
       circA: {computed: 'computeCircA(circIn, circB)'},
       circB: {computed: 'computeCircA(circIn, circA)'},
+
+      x: {type: Number, value: 2},
+      y: {type: Number, value: 20},
+      z: {type: Number, value: 200},
+      xy: {computed: 'computeXY(x, y)', observer: 'xyChanged'},
+      computeXY: {computed: 'computeComputeXY(z)'}
     };
   }
   constructor() {
@@ -1034,6 +1040,9 @@ customElements.define('x-computed-ordering', class extends PolymerElement {
     this.abbcdChanged = sinon.spy();
     this.bcdChanged = sinon.spy();
     this.bcChanged = sinon.spy();
+
+    this.computeXYSpy = sinon.spy();
+    this.xyChanged = sinon.spy();
   }
   computeABBCD(a, b, bcd) {
     return a + b + bcd;
@@ -1049,6 +1058,12 @@ customElements.define('x-computed-ordering', class extends PolymerElement {
   }
   computeCircB(circIn, circA) {
     return circIn + (circA || 0);
+  }
+  computeComputeXY(z) {
+    return function computeYZ(x, y) {
+      this.computeXYSpy(x, y);
+      return x + y + z;
+    };
   }
 });
   
