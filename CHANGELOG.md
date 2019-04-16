@@ -1,5 +1,12 @@
 # Change Log
 
+## [v2.7.2](https://github.com/Polymer/polymer/tree/v2.7.2) (2019-04-16)
+- Ensure wildcard arguments get undefined treatment. Fixes #5428. ([commit](https://github.com/Polymer/polymer/commit/86bf85b7))
+
+- Fix type of template setter in element-mixin.html (#5519) ([commit](https://github.com/Polymer/polymer/commit/f1d5d0ee))
+
+- [ci skip] Update changelog for 2.7.1 ([commit](https://github.com/Polymer/polymer/commit/e11da6d7))
+
 ## [v2.7.1](https://github.com/Polymer/polymer/tree/v2.7.1) (2019-03-21)
 - Sync with fixes on master branch. ([commit](https://github.com/Polymer/polymer/commit/2228f678))
 
