@@ -31,16 +31,16 @@ class PR extends PolymerElement {
       }
     </style>
     <div id="div" class="logo" style\$="background-image: url('[[importPath]]foo.z');"></div>
-    <img id="img" src\$="[[importPath]]foo.z">
-    <a id="a" href\$="[[importPath]]foo.z">Foo</a>
-    <zonk id="import" url\$="[[importPath]]foo.z"></zonk>
-    <zonk id="resolveUrl" url\$="[[resolveUrl('foo.z')]]"></zonk>
-    <zonk id="resolveUrlHash" url\$="[[resolveUrl('#foo')]]"></zonk>
-    <zonk id="resolveUrlAbs" url\$="[[resolveUrl('/foo')]]"></zonk>
-    <zonk id="root" url\$="[[rootPath]]foo.z"></zonk>
-    <a id="rel" href\$="[[importPath]]../foo.z?123">Foo</a>
+    <img id="img" src$="[[importPath]]foo.z">
+    <a id="a" href$="[[importPath]]foo.z">Foo</a>
+    <zonk id="import" url$="[[importPath]]foo.z"></zonk>
+    <zonk id="resolveUrl" url$="[[resolveUrl('foo.z')]]"></zonk>
+    <zonk id="resolveUrlHash" url$="[[resolveUrl('#foo')]]"></zonk>
+    <zonk id="resolveUrlAbs" url$="[[resolveUrl('/foo')]]"></zonk>
+    <zonk id="root" url$="[[rootPath]]foo.z"></zonk>
+    <a id="rel" href$="[[importPath]]../foo.z?123">Foo</a>
     <a id="action" action="foo.z">Foo</a>
-    <form id="formAction" action\$="[[importPath]]foo.z"></form>
+    <form id="formAction" action$="[[importPath]]foo.z"></form>
     <a id="hash" href="#foo.z">Foo</a>
     <a id="absolute" href="/foo.z">Foo</a>
     <a id="protocol" href="data:foo.z">Foo</a>
