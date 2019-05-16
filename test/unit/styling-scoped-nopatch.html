@@ -1,0 +1,133 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2019 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script>
+    window.ShadyDOM = {force: true, noPatch: true};
+  </script>
+  <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+  <script src="wct-browser-config.js"></script>
+  <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
+</head>
+<body>
+
+<script type="module">
+  import {Polymer, html} from '../../polymer-legacy.js';
+  Polymer({
+    is: 'scope-subtree-legacy',
+    _template: html`
+    <style>
+      #container * {
+        border: 10px solid black;
+      }
+    </style>
+    <div id="container"></div>`
+  });
+</script>
+
+<script type="module">
+  import {PolymerElement, html} from '../../polymer-element.js';
+  class ScopeSubtreeElement extends PolymerElement {
+    static get template() {
+      return html`
+        <style>
+          #container * {
+            border: 10px solid black;
+          }
+        </style>
+        <div id="container"></div>`;
+    }
+  }
+  customElements.define('scope-subtree-element', ScopeSubtreeElement);
+</script>
+
+<test-fixture id="legacy">
+  <template>
+    <scope-subtree-legacy></scope-subtree-legacy>
+  </template>
+</test-fixture>
+
+<test-fixture id="element">
+  <template>
+    <scope-subtree-element></scope-subtree-element>
+  </template>
+</test-fixture>
+
+<script type="module">
+  import { scopeSubtree } from '../../lib/utils/scope-subtree.js';
+
+  function assertComputed(element, value, property, pseudo) {
+    var computed = getComputedStyle(element, pseudo);
+    property = property || 'border-top-width';
+    if (Array.isArray(value)) {
+      assert.oneOf(computed[property], value, 'computed style incorrect for ' + property);
+    } else {
+      assert.equal(computed[property], value, 'computed style incorrect for ' + property);
+    }
+  }
+
+  suite('LegacyElement.scopeSubtree', function() {
+    let el;
+    setup(function() {
+      el = fixture('legacy');
+    });
+    test('elements are scoped', function() {
+      const div = document.createElement('div');
+      const innerDiv = document.createElement('div');
+      div.appendChild(innerDiv);
+      el.$.container.appendChild(div);
+      el.scopeSubtree(el.$.container);
+      assertComputed(div, '10px');
+      assertComputed(innerDiv, '10px');
+    });
+    test('second argument creates a mutation observer', async function() {
+      const mo = el.scopeSubtree(el.$.container, true);
+      assert.instanceOf(mo, MutationObserver);
+      const div = document.createElement('div');
+      const innerDiv = document.createElement('div');
+      div.appendChild(innerDiv);
+      el.$.container.appendChild(div);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      assertComputed(div, '10px');
+      assertComputed(innerDiv, '10px');
+    });
+  });
+
+  suite('PolymerElement and scopeSubtree util', function() {
+    let el;
+    setup(function() {
+      el = fixture('element');
+    });
+    test('elements are scoped', function() {
+      const div = document.createElement('div');
+      const innerDiv = document.createElement('div');
+      div.appendChild(innerDiv);
+      el.$.container.appendChild(div);
+      scopeSubtree(el.$.container);
+      assertComputed(div, '10px');
+      assertComputed(innerDiv, '10px');
+    });
+    test('second argument creates a mutation observer', async function() {
+      const mo = scopeSubtree(el.$.container, true);
+      assert.instanceOf(mo, MutationObserver);
+      const div = document.createElement('div');
+      const innerDiv = document.createElement('div');
+      div.appendChild(innerDiv);
+      el.$.container.appendChild(div);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      assertComputed(div, '10px');
+      assertComputed(innerDiv, '10px');
+    });
+  });
+</script>
+</body>
+</html>
