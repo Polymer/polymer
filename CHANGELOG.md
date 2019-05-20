@@ -1,5 +1,64 @@
 # Change Log
 
+## [v1.12.0-dev](https://github.com/Polymer/polymer/tree/v1.12.0-dev) (2019-05-20)
+- Don't run `preserveStyleIncludes` tests when native CSS variables aren't being used. (...) ([commit](https://github.com/Polymer/polymer/commit/5f706c33))
+
+- Add bug link. ([commit](https://github.com/Polymer/polymer/commit/1758be05))
+
+- Fix some broken Safari 12 tests that use `getComputedStyle`. ([commit](https://github.com/Polymer/polymer/commit/d511e83f))
+
+- Add a comment about copying attribute nodes with `cloneNode`. ([commit](https://github.com/Polymer/polymer/commit/f6dd04fa))
+
+- Fix a comment. ([commit](https://github.com/Polymer/polymer/commit/9171e88e))
+
+- `const` -> `var` ([commit](https://github.com/Polymer/polymer/commit/3dcec86a))
+
+- Add a comment about how 'name$' attributes are converted to 'select$' attributes. ([commit](https://github.com/Polymer/polymer/commit/f2fb8eda))
+
+- Add support for changing the 'select' attribute of 'content' elements. Test slot name bindings. ([commit](https://github.com/Polymer/polymer/commit/031bf4fc))
+
+- Fix 'name' attribute bindings on slots. ([commit](https://github.com/Polymer/polymer/commit/e60c9769))
+
+- Drop Safari 7 (no longer supported on Sauce) ([commit](https://github.com/Polymer/polymer/commit/64a51665))
+
+- Add XULElement to globals for FF ([commit](https://github.com/Polymer/polymer/commit/304bb34b))
+
+- Avoid new Text() on IE ([commit](https://github.com/Polymer/polymer/commit/29851919))
+
+- Fix lint. ([commit](https://github.com/Polymer/polymer/commit/52b3e7a2))
+
+- Fix lint, test. ([commit](https://github.com/Polymer/polymer/commit/df044097))
+
+- Ensure content was observed before unobserving. Fixes #5524 Since child <content> nodes are observed async, if the node is unobserved before the debouncer runs, child <content> nodes may not have been observed yet. ([commit](https://github.com/Polymer/polymer/commit/92c8d5c3))
+
+- Fix for Safari 7 template issue. ([commit](https://github.com/Polymer/polymer/commit/a48e0545))
+
+- Fix error reporting on Safari. Add template polyfill affordances. ([commit](https://github.com/Polymer/polymer/commit/ecd16de5))
+
+- Fix error handling. ([commit](https://github.com/Polymer/polymer/commit/c01c442e))
+
+- More updates based on code review ([commit](https://github.com/Polymer/polymer/commit/1d529ab9))
+
+- Updates based on code review. ([commit](https://github.com/Polymer/polymer/commit/bd770042))
+
+- Extend Edge test exceptions forward to newer browsers. ([commit](https://github.com/Polymer/polymer/commit/86c57a0b))
+
+- port travis fixes from 2.x as well ([commit](https://github.com/Polymer/polymer/commit/5b7ffec9))
+
+- Port deepTargetFind fixes from 2.x ([commit](https://github.com/Polymer/polymer/commit/2f5eba12))
+
+- Extend Edge test exceptions forward to newer browsers. ([commit](https://github.com/Polymer/polymer/commit/053f779a))
+
+- Change node to 8 ([commit](https://github.com/Polymer/polymer/commit/65270ce8))
+
+- Cleanup, update comments ([commit](https://github.com/Polymer/polymer/commit/9d30e4fe))
+
+- Add tests. ([commit](https://github.com/Polymer/polymer/commit/3aef48cf))
+
+- Implement opt-in `strictTemplatePolicy` (flag TBD) - disable dom-bind - disable dom-module re-registration - require elements with no template to implement null template - disable templatizer of templates not stamped in trusted polymer template ([commit](https://github.com/Polymer/polymer/commit/eb1a5893))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/18be7c1e))
+
 ## [v1.11.3-dev](https://github.com/Polymer/polymer/tree/v1.11.3-dev) (2018-02-12)
 - Improve comment. ([commit](https://github.com/Polymer/polymer/commit/7a9d0819))
 
