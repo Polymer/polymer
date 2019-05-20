@@ -75,7 +75,11 @@ _prepTemplate: function () {
 var module;
 if (this._template === undefined) {
 module = Polymer.DomModule.import(this.is);
-this._template = module && module.querySelector('template');
+var template = module && module.querySelector('template');
+if (Polymer.Settings.strictTemplatePolicy && !template) {
+throw new Error('strictTemplatePolicy: expecting dom-module or null _template for ' + this.is);
+}
+this._template = template;
 }
 if (module) {
 var assetPath = module.getAttribute('assetpath') || '';
@@ -1041,10 +1045,20 @@ this.removeChild(this.childNodes[0]);
 },
 setAttribute: function (name, value) {
 this.node.setAttribute(name, value);
-this._maybeDistributeParent();
+this._maybeDistributeForAttributeChange(this.node, name);
 },
 removeAttribute: function (name) {
 this.node.removeAttribute(name);
+this._maybeDistributeForAttributeChange(this.node, name);
+},
+_maybeDistributeForAttributeChange: function (element, name) {
+if (name === 'select' && element.localName === 'content') {
+var ownerRoot = this.getOwnerRoot();
+if (ownerRoot && this._nodeNeedsDistribution(ownerRoot.host)) {
+this._lazyDistribute(ownerRoot.host);
+return;
+}
+}
 this._maybeDistributeParent();
 },
 _maybeDistributeParent: function () {
@@ -1599,7 +1613,7 @@ return h;
 _unobserveContentElements: function (elements) {
 for (var i = 0, n, h; i < elements.length && (n = elements[i]); i++) {
 if (this._isContent(n)) {
-h = n.__observeNodesMap.get(this);
+h = n.__observeNodesMap && n.__observeNodesMap.get(this);
 if (h) {
 Polymer.dom(n).unobserveNodes(h);
 n.__observeNodesMap.delete(this);

@@ -162,6 +162,11 @@ i++;
 }
 }
 },
+_select$Attr: function () {
+var div = document.createElement('div');
+div.innerHTML = '<div select$>';
+return div.childNodes[0].attributes.getNamedItem('select$');
+}(),
 _replaceSlotWithContent: function (slot) {
 var content = slot.ownerDocument.createElement('content');
 while (slot.firstChild) {
@@ -169,12 +174,17 @@ content.appendChild(slot.firstChild);
 }
 var attrs = slot.attributes;
 for (var i = 0; i < attrs.length; i++) {
-var attr = attrs[i];
-content.setAttribute(attr.name, attr.value);
+content.attributes.setNamedItem(attrs[i].cloneNode());
 }
 var name = slot.getAttribute('name');
 if (name) {
 content.setAttribute('select', '[slot=\'' + name + '\']');
+}
+var name$Value = slot.getAttribute('name$');
+if (name$Value) {
+var select$Attr = this._select$Attr.cloneNode();
+select$Attr.value = '[slot=\'' + name$Value + '\']';
+content.attributes.setNamedItem(select$Attr);
 }
 slot.parentNode.replaceChild(content, slot);
 return content;
@@ -379,7 +389,7 @@ this._marshalAnnotatedListeners();
 }
 },
 _configureAnnotationReferences: function () {
-var notes = this._notes;
+var notes = this._notes || [];
 var nodes = this._nodes;
 for (var i = 0; i < notes.length; i++) {
 var note = notes[i];
@@ -695,7 +705,11 @@ deepTargetFind: function (x, y) {
 var node = document.elementFromPoint(x, y);
 var next = node;
 while (next && next.shadowRoot) {
+var oldNext = next;
 next = next.shadowRoot.elementFromPoint(x, y);
+if (oldNext === next) {
+break;
+}
 if (next) {
 node = next;
 }
@@ -4346,6 +4360,9 @@ properties: { __hideTemplateChildren__: { observer: '_showHideChildren' } },
 _instanceProps: Polymer.nob,
 _parentPropPrefix: '_parent_',
 templatize: function (template) {
+if (Polymer.Settings.strictTemplatePolicy && !this._getRootDataHost()) {
+throw new Error('strictTemplatePolicy: template owner not trusted');
+}
 this._templatized = template;
 if (!template._content) {
 template._content = template.content;
@@ -4945,6 +4962,9 @@ this._debounceTemplate(this._render);
 this._flushTemplates();
 },
 _render: function () {
+if (!this.ctor) {
+return;
+}
 if (this._needFullRefresh) {
 this._applyFullRefresh();
 this._needFullRefresh = false;
@@ -5426,8 +5446,10 @@ if (this._instance) {
 var c$ = this._instance._children;
 if (c$ && c$.length) {
 var parent = Polymer.dom(Polymer.dom(c$[0]).parentNode);
+if (parent) {
 for (var i = 0, n; i < c$.length && (n = c$[i]); i++) {
 parent.removeChild(n);
+}
 }
 }
 this._instance = null;
@@ -5455,6 +5477,9 @@ properties: { notifyDomChange: { type: Boolean } },
 extends: 'template',
 _template: null,
 created: function () {
+if (Polymer.Settings.strictTemplatePolicy) {
+throw new Error('strictTemplatePolicy: dom-bind not allowed');
+}
 var self = this;
 Polymer.RenderStatus.whenReady(function () {
 if (document.readyState == 'loading') {
