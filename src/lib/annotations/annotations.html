@@ -273,6 +273,22 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
     },
 
+    // In attribute names, some characters (e.g. '$') are considered valid by
+    // the HTML parser even though they are considered invalid by the DOM,
+    // which references the XML spec's definition of a valid attribute name.
+    // When `_replaceSlotWithContent` finds an attribute named 'name$', it
+    // needs to replace it with an attribute named 'select$', however the DOM
+    // prevents this attribute from being created directly due to XML's
+    // narrower valid attribute name definition. To work around this, the HTML
+    // parser is used to create an element with an attribute named 'select$'
+    // and this single attribute node is cloned whenever
+    // `_replaceSlotWithContent` needs to create a new 'select$' attribute.
+    _select$Attr: (function () {
+      var div = document.createElement('div');
+      div.innerHTML = '<div select$>';
+      return div.childNodes[0].attributes.getNamedItem('select$');
+    })(),
+
     _replaceSlotWithContent: function(slot) {
       var content = slot.ownerDocument.createElement('content');
       while (slot.firstChild) {
@@ -280,12 +296,23 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       }
       var attrs = slot.attributes;
       for (var i=0; i<attrs.length; i++) {
-        var attr = attrs[i];
-        content.setAttribute(attr.name, attr.value);
+        // Attribute nodes are cloned and inserted into `attributes` in this
+        // way, rather than through `getAttribute` and `setAttribute`, because
+        // `setAttribute` accepts only a subset of names that the HTML parser
+        // might have actually added to the source node. This means of copying
+        // works for attributes with any name.
+        content.attributes.setNamedItem(attrs[i].cloneNode());
       }
       var name = slot.getAttribute('name');
       if (name) {
         content.setAttribute('select', '[slot=\'' + name + '\']');
+      }
+      var name$Value = slot.getAttribute('name$');
+      if (name$Value) {
+        // See the comment on `_select$Attr`.
+        var select$Attr = this._select$Attr.cloneNode();
+        select$Attr.value = '[slot=\'' + name$Value + '\']';
+        content.attributes.setNamedItem(select$Attr);
       }
       slot.parentNode.replaceChild(content, slot);
       return content;
