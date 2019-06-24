@@ -1,5 +1,10 @@
 # Change Log
 
+## [v2.8.0](https://github.com/Polymer/polymer/tree/v2.8.0) (2019-06-24)
+- Allow configuring cancelling synthetic click behavior (#5536) ([commit](https://github.com/Polymer/polymer/commit/9a8bca49))
+
+- [ci skip] update changelog for 2.7.2 ([commit](https://github.com/Polymer/polymer/commit/a7cb0ae0))
+
 ## [v2.7.2](https://github.com/Polymer/polymer/tree/v2.7.2) (2019-04-16)
 - Ensure wildcard arguments get undefined treatment. Fixes #5428. ([commit](https://github.com/Polymer/polymer/commit/86bf85b7))
 
