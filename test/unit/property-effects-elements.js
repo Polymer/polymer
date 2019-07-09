@@ -1015,7 +1015,7 @@ customElements.define('x-computed-ordering', class extends PolymerElement {
   static get properties() {
     return {
       a: {type: Number, value: 1000},
-      b: {type: Number, value: 100},
+      // b: {type: Number, value: 100}, // Intentionally undeclared; init in ctor
       c: {type: Number, value: 10},
       d: {type: Number, value: 1},
       abbcd: {computed: 'computeABBCD(a, b, bcd)', observer: 'abbcdChanged'},
@@ -1034,6 +1034,7 @@ customElements.define('x-computed-ordering', class extends PolymerElement {
   }
   constructor() {
     super();
+    this.b = 100;
     sinon.spy(this, 'computeABBCD');
     sinon.spy(this, 'computeBCD');
     sinon.spy(this, 'computeBC');
