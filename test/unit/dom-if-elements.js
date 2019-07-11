@@ -301,9 +301,25 @@ Polymer({
     return val;
   }
 });
+
+Polymer({
+  is: 'prop-observer',
+  properties: {
+    prop: {
+      observer: 'propChanged'
+    }
+  },
+  created() {
+    this.propChanged = sinon.spy();
+  }
+});
+
 Polymer({
   _template: html`
-    <template is="dom-if" if="{{b}}" restamp="{{restamp}}">{{guarded(a)}}</template>
+    <template is="dom-if" if="{{b}}" restamp="{{restamp}}">
+      {{guarded(a)}}
+      <prop-observer id="observer" prop="[[c.d]]"></prop-observer>
+    </template>
 `,
 
   is: 'x-guard-separate-props',
