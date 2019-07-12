@@ -155,12 +155,11 @@ customElements.define(MyElement.is, MyElement);
     </template>
 
     <script type="module">
-import '../../lib/mixins/disable-upgrade-mixin.js';
 import { Polymer } from '../../lib/legacy/polymer-fn.js';
 Polymer({
   is: 'my-element-legacy',
   properties: {
-    upgradeDisabled: { type: String, value: true }
+    upgradeDisabled: { type: Boolean, value: true }
   },
   enable() {
     this.$.disabledEl.removeAttribute('disable-upgrade');
@@ -172,8 +171,77 @@ Polymer({
 
   </dom-module>
 
+<dom-module id="disable-upgrade-extensions">
+  <template>
+    <ext-disabled-legacy id="enabledEl1">Disabled</ext-disabled-legacy>
+    <ext-disabled-legacy id="disabledEl1" disable-upgrade>Disabled</ext-disabled-legacy>
+    <ext-disabled-legacy id="disabledBoundEl1" disable-upgrade$="[[upgradeDisabled]]">Disabled</ext-disabled-legacy>
+
+    <ext-disabled id="enabledEl2">Disabled</ext-disabled>
+    <ext-disabled id="disabledEl2" disable-upgrade>Disabled</ext-disabled>
+    <ext-disabled id="disabledBoundEl2" disable-upgrade$="[[upgradeDisabled]]">Disabled</ext-disabled>
+
+    <ext-disabled-behaviors id="enabledEl3">Disabled</ext-disabled-behaviors>
+    <ext-disabled-behaviors id="disabledEl3" disable-upgrade>Disabled</ext-disabled-behaviors>
+    <ext-disabled-behaviors id="disabledBoundEl3" disable-upgrade$="[[upgradeDisabled]]">Disabled</ext-disabled-behaviors>
+
+  </template>
+  <script type="module">
+    import { Polymer } from '../../lib/legacy/polymer-fn.js';
+    import {mixinBehaviors} from '../../lib/legacy/class.js';
+    import { DisableUpgradeMixin } from '../../lib/mixins/disable-upgrade-mixin.js';
+
+    const DisabledLegacy = customElements.get('x-disabled-legacy');
+
+    customElements.define('ext-disabled-legacy', class extends DisabledLegacy {});
+
+    customElements.define('ext-disabled', DisableUpgradeMixin(class extends customElements.get('x-disabled') {}));
+
+    customElements.define('ext-disabled-behaviors', mixinBehaviors([], DisabledLegacy));
+
+    Polymer({
+      is: 'disable-upgrade-extensions',
+      properties: {
+        upgradeDisabled: { type: Boolean, value: true }
+      },
+      enable() {
+        this.$.disabledEl1.removeAttribute('disable-upgrade');
+        this.$.disabledEl2.removeAttribute('disable-upgrade');
+        this.$.disabledEl3.removeAttribute('disable-upgrade');
+        this.upgradeDisabled = false;
+      }
+    });
+  </script>
+</dom-module>
+
+<dom-module id="disable-dom-if-repeat">
+  <template>
+    <template is="dom-repeat" items="[1]">
+      <my-element-legacy></my-element-legacy>
+      <my-element-legacy upgrade-disabled="[[upgradeDisabled]]"></my-element-legacy>
+    </template>
+    <template is="dom-if" if="true">
+      <my-element-legacy></my-element-legacy>
+      <my-element-legacy upgrade-disabled="[[upgradeDisabled]]"></my-element-legacy>
+    </template>
+  </template>
+  <script type="module">
+    import { Polymer } from '../../lib/legacy/polymer-fn.js';
+    Polymer({
+      is: 'disable-dom-if-repeat',
+      properties: {
+        upgradeDisabled: { type: Boolean, value: true }
+      },
+      enable() {
+        this.upgradeDisabled = false;
+      }
+    });
+  </script>
+</dom-module>
+
   <script type="module">
 import '../../lib/mixins/disable-upgrade-mixin.js';
+import {flush} from '../../lib/utils/flush.js';
 suite('disable-upgrade', function() {
   let el;
 
@@ -273,6 +341,128 @@ suite('disable-upgrade-legacy', function() {
   });
 
 
+});
+
+suite('disable-upgrade-extensions', function() {
+  let el;
+
+  setup(() => {
+    el = document.createElement('disable-upgrade-extensions');
+    document.body.appendChild(el);
+  });
+  teardown(function() {
+    document.body.removeChild(el);
+  });
+
+  test('elements upgrade as expected with and without `disable-upgrade`', function() {
+    assert.ok(el.$.enabledEl1.enabled);
+    assert.ok(el.$.enabledEl1.$.element);
+    assert.equal(el.$.enabledEl1.$.element.textContent, 'enabled!');
+    assert.notOk(el.$.disabledEl1.enabled);
+    assert.notOk(el.$.disabledEl1.$);
+    assert.notOk(el.$.disabledBoundEl1.enabled);
+    assert.notOk(el.$.disabledBoundEl1.$);
+
+    assert.ok(el.$.enabledEl2.enabled);
+    assert.ok(el.$.enabledEl2.$.element);
+    assert.equal(el.$.enabledEl2.$.element.textContent, 'enabled!');
+    assert.notOk(el.$.disabledEl2.enabled);
+    assert.notOk(el.$.disabledEl2.$);
+    assert.notOk(el.$.disabledBoundEl2.enabled);
+    assert.notOk(el.$.disabledBoundEl2.$);
+
+    assert.ok(el.$.enabledEl3.enabled);
+    assert.ok(el.$.enabledEl3.$.element);
+    assert.equal(el.$.enabledEl3.$.element.textContent, 'enabled!');
+    assert.notOk(el.$.disabledEl3.enabled);
+    assert.notOk(el.$.disabledEl3.$);
+    assert.notOk(el.$.disabledBoundEl3.enabled);
+    assert.notOk(el.$.disabledBoundEl3.$);
+  });
+
+  test('elements upgrade when `disable-upgrade` removed', function() {
+    assert.notOk(el.$.disabledEl1.enabled);
+    assert.notOk(el.$.disabledEl1.$);
+    assert.notOk(el.$.disabledBoundEl1.enabled);
+    assert.notOk(el.$.disabledBoundEl1.$);
+
+    assert.notOk(el.$.disabledEl2.enabled);
+    assert.notOk(el.$.disabledEl2.$);
+    assert.notOk(el.$.disabledBoundEl2.enabled);
+    assert.notOk(el.$.disabledBoundEl2.$);
+
+    assert.notOk(el.$.disabledEl3.enabled);
+    assert.notOk(el.$.disabledEl3.$);
+    assert.notOk(el.$.disabledBoundEl3.enabled);
+    assert.notOk(el.$.disabledBoundEl3.$);
+
+    el.enable();
+
+    assert.ok(el.$.disabledEl1.enabled);
+    assert.ok(el.$.disabledEl1.$.element);
+    assert.equal(el.$.disabledEl1.$.element.textContent, 'enabled!');
+    assert.ok(el.$.disabledBoundEl1.enabled);
+    assert.ok(el.$.disabledBoundEl1.$.element);
+    assert.equal(el.$.disabledBoundEl1.$.element.textContent, 'enabled!');
+
+    assert.ok(el.$.disabledEl2.enabled);
+    assert.ok(el.$.disabledEl2.$.element);
+    assert.equal(el.$.disabledEl2.$.element.textContent, 'enabled!');
+    assert.ok(el.$.disabledBoundEl2.enabled);
+    assert.ok(el.$.disabledBoundEl2.$.element);
+    assert.equal(el.$.disabledBoundEl2.$.element.textContent, 'enabled!');
+
+    assert.ok(el.$.disabledEl3.enabled);
+    assert.ok(el.$.disabledEl3.$.element);
+    assert.equal(el.$.disabledEl3.$.element.textContent, 'enabled!');
+    assert.ok(el.$.disabledBoundEl3.enabled);
+    assert.ok(el.$.disabledBoundEl3.$.element);
+    assert.equal(el.$.disabledBoundEl3.$.element.textContent, 'enabled!');
+  });
+});
+
+suite('disable-upgrade-dom-if-repeat', function() {
+  let el;
+
+  setup(() => {
+    el = document.createElement('disable-dom-if-repeat');
+    document.body.appendChild(el);
+    flush();
+  });
+  teardown(function() {
+    document.body.removeChild(el);
+  });
+
+  test('elements upgrade as expected with and without `disable-upgrade` and upgrad when disagled-upgrade is removed', function() {
+    const els = Array.from(el.shadowRoot.querySelectorAll('my-element-legacy'));
+    assert.equal(els.length, 4);
+
+    const checkDisabledEl = (e) => {
+      assert.ok(e.$.enabledEl.enabled);
+      assert.ok(e.$.enabledEl.$.element);
+      assert.equal(e.$.enabledEl.$.element.textContent, 'enabled!');
+      assert.notOk(e.$.disabledEl.enabled);
+      assert.notOk(e.$.disabledEl.$);
+      assert.notOk(e.$.disabledBoundEl.enabled);
+      assert.notOk(e.$.disabledBoundEl.$);
+    };
+    // check initial state
+    els.forEach(checkDisabledEl);
+
+    // check state after upgrade
+    el.enable();
+
+    const checkEnabledEl = (e) => {
+      assert.notOk(e.$.disabledEl.enabled);
+      assert.notOk(e.$.disabledEl.$);
+      assert.ok(e.$.disabledBoundEl.enabled);
+      assert.ok(e.$.disabledBoundEl.$.element);
+      assert.equal(e.$.disabledBoundEl.$.element.textContent, 'enabled!');
+    };
+    checkEnabledEl(els[1]);
+    checkEnabledEl(els[3]);
+
+  });
 });
 </script>
 </body>
