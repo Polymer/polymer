@@ -53,6 +53,16 @@ const Disabled = DisableUpgradeMixin(class extends PolymerElement {
     super.ready();
     this.enabled = true;
   }
+
+  connectedCallback() {
+    this.wasConnected = true;
+    super.connectedCallback();
+  }
+
+  disconnectedCallback() {
+    this.wasDisconnected = true;
+    super.disconnectedCallback();
+  }
 });
 customElements.define(Disabled.is, Disabled);
 </script>
@@ -74,8 +84,6 @@ customElements.define(Disabled.is, Disabled);
       </template>
 
       <script type="module">
-import { DisableUpgradeMixin } from '../../lib/mixins/disable-upgrade-mixin.js';
-import { Class as PolymerClass } from '../../lib/legacy/class.js';
 import { Polymer } from '../../lib/legacy/polymer-fn.js';
 import {setLegacyOptimizations} from '../../lib/utils/settings.js';
 
@@ -95,6 +103,12 @@ Polymer({
   created() {
     this.hasCreated = true;
     this.prop = 'enabled!';
+  },
+  attached() {
+    this.wasConnected = true;
+  },
+  detached() {
+    this.wasDisconnected = true;
   },
   ready() {
     this.enabled = true;
@@ -246,6 +260,7 @@ Polymer({
   <script type="module">
 import '../../lib/mixins/disable-upgrade-mixin.js';
 import {flush} from '../../lib/utils/flush.js';
+import {wrap} from '../../lib/utils/wrap.js';
 suite('disable-upgrade', function() {
   let el;
 
@@ -254,31 +269,59 @@ suite('disable-upgrade', function() {
     document.body.appendChild(el);
   });
   teardown(function() {
-    document.body.removeChild(el);
+    if (el.parentNode) {
+      document.body.removeChild(el);
+    }
   });
 
   test('elements upgrade as expected with and without `disable-upgrade`', function() {
     assert.ok(el.$.enabledEl.enabled);
     assert.ok(el.$.enabledEl.$.element);
+    assert.ok(el.$.enabledEl.wasConnected);
     assert.equal(el.$.enabledEl.$.element.textContent, 'enabled!');
+    assert.notOk(el.$.disabledEl.wasConnected);
     assert.notOk(el.$.disabledEl.enabled);
     assert.notOk(el.$.disabledEl.$);
     assert.notOk(el.$.disabledBoundEl.enabled);
+    assert.notOk(el.$.disabledBoundEl.wasConnected);
     assert.notOk(el.$.disabledBoundEl.$);
   });
 
   test('elements upgrade when `disable-upgrade` removed', function() {
     assert.notOk(el.$.disabledEl.enabled);
     assert.notOk(el.$.disabledEl.$);
+    assert.notOk(el.$.disabledEl.wasConnected);
     assert.notOk(el.$.disabledBoundEl.enabled);
     assert.notOk(el.$.disabledBoundEl.$);
+    assert.notOk(el.$.disabledBoundEl.wasConnected);
     el.enable();
     assert.ok(el.$.disabledEl.enabled);
     assert.ok(el.$.disabledEl.$.element);
     assert.equal(el.$.disabledEl.$.element.textContent, 'enabled!');
+    assert.ok(el.$.disabledEl.wasConnected);
     assert.ok(el.$.disabledBoundEl.enabled);
     assert.ok(el.$.disabledBoundEl.$.element);
+    assert.ok(el.$.disabledBoundEl.wasConnected);
     assert.equal(el.$.disabledBoundEl.$.element.textContent, 'enabled!');
+  });
+
+  test('elements do not connect/disconnect when disabled', function() {
+    el.parentNode.removeChild(el);
+    assert.ok(el.$.enabledEl.wasConnected);
+    assert.ok(el.$.enabledEl.wasDisconnected);
+    assert.notOk(el.$.disabledEl.wasConnected);
+    assert.notOk(el.$.disabledEl.wasDisconnected);
+    assert.notOk(el.$.disabledBoundEl.wasConnected);
+    assert.notOk(el.$.disabledBoundEl.wasDisconnected);
+    document.body.appendChild(el);
+    el.enable();
+    assert.ok(el.$.disabledEl.wasConnected);
+    assert.notOk(el.$.disabledEl.wasDisconnected);
+    assert.ok(el.$.disabledBoundEl.wasConnected);
+    assert.notOk(el.$.disabledBoundEl.wasDisconnected);
+    document.body.appendChild(el);
+    assert.ok(el.$.disabledEl.wasDisconnected);
+    assert.ok(el.$.disabledBoundEl.wasDisconnected);
   });
 
 
@@ -308,6 +351,7 @@ suite('disable-upgrade-legacy', function() {
     assert.ok(el.$.enabledEl.hasCreated);
     assert.ok(el.$.enabledEl.enabled);
     assert.ok(el.$.enabledEl.$.element);
+    assert.ok(el.$.enabledEl.wasConnected);
     assert.equal(el.$.enabledEl.$.element.textContent, 'enabled!');
     el.$.enabledEl.fooHandler = sinon.spy();
     el.$.enabledEl.fire('foo');
@@ -315,12 +359,14 @@ suite('disable-upgrade-legacy', function() {
     assert.notOk(el.$.disabledEl.hasCreated);
     assert.notOk(el.$.disabledEl.enabled);
     assert.notOk(el.$.disabledEl.$);
+    assert.notOk(el.$.disabledEl.wasConnected);
     el.$.disabledEl.fooHandler = sinon.spy();
     el.$.disabledEl.fire('foo');
     assert.equal(el.$.disabledEl.fooHandler.callCount, 0);
     assert.notOk(el.$.disabledBoundEl.hasCreated);
     assert.notOk(el.$.disabledBoundEl.enabled);
     assert.notOk(el.$.disabledBoundEl.$);
+    assert.notOk(el.$.disabledBoundEl.wasConnected);
     el.$.disabledBoundEl.fooHandler = sinon.spy();
     el.$.disabledBoundEl.fire('foo');
     assert.equal(el.$.disabledBoundEl.fooHandler.callCount, 0);
@@ -331,6 +377,7 @@ suite('disable-upgrade-legacy', function() {
     assert.ok(el.$.disabledEl.hasCreated);
     assert.ok(el.$.disabledEl.enabled);
     assert.ok(el.$.disabledEl.$.element);
+    assert.ok(el.$.disabledEl.wasConnected);
     assert.equal(el.$.disabledEl.$.element.textContent, 'enabled!');
     el.$.disabledEl.fooHandler = sinon.spy();
     el.$.disabledEl.fire('foo');
@@ -338,10 +385,30 @@ suite('disable-upgrade-legacy', function() {
     assert.ok(el.$.disabledBoundEl.hasCreated);
     assert.ok(el.$.disabledBoundEl.enabled);
     assert.ok(el.$.disabledBoundEl.$.element);
+    assert.ok(el.$.disabledBoundEl.wasConnected);
     assert.equal(el.$.disabledBoundEl.$.element.textContent, 'enabled!');
     el.$.disabledBoundEl.fooHandler = sinon.spy();
     el.$.disabledBoundEl.fire('foo');
     assert.equal(el.$.disabledBoundEl.fooHandler.callCount, 1);
+  });
+
+  test('elements do not connect/disconnect when disabled', function() {
+    el.parentNode.removeChild(el);
+    assert.ok(el.$.enabledEl.wasConnected);
+    assert.ok(el.$.enabledEl.wasDisconnected);
+    assert.notOk(el.$.disabledEl.wasConnected);
+    assert.notOk(el.$.disabledEl.wasDisconnected);
+    assert.notOk(el.$.disabledBoundEl.wasConnected);
+    assert.notOk(el.$.disabledBoundEl.wasDisconnected);
+    document.body.appendChild(el);
+    el.enable();
+    assert.ok(el.$.disabledEl.wasConnected);
+    assert.notOk(el.$.disabledEl.wasDisconnected);
+    assert.ok(el.$.disabledBoundEl.wasConnected);
+    assert.notOk(el.$.disabledBoundEl.wasDisconnected);
+    document.body.appendChild(el);
+    assert.ok(el.$.disabledEl.wasDisconnected);
+    assert.ok(el.$.disabledBoundEl.wasDisconnected);
   });
 
 
@@ -361,66 +428,87 @@ suite('disable-upgrade-extensions', function() {
   test('elements upgrade as expected with and without `disable-upgrade`', function() {
     assert.ok(el.$.enabledEl1.enabled);
     assert.ok(el.$.enabledEl1.$.element);
+    assert.ok(el.$.enabledEl1.wasConnected);
     assert.equal(el.$.enabledEl1.$.element.textContent, 'enabled!');
     assert.notOk(el.$.disabledEl1.enabled);
     assert.notOk(el.$.disabledEl1.$);
+    assert.notOk(el.$.disabledEl1.wasConnected);
     assert.notOk(el.$.disabledBoundEl1.enabled);
     assert.notOk(el.$.disabledBoundEl1.$);
+    assert.notOk(el.$.disabledBoundEl1.wasConnected);
 
     assert.ok(el.$.enabledEl2.enabled);
     assert.ok(el.$.enabledEl2.$.element);
+    assert.ok(el.$.enabledEl2.wasConnected);
     assert.equal(el.$.enabledEl2.$.element.textContent, 'enabled!');
     assert.notOk(el.$.disabledEl2.enabled);
     assert.notOk(el.$.disabledEl2.$);
+    assert.notOk(el.$.disabledEl2.wasConnected);
     assert.notOk(el.$.disabledBoundEl2.enabled);
     assert.notOk(el.$.disabledBoundEl2.$);
+    assert.notOk(el.$.disabledBoundEl2.wasConnected);
 
     assert.ok(el.$.enabledEl3.enabled);
     assert.ok(el.$.enabledEl3.$.element);
+    assert.ok(el.$.enabledEl3.wasConnected);
     assert.equal(el.$.enabledEl3.$.element.textContent, 'enabled!');
     assert.notOk(el.$.disabledEl3.enabled);
     assert.notOk(el.$.disabledEl3.$);
+    assert.notOk(el.$.disabledEl3.wasConnected);
     assert.notOk(el.$.disabledBoundEl3.enabled);
     assert.notOk(el.$.disabledBoundEl3.$);
+    assert.notOk(el.$.disabledBoundEl3.wasConnected);
   });
 
   test('elements upgrade when `disable-upgrade` removed', function() {
     assert.notOk(el.$.disabledEl1.enabled);
     assert.notOk(el.$.disabledEl1.$);
+    assert.notOk(el.$.disabledEl1.wasConnected);
     assert.notOk(el.$.disabledBoundEl1.enabled);
     assert.notOk(el.$.disabledBoundEl1.$);
+    assert.notOk(el.$.disabledBoundEl1.wasConnected);
 
     assert.notOk(el.$.disabledEl2.enabled);
     assert.notOk(el.$.disabledEl2.$);
+    assert.notOk(el.$.disabledEl2.wasConnected);
     assert.notOk(el.$.disabledBoundEl2.enabled);
     assert.notOk(el.$.disabledBoundEl2.$);
+    assert.notOk(el.$.disabledBoundEl2.wasConnected);
 
     assert.notOk(el.$.disabledEl3.enabled);
     assert.notOk(el.$.disabledEl3.$);
+    assert.notOk(el.$.disabledEl3.wasConnected);
     assert.notOk(el.$.disabledBoundEl3.enabled);
     assert.notOk(el.$.disabledBoundEl3.$);
+    assert.notOk(el.$.disabledBoundEl3.wasConnected);
 
     el.enable();
 
     assert.ok(el.$.disabledEl1.enabled);
     assert.ok(el.$.disabledEl1.$.element);
+    assert.ok(el.$.disabledEl1.wasConnected);
     assert.equal(el.$.disabledEl1.$.element.textContent, 'enabled!');
     assert.ok(el.$.disabledBoundEl1.enabled);
     assert.ok(el.$.disabledBoundEl1.$.element);
+    assert.ok(el.$.disabledBoundEl1.wasConnected);
     assert.equal(el.$.disabledBoundEl1.$.element.textContent, 'enabled!');
 
     assert.ok(el.$.disabledEl2.enabled);
     assert.ok(el.$.disabledEl2.$.element);
+    assert.ok(el.$.disabledEl2.wasConnected);
     assert.equal(el.$.disabledEl2.$.element.textContent, 'enabled!');
     assert.ok(el.$.disabledBoundEl2.enabled);
     assert.ok(el.$.disabledBoundEl2.$.element);
+    assert.ok(el.$.disabledBoundEl2.wasConnected);
     assert.equal(el.$.disabledBoundEl2.$.element.textContent, 'enabled!');
 
     assert.ok(el.$.disabledEl3.enabled);
     assert.ok(el.$.disabledEl3.$.element);
+    assert.ok(el.$.disabledEl3.wasConnected);
     assert.equal(el.$.disabledEl3.$.element.textContent, 'enabled!');
     assert.ok(el.$.disabledBoundEl3.enabled);
     assert.ok(el.$.disabledBoundEl3.$.element);
+    assert.ok(el.$.disabledBoundEl3.wasConnected);
     assert.equal(el.$.disabledBoundEl3.$.element.textContent, 'enabled!');
   });
 });
@@ -437,18 +525,21 @@ suite('disable-upgrade-dom-if-repeat', function() {
     document.body.removeChild(el);
   });
 
-  test('elements upgrade as expected with and without `disable-upgrade` and upgrad when disagled-upgrade is removed', function() {
-    const els = Array.from(el.shadowRoot.querySelectorAll('my-element-legacy'));
+  test('elements upgrade as expected with and without `disable-upgrade` and upgrad when disable-upgrade is removed', function() {
+    const els = Array.from(wrap(el).shadowRoot.querySelectorAll('my-element-legacy'));
     assert.equal(els.length, 4);
 
     const checkDisabledEl = (e) => {
       assert.ok(e.$.enabledEl.enabled);
       assert.ok(e.$.enabledEl.$.element);
+      assert.ok(e.$.enabledEl.wasConnected);
       assert.equal(e.$.enabledEl.$.element.textContent, 'enabled!');
       assert.notOk(e.$.disabledEl.enabled);
       assert.notOk(e.$.disabledEl.$);
+      assert.notOk(e.$.disabledEl.wasConnected);
       assert.notOk(e.$.disabledBoundEl.enabled);
       assert.notOk(e.$.disabledBoundEl.$);
+      assert.notOk(e.$.disabledBoundEl.wasConnected);
     };
     // check initial state
     els.forEach(checkDisabledEl);
@@ -459,8 +550,10 @@ suite('disable-upgrade-dom-if-repeat', function() {
     const checkEnabledEl = (e) => {
       assert.notOk(e.$.disabledEl.enabled);
       assert.notOk(e.$.disabledEl.$);
+      assert.notOk(e.$.disabledEl.wasConnected);
       assert.ok(e.$.disabledBoundEl.enabled);
       assert.ok(e.$.disabledBoundEl.$.element);
+      assert.ok(e.$.disabledBoundEl.wasConnected);
       assert.equal(e.$.disabledBoundEl.$.element.textContent, 'enabled!');
     };
     checkEnabledEl(els[1]);
