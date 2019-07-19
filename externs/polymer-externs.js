@@ -144,6 +144,29 @@ Polymer.syncInitialRender;
 var PolymerElement = function() {};
 
 /**
+ * The tag name of the cutom element type.
+ * @type {string|undefined}
+ */
+PolymerElement.is;
+/**
+ * The template to stamp when creating this element type.
+ * @type {!HTMLTemplateElement|undefined}
+ */
+PolymerElement.template;
+/**
+ * The properties of the cutom element type.
+ * @type {!PolymerElementProperties|undefined}
+ */
+PolymerElement.properties;
+/**
+ * The observers of this custom element type.
+ * @type {!Array<string>|undefined}
+ */
+PolymerElement.observers;
+/** @type {!PolymerInit|undefined} */
+PolymerElement.generatedFrom;
+
+/**
  * On create callback.
  * @override
  */
