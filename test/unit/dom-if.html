@@ -14,6 +14,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
   <script src="wct-browser-config.js"></script>
   <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
+  <script type="module">
+    import { setRemoveNestedTemplates, setFastDomIf } from '../../lib/utils/settings.js';
+    setRemoveNestedTemplates(location.search.match(/removeNestedTemplates/));
+    setFastDomIf(location.search.match(/fastDomIf/));
+  </script>
   <script type="module" src="../../polymer-legacy.js"></script>
   <script type="module" src="./dom-if-elements.js"></script>
 </head>
@@ -867,15 +872,38 @@ suite('timing', function() {
       let el = document.createElement('x-guard-separate-props');
       el.restamp = restamp;
       document.body.appendChild(el);
-      el.a = 'ok';
       el.b = true;
       flush();
+      el.a = 'ok';
+      el.c = {d: 'ok'};
       assert.equal(el.shadowRoot.textContent.trim(), 'ok');
+      assert.equal(el.shadowRoot.querySelector('#observer').propChanged.callCount, 1);
       el.b = false;
       el.a = 'notok';
+      el.set('c.d', 'notok');
       flush();
       assert.equal(el.shadowRoot.textContent.trim(), '');
+      if (!restamp) {
+        assert.equal(el.shadowRoot.querySelector('#observer').propChanged.callCount, 1);
+      }
+      el.set('c.d', 'changed');
       el.a = 'changed';
+      el.b = true;
+      flush();
+      assert.equal(el.shadowRoot.textContent.trim(), 'changed');
+      assert.equal(el.shadowRoot.querySelector('#observer').propChanged.callCount, restamp ? 1 : 2);
+      document.body.removeChild(el);
+    });
+
+    test('host properties in sync toggling true-false-true synchronously', function() {
+      let el = document.createElement('x-guard-separate-props');
+      el.restamp = restamp;
+      document.body.appendChild(el);
+      el.a = 'initial';
+      el.b = true;
+      flush();
+      assert.equal(el.shadowRoot.textContent.trim(), 'initial');
+      el.setProperties({b: false, a: 'changed'});
       el.b = true;
       flush();
       assert.equal(el.shadowRoot.textContent.trim(), 'changed');
