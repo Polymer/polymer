@@ -13,7 +13,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <meta charset="utf-8">
   <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
   <script src="wct-browser-config.js"></script>
-  <script src="wct-browser-config.js"></script>
   <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
   <script type="module" src="../../polymer-element.js"></script>
   <script type="module" src="../../lib/mixins/gesture-event-listeners.js"></script>
@@ -282,9 +281,10 @@ customElements.define(XBinding.is, XBinding);
 </dom-module>
 
 <script type="module">
-import '../../polymer-element.js';
+import {PolymerElement, html} from '../../polymer-element.js';
 import '../../lib/mixins/gesture-event-listeners.js';
 import '../../lib/elements/dom-if.js';
+import {setLegacyOptimizations} from '../../lib/utils/settings.js';
 
 suite('runtime template stamping', function() {
 
@@ -694,7 +694,6 @@ suite('runtime template stamping', function() {
       'x-runtime'
     ]);
   });
-
 });
 
 suite('template parsing hooks', () => {
@@ -816,6 +815,41 @@ suite('template parsing hooks', () => {
     assert.equal(el.$.custom2.prop, 'a b');
     assert.equal(el.shadowRoot.querySelector('#custom3').prop, 'a b');
     document.body.removeChild(el);
+  });
+});
+
+suite('textarea placeholder bug', function() {
+  class PlaceholderBase extends PolymerElement {
+    static get template() {
+      return html`<textarea id="textarea" placeholder="[[value]]"></textarea>`;
+    }
+    static get properties() {
+      return {value: {type: String}};
+    }
+  }
+  test('placeholder binding does not leak to textContent', function() {
+    customElements.define('placeholder-duplicate', class extends PlaceholderBase {});
+    const el = document.createElement('placeholder-duplicate');
+    document.body.appendChild(el);
+    const textarea = el.$.textarea;
+    el.value = 'before';
+    textarea.value = 'Hello!';
+    el.value = 'after';
+    assert.equal(textarea.value, 'Hello!');
+  });
+  suite('legacyOptimizations', function() {
+    suiteSetup(function() {
+      setLegacyOptimizations(true);
+    });
+    suiteTeardown(function() {
+      setLegacyOptimizations(false);
+    });
+    test('textarea placeholder binding works with legacyOptimizations', function() {
+      customElements.define('placeholder-bug', class extends PlaceholderBase {});
+      const el = document.createElement('placeholder-bug');
+      document.body.appendChild(el);
+      assert.doesNotThrow(() => {el.value = 'bar';});
+    });
   });
 });
 </script>
