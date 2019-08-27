@@ -64,6 +64,8 @@ TemplateInfo.prototype.propertyEffects;
 TemplateInfo.prototype.nextTemplateInfo;
 /** @type {TemplateInfo | undefined} */
 TemplateInfo.prototype.previousTemplateInfo;
+/** @type {TemplateInfo | undefined} */
+TemplateInfo.prototype.parent;
 /** @type {!Array<!Node>} */
 TemplateInfo.prototype.childNodes;
 /** @type {boolean} */
