@@ -1,0 +1,342 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+  <script src="wct-browser-config.js"></script>
+  <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
+  <script type="module">
+    import {setLegacyUndefined} from '../../lib/utils/settings.js';
+    setLegacyUndefined(true);
+  </script>
+</head>
+<body>
+
+  <dom-module id="x-data">
+    <template>
+      <div id="child"
+        computed-single="[[computeSingle(inlineSingleDep)]]"
+        computed-multi="[[computeMulti(inlineMultiDep1, inlineMultiDep2)]]">
+        <dom-if if>
+          <template><div id="ifChild" computed-multi="[[computeMulti(inlineMultiIfDep1, inlineMultiIfDep2)]]"></div></template>
+        </dom-if>
+      </div>
+    </template>
+    <script type="module">
+      import {Polymer} from '../../polymer-legacy.js';
+      Polymer({
+        is: 'x-data',
+        _legacyUndefinedCheck: true,
+        properties: {
+          singleProp: String,
+          multiProp1: String,
+          multiProp2: String,
+          computedSingleDep: String,
+          computedMultiDep1: String,
+          computedMultiDep2: String,
+          inlineSingleDep: String,
+          inlineMultiDep1: String,
+          inlineMultiDep2: String,
+          inlineMultiIfDep1: String,
+          inlineMultiIfDep2: String,
+          computedSingle: {
+            computed: 'computeSingle(computedSingleDep)'
+          },
+          computedMulti: {
+            computed: 'computeMulti(computedMultiDep1, computedMultiDep2)'
+          }
+        },
+        observers: [
+          'staticObserver("staticObserver")',
+          'singlePropObserver(singleProp)',
+          'multiPropObserver(multiProp1, multiProp2)',
+          'throws(throwProp)'
+        ],
+        created() {
+          this.singlePropObserver = sinon.spy();
+          this.multiPropObserver = sinon.spy();
+          this.staticObserver = sinon.spy();
+          this.computeSingle = sinon.spy((inlineSingleDep) => `[${inlineSingleDep}]`);
+          this.computeMulti = sinon.spy((inlineMultiDep1, inlineMultiDep2) => `[${inlineMultiDep1},${inlineMultiDep2}]`);
+        },
+        throws() {
+          throw new Error('real error');
+        }
+      });
+    </script>
+  </dom-module>
+
+  <test-fixture id="declarative-none">
+    <template>
+      <x-data></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-single">
+    <template>
+      <x-data single-prop="a"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-one">
+    <template>
+      <x-data multi-prop1="b"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-all">
+    <template>
+      <x-data multi-prop1="b" multi-prop2="c"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-single-computed">
+    <template>
+      <x-data computed-single-dep="a"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-one-computed">
+    <template>
+      <x-data computed-multi-dep1="b"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-all-computed">
+    <template>
+      <x-data computed-multi-dep1="b" computed-multi-dep2="c"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-single-computed-inline">
+    <template>
+      <x-data inline-single-dep="a"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-one-computed-inline">
+    <template>
+      <x-data inline-multi-dep1="b"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-all-computed-inline">
+    <template>
+      <x-data inline-multi-dep1="b" inline-multi-dep2="c"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-if-one-computed-inline">
+    <template>
+      <x-data inline-multi-if-dep1="b"></x-data>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="declarative-multi-if-all-computed-inline">
+    <template>
+      <x-data inline-multi-if-dep1="b" inline-multi-if-dep2="c"></x-data>
+    </template>
+  </test-fixture>
+
+  <script type="module">
+    import {flush} from '../../lib/utils/flush.js';
+
+    let el;
+
+    function assertEffects(callCounts) {
+      assert.equal(el.staticObserver.callCount, 1, 'staticObserver call count wrong');
+      assert.equal(el.singlePropObserver.callCount,
+        callCounts.singlePropObserver || 0, 'singlePropObserver call count wrong');
+      assert.equal(el.multiPropObserver.callCount,
+        callCounts.multiPropObserver || 0, 'multiPropObserver call count wrong');
+      assert.equal(el.computeSingle.callCount,
+        callCounts.computeSingle || 0, 'computeSingle call count wrong');
+      assert.equal(el.computeMulti.callCount,
+        callCounts.computeMulti || 0, 'computeMulti call count wrong');
+    }
+
+    suite('imperative', () => {
+
+
+      function setupElement(props) {
+        el = document.createElement('x-data');
+        Object.assign(el, props);
+        document.body.appendChild(el);
+        flush();
+      }
+
+      teardown(() => {
+        el.parentNode.removeChild(el);
+      });
+
+      const singleProp = 'singleProp';
+      const multiProp1 = 'multiProp1';
+      const multiProp2 = 'multiProp2';
+      const computedSingleDep = 'computedSingleDep';
+      const computedMultiDep1 = 'computedMultiDep1';
+      const computedMultiDep2 = 'computedMultiDep2';
+      const inlineSingleDep = 'inlineSingleDep';
+      const inlineMultiDep1 = 'inlineMultiDep1';
+      const inlineMultiDep2 = 'inlineMultiDep2';
+      const inlineMultiIfDep1 = 'inlineMultiIfDep1';
+      const inlineMultiIfDep2 = 'inlineMultiIfDep2';
+
+      suite('check disabled', () => {
+        test('no arguments defined', () => {
+          setupElement({});
+          assertEffects({});
+        });
+        test('singlePropObserver argument defined', () => {
+          setupElement({singleProp});
+          assertEffects({singlePropObserver: 1});
+        });
+        test('one multiPropObserver arguments defined', () => {
+          setupElement({multiProp1});
+          assertEffects({multiPropObserver: 0});
+        });
+        test('all multiPropObserver defined', () => {
+          setupElement({multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+        });
+        test('singlePropObserver argument undefined', () => {
+          setupElement({singleProp});
+          assertEffects({singlePropObserver: 1});
+          el.singleProp = undefined;
+          assertEffects({singlePropObserver: 2});
+        });
+        test('one multiPropObserver arguments undefined', () => {
+          setupElement({multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 1});
+        });
+        test('all multiPropObserver undefined', () => {
+          setupElement({multiProp1, multiProp2});
+          assertEffects({multiPropObserver: 1});
+          el.multiProp1 = undefined;
+          assertEffects({multiPropObserver: 1});
+          el.multiProp2 = undefined;
+          assertEffects({multiPropObserver: 1});
+        });
+        test('computeSingle argument defined', () => {
+          setupElement({computedSingleDep});
+          assertEffects({computeSingle: 1});
+          assert.equal(el.computedSingle, '[computedSingleDep]');
+        });
+        test('one computeMulti argument defined', () => {
+          setupElement({computedMultiDep1});
+          assertEffects({computeMulti: 0});
+          assert.equal(el.computedMulti, undefined);
+        });
+        test('all computeMulti argument defined', () => {
+          setupElement({computedMultiDep1, computedMultiDep2});
+          assertEffects({computeMulti: 1});
+          assert.equal(el.computedMulti, '[computedMultiDep1,computedMultiDep2]');
+        });
+        test('inline computeSingle argument defined', () => {
+          setupElement({inlineSingleDep});
+          assertEffects({computeSingle: 1});
+          assert.equal(el.$.child.computedSingle, '[inlineSingleDep]');
+        });
+        test('one inline computeMulti argument defined', () => {
+          setupElement({inlineMultiDep1});
+          assertEffects({computeMulti: 0});
+          assert.equal(el.$.child.computedMulti, undefined);
+        });
+        test('all inline computeMulti argument defined', () => {
+          setupElement({inlineMultiDep1, inlineMultiDep2});
+          assertEffects({computeMulti: 1});
+          assert.equal(el.$.child.computedMulti, '[inlineMultiDep1,inlineMultiDep2]');
+        });
+        test('one inline computeMulti argument defined in dom-if', () => {
+          setupElement({inlineMultiIfDep1});
+          assertEffects({computeMulti: 0});
+          assert.equal(el.$$('#ifChild').computedMulti, undefined);
+        });
+        test('all inline computeMulti argument defined in dom-if', () => {
+          setupElement({inlineMultiIfDep1, inlineMultiIfDep2});
+          assertEffects({computeMulti: 1});
+          assert.equal(el.$$('#ifChild').computedMulti, '[inlineMultiIfDep1,inlineMultiIfDep2]');
+        });
+      });
+
+    });
+
+    suite('declarative', () => {
+
+      setup(() => sinon.spy(console, 'warn'));
+
+      teardown(() => console.warn.restore());
+
+      test('no arguments defined', () => {
+        el = fixture('declarative-none');
+        assertEffects({});
+      });
+      test('singlePropObserver argument defined', () => {
+        el = fixture('declarative-single');
+        assertEffects({singlePropObserver: 1});
+      });
+      test('one multiPropObserver arguments defined', () => {
+        el = fixture('declarative-multi-one');
+        assertEffects({multiPropObserver: 0});
+      });
+      test('all multiPropObserver defined', () => {
+        el = fixture('declarative-multi-all');
+        assertEffects({multiPropObserver: 1});
+      });
+      test('computeSingle argument defined', () => {
+        el = fixture('declarative-single-computed');
+        assertEffects({computeSingle: 1});
+        assert.equal(el.computedSingle, '[a]');
+      });
+      test('one computeMulti arguments defined', () => {
+        el = fixture('declarative-multi-one-computed');
+        assertEffects({computeMulti: 0});
+        assert.equal(el.computedMulti, undefined);
+      });
+      test('all computeMulti defined', () => {
+        el = fixture('declarative-multi-all-computed');
+        assert.equal(el.computedMulti, '[b,c]');
+      });
+      test('inline computeSingle argument defined', () => {
+        el = fixture('declarative-single-computed-inline');
+        assertEffects({computeSingle: 1});
+        assert.equal(el.$.child.computedSingle, '[a]');
+      });
+      test('inline one computeMulti arguments defined', () => {
+        el = fixture('declarative-multi-one-computed-inline');
+        assertEffects({computeMulti: 0});
+        assert.equal(el.$.child.computedMulti, undefined);
+      });
+      test('inline all computeMulti defined', () => {
+        el = fixture('declarative-multi-all-computed-inline');
+        assertEffects({computeMulti: 1});
+        assert.equal(el.$.child.computedMulti, '[b,c]');
+      });
+      test('one inline computeMulti argument defined in dom-if', () => {
+        el = fixture('declarative-multi-if-one-computed-inline');
+        flush();
+        assertEffects({computeMulti: 0});
+        assert.equal(el.$$('#ifChild').computedMulti, undefined);
+      });
+      test('all inline computeMulti argument defined in dom-if', () => {
+        el = fixture('declarative-multi-if-all-computed-inline');
+        flush();
+        assertEffects({computeMulti: 1});
+        assert.equal(el.$$('#ifChild').computedMulti, '[b,c]');
+      });
+
+    });
+
+  </script>
+</body>
+</html>

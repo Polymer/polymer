@@ -135,6 +135,21 @@ Polymer.legacyOptimizations;
 /** @type {boolean} */
 Polymer.syncInitialRender;
 
+/** @type {boolean} */
+Polymer.legacyUndefined;
+
+/** @type {boolean} */
+Polymer.legacyNoBatch;
+
+/** @type {boolean} */
+Polymer.legacyWarnings;
+
+/** @type {boolean} */
+Polymer.legacyNotifyOrder;
+
+/** @type {boolean} */
+Polymer.orderedComputed;
+
 // nb. This is explicitly 'var', as Closure Compiler checks that this is the case.
 /**
  * @constructor
