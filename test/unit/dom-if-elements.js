@@ -126,14 +126,14 @@ Polymer({
       <x-foo prop="{{prop1}}"></x-foo>
       <template is="dom-if" id="if-2" if="{{shouldStamp2}}">
         <x-foo prop="{{prop2}}"></x-foo>
-        <template is="dom-if" id="if-3" if="{{shouldStamp3}}" restamp>
-          <x-foo prop="{{prop3}}"></x-foo>
+        <template is="dom-if" id="if-3-1" if="{{shouldStamp3_1}}" restamp>
+          <x-foo prop="{{prop3_1}}"></x-foo>
         </template>
-        <template is="dom-if" id="if-4" if="{{shouldStamp4}}" restamp>
-          <x-foo prop="{{prop4}}"></x-foo>
+        <template is="dom-if" id="if-4-2" if="{{shouldStamp3_2}}" restamp>
+          <x-foo prop="{{prop3_2}}"></x-foo>
         </template>
-        <template is="dom-if" id="if-5" if="{{shouldStamp5}}" restamp>
-          <x-foo prop="{{prop5}}"></x-foo>
+        <template is="dom-if" id="if-5-3" if="{{shouldStamp3_3}}" restamp>
+          <x-foo prop="{{prop3_3}}"></x-foo>
         </template>
       </template>
     </template>
@@ -148,14 +148,14 @@ Polymer({
     prop2: {
       value: 'prop2'
     },
-    prop3: {
-      value: 'prop3'
+    prop3_1: {
+      value: 'prop3_1'
     },
-    prop4: {
-      value: 'prop4'
+    prop3_2: {
+      value: 'prop3_2'
     },
-    prop5: {
-      value: 'prop5'
+    prop3_3: {
+      value: 'prop3_3'
     },
     item: {
       value: function() { return {prop: 'outerItem'}; }
