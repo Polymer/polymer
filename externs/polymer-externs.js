@@ -150,6 +150,12 @@ Polymer.legacyNotifyOrder;
 /** @type {boolean} */
 Polymer.orderedComputed;
 
+/** @type {boolean} */
+Polymer.fastDomIf;
+
+/** @type {boolean} */
+Polymer.suppressTemplateNotifications;
+
 // nb. This is explicitly 'var', as Closure Compiler checks that this is the case.
 /**
  * @constructor
