@@ -154,6 +154,9 @@ Polymer.orderedComputed;
 Polymer.fastDomIf;
 
 /** @type {boolean} */
+Polymer.removeNestedTemplates;
+
+/** @type {boolean} */
 Polymer.suppressTemplateNotifications;
 
 // nb. This is explicitly 'var', as Closure Compiler checks that this is the case.
