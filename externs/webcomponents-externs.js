@@ -66,3 +66,8 @@ HTMLTemplateElement.decorate = function(template){};
  * @param {function(function())} cb callback
  */
 CustomElementRegistry.prototype.polyfillWrapFlushCallback = function(cb){};
+
+/**
+ * @param {string} cssText
+ */
+CSSStyleSheet.prototype.replaceSync = function(cssText) {};
