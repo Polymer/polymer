@@ -1,6 +1,7 @@
 /**
  * @fileoverview Externs for webcomponents polyfills
  * @externs
+ * @suppress {duplicate}
  *
  * @license
  * Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
@@ -15,11 +16,12 @@
 var HTMLImports = {};
 
 /**
- * @param {function()} callback
+ * @param {function()=} callback
  */
 HTMLImports.whenReady = function(callback) {};
 
 /**
+ * Returns the import document containing the element.
  * @param {!Node} element
  * @return {?HTMLLinkElement|?Document|undefined}
  */
