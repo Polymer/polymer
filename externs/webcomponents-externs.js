@@ -12,42 +12,48 @@
  */
 /* eslint-disable */
 
-var HTMLImports = {
-  /**
-   * @param {function()} callback
-   */
-  whenReady(callback) {},
-  /**
-   * @param {!Node} element
-   * @return {?HTMLLinkElement|?Document|undefined}
-   */
-  importForElement(element) {}
-};
+var HTMLImports = {};
+
+/**
+ * @param {function()} callback
+ */
+HTMLImports.whenReady = function(callback) {};
+
+/**
+ * @param {!Node} element
+ * @return {?HTMLLinkElement|?Document|undefined}
+ */
+HTMLImports.importForElement = function(element) {};
 
 window.HTMLImports = HTMLImports;
 
-var ShadyDOM = {
-  inUse: false,
-  flush() {},
-  /**
-   * @param {!Node} target
-   * @param {function(Array<MutationRecord>, MutationObserver)} callback
-   * @return {MutationObserver}
-   */
-  observeChildren(target, callback) {},
-  /**
-   * @param {MutationObserver} observer
-   */
-  unobserveChildren(observer) {},
-  /**
-   * @param {Node} node
-   */
-  patch(node) {},
-  /**
-   * @param {!ShadowRoot} shadowroot
-   */
-  flushInitial(shadowroot) {}
-};
+var ShadyDOM = {};
+
+ShadyDOM.inUse;
+
+ShadyDOM.flush = function() {};
+
+/**
+ * @param {!Node} target
+ * @param {function(Array<MutationRecord>, MutationObserver)} callback
+ * @return {MutationObserver}
+ */
+ShadyDOM.observeChildren = function(target, callback) {};
+
+/**
+ * @param {MutationObserver} observer
+ */
+ShadyDOM.unobserveChildren = function(observer) {};
+
+/**
+ * @param {Node} node
+ */
+ShadyDOM.patch = function(node) {};
+
+/**
+ * @param {!ShadowRoot} shadowroot
+ */
+ShadyDOM.flushInitial = function(shadowroot) {};
 
 window.ShadyDOM = ShadyDOM;
 
