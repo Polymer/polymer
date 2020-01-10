@@ -41,7 +41,7 @@ PolymerInit.prototype.extends;
 PolymerInit.prototype.properties;
 /** @type {(!Array<string> | undefined)} */
 PolymerInit.prototype.observers;
-/** @type {(!HTMLTemplateElement | string | undefined)} */
+/** @type {(!HTMLTemplateElement | string | undefined | null)} */
 PolymerInit.prototype.template;
 /** @type {(!Object<string, *> | undefined)} */
 PolymerInit.prototype.hostAttributes;
@@ -60,7 +60,7 @@ PolymerElementConstructor.extends;
 PolymerElementConstructor.properties;
 /** @type {(!Array<string> | undefined)} */
 PolymerElementConstructor.observers;
-/** @type {(!HTMLTemplateElement | string | undefined)} */
+/** @type {(!HTMLTemplateElement | string | undefined | null)} */
 PolymerElementConstructor.template;
 
 /** @interface */
@@ -174,7 +174,7 @@ var PolymerElement = function() {};
 PolymerElement.is;
 /**
  * The template to stamp when creating this element type.
- * @type {!HTMLTemplateElement|undefined}
+ * @type {!HTMLTemplateElement|undefined|null}
  */
 PolymerElement.template;
 /**
