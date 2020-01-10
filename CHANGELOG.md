@@ -1,5 +1,36 @@
 # Change Log
 
+## [v3.3.1](https://github.com/Polymer/polymer/tree/v3.3.1) (2019-11-08)
+- [ci skip] bump to 3.3.1 ([commit](https://github.com/Polymer/polymer/commit/11f1f139))
+
+- Remove TimvdLippe from CODEOWNERS ([commit](https://github.com/Polymer/polymer/commit/b99c2997))
+
+- Add node field to PolymerDomApi ([commit](https://github.com/Polymer/polymer/commit/15747c83))
+
+- Improve types for the template field on Polymer elements. (#5596) ([commit](https://github.com/Polymer/polymer/commit/4274bcec))
+
+- Add module field ([commit](https://github.com/Polymer/polymer/commit/9a4d4d9a))
+
+- Wrap other `hasOwnProperty` checks in `JSCompiler_renameProperty`. ([commit](https://github.com/Polymer/polymer/commit/0541b21a))
+
+- Wrap `hasOwnProperty` checks for `__hasRegisterFinished` in `JSCompiler_renameProperty()`. ([commit](https://github.com/Polymer/polymer/commit/9e90fd2e))
+
+- Fix typing error in fixPlaceholder ([commit](https://github.com/Polymer/polymer/commit/f050ce9e))
+
+- Fix up comments based on feedback ([commit](https://github.com/Polymer/polymer/commit/ab49f51a))
+
+- Workaround bindings to textarea.placeholder in IE ([commit](https://github.com/Polymer/polymer/commit/61767da2))
+
+- Add additional externs (#5575) ([commit](https://github.com/Polymer/polymer/commit/69ee4688))
+
+- Make Closure compiler happier about ShadyDOM access ([commit](https://github.com/Polymer/polymer/commit/46ee2aec))
+
+- Remove other double import (#5565) ([commit](https://github.com/Polymer/polymer/commit/0d2c2e5d))
+
+- Only use CONST_CASE for constants. (#5564) ([commit](https://github.com/Polymer/polymer/commit/54f8b47f))
+
+- [skip ci] update changelog ([commit](https://github.com/Polymer/polymer/commit/ac12b3bc))
+
 ## [v3.3.0](https://github.com/Polymer/polymer/tree/v3.3.0) (2019-06-24)
 - [ci skip] Update version to 3.3.0 ([commit](https://github.com/Polymer/polymer/commit/dd7c0d70))
 
