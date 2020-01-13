@@ -14,7 +14,7 @@
  *
  * @interface
  */
-let PolymerDomApi = function() {};
+var PolymerDomApi = function() {};
 
 /**
  * @param {?Node} node
