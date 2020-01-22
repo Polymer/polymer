@@ -17,6 +17,18 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <script type="module" src="../../polymer-legacy.js"></script>
 <body>
 
+  <dom-module id="uses-underscore-template">
+    <template><div>error</div></template>
+  </dom-module>
+
+  <dom-module id="uses-dom-module">
+    <template><div>from-dom-module</div></template>
+  </dom-module>
+
+  <dom-module id="no-template">
+    <template><div>error</div>></template>
+  </dom-module>
+
   <dom-module id="base-el">
     <template>
       <style>
@@ -147,6 +159,9 @@ customElements.define('child-with-no-template', ChildWithNoTemplate);
   </test-fixture>
 
   <script type="module">
+import { html } from '../../lib/utils/html-tag.js';
+import { Polymer } from '../../polymer-legacy.js';
+
 suite('ChildElement extends BaseElement', function() {
   test('child has base properties', function() {
     var f = fixture('basic');
@@ -265,6 +280,77 @@ suite('child overriding a template', function() {
   test('returning null nullifies the parent template', function() {
     assert.equal(el.shadowRoot, null);
   });
+});
+
+suite('Legacy _template property: null/undefined', function() {
+
+  let el;
+  teardown(function() {
+    if (el) {
+      document.body.removeChild(el);
+    }
+  });
+
+  test('_template: returning template works', function() {
+    Polymer({
+      is: 'uses-underscore-template',
+      _template:  html`<div>from-underscore-template</div>`
+    });
+    const el = document.createElement('uses-underscore-template');
+    document.body.appendChild(el);
+    assert.equal(el.shadowRoot.firstChild.textContent, 'from-underscore-template');
+  });
+
+  test('_template: undefined falls back to dom-module', function() {
+    Polymer({
+      is: 'uses-dom-module',
+      _template: undefined
+    });
+    const el = document.createElement('uses-dom-module');
+    document.body.appendChild(el);
+    assert.equal(el.shadowRoot.firstChild.textContent, 'from-dom-module');
+  });
+
+  test('_template: null overrides dom-module', function() {
+    Polymer({
+      is: 'no-template',
+      _template: null
+    });
+    const el = document.createElement('no-template');
+    document.body.appendChild(el);
+    assert.notOk(el.shadowRoot);
+  });
+
+  test('_template: returning template works in sub-class', function() {
+    customElements.define('sub-uses-underscore-template', class extends customElements.get('uses-underscore-template') {
+      get _template() { return this._$tmpl || html`<div>sub-from-underscore-template</div>`; }
+      set _template(v) { this._$tmpl = v; }
+    });
+    const el = document.createElement('sub-uses-underscore-template');
+    document.body.appendChild(el);
+    assert.equal(el.shadowRoot.firstChild.textContent, 'sub-from-underscore-template');
+  });
+
+  test('_template: undefined falls back to dom-module in sub-class', function() {
+    customElements.define('sub-uses-dom-module', class extends customElements.get('uses-dom-module') {
+      get _template() { return this._$tmpl || undefined; }
+      set _template(v) { this._$tmpl = v; }
+    });
+    const el = document.createElement('sub-uses-dom-module');
+    document.body.appendChild(el);
+    assert.equal(el.shadowRoot.firstChild.textContent, 'from-dom-module');
+  });
+
+  test('_template: null overrides dom-module in sub-class', function() {
+    customElements.define('sub-no-template', class extends customElements.get('no-template') {
+      get _template() { return this._$tmpl || null; }
+      set _template(v) { this._$tmpl = v; }
+    });
+    const el = document.createElement('sub-no-template');
+    document.body.appendChild(el);
+    assert.notOk(el.shadowRoot);
+  });
+
 });
 </script>
 </body>
