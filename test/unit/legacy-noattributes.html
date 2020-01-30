@@ -64,7 +64,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           zot: Boolean,
           shouldIf: Boolean,
           camelCase: String,
-          disabled: {type: Boolean, value: 'true'}
+          disabled: {type: Boolean, value: 'true'},
         },
         created() {
           this.wasCreated = true;
@@ -72,6 +72,17 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         attributeChanged(name, old, value) {
           this.wasCreatedInAttributeChanged = this.wasCreated;
           this.attrInfo = {name, old, value};
+        }
+      });
+
+      Polymer({
+        is: 'x-native-attrs-force',
+        _legacyForceObservedAttributes: true,
+        properties: {
+          tabindex: {reflectToAttribute: true, type: Number}
+        },
+        attributeChanged() {
+          this.attributeChangedCalled = true;
         }
       });
     </script>
@@ -92,12 +103,31 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <script type="module">
     import {flush} from '../../lib/utils/flush.js';
     import {wrap} from '../../lib/utils/wrap.js';
+    import {registrations} from '../../lib/utils/telemetry.js';
 
     suite('legacyNoObservedAttributes', () => {
 
       let el;
       setup(() => {
         el = fixture('declarative');
+      });
+
+      test('telemetry collected as expected', () => {
+        const defs = registrations.filter((def) => def.is === el.localName);
+        assert.ok(defs[0]);
+      });
+
+      test('native properties observeable when `_legacyForceObservedAttributes` set', function() {
+        // Unsupported when polyfill is in use since it uses `setAttribute`.
+        if (customElements.polyfillWrapFlushCallback) {
+          this.skip();
+        }
+        el = document.createElement('x-native-attrs-force');
+        document.body.appendChild(el);
+        el.tabIndex = 5;
+        assert.ok(el.attributeChangedCalled);
+        assert.equal(el.tabindex, 5);
+        document.body.removeChild(el);
       });
 
       test('static attributes', () => {
