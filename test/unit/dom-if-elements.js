@@ -321,8 +321,10 @@ Polymer({
       observer: 'propChanged'
     }
   },
+  observers: ['pathChanged(obj.*)'],
   created() {
     this.propChanged = sinon.spy();
+    this.pathChanged = sinon.spy();
   }
 });
 
@@ -330,7 +332,7 @@ Polymer({
   _template: html`
     <template is="dom-if" if="{{b}}" restamp="{{restamp}}">
       {{guarded(a)}}
-      <prop-observer id="observer" prop="[[c.d]]"></prop-observer>
+      <prop-observer id="observer" prop="[[c.d]]" obj="[[c]]"></prop-observer>
     </template>
 `,
 
