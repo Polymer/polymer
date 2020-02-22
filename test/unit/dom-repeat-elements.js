@@ -434,7 +434,7 @@ Polymer({
 });
 Polymer({
   _template: html`
-    <template id="repeater" is="dom-repeat" items="{{items}}" initial-count="10">
+    <template id="repeater" is="dom-repeat" items="{{items}}" initial-count="10" target-framerate="25">
       <x-wait>{{item.prop}}</x-wait>
     </template>
 `,
