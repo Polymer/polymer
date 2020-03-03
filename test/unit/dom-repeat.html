@@ -3948,7 +3948,6 @@ suite('limit with sort & filter', function() {
 suite('chunked rendering', function() {
 
   let chunked;
-  let repeat;
   let resolve;
   let targetCount;
   const handleChange = () => {
@@ -3964,7 +3963,6 @@ suite('chunked rendering', function() {
     chunked = document.createElement('x-repeat-chunked');
     chunked.addEventListener('dom-change', handleChange);
     document.body.appendChild(chunked);
-    repeat = chunked.$.repeat;
   });
   teardown(() => {
     chunked.removeEventListener('dom-change', handleChange);
@@ -4193,7 +4191,7 @@ suite('chunked rendering', function() {
 
   });
 
-  test('changing to/from initialCount=0', async () => {
+  test.only('changing to/from initialCount=0', async () => {
     // Render all
     chunked.items = chunked.preppedItems.slice();
     let stamped = await waitUntilRendered(chunked.preppedItems.length);
@@ -4219,13 +4217,30 @@ suite('chunked rendering', function() {
     let frameCount = 0;
     chunked.items = chunked.preppedItems.slice();
     while (stamped.length < chunked.items.length) {
-      stamped = await waitUntilRendered(10);
+      stamped = await waitUntilRendered();
       if (frameCount === 0) {
         assert.equal(stamped.length, 10);
       }
       frameCount++;
     }
     assert.equal(stamped.length, chunked.preppedItems.length);
+    assert.isAtLeast(frameCount, 2);
+    // Disable chunking
+    chunked.$.repeater.initialCount = 0;
+    // Render some
+    chunked.items = chunked.preppedItems.slice(0, 20);
+    stamped = await waitUntilRendered();
+    assert.equal(stamped.length, chunked.items.length);
+    // Re-enable chunking
+    chunked.$.repeater.initialCount = 10;
+    // Push remaining; these should chunk out
+    frameCount = 0;
+    chunked.push('items', ...chunked.preppedItems.slice(20));
+    while (stamped.length < chunked.items.length) {
+      stamped = await waitUntilRendered();
+      frameCount++;
+    }
+    assert.equal(stamped.length, chunked.items.length);
     assert.isAtLeast(frameCount, 2);
   });
 
