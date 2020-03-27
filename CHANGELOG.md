@@ -1,5 +1,96 @@
 # Change Log
 
+## Unreleased
+
+### New settings
+
+This update to Polymer includes some new [global settings](https://polymer-library.polymer-project.org/3.0/docs/devguide/settings):
+
+- `legacyUndefined`
+
+  **What does it do?** This setting reverts how computed properties handle `undefined` values to the Polymer 1 behavior: when enabled, computed properties will only be recomputed if none of their dependencies are `undefined`.
+
+  Components can override the global setting by setting their `_overrideLegacyUndefined` property to `true`. This is useful for reenabling the default behavior as you migrate individual components:
+
+  ```js
+  import {PolymerElement, html} from '@polymer/polymer/polymer-element.js';
+
+  class MigratedElement extends PolymerElement { /* ... */ }
+
+  // All MigratedElement instances will use the default behavior.
+  MigratedElement.prototype._overrideLegacyUndefined = true;
+
+  customElements.define('migrated-element', SomeElement);
+  ```
+
+  **Should I use it?** This setting should only be used for migrating legacy codebases that depend on this behavior and is otherwise **not recommended**.
+
+- `legacyWarnings`
+
+  **What does it do?** This setting causes Polymer to warn if a component's template contains bindings to properties that are not listed in that element's [`properties` block](https://polymer-library.polymer-project.org/3.0/docs/devguide/properties). For example:
+
+  ```js
+  import {PolymerElement, html} from '@polymer/polymer/polymer-element.js';
+
+  class SomeElement extends PolymerElement {
+    static get template() {
+      return html`<span>[[someProperty]] is used here</span>`;
+    }
+
+    static get properties() {
+      return { /* but `someProperty` is not declared here */ };
+    }
+  }
+
+  customElements.define('some-element', SomeElement);
+  ```
+
+  Only properties explicitly declared in the `properties` block are [associated with an attribute](https://polymer-library.polymer-project.org/3.0/docs/devguide/properties#property-name-mapping) and [update when that attribute changes](https://polymer-library.polymer-project.org/3.0/docs/devguide/properties#attribute-deserialization). Enabling this setting will show you where you might have forgotten to declare properties.
+
+  **Should I use it?** Consider using this feature during development but don't enable it in production.
+
+- `orderedComputed`
+
+  **What does it do?** This setting causes Polymer to topologically sort each component's computed properties graph when the class is initialized and uses that order whenever computed properties are run.
+
+  For example:
+
+  ```js
+  import {PolymerElement, html} from '@polymer/polymer/polymer-element.js';
+
+  class SomeElement extends PolymerElement {
+    static get properties() {
+      return {
+        a: {type: Number, value: 0},
+        b: {type: Number, computed: 'computeB(a)'},
+        c: {type: Number, computed: 'computeC(a, b)'},
+      };
+    }
+
+    computeB(a) {
+      console.log('Computing b...');
+      return a + 1;
+    }
+
+    computeC(a, b) {
+      console.log('Computing c...');
+      return a * 2 + b * 2;
+    }
+  }
+
+  customElements.define('some-element', SomeElement);
+  ```
+
+  When `a` changes, Polymer's default behavior does not specify the order in which its dependents will run. Given that both `b` and `c` depend directly on `a`, one of two possible orders could occur: [`computeB`, `computeC`] or [`computeC`, `computeB`].
+
+  - In the first case - [`computeB`, `computeC`] - `computeB` is run with the new value of `a` and produces a new value for `b`. Then, `computeC` is run with both the new values of `a` and `b` to produce `c`.
+
+  - In the second case - [`computeC`, `computeB`] - `computeC` is run first with the new value of `a` and the _current_ value of `b` to produce `c`. Then, `computeB` is run with the new value of `a` to produce `b`. If `computeB` changed the value of `b` then `computeC` will be run again, with the new values of both `a` and `b` to produce the final value of `c`.
+
+  However, with `orderedComputed` enabled, the computed properties would have been previously sorted into [`computeB`, `computeC`], so updating `a` would cause them to run specifically in that order.
+
+  **Should I use it?** The value of this setting depends on how your computed property functions are implemented. If they are pure and relatively inexpensive, you shouldn't need to enable this feature. If they have side effects that would make the order in which they are run important or are expensive enough that it would be a problem to run them multiple times for a property update, consider enabling it.
+
 ## [v3.3.1](https://github.com/Polymer/polymer/tree/v3.3.1) (2019-11-08)
 - [ci skip] bump to 3.3.1 ([commit](https://github.com/Polymer/polymer/commit/11f1f139))
 
