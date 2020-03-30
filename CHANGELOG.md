@@ -91,6 +91,40 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **Should I use it?** The value of this setting depends on how your computed property functions are implemented. If they are pure and relatively inexpensive, you shouldn't need to enable this feature. If they have side effects that would make the order in which they are run important or are expensive enough that it would be a problem to run them multiple times for a property update, consider enabling it.
 
+- `fastDomIf`
+
+  **What does it do?** This setting enables a different implementation of `<dom-if>` that uses its host element's template stamping facilities (provided as part of `PolymerElement`) rather than including its own. This setting can help with performance but comes with a few caveats:
+
+  - First, `fastDomIf` requires that every `<dom-if>` is in the shadow root of a Polymer element: you can't use a `<dom-if>` directly in the main document or inside a shadow root of an element that doesn't extend `PolymerElement`.
+
+  - Second, because the `fastDomIf` implementation of `<dom-if>` doesn't include its own template stamping features, it doesn't create its own scope for property effects. This means that any properties you were previously setting on the `<dom-if>` will no longr be applied within its template, only properties of the host element are available.
+
+  **Should I use it?** This setting is recommended as long as your app doesn't use `<dom-if>` as described in the section above.
+
+- `removeNestedTemplates`
+
+  **What does it do?** This setting causes Polymer to remove the child `<template>` elements used by `<dom-if>` and `<dom-repeat>` from the their containing templates. This can improve the performance of cloning your component's template when new instances are created.
+
+  **Should I use it?** This setting is generally recommended.
+
+- `suppressTemplateNotifications`
+
+  **What does it do?** This setting causes `<dom-if>` and `<dom-repeat>` not to dispatch `dom-change` events when their rendered content is updated. If you're using lots of `<dom-if>` and `<dom-repeat>` but not listening for these events, this setting lets you disable them and their associated propagation work.
+
+  You can override the global setting on an individual `<dom-if>` or `<dom-repeat>` by setting its `notify-dom-change` boolean attribute.
+
+  **Should I use it?** This setting is generally recommended.
+
+- `legacyNoObservedAttributes`
+
+  **What does it do?** This setting causes `LegacyElementMixin` not to use the browser's built-in mechanism for informing elements of attribute changes (i.e. `observedAttributes` and `attributeChangedCallback`), which lets Polymer skip computing the list of attributes it tells the browser to observe. Instead, `LegacyElementMixin` simulates this behavior by overriding attribute APIs on the element and calling `attributeChangedCallback` itself.
+
+  This setting has similar API restrictions to those of the [custom elements polyfill](https://github.com/webcomponents/polyfills/tree/master/packages/custom-elements). You should only use the element's `setAttribute` and `removeAttribute` methods to modify attributes: using (e.g.) the element's `attributes` property to modify its attributes is not supported with `legacyNoObservedAttributes` and won't properly trigger `attributeChangedCallback` or any property effects.
+
+  Components can override the global setting by setting their `_legacyForceObservedAttributes` property to `true`. This property's effects occur at startup; it won't have any effect if modified at runtime and should be set in the class definition.
+
+  **Should I use it?** This setting should only be used if startup time is significantly affected by Polymer's class initialization work - for example, if you have a large number of components being loaded but are only instantiating a small subset of them - but is otherwise **not recommended**.
+
 ## [v3.3.1](https://github.com/Polymer/polymer/tree/v3.3.1) (2019-11-08)
 - [ci skip] bump to 3.3.1 ([commit](https://github.com/Polymer/polymer/commit/11f1f139))
 
