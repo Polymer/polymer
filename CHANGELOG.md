@@ -2,7 +2,13 @@
 
 ## Unreleased
 
-### New settings
+### New global behaviors
+
+#### Built Shady CSS styles automatically use constructable stylesheet objects
+
+If your application is uses pre-built Shady CSS styles and your browser supports [constructable stylesheet objects](https://wicg.github.io/construct-stylesheets/), Polymer will now extract all styles from your components' templates, join them into a single stylesheet, and share this stylesheet with all instances of the component using [`adoptedStyleSheets`](https://wicg.github.io/construct-stylesheets/#dom-documentorshadowroot-adoptedstylesheets).
+
+### New global settings
 
 This update to Polymer includes some new [global settings](https://polymer-library.polymer-project.org/3.0/docs/devguide/settings):
 
