@@ -123,7 +123,27 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   Components can override the global setting by setting their `_legacyForceObservedAttributes` property to `true`. This property's effects occur at startup; it won't have any effect if modified at runtime and should be set in the class definition.
 
-  **Should I use it?** This setting should only be used if startup time is significantly affected by Polymer's class initialization work - for example, if you have a large number of components being loaded but are only instantiating a small subset of them - but is otherwise **not recommended**.
+  **Should I use it?** This setting should only be used if startup time is significantly affected by Polymer's class initialization work - for example, if you have a large number of components being loaded but are only instantiating a small subset of them. Otherwise, this setting is **not recommended**.
+
+### Other new features
+
+#### `<dom-repeat>`
+
+- `reuseChunkedInstances`
+
+  **What does it do?** This boolean property causes `<dom-repeat>` to reuse template instances even when `items` is replaced with a new array, matching the Polymer 1 behavior.
+
+  By default, a `<dom-repeat>` with chunking enabled (i.e. `initialCount` >= 0) will drop all previously rendered template instances and create new ones whenever the `items` array is replaced. With `reuseChunkedInstances` set, any previously rendered template instances will instead be repopulated with data from the new array before new instances are created.
+
+  **Should I use it?** This flag is generally recommended and can improve rendering performance of chunked `<dom-repeat>` instances with live data.
+
+#### `LegacyElementMixin`
+
+- `disable-upgrade`
+
+  **What does it do?** `LegacyElementMixin` now has built-in support for the `disable-upgrade` attribute (usually provided by [`DisableUpgradeMixin`](https://polymer-library.polymer-project.org/3.0/api/mixins/disable-upgrade-mixin)) that becomes active when the global `legacyOptimizations` setting is enabled, matching the Polymer 1 behavior.
+
+  **Should I use it?** Consider using this setting if you are already using the `legacyOptimizations` setting and migrating older components that depend on `disable-upgrade` without explicit application of `DisableUpgradeMixin`.
 
 ## [v3.3.1](https://github.com/Polymer/polymer/tree/v3.3.1) (2019-11-08)
 - [ci skip] bump to 3.3.1 ([commit](https://github.com/Polymer/polymer/commit/11f1f139))
