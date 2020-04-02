@@ -95,6 +95,8 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   However, with `orderedComputed` enabled, the computed properties would have been previously sorted into [`computeB`, `computeC`], so updating `a` would cause them to run specifically in that order.
 
+  If your component's computed property graph contains cycles, the order in which they are run when using `orderedComputed` is still undefined.
+
   **Should I use it?** The value of this setting depends on how your computed property functions are implemented. If they are pure and relatively inexpensive, you shouldn't need to enable this feature. If they have side effects that would make the order in which they are run important or are expensive enough that it would be a problem to run them multiple times for a property update, consider enabling it.
 
 - `fastDomIf`
