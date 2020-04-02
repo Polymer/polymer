@@ -12,7 +12,7 @@ If your application is uses pre-built Shady CSS styles and your browser supports
 
 This update to Polymer includes some new [global settings](https://polymer-library.polymer-project.org/3.0/docs/devguide/settings):
 
-- `legacyUndefined`
+- `legacyUndefined` / `setLegacyUndefined`
 
   **What does it do?** This setting reverts how computed properties handle `undefined` values to the Polymer 1 behavior: when enabled, computed properties will only be recomputed if none of their dependencies are `undefined`.
 
@@ -31,7 +31,7 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **Should I use it?** This setting should only be used for migrating legacy codebases that depend on this behavior and is otherwise **not recommended**.
 
-- `legacyWarnings`
+- `legacyWarnings` / `setLegacyWarnings`
 
   **What does it do?** This setting causes Polymer to warn if a component's template contains bindings to properties that are not listed in that element's [`properties` block](https://polymer-library.polymer-project.org/3.0/docs/devguide/properties). For example:
 
@@ -55,7 +55,7 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **Should I use it?** Consider using this feature during development but don't enable it in production.
 
-- `orderedComputed`
+- `orderedComputed` / `setOrderedComputed`
 
   **What does it do?** This setting causes Polymer to topologically sort each component's computed properties graph when the class is initialized and uses that order whenever computed properties are run.
 
@@ -99,7 +99,7 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **Should I use it?** The value of this setting depends on how your computed property functions are implemented. If they are pure and relatively inexpensive, you shouldn't need to enable this feature. If they have side effects that would make the order in which they are run important or are expensive enough that it would be a problem to run them multiple times for a property update, consider enabling it.
 
-- `fastDomIf`
+- `fastDomIf` / `setFastDomIf`
 
   **What does it do?** This setting enables a different implementation of `<dom-if>` that uses its host element's template stamping facilities (provided as part of `PolymerElement`) rather than including its own. This setting can help with performance but comes with a few caveats:
 
@@ -109,13 +109,13 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **Should I use it?** This setting is recommended as long as your app doesn't use `<dom-if>` as described in the section above.
 
-- `removeNestedTemplates`
+- `removeNestedTemplates` / `setRemoveNestedTemplates`
 
   **What does it do?** This setting causes Polymer to remove the child `<template>` elements used by `<dom-if>` and `<dom-repeat>` from the their containing templates. This can improve the performance of cloning your component's template when new instances are created.
 
   **Should I use it?** This setting is generally recommended.
 
-- `suppressTemplateNotifications`
+- `suppressTemplateNotifications` / `setSuppressTemplateNotifications`
 
   **What does it do?** This setting causes `<dom-if>` and `<dom-repeat>` not to dispatch `dom-change` events when their rendered content is updated. If you're using lots of `<dom-if>` and `<dom-repeat>` but not listening for these events, this setting lets you disable them and their associated propagation work.
 
@@ -157,7 +157,7 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **Should I use it?** This setting is generally recommended.
 
-- `legacyNoObservedAttributes`
+- `legacyNoObservedAttributes` / `setLegacyNoObservedAttributes`
 
   **What does it do?** This setting causes `LegacyElementMixin` not to use the browser's built-in mechanism for informing elements of attribute changes (i.e. `observedAttributes` and `attributeChangedCallback`), which lets Polymer skip computing the list of attributes it tells the browser to observe. Instead, `LegacyElementMixin` simulates this behavior by overriding attribute APIs on the element and calling `attributeChangedCallback` itself.
 
