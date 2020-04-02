@@ -117,7 +117,41 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **What does it do?** This setting causes `<dom-if>` and `<dom-repeat>` not to dispatch `dom-change` events when their rendered content is updated. If you're using lots of `<dom-if>` and `<dom-repeat>` but not listening for these events, this setting lets you disable them and their associated propagation work.
 
-  You can override the global setting on an individual `<dom-if>` or `<dom-repeat>` by setting its `notify-dom-change` boolean attribute.
+  You can override the global setting for an individual `<dom-if>` or `<dom-repeat>` by setting its `notify-dom-change` boolean attribute:
+
+  ```js
+  import {PolymerElement, html} from '@polymer/polymer/polymer-element.js';
+
+  class SomeElement extends PolymerElement {
+    static get properties() {
+      return {
+        visible: {type: Boolean, value: false},
+      };
+    }
+
+    static get template() {
+      return html`
+        <button on-click="_toggle">Toggle</button>
+        <!-- Set notify-dom-change to enable dom-change events for this particular <dom-if>. -->
+        <dom-if if="[[visible]]" notify-dom-change on-dom-change="_onDomChange">
+          <template>
+            Hello!
+          </template>
+        </dom-if>
+      `;
+    }
+
+    _toggle() {
+      this.visible = !this.visible;
+    }
+
+    _onDomChange(e) {
+      console.log("Received 'dom-change' event.");
+    }
+  }
+
+  customElements.define('some-element', SomeElement);
+  ```
 
   **Should I use it?** This setting is generally recommended.
 
