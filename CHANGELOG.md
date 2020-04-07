@@ -2,12 +2,6 @@
 
 ## Unreleased
 
-### New global behaviors
-
-#### Built Shady CSS styles automatically use constructable stylesheet objects
-
-If your application is uses pre-built Shady CSS styles and your browser supports [constructable stylesheet objects](https://wicg.github.io/construct-stylesheets/), Polymer will now extract all styles from your components' templates, join them into a single stylesheet, and share this stylesheet with all instances of the component using [`adoptedStyleSheets`](https://wicg.github.io/construct-stylesheets/#dom-documentorshadowroot-adoptedstylesheets).
-
 ### New global settings
 
 This update to Polymer includes some new [global settings](https://polymer-library.polymer-project.org/3.0/docs/devguide/settings):
@@ -166,6 +160,12 @@ This update to Polymer includes some new [global settings](https://polymer-libra
   Components can override the global setting by setting their `_legacyForceObservedAttributes` property to `true`. This property's effects occur at startup; it won't have any effect if modified at runtime and should be set in the class definition.
 
   **Should I use it?** This setting should only be used if startup time is significantly affected by Polymer's class initialization work - for example, if you have a large number of components being loaded but are only instantiating a small subset of them. Otherwise, this setting is **not recommended**.
+
+- `useAdoptedStyleSheetsWithBuiltCSS` / `setUseAdoptedStyleSheetsWithBuiltCSS`
+
+  **What does it do?** If your application is uses [pre-built Shady CSS styles](https://github.com/polymer/polymer-css-build) and your browser supports [constructable stylesheet objects](https://wicg.github.io/construct-stylesheets/), this setting will cause Polymer to extract all `<style>` elements from your components' templates, join them into a single stylesheet, and share this stylesheet with all instances of the component using their shadow roots' [`adoptedStyleSheets`](https://wicg.github.io/construct-stylesheets/#dom-documentorshadowroot-adoptedstylesheets) array. This setting may improve your components' memory usage and performance depending on how many instances you create and how large their style sheets are.
+
+  **Should I use it?** Consider using this setting if your app already uses pre-built Shady CSS styles. Note that position-dependent CSS selectors (e.g. containing `:nth-child()`) may become unreliable for siblings of your components styles as a result of runtime-detected browser support determining if styles are removed from your components' shadow roots.
 
 ### Other new features
 
