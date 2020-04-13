@@ -187,6 +187,16 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **Should I use it?** Consider using this setting if you are already using the `legacyOptimizations` setting and migrating older components that depend on `disable-upgrade` without explicit application of `DisableUpgradeMixin`.
 
+### Bug fixes
+
+#### `<dom-repeat>`
+
+- Chunking behavior
+
+  `<dom-repeat>` no longer resets the number of rendered instances to `initialCount` when modifying `items` with `PolymerElement`'s array modification methods ([`splice`](https://polymer-library.polymer-project.org/3.0/api/mixins/element-mixin#ElementMixin-method-splice), [`push`](https://polymer-library.polymer-project.org/3.0/api/mixins/element-mixin#ElementMixin-method-push), etc.). The number of rendered instances will only be reset to `initialCount` if the `items` array itself is replaced with a new array object.
+
+  See [#5631](https://github.com/Polymer/polymer/issues/5631) for more information.
+
 ## [v3.3.1](https://github.com/Polymer/polymer/tree/v3.3.1) (2019-11-08)
 - [ci skip] bump to 3.3.1 ([commit](https://github.com/Polymer/polymer/commit/11f1f139))
 
