@@ -74,7 +74,7 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
     computeC(a, b) {
       console.log('Computing c...');
-      return a * 2 + b * 2;
+      return (a + b) * 2;
     }
   }
 
@@ -99,7 +99,7 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   - First, `fastDomIf` requires that every `<dom-if>` is in the shadow root of a Polymer element: you can't use a `<dom-if>` directly in the main document or inside a shadow root of an element that doesn't extend `PolymerElement`.
 
-  - Second, because the `fastDomIf` implementation of `<dom-if>` doesn't include its own template stamping features, it doesn't create its own scope for property effects. This means that any properties you were previously setting on the `<dom-if>` will no longr be applied within its template, only properties of the host element are available.
+  - Second, because the `fastDomIf` implementation of `<dom-if>` doesn't include its own template stamping features, it doesn't create its own scope for property effects. This means that any properties you were previously setting on the `<dom-if>` will no longer be applied within its template, only properties of the host element are available.
 
   **Should I use it?** This setting is recommended as long as your app doesn't use `<dom-if>` as described in the section above.
 
@@ -111,7 +111,7 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
 - `suppressTemplateNotifications` / `setSuppressTemplateNotifications`
 
-  **What does it do?** This setting causes `<dom-if>` and `<dom-repeat>` not to dispatch `dom-change` events when their rendered content is updated. If you're using lots of `<dom-if>` and `<dom-repeat>` but not listening for these events, this setting lets you disable them and their associated propagation work.
+  **What does it do?** This setting causes `<dom-if>` and `<dom-repeat>` not to dispatch `dom-change` events when their rendered content is updated. If you're using lots of `<dom-if>` and `<dom-repeat>` but not listening for these events, this setting lets you disable them and their associated dispatch work.
 
   You can override the global setting for an individual `<dom-if>` or `<dom-repeat>` by setting its `notify-dom-change` boolean attribute:
 
@@ -165,7 +165,7 @@ This update to Polymer includes some new [global settings](https://polymer-libra
 
   **What does it do?** If your application is uses [pre-built Shady CSS styles](https://github.com/polymer/polymer-css-build) and your browser supports [constructable stylesheet objects](https://wicg.github.io/construct-stylesheets/), this setting will cause Polymer to extract all `<style>` elements from your components' templates, join them into a single stylesheet, and share this stylesheet with all instances of the component using their shadow roots' [`adoptedStyleSheets`](https://wicg.github.io/construct-stylesheets/#dom-documentorshadowroot-adoptedstylesheets) array. This setting may improve your components' memory usage and performance depending on how many instances you create and how large their style sheets are.
 
-  **Should I use it?** Consider using this setting if your app already uses pre-built Shady CSS styles. Note that position-dependent CSS selectors (e.g. containing `:nth-child()`) may become unreliable for siblings of your components styles as a result of runtime-detected browser support determining if styles are removed from your components' shadow roots.
+  **Should I use it?** Consider using this setting if your app already uses pre-built Shady CSS styles. Note that position-dependent CSS selectors (e.g. containing `:nth-child()`) may become unreliable for siblings of your components' styles as a result of runtime-detected browser support determining if styles are removed from your components' shadow roots.
 
 ### Other new features
 
