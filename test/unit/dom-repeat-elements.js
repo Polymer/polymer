@@ -434,7 +434,7 @@ Polymer({
 });
 Polymer({
   _template: html`
-    <template id="repeater" is="dom-repeat" items="{{items}}" initial-count="10">
+    <template id="repeater" is="dom-repeat" items="{{items}}" initial-count="10" target-framerate="25">
       <x-wait>{{item.prop}}</x-wait>
     </template>
 `,
@@ -464,9 +464,9 @@ Polymer({
 Polymer({
   _template: html`
     <template is="dom-repeat" items="{{items}}" id="outer">
-      <template is="dom-if" if="">
+      <template is="dom-if" if="" name="outerIf">
         <template is="dom-repeat" items="{{item.items}}" id="inner">
-          <template is="dom-if" if="">
+          <template is="dom-if" if="" name="innerIf">
             <button on-click="handleClick">{{item.prop}}</button>
           </template>
         </template>

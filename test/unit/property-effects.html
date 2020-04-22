@@ -26,8 +26,12 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script type="module">
 import './property-effects-elements.js';
 import { Polymer, html } from '../../polymer-legacy.js';
-import { setSanitizeDOMValue, sanitizeDOMValue, getSanitizeDOMValue, setLegacyOptimizations } from '../../lib/utils/settings.js';
+import { setSanitizeDOMValue, sanitizeDOMValue, getSanitizeDOMValue, setLegacyWarnings, legacyUndefined, setLegacyUndefined, setOrderedComputed, orderedComputed } from '../../lib/utils/settings.js';
 import { PropertyEffects } from '../../lib/mixins/property-effects.js';
+import { flush } from '../../lib/utils/flush.js';
+
+setLegacyUndefined(Boolean(window.location.search.match('legacyUndefined')));
+setOrderedComputed(Boolean(window.location.search.match('orderedComputed')));
 
 suite('single-element binding effects', function() {
 
@@ -1234,7 +1238,9 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3literalComputedcpnd4');
+    assert.equal(el.$.boundProps.prop1,
+      legacyUndefined ?
+      'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
     assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3literalComputedcpnd5cpnd4');
   });
@@ -1265,7 +1271,9 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3literalComputedcpnd4');
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'),
+      legacyUndefined ?
+      'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
     assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3literalComputedcpnd5cpnd4');
   });
@@ -1302,7 +1310,9 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3literalComputedcpnd4');
+    assert.equal(el.$.compound1.textContent,
+      legacyUndefined ?
+      'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
     assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3literalComputedcpnd5cpnd4');
     // Once the binding evaluates back to '', it will in fact be ''
@@ -1777,24 +1787,43 @@ suite('a la carte usage of API', function() {
     customElements.define('pe-method-observer', TestClass);
     let el = document.createElement('pe-method-observer');
     document.body.appendChild(el);
-    assert.equal(el.observer.callCount, 1);
-    assert.deepEqual(el.observer.getCall(0).args, [undefined, undefined]);
+    if (legacyUndefined) {
+      assert.equal(el.observer.callCount, 0);
+    } else {
+      assert.equal(el.observer.callCount, 1);
+      assert.deepEqual(el.observer.getCall(0).args, [undefined, undefined]);
+    }
     assert.equal(el.pcSpy.callCount, 1);
     el.a = 'a';
-    assert.equal(el.observer.callCount, 2);
-    assert.deepEqual(el.observer.getCall(1).args, ['a', undefined]);
+    if (legacyUndefined) {
+      assert.equal(el.observer.callCount, 0);
+    } else {
+      assert.equal(el.observer.callCount, 2);
+      assert.deepEqual(el.observer.getCall(1).args, ['a', undefined]);
+    }
     assert.equal(el.pcSpy.callCount, 2);
     el.b = {c: 'c'};
-    assert.equal(el.observer.callCount, 3);
-    assert.deepEqual(el.observer.getCall(2).args, ['a', 'c']);
+    if (legacyUndefined) {
+      assert.equal(el.observer.callCount, 1);
+      assert.deepEqual(el.observer.getCall(0).args, ['a', 'c']);
+    } else {
+      assert.equal(el.observer.callCount, 3);
+      assert.deepEqual(el.observer.getCall(2).args, ['a', 'c']);
+    }
     assert.equal(el.pcSpy.callCount, 3);
     el.setProperties({
       a: 'A',
       b: {c: 'C'}
     });
-    assert.equal(el.observer.callCount, 4);
-    assert.deepEqual(el.observer.getCall(3).args, ['A', 'C']);
-    assert.equal(el.pcSpy.callCount, 4);
+    if (legacyUndefined) {
+      assert.equal(el.observer.callCount, 2);
+      assert.deepEqual(el.observer.getCall(1).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 4);
+    } else {
+      assert.equal(el.observer.callCount, 4);
+      assert.deepEqual(el.observer.getCall(3).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 4);
+    }
 
     el.observer = sinon.spy();
     assert.equal(el.observer.callCount, 1);
@@ -1817,23 +1846,38 @@ suite('a la carte usage of API', function() {
     assert.equal(el.compute.callCount, 0);
     assert.equal(el.pcSpy.callCount, 0);
     el.a = 'a';
-    assert.equal(el.compute.callCount, 1);
-    assert.deepEqual(el.compute.getCall(0).args, ['a', undefined]);
-    assert.equal(el.prop, 'aundefined');
+    if (legacyUndefined) {
+      assert.equal(el.compute.callCount, 0);
+    } else {
+      assert.equal(el.compute.callCount, 1);
+      assert.deepEqual(el.compute.getCall(0).args, ['a', undefined]);
+      assert.equal(el.prop, 'aundefined');
+    }
     assert.equal(el.pcSpy.callCount, 1);
     el.b = {c: 'c'};
-    assert.equal(el.compute.callCount, 2);
-    assert.deepEqual(el.compute.getCall(1).args, ['a', 'c']);
+    if (legacyUndefined) {
+      assert.equal(el.compute.callCount, 1);
+      assert.deepEqual(el.compute.getCall(0).args, ['a', 'c']);
+    } else {
+      assert.equal(el.compute.callCount, 2);
+      assert.deepEqual(el.compute.getCall(1).args, ['a', 'c']);
+    }
     assert.equal(el.prop, 'ac');
     assert.equal(el.pcSpy.callCount, 2);
     el.setProperties({
       a: 'A',
       b: {c: 'C'}
     });
-    assert.equal(el.compute.callCount, 3);
-    assert.deepEqual(el.compute.getCall(2).args, ['A', 'C']);
+    if (legacyUndefined) {
+      assert.equal(el.compute.callCount, 2);
+      assert.deepEqual(el.compute.getCall(1).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 3);
+    } else {
+      assert.equal(el.compute.callCount, 3);
+      assert.deepEqual(el.compute.getCall(2).args, ['A', 'C']);
+      assert.equal(el.pcSpy.callCount, 3);
+    }
     assert.equal(el.prop, 'AC');
-    assert.equal(el.pcSpy.callCount, 3);
     document.body.removeChild(el);
   });
 
@@ -1888,23 +1932,69 @@ suite('warn on legacy differences', () => {
   });
 
   teardown(function() {
-    setLegacyOptimizations(false);
+    setLegacyWarnings(false);
     console.warn.restore();
   });
 
   test('warn if non-declared property used in binding', () => {
-    setLegacyOptimizations(true);
+    setLegacyWarnings(true);
     Polymer({
       is: 'x-warn-undeclared-binding',
       _template: html`
         <div attr$="[[undeclaredToAttr]]"
              prop="[[undeclaredToProp]]">
-             [[undeclaredToText]]</div>`
+             [[undeclaredToText]]
+             [[compute(undeclaredDep1, undeclaredDep2)]]
+             </div>
+        <template is="dom-repeat" items="[0]">
+          <div attr$="[[nestedUndeclaredToAttr]]"
+             prop="[[nestedUndeclaredToProp]]">
+             [[nestedUndeclaredToText]]
+             [[compute(nestedUndeclaredDep1, nestedUndeclaredDep2)]]
+             </div>
+        </template>
+        `,
+      compute(dep) { return dep; }
     });
     const el = document.createElement('x-warn-undeclared-binding');
     document.body.appendChild(el);
+    flush();
     document.body.removeChild(el);
-    assert.equal(console.warn.callCount, 3);
+    assert.equal(console.warn.callCount, 10);
+  });
+
+  test('do not warn on valid non-property bindings', () => {
+    setLegacyWarnings(true);
+    Polymer({
+      is: 'x-nowarn-undeclared-binding',
+      properties: {
+        hostProp: String,
+        dynamicFn: Function
+      },
+      _template: html`
+        <div>[[hostProp]]</div>    <!-- host prop -->
+        <div>[[noDeps()]]</div>    <!-- method with no deps -->
+        <div>[[literalDeps('hi')]]</div>  <!-- method with literal deps -->
+        <div>[[dynamicFn()]]</div> <!-- dynamic function with no deps -->
+        <div>[[dynamicFnWithDep(hostProp)]]</div>  <!-- dynamic function with deps -->
+        <template is="dom-repeat" items="[0]" as="instProp">
+          <div>[[instProp]]</div>  <!-- instance prop -->
+          <div>[[hostProp]]</div>  <!-- nested host prop -->
+          <div>[[noDeps()]]</div>  <!-- nested method with no deps -->
+          <div>[[literalDeps('hi')]]</div>  <!-- method with literal deps -->
+          <div>[[dynamicFn()]]</div> <!-- dynamic function with no deps -->
+          <div>[[dynamicFnWithDep(hostProp)]]</div>  <!-- dynamic function with deps -->
+        </template>
+      `,
+      noDeps() { return 'static'; },
+      dynamicFn(dep) { return dep; },
+      dynamicFnWithDep(dep) { return dep; }
+    });
+    const el = document.createElement('x-nowarn-undeclared-binding');
+    document.body.appendChild(el);
+    flush();
+    document.body.removeChild(el);
+    assert.equal(console.warn.callCount, 0);
   });
 
   test('warn when re-declaring a computed property', () => {
@@ -1984,6 +2074,107 @@ suite('warn on legacy differences', () => {
   });
 
 });
+
+if (orderedComputed) {
+
+  suite('computed property ordering', function() {
+    var el;
+
+    setup(function() {
+      el = document.createElement('x-computed-ordering');
+      document.body.appendChild(el);
+    });
+
+    teardown(function() {
+      document.body.removeChild(el);
+    });
+
+    test('computed property ordering', function() {
+
+      assert.equal(el.bc, 110);
+      assert.equal(el.bcd, 111);
+      assert.equal(el.abbcd, 1211);
+      assert.equal(el.computeBC.callCount, 1);
+      assert.equal(el.computeBCD.callCount, 1);
+      assert.equal(el.computeABBCD.callCount, 1);
+
+      el.setProperties({
+        b: 200,
+        c: 20
+      });
+      assert.equal(el.bc, 220);
+      assert.equal(el.bcd, 221);
+      assert.equal(el.abbcd, 1421);
+      assert.equal(el.computeBC.callCount, 2);
+      assert.equal(el.computeBCD.callCount, 2);
+      assert.equal(el.computeABBCD.callCount, 2);
+
+      el.a = 2000;
+      assert.equal(el.bc, 220);
+      assert.equal(el.bcd, 221);
+      assert.equal(el.abbcd, 2421);
+      assert.equal(el.computeBC.callCount, 2);
+      assert.equal(el.computeBCD.callCount, 2);
+      assert.equal(el.computeABBCD.callCount, 3);
+
+      el.c = 30;
+      assert.equal(el.bc, 230);
+      assert.equal(el.bcd, 231);
+      assert.equal(el.abbcd, 2431);
+      assert.equal(el.computeBC.callCount, 3);
+      assert.equal(el.computeBCD.callCount, 3);
+      assert.equal(el.computeABBCD.callCount, 4);
+
+      el.d = 2;
+      assert.equal(el.bc, 230);
+      assert.equal(el.bcd, 232);
+      assert.equal(el.abbcd, 2432);
+      assert.equal(el.computeBC.callCount, 3);
+      assert.equal(el.computeBCD.callCount, 4);
+      assert.equal(el.computeABBCD.callCount, 5);
+
+      el.setProperties({
+        a: 1000,
+        b: 100,
+        c: 10,
+        d: 1
+      });
+      assert.equal(el.bc, 110);
+      assert.equal(el.bcd, 111);
+      assert.equal(el.abbcd, 1211);
+      assert.equal(el.computeBC.callCount, 4);
+      assert.equal(el.computeBCD.callCount, 5);
+      assert.equal(el.computeABBCD.callCount, 6);
+
+    });
+
+    test('computing functions as dependencies', function() {
+      assert.equal(el.xy, '222');
+      assert.equal(el.computeXYSpy.callCount, 1);
+      assert.equal(el.xyChanged.callCount, 1);
+
+      el.setProperties({
+        x: 3,
+        z: 300
+      });
+      assert.equal(el.xy, '323');
+      assert.equal(el.computeXYSpy.callCount, 2);
+      assert.equal(el.xyChanged.callCount, 2);
+    });
+
+    test('ensure circular dependencies do not iloop', function() {
+      el.circIn = 1;
+      // The answers here don't _really_ matter; it just shouldn't iloop
+      // circA will go first (defined first), which will pull circB, which
+      // has no circA yet, and thus returns 1 for this turn
+      assert.ok(el.circA); // should be equal to 2, based on impl
+      assert.ok(el.circB); // should be equal to 1, based on impl
+    });
+
+  });
+
+}
+
 </script>
 
 </body>
