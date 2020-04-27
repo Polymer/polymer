@@ -1,5 +1,516 @@
 # Change Log
 
+## [v3.4.0](https://github.com/Polymer/polymer/tree/v3.4.0) (2020-04-23)
+
+### New global settings
+
+This update to Polymer includes some new [global settings](https://polymer-library.polymer-project.org/3.0/docs/devguide/settings):
+
+- `legacyUndefined` / `setLegacyUndefined`
+
+  **What does it do?** This setting reverts how computed properties handle `undefined` values to the Polymer 1 behavior: when enabled, computed properties will only be recomputed if none of their dependencies are `undefined`.
+
+  Components can override the global setting by setting their `_overrideLegacyUndefined` property to `true`. This is useful for reenabling the default behavior as you migrate individual components:
+
+  ```js
+  import {PolymerElement, html} from '@polymer/polymer/polymer-element.js';
+
+  class MigratedElement extends PolymerElement { /* ... */ }
+
+  // All MigratedElement instances will use the default behavior.
+  MigratedElement.prototype._overrideLegacyUndefined = true;
+
+  customElements.define('migrated-element', SomeElement);
+  ```
+
+  **Should I use it?** This setting should only be used for migrating legacy codebases that depend on this behavior and is otherwise **not recommended**.
+
+- `legacyWarnings` / `setLegacyWarnings`
+
+  **What does it do?** This setting causes Polymer to warn if a component's template contains bindings to properties that are not listed in that element's [`properties` block](https://polymer-library.polymer-project.org/3.0/docs/devguide/properties). For example:
+
+  ```js
+  import {PolymerElement, html} from '@polymer/polymer/polymer-element.js';
+
+  class SomeElement extends PolymerElement {
+    static get template() {
+      return html`<span>[[someProperty]] is used here</span>`;
+    }
+
+    static get properties() {
+      return { /* but `someProperty` is not declared here */ };
+    }
+  }
+
+  customElements.define('some-element', SomeElement);
+  ```
+
+  Only properties explicitly declared in the `properties` block are [associated with an attribute](https://polymer-library.polymer-project.org/3.0/docs/devguide/properties#property-name-mapping) and [update when that attribute changes](https://polymer-library.polymer-project.org/3.0/docs/devguide/properties#attribute-deserialization). Enabling this setting will show you where you might have forgotten to declare properties.
+
+  **Should I use it?** Consider using this feature during development but don't enable it in production.
+
+- `orderedComputed` / `setOrderedComputed`
+
+  **What does it do?** This setting causes Polymer to topologically sort each component's computed properties graph when the class is initialized and uses that order whenever computed properties are run.
+
+  For example:
+
+  ```js
+  import {PolymerElement, html} from '@polymer/polymer/polymer-element.js';
+
+  class SomeElement extends PolymerElement {
+    static get properties() {
+      return {
+        a: {type: Number, value: 0},
+        b: {type: Number, computed: 'computeB(a)'},
+        c: {type: Number, computed: 'computeC(a, b)'},
+      };
+    }
+
+    computeB(a) {
+      console.log('Computing b...');
+      return a + 1;
+    }
+
+    computeC(a, b) {
+      console.log('Computing c...');
+      return (a + b) * 2;
+    }
+  }
+
+  customElements.define('some-element', SomeElement);
+  ```
+
+  When `a` changes, Polymer's default behavior does not specify the order in which its dependents will run. Given that both `b` and `c` depend directly on `a`, one of two possible orders could occur: [`computeB`, `computeC`] or [`computeC`, `computeB`].
+
+  - In the first case - [`computeB`, `computeC`] - `computeB` is run with the new value of `a` and produces a new value for `b`. Then, `computeC` is run with both the new values of `a` and `b` to produce `c`.
+
+  - In the second case - [`computeC`, `computeB`] - `computeC` is run first with the new value of `a` and the _current_ value of `b` to produce `c`. Then, `computeB` is run with the new value of `a` to produce `b`. If `computeB` changed the value of `b` then `computeC` will be run again, with the new values of both `a` and `b` to produce the final value of `c`.
+
+  However, with `orderedComputed` enabled, the computed properties would have been previously sorted into [`computeB`, `computeC`], so updating `a` would cause them to run specifically in that order.
+
+  If your component's computed property graph contains cycles, the order in which they are run when using `orderedComputed` is still undefined.
+
+  **Should I use it?** The value of this setting depends on how your computed property functions are implemented. If they are pure and relatively inexpensive, you shouldn't need to enable this feature. If they have side effects that would make the order in which they are run important or are expensive enough that it would be a problem to run them multiple times for a property update, consider enabling it.
+
+- `fastDomIf` / `setFastDomIf`
+
+  **What does it do?** This setting enables a different implementation of `<dom-if>` that uses its host element's template stamping facilities (provided as part of `PolymerElement`) rather than including its own. This setting can help with performance but comes with a few caveats:
+
+  - First, `fastDomIf` requires that every `<dom-if>` is in the shadow root of a Polymer element: you can't use a `<dom-if>` directly in the main document or inside a shadow root of an element that doesn't extend `PolymerElement`.
+
+  - Second, because the `fastDomIf` implementation of `<dom-if>` doesn't include its own template stamping features, it doesn't create its own scope for property effects. This means that any properties you were previously setting on the `<dom-if>` will no longer be applied within its template, only properties of the host element are available.
+
+  **Should I use it?** This setting is recommended as long as your app doesn't use `<dom-if>` as described in the section above.
+
+- `removeNestedTemplates` / `setRemoveNestedTemplates`
+
+  **What does it do?** This setting causes Polymer to remove the child `<template>` elements used by `<dom-if>` and `<dom-repeat>` from the their containing templates. This can improve the performance of cloning your component's template when new instances are created.
+
+  **Should I use it?** This setting is generally recommended.
+
+- `suppressTemplateNotifications` / `setSuppressTemplateNotifications`
+
+  **What does it do?** This setting causes `<dom-if>` and `<dom-repeat>` not to dispatch `dom-change` events when their rendered content is updated. If you're using lots of `<dom-if>` and `<dom-repeat>` but not listening for these events, this setting lets you disable them and their associated dispatch work.
+
+  You can override the global setting for an individual `<dom-if>` or `<dom-repeat>` by setting its `notify-dom-change` boolean attribute:
+
+  ```js
+  import {PolymerElement, html} from '@polymer/polymer/polymer-element.js';
+
+  class SomeElement extends PolymerElement {
+    static get properties() {
+      return {
+        visible: {type: Boolean, value: false},
+      };
+    }
+
+    static get template() {
+      return html`
+        <button on-click="_toggle">Toggle</button>
+        <!-- Set notify-dom-change to enable dom-change events for this particular <dom-if>. -->
+        <dom-if if="[[visible]]" notify-dom-change on-dom-change="_onDomChange">
+          <template>
+            Hello!
+          </template>
+        </dom-if>
+      `;
+    }
+
+    _toggle() {
+      this.visible = !this.visible;
+    }
+
+    _onDomChange(e) {
+      console.log("Received 'dom-change' event.");
+    }
+  }
+
+  customElements.define('some-element', SomeElement);
+  ```
+
+  **Should I use it?** This setting is generally recommended.
+
+- `legacyNoObservedAttributes` / `setLegacyNoObservedAttributes`
+
+  **What does it do?** This setting causes `LegacyElementMixin` not to use the browser's built-in mechanism for informing elements of attribute changes (i.e. `observedAttributes` and `attributeChangedCallback`), which lets Polymer skip computing the list of attributes it tells the browser to observe. Instead, `LegacyElementMixin` simulates this behavior by overriding attribute APIs on the element and calling `attributeChangedCallback` itself.
+
+  This setting has similar API restrictions to those of the [custom elements polyfill](https://github.com/webcomponents/polyfills/tree/master/packages/custom-elements). You should only use the element's `setAttribute` and `removeAttribute` methods to modify attributes: using (e.g.) the element's `attributes` property to modify its attributes is not supported with `legacyNoObservedAttributes` and won't properly trigger `attributeChangedCallback` or any property effects.
+
+  Components can override the global setting by setting their `_legacyForceObservedAttributes` property to `true`. This property's effects occur at startup; it won't have any effect if modified at runtime and should be set in the class definition.
+
+  **Should I use it?** This setting should only be used if startup time is significantly affected by Polymer's class initialization work - for example, if you have a large number of components being loaded but are only instantiating a small subset of them. Otherwise, this setting is **not recommended**.
+
+- `useAdoptedStyleSheetsWithBuiltCSS` / `setUseAdoptedStyleSheetsWithBuiltCSS`
+
+  **What does it do?** If your application is uses [pre-built Shady CSS styles](https://github.com/polymer/polymer-css-build) and your browser supports [constructable stylesheet objects](https://wicg.github.io/construct-stylesheets/), this setting will cause Polymer to extract all `<style>` elements from your components' templates, join them into a single stylesheet, and share this stylesheet with all instances of the component using their shadow roots' [`adoptedStyleSheets`](https://wicg.github.io/construct-stylesheets/#dom-documentorshadowroot-adoptedstylesheets) array. This setting may improve your components' memory usage and performance depending on how many instances you create and how large their style sheets are.
+
+  **Should I use it?** Consider using this setting if your app already uses pre-built Shady CSS styles. Note that position-dependent CSS selectors (e.g. containing `:nth-child()`) may become unreliable for siblings of your components' styles as a result of runtime-detected browser support determining if styles are removed from your components' shadow roots.
+
+### Other new features
+
+#### `<dom-repeat>`
+
+- `reuseChunkedInstances`
+
+  **What does it do?** This boolean property causes `<dom-repeat>` to reuse template instances even when `items` is replaced with a new array, matching the Polymer 1 behavior.
+
+  By default, a `<dom-repeat>` with chunking enabled (i.e. `initialCount` >= 0) will drop all previously rendered template instances and create new ones whenever the `items` array is replaced. With `reuseChunkedInstances` set, any previously rendered template instances will instead be repopulated with data from the new array before new instances are created.
+
+  **Should I use it?** This flag is generally recommended and can improve rendering performance of chunked `<dom-repeat>` instances with live data.
+
+#### `LegacyElementMixin`
+
+- `disable-upgrade`
+
+  **What does it do?** `LegacyElementMixin` now has built-in support for the `disable-upgrade` attribute (usually provided by [`DisableUpgradeMixin`](https://polymer-library.polymer-project.org/3.0/api/mixins/disable-upgrade-mixin)) that becomes active when the global `legacyOptimizations` setting is enabled, matching the Polymer 1 behavior.
+
+  **Should I use it?** Consider using this setting if you are already using the `legacyOptimizations` setting and migrating older components that depend on `disable-upgrade` without explicit application of `DisableUpgradeMixin`.
+
+### Bug fixes
+
+#### `<dom-repeat>`
+
+- Chunking behavior
+
+  `<dom-repeat>` no longer resets the number of rendered instances to `initialCount` when modifying `items` with `PolymerElement`'s array modification methods ([`splice`](https://polymer-library.polymer-project.org/3.0/api/mixins/element-mixin#ElementMixin-method-splice), [`push`](https://polymer-library.polymer-project.org/3.0/api/mixins/element-mixin#ElementMixin-method-push), etc.). The number of rendered instances will only be reset to `initialCount` if the `items` array itself is replaced with a new array object.
+
+  See [#5631](https://github.com/Polymer/polymer/issues/5631) for more information.
+
+### All commits
+
+- [ci skip] bump to 3.4.0 ([commit](https://github.com/Polymer/polymer/commit/08585311))
+
+- `shareBuiltCSSWithAdoptedStyleSheets` -> `useAdoptedStyleSheetsWithBuiltCSS` ([commit](https://github.com/Polymer/polymer/commit/33e14986))
+
+- formatting ([commit](https://github.com/Polymer/polymer/commit/d0848d83))
+
+- Fix incorrect JSDoc param name. ([commit](https://github.com/Polymer/polymer/commit/c0813cd3))
+
+- Gate feature behind `shareBuiltCSSWithAdoptedStyleSheets`; update tests. ([commit](https://github.com/Polymer/polymer/commit/bdd76581))
+
+- Add `shareBuiltCSSWithAdoptedStyleSheets` global setting ([commit](https://github.com/Polymer/polymer/commit/2fc9062d))
+
+- Add stalebot config ([commit](https://github.com/Polymer/polymer/commit/b8362abb))
+
+- Annotate more return types as !defined (#5642) ([commit](https://github.com/Polymer/polymer/commit/20b207e1))
+
+- Ensure any previously enqueued rAF is canceled when re-rendering. Also, use instances length instead of renderedItemCount since it will be undefined on first render. ([commit](https://github.com/Polymer/polymer/commit/ddb37df9))
+
+- Improve comment. ([commit](https://github.com/Polymer/polymer/commit/d92ff92f))
+
+- Remove obsolete tests. ([commit](https://github.com/Polymer/polymer/commit/91f01e57))
+
+- Simplify by making limit a derived value from existing state. This centralizes the calculation of limit based on changes to other state variables. ([commit](https://github.com/Polymer/polymer/commit/b5664cba))
+
+- Update Sauce config to drop Safari 9, add 12 & 13. Safari 9 is now very old, and has micro task ordering bugs issues that make testing flaky. ([commit](https://github.com/Polymer/polymer/commit/a02ed026))
+
+- Remove accidental commit of test.only ([commit](https://github.com/Polymer/polymer/commit/d67a8b51))
+
+- When re-enabling, ensure __limit is at a good starting point and add a test for that. Also: * Ensure `__itemsArrayChanged` is cleared after every render. * Enqueue `__continueChunkingAfterRaf` before notifying renderedItemCount for safety ([commit](https://github.com/Polymer/polymer/commit/1d96db3c))
+
+- Remove accidental commit of suite.only ([commit](https://github.com/Polymer/polymer/commit/b503db15))
+
+- Ensure limit is reset when initialCount is disabled. Note that any falsey value for initialCount (including `0`) is interpreted as "chunking disabled". This is consistent with 1.x logic, and follows from the logic of "starting chunking by rendering zero items" doesn't really make sense. ([commit](https://github.com/Polymer/polymer/commit/60f6ccfb))
+
+- Updates from review. * Refactoring `__render` for readability * Removing `__pool`; this was never used in v2: since we reset the pool every update and items are only ever pushed at detach time and we only detach at the end of updates (as opposed to v1 which had more sophisticated splicing) ([commit](https://github.com/Polymer/polymer/commit/0797488b))
+
+- Store syncInfo on the dom-if, but null it in teardown. (same as invalidProps for non-fastDomIf) ([commit](https://github.com/Polymer/polymer/commit/fe86a8c8))
+
+- Fixes for several related dom-repeat chunking issues. Fixes #5631. * Only restart chunking (resetting the list to the initialCount) if the `items` array itself changed (and not splices to the array), to match Polymer 1 behavior. * Add `reuseChunkedInstances` option to allow reusing instances even when `items` changes; this is likely the more common optimal case when using immutable data, but making it optional for backward compatibility. * Only measure render time and throttle the chunk size if we rendered a full chunk of new items. Ensures that fast re-renders of existing items don't cause the chunk size to scale up dramatically, subsequently causing too many new items to be created in one chunk. * Increase the limit by the chunk size as part of any render if there are new items to render, rather than only as a result of rendering. * Continue chunking by comparing the filtered item count to the limit (not the unfiltered item count). ([commit](https://github.com/Polymer/polymer/commit/b40840b9))
+
+- Update comment. ([commit](https://github.com/Polymer/polymer/commit/b9bbee2c))
+
+- Store syncInfo on instance and don't sync paths. Fixes #5629 ([commit](https://github.com/Polymer/polymer/commit/353eabde))
+
+- Avoid Array.find (doesn't exist in IE) ([commit](https://github.com/Polymer/polymer/commit/5383f5f2))
+
+- Add comment to skip. ([commit](https://github.com/Polymer/polymer/commit/7df89ae2))
+
+- Skip test when custom elements polyfill is in use ([commit](https://github.com/Polymer/polymer/commit/fb1a7835))
+
+- Copy flag to a single location rather than two. ([commit](https://github.com/Polymer/polymer/commit/688243b3))
+
+- Lint fix. ([commit](https://github.com/Polymer/polymer/commit/3fd96719))
+
+- Update test name. ([commit](https://github.com/Polymer/polymer/commit/dfd0e641))
+
+- Introduce opt-out per class for `legacyNoObservedAttributes` ([commit](https://github.com/Polymer/polymer/commit/eaca1954))
+
+- Ensure telemetry system works with `legacyNoObservedAttributes` setting ([commit](https://github.com/Polymer/polymer/commit/63addd39))
+
+- Update package-lock.json ([commit](https://github.com/Polymer/polymer/commit/a7ffc390))
+
+- Update test/unit/inheritance.html ([commit](https://github.com/Polymer/polymer/commit/47a54ef8))
+
+- Fix testing issues with latest webcomponentsjs ([commit](https://github.com/Polymer/polymer/commit/61a14c17))
+
+- Allow `undefined` in legacy _template field to fall-through to normal lookup path. ([commit](https://github.com/Polymer/polymer/commit/220099cf))
+
+- re-add npm cache ([commit](https://github.com/Polymer/polymer/commit/700c2b0c))
+
+- regen package-lock ([commit](https://github.com/Polymer/polymer/commit/168572a7))
+
+- mispelled services, node 10 for consistency ([commit](https://github.com/Polymer/polymer/commit/15dba241))
+
+- modernize travis ([commit](https://github.com/Polymer/polymer/commit/148b2ea2))
+
+- Adds support for imperatively created elements to `legacyNoObservedAttributes` ([commit](https://github.com/Polymer/polymer/commit/28f12ca9))
+
+- Rebase sanitize dom value getter onto legacy-undefined-noBatch (#5618) ([commit](https://github.com/Polymer/polymer/commit/afdd9119))
+
+- Add getSanitizeDOMValue to settings API (#5617) ([commit](https://github.com/Polymer/polymer/commit/aec4cb68))
+
+- FIx closure annotation ([commit](https://github.com/Polymer/polymer/commit/15ce881f))
+
+- Fix closure annotation. ([commit](https://github.com/Polymer/polymer/commit/0427abe4))
+
+- `legacyNoObservedAttributes`: Ensure user created runs before attributesChanged ([commit](https://github.com/Polymer/polymer/commit/c6675db0))
+
+- Enable tests for `legacyNoObservedAttributes` ([commit](https://github.com/Polymer/polymer/commit/b8315d60))
+
+- Only auto-use disable-upgrade if legacyOptimizations is set. ([commit](https://github.com/Polymer/polymer/commit/99b87649))
+
+- Adds disable-upgrade functionality directly to LegacyElementMixin ([commit](https://github.com/Polymer/polymer/commit/a4b4723f))
+
+- Add doc comment ([commit](https://github.com/Polymer/polymer/commit/12c39131))
+
+- Lint fixes. ([commit](https://github.com/Polymer/polymer/commit/fa5570b1))
+
+- Update externs. ([commit](https://github.com/Polymer/polymer/commit/41df9a59))
+
+- Update extern format. ([commit](https://github.com/Polymer/polymer/commit/3c128fa2))
+
+- Address review feedback. ([commit](https://github.com/Polymer/polymer/commit/957c8c4d))
+
+- Address review feedback ([commit](https://github.com/Polymer/polymer/commit/f8dfaa56))
+
+- Lint fixes. ([commit](https://github.com/Polymer/polymer/commit/7b0c57a4))
+
+- Adds `legacyNoAttributes` setting ([commit](https://github.com/Polymer/polymer/commit/8ef2cc70))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/640bc80a))
+
+- Update polymer externs for new settings. ([commit](https://github.com/Polymer/polymer/commit/5d130fae))
+
+- Update lib/utils/settings.js ([commit](https://github.com/Polymer/polymer/commit/dbd9140a))
+
+- Changes based on review. ([commit](https://github.com/Polymer/polymer/commit/124d878e))
+
+- Add basic support for `adoptedStyleSheets` ([commit](https://github.com/Polymer/polymer/commit/ab04377b))
+
+- [ci skip] Add/fix comments per review. ([commit](https://github.com/Polymer/polymer/commit/cbc722b1))
+
+- Add missing externs for global settings. ([commit](https://github.com/Polymer/polymer/commit/7fa78973))
+
+- Revert optimization to not wrap change notifications. This was causing a number of rendering tests to fail. Needs investigation, but possibly because wrapping calls ShadyDOM.flush, and this alters distribution timing which some tests may have inadvertently relied on. ([commit](https://github.com/Polymer/polymer/commit/848e8c9b))
+
+- Reintroduce suppressTemplateNotifications and gate Dom-change & renderedItemCount on that. Matches Polymer 1 setting for better backward compatibility. ([commit](https://github.com/Polymer/polymer/commit/d64ee9ef))
+
+- Add notifyDomChange back to dom-if & dom-repeat to match P1. ([commit](https://github.com/Polymer/polymer/commit/e9e0cd17))
+
+- Simplify host stack, set __dataHost unconditionally, and make _registerHost patchable. ([commit](https://github.com/Polymer/polymer/commit/929d056b))
+
+- Move @private annotation to decorate class definition. ([commit](https://github.com/Polymer/polymer/commit/534654de))
+
+- Add type for _overrideLegacyUndefined. ([commit](https://github.com/Polymer/polymer/commit/a7866b36))
+
+- Attempt to fix travis issues ([commit](https://github.com/Polymer/polymer/commit/e2895403))
+
+- Revert `isAttached` change based on review feedback. Deemed a breaking change. ([commit](https://github.com/Polymer/polymer/commit/1ff51e68))
+
+- Update travis to use xenial distro and, latest Firefox, and node 10 ([commit](https://github.com/Polymer/polymer/commit/9c80994f))
+
+- Applies micro-optimizations and removes obsolete settings ([commit](https://github.com/Polymer/polymer/commit/280f4f0a))
+
+- Work around Closure Compiler bug to avoid upcoming type error ([commit](https://github.com/Polymer/polymer/commit/5382e2ca))
+
+- Only import each file once (#5588) ([commit](https://github.com/Polymer/polymer/commit/27779a32))
+
+- Avoid Array.from on Set. ([commit](https://github.com/Polymer/polymer/commit/991b0997))
+
+- Update nested template names. ([commit](https://github.com/Polymer/polymer/commit/dc0754ee))
+
+- Add runtime stamping tests around linking & unlinking effects. ([commit](https://github.com/Polymer/polymer/commit/9e106d82))
+
+- Ensure parent is linked to child templateInfo. Fixes fastDomIf unstopping issue. ([commit](https://github.com/Polymer/polymer/commit/5e1a8b6d))
+
+- Remove unused TemplateInfo properties from types. ([commit](https://github.com/Polymer/polymer/commit/5d6f34f5))
+
+- Add other used TemplateInfo property types. ([commit](https://github.com/Polymer/polymer/commit/93854364))
+
+- Add type for TemplateInfo#parent. ([commit](https://github.com/Polymer/polymer/commit/2697cf10))
+
+- [ci-skip] Add comment explaining confusing check in _addPropertyToAttributeMap ([commit](https://github.com/Polymer/polymer/commit/c65a58ae))
+
+- Ensure clients are flushed when runtime stamping via `_stampTemplate`. Maintains flush semantics with Templatizer stamping (relevant to fastDomIf, which is a switch between Templatizer-based stamping and runtime _stampTemplate-based stamping). Works around an issue with `noPatch` where nested undistributed dom-if's won't stamp.  The changes to the tests are to remove testing that the full host tree is correct since the host doing the runtime stamping will no longer be the DOM getRootNode().host at ready time (this is exactly the case with Templatizer, whose semantics we intend to match). ([commit](https://github.com/Polymer/polymer/commit/7e7febc3))
+
+- Fix template-finding issue with DisableUpgrade mixin. The existing rules are that `prototype._template` is first priority and dom-module via `is` is second priority _for a given class_. A subclass has a new shot at overriding the previous template either by defining a new `prototype._template` or a new `is` resulting in a dom-module lookup.  However, trivially subclassing a Polymer legacy element breaks these rules, since if there is no _own_ `prototype._template` on the current class, it will lookup a dom-module using `is` from up the entire prototype chain. This defeats the rule that a `prototype._template` on the superclass should have taken priority over its dom-module.  This change ensures that we only lookup dom-module if the class has an _own_ is property. ([commit](https://github.com/Polymer/polymer/commit/e534c3cf))
+
+- Fix issue with camel cased properties and disable-upgrade ([commit](https://github.com/Polymer/polymer/commit/f95fd327))
+
+- More closure fixes. ([commit](https://github.com/Polymer/polymer/commit/04ddc240))
+
+- closure fixes ([commit](https://github.com/Polymer/polymer/commit/2bb488c8))
+
+- lint fixes ([commit](https://github.com/Polymer/polymer/commit/11256634))
+
+- Fix issue with defaults overriding bound values when disable-upgrade is used. ([commit](https://github.com/Polymer/polymer/commit/cd6d5d01))
+
+- Add closure types ([commit](https://github.com/Polymer/polymer/commit/69140787))
+
+- Use DisbleUpgradeMixin in legacy class generation ([commit](https://github.com/Polymer/polymer/commit/2203dae3))
+
+- Add comment about why code is duplicated. ([commit](https://github.com/Polymer/polymer/commit/f4943890))
+
+- Add tests for connected/disconnected while disabled ([commit](https://github.com/Polymer/polymer/commit/658c885c))
+
+- Improve comments. ([commit](https://github.com/Polymer/polymer/commit/1e8b656c))
+
+- Added comments. ([commit](https://github.com/Polymer/polymer/commit/d6f3a9ff))
+
+- Fix typo and improve readbility ([commit](https://github.com/Polymer/polymer/commit/933995a0))
+
+- Enable disable-upgrade when `legacyOptimizations` is set to true ([commit](https://github.com/Polymer/polymer/commit/f2784343))
+
+- Remove use of Object.create on template info (significant perf impact). ([commit](https://github.com/Polymer/polymer/commit/309f77ba))
+
+- Attempt to sync host properties on every call to _showHideChildren. Fixes an issue where a dom-if that is toggled synchronously true-false-true could fail to sync properties invalidated while false, since the hidden state is only checked at render timing, and the newly added dirty-check could fail if the hidden state has been changed back to its initial value. ([commit](https://github.com/Polymer/polymer/commit/e772ed0c))
+
+- Add tests for extension and dom-if/repeat ([commit](https://github.com/Polymer/polymer/commit/2c264c67))
+
+- Update stand alone disable-upgrade mixin. ([commit](https://github.com/Polymer/polymer/commit/e0ba67c4))
+
+- Remove cruft from test ([commit](https://github.com/Polymer/polymer/commit/872094a2))
+
+- Simplify logic for disable-upgrade ([commit](https://github.com/Polymer/polymer/commit/9c6f2661))
+
+- Use a safer flag, based on internal testing. ([commit](https://github.com/Polymer/polymer/commit/c563d5a3))
+
+- Reorder based on review feedback. ([commit](https://github.com/Polymer/polymer/commit/b5f8a6de))
+
+- Fix closure type. ([commit](https://github.com/Polymer/polymer/commit/d32d300e))
+
+- Updated comment. ([commit](https://github.com/Polymer/polymer/commit/53119175))
+
+- Ensure hasPaths is also accumulated as part of info necessary to sync. ([commit](https://github.com/Polymer/polymer/commit/89d70557))
+
+- Fix one more closure annotation. ([commit](https://github.com/Polymer/polymer/commit/3d09455b))
+
+- Simplify algorithm; we already have list of computed deps in effect list. ([commit](https://github.com/Polymer/polymer/commit/064d0eff))
+
+- Build computed graph from dependencies, rather than properties. ([commit](https://github.com/Polymer/polymer/commit/567e4640))
+
+- Fix closure annotations for dom-if. ([commit](https://github.com/Polymer/polymer/commit/cee1893b))
+
+- Avoid lint warnings. ([commit](https://github.com/Polymer/polymer/commit/18adf5fb))
+
+- Minor simplifications/comments. ([commit](https://github.com/Polymer/polymer/commit/4f9fda06))
+
+- Updates from review. ([commit](https://github.com/Polymer/polymer/commit/f0cbc837))
+
+- Closure type fixes. ([commit](https://github.com/Polymer/polymer/commit/ff25283a))
+
+- Initialize all settings from Polymer object when available. ([commit](https://github.com/Polymer/polymer/commit/df1eb73b))
+
+- Fix host prop merging. ([commit](https://github.com/Polymer/polymer/commit/e4eb9f22))
+
+- Updates based on review. ([commit](https://github.com/Polymer/polymer/commit/39207cce))
+
+- Fix defaults back to false for new settings. ([commit](https://github.com/Polymer/polymer/commit/4bdbe925))
+
+- Add a dirty check to showHideChildren ([commit](https://github.com/Polymer/polymer/commit/0ba19b4e))
+
+- Fix host property syncing ([commit](https://github.com/Polymer/polymer/commit/fc693a09))
+
+- Adds disable-upgrade directly into legacy `Polymer` elements ([commit](https://github.com/Polymer/polymer/commit/9756d861))
+
+- Refactor DomIf into separate subclasses. ([commit](https://github.com/Polymer/polymer/commit/c2f31eda))
+
+- Runtime stamped dom-if ([commit](https://github.com/Polymer/polymer/commit/e690dfe2))
+
+- dom-if/dom-repeat bind-to-parent ([commit](https://github.com/Polymer/polymer/commit/27ed93af))
+
+- Fix a few closure compiler issues ([commit](https://github.com/Polymer/polymer/commit/d55b9cb5))
+
+- [ci skip] Add comment ([commit](https://github.com/Polymer/polymer/commit/70337ac8))
+
+- Fix typo in comment ([commit](https://github.com/Polymer/polymer/commit/61715f1d))
+
+- Cleanup, add tests. * remove old implementation * add API docs * rename some API * add dynamicFn to dep count * add test for method as dependency ([commit](https://github.com/Polymer/polymer/commit/b065d145))
+
+- [wip] Add additional topo-sort based algorithm. ([commit](https://github.com/Polymer/polymer/commit/7cda770e))
+
+- Dedupe against a single turn on only under orderedComputed ([commit](https://github.com/Polymer/polymer/commit/fc49a925))
+
+- Fix closure issues ([commit](https://github.com/Polymer/polymer/commit/42dd361f))
+
+- Add hasPaths optimziation ([commit](https://github.com/Polymer/polymer/commit/ef0efa6e))
+
+- Minor comment updates ([commit](https://github.com/Polymer/polymer/commit/9ed31895))
+
+- Evaluate computed property dependencies first. Fixes #5143 ([commit](https://github.com/Polymer/polymer/commit/832fcdec))
+
+- Add more externs ([commit](https://github.com/Polymer/polymer/commit/2ed3bfac))
+
+- Fix lint warnings ([commit](https://github.com/Polymer/polymer/commit/4151ef4d))
+
+- Add comments per review feedback ([commit](https://github.com/Polymer/polymer/commit/bef674a9))
+
+- Add legacyNotifyOrder.  Improve comments. ([commit](https://github.com/Polymer/polymer/commit/52fe20da))
+
+- Add test for literal-only static function. ([commit](https://github.com/Polymer/polymer/commit/4c65db8d))
+
+- Remove unnecessary literal check ([commit](https://github.com/Polymer/polymer/commit/bf05e383))
+
+- Simplify ([commit](https://github.com/Polymer/polymer/commit/11bdc39a))
+
+- Add templatizer warnings. Move to legacyWarnings flag. ([commit](https://github.com/Polymer/polymer/commit/aa63db00))
+
+- Add legacyUndefined and legacyNoBatch to externs ([commit](https://github.com/Polymer/polymer/commit/cc7d4cc8))
+
+- NOOP has to be an array for closure compiler ([commit](https://github.com/Polymer/polymer/commit/e351f4dd))
+
+- Add comments on warning limitations. ([commit](https://github.com/Polymer/polymer/commit/940d1a7a))
+
+- Ensure properties are set one-by-one at startup. ([commit](https://github.com/Polymer/polymer/commit/add77842))
+
+- Remove unnecessary qualification. ([commit](https://github.com/Polymer/polymer/commit/2874c86d))
+
+- Avoid over-warning on templatizer props and "static" dynamicFns. ([commit](https://github.com/Polymer/polymer/commit/c966eb1f))
+
+- Store splices directly on array when `legacyUndefined` is set ([commit](https://github.com/Polymer/polymer/commit/e29a3150))
+
+- Fix test ([commit](https://github.com/Polymer/polymer/commit/32c30837))
+
+- Add arg length check ([commit](https://github.com/Polymer/polymer/commit/6139e889))
+
+- Adds `legacyNoBatch` setting ([commit](https://github.com/Polymer/polymer/commit/363bef2c))
+
+- Add tests for `legacyUndefined` setting ([commit](https://github.com/Polymer/polymer/commit/52a559fc))
+
+- Adds `legacyUndefined` setting ([commit](https://github.com/Polymer/polymer/commit/987ae2c4))
+
 ## [v3.3.1](https://github.com/Polymer/polymer/tree/v3.3.1) (2019-11-08)
 - [ci skip] bump to 3.3.1 ([commit](https://github.com/Polymer/polymer/commit/11f1f139))
 
