@@ -32,6 +32,7 @@ window.HTMLImports = HTMLImports;
 var ShadyDOM = {};
 
 ShadyDOM.inUse;
+ShadyDOM.composedPath;
 
 ShadyDOM.flush = function() {};
 
