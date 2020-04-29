@@ -116,6 +116,13 @@ interface LegacyElementMixin extends ElementMixin, PropertyEffects, TemplateStam
   created(): void;
 
   /**
+   * Sets the value of an attribute.
+   * @param name The name of the attribute to change.
+   * @param value The new attribute value.
+   */
+  setAttribute(name: string, value: string): void;
+
+  /**
    * Removes an attribute.
    *
    * @param name The name of the attribute to remove.
