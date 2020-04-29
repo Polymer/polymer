@@ -138,6 +138,7 @@ declare class DomApiNative {
   insertBefore(newChild: Node, refChild: Node|null): Node;
   removeChild(node: Node): Node;
   replaceChild(oldChild: Node, newChild: Node): Node;
+  setAttribute(name: string, value: string): void;
   removeAttribute(name: string): void;
   querySelector(selector: string): Element|null;
   querySelectorAll(selector: string): NodeListOf<Element>;
