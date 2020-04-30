@@ -1,5 +1,48 @@
 # Change Log
 
+## [v3.4.1](https://github.com/Polymer/polymer/tree/v3.4.1) (2020-04-29)
+- [ci skip] bump to 3.4.1 ([commit](https://github.com/Polymer/polymer/commit/12fa1b50))
+
+- Add type for DomApiNative's setAttribute method. ([commit](https://github.com/Polymer/polymer/commit/024ab01e))
+
+- Remove gen-typescript-declarations; manually add LegacyElementMixin's setAttribute type. ([commit](https://github.com/Polymer/polymer/commit/e717f0f0))
+
+- Remove "DO NOT EDIT" warning comments. ([commit](https://github.com/Polymer/polymer/commit/8b2ea7bc))
+
+- Track TypeScript declarations. ([commit](https://github.com/Polymer/polymer/commit/ec7b7c55))
+
+- Update Closure types for overridden setAttribute in LegacyElementMixin. ([commit](https://github.com/Polymer/polymer/commit/604856b2))
+
+- Add method / parameter descriptions. ([commit](https://github.com/Polymer/polymer/commit/370ae5eb))
+
+- Fix TypeScript breakages by specifying types for overridden `setAttribute` and `getAttribute`. ([commit](https://github.com/Polymer/polymer/commit/c8715b50))
+
+- Add complete commit list for v3.4.0 ([commit](https://github.com/Polymer/polymer/commit/e47493b0))
+
+- Fix a couple more compiler warnings ([commit](https://github.com/Polymer/polymer/commit/ad2bca18))
+
+- Typos and other minor changes. ([commit](https://github.com/Polymer/polymer/commit/a55e248d))
+
+- Add a note about a bug fix for <dom-repeat> chunking. ([commit](https://github.com/Polymer/polymer/commit/002c98a0))
+
+- Add `useAdoptedStyleSheetsWithBuiltCSS` section. ([commit](https://github.com/Polymer/polymer/commit/d9fc4fbf))
+
+- Add setters to settings titles. ([commit](https://github.com/Polymer/polymer/commit/9c78b481))
+
+- Add a note about `orderedComputed` and cycles. ([commit](https://github.com/Polymer/polymer/commit/c181c3d8))
+
+- Add example of overriding `suppressTemplateNotifications` via `notify-dom-change`. ([commit](https://github.com/Polymer/polymer/commit/1fa4948b))
+
+- Add a section about automatic use of constructable stylesheets. ([commit](https://github.com/Polymer/polymer/commit/d9c18b47))
+
+- Add "Other new features" section for `reuseChunkedInstances` and `LegacyElementMixin`'s built-in `disable-upgrade` support. ([commit](https://github.com/Polymer/polymer/commit/7a2e9f81))
+
+- Added notes for `fastDomIf`, `removeNestedTemplates`, `suppressNestedTemplates`, and `suppressTemplateNotifications`. ([commit](https://github.com/Polymer/polymer/commit/3b6494bf))
+
+- Started on release notes for `legacyUndefined`, `legacyWarnings`, `orderedComputed`. (...) ([commit](https://github.com/Polymer/polymer/commit/d80fdca0))
+
+- Remove unused externs. ([commit](https://github.com/Polymer/polymer/commit/0da4e63f))
+
 ## [v3.4.0](https://github.com/Polymer/polymer/tree/v3.4.0) (2020-04-23)
 
 ### New global settings
