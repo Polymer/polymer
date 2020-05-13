@@ -12,6 +12,11 @@ export {setRootPath};
  */
 declare function setRootPath(path: string): void;
 
+
+export type SanitizeDOMValueFunction =
+    (value: unknown, name: string, type: 'property'|'attribute',
+     node: Node|null|undefined) => unknown;
+
 export {setSanitizeDOMValue};
 
 
@@ -19,7 +24,7 @@ export {setSanitizeDOMValue};
  * Sets the global sanitizeDOMValue available via this module's exported
  * `sanitizeDOMValue` variable.
  */
-declare function setSanitizeDOMValue(newSanitizeDOMValue: ((p0: any, p1: string, p2: string, p3: Node|null) => any)|undefined): void;
+declare function setSanitizeDOMValue(newSanitizeDOMValue: SanitizeDOMValueFunction|undefined): void;
 
 export {getSanitizeDOMValue};
 
@@ -29,7 +34,7 @@ export {getSanitizeDOMValue};
  *
  * @returns sanitizeDOMValue
  */
-declare function getSanitizeDOMValue(): ((p0: any, p1: string, p2: string, p3: Node|null) => any)|undefined;
+declare function getSanitizeDOMValue(): SanitizeDOMValueFunction|undefined;
 
 export {setPassiveTouchGestures};
 
