@@ -17,6 +17,9 @@ export {matchesSelector};
  */
 declare function matchesSelector(node: Node, selector: string): boolean;
 
+
+export {DomApiNative as DomApi};
+
 /**
  * Node API wrapper class returned from `Polymer.dom.(target)` when
  * `target` is a `Node`.
