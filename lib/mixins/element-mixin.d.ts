@@ -218,7 +218,7 @@ interface ElementMixin extends PropertyEffects, TemplateStamp, PropertyAccessors
    * @param dom to attach to the element.
    * @returns node to which the dom has been attached.
    */
-  _attachDom(dom: StampedTemplate|null): ShadowRoot|null;
+  _attachDom(dom: StampedTemplate|null): Node|null;
 
   /**
    * When using the ShadyCSS scoping and custom property shim, causes all

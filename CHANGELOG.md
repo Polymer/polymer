@@ -1,5 +1,8 @@
 # Change Log
 
+## [UNRELEASED]() ()
+- Loosen _attachDom return signature. ([commit]())
+
 ## [v3.4.1](https://github.com/Polymer/polymer/tree/v3.4.1) (2020-04-29)
 - [ci skip] bump to 3.4.1 ([commit](https://github.com/Polymer/polymer/commit/12fa1b50))
 
