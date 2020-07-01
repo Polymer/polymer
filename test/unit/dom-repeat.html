@@ -3933,16 +3933,24 @@ suite('limit', function() {
 suite('chunked rendering', function() {
 
   let chunked;
-  let resolve;
+  let notifyChange;
   let targetCount;
-  const handleChange = () => {
+  let handleChange = () => {
     if (!targetCount || chunked.$.repeater.renderedItemCount >= targetCount) {
-      resolve(Array.from(chunked.root.querySelectorAll('*:not(template):not(dom-repeat)')));
+      notifyChange(Array.from(chunked.root.querySelectorAll('*:not(template):not(dom-repeat)')));
     }
   };
   const waitUntilRendered = async (count) => {
     targetCount = count;
-    return await new Promise(r => resolve = r);
+    return await new Promise(r => notifyChange = r);
+  };
+  const expectNoChanges = async () => {
+    targetCount = null;
+    notifyChange = () => {
+      assert.fail('no changes were expected');
+    };
+    // Ensure no changes happen in the next rAF+sT
+    await new Promise(r => requestAnimationFrame(() => setTimeout(() => r())));
   };
   setup(() => {
     chunked = document.createElement('x-repeat-chunked');
@@ -4257,6 +4265,19 @@ suite('chunked rendering', function() {
     }
     assert.equal(stamped.length, chunked.items.length);
     assert.isAtLeast(frameCount, 2);
+  });
+
+  test('chunking stops after detaching, restarts after attaching', async () => {
+    chunked.items = chunked.preppedItems.slice();
+    const initialLength = (await waitUntilRendered()).length;
+    assert.isAbove(initialLength, 0);
+    assert.isBelow(initialLength, chunked.preppedItems.length);
+    document.body.removeChild(chunked);
+    await expectNoChanges();
+    const done = waitUntilRendered(chunked.preppedItems.length);
+    document.body.appendChild(chunked);
+    const endLength = (await done).length;
+    assert.equal(endLength, chunked.items.length);
   });
 
 });
