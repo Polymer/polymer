@@ -26,13 +26,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <script type="module">
 import './property-effects-elements.js';
 import { Polymer, html } from '../../polymer-legacy.js';
-import { setSanitizeDOMValue, sanitizeDOMValue, setLegacyWarnings, legacyUndefined, setLegacyUndefined, legacyNoBatch, setLegacyNoBatch, legacyNotifyOrder, setLegacyNotifyOrder, setOrderedComputed, orderedComputed } from '../../lib/utils/settings.js';
+import { setSanitizeDOMValue, sanitizeDOMValue, getSanitizeDOMValue, setLegacyWarnings, legacyUndefined, setLegacyUndefined, setOrderedComputed, orderedComputed } from '../../lib/utils/settings.js';
 import { PropertyEffects } from '../../lib/mixins/property-effects.js';
 import { flush } from '../../lib/utils/flush.js';
 
-setLegacyUndefined(Boolean(window.location.search.match('legacyUndefined'))); 
-setLegacyNoBatch(Boolean(window.location.search.match('legacyNoBatch')));
-setLegacyNotifyOrder(Boolean(window.location.search.match('legacyNotifyOrder')));
+setLegacyUndefined(Boolean(window.location.search.match('legacyUndefined')));
 setOrderedComputed(Boolean(window.location.search.match('orderedComputed')));
 
 suite('single-element binding effects', function() {
@@ -347,7 +345,7 @@ suite('single-element binding effects', function() {
     assert.equal(el.customEventObject.value, 84, 'custom bound path incorrect');
     assert.equal(el.observerCounts.customEventObjectValueChanged, 1, 'custom bound path observer not called');
   });
-  
+
   test('custom notification bubbling event to property', function() {
     const child = document.createElement('div');
     el.$.boundChild.appendChild(child);
@@ -1240,7 +1238,7 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.boundProps.prop1, 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.boundProps.prop1, 
+    assert.equal(el.$.boundProps.prop1,
       legacyUndefined ?
       'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
@@ -1273,7 +1271,7 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'), 
+    assert.equal(el.$.boundChild.getAttribute('compoundAttr1'),
       legacyUndefined ?
       'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
@@ -1312,7 +1310,7 @@ suite('compound binding / string interpolation', function() {
     el.cpnd3 = {prop: 'cpnd3'};
     assert.equal(el.$.compound1.textContent, 'cpnd1cpnd2cpnd3');
     el.cpnd4 = 'cpnd4';
-    assert.equal(el.$.compound1.textContent, 
+    assert.equal(el.$.compound1.textContent,
       legacyUndefined ?
       'cpnd1cpnd2cpnd3' : 'cpnd1cpnd2cpnd3literalComputedcpnd4');
     el.cpnd5 = 'cpnd5';
@@ -1375,11 +1373,6 @@ suite('order of effects', function() {
       'observe',    // multi-property observer is not guaranteed
       'notify'      // as observed by grand-parent
     ];
-
-    if (legacyNotifyOrder) {
-      expected = expected.slice(0, -1);
-      expected.splice(4, 0, 'notify');
-    }
 
     assert.deepEqual(el.invocations, expected);
   });
@@ -1478,6 +1471,13 @@ suite('DOM sanitization', function() {
       ['javascript', 'reflectedstring', 'attribute', el]);
   });
 
+  test('getter returns the current value', function() {
+    assert(sanitizeDOMValue instanceof Function);
+    assert.strictEqual(getSanitizeDOMValue(), sanitizeDOMValue);
+    setSanitizeDOMValue(null);
+    assert.strictEqual(sanitizeDOMValue, null);
+    assert.strictEqual(getSanitizeDOMValue(), null);
+  });
 });
 
 suite('data (im)mutability', function() {
@@ -1815,12 +1815,7 @@ suite('a la carte usage of API', function() {
       a: 'A',
       b: {c: 'C'}
     });
-    if (legacyNoBatch && legacyUndefined) {
-      assert.equal(el.observer.callCount, 3);
-      assert.deepEqual(el.observer.getCall(1).args, ['A', 'c']);
-      assert.deepEqual(el.observer.getCall(2).args, ['A', 'C']);
-      assert.equal(el.pcSpy.callCount, 5);
-    } else if (legacyUndefined) {
+    if (legacyUndefined) {
       assert.equal(el.observer.callCount, 2);
       assert.deepEqual(el.observer.getCall(1).args, ['A', 'C']);
       assert.equal(el.pcSpy.callCount, 4);
@@ -1833,11 +1828,7 @@ suite('a la carte usage of API', function() {
     el.observer = sinon.spy();
     assert.equal(el.observer.callCount, 1);
     assert.deepEqual(el.observer.getCall(0).args, ['A', 'C']);
-    if (legacyNoBatch && legacyUndefined) {
-      assert.equal(el.pcSpy.callCount, 6);
-    } else {
-      assert.equal(el.pcSpy.callCount, 5);
-    }
+    assert.equal(el.pcSpy.callCount, 5);
     document.body.removeChild(el);
   });
 
@@ -1877,12 +1868,7 @@ suite('a la carte usage of API', function() {
       a: 'A',
       b: {c: 'C'}
     });
-    if (legacyNoBatch && legacyUndefined) {
-      assert.equal(el.compute.callCount, 3);
-      assert.deepEqual(el.compute.getCall(1).args, ['A', 'c']);
-      assert.deepEqual(el.compute.getCall(2).args, ['A', 'C']);
-      assert.equal(el.pcSpy.callCount, 4);
-    } else if (legacyUndefined) {
+    if (legacyUndefined) {
       assert.equal(el.compute.callCount, 2);
       assert.deepEqual(el.compute.getCall(1).args, ['A', 'C']);
       assert.equal(el.pcSpy.callCount, 3);

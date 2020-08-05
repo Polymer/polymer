@@ -1,0 +1,239 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2017 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+  <script src="wct-browser-config.js"></script>
+  <script src="../../node_modules/wct-browser-legacy/browser.js"></script>
+  <script type="module">
+    import {setLegacyNoObservedAttributes, setLegacyOptimizations} from '../../lib/utils/settings.js';
+    setLegacyNoObservedAttributes(true);
+    setLegacyOptimizations(true);
+  </script>
+</head>
+<body>
+
+  <dom-module id="x-child">
+    <template>
+      <div id="content">[[foo]]</div>
+    </template>
+    <script type="module">
+      import {Polymer} from '../../polymer-legacy.js';
+      Polymer({
+        is: 'x-child',
+        properties: {
+          foo: {type: String, value: 'default'},
+          bar: {type: String, value: 'default'},
+          zot: {type: Boolean, value: false, reflectToAttribute: true},
+          camelCase: String
+        },
+        ready() {
+          this.isEnabled = true;
+        }
+      });
+    </script>
+  </dom-module>
+
+  <dom-module id="x-attrs">
+    <template>
+      <x-child id="child1" foo="x-attrs.foo" bar$="[[bar]]" zot$="[[zot]]" camel-case="camelCase"></x-child>
+      <x-child id="child2" foo="x-attrs.foo" bar$="[[bar]]" zot$="[[zot]]" camel-case="[[camelCase]]" disable-upgrade></x-child>
+      <x-child id="child3" foo="x-attrs.foo" bar$="[[bar]]" zot$="[[zot]]" camel-case="[[camelCase]]" disable-upgrade$="[[disabled]]"></x-child>
+      <div id="ifContainer">
+        <dom-if if="[[shouldIf]]">
+          <template><x-child foo="x-attrs.foo" bar$="[[bar]]" zot$="[[zot]]" camel-case="[[camelCase]]"></x-child></template>
+        </dom-if>
+      </div>
+    </template>
+    <script type="module">
+      import {Polymer} from '../../polymer-legacy.js';
+      Polymer({
+        is: 'x-attrs',
+        properties: {
+          foo: String,
+          bar: {type: String, value: 'bar'},
+          zot: Boolean,
+          shouldIf: Boolean,
+          camelCase: String,
+          disabled: {type: Boolean, value: 'true'},
+        },
+        created() {
+          this.wasCreated = true;
+        },
+        attributeChanged(name, old, value) {
+          this.wasCreatedInAttributeChanged = this.wasCreated;
+          this.attrInfo = {name, old, value};
+        }
+      });
+
+      Polymer({
+        is: 'x-native-attrs-force',
+        _legacyForceObservedAttributes: true,
+        properties: {
+          tabindex: {reflectToAttribute: true, type: Number}
+        },
+        attributeChanged() {
+          this.attributeChangedCalled = true;
+        }
+      });
+    </script>
+  </dom-module>
+
+  <test-fixture id="declarative">
+    <template>
+      <x-attrs foo="foo" bar="bar" camel-case="camelCase"></x-attrs>
+    </template>
+  </test-fixture>
+
+  <test-fixture id="one-attr">
+    <template>
+      <x-attrs foo="foo"></x-attrs>
+    </template>
+  </test-fixture>
+
+  <script type="module">
+    import {flush} from '../../lib/utils/flush.js';
+    import {wrap} from '../../lib/utils/wrap.js';
+    import {registrations} from '../../lib/utils/telemetry.js';
+
+    suite('legacyNoObservedAttributes', () => {
+
+      let el;
+      setup(() => {
+        el = fixture('declarative');
+      });
+
+      test('telemetry collected as expected', () => {
+        const defs = registrations.filter((def) => def.is === el.localName);
+        assert.ok(defs[0]);
+      });
+
+      test('native properties observeable when `_legacyForceObservedAttributes` set', function() {
+        // Unsupported when polyfill is in use since it uses `setAttribute`.
+        if (customElements.polyfillWrapFlushCallback) {
+          this.skip();
+        }
+        el = document.createElement('x-native-attrs-force');
+        document.body.appendChild(el);
+        el.tabIndex = 5;
+        assert.ok(el.attributeChangedCalled);
+        assert.equal(el.tabindex, 5);
+        document.body.removeChild(el);
+      });
+
+      test('static attributes', () => {
+        assert.equal(el.foo, 'foo');
+        assert.equal(el.$.child1.getAttribute('foo'), 'x-attrs.foo');
+        assert.equal(el.$.child1.foo, "x-attrs.foo");
+        assert.equal(el.$.child1.$.content.textContent, 'x-attrs.foo');
+        assert.equal(el.camelCase, 'camelCase');
+      });
+
+      test('imperative creation', () => {
+        el = document.createElement('x-attrs');
+        // Create attributes in an unpatched way.
+        const a = document.createAttribute('foo');
+        a.value = 'foo';
+        el.setAttributeNode(a);
+        const b = document.createAttribute('bar');
+        b.value = 'bar';
+        el.setAttributeNode(b);
+        const c = document.createAttribute('camel-case');
+        c.value = 'camelCase';
+        el.setAttributeNode(c);
+        document.body.appendChild(el);
+        assert.equal(el.foo, 'foo');
+        assert.equal(el.$.child1.getAttribute('foo'), 'x-attrs.foo');
+        assert.equal(el.$.child1.foo, "x-attrs.foo");
+        assert.equal(el.$.child1.$.content.textContent, 'x-attrs.foo');
+        assert.equal(el.camelCase, 'camelCase');
+        document.body.removeChild(el);
+      });
+
+      test('created called before attributeChanged', () => {
+        assert.isTrue(el.wasCreatedInAttributeChanged);
+      });
+
+      test('attributeChanged gets expected arguments', () => {
+        el = fixture('one-attr');
+        assert.deepEqual(el.attrInfo, {name: 'foo', old: null, value: 'foo'});
+        el.setAttribute('zot', '');
+        assert.deepEqual(el.attrInfo, {name: 'zot', old: null, value: ''});
+        el.setAttribute('zot', 'foo');
+        assert.deepEqual(el.attrInfo, {name: 'zot', old: '', value: 'foo'});
+        el.removeAttribute('zot', 'foo');
+        assert.deepEqual(el.attrInfo, {name: 'zot', old: 'foo', value: null});
+        el.setAttribute('zot', 'bar');
+        assert.deepEqual(el.attrInfo, {name: 'zot', old: null, value: 'bar'});
+        el.setAttribute('foo', 'foo2');
+        assert.deepEqual(el.attrInfo, {name: 'foo', old: 'foo', value: 'foo2'});
+      });
+
+      test('static attribute bindings', () => {
+        assert.equal(el.$.child1.getAttribute('bar'), 'bar');
+        assert.equal(el.$.child1.bar, 'bar');
+        assert.equal(el.$.child1.getAttribute('zot'), null);
+        assert.equal(el.$.child1.zot, false);
+        assert.equal(el.$.child1.camelCase, 'camelCase');
+      });
+
+      test('dynamic attribute bindings', () => {
+        el.bar = 'bar-modified';
+        assert.equal(el.$.child1.getAttribute('bar'), 'bar-modified');
+        assert.equal(el.$.child1.bar, 'bar-modified');
+        el.zot = true;
+        assert.equal(el.$.child1.getAttribute('zot'), '');
+        assert.equal(el.$.child1.zot, true);
+      });
+
+      test('attributes inside dom-if', () => {
+        el.shouldIf = true;
+        flush();
+        const child = wrap(el.$.ifContainer).querySelector('x-child');
+        assert.equal(child.getAttribute('foo'), 'x-attrs.foo');
+        assert.equal(child.foo, "x-attrs.foo");
+        assert.equal(child.$.content.textContent, 'x-attrs.foo');
+        assert.equal(child.camelCase, 'camelCase');
+        //
+        assert.equal(child.getAttribute('bar'), 'bar');
+        assert.equal(child.bar, 'bar');
+        assert.equal(child.getAttribute('zot'), null);
+        assert.equal(child.zot, false);
+        //
+        el.bar = 'bar-modified';
+        assert.equal(child.getAttribute('bar'), 'bar-modified');
+        assert.equal(child.bar, 'bar-modified');
+        el.zot = true;
+        assert.equal(child.getAttribute('zot'), '');
+        assert.equal(child.zot, true);
+      });
+
+      test('disable-upgrade static', () => {
+        assert.notOk(el.$.child2.isEnabled);
+        el.$.child2.removeAttribute('disable-upgrade');
+        assert.isTrue(el.$.child2.isEnabled);
+        assert.equal(el.$.child2.camelCase, 'camelCase');
+      });
+
+      test('disable-upgrade binding', () => {
+        assert.notOk(el.$.child3.isEnabled);
+        el.disabled = false;
+        assert.isTrue(el.$.child3.isEnabled);
+        assert.equal(el.$.child3.camelCase, 'camelCase');
+      });
+
+
+    });
+
+  </script>
+</body>
+</html>

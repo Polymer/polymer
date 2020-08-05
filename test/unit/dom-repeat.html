@@ -121,9 +121,6 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
   <h4>x-repeat-limit</h4>
   <x-repeat-limit id="limited"></x-repeat-limit>
 
-  <h4>x-repeat-chunked</h4>
-  <x-repeat-chunked id="chunked"></x-repeat-chunked>
-
   <div id="inDocumentContainer">
   </div>
 
@@ -141,7 +138,7 @@ import './dom-repeat-elements.js';
 import './dom-repeat-elements.js';
 import { flush } from '../../lib/utils/flush.js';
 import { calculateSplices } from '../../lib/utils/array-splice.js';
-/* global limited inDocumentRepeater inDocumentContainer inDocumentContainerOrig chunked nonUpgrade*/
+/* global limited inDocumentRepeater inDocumentContainer inDocumentContainerOrig nonUpgrade*/
 
 /*
   Expected:
@@ -3662,492 +3659,607 @@ suite('repeater API', function() {
 
 suite('limit', function() {
 
-  var checkItemOrder = function(stamped) {
-    for (var i=0; i<stamped.length; i++) {
-      assert.equal(parseInt(stamped[i].textContent), i);
-    }
-  };
+  // These tests verify correct operation of e.g. path notifications for a
+  // pertially rendered list; it does this by monkey-patching the internal
+  // `__calculateLimit` method to force the list to a certain length.
+  // While they rely on some internal implementation details, the tests are
+  // done this way because getting the list in a certain known state
+  // during live chunking is tricky due to the feedback-based throttling.
 
-  test('initial limit', function() {
-    limited.items = limited.preppedItems;
-    limited.$.repeater.__limit = 2;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 2);
-    checkItemOrder(stamped);
-  });
-
-  test('change item paths in & out of limit', function() {
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    limited.outerProp = {prop: 'changed'};
-    assert.equal(stamped[0].prop, 'changed');
-    limited.set('items.0.prop', '0-changed');
-    limited.set('items.3.prop', '3-changed');
-    assert.equal(stamped[0].textContent, '0-changed');
-    limited.set('outerProp.prop', 'changed again');
-    assert.equal(stamped[0].prop, 'changed again');
-  });
-
-  test('increase limit', function() {
-    // Increase limit
-    limited.$.repeater.__limit = 10;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 10);
-    checkItemOrder(stamped);
-    assert.equal(stamped[3].prop, 'changed again');
-    assert.equal(stamped[3].textContent, '3-changed');
-    limited.set('items.0.prop', 0);
-    limited.set('items.3.prop', 3);
-    // Increase limit
-    limited.$.repeater.__limit = 20;
-    limited.$.repeater.render();
-    stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 20);
-    checkItemOrder(stamped);
-  });
-
-  test('increase limit above items.length', function() {
-    limited.$.repeater.__limit = 30;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 20);
-    checkItemOrder(stamped);
-  });
-
-  test('decrease limit', function() {
-    // Decrease limit
-    limited.$.repeater.__limit = 15;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 15);
-    checkItemOrder(stamped);
-    // Decrease limit
-    limited.$.repeater.__limit = 0;
-    limited.$.repeater.render();
-    stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 0);
-  });
-
-  test('negative limit', function() {
-    limited.$.repeater.__limit = -10;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 0);
-  });
-
-});
-
-suite('limit with sort', function() {
-
-  var checkItemOrder = function(stamped) {
-    for (var i=0; i<stamped.length; i++) {
-      assert.equal(stamped[i].textContent, 19 - i);
-    }
-  };
-
-  test('initial limit', function() {
-    limited.$.repeater.__limit = 2;
-    limited.$.repeater.sort = function(a, b) {
-      return b.prop - a.prop;
+  suiteSetup(() => {
+    limited.$.repeater.__calculateLimit = function() {
+      return this.__limit;
     };
-    limited.items = null;
-    limited.$.repeater.render();
-    limited.items = limited.preppedItems;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 2);
-    checkItemOrder(stamped);
   });
 
-  test('increase limit', function() {
-    // Increase limit
-    limited.$.repeater.__limit = 10;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 10);
-    checkItemOrder(stamped);
-    // Increase limit
-    limited.$.repeater.__limit = 20;
-    limited.$.repeater.render();
-    stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 20);
-    checkItemOrder(stamped);
-  });
+  suite('basic', function() {
 
-  test('increase limit above items.length', function() {
-    limited.$.repeater.__limit = 30;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 20);
-    checkItemOrder(stamped);
-  });
-
-  test('decrease limit', function() {
-    // Decrease limit
-    limited.$.repeater.__limit = 15;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 15);
-    checkItemOrder(stamped);
-    // Decrease limit
-    limited.$.repeater.__limit = 0;
-    limited.$.repeater.render();
-    stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 0);
-  });
-
-  test('negative limit', function() {
-    limited.$.repeater.__limit = -10;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 0);
-  });
-
-});
-
-suite('limit with filter', function() {
-
-  var checkItemOrder = function(stamped) {
-    for (var i=0; i<stamped.length; i++) {
-      assert.equal(stamped[i].textContent, i * 2);
-    }
-  };
-
-  test('initial limit', function() {
-    var items = limited.items;
-    limited.$.repeater.__limit = 2;
-    limited.$.repeater.sort = null;
-    limited.$.repeater.filter = function(a) {
-      return (a.prop % 2) === 0;
+    var checkItemOrder = function(stamped) {
+      for (var i=0; i<stamped.length; i++) {
+        assert.equal(parseInt(stamped[i].textContent), i);
+      }
     };
-    limited.items = null;
-    limited.$.repeater.render();
-    limited.items = items;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 2);
-    checkItemOrder(stamped);
-  });
 
-  test('increase limit', function() {
-    // Increase limit
-    limited.$.repeater.__limit = 5;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 5);
-    checkItemOrder(stamped);
-    // Increase limit
-    limited.$.repeater.__limit = 10;
-    limited.$.repeater.render();
-    stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 10);
-    checkItemOrder(stamped);
-  });
-
-  test('increase limit above items.length', function() {
-    limited.$.repeater.__limit = 30;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 10);
+    test('initial limit', function() {
+      limited.items = limited.preppedItems;
+      limited.$.repeater.__limit = 2;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 2);
       checkItemOrder(stamped);
-  });
-
-  test('decrease limit', function() {
-    // Decrease limit
-    limited.$.repeater.__limit = 5;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 5);
-    checkItemOrder(stamped);
-    // Decrease limit
-    limited.$.repeater.__limit = 0;
-    limited.$.repeater.render();
-    stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 0);
-  });
-
-  test('negative limit', function() {
-    limited.$.repeater.__limit = -10;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 0);
-  });
-
-});
-
-suite('limit with sort & filter', function() {
-
-  var checkItemOrder = function(stamped) {
-    for (var i=0; i<stamped.length; i++) {
-      assert.equal(stamped[i].textContent, (9 - i) * 2);
-    }
-  };
-
-  test('initial limit', function() {
-    var items = limited.items;
-    limited.$.repeater.__limit = 2;
-    limited.$.repeater.sort = function(a, b) {
-      return b.prop - a.prop;
-    };
-    limited.$.repeater.filter = function(a) {
-      return (a.prop % 2) === 0;
-    };
-    limited.items = null;
-    limited.$.repeater.render();
-    limited.items = items;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 2);
-    checkItemOrder(stamped);
-  });
-
-  test('increase limit', function() {
-    // Increase limit
-    limited.$.repeater.__limit = 5;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 5);
-    checkItemOrder(stamped);
-    // Increase limit
-    limited.$.repeater.__limit = 10;
-    limited.$.repeater.render();
-    stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 10);
-    checkItemOrder(stamped);
-  });
-
-  test('increase limit above items.length', function() {
-    limited.$.repeater.__limit = 30;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 10);
-    checkItemOrder(stamped);
-  });
-
-  test('decrease limit', function() {
-    // Decrease limit
-    limited.$.repeater.__limit = 5;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 5);
-    checkItemOrder(stamped);
-    // Decrease limit
-    limited.$.repeater.__limit = 0;
-    limited.$.repeater.render();
-    stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 0);
-  });
-
-  test('negative limit', function() {
-    limited.$.repeater.__limit = -10;
-    limited.$.repeater.render();
-    var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
-    assert.equal(stamped.length, 0);
-  });
-
-});
-
-// TODO(kschaaf): This test suite has proven to be flaky only on IE, only
-// on CI (Sauce) presumably because of rAF handling in the CI environment
-// disabling for IE for now to avoid Polymer tests being flaky
-if (!/Trident/.test(navigator.userAgent)) {
-
-  // TODO(kschaaf): We're experiencing more flakiness on Safari on CI,
-  // for now, skip these tests and revisit
-  suite.skip('chunked rendering', function() {
-
-    test('basic chunked rendering', function(done) {
-
-      var checkItemOrder = function(stamped) {
-        for (var i=0; i<stamped.length; i++) {
-          assert.equal(stamped[i].textContent, i);
-        }
-      };
-
-      var lastLength = 0;
-      var checkCount = function() {
-        var stamped = chunked.root.querySelectorAll('*:not(template):not(dom-repeat)');
-        checkItemOrder(stamped);
-        if (stamped.length && lastLength === 0) {
-          // Initial rendering of initial count
-          assert.equal(stamped.length, 10);
-        } else {
-          // Remaining rendering increments
-          assert.isTrue(stamped.length > lastLength);
-        }
-        if (stamped.length < 100) {
-          lastLength = stamped.length;
-          checkUntilComplete();
-        } else {
-          // Final rendering at exact item count
-          assert.equal(stamped.length, 100);
-          done();
-        }
-      };
-      var checkUntilComplete = function() {
-        // On polyfilled MO, need to wait one setTimeout before rAF
-        if (MutationObserver._isPolyfilled) {
-          setTimeout(function() {
-            requestAnimationFrame(checkCount);
-          });
-        } else {
-          requestAnimationFrame(checkCount);
-        }
-      };
-
-      chunked.items = chunked.preppedItems.slice();
-      checkUntilComplete();
-
     });
 
-    test('mutations during chunked rendering', function(done) {
-
-      var checkItemOrder = function(stamped) {
-        var last = -1;
-        for (var i=0; i<stamped.length; i++) {
-          var curr = parseFloat(stamped[i].textContent);
-          assert.isTrue(curr > last);
-          last = curr;
-        }
-      };
-
-      var mutateArray = function(repeater, renderedCount) {
-        // The goal here is to remove & add some, and do it over
-        // the threshold of where we have currently rendered items, and
-        // ensure that the prop values of the newly inserted items are in
-        // ascending order so we can do a simple check in checkItemOrder
-        var overlap = 2;
-        var remove = 4;
-        var add = 6;
-        var start = renderedCount.length - overlap;
-        if (start + add < repeater.items.length) {
-          var end = start + remove;
-          var args = ['items', start, remove];
-          var startVal = repeater.items[start].prop;
-          var endVal = repeater.items[end].prop;
-          var delta = (endVal - startVal) / add;
-          for (var i=0; i<add; i++) {
-            args.push({prop: startVal + i*delta});
-          }
-          repeater.splice.apply(repeater, args);
-        }
-      };
-
-      var lastLength = 0;
-      var mutateCount = 5;
-      var checkCount = function() {
-        var stamped = chunked.root.querySelectorAll('*:not(template):not(dom-repeat)');
-        checkItemOrder(stamped);
-        if (stamped.length && lastLength === 0) {
-          // Initial rendering of initial count
-          assert.equal(stamped.length, 10);
-        } else {
-          // Remaining rendering increments
-          assert.isTrue(stamped.length > lastLength);
-        }
-        if (stamped.length < chunked.items.length) {
-          if (mutateCount-- > 0) {
-            mutateArray(chunked, stamped);
-          }
-          lastLength = stamped.length;
-          checkUntilComplete();
-        } else {
-          // Final rendering at exact item count
-          assert.equal(stamped.length, chunked.items.length);
-          done();
-        }
-      };
-      var checkUntilComplete = function() {
-        // On polyfilled MO, need to wait one setTimeout before rAF
-        if (MutationObserver._isPolyfilled) {
-          setTimeout(function() {
-            requestAnimationFrame(checkCount);
-          });
-        } else {
-          requestAnimationFrame(checkCount);
-        }
-      };
-
-      chunked.items = chunked.preppedItems.slice();
-      checkUntilComplete();
-
+    test('change item paths in & out of limit', function() {
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      limited.outerProp = {prop: 'changed'};
+      assert.equal(stamped[0].prop, 'changed');
+      limited.set('items.0.prop', '0-changed');
+      limited.set('items.3.prop', '3-changed');
+      assert.equal(stamped[0].textContent, '0-changed');
+      limited.set('outerProp.prop', 'changed again');
+      assert.equal(stamped[0].prop, 'changed again');
     });
 
+    test('increase limit', function() {
+      // Increase limit
+      limited.$.repeater.__limit = 10;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 10);
+      checkItemOrder(stamped);
+      assert.equal(stamped[3].prop, 'changed again');
+      assert.equal(stamped[3].textContent, '3-changed');
+      limited.set('items.0.prop', 0);
+      limited.set('items.3.prop', 3);
+      // Increase limit
+      limited.$.repeater.__limit = 20;
+      limited.$.repeater.render();
+      stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 20);
+      checkItemOrder(stamped);
+    });
 
-    test('mutations during chunked rendering, sort & filtered', function(done) {
+    test('decrease limit', function() {
+      // Decrease limit
+      limited.$.repeater.__limit = 15;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 15);
+      checkItemOrder(stamped);
+      // Decrease limit
+      limited.$.repeater.__limit = 0;
+      limited.$.repeater.render();
+      stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 0);
+    });
 
-      var checkItemOrder = function(stamped) {
-        var last = Infinity;
-        for (var i=0; i<stamped.length; i++) {
-          var curr = parseFloat(stamped[i].textContent);
-          assert.isTrue(curr <= last);
-          assert.strictEqual(curr % 2, 0);
-          last = curr;
-        }
-      };
+    test('negative limit', function() {
+      limited.$.repeater.__limit = -10;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 0);
+    });
 
-      var mutateArray = function(repeater, stamped) {
-        var start = parseInt(stamped[0].textContent);
-        var end = parseInt(stamped[stamped.length-1].textContent);
-        var mid = (end-start)/2;
-        for (var i=0; i<5; i++) {
-          chunked.push('items', {prop: mid + 1});
-        }
-        chunked.splice('items', Math.round(stamped.length/2), 3);
-      };
+  });
 
-      var lastLength = 0;
-      var mutateCount = 5;
-      var checkCount = function() {
-        var stamped = chunked.root.querySelectorAll('*:not(template):not(dom-repeat)');
-        checkItemOrder(stamped);
-        var filteredLength = chunked.items.filter(chunked.$.repeater.filter).length;
-        if (stamped.length && lastLength === 0) {
-          // Initial rendering of initial count
-          assert.equal(stamped.length, 10);
-        } else {
-          // Remaining rendering increments
-          if (stamped.length < filteredLength) {
-            assert.isTrue(stamped.length > lastLength);
-          }
-        }
-        if (stamped.length < filteredLength) {
-          if (mutateCount-- > 0) {
-            mutateArray(chunked, stamped);
-          }
-          lastLength = stamped.length;
-          checkUntilComplete();
-        } else {
-          assert.equal(stamped.length, filteredLength);
-          done();
-        }
-      };
-      var checkUntilComplete = function() {
-        // On polyfilled MO, need to wait one setTimeout before rAF
-        if (MutationObserver._isPolyfilled) {
-          setTimeout(function() {
-            requestAnimationFrame(checkCount);
-          });
-        } else {
-          requestAnimationFrame(checkCount);
-        }
-      };
+  suite('limit with sort', function() {
 
-      chunked.$.repeater.sort = function(a, b) {
+    var checkItemOrder = function(stamped) {
+      for (var i=0; i<stamped.length; i++) {
+        assert.equal(stamped[i].textContent, 19 - i);
+      }
+    };
+
+    test('initial limit', function() {
+      limited.$.repeater.__limit = 2;
+      limited.$.repeater.sort = function(a, b) {
         return b.prop - a.prop;
       };
-      chunked.$.repeater.filter = function(a) {
+      limited.items = null;
+      limited.$.repeater.render();
+      limited.items = limited.preppedItems;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 2);
+      checkItemOrder(stamped);
+    });
+
+    test('increase limit', function() {
+      // Increase limit
+      limited.$.repeater.__limit = 10;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 10);
+      checkItemOrder(stamped);
+      // Increase limit
+      limited.$.repeater.__limit = 20;
+      limited.$.repeater.render();
+      stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 20);
+      checkItemOrder(stamped);
+    });
+
+    test('decrease limit', function() {
+      // Decrease limit
+      limited.$.repeater.__limit = 15;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 15);
+      checkItemOrder(stamped);
+      // Decrease limit
+      limited.$.repeater.__limit = 0;
+      limited.$.repeater.render();
+      stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 0);
+    });
+
+    test('negative limit', function() {
+      limited.$.repeater.__limit = -10;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 0);
+    });
+
+  });
+
+  suite('limit with filter', function() {
+
+    var checkItemOrder = function(stamped) {
+      for (var i=0; i<stamped.length; i++) {
+        assert.equal(stamped[i].textContent, i * 2);
+      }
+    };
+
+    test('initial limit', function() {
+      var items = limited.items;
+      limited.$.repeater.__limit = 2;
+      limited.$.repeater.sort = null;
+      limited.$.repeater.filter = function(a) {
         return (a.prop % 2) === 0;
       };
-      chunked.items = chunked.preppedItems.slice();
-      checkUntilComplete();
+      limited.items = null;
+      limited.$.repeater.render();
+      limited.items = items;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 2);
+      checkItemOrder(stamped);
+    });
+
+    test('increase limit', function() {
+      // Increase limit
+      limited.$.repeater.__limit = 5;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 5);
+      checkItemOrder(stamped);
+      // Increase limit
+      limited.$.repeater.__limit = 10;
+      limited.$.repeater.render();
+      stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 10);
+      checkItemOrder(stamped);
+    });
+
+    test('decrease limit', function() {
+      // Decrease limit
+      limited.$.repeater.__limit = 5;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 5);
+      checkItemOrder(stamped);
+      // Decrease limit
+      limited.$.repeater.__limit = 0;
+      limited.$.repeater.render();
+      stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 0);
+    });
+
+    test('negative limit', function() {
+      limited.$.repeater.__limit = -10;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 0);
+    });
+
+  });
+
+  suite('limit with sort & filter', function() {
+
+    var checkItemOrder = function(stamped) {
+      for (var i=0; i<stamped.length; i++) {
+        assert.equal(stamped[i].textContent, (9 - i) * 2);
+      }
+    };
+
+    test('initial limit', function() {
+      var items = limited.items;
+      limited.$.repeater.__limit = 2;
+      limited.$.repeater.sort = function(a, b) {
+        return b.prop - a.prop;
+      };
+      limited.$.repeater.filter = function(a) {
+        return (a.prop % 2) === 0;
+      };
+      limited.items = null;
+      limited.$.repeater.render();
+      limited.items = items;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 2);
+      checkItemOrder(stamped);
+    });
+
+    test('increase limit', function() {
+      // Increase limit
+      limited.$.repeater.__limit = 5;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 5);
+      checkItemOrder(stamped);
+      // Increase limit
+      limited.$.repeater.__limit = 10;
+      limited.$.repeater.render();
+      stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 10);
+      checkItemOrder(stamped);
+    });
+
+    test('decrease limit', function() {
+      // Decrease limit
+      limited.$.repeater.__limit = 5;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 5);
+      checkItemOrder(stamped);
+      // Decrease limit
+      limited.$.repeater.__limit = 0;
+      limited.$.repeater.render();
+      stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 0);
+    });
+
+    test('negative limit', function() {
+      limited.$.repeater.__limit = -10;
+      limited.$.repeater.render();
+      var stamped = limited.root.querySelectorAll('*:not(template):not(dom-repeat)');
+      assert.equal(stamped.length, 0);
+    });
+
+  });
+
+});
+
+suite('chunked rendering', function() {
+
+  let chunked;
+  let resolve;
+  let targetCount;
+  const handleChange = () => {
+    if (!targetCount || chunked.$.repeater.renderedItemCount >= targetCount) {
+      resolve(Array.from(chunked.root.querySelectorAll('*:not(template):not(dom-repeat)')));
+    }
+  };
+  const waitUntilRendered = async (count) => {
+    targetCount = count;
+    return await new Promise(r => resolve = r);
+  };
+  setup(() => {
+    chunked = document.createElement('x-repeat-chunked');
+    chunked.addEventListener('dom-change', handleChange);
+    document.body.appendChild(chunked);
+  });
+  teardown(() => {
+    chunked.removeEventListener('dom-change', handleChange);
+    document.body.removeChild(chunked);
+    chunked = null;
+  });
+
+  // Framerate=25, element cost = 4ms: should never make more than
+  // (1000/25) / 4 = 10 elements per frame
+  const MAX_PER_FRAME = (1000 / 25) / 4;
+
+  test('basic chunked rendering', async () => {
+
+    var checkItemOrder = function(stamped) {
+      for (var i=0; i<stamped.length; i++) {
+        assert.equal(stamped[i].textContent, i);
+      }
+    };
+
+    // Set items to chunk
+    chunked.items = chunked.preppedItems.slice();
+
+    let stamped = [];
+    let lastStamped;
+    let frameCount = 0;
+    // Loop until chunking is complete
+    while (stamped.length < chunked.items.length) {
+      frameCount++;
+      stamped = await waitUntilRendered();
+      checkItemOrder(stamped);
+      if (!lastStamped) {
+        // Initial rendering of initial count
+        assert.equal(stamped.length, 10);
+      } else {
+        // Remaining rendering increments
+        assert.isTrue(stamped.length > lastStamped.length,
+          'list instance count should increase each frame');
+        assert.deepEqual(lastStamped, stamped.slice(0, lastStamped.length),
+          'list should not re-render instances during mutation');
+        assert.isAtMost((stamped.length - lastStamped.length), MAX_PER_FRAME,
+          `list should not render more than ${MAX_PER_FRAME} per frame`);
+      }
+      lastStamped = stamped;
+    }
+    // Final rendering at exact item count
+    assert.equal(stamped.length, 100, 'final count wrong');
+    assert.isAtLeast(frameCount, 10, 'should have taken at least 10 frames to render');
+    
+    // Set less than initial count, should trim list in one frame
+    chunked.items = chunked.preppedItems.slice(0, 5);
+    stamped = await waitUntilRendered();
+    assert.equal(stamped.length, 5, 'final count wrong');
+    assert.deepEqual(lastStamped.slice(0, stamped.length), stamped,
+      'list should not re-render instances during mutation');
+    lastStamped = stamped;
+
+    // Set at initial count, should render in one frame
+    chunked.items = chunked.preppedItems.slice(0, 10);
+    stamped = await waitUntilRendered();
+    assert.equal(stamped.length, 10, 'final count wrong');
+    assert.deepEqual(lastStamped, stamped.slice(0, lastStamped.length),
+      'list should not re-render instances during mutation');
+    lastStamped = stamped;
+
+    // Set over initial count, should render in more than one frame
+    chunked.items = chunked.preppedItems.slice(0, 10 + MAX_PER_FRAME * 2);
+    stamped = await waitUntilRendered();
+    assert.deepEqual(lastStamped, stamped.slice(0, 10),
+      'list should not re-render instances during mutation');
+    frameCount = 0;
+    while (stamped.length < chunked.items.length) {
+      stamped = await waitUntilRendered();
+      frameCount++;
+    }
+    assert.isAtLeast(frameCount, 2, 'should have taken at least 2 frames to render');
+    assert.equal(stamped.length, chunked.items.length, 'final count wrong');
+
+  });
+
+  test('mutations during chunked rendering', async () => {
+
+    var checkItemOrder = function(stamped) {
+      var last = -1;
+      for (var i=0; i<stamped.length; i++) {
+        var curr = parseFloat(stamped[i].textContent);
+        assert.isTrue(curr > last);
+        last = curr;
+      }
+    };
+
+    var mutateArray = function(repeater, renderedCount) {
+      // The goal here is to remove & add some, and do it over
+      // the threshold of where we have currently rendered items, and
+      // ensure that the prop values of the newly inserted items are in
+      // ascending order so we can do a simple check in checkItemOrder
+      var overlap = 2;
+      var remove = 4;
+      var add = 6;
+      var start = renderedCount.length - overlap;
+      if (start + add < repeater.items.length) {
+        var end = start + remove;
+        var args = ['items', start, remove];
+        var startVal = repeater.items[start].prop;
+        var endVal = repeater.items[end].prop;
+        var delta = (endVal - startVal) / add;
+        for (var i=0; i<add; i++) {
+          args.push({prop: startVal + i*delta});
+        }
+        repeater.splice.apply(repeater, args);
+      }
+    };
+
+    // Set items to chunk
+    chunked.items = chunked.preppedItems.slice();
+
+    let stamped = [];
+    let lastStamped;
+    let frameCount = 0;
+    // Loop until chunking is complete
+    while (stamped.length < chunked.items.length) {
+      stamped = await waitUntilRendered();
+      checkItemOrder(stamped);
+      if (!lastStamped) {
+        // Initial rendering of initial count
+        assert.equal(stamped.length, 10);
+      } else {
+        // Remaining rendering increments
+        assert.isTrue(stamped.length > lastStamped.length,
+          'list instance count should increase each frame');
+        assert.deepEqual(lastStamped, stamped.slice(0, lastStamped.length),
+          'list should not re-render instances during mutation');
+        assert.isAtMost((stamped.length - lastStamped.length), MAX_PER_FRAME,
+          `list should not render more than ${MAX_PER_FRAME} per frame`);
+      }
+      if (stamped.length < chunked.items.length && frameCount < 5) {
+        mutateArray(chunked, stamped);
+      }
+      lastStamped = stamped;
+      frameCount++;
+    }
+    // Final rendering at exact item count
+    assert.equal(stamped.length, chunked.items.length, 'final count wrong');
+    assert.isAtLeast(frameCount, 10, 'should have taken at least 10 frames to render');
+
+  });
+
+
+  test('mutations during chunked rendering, sort & filtered', async () => {
+
+    var checkItemOrder = function(stamped) {
+      var last = Infinity;
+      for (var i=0; i<stamped.length; i++) {
+        var curr = parseFloat(stamped[i].textContent);
+        assert.isTrue(curr <= last);
+        assert.strictEqual(curr % 2, 0);
+        last = curr;
+      }
+    };
+
+    var mutateArray = function(repeater, stamped) {
+      var start = parseInt(stamped[0].textContent);
+      var end = parseInt(stamped[stamped.length-1].textContent);
+      var mid = (end-start)/2;
+      for (var i=0; i<5; i++) {
+        chunked.push('items', {prop: mid + 1});
+      }
+      chunked.splice('items', Math.round(stamped.length/2), 3);
+    };
+
+    // Set items to chunk
+    chunked.$.repeater.sort = function(a, b) {
+      return b.prop - a.prop;
+    };
+    chunked.$.repeater.filter = function(a) {
+      return (a.prop % 2) === 0;
+    };
+    chunked.items = chunked.preppedItems.slice();
+
+    let stamped = [];
+    let lastStamped;
+    let frameCount = 0;
+    let filteredLength = chunked.items.filter(chunked.$.repeater.filter).length;
+    // Loop until chunking is complete
+    while (stamped.length < filteredLength) {
+      stamped = await waitUntilRendered();
+      checkItemOrder(stamped);
+      if (!lastStamped) {
+        // Initial rendering of initial count
+        assert.equal(stamped.length, 10);
+      } else {
+        // Remaining rendering increments
+        assert.isTrue(stamped.length > lastStamped.length,
+          'list instance count should increase each frame');
+        assert.deepEqual(lastStamped, stamped.slice(0, lastStamped.length),
+          'list should not re-render instances during mutation');
+        assert.isAtMost((stamped.length - lastStamped.length), MAX_PER_FRAME,
+          `list should not render more than ${MAX_PER_FRAME} per frame`);
+      }
+      if (stamped.length < chunked.items.length && frameCount < 4) {
+        mutateArray(chunked, stamped);
+        filteredLength = chunked.items.filter(chunked.$.repeater.filter).length;
+      }
+      lastStamped = stamped;
+      frameCount++;
+    }
+    // Final rendering at exact item count
+    assert.equal(stamped.length, filteredLength, 'final count wrong');
+    assert.isAtLeast(frameCount, 5, 'should have taken at least 5 frames to render');
+  });
+
+  suite('resetting items array', () => {
+
+    [false, true].forEach(reuse => {
+
+      test(`reuseChunkedInstances=${reuse}`, async () => {
+
+        // Set items to chunk
+        chunked.$.repeater.reuseChunkedInstances = reuse;
+        chunked.items = chunked.preppedItems.slice();
+
+        let resetCount = 3;
+        let stamped = [];
+        let lastStamped;
+        let frameCount = 0;
+        // Loop until chunking is complete
+        while (stamped.length < chunked.items.length) {
+          stamped = await waitUntilRendered();
+          if (!lastStamped) {
+            // Initial rendering of initial count
+            assert.equal(stamped.length, 10);
+          } else {
+            // Remaining rendering increments
+            assert.isTrue(stamped.length > lastStamped.length,
+              'list instance count should increase each frame');
+            assert.deepEqual(lastStamped, stamped.slice(0, lastStamped.length),
+              'list should not re-render instances during mutation');
+            assert.isAtMost((stamped.length - lastStamped.length), MAX_PER_FRAME,
+              `list should not render more than ${MAX_PER_FRAME} per frame`);
+          }
+          lastStamped = stamped;
+          frameCount++;
+          if (--resetCount > 0) {
+            if (!reuse) {
+              lastStamped = null;
+            }
+            chunked.items = chunked.preppedItems.slice();
+          }
+        }
+        // Final rendering at exact item count
+        assert.equal(stamped.length, chunked.items.length, 'final count wrong');
+        assert.isAtLeast(frameCount, 5, 'should have taken at least 5 frames to render');
+        
+      });
 
     });
 
   });
 
-}
+  test('changing to/from initialCount=0', async () => {
+    // Render all
+    chunked.items = chunked.preppedItems.slice();
+    let stamped = await waitUntilRendered(chunked.preppedItems.length);
+    assert.equal(stamped.length, chunked.preppedItems.length);
+    // Clear the list
+    chunked.items = [];
+    stamped = await waitUntilRendered(0);
+    assert.equal(stamped.length, 0);
+    // Disable chunking
+    chunked.$.repeater.initialCount = 0;
+    // Render all
+    chunked.items = chunked.preppedItems.slice();
+    stamped = await waitUntilRendered(chunked.preppedItems.length);
+    assert.equal(stamped.length, chunked.preppedItems.length);
+    // Clear the list
+    chunked.items = [];
+    stamped = await waitUntilRendered(0);
+    assert.equal(stamped.length, 0);
+    // Re-enable chunking
+    chunked.$.repeater.initialCount = 10;
+    // Render all; the initial render should have the initial count, and then
+    // chunk until the end of the list
+    let frameCount = 0;
+    chunked.items = chunked.preppedItems.slice();
+    while (stamped.length < chunked.items.length) {
+      stamped = await waitUntilRendered();
+      if (frameCount === 0) {
+        assert.equal(stamped.length, 10);
+      }
+      frameCount++;
+    }
+    assert.equal(stamped.length, chunked.preppedItems.length);
+    assert.isAtLeast(frameCount, 2);
+    // Disable chunking
+    chunked.$.repeater.initialCount = 0;
+    // Render some
+    chunked.items = chunked.preppedItems.slice(0, 20);
+    stamped = await waitUntilRendered();
+    assert.equal(stamped.length, chunked.items.length);
+    // Re-enable chunking
+    chunked.$.repeater.initialCount = 10;
+    // Push remaining; these should chunk out
+    frameCount = 0;
+    chunked.push('items', ...chunked.preppedItems.slice(20));
+    while (stamped.length < chunked.items.length) {
+      stamped = await waitUntilRendered();
+      frameCount++;
+    }
+    assert.equal(stamped.length, chunked.items.length);
+    assert.isAtLeast(frameCount, 2);
+  });
+
+});
 
 suite('misc', function() {
 
@@ -4201,7 +4313,6 @@ suite('misc', function() {
   test('paths update on observed properties', function() {
     let simple = fixture('simple');
     flush();
-    //debugger;
     var stamped = simple.root.querySelectorAll('*:not(template):not(dom-repeat)');
     assert.equal(stamped[0].itemaProp, 'prop-1');
     simple.$.repeat.observe = 'prop';

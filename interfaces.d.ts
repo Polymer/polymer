@@ -116,8 +116,6 @@ export interface TemplateInfo {
   hasInsertionPoint?: boolean;
   hostProps: Object;
   propertyEffects: Object;
-  nextTemplateInfo?: TemplateInfo;
-  previousTemplateInfo?: TemplateInfo;
   childNodes: Node[];
   wasPreBound: boolean;
 }

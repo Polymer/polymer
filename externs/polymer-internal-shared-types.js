@@ -61,9 +61,13 @@ TemplateInfo.prototype.hostProps;
 /** @type {!Object} */
 TemplateInfo.prototype.propertyEffects;
 /** @type {TemplateInfo | undefined} */
-TemplateInfo.prototype.nextTemplateInfo;
+TemplateInfo.prototype.nextSibling;
 /** @type {TemplateInfo | undefined} */
-TemplateInfo.prototype.previousTemplateInfo;
+TemplateInfo.prototype.previousSibling;
+/** @type {TemplateInfo | undefined} */
+TemplateInfo.prototype.firstChild;
+/** @type {TemplateInfo | undefined} */
+TemplateInfo.prototype.parent;
 /** @type {!Array<!Node>} */
 TemplateInfo.prototype.childNodes;
 /** @type {boolean} */
