@@ -121,9 +121,9 @@ Migrating to Polymer 3.0 by hand is mostly mechanical:
 
 However, the [`polymer-modulizer`](https://github.com/Polymer/polymer-modulizer) tool automates the vast majority of this migration work.  Please see details on that repo for automated conversion of Polymer 2.0 apps and elements to Polymer 3.0.
 
-👀 **Looking for Polymer v2.x?** Please see the [the v2 branch](https://github.com/Polymer/polymer/tree/2.x).
+👀 **Looking for Polymer v2.x?** Please see [the v2 branch](https://github.com/Polymer/polymer/tree/2.x).
 
-👀 **Looking for Polymer v1.x?** Please see the [the v1 branch](https://github.com/Polymer/polymer/tree/1.x).
+👀 **Looking for Polymer v1.x?** Please see [the v1 branch](https://github.com/Polymer/polymer/tree/1.x).
 
 ## Contributing
 
