@@ -1,10 +1,27 @@
 // tslint:disable:variable-name Describing an API that's defined elsewhere.
 // tslint:disable:no-any describes the API as best we are able today
 
-import {LegacyElementMixin} from './legacy-element-mixin.js';
+import {LegacyElementMixinConstructor} from './legacy-element-mixin.js';
+import {ElementMixinConstructor} from '../mixins/element-mixin.js';
+import {PropertyEffectsConstructor} from '../mixins/property-effects.js';
+import {TemplateStampConstructor} from '../mixins/template-stamp.js';
+import {PropertyAccessorsConstructor} from '../mixins/property-accessors.js';
+import {PropertiesChangedConstructor} from '../mixins/properties-changed.js';
+import {PropertiesMixinConstructor} from '../mixins/properties-mixin.js';
+import {GestureEventListenersConstructor} from '../mixins/gesture-event-listeners.js';
+import {DirMixinConstructor} from '../mixins/dir-mixin.js';
 
 export {mixinBehaviors};
 
+/**
+ * Helper type to get the intersection of all types in a tuple.
+ */
+type Intersection<T extends any[]> = T extends [infer U, ...infer V] ? U & Intersection<V> : unknown;
+
+/**
+ * Mixins applied by LegacyElementMixin.
+ */
+type LegacyElementMixins = LegacyElementMixinConstructor & ElementMixinConstructor & PropertyEffectsConstructor & TemplateStampConstructor & PropertyAccessorsConstructor & PropertiesChangedConstructor & PropertiesMixinConstructor & GestureEventListenersConstructor & DirMixinConstructor;
 
 /**
  * Applies a "legacy" behavior or array of behaviors to the provided class.
@@ -16,7 +33,11 @@ export {mixinBehaviors};
  * @returns Returns a new Element class extended by the
  * passed in `behaviors` and also by `LegacyElementMixin`.
  */
-declare function mixinBehaviors<T>(behaviors: object|object[], klass: {new(): T}): {new(): T};
+declare function mixinBehaviors<T, U>(behaviors: [U], klass: {new(): T}): {new(): T & U} & LegacyElementMixins;
+declare function mixinBehaviors<T, U, V>(behaviors: [U, V], klass: {new(): T}): {new(): T & U & V} & LegacyElementMixins;
+declare function mixinBehaviors<T, U, V, W>(behaviors: [U, V, W], klass: {new(): T}): {new(): T & U & V & W} & LegacyElementMixins;
+declare function mixinBehaviors<T, U extends any[]>(behaviors: U, klass: {new(): T}): {new(): T & Intersection<U>} & LegacyElementMixins;
+declare function mixinBehaviors<T, U>(behavior: U, klass: {new(): T}): {new(): T & U} & LegacyElementMixins;
 
 export {Class};
 
