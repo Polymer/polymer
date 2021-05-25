@@ -14,11 +14,6 @@ import {DirMixinConstructor} from '../mixins/dir-mixin.js';
 export {mixinBehaviors};
 
 /**
- * Helper type to get the intersection of all types in a tuple.
- */
-type Intersection<T extends any[]> = T extends [infer U, ...infer V] ? U & Intersection<V> : unknown;
-
-/**
  * Mixins applied by LegacyElementMixin.
  */
 type LegacyElementMixins = LegacyElementMixinConstructor & ElementMixinConstructor & PropertyEffectsConstructor & TemplateStampConstructor & PropertyAccessorsConstructor & PropertiesChangedConstructor & PropertiesMixinConstructor & GestureEventListenersConstructor & DirMixinConstructor;
@@ -36,8 +31,10 @@ type LegacyElementMixins = LegacyElementMixinConstructor & ElementMixinConstruct
 declare function mixinBehaviors<T, U>(behaviors: [U], klass: {new(): T}): {new(): T & U} & LegacyElementMixins;
 declare function mixinBehaviors<T, U, V>(behaviors: [U, V], klass: {new(): T}): {new(): T & U & V} & LegacyElementMixins;
 declare function mixinBehaviors<T, U, V, W>(behaviors: [U, V, W], klass: {new(): T}): {new(): T & U & V & W} & LegacyElementMixins;
-declare function mixinBehaviors<T, U extends any[]>(behaviors: U, klass: {new(): T}): {new(): T & Intersection<U>} & LegacyElementMixins;
-declare function mixinBehaviors<T, U>(behavior: U, klass: {new(): T}): {new(): T & U} & LegacyElementMixins;
+declare function mixinBehaviors<T, U, V, W, X>(behaviors: [U, V, W, X], klass: {new(): T}): {new(): T & U & V & W & X} & LegacyElementMixins;
+declare function mixinBehaviors<T, U, V, W, X, Y>(behaviors: [U, V, W, X, Y], klass: {new(): T}): {new(): T & U & V & W & X & Y} & LegacyElementMixins;
+declare function mixinBehaviors<T>(behaviors: object[], klass: {new(): T}): {new(): T} & LegacyElementMixins;
+declare function mixinBehaviors<T, U>(behaviors: U, klass: {new(): T}): {new(): T & U} & LegacyElementMixins;
 
 export {Class};
 
