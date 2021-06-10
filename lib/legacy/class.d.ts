@@ -1,22 +1,10 @@
 // tslint:disable:variable-name Describing an API that's defined elsewhere.
 // tslint:disable:no-any describes the API as best we are able today
 
-import {LegacyElementMixinConstructor} from './legacy-element-mixin.js';
-import {ElementMixinConstructor} from '../mixins/element-mixin.js';
-import {PropertyEffectsConstructor} from '../mixins/property-effects.js';
-import {TemplateStampConstructor} from '../mixins/template-stamp.js';
-import {PropertyAccessorsConstructor} from '../mixins/property-accessors.js';
-import {PropertiesChangedConstructor} from '../mixins/properties-changed.js';
-import {PropertiesMixinConstructor} from '../mixins/properties-mixin.js';
-import {GestureEventListenersConstructor} from '../mixins/gesture-event-listeners.js';
-import {DirMixinConstructor} from '../mixins/dir-mixin.js';
+import {LegacyElementMixin} from './legacy-element-mixin.js';
 
 export {mixinBehaviors};
 
-/**
- * Mixins applied by LegacyElementMixin.
- */
-type LegacyElementMixins = LegacyElementMixinConstructor & ElementMixinConstructor & PropertyEffectsConstructor & TemplateStampConstructor & PropertyAccessorsConstructor & PropertiesChangedConstructor & PropertiesMixinConstructor & GestureEventListenersConstructor & DirMixinConstructor;
 
 /**
  * Applies a "legacy" behavior or array of behaviors to the provided class.
@@ -28,13 +16,19 @@ type LegacyElementMixins = LegacyElementMixinConstructor & ElementMixinConstruct
  * @returns Returns a new Element class extended by the
  * passed in `behaviors` and also by `LegacyElementMixin`.
  */
-declare function mixinBehaviors<T, U>(behaviors: [U], klass: {new(): T}): {new(): T & U} & LegacyElementMixins;
-declare function mixinBehaviors<T, U, V>(behaviors: [U, V], klass: {new(): T}): {new(): T & U & V} & LegacyElementMixins;
-declare function mixinBehaviors<T, U, V, W>(behaviors: [U, V, W], klass: {new(): T}): {new(): T & U & V & W} & LegacyElementMixins;
-declare function mixinBehaviors<T, U, V, W, X>(behaviors: [U, V, W, X], klass: {new(): T}): {new(): T & U & V & W & X} & LegacyElementMixins;
-declare function mixinBehaviors<T, U, V, W, X, Y>(behaviors: [U, V, W, X, Y], klass: {new(): T}): {new(): T & U & V & W & X & Y} & LegacyElementMixins;
-declare function mixinBehaviors<T>(behaviors: object[], klass: {new(): T}): {new(): T} & LegacyElementMixins;
-declare function mixinBehaviors<T, U>(behaviors: U, klass: {new(): T}): {new(): T & U} & LegacyElementMixins;
+// These overloads are to prevent nested arrays of behaviors from being inferred
+// as behavior objects.
+declare function mixinBehaviors<T>(behaviors: [any[], ...any[]], klass: {new(): T}): {new(): T};
+declare function mixinBehaviors<T>(behaviors: [any, any[], ...any[]], klass: {new(): T}): {new(): T};
+declare function mixinBehaviors<T>(behaviors: [any, any, any[], ...any[]], klass: {new(): T}): {new(): T};
+declare function mixinBehaviors<T>(behaviors: [any, any, any, any[], ...any[]], klass: {new(): T}): {new(): T};
+declare function mixinBehaviors<T>(behaviors: [any, any, any, any, any[], ...any[]], klass: {new(): T}): {new(): T};
+declare function mixinBehaviors<T, U>(behaviors: [U], klass: {new(): T}): {new(): T & U};
+declare function mixinBehaviors<T, U, V>(behaviors: [U, V], klass: {new(): T}): {new(): T & U & V};
+declare function mixinBehaviors<T, U, V, W>(behaviors: [U, V, W], klass: {new(): T}): {new(): T & U & V & W};
+declare function mixinBehaviors<T, U, V, W, X>(behaviors: [U, V, W, X], klass: {new(): T}): {new(): T & U & V & W & X};
+declare function mixinBehaviors<T, U, V, W, X, Y>(behaviors: [U, V, W, X, Y], klass: {new(): T}): {new(): T & U & V & W & X & Y};
+declare function mixinBehaviors<T>(behaviors: object|object[], klass: {new(): T}): {new(): T};
 
 export {Class};
 
