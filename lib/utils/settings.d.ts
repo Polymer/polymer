@@ -154,4 +154,8 @@ export {setUseAdoptedStyleSheetsWithBuiltCSS};
  */
 declare function setUseAdoptedStyleSheetsWithBuiltCSS(value: boolean): void;
 
+export const useShadow: boolean;
+export const useNativeCSSProperties: boolean;
+export const useNativeCustomElements: boolean;
+export const supportsAdoptingStyleSheets: boolean;
 export let legacyOptimizations: boolean;
