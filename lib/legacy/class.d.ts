@@ -86,6 +86,6 @@ export {Class};
  *
  * @returns Generated class
  */
-declare function Class<T>(info: PolymerInit, mixin: (p0: T) => T): {new(): HTMLElement};
+declare function Class<T>(info: PolymerInit, mixin?: (p0: T) => T): {new(): HTMLElement};
 
 import {PolymerInit} from '../../interfaces';

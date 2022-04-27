@@ -153,3 +153,5 @@ export {setUseAdoptedStyleSheetsWithBuiltCSS};
  * Sets `useAdoptedStyleSheetsWithBuiltCSS` globally.
  */
 declare function setUseAdoptedStyleSheetsWithBuiltCSS(value: boolean): void;
+
+export let legacyOptimizations: boolean;
