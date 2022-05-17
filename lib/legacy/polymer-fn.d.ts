@@ -16,8 +16,9 @@ import {Class} from './class.js';
  *
  * @returns Generated class
  */
-declare function Polymer(info: PolymerInit): {new(): HTMLElement};
-
-export {Polymer};
+export const Polymer: {
+  (info: PolymerInit): {new(): HTMLElement};
+  Class: typeof Class;
+}
 
 import {PolymerInit} from '../../interfaces';

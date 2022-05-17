@@ -26,7 +26,7 @@ export interface PolymerInit {
   extends?: string;
   properties?: PolymerElementProperties;
   observers?: string[];
-  _template?: HTMLTemplateElement;
+  _template?: HTMLTemplateElement|(() => HTMLTemplateElement);
   hostAttributes?: {[key: string]: any};
   listeners?: {[key: string]: string};
   behaviors?: BehaviorInit | BehaviorInit[];
