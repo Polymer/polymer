@@ -1,5 +1,60 @@
 # Change Log
 
+## [v3.5.0](https://github.com/Polymer/polymer/tree/v3.5.0) (2022-05-18)
+- [ci skip] bump to 3.5.0 ([commit](https://github.com/Polymer/polymer/commit/a800a1a9))
+
+- Add `CHANGELOG.md` to the packaged files. ([commit](https://github.com/Polymer/polymer/commit/6696976e))
+
+- Upstream http://cl/374717449 ([commit](https://github.com/Polymer/polymer/commit/adc6d517))
+
+- Upstream http://cl/362104095 ([commit](https://github.com/Polymer/polymer/commit/96897876))
+
+- Upstream http://cl/368587394 ([commit](https://github.com/Polymer/polymer/commit/4036db44))
+
+- Upstream http://cl/330613283 ([commit](https://github.com/Polymer/polymer/commit/178dfa5e))
+
+- Upstream http://cl/397536696 ([commit](https://github.com/Polymer/polymer/commit/2445554f))
+
+- Upstream http://cl/374930792 ([commit](https://github.com/Polymer/polymer/commit/4a85c7f9))
+
+- Upstream http://cl/438642754 ([commit](https://github.com/Polymer/polymer/commit/8582dd64))
+
+- Upstream http://cl/387624221 ([commit](https://github.com/Polymer/polymer/commit/067dd302))
+
+- Upstream http://cl/420889188 ([commit](https://github.com/Polymer/polymer/commit/d0d39b8d))
+
+- Upstream http://cl/416087593 ([commit](https://github.com/Polymer/polymer/commit/ec36597f))
+
+- Fix typo in dom-repeat.js ([commit](https://github.com/Polymer/polymer/commit/7b37193e))
+
+- Update polymer -> lit link to point at new lit repo instead of old lit-element repo ([commit](https://github.com/Polymer/polymer/commit/4586fed6))
+
+- Add support for TrustedTypes (#5692) ([commit](https://github.com/Polymer/polymer/commit/10220c9a))
+
+- Fix typo in disable-upgrade-mixin.js ([commit](https://github.com/Polymer/polymer/commit/5c06ae9b))
+
+- Fix `Polymer.dom(el).attachShadow/shadowRoot` ([commit](https://github.com/Polymer/polymer/commit/2b0494a9))
+
+- Fix typo in dom-module.js ([commit](https://github.com/Polymer/polymer/commit/69eb8a7a))
+
+- Fix SyntaxError ([commit](https://github.com/Polymer/polymer/commit/1e9be28d))
+
+- Upstream internal error suppression. ([commit](https://github.com/Polymer/polymer/commit/2515cd21))
+
+- Updated Readme ([commit](https://github.com/Polymer/polymer/commit/78602fcc))
+
+- Fix let back to const ([commit](https://github.com/Polymer/polymer/commit/04a4ded8))
+
+- Cancel chunking when disconnected. Fixes #5667 ([commit](https://github.com/Polymer/polymer/commit/32d7d61d))
+
+- Accept function in legacy _template field for template parsing. Fixes #5660 ([commit](https://github.com/Polymer/polymer/commit/22ac86a8))
+
+- Upstream internal type differences. ([commit](https://github.com/Polymer/polymer/commit/9e8df682))
+
+- Remove types from LegacyElementMixin's overridden setAttribute and removeAttribute. ([commit](https://github.com/Polymer/polymer/commit/00b36709))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/6acf6e3c))
+
 ## [v3.4.1](https://github.com/Polymer/polymer/tree/v3.4.1) (2020-04-29)
 - [ci skip] bump to 3.4.1 ([commit](https://github.com/Polymer/polymer/commit/12fa1b50))
 
