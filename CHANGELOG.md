@@ -1,5 +1,14 @@
 # Change Log
 
+## [v3.5.1](https://github.com/Polymer/polymer/tree/v3.5.1) (2022-06-03)
+- [ci skip] bump to 3.5.1 ([commit](https://github.com/Polymer/polymer/commit/2cbb3d2b))
+
+- `_valueToNodeAttribute` converts the empty string to `trustedTypes.emptyScript` before setting, if available. ([commit](https://github.com/Polymer/polymer/commit/d69041cc))
+
+- Adds Trusted Types support for reflected boolean properties. ([commit](https://github.com/Polymer/polymer/commit/ce474db9))
+
+- [ci skip] update changelog ([commit](https://github.com/Polymer/polymer/commit/76e77b6d))
+
 ## [v3.5.0](https://github.com/Polymer/polymer/tree/v3.5.0) (2022-05-18)
 - [ci skip] bump to 3.5.0 ([commit](https://github.com/Polymer/polymer/commit/a800a1a9))
 
