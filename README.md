@@ -4,11 +4,19 @@
 [![Published on npm](https://img.shields.io/npm/v/@polymer/polymer.svg)](https://www.npmjs.com/package/@polymer/polymer)
 [![Published on webcomponents.org](https://img.shields.io/badge/webcomponents.org-published-blue.svg)](https://www.webcomponents.org/element/@polymer/polymer)
 
-> ℹ️ Note: This is the current stable version of the Polymer library.  At Google I/O 2018 we announced a new Web Component base class, [`LitElement`](https://github.com/lit/lit), as a successor to the `PolymerElement` base class in this library.
+> ## Not under active development
 >
-> If you're starting a new project, we recommend that you consider using LitElement instead.
+> **The Polymer library is no longer under active development.** Only very select changes are being made to the code at this point, and newly-reported bugs are unlikely to be fixed unless they represent critical security issues.
 >
-> If you have a project you've built with an earlier version of the Polymer library, we recommend that you [migrate](#about-polymer-30) to 3.0 for best compatibility with the JavaScript ecosystem. Thanks to the interoperability of Web Components, elements built with Polymer 3.0 and LitElement can be mixed and matched in the same app, so once you have updated your project to Polymer 3.0, you can migrate to LitElement incrementally, one element at a time.  See our blog post on the [Polymer Project roadmap](https://www.polymer-project.org/blog/2018-05-02-roadmap-update.html) for more information.
+> *   If you're starting a new project, or doing significant work on an existing one, we recommend using <a href="https://lit.dev">Lit</a>, a next-generation web components library. 
+>
+>     Thanks to the interoperability of web components, elements built with Polymer 3.0 and Lit  can be mixed and matched in the same application. You can upgrade a Polymer project to Lit one element at a time. 
+>
+> *   For information on upgrading, see <a href="https://lit.dev/articles/lit-for-polymer-users/">Lit for Polymer users</a>.
+>
+> *   For help with existing Polymer library apps or getting up to speed on Lit, we recommend joining the <a href="https://lit.dev/discord/">Lit Discord server</a>.
+
+## About the Polymer library
 
 Polymer lets you build encapsulated, reusable [Web Components](https://www.webcomponents.org/introduction) that work just like standard HTML elements, to use in building web applications.  Using a Web Component built with Polymer is as simple as importing its definition then using it like any other HTML element:
 
