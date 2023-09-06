@@ -119,7 +119,7 @@ Migrating to Polymer 3.0 by hand is mostly mechanical:
 * Templates should be encoded in JS modules using a `static get template()` getter on PolymerElement subclasses using the `html` tagged template literal function (which parses `HTMLTemplateElement`s out of strings in JS) rather than using `<template>` elements in a `<dom-module>`
 * All dependencies should be imported JS module imports rather than HTML Imports.
 
-However, the [`polymer-modulizer`](https://github.com/Polymer/polymer-modulizer) tool automates the vast majority of this migration work.  Please see details on that repo for automated conversion of Polymer 2.0 apps and elements to Polymer 3.0.
+However, the [`polymer-modulizer`](https://github.com/Polymer/tools/tree/master/packages/modulizer) tool automates the vast majority of this migration work.  Please see details on that repo for automated conversion of Polymer 2.0 apps and elements to Polymer 3.0.
 
 👀 **Looking for Polymer v2.x?** Please see [the v2 branch](https://github.com/Polymer/polymer/tree/2.x).
 
