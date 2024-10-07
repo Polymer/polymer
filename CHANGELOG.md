@@ -1,6 +1,6 @@
 # Change Log
 
-## [v3.5.2] (2024-09-16)
+## [v3.5.2] (2024-10-07)
 - FlattenedNodesObserver.getFlattenedNodes was accidentally quadratic if given a non-slot node. Found by @mvanbem-goog.
 
 ## [v3.5.1](https://github.com/Polymer/polymer/tree/v3.5.1) (2022-06-03)
