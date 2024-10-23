@@ -13,4 +13,4 @@
   careful.
 - `np --yolo`
 - After it completes successfully it will open the GitHub releases page for
-  your new version. Edit the changelist there to remove irrelevent entries and publish.
+  your new version. Edit the changelist there to remove irrelevant entries and publish.
