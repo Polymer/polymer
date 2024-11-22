@@ -66,7 +66,7 @@ Web Components are now implemented natively on Safari and Chrome (~70% of instal
   1. Then implement a `template` getter that returns an `HTMLTemplateElement` describing the element's rendering, including encapsulated styling and any property bindings.
 
 ```html
-  <script src="node_modules/@webcomponents/webcomponents-loader.js"></script>
+  <script src="node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
   <script type="module">
     import {PolymerElement, html} from '@polymer/polymer';
 
