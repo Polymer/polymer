@@ -134,7 +134,7 @@ The Polymer team loves contributions from the community! Take a look at our [con
 Beyond GitHub, we try to have a variety of different lines of communication available:
 
 * [Blog](https://blog.polymer-project.org/)
-* [Twitter](https://twitter.com/polymer)
+* [X/Twitter](https://x.com/polymerLibrary)
 * [Mailing list](https://groups.google.com/forum/#!forum/polymer-dev)
 * [Slack channel](https://bit.ly/polymerslack)
 
