@@ -25,9 +25,9 @@ export {html};
  *
  * This allows you to write a Polymer Template in JavaScript.
  *
- * Templates can be composed by interpolating `HTMLTemplateElement`s in
- * expressions in the JavaScript template literal. The nested template's
- * `innerHTML` is included in the containing template.  The only other
+ * Templates can be composed by interpolating `HTMLTemplateElement`s created by
+ * Polymer's `html` tag in expressions in the JavaScript template literal. The
+ * nested template's `innerHTML` is included in the containing template.  The only other
  * values allowed in expressions are those returned from `htmlLiteral`
  * which ensures only literal values from JS source ever reach the HTML, to
  * guard against XSS risks.

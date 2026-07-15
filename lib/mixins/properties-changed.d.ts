@@ -260,7 +260,7 @@ interface PropertiesChanged {
    * @param attribute Attribute name to reflect to.
    * @param value Property value to refect.
    */
-  _propertyToAttribute(property: string, attribute?: string, value?: any): void;
+  _propertyToAttribute(property: string, attribute?: string, value?: any, skipSanitization?: boolean): void;
 
   /**
    * Sets a typed value to an HTML attribute on a node.
@@ -274,7 +274,7 @@ interface PropertiesChanged {
    * @param value Value to serialize.
    * @param attribute Attribute name to serialize to.
    */
-  _valueToNodeAttribute(node: Element|null, value: any, attribute: string): void;
+  _valueToNodeAttribute(node: Element|null, value: any, attribute: string, skipSanitization?: boolean): void;
 
   /**
    * Converts a typed JavaScript value to a string.

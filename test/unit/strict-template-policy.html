@@ -79,11 +79,19 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     
   <script type="module">
     import {PolymerElement, html} from '../../polymer-element.js';
+    import '../../lib/elements/custom-style.js';
     import {Polymer} from '../../polymer-legacy.js';
     import {flush} from '../../lib/utils/flush.js';
+    import {cssFromModules} from '../../lib/utils/style-gather.js';
     import {setAllowTemplateFromDomModule} from '../../lib/utils/settings.js';
 
     suite('strictTemplatePolicy', function() {
+
+      let generatedName = 0;
+
+      function nextName(prefix) {
+        return `${prefix}-${generatedName++}`;
+      }
 
       function restoreOnError() {
         window.uncaughtErrorFilter = window.top.uncaughtErrorFilter = null;
@@ -170,6 +178,56 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         var el = document.createElement('no-dm-legacy');
         document.getElementById('target').appendChild(el);
         assert.notOk(el.shadowRoot);
+      });
+
+      test('dom-module assetpath never used for importPath', function() {
+        const is = nextName('strict-importpath-no-dm');
+        document.getElementById('target').innerHTML =
+          `<dom-module id="${is}" assetpath="/injected/"></dom-module>`;
+        class StrictImportPathNoDm extends PolymerElement {
+          static get is() { return is; }
+          static get template() { return html`<div>safe</div>`; }
+        }
+        customElements.define(is, StrictImportPathNoDm);
+        assert.strictEqual(StrictImportPathNoDm.importPath, undefined);
+      });
+
+      test('dom-module style includes never used', function() {
+        const moduleId = 'strict-style-module-include';
+        const is = nextName('strict-style-target');
+        document.getElementById('target').innerHTML =
+          `<dom-module id="${moduleId}"><template><style>.poison{color:red;}</style></template></dom-module>`;
+        class StrictStyleTarget extends PolymerElement {
+          static get is() { return is; }
+          static get template() {
+            return html`<style include="strict-style-module-include"></style><div id="marker" class="poison">safe</div>`;
+          }
+        }
+        customElements.define(is, StrictStyleTarget);
+        const el = document.createElement(is);
+        document.getElementById('target').appendChild(el);
+        const styleText = Array.from(el.shadowRoot.querySelectorAll('style'))
+            .map((style) => style.textContent)
+            .join('\n');
+        assert.notInclude(styleText, '.poison{color:red;}');
+      });
+
+      test('cssFromModules never uses dom-module styles', function() {
+        const moduleId = nextName('strict-css-module');
+        document.getElementById('target').innerHTML =
+          `<dom-module id="${moduleId}"><template><style>.poison{color:red;}</style></template></dom-module>`;
+        assert.strictEqual(cssFromModules(moduleId), '');
+      });
+
+      test('custom-style includes never use dom-module styles', function() {
+        const moduleId = nextName('strict-custom-style-module');
+        document.getElementById('target').innerHTML =
+          `<dom-module id="${moduleId}"><template><style>.poison{color:red;}</style></template></dom-module>` +
+          `<custom-style><style include="${moduleId}">.safe{color:blue;}</style></custom-style>`;
+        const style = document.getElementById('target')
+            .querySelector('custom-style')
+            .getStyle();
+        assert.notInclude(style.textContent, '.poison{color:red;}');
       });
 
       // From this point down, dom-module lookup is globally enabled
